@@ -1,0 +1,15 @@
+# FastAPI and server
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+
+# HTTP client for GitHub API
+httpx>=0.28.0
+
+# Data processing
+pandas>=2.2.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# For future PyInstaller packaging
+pyinstaller>=6.0.0
