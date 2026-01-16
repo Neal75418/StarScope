@@ -22,3 +22,59 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ===================
+# Python / Sidecar
+# ===================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.local
+.env.*.local
+
+# PyInstaller
+build/
+*.spec
+
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+
+# ===================
+# Secrets / Sensitive
+# ===================
+*.pem
+*.key
+secrets/
+.secrets
+credentials.json
+*.credential
+
+# ===================
+# OS Generated
+# ===================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===================
+# Tauri Build Output
+# ===================
+src-tauri/target/
+src-tauri/gen/
