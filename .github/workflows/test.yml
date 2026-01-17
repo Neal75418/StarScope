@@ -57,10 +57,13 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npm run type-check || echo "Type check script not found, skipping"
+        run: npm run type-check
 
       - name: Lint
-        run: npm run lint || echo "Lint script not found, skipping"
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
 
   # E2E tests are run locally only (npm run test:e2e:ui)
   # Tauri apps require complex setup in CI (Python sidecar + Vite + display server)

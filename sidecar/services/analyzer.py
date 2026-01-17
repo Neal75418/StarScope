@@ -13,9 +13,10 @@ from datetime import date, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from db.models import RepoSnapshot, Signal, SignalType
-from utils.time import utc_today
+from utils.time import utc_now, utc_today
 
 
 def get_snapshot_for_date(
@@ -182,22 +183,22 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
         if value is not None:
             signals[signal_type] = value
 
-            # Update or create signal in database
-            existing = (
-                db.query(Signal)
-                .filter(Signal.repo_id == repo_id, Signal.signal_type == signal_type)
-                .first()
+            # Upsert signal using SQLite's INSERT OR REPLACE pattern
+            # This is atomic and prevents race conditions
+            stmt = sqlite_insert(Signal).values(
+                repo_id=repo_id,
+                signal_type=signal_type,
+                value=value,
+                calculated_at=utc_now(),
             )
-
-            if existing:
-                existing.value = value
-            else:
-                signal = Signal(
-                    repo_id=repo_id,
-                    signal_type=signal_type,
-                    value=value,
-                )
-                db.add(signal)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["repo_id", "signal_type"],
+                set_={
+                    "value": stmt.excluded.value,
+                    "calculated_at": stmt.excluded.calculated_at,
+                },
+            )
+            db.execute(stmt)
 
     db.commit()
     return signals

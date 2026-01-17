@@ -101,12 +101,12 @@ graph TB
     class External external
 ```
 
-| 層級 | 技術 |
-|------|------|
-| 桌面框架 | Tauri v2 |
-| 前端 | React + TypeScript |
+| 層級   | 技術                   |
+|------|----------------------|
+| 桌面框架 | Tauri v2             |
+| 前端   | React + TypeScript   |
 | 後端核心 | Python 3.12+ FastAPI |
-| 本地儲存 | SQLite + SQLAlchemy |
+| 本地儲存 | SQLite + SQLAlchemy  |
 
 ---
 
@@ -211,37 +211,37 @@ StarScope/
 
 ### Watchlist
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/repos` | GET | 取得所有追蹤的專案 |
-| `/api/repos` | POST | 新增專案到 Watchlist |
-| `/api/repos/{id}` | DELETE | 移除專案 |
-| `/api/repos/{id}/fetch` | POST | 更新專案資料 |
+| 端點                      | 方法     | 說明              |
+|-------------------------|--------|-----------------|
+| `/api/repos`            | GET    | 取得所有追蹤的專案       |
+| `/api/repos`            | POST   | 新增專案到 Watchlist |
+| `/api/repos/{id}`       | DELETE | 移除專案            |
+| `/api/repos/{id}/fetch` | POST   | 更新專案資料          |
 
 ### 分類與標籤
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/categories` | GET | 取得分類列表 |
-| `/api/tags` | GET | 取得標籤列表 |
+| 端點                                  | 方法  | 說明     |
+|-------------------------------------|-----|--------|
+| `/api/categories`                   | GET | 取得分類列表 |
+| `/api/tags`                         | GET | 取得標籤列表 |
 | `/api/recommendations/similar/{id}` | GET | 取得相似專案 |
 
 ### 比較與訊號
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/comparisons` | GET/POST | 比較群組管理 |
-| `/api/early-signals` | GET | 早期訊號列表 |
-| `/api/early-signals/trigger` | POST | 觸發異常偵測 |
+| 端點                           | 方法       | 說明     |
+|------------------------------|----------|--------|
+| `/api/comparisons`           | GET/POST | 比較群組管理 |
+| `/api/early-signals`         | GET      | 早期訊號列表 |
+| `/api/early-signals/trigger` | POST     | 觸發異常偵測 |
 
 ### 匯出與 Webhook
 
-| 端點 | 方法 | 說明 |
-|------|------|------|
-| `/api/export/watchlist` | GET | 匯出 Watchlist (JSON/CSV) |
-| `/api/export/signals` | GET | 匯出訊號資料 |
-| `/api/digest/{period}` | GET | 產生週報/日報 |
-| `/api/webhooks` | GET/POST | Webhook 管理 |
+| 端點                      | 方法       | 說明                      |
+|-------------------------|----------|-------------------------|
+| `/api/export/watchlist` | GET      | 匯出 Watchlist (JSON/CSV) |
+| `/api/export/signals`   | GET      | 匯出訊號資料                  |
+| `/api/digest/{period}`  | GET      | 產生週報/日報                 |
+| `/api/webhooks`         | GET/POST | Webhook 管理              |
 
 ---
 
@@ -298,12 +298,12 @@ StarScope/
 
 ## 競品差異
 
-| 產品 | 定位 | StarScope 差異 |
-|------|------|----------------|
-| GitHub Trending | 今日熱門 | 我們看「動能」不是「絕對值」 |
-| Star History | 歷史曲線 | 我們主動推送訊號 |
-| OSS Insight | 資料儀表板 | 我們是桌面原生 + 通知 |
-| LibHunt | 分類索引 | 我們專注追蹤與警報 |
+| 產品              | 定位    | StarScope 差異   |
+|-----------------|-------|----------------|
+| GitHub Trending | 今日熱門  | 我們看「動能」不是「絕對值」 |
+| Star History    | 歷史曲線  | 我們主動推送訊號       |
+| OSS Insight     | 資料儀表板 | 我們是桌面原生 + 通知   |
+| LibHunt         | 分類索引  | 我們專注追蹤與警報      |
 
 **核心價值**：StarScope 是工程師的「專案雷達」，不是「專案目錄」。
 

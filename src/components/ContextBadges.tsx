@@ -19,11 +19,11 @@ export function ContextBadges({ badges }: ContextBadgesProps) {
 
   return (
     <div className="context-badges">
-      {badges.map((badge, index) => {
+      {badges.map((badge) => {
         const config = BADGE_CONFIG[badge.type] || { bg: "#666", icon: "?" };
         return (
           <a
-            key={index}
+            key={badge.url}
             href={badge.url}
             target="_blank"
             rel="noopener noreferrer"

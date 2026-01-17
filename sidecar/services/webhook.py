@@ -24,6 +24,17 @@ logger = logging.getLogger(__name__)
 WEBHOOK_TIMEOUT = 10.0
 
 
+def _safe_json_loads(json_str: Optional[str], default: Any = None) -> Any:
+    """Safely parse JSON string, returning default value on error."""
+    if not json_str:
+        return default if default is not None else []
+    try:
+        return json.loads(json_str)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"Failed to parse JSON: {e}, value: {json_str[:100] if json_str else 'None'}")
+        return default if default is not None else []
+
+
 class WebhookService:
     """Service for managing and sending webhooks."""
 
@@ -298,7 +309,7 @@ async def trigger_signal_webhooks(signal: EarlySignal, db: Session):
 
     for webhook in webhooks:
         # Check if this webhook has signal_detected trigger
-        triggers = json.loads(webhook.triggers) if webhook.triggers else []
+        triggers = _safe_json_loads(webhook.triggers, [])
         if WebhookTrigger.SIGNAL_DETECTED not in triggers:
             continue
 
@@ -326,7 +337,7 @@ async def trigger_digest_webhooks(
     ).all()
 
     for webhook in webhooks:
-        triggers = json.loads(webhook.triggers) if webhook.triggers else []
+        triggers = _safe_json_loads(webhook.triggers, [])
         if digest_type not in triggers:
             continue
 

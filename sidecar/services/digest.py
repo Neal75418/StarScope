@@ -20,7 +20,7 @@ from utils.time import utc_now
 logger = logging.getLogger(__name__)
 
 
-def _escape_html(text: str | None) -> str:
+def _escape_html(text: Optional[str]) -> str:
     """Escape HTML special characters to prevent XSS."""
     if text is None:
         return ""

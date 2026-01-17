@@ -4,7 +4,8 @@ Provides CRUD operations for webhook configuration.
 """
 
 import json
-from typing import List, Optional
+import logging
+from typing import List, Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, HttpUrl
@@ -16,6 +17,18 @@ from services.webhook import get_webhook_service
 from utils.time import utc_now
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
+logger = logging.getLogger(__name__)
+
+
+def _safe_json_loads(json_str: Optional[str], default: Any = None) -> Any:
+    """Safely parse JSON string, returning default value on error."""
+    if not json_str:
+        return default if default is not None else []
+    try:
+        return json.loads(json_str)
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"Failed to parse webhook triggers JSON: {e}")
+        return default if default is not None else []
 
 
 # Request/Response schemas
@@ -82,7 +95,7 @@ class WebhookLogsResponse(BaseModel):
 
 def _webhook_to_response(webhook: Webhook) -> WebhookResponse:
     """Convert Webhook model to response."""
-    triggers = json.loads(webhook.triggers) if webhook.triggers else []
+    triggers = _safe_json_loads(webhook.triggers, [])
     return WebhookResponse(
         id=webhook.id,
         name=webhook.name,
