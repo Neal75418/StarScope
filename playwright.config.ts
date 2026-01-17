@@ -34,18 +34,20 @@ export default defineConfig({
   ],
 
   /* Run local dev server before starting tests */
-  webServer: [
-    {
-      command: "cd sidecar && python main.py",
-      url: "http://127.0.0.1:8008/api/health",
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-    {
-      command: "npm run dev",
-      url: "http://localhost:5173",
-      reuseExistingServer: !process.env.CI,
-      timeout: 30000,
-    },
-  ],
+  webServer: process.env.CI
+    ? undefined // Skip webServer in CI - servers are started manually or tests are skipped
+    : [
+        {
+          command: "cd sidecar && python main.py",
+          url: "http://127.0.0.1:8008/api/health",
+          reuseExistingServer: true,
+          timeout: 60000,
+        },
+        {
+          command: "npm run dev",
+          url: "http://localhost:5173",
+          reuseExistingServer: true,
+          timeout: 30000,
+        },
+      ],
 });
