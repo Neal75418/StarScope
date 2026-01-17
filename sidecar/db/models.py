@@ -116,6 +116,76 @@ class Signal(Base):
         return f"<Signal repo_id={self.repo_id} type={self.signal_type} value={self.value}>"
 
 
+class AlertRule(Base):
+    """
+    A user-defined alert rule.
+    When conditions are met, an alert is triggered.
+    """
+    __tablename__ = "alert_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Rule configuration
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+    # Target (optional - if null, applies to all repos)
+    repo_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=True)
+
+    # Condition
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "stars_delta_7d", "velocity"
+    operator: Mapped[str] = mapped_column(String(10), nullable=False)  # ">", "<", ">=", "<=", "=="
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Status
+    enabled: Mapped[bool] = mapped_column(Integer, default=True)  # SQLite doesn't have bool, use int
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    repo: Mapped[Optional["Repo"]] = relationship("Repo")
+    triggered_alerts: Mapped[List["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade="all, delete-orphan")
+
+    def __repr__(self) -> str:
+        target = self.repo.full_name if self.repo else "all repos"
+        return f"<AlertRule {self.name}: {self.signal_type} {self.operator} {self.threshold} for {target}>"
+
+
+class TriggeredAlert(Base):
+    """
+    A record of when an alert rule was triggered.
+    """
+    __tablename__ = "triggered_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("alert_rules.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+
+    # Trigger details
+    signal_value: Mapped[float] = mapped_column(Float, nullable=False)  # The value that triggered the alert
+    triggered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Whether the user has seen/acknowledged this alert
+    acknowledged: Mapped[bool] = mapped_column(Integer, default=False)
+    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Relationships
+    rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="triggered_alerts")
+    repo: Mapped["Repo"] = relationship("Repo")
+
+    # Indexes
+    __table_args__ = (
+        Index("ix_triggered_alerts_rule", "rule_id"),
+        Index("ix_triggered_alerts_repo", "repo_id"),
+        Index("ix_triggered_alerts_time", "triggered_at"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<TriggeredAlert rule_id={self.rule_id} repo_id={self.repo_id} value={self.signal_value}>"
+
+
 # Signal type constants
 class SignalType:
     """Constants for signal types."""
@@ -124,3 +194,13 @@ class SignalType:
     VELOCITY = "velocity"  # stars per day
     ACCELERATION = "acceleration"  # rate of change of velocity
     TREND = "trend"  # -1, 0, 1 (down, stable, up)
+
+
+# Alert operator constants
+class AlertOperator:
+    """Constants for alert operators."""
+    GT = ">"
+    LT = "<"
+    GTE = ">="
+    LTE = "<="
+    EQ = "=="

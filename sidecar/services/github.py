@@ -37,3 +37,31 @@ class GitHubService:
         """
         data = await self.get_repo(owner, repo)
         return data.get("stargazers_count", 0)
+
+
+# Module-level convenience function for scheduler
+_default_service: Optional[GitHubService] = None
+
+
+def get_github_service() -> GitHubService:
+    """Get the default GitHub service instance."""
+    global _default_service
+    if _default_service is None:
+        _default_service = GitHubService()
+    return _default_service
+
+
+async def fetch_repo_data(owner: str, repo: str) -> Optional[dict]:
+    """
+    Fetch repository data from GitHub.
+    Returns None if the request fails.
+    """
+    try:
+        service = get_github_service()
+        return await service.get_repo(owner, repo)
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return None
+        raise
+    except Exception:
+        return None

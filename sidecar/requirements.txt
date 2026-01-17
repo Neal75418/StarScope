@@ -11,5 +11,8 @@ pandas>=2.2.0
 # Database
 sqlalchemy>=2.0.0
 
+# Background scheduler
+apscheduler>=3.10.0
+
 # For future PyInstaller packaging
 pyinstaller>=6.0.0

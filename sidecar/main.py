@@ -8,20 +8,27 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import health, repos
+from routers import health, repos, scheduler, alerts, trends
 from db import init_db
+from services.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """
     Application lifespan handler.
-    Initializes database on startup.
+    Initializes database on startup, starts scheduler.
     """
     # Startup: Initialize database
     init_db()
+
+    # Start background scheduler (fetch every 60 minutes)
+    start_scheduler(fetch_interval_minutes=60)
+
     yield
-    # Shutdown: cleanup if needed
+
+    # Shutdown: stop scheduler
+    stop_scheduler()
 
 
 app = FastAPI(
@@ -47,6 +54,9 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(repos.router, prefix="/api", tags=["repos"])
+app.include_router(scheduler.router, tags=["scheduler"])
+app.include_router(alerts.router, tags=["alerts"])
+app.include_router(trends.router, tags=["trends"])
 
 
 @app.get("/")
