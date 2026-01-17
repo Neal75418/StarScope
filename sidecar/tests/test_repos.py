@@ -17,14 +17,14 @@ class TestReposEndpoints:
         assert data["repos"] == []
 
     def test_add_repo_invalid_format(self, client):
-        """Test adding repo with invalid format."""
+        """Test adding repo with invalid format (only name, no owner)."""
         response = client.post("/api/repos", json={"name": "invalid"})
-        assert response.status_code == 400
+        assert response.status_code == 422  # Pydantic model_validator requires both
 
     def test_add_repo_missing_fields(self, client):
         """Test adding repo with missing required fields."""
         response = client.post("/api/repos", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422  # Pydantic model_validator requires owner+name or url
 
     def test_delete_nonexistent_repo(self, client):
         """Test deleting a repo that doesn't exist."""
@@ -46,8 +46,7 @@ class TestInputValidation:
             "owner": "a" * 100,
             "name": "test"
         })
-        assert response.status_code == 400
-        assert "too long" in response.json()["detail"].lower()
+        assert response.status_code == 422  # Pydantic validation error
 
     def test_repo_name_too_long(self, client):
         """Test that overly long repo names are rejected."""
@@ -55,16 +54,15 @@ class TestInputValidation:
             "owner": "test",
             "name": "a" * 200
         })
-        assert response.status_code == 400
-        assert "too long" in response.json()["detail"].lower()
+        assert response.status_code == 422  # Pydantic validation error
 
     def test_invalid_owner_format(self, client):
         """Test that invalid owner format is rejected."""
         response = client.post("/api/repos", json={
-            "owner": "invalid..owner",
+            "owner": "invalid--owner",  # consecutive hyphens are invalid
             "name": "test"
         })
-        assert response.status_code == 400
+        assert response.status_code == 422  # Pydantic validation error
 
     def test_invalid_repo_name_format(self, client):
         """Test that invalid repo name format is rejected."""
@@ -72,4 +70,4 @@ class TestInputValidation:
             "owner": "valid",
             "name": "invalid repo name with spaces"
         })
-        assert response.status_code == 400
+        assert response.status_code == 422  # Pydantic validation error

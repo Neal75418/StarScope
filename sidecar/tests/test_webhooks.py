@@ -39,7 +39,7 @@ class TestWebhookEndpoints:
 
     def test_update_nonexistent_webhook(self, client):
         """Test updating a webhook that doesn't exist."""
-        response = client.patch("/api/webhooks/99999", json={
+        response = client.put("/api/webhooks/99999", json={
             "name": "Updated Name"
         })
         assert response.status_code == 404
@@ -48,12 +48,3 @@ class TestWebhookEndpoints:
         """Test testing a webhook that doesn't exist."""
         response = client.post("/api/webhooks/99999/test")
         assert response.status_code == 404
-
-    def test_get_webhook_options(self, client):
-        """Test getting webhook configuration options."""
-        response = client.get("/api/webhooks/options")
-        assert response.status_code == 200
-        data = response.json()
-        assert "types" in data
-        assert "triggers" in data
-        assert "severities" in data

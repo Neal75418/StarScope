@@ -159,7 +159,6 @@ def mock_repo_with_signals(test_db, mock_repo):
         repo_id=mock_repo.id,
         signal_type="star_velocity",
         value=50.0,
-        period_days=7,
         calculated_at=utc_now(),
     )
     test_db.add(signal)
@@ -216,6 +215,7 @@ def mock_webhook(test_db):
         name="Test Slack Webhook",
         url="https://hooks.slack.com/services/xxx/yyy/zzz",
         webhook_type="slack",
+        triggers='["signal_detected", "daily_digest"]',
         enabled=True,
         created_at=utc_now(),
         updated_at=utc_now(),
@@ -279,8 +279,11 @@ def mock_early_signal(test_db, mock_repo):
     signal = EarlySignal(
         repo_id=mock_repo.id,
         signal_type="rising_star",
-        confidence=0.85,
-        details='{"velocity": 50, "threshold": 30}',
+        severity="high",
+        description="Repository showing strong velocity growth",
+        velocity_value=50.0,
+        star_count=1000,
+        percentile_rank=85.0,
         detected_at=utc_now(),
     )
     test_db.add(signal)
@@ -298,13 +301,14 @@ def mock_health_score(test_db, mock_repo):
     score = HealthScore(
         repo_id=mock_repo.id,
         overall_score=75.5,
-        issue_response_time=80.0,
-        pr_merge_rate=70.0,
-        release_cadence=85.0,
-        bus_factor=60.0,
+        grade="B+",
+        issue_response_score=80.0,
+        pr_merge_score=70.0,
+        release_cadence_score=85.0,
+        bus_factor_score=60.0,
         documentation_score=75.0,
-        dependency_freshness=80.0,
-        star_velocity=73.0,
+        dependency_score=80.0,
+        velocity_score=73.0,
         calculated_at=utc_now(),
     )
     test_db.add(score)
