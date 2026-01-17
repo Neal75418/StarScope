@@ -4,15 +4,50 @@ Pydantic schemas for Repo-related API endpoints.
 
 from datetime import datetime, date
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 import re
+
+from constants import (
+    GITHUB_USERNAME_PATTERN,
+    GITHUB_REPO_NAME_PATTERN,
+    MAX_OWNER_LENGTH,
+    MAX_REPO_NAME_LENGTH,
+)
 
 
 class RepoCreate(BaseModel):
     """Schema for creating a new repo in watchlist."""
-    owner: Optional[str] = None
-    name: Optional[str] = None
+    owner: Optional[str] = Field(None, max_length=MAX_OWNER_LENGTH)
+    name: Optional[str] = Field(None, max_length=MAX_REPO_NAME_LENGTH)
     url: Optional[str] = None  # Alternative: provide full GitHub URL
+
+    @field_validator("owner")
+    @classmethod
+    def validate_owner(cls, v: Optional[str]) -> Optional[str]:
+        """Validate GitHub username format."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not re.match(GITHUB_USERNAME_PATTERN, v):
+            raise ValueError(
+                "Invalid GitHub username. Must be 1-39 alphanumeric characters or hyphens, "
+                "cannot start/end with hyphen or have consecutive hyphens."
+            )
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        """Validate GitHub repository name format."""
+        if v is None:
+            return None
+        v = v.strip()
+        if not re.match(GITHUB_REPO_NAME_PATTERN, v):
+            raise ValueError(
+                "Invalid repository name. Must contain only alphanumeric characters, "
+                "dots, hyphens, or underscores."
+            )
+        return v
 
     @field_validator("url")
     @classmethod
@@ -20,6 +55,7 @@ class RepoCreate(BaseModel):
         """Validate and normalize GitHub URL."""
         if v is None:
             return None
+        v = v.strip()
         # Accept various GitHub URL formats
         patterns = [
             r"https?://github\.com/([^/]+)/([^/]+)/?.*",
@@ -29,7 +65,16 @@ class RepoCreate(BaseModel):
             match = re.match(pattern, v)
             if match:
                 return f"https://github.com/{match.group(1)}/{match.group(2)}"
-        return v
+        raise ValueError("Invalid GitHub URL format. Expected: https://github.com/owner/repo")
+
+    @model_validator(mode="after")
+    def validate_input(self) -> "RepoCreate":
+        """Ensure either owner+name or url is provided."""
+        has_owner_name = self.owner is not None and self.name is not None
+        has_url = self.url is not None
+        if not has_owner_name and not has_url:
+            raise ValueError("Must provide either owner+name or a valid GitHub URL")
+        return self
 
     def get_owner_name(self) -> tuple[str, str]:
         """Extract owner and name from the input."""

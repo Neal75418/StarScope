@@ -2,41 +2,131 @@
 Watchlist API endpoints for managing GitHub repositories.
 """
 
-from datetime import datetime, date
-from typing import List, Optional
+import re
+from datetime import datetime
+from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from db import get_db, Repo, RepoSnapshot, Signal
 from db.models import SignalType
-from schemas import RepoCreate, RepoResponse, RepoWithSignals, RepoListResponse
-from services.github import GitHubService
+from schemas import RepoCreate, RepoWithSignals, RepoListResponse
+from constants import (
+    GITHUB_USERNAME_PATTERN,
+    GITHUB_REPO_NAME_PATTERN,
+    MAX_OWNER_LENGTH,
+    MAX_REPO_NAME_LENGTH,
+)
+from services.github import (
+    GitHubService,
+    GitHubAPIError,
+    GitHubNotFoundError,
+    GitHubRateLimitError,
+)
+from utils.time import utc_now, utc_today
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
+def _validate_github_identifier(owner: str, name: str) -> None:
     """
-    Build a RepoWithSignals response from a Repo model.
-    Includes latest snapshot data and signals.
+    Validate GitHub owner and repo name to prevent SSRF attacks.
+    Raises HTTPException if validation fails.
     """
-    # Get latest snapshot
-    latest_snapshot = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repo_id == repo.id)
-        .order_by(desc(RepoSnapshot.snapshot_date))
-        .first()
+    # Check lengths
+    if len(owner) > MAX_OWNER_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Owner name too long (max {MAX_OWNER_LENGTH} characters)"
+        )
+    if len(name) > MAX_REPO_NAME_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Repository name too long (max {MAX_REPO_NAME_LENGTH} characters)"
+        )
+
+    # Validate owner format (GitHub username pattern)
+    if not re.match(GITHUB_USERNAME_PATTERN, owner):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub username format"
+        )
+
+    # Validate repo name format
+    if not re.match(GITHUB_REPO_NAME_PATTERN, name):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid repository name format"
+        )
+
+
+def _build_snapshot_map(db: Session, repo_ids: List[int]) -> Dict[int, RepoSnapshot]:
+    """
+    Pre-fetch latest snapshots for multiple repos in a single query.
+    Returns: {repo_id: RepoSnapshot}
+    """
+    if not repo_ids:
+        return {}
+
+    # Subquery to get max snapshot_date per repo
+    subq = (
+        db.query(
+            RepoSnapshot.repo_id,
+            func.max(RepoSnapshot.snapshot_date).label("max_date")
+        )
+        .filter(RepoSnapshot.repo_id.in_(repo_ids))
+        .group_by(RepoSnapshot.repo_id)
+        .subquery()
     )
 
-    # Get latest signals
-    signals = (
-        db.query(Signal)
-        .filter(Signal.repo_id == repo.id)
+    # Join to get full snapshot records
+    snapshots = (
+        db.query(RepoSnapshot)
+        .join(
+            subq,
+            (RepoSnapshot.repo_id == subq.c.repo_id) &
+            (RepoSnapshot.snapshot_date == subq.c.max_date)
+        )
         .all()
     )
-    signal_map = {s.signal_type: s.value for s in signals}
 
+    return {s.repo_id: s for s in snapshots}
+
+
+def _build_signal_map(db: Session, repo_ids: List[int]) -> Dict[int, Dict[str, float]]:
+    """
+    Pre-fetch all signals for multiple repos in a single query.
+    Returns: {repo_id: {signal_type: value}}
+    """
+    if not repo_ids:
+        return {}
+
+    all_signals = (
+        db.query(Signal)
+        .filter(Signal.repo_id.in_(repo_ids))
+        .all()
+    )
+
+    signal_map: Dict[int, Dict[str, float]] = {}
+    for signal in all_signals:
+        if signal.repo_id not in signal_map:
+            signal_map[signal.repo_id] = {}
+        signal_map[signal.repo_id][signal.signal_type] = signal.value
+
+    return signal_map
+
+
+def _build_repo_with_signals(
+    repo: Repo,
+    snapshot: Optional[RepoSnapshot],
+    signals: Dict[str, float]
+) -> RepoWithSignals:
+    """Build a RepoWithSignals response from pre-fetched data."""
     return RepoWithSignals(
         id=repo.id,
         owner=repo.owner,
@@ -47,14 +137,29 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
         language=repo.language,
         added_at=repo.added_at,
         updated_at=repo.updated_at,
-        stars=latest_snapshot.stars if latest_snapshot else None,
-        forks=latest_snapshot.forks if latest_snapshot else None,
-        stars_delta_7d=signal_map.get(SignalType.STARS_DELTA_7D),
-        stars_delta_30d=signal_map.get(SignalType.STARS_DELTA_30D),
-        velocity=signal_map.get(SignalType.VELOCITY),
-        acceleration=signal_map.get(SignalType.ACCELERATION),
-        trend=int(signal_map.get(SignalType.TREND, 0)) if SignalType.TREND in signal_map else None,
-        last_fetched=latest_snapshot.fetched_at if latest_snapshot else None,
+        stars=snapshot.stars if snapshot else None,
+        forks=snapshot.forks if snapshot else None,
+        stars_delta_7d=signals.get(SignalType.STARS_DELTA_7D),
+        stars_delta_30d=signals.get(SignalType.STARS_DELTA_30D),
+        velocity=signals.get(SignalType.VELOCITY),
+        acceleration=signals.get(SignalType.ACCELERATION),
+        trend=int(signals.get(SignalType.TREND, 0)) if SignalType.TREND in signals else None,
+        last_fetched=snapshot.fetched_at if snapshot else None,
+    )
+
+
+def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
+    """
+    Build a RepoWithSignals response from a Repo model.
+    For single repo lookup - uses individual queries.
+    """
+    snapshot_map = _build_snapshot_map(db, [repo.id])
+    signal_map = _build_signal_map(db, [repo.id])
+
+    return _build_repo_with_signals(
+        repo,
+        snapshot_map.get(repo.id),
+        signal_map.get(repo.id, {})
     )
 
 
@@ -62,9 +167,27 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
 async def list_repos(db: Session = Depends(get_db)) -> RepoListResponse:
     """
     List all repositories in the watchlist with their latest signals.
+    Uses batch queries to avoid N+1 problem.
     """
     repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
-    repos_with_signals = [get_repo_with_signals(repo, db) for repo in repos]
+
+    if not repos:
+        return RepoListResponse(repos=[], total=0)
+
+    # Batch fetch all related data (3 queries total instead of 2N+1)
+    repo_ids = [r.id for r in repos]
+    snapshot_map = _build_snapshot_map(db, repo_ids)
+    signal_map = _build_signal_map(db, repo_ids)
+
+    # Build responses
+    repos_with_signals = [
+        _build_repo_with_signals(
+            repo,
+            snapshot_map.get(repo.id),
+            signal_map.get(repo.id, {})
+        )
+        for repo in repos
+    ]
 
     return RepoListResponse(
         repos=repos_with_signals,
@@ -83,6 +206,9 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    # Validate input to prevent SSRF
+    _validate_github_identifier(owner, name)
+
     full_name = f"{owner}/{name}"
 
     # Check if already exists
@@ -97,10 +223,20 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
     github = GitHubService()
     try:
         github_data = await github.get_repo(owner, name)
-    except Exception as e:
+    except GitHubNotFoundError:
         raise HTTPException(
             status_code=404,
-            detail=f"Repository {full_name} not found on GitHub: {str(e)}"
+            detail=f"Repository {full_name} not found on GitHub"
+        )
+    except GitHubRateLimitError:
+        raise HTTPException(
+            status_code=429,
+            detail="GitHub API rate limit exceeded. Please try again later."
+        )
+    except GitHubAPIError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub API error: {str(e)}"
         )
 
     # Create repo record
@@ -126,7 +262,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
         forks=github_data.get("forks_count", 0),
         watchers=github_data.get("watchers_count", 0),
         open_issues=github_data.get("open_issues_count", 0),
-        snapshot_date=date.today(),
+        snapshot_date=utc_today(),
     )
     db.add(snapshot)
     db.commit()
@@ -175,7 +311,17 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     github = GitHubService()
     try:
         github_data = await github.get_repo(repo.owner, repo.name)
-    except Exception as e:
+    except GitHubNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Repository {repo.full_name} no longer exists on GitHub"
+        )
+    except GitHubRateLimitError:
+        raise HTTPException(
+            status_code=429,
+            detail="GitHub API rate limit exceeded. Please try again later."
+        )
+    except GitHubAPIError as e:
         raise HTTPException(
             status_code=502,
             detail=f"Failed to fetch from GitHub: {str(e)}"
@@ -184,10 +330,10 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     # Update repo metadata
     repo.description = github_data.get("description")
     repo.language = github_data.get("language")
-    repo.updated_at = datetime.utcnow()
+    repo.updated_at = utc_now()
 
     # Check if we already have a snapshot for today
-    today = date.today()
+    today = utc_today()
     existing_snapshot = (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
@@ -200,7 +346,7 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
         existing_snapshot.forks = github_data.get("forks_count", 0)
         existing_snapshot.watchers = github_data.get("watchers_count", 0)
         existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-        existing_snapshot.fetched_at = datetime.utcnow()
+        existing_snapshot.fetched_at = utc_now()
     else:
         # Create new snapshot
         snapshot = RepoSnapshot(
@@ -237,10 +383,10 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
             # Update repo metadata
             repo.description = github_data.get("description")
             repo.language = github_data.get("language")
-            repo.updated_at = datetime.utcnow()
+            repo.updated_at = utc_now()
 
             # Create or update snapshot
-            today = date.today()
+            today = utc_today()
             existing_snapshot = (
                 db.query(RepoSnapshot)
                 .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
@@ -252,7 +398,7 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
                 existing_snapshot.forks = github_data.get("forks_count", 0)
                 existing_snapshot.watchers = github_data.get("watchers_count", 0)
                 existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-                existing_snapshot.fetched_at = datetime.utcnow()
+                existing_snapshot.fetched_at = utc_now()
             else:
                 snapshot = RepoSnapshot(
                     repo_id=repo.id,
@@ -268,16 +414,34 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
             from services.analyzer import calculate_signals
             calculate_signals(repo.id, db)
 
+        except GitHubNotFoundError:
+            logger.warning(f"Repository {repo.full_name} not found on GitHub, skipping")
+            continue
+        except GitHubRateLimitError:
+            logger.error("GitHub rate limit exceeded, stopping batch fetch")
+            break  # Stop processing when rate limited
+        except GitHubAPIError as e:
+            logger.error(f"GitHub API error for {repo.full_name}: {e}")
+            continue
         except Exception as e:
-            # Log error but continue with other repos
-            print(f"Error fetching {repo.full_name}: {e}")
+            logger.error(f"Unexpected error fetching {repo.full_name}: {e}")
             continue
 
     db.commit()
 
-    # Return updated list
+    # Return updated list (using batch queries)
     repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
-    repos_with_signals = [get_repo_with_signals(repo, db) for repo in repos]
+    if not repos:
+        return RepoListResponse(repos=[], total=0)
+
+    repo_ids = [r.id for r in repos]
+    snapshot_map = _build_snapshot_map(db, repo_ids)
+    signal_map = _build_signal_map(db, repo_ids)
+
+    repos_with_signals = [
+        _build_repo_with_signals(repo, snapshot_map.get(repo.id), signal_map.get(repo.id, {}))
+        for repo in repos
+    ]
 
     return RepoListResponse(
         repos=repos_with_signals,

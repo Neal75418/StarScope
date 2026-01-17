@@ -51,7 +51,14 @@ build/
 # pytest
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # mypy
 .mypy_cache/

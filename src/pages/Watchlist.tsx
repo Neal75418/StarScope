@@ -11,10 +11,14 @@ import {
   fetchRepo,
   fetchAllRepos,
   checkHealth,
+  getCategoryRepos,
   ApiError,
 } from "../api/client";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
+import { CategorySidebar } from "../components/CategorySidebar";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { ToastContainer, useToast } from "../components/Toast";
 
 export function Watchlist() {
   const [repos, setRepos] = useState<RepoWithSignals[]>([]);
@@ -26,6 +30,14 @@ export function Watchlist() {
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+  const [filteredRepoIds, setFilteredRepoIds] = useState<Set<number> | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<{ isOpen: boolean; repoId: number | null; repoName: string }>({
+    isOpen: false,
+    repoId: null,
+    repoName: "",
+  });
+  const toast = useToast();
 
   // Check connection to sidecar
   const checkConnection = useCallback(async () => {
@@ -68,6 +80,28 @@ export function Watchlist() {
     init();
   }, [checkConnection, loadRepos]);
 
+  // Load category filter
+  useEffect(() => {
+    if (selectedCategoryId === null) {
+      setFilteredRepoIds(null);
+      return;
+    }
+
+    getCategoryRepos(selectedCategoryId)
+      .then((response) => {
+        setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
+      })
+      .catch((err) => {
+        console.error("Failed to load category repos:", err);
+        setFilteredRepoIds(null);
+      });
+  }, [selectedCategoryId]);
+
+  // Filter repos based on selected category
+  const displayedRepos = filteredRepoIds
+    ? repos.filter((r) => filteredRepoIds.has(r.id))
+    : repos;
+
   // Add repo handler
   const handleAddRepo = async (input: string) => {
     setIsAddingRepo(true);
@@ -103,23 +137,32 @@ export function Watchlist() {
   };
 
   // Remove repo handler
-  const handleRemoveRepo = async (repoId: number) => {
-    if (!confirm("Remove this repository from your watchlist?")) {
-      return;
-    }
+  const handleRemoveRepo = (repoId: number) => {
+    const repo = repos.find((r) => r.id === repoId);
+    setRemoveConfirm({
+      isOpen: true,
+      repoId,
+      repoName: repo?.full_name || "",
+    });
+  };
 
-    setLoadingRepoId(repoId);
+  const confirmRemoveRepo = async () => {
+    if (!removeConfirm.repoId) return;
+
+    setLoadingRepoId(removeConfirm.repoId);
     try {
-      await removeRepo(repoId);
-      setRepos((prev) => prev.filter((r) => r.id !== repoId));
+      await removeRepo(removeConfirm.repoId);
+      setRepos((prev) => prev.filter((r) => r.id !== removeConfirm.repoId));
+      toast.success("Repository removed from watchlist");
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.detail);
+        toast.error(err.detail);
       } else {
-        setError("Failed to remove repository");
+        toast.error("Failed to remove repository");
       }
     } finally {
       setLoadingRepoId(null);
+      setRemoveConfirm({ isOpen: false, repoId: null, repoName: "" });
     }
   };
 
@@ -206,46 +249,68 @@ export function Watchlist() {
         <p className="subtitle">GitHub Project Intelligence</p>
       </header>
 
-      <div className="toolbar">
-        <button
-          onClick={() => setIsDialogOpen(true)}
-          className="btn btn-primary"
-        >
-          + Add Repository
-        </button>
-        <button
-          onClick={handleRefreshAll}
-          disabled={isRefreshing}
-          className="btn"
-        >
-          {isRefreshing ? "Refreshing..." : "🔄 Refresh All"}
-        </button>
-      </div>
+      <div className="watchlist-with-sidebar">
+        <CategorySidebar
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+        />
 
-      {error && (
-        <div className="error-banner">
-          {error}
-          <button onClick={() => setError(null)}>✕</button>
-        </div>
-      )}
-
-      <div className="repo-list">
-        {repos.length === 0 ? (
-          <div className="empty-state">
-            <p>No repositories in your watchlist yet.</p>
-            <p>Click "Add Repository" to start tracking GitHub projects.</p>
+        <div className="watchlist-main">
+          <div className="toolbar">
+            <button
+              onClick={() => setIsDialogOpen(true)}
+              className="btn btn-primary"
+            >
+              + Add Repository
+            </button>
+            <button
+              onClick={handleRefreshAll}
+              disabled={isRefreshing}
+              className="btn"
+            >
+              {isRefreshing ? "Refreshing..." : "Refresh All"}
+            </button>
+            {selectedCategoryId && (
+              <span className="filter-indicator">
+                Showing {displayedRepos.length} of {repos.length} repos
+              </span>
+            )}
           </div>
-        ) : (
-          repos.map((repo) => (
-            <RepoCard
-              key={repo.id}
-              repo={repo}
-              onFetch={handleFetchRepo}
-              onRemove={handleRemoveRepo}
-              isLoading={loadingRepoId === repo.id}
-            />
-          ))
-        )}
+
+          {error && (
+            <div className="error-banner">
+              {error}
+              <button onClick={() => setError(null)}>x</button>
+            </div>
+          )}
+
+          <div className="repo-list">
+            {displayedRepos.length === 0 ? (
+              <div className="empty-state">
+                {selectedCategoryId ? (
+                  <p>No repositories in this category.</p>
+                ) : repos.length === 0 ? (
+                  <>
+                    <p>No repositories in your watchlist yet.</p>
+                    <p>Click "Add Repository" to start tracking GitHub projects.</p>
+                  </>
+                ) : (
+                  <p>No repositories match the current filter.</p>
+                )}
+              </div>
+            ) : (
+              displayedRepos.map((repo) => (
+                <RepoCard
+                  key={repo.id}
+                  repo={repo}
+                  onFetch={handleFetchRepo}
+                  onRemove={handleRemoveRepo}
+                  isLoading={loadingRepoId === repo.id}
+                />
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       <AddRepoDialog
@@ -258,6 +323,18 @@ export function Watchlist() {
         isLoading={isAddingRepo}
         error={dialogError}
       />
+
+      <ConfirmDialog
+        isOpen={removeConfirm.isOpen}
+        title="Remove Repository"
+        message={`Are you sure you want to remove "${removeConfirm.repoName}" from your watchlist?`}
+        confirmText="Remove"
+        variant="danger"
+        onConfirm={confirmRemoveRepo}
+        onCancel={() => setRemoveConfirm({ isOpen: false, repoId: null, repoName: "" })}
+      />
+
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
     </div>
   );
 }

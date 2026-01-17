@@ -4,8 +4,8 @@
 
 import { useState, useEffect } from "react";
 import { TrendArrow } from "../components/TrendArrow";
-
-const API_BASE = "http://127.0.0.1:8008";
+import { API_ENDPOINT } from "../config";
+import { formatNumber, formatDelta } from "../utils/format";
 
 type SortOption = "velocity" | "stars_delta_7d" | "stars_delta_30d" | "acceleration";
 
@@ -50,7 +50,7 @@ export function Trends() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/trends/?sort_by=${sort}&limit=50`);
+      const res = await fetch(`${API_ENDPOINT}/trends/?sort_by=${sort}&limit=50`);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -66,19 +66,6 @@ export function Trends() {
   useEffect(() => {
     fetchTrends(sortBy);
   }, [sortBy]);
-
-  const formatNumber = (n: number | null): string => {
-    if (n === null) return "—";
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-    return n.toFixed(n % 1 === 0 ? 0 : 1);
-  };
-
-  const formatDelta = (n: number | null): string => {
-    if (n === null) return "—";
-    const prefix = n >= 0 ? "+" : "";
-    if (Math.abs(n) >= 1000) return `${prefix}${(n / 1000).toFixed(1)}k`;
-    return `${prefix}${n.toFixed(0)}`;
-  };
 
   if (loading) {
     return <div className="loading">Loading trends...</div>;

@@ -8,7 +8,6 @@ from enum import Enum
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
 from db.database import get_db
 from db.models import Repo, Signal, SignalType
@@ -52,27 +51,52 @@ class TrendsResponse(BaseModel):
     sort_by: str
 
 
-def get_signal_value(db: Session, repo_id: int, signal_type: str) -> Optional[float]:
-    """Get the latest signal value for a repo."""
-    signal = (
-        db.query(Signal)
-        .filter(Signal.repo_id == repo_id, Signal.signal_type == signal_type)
-        .order_by(desc(Signal.calculated_at))
-        .first()
-    )
-    return signal.value if signal else None
+def _build_signal_map(db: Session) -> dict[int, dict[str, float]]:
+    """
+    Pre-fetch all signals and group by repo_id.
+    Returns: {repo_id: {signal_type: value}}
+    """
+    all_signals = db.query(Signal).all()
+    signal_map: dict[int, dict[str, float]] = {}
+
+    for signal in all_signals:
+        if signal.repo_id not in signal_map:
+            signal_map[signal.repo_id] = {}
+        signal_map[signal.repo_id][signal.signal_type] = signal.value
+
+    return signal_map
 
 
-def get_latest_stars(db: Session, repo_id: int) -> Optional[int]:
-    """Get the latest star count from snapshots."""
+def _build_stars_map(db: Session) -> dict[int, int]:
+    """
+    Pre-fetch latest snapshot stars for all repos.
+    Returns: {repo_id: stars}
+    """
     from db.models import RepoSnapshot
-    snapshot = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repo_id == repo_id)
-        .order_by(desc(RepoSnapshot.snapshot_date))
-        .first()
+    from sqlalchemy import func
+
+    # Subquery to get max snapshot_date per repo
+    subq = (
+        db.query(
+            RepoSnapshot.repo_id,
+            func.max(RepoSnapshot.snapshot_date).label("max_date")
+        )
+        .group_by(RepoSnapshot.repo_id)
+        .subquery()
     )
-    return snapshot.stars if snapshot else None
+
+    # Join to get stars from latest snapshot
+    results = (
+        db.query(RepoSnapshot.repo_id, RepoSnapshot.stars)
+        .join(
+            subq,
+            (RepoSnapshot.repo_id == subq.c.repo_id) &
+            (RepoSnapshot.snapshot_date == subq.c.max_date)
+        )
+        .all()
+    )
+
+    return {repo_id: stars for repo_id, stars in results}
 
 
 @router.get("/", response_model=TrendsResponse)
@@ -90,18 +114,21 @@ async def get_trends(
     - stars_delta_30d: Stars gained in 30 days
     - acceleration: Rate of change in velocity
     """
-    # Get all repos with their signals
+    # Pre-fetch all data in batch queries (fixes N+1 problem)
     repos = db.query(Repo).all()
+    signal_map = _build_signal_map(db)
+    stars_map = _build_stars_map(db)
 
     # Build list with metrics
     repo_metrics = []
     for repo in repos:
-        stars_delta_7d = get_signal_value(db, repo.id, SignalType.STARS_DELTA_7D)
-        stars_delta_30d = get_signal_value(db, repo.id, SignalType.STARS_DELTA_30D)
-        velocity = get_signal_value(db, repo.id, SignalType.VELOCITY)
-        acceleration = get_signal_value(db, repo.id, SignalType.ACCELERATION)
-        trend = get_signal_value(db, repo.id, SignalType.TREND)
-        stars = get_latest_stars(db, repo.id)
+        signals = signal_map.get(repo.id, {})
+        stars_delta_7d = signals.get(SignalType.STARS_DELTA_7D)
+        stars_delta_30d = signals.get(SignalType.STARS_DELTA_30D)
+        velocity = signals.get(SignalType.VELOCITY)
+        acceleration = signals.get(SignalType.ACCELERATION)
+        trend = signals.get(SignalType.TREND)
+        stars = stars_map.get(repo.id)
 
         # Get sort value
         sort_value = {

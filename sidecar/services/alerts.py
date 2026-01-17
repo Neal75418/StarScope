@@ -4,12 +4,13 @@ Alert service for checking rules and triggering alerts.
 
 import logging
 import operator as op
-from datetime import datetime
 from typing import List, Optional, Callable
 
 from sqlalchemy.orm import Session
 
+from constants import ALERT_COOLDOWN_SECONDS
 from db.models import AlertRule, TriggeredAlert, Signal, Repo, AlertOperator
+from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +87,8 @@ def check_rule_for_repo(
 
         # Don't trigger if already triggered in the last hour
         if recent_trigger:
-            time_diff = datetime.utcnow() - recent_trigger.triggered_at
-            if time_diff.total_seconds() < 3600:  # 1 hour
+            time_diff = utc_now() - recent_trigger.triggered_at
+            if time_diff.total_seconds() < ALERT_COOLDOWN_SECONDS:
                 logger.debug(f"Alert already triggered recently for {repo.full_name}")
                 return None
 
@@ -96,7 +97,7 @@ def check_rule_for_repo(
             rule_id=rule.id,
             repo_id=repo.id,
             signal_value=signal.value,
-            triggered_at=datetime.utcnow(),
+            triggered_at=utc_now(),
         )
         db.add(triggered)
         db.commit()
@@ -186,7 +187,7 @@ def acknowledge_alert(db: Session, alert_id: int) -> bool:
     alert = db.query(TriggeredAlert).filter(TriggeredAlert.id == alert_id).first()
     if alert:
         alert.acknowledged = True
-        alert.acknowledged_at = datetime.utcnow()
+        alert.acknowledged_at = utc_now()
         db.commit()
         return True
     return False
@@ -207,7 +208,7 @@ def acknowledge_all_alerts(db: Session) -> int:
         .filter(TriggeredAlert.acknowledged == False)
         .update({
             TriggeredAlert.acknowledged: True,
-            TriggeredAlert.acknowledged_at: datetime.utcnow(),
+            TriggeredAlert.acknowledged_at: utc_now(),
         })
     )
     db.commit()

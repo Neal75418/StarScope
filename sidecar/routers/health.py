@@ -2,8 +2,9 @@
 Health check router for verifying sidecar connectivity.
 """
 
-from datetime import datetime
 from fastapi import APIRouter
+
+from utils.time import utc_now
 
 router = APIRouter()
 
@@ -17,5 +18,5 @@ async def health_check():
     return {
         "status": "ok",
         "service": "starscope-engine",
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": utc_now().isoformat(),
     }

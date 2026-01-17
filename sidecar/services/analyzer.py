@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from db.models import RepoSnapshot, Signal, SignalType
+from utils.time import utc_today
 
 
 def get_snapshot_for_date(
@@ -55,7 +56,7 @@ def calculate_delta(
     Calculate the star delta over a given number of days.
     Returns None if insufficient data.
     """
-    today = date.today()
+    today = utc_today()
     past_date = today - timedelta(days=days)
 
     current_snapshot = get_snapshot_for_date(repo_id, today, db)
@@ -95,7 +96,7 @@ def calculate_acceleration(
     Compares this week's velocity to last week's velocity.
     Returns percentage change.
     """
-    today = date.today()
+    today = utc_today()
     one_week_ago = today - timedelta(days=7)
     two_weeks_ago = today - timedelta(days=14)
 
@@ -117,10 +118,13 @@ def calculate_acceleration(
     last_week_velocity = last_week_delta / 7.0
 
     # Calculate acceleration as percentage change
-    if last_week_velocity == 0:
-        if this_week_velocity > 0:
-            return 1.0  # Infinite growth, cap at 100%
-        return 0.0
+    # Handle edge cases to avoid division by zero
+    if abs(last_week_velocity) < 0.001:  # Effectively zero
+        if this_week_velocity > 0.001:
+            return 1.0  # Strong growth from near-zero baseline
+        elif this_week_velocity < -0.001:
+            return -1.0  # Strong decline from near-zero baseline
+        return 0.0  # Both near zero = stable
 
     return (this_week_velocity - last_week_velocity) / abs(last_week_velocity)
 

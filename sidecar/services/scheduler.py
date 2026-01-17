@@ -4,7 +4,6 @@ Uses APScheduler to run jobs at configured intervals.
 """
 
 import logging
-from datetime import datetime
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -15,6 +14,9 @@ from db.database import SessionLocal
 from db.models import Repo, RepoSnapshot
 from services.github import fetch_repo_data
 from services.analyzer import calculate_signals
+from services.context_fetcher import fetch_all_context_signals
+from utils.time import utc_now, utc_today
+from constants import CONTEXT_FETCH_INTERVAL_HOURS
 
 logger = logging.getLogger(__name__)
 
@@ -61,20 +63,20 @@ async def fetch_all_repos_job():
                         forks=github_data.get("forks_count", 0),
                         watchers=github_data.get("subscribers_count", 0),
                         open_issues=github_data.get("open_issues_count", 0),
-                        snapshot_date=datetime.now().date(),
-                        fetched_at=datetime.now()
+                        snapshot_date=utc_today(),
+                        fetched_at=utc_now()
                     )
                     db.add(snapshot)
 
                     # Update repo metadata
                     repo.description = github_data.get("description")
                     repo.language = github_data.get("language")
-                    repo.updated_at = datetime.now()
+                    repo.updated_at = utc_now()
 
                     db.commit()
 
                     # Calculate signals
-                    calculate_signals(db, repo.id)
+                    calculate_signals(repo.id, db)
 
                     success_count += 1
                     logger.debug(f"Fetched {repo.full_name}: {snapshot.stars} stars")
@@ -123,6 +125,30 @@ async def check_alerts_job():
         db.close()
 
 
+async def fetch_context_signals_job():
+    """
+    Background job to fetch context signals for all repos.
+    Fetches from Hacker News, Reddit, and GitHub Releases.
+    Runs less frequently than main data fetch (every 6 hours).
+    """
+    logger.info("Starting scheduled context signals fetch...")
+
+    db: Session = SessionLocal()
+    try:
+        result = await fetch_all_context_signals(db)
+        logger.info(
+            f"Context signals fetch complete: "
+            f"HN={result['new_hn_signals']}, "
+            f"Reddit={result['new_reddit_signals']}, "
+            f"Releases={result['new_release_signals']}, "
+            f"Errors={result['errors']}"
+        )
+    except Exception as e:
+        logger.error(f"Context signals job error: {e}")
+    finally:
+        db.close()
+
+
 def start_scheduler(fetch_interval_minutes: int = 60):
     """
     Start the background scheduler.
@@ -149,15 +175,28 @@ def start_scheduler(fetch_interval_minutes: int = 60):
     # Add the alerts check job (runs 1 minute after fetch)
     scheduler.add_job(
         check_alerts_job,
-        trigger=IntervalTrigger(minutes=fetch_interval_minutes, start_date=datetime.now()),
+        trigger=IntervalTrigger(minutes=fetch_interval_minutes, start_date=utc_now()),
         id="check_alerts",
         name="Check alert rules",
         replace_existing=True,
         max_instances=1,
     )
 
+    # Add context signals job (runs every 6 hours)
+    scheduler.add_job(
+        fetch_context_signals_job,
+        trigger=IntervalTrigger(hours=CONTEXT_FETCH_INTERVAL_HOURS),
+        id="fetch_context_signals",
+        name="Fetch context signals (HN, Reddit, Releases)",
+        replace_existing=True,
+        max_instances=1,
+    )
+
     scheduler.start()
-    logger.info(f"Scheduler started with {fetch_interval_minutes} minute interval")
+    logger.info(
+        f"Scheduler started: data fetch every {fetch_interval_minutes}min, "
+        f"context signals every {CONTEXT_FETCH_INTERVAL_HOURS}h"
+    )
 
 
 def stop_scheduler():

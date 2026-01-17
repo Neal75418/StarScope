@@ -1,9 +1,24 @@
 /**
- * Repository card component displaying repo info and signals.
+ * Repository card component displaying repo info, signals, and context badges.
  */
 
-import { RepoWithSignals } from "../api/client";
+import { useState, useEffect } from "react";
+import {
+  RepoWithSignals,
+  getContextBadges,
+  ContextBadge,
+  HealthScoreResponse,
+  getRepoTags,
+  RepoTag,
+} from "../api/client";
 import { TrendArrow } from "./TrendArrow";
+import { ContextBadges } from "./ContextBadges";
+import { StarsChart } from "./StarsChart";
+import { HealthBadge } from "./HealthBadge";
+import { HealthScorePanel } from "./HealthScorePanel";
+import { TagList } from "./TagBadge";
+import { SimilarRepos } from "./SimilarRepos";
+import { formatNumber, formatDelta, formatVelocity } from "../utils/format";
 
 interface RepoCardProps {
   repo: RepoWithSignals;
@@ -12,29 +27,69 @@ interface RepoCardProps {
   isLoading?: boolean;
 }
 
-function formatNumber(num: number | null): string {
-  if (num === null) return "—";
-  if (Math.abs(num) >= 1000) {
-    return (num / 1000).toFixed(1) + "k";
-  }
-  return num.toFixed(0);
-}
-
-function formatDelta(num: number | null): string {
-  if (num === null) return "—";
-  const sign = num >= 0 ? "+" : "";
-  if (Math.abs(num) >= 1000) {
-    return sign + (num / 1000).toFixed(1) + "k";
-  }
-  return sign + num.toFixed(0);
-}
-
-function formatVelocity(num: number | null): string {
-  if (num === null) return "—";
-  return num.toFixed(1) + "/day";
-}
-
 export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) {
+  const [badges, setBadges] = useState<ContextBadge[]>([]);
+  const [badgesLoading, setBadgesLoading] = useState(true);
+  const [tags, setTags] = useState<RepoTag[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
+  const [showChart, setShowChart] = useState(false);
+  const [showSimilar, setShowSimilar] = useState(false);
+  const [healthDetails, setHealthDetails] = useState<HealthScoreResponse | null>(null);
+
+  // Fetch context badges
+  useEffect(() => {
+    let isMounted = true;
+    setBadgesLoading(true);
+
+    getContextBadges(repo.id)
+      .then((response) => {
+        if (isMounted) {
+          setBadges(response.badges);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Failed to load badges:", err);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setBadgesLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repo.id]);
+
+  // Fetch tags
+  useEffect(() => {
+    let isMounted = true;
+    setTagsLoading(true);
+
+    getRepoTags(repo.id)
+      .then((response) => {
+        if (isMounted) {
+          setTags(response.tags);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Failed to load tags:", err);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setTagsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [repo.id]);
+
   return (
     <div className="repo-card">
       <div className="repo-header">
@@ -50,15 +105,33 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
           {repo.language && (
             <span className="repo-language">{repo.language}</span>
           )}
+          <HealthBadge
+            repoId={repo.id}
+            onShowDetails={setHealthDetails}
+          />
         </div>
         <div className="repo-actions">
+          <button
+            onClick={() => setShowChart(!showChart)}
+            className={`btn btn-sm ${showChart ? "active" : ""}`}
+            title="Toggle chart"
+          >
+            {showChart ? "Hide" : "Chart"}
+          </button>
+          <button
+            onClick={() => setShowSimilar(!showSimilar)}
+            className={`btn btn-sm ${showSimilar ? "active" : ""}`}
+            title="Show similar repositories"
+          >
+            Similar
+          </button>
           <button
             onClick={() => onFetch(repo.id)}
             disabled={isLoading}
             className="btn btn-sm"
             title="Refresh data"
           >
-            🔄
+            Refresh
           </button>
           <button
             onClick={() => onRemove(repo.id)}
@@ -66,10 +139,24 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
             className="btn btn-sm btn-danger"
             title="Remove from watchlist"
           >
-            ✕
+            Remove
           </button>
         </div>
       </div>
+
+      {/* Context Badges */}
+      {badgesLoading ? (
+        <div className="badges-loading">Loading badges...</div>
+      ) : (
+        <ContextBadges badges={badges} />
+      )}
+
+      {/* Tags */}
+      {tagsLoading ? (
+        <div className="tags-loading">Loading tags...</div>
+      ) : tags.length > 0 ? (
+        <TagList tags={tags} maxVisible={6} />
+      ) : null}
 
       {repo.description && (
         <p className="repo-description">{repo.description}</p>
@@ -99,6 +186,30 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
           </span>
         </div>
       </div>
+
+      {/* Expandable Chart */}
+      {showChart && (
+        <div className="repo-chart-container">
+          <StarsChart repoId={repo.id} />
+        </div>
+      )}
+
+      {/* Similar Repos Panel */}
+      {showSimilar && (
+        <SimilarRepos
+          repoId={repo.id}
+          onClose={() => setShowSimilar(false)}
+        />
+      )}
+
+      {/* Health Score Panel */}
+      {healthDetails && (
+        <HealthScorePanel
+          details={healthDetails}
+          onClose={() => setHealthDetails(null)}
+          onRecalculate={setHealthDetails}
+        />
+      )}
     </div>
   );
 }
