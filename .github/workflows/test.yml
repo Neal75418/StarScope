@@ -62,68 +62,11 @@ jobs:
       - name: Lint
         run: npm run lint || echo "Lint script not found, skipping"
 
-  test-e2e:
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
-    # E2E tests are optional - they require both Python sidecar and Vite dev server
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: 'sidecar/requirements.txt'
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r sidecar/requirements.txt
-
-      - name: Install Node dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Start Python sidecar
-        run: |
-          cd sidecar && python main.py &
-          sleep 5
-          curl -s http://127.0.0.1:8008/api/health || echo "Sidecar health check failed"
-
-      - name: Start Vite dev server
-        run: |
-          npm run dev &
-          sleep 5
-
-      - name: Run E2E tests
-        run: npm run test:e2e:chromium
-        env:
-          CI: true
-        continue-on-error: true
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-          if-no-files-found: ignore
+  # E2E tests are run locally only (npm run test:e2e:ui)
+  # Tauri apps require complex setup in CI (Python sidecar + Vite + display server)
 
   build:
     needs: [test-backend, test-frontend]
-    # Build does not depend on E2E tests (they are optional)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
