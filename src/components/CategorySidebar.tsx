@@ -9,7 +9,6 @@ import {
   getCategoryTree,
   createCategory,
   deleteCategory,
-  CategoryCreate,
 } from "../api/client";
 
 interface CategorySidebarProps {
@@ -233,7 +232,7 @@ interface AddToCategoryDropdownProps {
   onAdd: (categoryId: number) => Promise<void>;
 }
 
-export function AddToCategoryDropdown({ repoId, onAdd }: AddToCategoryDropdownProps) {
+export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryDropdownProps) {
   const [tree, setTree] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);

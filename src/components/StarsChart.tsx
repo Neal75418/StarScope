@@ -111,7 +111,7 @@ export function StarsChart({ repoId }: StarsChartProps) {
               borderRadius: "4px",
             }}
             labelStyle={{ color: "#fff" }}
-            formatter={(value: number) => [formatNumber(value), "Stars"]}
+            formatter={(value) => [formatNumber(value as number), "Stars"]}
             labelFormatter={(label) => new Date(label).toLocaleDateString()}
           />
           <Line

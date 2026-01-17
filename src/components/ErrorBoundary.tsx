@@ -59,7 +59,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Reload App
               </button>
             </div>
-            {process.env.NODE_ENV === "development" && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="error-details">
                 <summary>Error Details</summary>
                 <pre>{this.state.error.stack}</pre>
