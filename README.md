@@ -47,24 +47,62 @@ StarScope 是一個開源的**桌面工具**，幫工程師用「動能」而非
 
 ## 技術架構
 
-```
-┌─────────────────────────────────────────────────┐
-│                  Tauri Shell                     │
-│  ┌───────────────────┐  ┌────────────────────┐  │
-│  │   Web Frontend    │  │   Rust Backend     │  │
-│  │  (React + TS)     │  │  (IPC + Sidecar)   │  │
-│  └─────────┬─────────┘  └──────────┬─────────┘  │
-│            │                       │             │
-│            │   ← HTTP API →        │             │
-│            │                       ▼             │
-│            │            ┌─────────────────────┐  │
-│            └───────────►│  Python Sidecar    │  │
-│                         │  (FastAPI Server)  │  │
-│                         │  - Fetch GitHub    │  │
-│                         │  - Analyze Signals │  │
-│                         │  - Store SQLite    │  │
-│                         └─────────────────────┘  │
-└─────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Tauri["🖥️ Tauri Desktop Shell"]
+        subgraph Frontend["⚛️ Web Frontend"]
+            React["React 19 + TypeScript"]
+            Recharts["Recharts 圖表"]
+            TauriAPI["@tauri-apps/api"]
+        end
+
+        subgraph RustCore["🦀 Rust Core"]
+            IPC["Tauri IPC"]
+            Tray["System Tray"]
+            Notify["Desktop Notifications"]
+        end
+    end
+
+    subgraph Sidecar["🐍 Python Sidecar (FastAPI)"]
+        API["REST API :8008"]
+        Scheduler["APScheduler 排程"]
+
+        subgraph Services["核心服務"]
+            GitHub["GitHub API 整合"]
+            Analyzer["訊號分析器"]
+            HealthScorer["健康度評分"]
+            ContextFetcher["上下文擷取"]
+        end
+
+        subgraph Storage["資料層"]
+            SQLite[(SQLite)]
+            Alembic["Alembic Migrations"]
+        end
+    end
+
+    subgraph External["🌐 外部服務"]
+        GitHubAPI["GitHub API"]
+        HackerNews["Hacker News API"]
+        Reddit["Reddit API"]
+    end
+
+    React <--> TauriAPI
+    TauriAPI <--> IPC
+    React <-->|HTTP| API
+    IPC --> Tray
+    IPC --> Notify
+
+    API --> Services
+    Services --> Storage
+    GitHub --> GitHubAPI
+    ContextFetcher --> HackerNews
+    ContextFetcher --> Reddit
+
+    style Tauri fill:#2d3748,stroke:#4a5568,color:#fff
+    style Frontend fill:#61dafb,stroke:#21a0c2,color:#000
+    style RustCore fill:#dea584,stroke:#b7410e,color:#000
+    style Sidecar fill:#3776ab,stroke:#1e4a6d,color:#fff
+    style External fill:#6b7280,stroke:#4b5563,color:#fff
 ```
 
 | 層級 | 技術 |
