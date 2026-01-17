@@ -113,9 +113,10 @@ class Signal(Base):
     # Relationship
     repo: Mapped["Repo"] = relationship("Repo", back_populates="signals")
 
-    # Indexes
+    # Indexes and constraints
     __table_args__ = (
         Index("ix_signals_repo_type", "repo_id", "signal_type"),
+        UniqueConstraint("repo_id", "signal_type", name="uq_signal_repo_type"),
     )
 
     def __repr__(self) -> str:
@@ -658,3 +659,32 @@ class WebhookLog(Base):
 
     def __repr__(self) -> str:
         return f"<WebhookLog webhook_id={self.webhook_id} success={self.success}>"
+
+
+# ==================== App Settings Models ====================
+
+class AppSettingKey:
+    """Constants for app setting keys."""
+    GITHUB_TOKEN = "github_token"
+    GITHUB_USERNAME = "github_username"
+
+
+class AppSetting(Base):
+    """
+    Application settings stored in database.
+    Used for storing user preferences and credentials like GitHub OAuth tokens.
+    """
+    __tablename__ = "app_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+    value: Mapped[str] = mapped_column(String(4096), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    __table_args__ = (
+        Index("ix_app_settings_key", "key"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<AppSetting key={self.key}>"

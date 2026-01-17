@@ -1196,3 +1196,73 @@ export async function getWebhookLogs(
 export async function getWebhookTypes(): Promise<WebhookTypesResponse> {
   return apiCall<WebhookTypesResponse>(`/webhooks/types/list`);
 }
+
+// ==================== GitHub Auth Types ====================
+
+export interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
+
+export interface PollResponse {
+  status: "success" | "pending" | "expired" | "error";
+  username?: string;
+  error?: string;
+  slow_down?: boolean;
+  interval?: number; // New interval to use when slow_down is true
+}
+
+export interface GitHubConnectionStatus {
+  connected: boolean;
+  username?: string;
+  rate_limit_remaining?: number;
+  rate_limit_total?: number;
+  error?: string;
+}
+
+export interface DisconnectResponse {
+  success: boolean;
+  message: string;
+}
+
+// ==================== GitHub Auth API Functions ====================
+
+/**
+ * Initiate GitHub Device Flow authentication.
+ * Returns device code and user code for the user to enter on GitHub.
+ */
+export async function initiateDeviceFlow(): Promise<DeviceCodeResponse> {
+  return apiCall<DeviceCodeResponse>(`/github-auth/device-code`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Poll for authorization status during Device Flow.
+ * Call this periodically until status is "success" or "error"/"expired".
+ */
+export async function pollAuthorization(deviceCode: string): Promise<PollResponse> {
+  return apiCall<PollResponse>(`/github-auth/poll`, {
+    method: "POST",
+    body: JSON.stringify({ device_code: deviceCode }),
+  });
+}
+
+/**
+ * Get the current GitHub connection status.
+ */
+export async function getGitHubConnectionStatus(): Promise<GitHubConnectionStatus> {
+  return apiCall<GitHubConnectionStatus>(`/github-auth/status`);
+}
+
+/**
+ * Disconnect from GitHub by removing stored credentials.
+ */
+export async function disconnectGitHub(): Promise<DisconnectResponse> {
+  return apiCall<DisconnectResponse>(`/github-auth/disconnect`, {
+    method: "POST",
+  });
+}

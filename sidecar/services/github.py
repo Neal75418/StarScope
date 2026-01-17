@@ -9,6 +9,7 @@ import httpx
 from typing import Optional
 
 from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
+from db.models import AppSettingKey
 
 logger = logging.getLogger(__name__)
 
@@ -97,12 +98,32 @@ def get_github_service() -> GitHubService:
     """
     Get the default GitHub service instance.
 
-    Reads GITHUB_TOKEN from environment variable on first call.
+    Token priority:
+    1. Database (from OAuth Device Flow)
+    2. Environment variable (legacy fallback)
+
     The service is cached as a singleton for the application lifetime.
+    Call reset_github_service() to refresh when token changes.
     """
     global _default_service
     if _default_service is None:
-        token = os.getenv(GITHUB_TOKEN_ENV_VAR)
+        token = None
+
+        # First, try to get token from database (OAuth Device Flow)
+        try:
+            from services.settings import get_setting
+            token = get_setting(AppSettingKey.GITHUB_TOKEN)
+            if token:
+                logger.info("Using GitHub token from database (OAuth)")
+        except Exception as e:
+            logger.debug(f"Could not read token from database: {e}")
+
+        # Fallback to environment variable
+        if not token:
+            token = os.getenv(GITHUB_TOKEN_ENV_VAR)
+            if token:
+                logger.info("Using GitHub token from environment variable")
+
         _default_service = GitHubService(token=token)
     return _default_service
 

@@ -1,6 +1,7 @@
 # FastAPI and server
 fastapi>=0.115.0
 uvicorn[standard]>=0.34.0
+python-dotenv>=1.0.0
 
 # HTTP client for GitHub API
 httpx>=0.28.0

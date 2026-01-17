@@ -18,6 +18,7 @@ import {
 } from "../api/client";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
+import { GitHubConnection } from "../components/GitHubConnection";
 import { getErrorMessage } from "../utils/error";
 
 export function Settings() {
@@ -138,8 +139,13 @@ export function Settings() {
     <div className="page">
       <header className="page-header">
         <h1>Settings</h1>
-        <p className="subtitle">Export data and configure notifications</p>
+        <p className="subtitle">Manage connections, export data, and configure notifications</p>
       </header>
+
+      {/* GitHub Connection Section */}
+      <section className="settings-section">
+        <GitHubConnection />
+      </section>
 
       {/* Export Section */}
       <section className="settings-section">

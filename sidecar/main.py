@@ -7,8 +7,12 @@ import os
 import logging
 import uvicorn
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Load environment variables from .env file
+load_dotenv()
 
 from constants import DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
 from middleware import LoggingMiddleware
@@ -17,7 +21,7 @@ from middleware import LoggingMiddleware
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
-from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks
+from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks, github_auth
 from db import init_db
 from services.scheduler import start_scheduler, stop_scheduler
 
@@ -34,13 +38,21 @@ async def lifespan(_app: FastAPI):
     Application lifespan handler.
     Initializes database on startup, starts scheduler.
     """
-    # Check for required environment variables
+    # Check for GitHub token (OAuth from DB or environment variable)
     github_token = os.getenv(GITHUB_TOKEN_ENV_VAR)
-    if not github_token:
+    has_oauth_token = False
+    try:
+        from services.settings import get_setting
+        from db.models import AppSettingKey
+        has_oauth_token = get_setting(AppSettingKey.GITHUB_TOKEN) is not None
+    except Exception:
+        pass  # DB not initialized yet, will check later
+
+    if not github_token and not has_oauth_token:
         logger.warning(
-            f"Warning: {GITHUB_TOKEN_ENV_VAR} not set. "
-            "GitHub API rate limits will be low (60 requests/hour). "
-            "Set the environment variable for higher limits (5000 requests/hour)."
+            "No GitHub token configured. "
+            "API rate limits will be low (60 requests/hour). "
+            "Connect your GitHub account in Settings for higher limits."
         )
     else:
         logger.info("GitHub token configured")
@@ -106,6 +118,7 @@ app.include_router(comparisons.router, prefix="/api", tags=["comparisons"])
 app.include_router(early_signals.router, prefix="/api", tags=["early-signals"])
 app.include_router(export.router, prefix="/api", tags=["export"])
 app.include_router(webhooks.router, prefix="/api", tags=["webhooks"])
+app.include_router(github_auth.router, prefix="/api", tags=["github-auth"])
 
 
 @app.get("/")
