@@ -279,13 +279,13 @@ curl http://127.0.0.1:8008/api/health
 * ✅ React 基本 UI
 * ✅ Tauri 桌面視窗
 
-### Phase 2 — 好用（排程 + 通知）
+### Phase 2 — 好用（排程 + 通知）✅ 已完成
 
-* ⬜ 自動排程更新（每小時/每天）
-* ⬜ Tauri 系統通知
-* ⬜ 系統托盤常駐
-* ⬜ Alerts 規則引擎（star > X 時通知）
-* ⬜ 趨勢排行視圖
+* ✅ 自動排程更新（每小時/每天）
+* ✅ Tauri 系統通知
+* ✅ 系統托盤常駐
+* ✅ Alerts 規則引擎（star > X 時通知）
+* ✅ 趨勢排行視圖
 
 ### Phase 3 — Context Signal（差異化殺手功能）
 
