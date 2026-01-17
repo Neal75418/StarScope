@@ -109,18 +109,18 @@ class TestEarlySignalsWithMockData:
         response = client.get("/api/early-signals")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) >= 1
-        assert any(s["signal_type"] == "rising_star" for s in data)
+        assert data["total"] >= 1
+        assert any(s["signal_type"] == "rising_star" for s in data["signals"])
 
     def test_early_signal_severity(self, client, mock_early_signal):
         """Test early signal severity value."""
         repo, signal = mock_early_signal
-        response = client.get(f"/api/early-signals/{repo.id}")
+        response = client.get(f"/api/early-signals/repo/{repo.id}")
         assert response.status_code == 200
         data = response.json()
-        if isinstance(data, list) and len(data) > 0:
-            assert data[0]["severity"] == "high"
-            assert data[0]["signal_type"] == "rising_star"
+        if data["total"] > 0:
+            assert data["signals"][0]["severity"] == "high"
+            assert data["signals"][0]["signal_type"] == "rising_star"
 
 
 class TestComparisonWithMockData:
@@ -132,7 +132,7 @@ class TestComparisonWithMockData:
         response = client.get(f"/api/comparisons/{group.id}")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "Frontend Battle"
+        assert data["group_name"] == "Frontend Battle"
 
     def test_list_comparison_groups(self, client, mock_comparison_group):
         """Test listing comparison groups."""
@@ -140,7 +140,8 @@ class TestComparisonWithMockData:
         response = client.get("/api/comparisons")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) >= 1
+        assert data["total"] >= 1
+        assert len(data["groups"]) >= 1
 
 
 class TestWebhookWithMockData:
