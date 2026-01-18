@@ -3,6 +3,8 @@
  * Replaces native browser confirm() with a styled modal.
  */
 
+import { useEffect, useId } from "react";
+
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
@@ -24,6 +26,21 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const titleId = useId();
+  const descId = useId();
+
+  // Handle ESC key to close dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        onCancel();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   const confirmButtonClass =
@@ -34,17 +51,21 @@ export function ConfirmDialog({
       : "btn btn-primary";
 
   return (
-    <div className="dialog-overlay" onClick={onCancel}>
+    <div className="dialog-overlay" onClick={onCancel} role="presentation">
       <div
         className="dialog confirm-dialog"
         onClick={(e) => e.stopPropagation()}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descId}
       >
         <div className="dialog-header">
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
         </div>
 
         <div className="dialog-body">
-          <p>{message}</p>
+          <p id={descId}>{message}</p>
         </div>
 
         <div className="dialog-footer">

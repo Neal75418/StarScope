@@ -61,7 +61,7 @@ export function GitHubConnection() {
       setStatus(result);
       setState(result.connected ? "connected" : "disconnected");
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, "An error occurred"));
       setState("error");
     }
   };
@@ -88,7 +88,7 @@ export function GitHubConnection() {
       // Start polling for authorization
       startPolling(result.device_code, result.interval, result.expires_in);
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, "An error occurred"));
       setState("error");
     }
   };
@@ -96,11 +96,11 @@ export function GitHubConnection() {
   const startPolling = (code: string, interval: number, expiresIn: number) => {
     // Use at least 10 seconds to avoid rate limiting (GitHub default is 5, but we're conservative)
     currentIntervalRef.current = Math.max(interval, 10);
-    console.log(`[GitHubAuth] Starting polling: interval=${currentIntervalRef.current}s, expires=${expiresIn}s`);
+    console.warn(`[GitHubAuth] Starting polling: interval=${currentIntervalRef.current}s, expires=${expiresIn}s`);
 
     // Set expiration timeout
     pollTimeoutRef.current = window.setTimeout(() => {
-      console.log("[GitHubAuth] Polling expired");
+      console.warn("[GitHubAuth] Polling expired");
       stopPolling();
       setError("Authorization expired. Please try again.");
       setState("disconnected");
@@ -111,12 +111,12 @@ export function GitHubConnection() {
     const doPoll = async () => {
       try {
         setPollStatus(`Checking... (next check in ${currentIntervalRef.current}s)`);
-        console.log(`[GitHubAuth] Polling... (interval: ${currentIntervalRef.current}s)`);
+        console.warn(`[GitHubAuth] Polling... (interval: ${currentIntervalRef.current}s)`);
         const result = await pollAuthorization(code);
-        console.log("[GitHubAuth] Poll result:", result);
+        console.warn("[GitHubAuth] Poll result:", result);
 
         if (result.status === "success") {
-          console.log("[GitHubAuth] Authorization successful!");
+          console.warn("[GitHubAuth] Authorization successful!");
           setPollStatus("Connected!");
           stopPolling();
           setDeviceCode(null);
@@ -126,7 +126,7 @@ export function GitHubConnection() {
           });
           setState("connected");
         } else if (result.status === "expired" || result.status === "error") {
-          console.log("[GitHubAuth] Authorization failed:", result.error);
+          console.warn("[GitHubAuth] Authorization failed:", result.error);
           setPollStatus("");
           stopPolling();
           setError(result.error || "Authorization failed");
@@ -135,7 +135,7 @@ export function GitHubConnection() {
         } else if (result.status === "pending" && result.slow_down && result.interval) {
           // GitHub says we're polling too fast - use their suggested interval + buffer
           const newInterval = result.interval + 5; // Add 5 second buffer to be safe
-          console.log(`[GitHubAuth] Slowing down: ${currentIntervalRef.current}s -> ${newInterval}s`);
+          console.warn(`[GitHubAuth] Slowing down: ${currentIntervalRef.current}s -> ${newInterval}s`);
           currentIntervalRef.current = newInterval;
           setPollStatus(`Rate limited, waiting ${newInterval}s...`);
 
@@ -189,7 +189,7 @@ export function GitHubConnection() {
       setStatus(null);
       setState("disconnected");
     } catch (err) {
-      setError(getErrorMessage(err));
+      setError(getErrorMessage(err, "An error occurred"));
       setState("error");
     }
   };
@@ -206,7 +206,7 @@ export function GitHubConnection() {
     if (deviceCode?.verification_uri) {
       try {
         await openUrl(deviceCode.verification_uri);
-      } catch (err) {
+      } catch {
         // Fallback to window.open if Tauri opener fails
         window.open(deviceCode.verification_uri, "_blank");
       }

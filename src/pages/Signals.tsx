@@ -19,14 +19,7 @@ import { formatNumber } from "../utils/format";
 import { getErrorMessage } from "../utils/error";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
-
-const SIGNAL_TYPE_LABELS: Record<EarlySignalType, string> = {
-  rising_star: "Rising Star",
-  sudden_spike: "Sudden Spike",
-  breakout: "Breakout",
-  viral_hn: "Viral on HN",
-  release_surge: "Release Surge",
-};
+import { useI18n, interpolate } from "../i18n";
 
 const SIGNAL_TYPE_ICONS: Record<EarlySignalType, string> = {
   rising_star: "⭐",
@@ -43,6 +36,7 @@ const SEVERITY_COLORS: Record<EarlySignalSeverity, string> = {
 };
 
 export function Signals() {
+  const { t } = useI18n();
   const [signals, setSignals] = useState<EarlySignal[]>([]);
   const [summary, setSummary] = useState<SignalSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,6 +51,22 @@ export function Signals() {
     signalId?: number;
   }>({ isOpen: false, type: "acknowledgeAll" });
   const toast = useToast();
+
+  // Signal type labels from translations
+  const signalTypeLabels: Record<EarlySignalType, string> = {
+    rising_star: t.signals.types.rising_star,
+    sudden_spike: t.signals.types.sudden_spike,
+    breakout: t.signals.types.breakout,
+    viral_hn: t.signals.types.viral_hn,
+    release_surge: t.signals.types.release_surge,
+  };
+
+  // Severity labels from translations
+  const severityLabels: Record<EarlySignalSeverity, string> = {
+    low: t.signals.severity.low,
+    medium: t.signals.severity.medium,
+    high: t.signals.severity.high,
+  };
 
   // Load signals
   const loadSignals = async () => {
@@ -85,6 +95,7 @@ export function Signals() {
   useEffect(() => {
     setIsLoading(true);
     Promise.all([loadSignals(), loadSummary()]).finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType, filterSeverity, showAcknowledged]);
 
   const handleAcknowledge = async (signalId: number) => {
@@ -104,11 +115,11 @@ export function Signals() {
   const confirmAcknowledgeAll = async () => {
     try {
       await acknowledgeAllSignals(filterType || undefined);
-      toast.success("All signals acknowledged");
+      toast.success(t.signals.toast.acknowledgedAll);
       loadSignals();
       loadSummary();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to acknowledge signals"));
+      toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {
       setConfirmDialog({ isOpen: false, type: "acknowledgeAll" });
     }
@@ -123,11 +134,11 @@ export function Signals() {
 
     try {
       await deleteSignal(confirmDialog.signalId);
-      toast.success("Signal deleted");
+      toast.success(t.signals.toast.deleted);
       loadSignals();
       loadSummary();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to delete signal"));
+      toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {
       setConfirmDialog({ isOpen: false, type: "delete" });
     }
@@ -137,11 +148,14 @@ export function Signals() {
     setIsDetecting(true);
     try {
       const result = await triggerDetection();
-      toast.success(`Detection complete! Scanned ${result.repos_scanned} repos, found ${result.signals_detected} signals`);
+      toast.success(interpolate(t.signals.detection.complete, {
+        repos: result.repos_scanned,
+        signals: result.signals_detected,
+      }));
       loadSignals();
       loadSummary();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to run anomaly detection"));
+      toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {
       setIsDetecting(false);
     }
@@ -163,7 +177,7 @@ export function Signals() {
   if (isLoading) {
     return (
       <div className="page">
-        <div className="loading">Loading...</div>
+        <div className="loading">{t.signals.loading}</div>
       </div>
     );
   }
@@ -171,8 +185,8 @@ export function Signals() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Early Signals</h1>
-        <p className="subtitle">Detect rising stars and anomalies</p>
+        <h1>{t.signals.title}</h1>
+        <p className="subtitle">{t.signals.subtitle}</p>
       </header>
 
       {/* Summary Cards */}
@@ -182,28 +196,28 @@ export function Signals() {
             <div className="signals-summary-icon">🎯</div>
             <div className="signals-summary-content">
               <div className="signals-summary-value">{summary.total_active}</div>
-              <div className="signals-summary-label">Active Signals</div>
+              <div className="signals-summary-label">{t.signals.summary.activeSignals}</div>
             </div>
           </div>
           <div className="signals-summary-card">
             <div className="signals-summary-icon">📊</div>
             <div className="signals-summary-content">
               <div className="signals-summary-value">{summary.repos_with_signals}</div>
-              <div className="signals-summary-label">Repos with Signals</div>
+              <div className="signals-summary-label">{t.signals.summary.reposWithSignals}</div>
             </div>
           </div>
           <div className="signals-summary-card">
             <div className="signals-summary-icon">⚠️</div>
             <div className="signals-summary-content">
               <div className="signals-summary-value">{summary.by_severity.high || 0}</div>
-              <div className="signals-summary-label">High Severity</div>
+              <div className="signals-summary-label">{t.signals.summary.highSeverity}</div>
             </div>
           </div>
           <div className="signals-summary-card">
             <div className="signals-summary-icon">⭐</div>
             <div className="signals-summary-content">
               <div className="signals-summary-value">{summary.by_type.rising_star || 0}</div>
-              <div className="signals-summary-label">Rising Stars</div>
+              <div className="signals-summary-label">{t.signals.summary.risingStars}</div>
             </div>
           </div>
         </div>
@@ -217,12 +231,12 @@ export function Signals() {
             onChange={(e) => setFilterType(e.target.value as EarlySignalType | "")}
             className="signals-select"
           >
-            <option value="">All Types</option>
-            <option value="rising_star">Rising Star</option>
-            <option value="sudden_spike">Sudden Spike</option>
-            <option value="breakout">Breakout</option>
-            <option value="viral_hn">Viral on HN</option>
-            <option value="release_surge">Release Surge</option>
+            <option value="">{t.signals.toolbar.allTypes}</option>
+            <option value="rising_star">{signalTypeLabels.rising_star}</option>
+            <option value="sudden_spike">{signalTypeLabels.sudden_spike}</option>
+            <option value="breakout">{signalTypeLabels.breakout}</option>
+            <option value="viral_hn">{signalTypeLabels.viral_hn}</option>
+            <option value="release_surge">{signalTypeLabels.release_surge}</option>
           </select>
 
           <select
@@ -230,10 +244,10 @@ export function Signals() {
             onChange={(e) => setFilterSeverity(e.target.value as EarlySignalSeverity | "")}
             className="signals-select"
           >
-            <option value="">All Severities</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="">{t.signals.toolbar.allSeverities}</option>
+            <option value="high">{severityLabels.high}</option>
+            <option value="medium">{severityLabels.medium}</option>
+            <option value="low">{severityLabels.low}</option>
           </select>
 
           <label className="signals-checkbox">
@@ -242,7 +256,7 @@ export function Signals() {
               checked={showAcknowledged}
               onChange={(e) => setShowAcknowledged(e.target.checked)}
             />
-            Show acknowledged
+            {t.signals.toolbar.showAcknowledged}
           </label>
         </div>
 
@@ -252,14 +266,14 @@ export function Signals() {
             onClick={handleAcknowledgeAll}
             disabled={signals.filter((s) => !s.acknowledged).length === 0}
           >
-            Acknowledge All
+            {t.signals.actions.acknowledgeAll}
           </button>
           <button
             className="btn btn-primary"
             onClick={handleRunDetection}
             disabled={isDetecting}
           >
-            {isDetecting ? "Detecting..." : "Run Detection"}
+            {isDetecting ? t.signals.toolbar.detecting : t.signals.toolbar.runDetection}
           </button>
         </div>
       </div>
@@ -268,11 +282,11 @@ export function Signals() {
       <div className="signals-list">
         {signals.length === 0 ? (
           <div className="signals-empty">
-            <p>No signals found.</p>
+            <p>{t.signals.emptyState.noSignals}</p>
             <p className="hint">
               {showAcknowledged
-                ? "No signals match the current filters."
-                : "All signals have been acknowledged, or no anomalies detected."}
+                ? t.signals.emptyState.noMatch
+                : t.signals.emptyState.allAcknowledged}
             </p>
           </div>
         ) : (
@@ -288,13 +302,13 @@ export function Signals() {
               <div className="signal-content">
                 <div className="signal-header">
                   <span className="signal-type">
-                    {SIGNAL_TYPE_LABELS[signal.signal_type]}
+                    {signalTypeLabels[signal.signal_type]}
                   </span>
                   <span
                     className="signal-severity"
                     style={{ color: SEVERITY_COLORS[signal.severity] }}
                   >
-                    {signal.severity.toUpperCase()}
+                    {severityLabels[signal.severity].toUpperCase()}
                   </span>
                 </div>
 
@@ -309,17 +323,17 @@ export function Signals() {
                 <div className="signal-meta">
                   {signal.star_count !== null && (
                     <span className="signal-meta-item">
-                      Stars: {formatNumber(signal.star_count)}
+                      {t.signals.card.stars}: {formatNumber(signal.star_count)}
                     </span>
                   )}
                   {signal.velocity_value !== null && (
                     <span className="signal-meta-item">
-                      Velocity: {signal.velocity_value.toFixed(1)}/day
+                      {t.signals.card.velocity}: {signal.velocity_value.toFixed(1)}/day
                     </span>
                   )}
                   {signal.percentile_rank !== null && (
                     <span className="signal-meta-item">
-                      Top {(100 - signal.percentile_rank).toFixed(0)}%
+                      {t.signals.card.top} {(100 - signal.percentile_rank).toFixed(0)}%
                     </span>
                   )}
                 </div>
@@ -334,7 +348,7 @@ export function Signals() {
                   <button
                     className="btn btn-sm"
                     onClick={() => handleAcknowledge(signal.id)}
-                    title="Acknowledge"
+                    title={t.signals.actions.acknowledge}
                   >
                     ✓
                   </button>
@@ -342,7 +356,7 @@ export function Signals() {
                 <button
                   className="btn btn-sm btn-danger"
                   onClick={() => handleDelete(signal.id)}
-                  title="Delete"
+                  title={t.signals.actions.delete}
                 >
                   &times;
                 </button>
@@ -361,9 +375,9 @@ export function Signals() {
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen && confirmDialog.type === "acknowledgeAll"}
-        title="Acknowledge All Signals"
-        message="Are you sure you want to acknowledge all visible signals? This will mark them as reviewed."
-        confirmText="Acknowledge All"
+        title={t.signals.confirm.acknowledgeAllTitle}
+        message={t.signals.confirm.acknowledgeAllMessage}
+        confirmText={t.signals.actions.acknowledgeAll}
         variant="warning"
         onConfirm={confirmAcknowledgeAll}
         onCancel={() => setConfirmDialog({ isOpen: false, type: "acknowledgeAll" })}
@@ -371,9 +385,9 @@ export function Signals() {
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen && confirmDialog.type === "delete"}
-        title="Delete Signal"
-        message="Are you sure you want to delete this signal? This action cannot be undone."
-        confirmText="Delete"
+        title={t.signals.confirm.deleteTitle}
+        message={t.signals.confirm.deleteMessage}
+        confirmText={t.common.delete}
         variant="danger"
         onConfirm={confirmDelete}
         onCancel={() => setConfirmDialog({ isOpen: false, type: "delete" })}

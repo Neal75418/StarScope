@@ -19,8 +19,10 @@ import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
+import { useI18n, interpolate } from "../i18n";
 
 export function Watchlist() {
+  const { t } = useI18n();
   const [repos, setRepos] = useState<RepoWithSignals[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -47,10 +49,10 @@ export function Watchlist() {
       return true;
     } catch {
       setIsConnected(false);
-      setError("Cannot connect to StarScope engine. Make sure Python sidecar is running.");
+      setError(t.watchlist.connection.message);
       return false;
     }
-  }, []);
+  }, [t.watchlist.connection.message]);
 
   // Load repos
   const loadRepos = useCallback(async () => {
@@ -62,10 +64,10 @@ export function Watchlist() {
       if (err instanceof ApiError) {
         setError(err.detail);
       } else {
-        setError("Failed to load repositories");
+        setError(t.common.error);
       }
     }
-  }, []);
+  }, [t.common.error]);
 
   // Initial load
   useEffect(() => {
@@ -117,7 +119,7 @@ export function Watchlist() {
         const [owner, name] = input.split("/");
         repoInput = { owner, name };
       } else {
-        setDialogError("Invalid format. Use owner/repo or GitHub URL.");
+        setDialogError(t.dialog.addRepo.invalidFormat);
         setIsAddingRepo(false);
         return;
       }
@@ -129,7 +131,7 @@ export function Watchlist() {
       if (err instanceof ApiError) {
         setDialogError(err.detail);
       } else {
-        setDialogError("Failed to add repository");
+        setDialogError(t.toast.error);
       }
     } finally {
       setIsAddingRepo(false);
@@ -153,12 +155,12 @@ export function Watchlist() {
     try {
       await removeRepo(removeConfirm.repoId);
       setRepos((prev) => prev.filter((r) => r.id !== removeConfirm.repoId));
-      toast.success("Repository removed from watchlist");
+      toast.success(t.toast.repoRemoved);
     } catch (err) {
       if (err instanceof ApiError) {
         toast.error(err.detail);
       } else {
-        toast.error("Failed to remove repository");
+        toast.error(t.toast.error);
       }
     } finally {
       setLoadingRepoId(null);
@@ -178,7 +180,7 @@ export function Watchlist() {
       if (err instanceof ApiError) {
         setError(err.detail);
       } else {
-        setError("Failed to fetch repository data");
+        setError(t.common.error);
       }
     } finally {
       setLoadingRepoId(null);
@@ -196,7 +198,7 @@ export function Watchlist() {
       if (err instanceof ApiError) {
         setError(err.detail);
       } else {
-        setError("Failed to refresh repositories");
+        setError(t.common.error);
       }
     } finally {
       setIsRefreshing(false);
@@ -218,7 +220,7 @@ export function Watchlist() {
   if (isLoading) {
     return (
       <div className="page">
-        <div className="loading">Loading...</div>
+        <div className="loading">{t.common.loading}</div>
       </div>
     );
   }
@@ -228,14 +230,14 @@ export function Watchlist() {
     return (
       <div className="page">
         <div className="error-container">
-          <h2>Connection Error</h2>
+          <h2>{t.watchlist.connection.title}</h2>
           <p>{error}</p>
           <p className="hint">
-            Start the Python sidecar with:
+            {t.watchlist.connection.hint}
             <code>cd sidecar && python main.py</code>
           </p>
           <button onClick={handleRetry} className="btn btn-primary">
-            Retry
+            {t.watchlist.connection.retry}
           </button>
         </div>
       </div>
@@ -245,8 +247,8 @@ export function Watchlist() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>StarScope</h1>
-        <p className="subtitle">GitHub Project Intelligence</p>
+        <h1>{t.watchlist.title}</h1>
+        <p className="subtitle">{t.watchlist.subtitle}</p>
       </header>
 
       <div className="watchlist-with-sidebar">
@@ -261,18 +263,18 @@ export function Watchlist() {
               onClick={() => setIsDialogOpen(true)}
               className="btn btn-primary"
             >
-              + Add Repository
+              + {t.watchlist.addRepo}
             </button>
             <button
               onClick={handleRefreshAll}
               disabled={isRefreshing}
               className="btn"
             >
-              {isRefreshing ? "Refreshing..." : "Refresh All"}
+              {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
             </button>
             {selectedCategoryId && (
               <span className="filter-indicator">
-                Showing {displayedRepos.length} of {repos.length} repos
+                {interpolate(t.watchlist.showing, { count: displayedRepos.length, total: repos.length })}
               </span>
             )}
           </div>
@@ -288,14 +290,14 @@ export function Watchlist() {
             {displayedRepos.length === 0 ? (
               <div className="empty-state">
                 {selectedCategoryId ? (
-                  <p>No repositories in this category.</p>
+                  <p>{t.watchlist.empty.noCategory}</p>
                 ) : repos.length === 0 ? (
                   <>
-                    <p>No repositories in your watchlist yet.</p>
-                    <p>Click "Add Repository" to start tracking GitHub projects.</p>
+                    <p>{t.watchlist.empty.noRepos}</p>
+                    <p>{t.watchlist.empty.addPrompt}</p>
                   </>
                 ) : (
-                  <p>No repositories match the current filter.</p>
+                  <p>{t.watchlist.empty.noFilter}</p>
                 )}
               </div>
             ) : (
@@ -326,9 +328,9 @@ export function Watchlist() {
 
       <ConfirmDialog
         isOpen={removeConfirm.isOpen}
-        title="Remove Repository"
-        message={`Are you sure you want to remove "${removeConfirm.repoName}" from your watchlist?`}
-        confirmText="Remove"
+        title={t.dialog.removeRepo.title}
+        message={interpolate(t.dialog.removeRepo.message, { name: removeConfirm.repoName })}
+        confirmText={t.dialog.removeRepo.confirm}
         variant="danger"
         onConfirm={confirmRemoveRepo}
         onCancel={() => setRemoveConfirm({ isOpen: false, repoId: null, repoName: "" })}

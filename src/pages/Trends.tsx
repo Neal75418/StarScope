@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { TrendArrow } from "../components/TrendArrow";
 import { API_ENDPOINT } from "../config";
 import { formatNumber, formatDelta } from "../utils/format";
+import { useI18n } from "../i18n";
 
 type SortOption = "velocity" | "stars_delta_7d" | "stars_delta_30d" | "acceleration";
 
@@ -32,14 +33,10 @@ interface TrendsResponse {
   sort_by: string;
 }
 
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "velocity", label: "Stars/Day" },
-  { value: "stars_delta_7d", label: "7d Delta" },
-  { value: "stars_delta_30d", label: "30d Delta" },
-  { value: "acceleration", label: "Acceleration" },
-];
+const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
 
 export function Trends() {
+  const { t } = useI18n();
   const [trends, setTrends] = useState<TrendingRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,37 +65,45 @@ export function Trends() {
   }, [sortBy]);
 
   if (loading) {
-    return <div className="loading">Loading trends...</div>;
+    return <div className="loading">{t.trends.loading}</div>;
   }
 
   if (error) {
     return (
       <div className="error-container">
-        <h2>Error loading trends</h2>
+        <h2>{t.trends.loadingError}</h2>
         <p>{error}</p>
         <button className="btn btn-primary" onClick={() => fetchTrends(sortBy)}>
-          Retry
+          {t.trends.retry}
         </button>
       </div>
     );
   }
 
+  // Get sort option labels from translations
+  const sortLabels: Record<SortOption, string> = {
+    velocity: t.trends.sortOptions.velocity,
+    stars_delta_7d: t.trends.sortOptions.stars_delta_7d,
+    stars_delta_30d: t.trends.sortOptions.stars_delta_30d,
+    acceleration: t.trends.sortOptions.acceleration,
+  };
+
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Trends</h1>
-        <p className="subtitle">Top performing repos in your watchlist</p>
+        <h1>{t.trends.title}</h1>
+        <p className="subtitle">{t.trends.subtitle}</p>
       </header>
 
       <div className="toolbar">
         <div className="sort-tabs">
-          {SORT_OPTIONS.map((option) => (
+          {SORT_KEYS.map((key) => (
             <button
-              key={option.value}
-              className={`sort-tab ${sortBy === option.value ? "active" : ""}`}
-              onClick={() => setSortBy(option.value)}
+              key={key}
+              className={`sort-tab ${sortBy === key ? "active" : ""}`}
+              onClick={() => setSortBy(key)}
             >
-              {option.label}
+              {sortLabels[key]}
             </button>
           ))}
         </div>
@@ -106,21 +111,20 @@ export function Trends() {
 
       {trends.length === 0 ? (
         <div className="empty-state">
-          <p>No trends data available.</p>
-          <p>Add repos to your watchlist and wait for data to accumulate.</p>
+          <p>{t.trends.empty}</p>
         </div>
       ) : (
         <div className="trends-table">
           <table>
             <thead>
               <tr>
-                <th className="rank-col">#</th>
-                <th className="repo-col">Repository</th>
-                <th className="stars-col">Stars</th>
-                <th className="delta-col">7d</th>
-                <th className="delta-col">30d</th>
-                <th className="velocity-col">Stars/Day</th>
-                <th className="trend-col">Trend</th>
+                <th className="rank-col">{t.trends.columns.rank}</th>
+                <th className="repo-col">{t.trends.columns.repo}</th>
+                <th className="stars-col">{t.trends.columns.stars}</th>
+                <th className="delta-col">{t.trends.columns.delta7d}</th>
+                <th className="delta-col">{t.trends.columns.delta30d}</th>
+                <th className="velocity-col">{t.trends.columns.velocity}</th>
+                <th className="trend-col">{t.repo.trend}</th>
               </tr>
             </thead>
             <tbody>

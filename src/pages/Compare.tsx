@@ -16,8 +16,10 @@ import { formatNumber, formatDelta, formatVelocity } from "../utils/format";
 import { getErrorMessage } from "../utils/error";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
+import { useI18n } from "../i18n";
 
 export function Compare() {
+  const { t } = useI18n();
   const [groups, setGroups] = useState<ComparisonGroup[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<ComparisonGroupDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +39,7 @@ export function Compare() {
       const response = await listComparisonGroups();
       setGroups(response.groups);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to load comparison groups"));
+      toast.error(getErrorMessage(err, t.compare.loadingError));
     }
   };
 
@@ -47,13 +49,14 @@ export function Compare() {
       const detail = await getComparisonGroup(groupId);
       setSelectedGroup(detail);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to load comparison data"));
+      toast.error(getErrorMessage(err, t.compare.loadingError));
     }
   };
 
   useEffect(() => {
     setIsLoading(true);
     loadGroups().finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
@@ -65,10 +68,10 @@ export function Compare() {
       setNewGroupName("");
       setNewGroupDesc("");
       setShowCreateForm(false);
-      toast.success("Comparison group created");
+      toast.success(t.compare.toast.groupCreated);
       loadGroups();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to create comparison group"));
+      toast.error(getErrorMessage(err, t.compare.loadingError));
     }
   };
 
@@ -84,10 +87,10 @@ export function Compare() {
       if (selectedGroup?.group_id === deleteConfirm.groupId) {
         setSelectedGroup(null);
       }
-      toast.success("Comparison group deleted");
+      toast.success(t.compare.toast.groupDeleted);
       loadGroups();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to delete comparison group"));
+      toast.error(getErrorMessage(err, t.compare.loadingError));
     } finally {
       setDeleteConfirm({ isOpen: false, groupId: null });
     }
@@ -100,7 +103,7 @@ export function Compare() {
       await removeRepoFromComparison(selectedGroup.group_id, repoId);
       loadGroupDetail(selectedGroup.group_id);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to remove repo from comparison"));
+      toast.error(getErrorMessage(err, t.compare.loadingError));
     }
   };
 
@@ -115,7 +118,7 @@ export function Compare() {
   if (isLoading) {
     return (
       <div className="page">
-        <div className="loading">Loading...</div>
+        <div className="loading">{t.compare.loading}</div>
       </div>
     );
   }
@@ -123,15 +126,15 @@ export function Compare() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Compare</h1>
-        <p className="subtitle">Compare repositories side by side</p>
+        <h1>{t.compare.title}</h1>
+        <p className="subtitle">{t.compare.subtitle}</p>
       </header>
 
       <div className="compare-layout">
         {/* Sidebar - Group List */}
         <div className="compare-sidebar">
           <div className="compare-sidebar-header">
-            <h3>Comparison Groups</h3>
+            <h3>{t.compare.sidebar.title}</h3>
             <button
               className="btn btn-sm"
               onClick={() => setShowCreateForm(!showCreateForm)}
@@ -146,25 +149,25 @@ export function Compare() {
                 type="text"
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Group name (e.g., JS Runtimes)"
+                placeholder={t.compare.form.groupNamePlaceholder}
                 autoFocus
               />
               <input
                 type="text"
                 value={newGroupDesc}
                 onChange={(e) => setNewGroupDesc(e.target.value)}
-                placeholder="Description (optional)"
+                placeholder={t.compare.form.description}
               />
               <div className="compare-form-actions">
                 <button type="submit" className="btn btn-sm btn-primary">
-                  Create
+                  {t.compare.form.create}
                 </button>
                 <button
                   type="button"
                   className="btn btn-sm"
                   onClick={() => setShowCreateForm(false)}
                 >
-                  Cancel
+                  {t.common.cancel}
                 </button>
               </div>
             </form>
@@ -173,7 +176,7 @@ export function Compare() {
           <div className="compare-group-list">
             {groups.length === 0 ? (
               <div className="compare-empty">
-                No comparison groups yet. Create one to get started.
+                {t.compare.noGroups}
               </div>
             ) : (
               groups.map((group) => (
@@ -187,7 +190,7 @@ export function Compare() {
                   <div className="compare-group-info">
                     <span className="compare-group-name">{group.name}</span>
                     <span className="compare-group-count">
-                      {group.member_count} repos
+                      {group.member_count} {group.member_count === 1 ? "repo" : "repos"}
                     </span>
                   </div>
                   <button
@@ -209,17 +212,17 @@ export function Compare() {
         <div className="compare-main">
           {!selectedGroup ? (
             <div className="compare-placeholder">
-              <p>Select a comparison group to view the comparison</p>
+              <p>{t.compare.placeholder.selectGroup}</p>
               <p className="hint">
-                Add repositories to a group from the Watchlist page
+                {t.compare.placeholder.addReposHint}
               </p>
             </div>
           ) : selectedGroup.members.length === 0 ? (
             <div className="compare-placeholder">
               <h2>{selectedGroup.group_name}</h2>
-              <p>No repositories in this comparison group yet.</p>
+              <p>{t.compare.placeholder.emptyGroup}</p>
               <p className="hint">
-                Add repositories from the Watchlist page using the "+ Compare" button
+                {t.compare.placeholder.addReposButton}
               </p>
             </div>
           ) : (
@@ -234,25 +237,25 @@ export function Compare() {
               {/* Summary Cards */}
               <div className="compare-summary">
                 <div className="compare-summary-card">
-                  <div className="compare-summary-label">Leader by Stars</div>
+                  <div className="compare-summary-label">{t.compare.summary.leaderByStars}</div>
                   <div className="compare-summary-value">
                     {selectedGroup.summary.leader_by_stars || "-"}
                   </div>
                 </div>
                 <div className="compare-summary-card">
-                  <div className="compare-summary-label">Leader by Velocity</div>
+                  <div className="compare-summary-label">{t.compare.summary.leaderByVelocity}</div>
                   <div className="compare-summary-value">
                     {selectedGroup.summary.leader_by_velocity || "-"}
                   </div>
                 </div>
                 <div className="compare-summary-card">
-                  <div className="compare-summary-label">Leader by Health</div>
+                  <div className="compare-summary-label">{t.compare.summary.leaderByHealth}</div>
                   <div className="compare-summary-value">
                     {selectedGroup.summary.leader_by_health || "-"}
                   </div>
                 </div>
                 <div className="compare-summary-card">
-                  <div className="compare-summary-label">Total Stars</div>
+                  <div className="compare-summary-label">{t.compare.summary.totalStars}</div>
                   <div className="compare-summary-value">
                     {formatNumber(selectedGroup.summary.total_stars)}
                   </div>
@@ -264,14 +267,14 @@ export function Compare() {
                 <table className="compare-table">
                   <thead>
                     <tr>
-                      <th>Repository</th>
-                      <th>Language</th>
-                      <th>Stars</th>
-                      <th>7d</th>
-                      <th>30d</th>
-                      <th>Velocity</th>
-                      <th>Health</th>
-                      <th></th>
+                      <th>{t.compare.table.repository}</th>
+                      <th>{t.compare.table.language}</th>
+                      <th>{t.compare.table.stars}</th>
+                      <th>{t.compare.table.delta7d}</th>
+                      <th>{t.compare.table.delta30d}</th>
+                      <th>{t.compare.table.velocity}</th>
+                      <th>{t.compare.table.health}</th>
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -326,7 +329,7 @@ export function Compare() {
                           <button
                             className="btn btn-sm btn-danger"
                             onClick={() => handleRemoveRepo(member.repo_id)}
-                            title="Remove from comparison"
+                            title={t.repo.remove}
                           >
                             &times;
                           </button>
@@ -350,9 +353,9 @@ export function Compare() {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Comparison Group"
-        message="Are you sure you want to delete this comparison group? This action cannot be undone."
-        confirmText="Delete"
+        title={t.compare.confirm.deleteTitle}
+        message={t.compare.confirm.deleteMessage}
+        confirmText={t.common.delete}
         variant="danger"
         onConfirm={confirmDeleteGroup}
         onCancel={() => setDeleteConfirm({ isOpen: false, groupId: null })}

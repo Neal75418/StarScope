@@ -6,6 +6,8 @@ import { useState, useEffect } from "react";
 import {
   Webhook,
   WebhookCreate,
+  WebhookType,
+  WebhookTrigger,
   listWebhooks,
   createWebhook,
   deleteWebhook,
@@ -20,8 +22,10 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
 import { getErrorMessage } from "../utils/error";
+import { useI18n } from "../i18n";
 
 export function Settings() {
+  const { t } = useI18n();
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -44,13 +48,14 @@ export function Settings() {
       const response = await listWebhooks();
       setWebhooks(response.webhooks);
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to load webhooks"));
+      toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     }
   };
 
   useEffect(() => {
     setIsLoading(true);
     loadWebhooks().finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateWebhook = async (e: React.FormEvent) => {
@@ -67,10 +72,10 @@ export function Settings() {
         triggers: ["signal_detected"],
       });
       setShowAddWebhook(false);
-      toast.success("Webhook created successfully");
+      toast.success(t.settings.webhooks.toast.created);
       loadWebhooks();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to create webhook"));
+      toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
       setIsCreating(false);
     }
@@ -85,10 +90,10 @@ export function Settings() {
 
     try {
       await deleteWebhook(deleteConfirm.webhookId);
-      toast.success("Webhook deleted");
+      toast.success(t.settings.webhooks.toast.deleted);
       loadWebhooks();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to delete webhook"));
+      toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
       setDeleteConfirm({ isOpen: false, webhookId: null });
     }
@@ -99,13 +104,13 @@ export function Settings() {
     try {
       const result = await testWebhook(id);
       if (result.success) {
-        toast.success("Test message sent successfully!");
+        toast.success(t.settings.webhooks.toast.testSent);
       } else {
-        toast.error("Failed to send test message");
+        toast.error(t.settings.webhooks.toast.testFailed);
       }
       loadWebhooks();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to send test message"));
+      toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
       setTestingId(null);
     }
@@ -116,21 +121,22 @@ export function Settings() {
       await toggleWebhook(id);
       loadWebhooks();
     } catch (err) {
-      toast.error(getErrorMessage(err, "Failed to toggle webhook"));
+      toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     }
   };
 
   const handleTriggerChange = (trigger: string) => {
-    const triggers = newWebhook.triggers.includes(trigger as any)
+    const typedTrigger = trigger as WebhookTrigger;
+    const triggers = newWebhook.triggers.includes(typedTrigger)
       ? newWebhook.triggers.filter((t) => t !== trigger)
-      : [...newWebhook.triggers, trigger as any];
+      : [...newWebhook.triggers, typedTrigger];
     setNewWebhook({ ...newWebhook, triggers });
   };
 
   if (isLoading) {
     return (
       <div className="page">
-        <div className="loading">Loading...</div>
+        <div className="loading">{t.settings.loading}</div>
       </div>
     );
   }
@@ -138,8 +144,8 @@ export function Settings() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>Settings</h1>
-        <p className="subtitle">Manage connections, export data, and configure notifications</p>
+        <h1>{t.settings.title}</h1>
+        <p className="subtitle">{t.settings.subtitle}</p>
       </header>
 
       {/* GitHub Connection Section */}
@@ -149,92 +155,92 @@ export function Settings() {
 
       {/* Export Section */}
       <section className="settings-section">
-        <h2>Export Data</h2>
+        <h2>{t.settings.export.title}</h2>
         <p className="settings-description">
-          Download your data in various formats for backup or analysis.
+          {t.settings.export.subtitle}
         </p>
 
         <div className="export-grid">
           <div className="export-card">
-            <h3>Watchlist</h3>
-            <p>Export all tracked repositories with their current stats.</p>
+            <h3>{t.settings.export.cards.watchlist.title}</h3>
+            <p>{t.settings.export.cards.watchlist.desc}</p>
             <div className="export-actions">
               <a
                 href={getExportWatchlistUrl("json")}
                 className="btn btn-sm"
                 download
               >
-                JSON
+                {t.settings.export.json}
               </a>
               <a
                 href={getExportWatchlistUrl("csv")}
                 className="btn btn-sm"
                 download
               >
-                CSV
+                {t.settings.export.csv}
               </a>
             </div>
           </div>
 
           <div className="export-card">
-            <h3>Signals</h3>
-            <p>Export all detected early signals.</p>
+            <h3>{t.settings.export.cards.signals.title}</h3>
+            <p>{t.settings.export.cards.signals.desc}</p>
             <div className="export-actions">
               <a
                 href={getExportSignalsUrl("json")}
                 className="btn btn-sm"
                 download
               >
-                JSON
+                {t.settings.export.json}
               </a>
               <a
                 href={getExportSignalsUrl("csv")}
                 className="btn btn-sm"
                 download
               >
-                CSV
+                {t.settings.export.csv}
               </a>
             </div>
           </div>
 
           <div className="export-card">
-            <h3>Full Report</h3>
-            <p>Complete data export including all repos and signals.</p>
+            <h3>{t.settings.export.cards.fullReport.title}</h3>
+            <p>{t.settings.export.cards.fullReport.desc}</p>
             <div className="export-actions">
               <a
                 href={getExportFullReportUrl()}
                 className="btn btn-sm btn-primary"
                 download
               >
-                Download JSON
+                {t.settings.export.cards.fullReport.download}
               </a>
             </div>
           </div>
 
           <div className="export-card">
-            <h3>Weekly Digest</h3>
-            <p>Summary report of the past week's activity.</p>
+            <h3>{t.settings.export.cards.weeklyDigest.title}</h3>
+            <p>{t.settings.export.cards.weeklyDigest.desc}</p>
             <div className="export-actions">
               <a
                 href={getDigestUrl("weekly", "html")}
                 className="btn btn-sm"
                 target="_blank"
               >
-                HTML
+                {t.settings.export.html}
               </a>
               <a
                 href={getDigestUrl("weekly", "md")}
                 className="btn btn-sm"
                 download
               >
-                Markdown
+                {t.settings.export.markdown}
               </a>
               <a
                 href={getDigestUrl("weekly", "json")}
                 className="btn btn-sm"
                 download
               >
-                JSON
+                {t.settings.export.json}
               </a>
             </div>
           </div>
@@ -245,16 +251,16 @@ export function Settings() {
       <section className="settings-section">
         <div className="settings-section-header">
           <div>
-            <h2>Webhooks</h2>
+            <h2>{t.settings.webhooks.title}</h2>
             <p className="settings-description">
-              Configure notifications to Slack, Discord, or custom endpoints.
+              {t.settings.webhooks.noWebhooks ? t.settings.webhooks.empty : ""}
             </p>
           </div>
           <button
             className="btn btn-primary"
             onClick={() => setShowAddWebhook(!showAddWebhook)}
           >
-            {showAddWebhook ? "Cancel" : "+ Add Webhook"}
+            {showAddWebhook ? t.common.cancel : t.settings.webhooks.actions.addWebhook}
           </button>
         </div>
 
@@ -262,60 +268,60 @@ export function Settings() {
           <form className="webhook-form" onSubmit={handleCreateWebhook}>
             <div className="form-row">
               <div className="form-group">
-                <label>Name</label>
+                <label>{t.settings.webhooks.form.name}</label>
                 <input
                   type="text"
                   value={newWebhook.name}
                   onChange={(e) =>
                     setNewWebhook({ ...newWebhook, name: e.target.value })
                   }
-                  placeholder="My Slack Webhook"
+                  placeholder={t.settings.webhooks.form.namePlaceholder}
                   required
                 />
               </div>
               <div className="form-group">
-                <label>Type</label>
+                <label>{t.settings.webhooks.form.type}</label>
                 <select
                   value={newWebhook.webhook_type}
                   onChange={(e) =>
                     setNewWebhook({
                       ...newWebhook,
-                      webhook_type: e.target.value as any,
+                      webhook_type: e.target.value as WebhookType,
                     })
                   }
                 >
-                  <option value="slack">Slack</option>
-                  <option value="discord">Discord</option>
-                  <option value="generic">Generic HTTP</option>
+                  <option value="slack">{t.settings.webhooks.types.slack}</option>
+                  <option value="discord">{t.settings.webhooks.types.discord}</option>
+                  <option value="generic">{t.settings.webhooks.types.generic}</option>
                 </select>
               </div>
             </div>
 
             <div className="form-group">
-              <label>Webhook URL</label>
+              <label>{t.settings.webhooks.form.url}</label>
               <input
                 type="url"
                 value={newWebhook.url}
                 onChange={(e) =>
                   setNewWebhook({ ...newWebhook, url: e.target.value })
                 }
-                placeholder="https://hooks.slack.com/services/..."
+                placeholder={t.settings.webhooks.form.urlPlaceholder}
                 required
               />
             </div>
 
             <div className="form-group">
-              <label>Triggers</label>
+              <label>{t.settings.webhooks.form.triggers}</label>
               <div className="trigger-options">
                 {[
-                  { id: "signal_detected", label: "New Signal Detected" },
-                  { id: "daily_digest", label: "Daily Digest" },
-                  { id: "weekly_digest", label: "Weekly Digest" },
+                  { id: "signal_detected", label: t.settings.webhooks.triggers.new_signal },
+                  { id: "daily_digest", label: t.settings.webhooks.triggers.daily_digest },
+                  { id: "weekly_digest", label: t.settings.webhooks.triggers.weekly_digest },
                 ].map((trigger) => (
                   <label key={trigger.id} className="trigger-option">
                     <input
                       type="checkbox"
-                      checked={newWebhook.triggers.includes(trigger.id as any)}
+                      checked={newWebhook.triggers.includes(trigger.id as WebhookTrigger)}
                       onChange={() => handleTriggerChange(trigger.id)}
                     />
                     {trigger.label}
@@ -330,7 +336,7 @@ export function Settings() {
                 className="btn btn-primary"
                 disabled={isCreating}
               >
-                {isCreating ? "Creating..." : "Create Webhook"}
+                {isCreating ? t.settings.webhooks.actions.creating : t.settings.webhooks.actions.createWebhook}
               </button>
             </div>
           </form>
@@ -339,7 +345,7 @@ export function Settings() {
         <div className="webhook-list">
           {webhooks.length === 0 ? (
             <div className="webhook-empty">
-              No webhooks configured yet. Add one to receive notifications.
+              {t.settings.webhooks.empty}
             </div>
           ) : (
             webhooks.map((webhook) => (
@@ -355,16 +361,16 @@ export function Settings() {
                         webhook.enabled ? "enabled" : "disabled"
                       }`}
                     >
-                      {webhook.enabled ? "Enabled" : "Disabled"}
+                      {webhook.enabled ? t.settings.webhooks.status.enabled : t.settings.webhooks.status.disabled}
                     </span>
                   </div>
                   <div className="webhook-url">{webhook.url}</div>
                   <div className="webhook-triggers">
-                    Triggers: {webhook.triggers.join(", ").replace(/_/g, " ")}
+                    {t.settings.webhooks.labels.triggers}: {webhook.triggers.join(", ").replace(/_/g, " ")}
                   </div>
                   {webhook.last_error && (
                     <div className="webhook-error">
-                      Last error: {webhook.last_error}
+                      {t.settings.webhooks.labels.lastError}: {webhook.last_error}
                     </div>
                   )}
                 </div>
@@ -374,19 +380,19 @@ export function Settings() {
                     onClick={() => handleTestWebhook(webhook.id)}
                     disabled={testingId === webhook.id}
                   >
-                    {testingId === webhook.id ? "Testing..." : "Test"}
+                    {testingId === webhook.id ? t.settings.webhooks.actions.testing : t.settings.webhooks.actions.test}
                   </button>
                   <button
                     className="btn btn-sm"
                     onClick={() => handleToggleWebhook(webhook.id)}
                   >
-                    {webhook.enabled ? "Disable" : "Enable"}
+                    {webhook.enabled ? t.settings.webhooks.actions.disable : t.settings.webhooks.actions.enable}
                   </button>
                   <button
                     className="btn btn-sm btn-danger"
                     onClick={() => handleDeleteWebhook(webhook.id)}
                   >
-                    Delete
+                    {t.settings.webhooks.actions.delete}
                   </button>
                 </div>
               </div>
@@ -397,9 +403,9 @@ export function Settings() {
 
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
-        title="Delete Webhook"
-        message="Are you sure you want to delete this webhook? This action cannot be undone."
-        confirmText="Delete"
+        title={t.settings.webhooks.confirm.deleteTitle}
+        message={t.settings.webhooks.confirm.deleteMessage}
+        confirmText={t.common.delete}
         variant="danger"
         onConfirm={confirmDeleteWebhook}
         onCancel={() => setDeleteConfirm({ isOpen: false, webhookId: null })}

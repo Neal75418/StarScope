@@ -19,6 +19,7 @@ import { HealthScorePanel } from "./HealthScorePanel";
 import { TagList } from "./TagBadge";
 import { SimilarRepos } from "./SimilarRepos";
 import { formatNumber, formatDelta, formatVelocity } from "../utils/format";
+import { useI18n } from "../i18n";
 
 interface RepoCardProps {
   repo: RepoWithSignals;
@@ -28,6 +29,7 @@ interface RepoCardProps {
 }
 
 export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) {
+  const { t } = useI18n();
   const [badges, setBadges] = useState<ContextBadge[]>([]);
   const [badgesLoading, setBadgesLoading] = useState(true);
   const [tags, setTags] = useState<RepoTag[]>([]);
@@ -114,46 +116,46 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
           <button
             onClick={() => setShowChart(!showChart)}
             className={`btn btn-sm ${showChart ? "active" : ""}`}
-            title="Toggle chart"
+            title={t.repo.chart}
           >
-            {showChart ? "Hide" : "Chart"}
+            {showChart ? t.repo.hide : t.repo.chart}
           </button>
           <button
             onClick={() => setShowSimilar(!showSimilar)}
             className={`btn btn-sm ${showSimilar ? "active" : ""}`}
-            title="Show similar repositories"
+            title={t.repo.similar}
           >
-            Similar
+            {t.repo.similar}
           </button>
           <button
             onClick={() => onFetch(repo.id)}
             disabled={isLoading}
             className="btn btn-sm"
-            title="Refresh data"
+            title={t.repo.refresh}
           >
-            Refresh
+            {t.repo.refresh}
           </button>
           <button
             onClick={() => onRemove(repo.id)}
             disabled={isLoading}
             className="btn btn-sm btn-danger"
-            title="Remove from watchlist"
+            title={t.repo.remove}
           >
-            Remove
+            {t.repo.remove}
           </button>
         </div>
       </div>
 
       {/* Context Badges */}
       {badgesLoading ? (
-        <div className="badges-loading">Loading badges...</div>
+        <div className="badges-loading">{t.repo.loadingBadges}</div>
       ) : (
         <ContextBadges badges={badges} />
       )}
 
       {/* Tags */}
       {tagsLoading ? (
-        <div className="tags-loading">Loading tags...</div>
+        <div className="tags-loading">{t.repo.loadingTags}</div>
       ) : tags.length > 0 ? (
         <TagList tags={tags} maxVisible={6} />
       ) : null}
@@ -164,7 +166,7 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
 
       <div className="repo-stats">
         <div className="stat">
-          <span className="stat-label">Stars</span>
+          <span className="stat-label">{t.repo.stars}</span>
           <span className="stat-value">{formatNumber(repo.stars)}</span>
         </div>
         <div className="stat">
@@ -176,11 +178,11 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
           <span className="stat-value delta">{formatDelta(repo.stars_delta_30d)}</span>
         </div>
         <div className="stat">
-          <span className="stat-label">Velocity</span>
+          <span className="stat-label">{t.repo.velocity}</span>
           <span className="stat-value">{formatVelocity(repo.velocity)}</span>
         </div>
         <div className="stat">
-          <span className="stat-label">Trend</span>
+          <span className="stat-label">{t.repo.trend}</span>
           <span className="stat-value">
             <TrendArrow trend={repo.trend} />
           </span>
