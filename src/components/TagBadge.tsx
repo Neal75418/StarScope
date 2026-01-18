@@ -59,11 +59,7 @@ export function TagBadge({ tag, onRemove, onClick }: TagBadgeProps) {
     >
       {tag.name}
       {onRemove && (
-        <button
-          className="tag-remove-btn"
-          onClick={handleRemove}
-          title="Remove tag"
-        >
+        <button className="tag-remove-btn" onClick={handleRemove} title="Remove tag">
           &times;
         </button>
       )}
@@ -89,12 +85,7 @@ export function TagList({ tags, onRemove, onTagClick, maxVisible = 5 }: TagListP
   return (
     <div className="tag-list">
       {visibleTags.map((tag) => (
-        <TagBadge
-          key={tag.id}
-          tag={tag}
-          onRemove={onRemove}
-          onClick={onTagClick}
-        />
+        <TagBadge key={tag.id} tag={tag} onRemove={onRemove} onClick={onTagClick} />
       ))}
       {hiddenCount > 0 && (
         <span className="tag-badge tag-more" title={`${hiddenCount} more tags`}>

@@ -91,9 +91,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
             </button>
           )}
         </div>
-        <div className="similar-repos-empty">
-          No similar repos found in your watchlist.
-        </div>
+        <div className="similar-repos-empty">No similar repos found in your watchlist.</div>
       </div>
     );
   }
@@ -125,9 +123,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
               </span>
             </div>
             <div className="similar-repo-meta">
-              {repo.language && (
-                <span className="similar-repo-language">{repo.language}</span>
-              )}
+              {repo.language && <span className="similar-repo-language">{repo.language}</span>}
               {repo.same_language && (
                 <span className="similar-repo-badge same-lang">Same Language</span>
               )}
@@ -140,9 +136,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
                   </span>
                 ))}
                 {repo.shared_topics.length > 3 && (
-                  <span className="similar-topic-more">
-                    +{repo.shared_topics.length - 3}
-                  </span>
+                  <span className="similar-topic-more">+{repo.shared_topics.length - 3}</span>
                 )}
               </div>
             )}

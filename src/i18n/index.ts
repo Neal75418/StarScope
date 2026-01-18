@@ -54,10 +54,7 @@ export function getTranslations(lang: Language): TranslationKeys {
 }
 
 // Helper to interpolate variables in translation strings
-export function interpolate(
-  str: string,
-  vars: Record<string, string | number>
-): string {
+export function interpolate(str: string, vars: Record<string, string | number>): string {
   return str.replace(/{(\w+)}/g, (_, key) => String(vars[key] ?? `{${key}}`));
 }
 

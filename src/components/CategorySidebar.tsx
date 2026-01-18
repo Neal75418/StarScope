@@ -4,12 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
-import {
-  CategoryTreeNode,
-  getCategoryTree,
-  createCategory,
-  deleteCategory,
-} from "../api/client";
+import { CategoryTreeNode, getCategoryTree, createCategory, deleteCategory } from "../api/client";
 
 interface CategorySidebarProps {
   selectedCategoryId: number | null;
@@ -108,10 +103,7 @@ export function CategorySidebar({
           onClick={() => onSelectCategory(node.id)}
         >
           {hasChildren && (
-            <button
-              className="category-expand-btn"
-              onClick={(e) => toggleExpanded(node.id, e)}
-            >
+            <button className="category-expand-btn" onClick={(e) => toggleExpanded(node.id, e)}>
               {isExpanded ? "▼" : "▶"}
             </button>
           )}
@@ -119,10 +111,7 @@ export function CategorySidebar({
 
           {node.icon && <span className="category-icon">{node.icon}</span>}
 
-          <span
-            className="category-name"
-            style={node.color ? { color: node.color } : undefined}
-          >
+          <span className="category-name" style={node.color ? { color: node.color } : undefined}>
             {node.name}
           </span>
 
@@ -218,9 +207,7 @@ export function CategorySidebar({
         {tree.map((node) => renderTreeNode(node))}
 
         {tree.length === 0 && !showAddForm && (
-          <div className="category-empty">
-            No categories yet. Click + to create one.
-          </div>
+          <div className="category-empty">No categories yet. Click + to create one.</div>
         )}
       </div>
     </div>
@@ -271,11 +258,7 @@ export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryD
 
   if (!isOpen) {
     return (
-      <button
-        className="btn btn-sm"
-        onClick={() => setIsOpen(true)}
-        title="Add to category"
-      >
+      <button className="btn btn-sm" onClick={() => setIsOpen(true)} title="Add to category">
         + Category
       </button>
     );

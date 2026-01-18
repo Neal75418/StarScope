@@ -34,7 +34,11 @@ export function Watchlist() {
   const [isConnected, setIsConnected] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [filteredRepoIds, setFilteredRepoIds] = useState<Set<number> | null>(null);
-  const [removeConfirm, setRemoveConfirm] = useState<{ isOpen: boolean; repoId: number | null; repoName: string }>({
+  const [removeConfirm, setRemoveConfirm] = useState<{
+    isOpen: boolean;
+    repoId: number | null;
+    repoName: string;
+  }>({
     isOpen: false,
     repoId: null,
     repoName: "",
@@ -100,9 +104,7 @@ export function Watchlist() {
   }, [selectedCategoryId]);
 
   // Filter repos based on selected category
-  const displayedRepos = filteredRepoIds
-    ? repos.filter((r) => filteredRepoIds.has(r.id))
-    : repos;
+  const displayedRepos = filteredRepoIds ? repos.filter((r) => filteredRepoIds.has(r.id)) : repos;
 
   // Add repo handler
   const handleAddRepo = async (input: string) => {
@@ -173,9 +175,7 @@ export function Watchlist() {
     setLoadingRepoId(repoId);
     try {
       const updated = await fetchRepo(repoId);
-      setRepos((prev) =>
-        prev.map((r) => (r.id === repoId ? updated : r))
-      );
+      setRepos((prev) => prev.map((r) => (r.id === repoId ? updated : r)));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.detail);
@@ -259,22 +259,18 @@ export function Watchlist() {
 
         <div className="watchlist-main">
           <div className="toolbar">
-            <button
-              onClick={() => setIsDialogOpen(true)}
-              className="btn btn-primary"
-            >
+            <button onClick={() => setIsDialogOpen(true)} className="btn btn-primary">
               + {t.watchlist.addRepo}
             </button>
-            <button
-              onClick={handleRefreshAll}
-              disabled={isRefreshing}
-              className="btn"
-            >
+            <button onClick={handleRefreshAll} disabled={isRefreshing} className="btn">
               {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
             </button>
             {selectedCategoryId && (
               <span className="filter-indicator">
-                {interpolate(t.watchlist.showing, { count: displayedRepos.length, total: repos.length })}
+                {interpolate(t.watchlist.showing, {
+                  count: displayedRepos.length,
+                  total: repos.length,
+                })}
               </span>
             )}
           </div>

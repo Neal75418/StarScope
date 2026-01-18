@@ -96,7 +96,9 @@ export function GitHubConnection() {
   const startPolling = (code: string, interval: number, expiresIn: number) => {
     // Use at least 10 seconds to avoid rate limiting (GitHub default is 5, but we're conservative)
     currentIntervalRef.current = Math.max(interval, 10);
-    console.warn(`[GitHubAuth] Starting polling: interval=${currentIntervalRef.current}s, expires=${expiresIn}s`);
+    console.warn(
+      `[GitHubAuth] Starting polling: interval=${currentIntervalRef.current}s, expires=${expiresIn}s`
+    );
 
     // Set expiration timeout
     pollTimeoutRef.current = window.setTimeout(() => {
@@ -135,7 +137,9 @@ export function GitHubConnection() {
         } else if (result.status === "pending" && result.slow_down && result.interval) {
           // GitHub says we're polling too fast - use their suggested interval + buffer
           const newInterval = result.interval + 5; // Add 5 second buffer to be safe
-          console.warn(`[GitHubAuth] Slowing down: ${currentIntervalRef.current}s -> ${newInterval}s`);
+          console.warn(
+            `[GitHubAuth] Slowing down: ${currentIntervalRef.current}s -> ${newInterval}s`
+          );
           currentIntervalRef.current = newInterval;
           setPollStatus(`Rate limited, waiting ${newInterval}s...`);
 
@@ -146,7 +150,9 @@ export function GitHubConnection() {
           }
         } else {
           // Regular pending - show next poll time
-          setPollStatus(`Waiting for authorization... (checking every ${currentIntervalRef.current}s)`);
+          setPollStatus(
+            `Waiting for authorization... (checking every ${currentIntervalRef.current}s)`
+          );
         }
       } catch (err) {
         // Network error during polling - continue trying
@@ -267,16 +273,10 @@ export function GitHubConnection() {
       {state === "awaiting_auth" && deviceCode && (
         <div className="github-status awaiting">
           <div className="device-code-section">
-            <div className="device-code-label">
-              Enter this code on GitHub:
-            </div>
+            <div className="device-code-label">Enter this code on GitHub:</div>
             <div className="device-code-box">
               <code className="device-code">{deviceCode.user_code}</code>
-              <button
-                onClick={copyUserCode}
-                className="btn btn-small"
-                title="Copy code"
-              >
+              <button onClick={copyUserCode} className="btn btn-small" title="Copy code">
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
@@ -310,7 +310,8 @@ export function GitHubConnection() {
             </div>
             {status.rate_limit_remaining !== undefined && (
               <div className="status-rate-limit">
-                API: {status.rate_limit_remaining?.toLocaleString()} / {status.rate_limit_total?.toLocaleString()} remaining
+                API: {status.rate_limit_remaining?.toLocaleString()} /{" "}
+                {status.rate_limit_total?.toLocaleString()} remaining
               </div>
             )}
           </div>

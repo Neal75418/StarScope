@@ -144,7 +144,8 @@ export const translations = {
       },
       confirm: {
         acknowledgeAllTitle: "Acknowledge All Signals",
-        acknowledgeAllMessage: "Are you sure you want to acknowledge all visible signals? This will mark them as reviewed.",
+        acknowledgeAllMessage:
+          "Are you sure you want to acknowledge all visible signals? This will mark them as reviewed.",
         deleteTitle: "Delete Signal",
         deleteMessage: "Are you sure you want to delete this signal? This action cannot be undone.",
       },
@@ -199,11 +200,12 @@ export const translations = {
         selectGroup: "Select a comparison group to view the comparison",
         addReposHint: "Add repositories to a group from the Watchlist page",
         emptyGroup: "No repositories in this comparison group yet.",
-        addReposButton: "Add repositories from the Watchlist page using the \"+ Compare\" button",
+        addReposButton: 'Add repositories from the Watchlist page using the "+ Compare" button',
       },
       confirm: {
         deleteTitle: "Delete Comparison Group",
-        deleteMessage: "Are you sure you want to delete this comparison group? This action cannot be undone.",
+        deleteMessage:
+          "Are you sure you want to delete this comparison group? This action cannot be undone.",
       },
       actions: {
         edit: "Edit Group",
@@ -332,7 +334,8 @@ export const translations = {
         empty: "No webhooks configured yet. Add one to receive notifications.",
         confirm: {
           deleteTitle: "Delete Webhook",
-          deleteMessage: "Are you sure you want to delete this webhook? This action cannot be undone.",
+          deleteMessage:
+            "Are you sure you want to delete this webhook? This action cannot be undone.",
         },
       },
       export: {
@@ -473,7 +476,7 @@ export const translations = {
       showing: "顯示 {count} / {total} 個儲存庫",
       empty: {
         noRepos: "追蹤清單中還沒有儲存庫。",
-        addPrompt: '點擊「新增儲存庫」開始追蹤 GitHub 專案。',
+        addPrompt: "點擊「新增儲存庫」開始追蹤 GitHub 專案。",
         noCategory: "此分類中沒有儲存庫。",
         noFilter: "沒有符合篩選條件的儲存庫。",
       },
@@ -870,7 +873,7 @@ export const translations = {
       },
       removeRepo: {
         title: "移除儲存庫",
-        message: '確定要將「{name}」從追蹤清單中移除嗎？',
+        message: "確定要將「{name}」從追蹤清單中移除嗎？",
         confirm: "移除",
       },
     },

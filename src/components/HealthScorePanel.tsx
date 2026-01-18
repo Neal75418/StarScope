@@ -72,11 +72,7 @@ function ScoreRow({ label, score, detail, weight }: ScoreRowProps) {
   );
 }
 
-export function HealthScorePanel({
-  details,
-  onClose,
-  onRecalculate,
-}: HealthScorePanelProps) {
+export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScorePanelProps) {
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
@@ -175,9 +171,7 @@ export function HealthScorePanel({
             score={details.pr_merge_score}
             weight="20%"
             detail={
-              metrics?.pr_merge_rate
-                ? `${metrics.pr_merge_rate.toFixed(0)}% merged`
-                : undefined
+              metrics?.pr_merge_rate ? `${metrics.pr_merge_rate.toFixed(0)}% merged` : undefined
             }
           />
 
@@ -197,9 +191,7 @@ export function HealthScorePanel({
             score={details.bus_factor_score}
             weight="15%"
             detail={
-              metrics?.contributor_count
-                ? `${metrics.contributor_count} contributors`
-                : undefined
+              metrics?.contributor_count ? `${metrics.contributor_count} contributors` : undefined
             }
           />
 
@@ -220,31 +212,17 @@ export function HealthScorePanel({
             }
           />
 
-          <ScoreRow
-            label="Dependencies"
-            score={details.dependency_score}
-            weight="10%"
-          />
+          <ScoreRow label="Dependencies" score={details.dependency_score} weight="10%" />
 
-          <ScoreRow
-            label="Star Velocity"
-            score={details.velocity_score}
-            weight="10%"
-          />
+          <ScoreRow label="Star Velocity" score={details.velocity_score} weight="10%" />
         </div>
 
         {/* Error Display */}
-        {error && (
-          <div className="health-panel-error">{error}</div>
-        )}
+        {error && <div className="health-panel-error">{error}</div>}
 
         {/* Actions */}
         <div className="health-panel-actions">
-          <button
-            className="btn btn-primary"
-            onClick={handleRecalculate}
-            disabled={recalculating}
-          >
+          <button className="btn btn-primary" onClick={handleRecalculate} disabled={recalculating}>
             {recalculating ? "Calculating..." : "Recalculate"}
           </button>
           <button className="btn" onClick={onClose}>

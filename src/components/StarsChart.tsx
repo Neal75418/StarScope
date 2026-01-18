@@ -66,9 +66,7 @@ export function StarsChart({ repoId }: StarsChartProps) {
 
   if (data.length < 2) {
     return (
-      <div className="chart-empty">
-        Not enough data for chart. Need at least 2 data points.
-      </div>
+      <div className="chart-empty">Not enough data for chart. Need at least 2 data points.</div>
     );
   }
 

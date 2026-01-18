@@ -52,10 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button onClick={this.handleRetry} className="btn btn-primary">
                 Try Again
               </button>
-              <button
-                onClick={() => window.location.reload()}
-                className="btn"
-              >
+              <button onClick={() => window.location.reload()} className="btn">
                 Reload App
               </button>
             </div>

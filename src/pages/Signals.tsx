@@ -148,10 +148,12 @@ export function Signals() {
     setIsDetecting(true);
     try {
       const result = await triggerDetection();
-      toast.success(interpolate(t.signals.detection.complete, {
-        repos: result.repos_scanned,
-        signals: result.signals_detected,
-      }));
+      toast.success(
+        interpolate(t.signals.detection.complete, {
+          repos: result.repos_scanned,
+          signals: result.signals_detected,
+        })
+      );
       loadSignals();
       loadSummary();
     } catch (err) {
@@ -268,11 +270,7 @@ export function Signals() {
           >
             {t.signals.actions.acknowledgeAll}
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={handleRunDetection}
-            disabled={isDetecting}
-          >
+          <button className="btn btn-primary" onClick={handleRunDetection} disabled={isDetecting}>
             {isDetecting ? t.signals.toolbar.detecting : t.signals.toolbar.runDetection}
           </button>
         </div>
@@ -295,15 +293,11 @@ export function Signals() {
               key={signal.id}
               className={`signal-card ${signal.acknowledged ? "acknowledged" : ""}`}
             >
-              <div className="signal-icon">
-                {SIGNAL_TYPE_ICONS[signal.signal_type]}
-              </div>
+              <div className="signal-icon">{SIGNAL_TYPE_ICONS[signal.signal_type]}</div>
 
               <div className="signal-content">
                 <div className="signal-header">
-                  <span className="signal-type">
-                    {signalTypeLabels[signal.signal_type]}
-                  </span>
+                  <span className="signal-type">{signalTypeLabels[signal.signal_type]}</span>
                   <span
                     className="signal-severity"
                     style={{ color: SEVERITY_COLORS[signal.severity] }}
@@ -312,13 +306,9 @@ export function Signals() {
                   </span>
                 </div>
 
-                <div className="signal-repo">
-                  {signal.repo_name}
-                </div>
+                <div className="signal-repo">{signal.repo_name}</div>
 
-                <div className="signal-description">
-                  {signal.description}
-                </div>
+                <div className="signal-description">{signal.description}</div>
 
                 <div className="signal-meta">
                   {signal.star_count !== null && (
@@ -339,9 +329,7 @@ export function Signals() {
                 </div>
               </div>
 
-              <div className="signal-time">
-                {formatRelativeTime(signal.detected_at)}
-              </div>
+              <div className="signal-time">{formatRelativeTime(signal.detected_at)}</div>
 
               <div className="signal-actions">
                 {!signal.acknowledged && (

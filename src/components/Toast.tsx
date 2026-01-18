@@ -39,10 +39,7 @@ export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
     <div className={`toast toast-${toast.type}`}>
       <span className="toast-icon">{icons[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
-      <button
-        className="toast-dismiss"
-        onClick={() => onDismiss(toast.id)}
-      >
+      <button className="toast-dismiss" onClick={() => onDismiss(toast.id)}>
         &times;
       </button>
     </div>
@@ -82,25 +79,13 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const success = useCallback(
-    (message: string) => addToast("success", message),
-    [addToast]
-  );
+  const success = useCallback((message: string) => addToast("success", message), [addToast]);
 
-  const error = useCallback(
-    (message: string) => addToast("error", message),
-    [addToast]
-  );
+  const error = useCallback((message: string) => addToast("error", message), [addToast]);
 
-  const info = useCallback(
-    (message: string) => addToast("info", message),
-    [addToast]
-  );
+  const info = useCallback((message: string) => addToast("info", message), [addToast]);
 
-  const warning = useCallback(
-    (message: string) => addToast("warning", message),
-    [addToast]
-  );
+  const warning = useCallback((message: string) => addToast("warning", message), [addToast]);
 
   return {
     toasts,

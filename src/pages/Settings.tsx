@@ -37,10 +37,12 @@ export function Settings() {
     triggers: ["signal_detected"],
   });
   const [testingId, setTestingId] = useState<number | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; webhookId: number | null }>({
-    isOpen: false,
-    webhookId: null,
-  });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; webhookId: number | null }>(
+    {
+      isOpen: false,
+      webhookId: null,
+    }
+  );
   const toast = useToast();
 
   const loadWebhooks = async () => {
@@ -156,27 +158,17 @@ export function Settings() {
       {/* Export Section */}
       <section className="settings-section">
         <h2>{t.settings.export.title}</h2>
-        <p className="settings-description">
-          {t.settings.export.subtitle}
-        </p>
+        <p className="settings-description">{t.settings.export.subtitle}</p>
 
         <div className="export-grid">
           <div className="export-card">
             <h3>{t.settings.export.cards.watchlist.title}</h3>
             <p>{t.settings.export.cards.watchlist.desc}</p>
             <div className="export-actions">
-              <a
-                href={getExportWatchlistUrl("json")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getExportWatchlistUrl("json")} className="btn btn-sm" download>
                 {t.settings.export.json}
               </a>
-              <a
-                href={getExportWatchlistUrl("csv")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getExportWatchlistUrl("csv")} className="btn btn-sm" download>
                 {t.settings.export.csv}
               </a>
             </div>
@@ -186,18 +178,10 @@ export function Settings() {
             <h3>{t.settings.export.cards.signals.title}</h3>
             <p>{t.settings.export.cards.signals.desc}</p>
             <div className="export-actions">
-              <a
-                href={getExportSignalsUrl("json")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getExportSignalsUrl("json")} className="btn btn-sm" download>
                 {t.settings.export.json}
               </a>
-              <a
-                href={getExportSignalsUrl("csv")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getExportSignalsUrl("csv")} className="btn btn-sm" download>
                 {t.settings.export.csv}
               </a>
             </div>
@@ -207,11 +191,7 @@ export function Settings() {
             <h3>{t.settings.export.cards.fullReport.title}</h3>
             <p>{t.settings.export.cards.fullReport.desc}</p>
             <div className="export-actions">
-              <a
-                href={getExportFullReportUrl()}
-                className="btn btn-sm btn-primary"
-                download
-              >
+              <a href={getExportFullReportUrl()} className="btn btn-sm btn-primary" download>
                 {t.settings.export.cards.fullReport.download}
               </a>
             </div>
@@ -221,25 +201,13 @@ export function Settings() {
             <h3>{t.settings.export.cards.weeklyDigest.title}</h3>
             <p>{t.settings.export.cards.weeklyDigest.desc}</p>
             <div className="export-actions">
-              <a
-                href={getDigestUrl("weekly", "html")}
-                className="btn btn-sm"
-                target="_blank"
-              >
+              <a href={getDigestUrl("weekly", "html")} className="btn btn-sm" target="_blank">
                 {t.settings.export.html}
               </a>
-              <a
-                href={getDigestUrl("weekly", "md")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getDigestUrl("weekly", "md")} className="btn btn-sm" download>
                 {t.settings.export.markdown}
               </a>
-              <a
-                href={getDigestUrl("weekly", "json")}
-                className="btn btn-sm"
-                download
-              >
+              <a href={getDigestUrl("weekly", "json")} className="btn btn-sm" download>
                 {t.settings.export.json}
               </a>
             </div>
@@ -256,10 +224,7 @@ export function Settings() {
               {t.settings.webhooks.noWebhooks ? t.settings.webhooks.empty : ""}
             </p>
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowAddWebhook(!showAddWebhook)}
-          >
+          <button className="btn btn-primary" onClick={() => setShowAddWebhook(!showAddWebhook)}>
             {showAddWebhook ? t.common.cancel : t.settings.webhooks.actions.addWebhook}
           </button>
         </div>
@@ -272,9 +237,7 @@ export function Settings() {
                 <input
                   type="text"
                   value={newWebhook.name}
-                  onChange={(e) =>
-                    setNewWebhook({ ...newWebhook, name: e.target.value })
-                  }
+                  onChange={(e) => setNewWebhook({ ...newWebhook, name: e.target.value })}
                   placeholder={t.settings.webhooks.form.namePlaceholder}
                   required
                 />
@@ -302,9 +265,7 @@ export function Settings() {
               <input
                 type="url"
                 value={newWebhook.url}
-                onChange={(e) =>
-                  setNewWebhook({ ...newWebhook, url: e.target.value })
-                }
+                onChange={(e) => setNewWebhook({ ...newWebhook, url: e.target.value })}
                 placeholder={t.settings.webhooks.form.urlPlaceholder}
                 required
               />
@@ -331,12 +292,10 @@ export function Settings() {
             </div>
 
             <div className="form-actions">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={isCreating}
-              >
-                {isCreating ? t.settings.webhooks.actions.creating : t.settings.webhooks.actions.createWebhook}
+              <button type="submit" className="btn btn-primary" disabled={isCreating}>
+                {isCreating
+                  ? t.settings.webhooks.actions.creating
+                  : t.settings.webhooks.actions.createWebhook}
               </button>
             </div>
           </form>
@@ -344,9 +303,7 @@ export function Settings() {
 
         <div className="webhook-list">
           {webhooks.length === 0 ? (
-            <div className="webhook-empty">
-              {t.settings.webhooks.empty}
-            </div>
+            <div className="webhook-empty">{t.settings.webhooks.empty}</div>
           ) : (
             webhooks.map((webhook) => (
               <div key={webhook.id} className="webhook-card">
@@ -356,17 +313,16 @@ export function Settings() {
                     <span className={`webhook-type ${webhook.webhook_type}`}>
                       {webhook.webhook_type}
                     </span>
-                    <span
-                      className={`webhook-status ${
-                        webhook.enabled ? "enabled" : "disabled"
-                      }`}
-                    >
-                      {webhook.enabled ? t.settings.webhooks.status.enabled : t.settings.webhooks.status.disabled}
+                    <span className={`webhook-status ${webhook.enabled ? "enabled" : "disabled"}`}>
+                      {webhook.enabled
+                        ? t.settings.webhooks.status.enabled
+                        : t.settings.webhooks.status.disabled}
                     </span>
                   </div>
                   <div className="webhook-url">{webhook.url}</div>
                   <div className="webhook-triggers">
-                    {t.settings.webhooks.labels.triggers}: {webhook.triggers.join(", ").replace(/_/g, " ")}
+                    {t.settings.webhooks.labels.triggers}:{" "}
+                    {webhook.triggers.join(", ").replace(/_/g, " ")}
                   </div>
                   {webhook.last_error && (
                     <div className="webhook-error">
@@ -380,13 +336,14 @@ export function Settings() {
                     onClick={() => handleTestWebhook(webhook.id)}
                     disabled={testingId === webhook.id}
                   >
-                    {testingId === webhook.id ? t.settings.webhooks.actions.testing : t.settings.webhooks.actions.test}
+                    {testingId === webhook.id
+                      ? t.settings.webhooks.actions.testing
+                      : t.settings.webhooks.actions.test}
                   </button>
-                  <button
-                    className="btn btn-sm"
-                    onClick={() => handleToggleWebhook(webhook.id)}
-                  >
-                    {webhook.enabled ? t.settings.webhooks.actions.disable : t.settings.webhooks.actions.enable}
+                  <button className="btn btn-sm" onClick={() => handleToggleWebhook(webhook.id)}>
+                    {webhook.enabled
+                      ? t.settings.webhooks.actions.disable
+                      : t.settings.webhooks.actions.enable}
                   </button>
                   <button
                     className="btn btn-sm btn-danger"

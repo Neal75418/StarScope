@@ -47,8 +47,8 @@ export function ConfirmDialog({
     variant === "danger"
       ? "btn btn-danger"
       : variant === "warning"
-      ? "btn btn-warning"
-      : "btn btn-primary";
+        ? "btn btn-warning"
+        : "btn btn-primary";
 
   return (
     <div className="dialog-overlay" onClick={onCancel} role="presentation">

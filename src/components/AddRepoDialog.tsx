@@ -13,13 +13,7 @@ interface AddRepoDialogProps {
   error?: string | null;
 }
 
-export function AddRepoDialog({
-  isOpen,
-  onClose,
-  onAdd,
-  isLoading,
-  error,
-}: AddRepoDialogProps) {
+export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddRepoDialogProps) {
   const { t } = useI18n();
   const [input, setInput] = useState("");
 
@@ -68,9 +62,7 @@ export function AddRepoDialog({
 
         <form onSubmit={handleSubmit}>
           <div className="dialog-body">
-            <p className="dialog-hint">
-              {t.dialog.addRepo.hint}
-            </p>
+            <p className="dialog-hint">{t.dialog.addRepo.hint}</p>
             <ul className="dialog-examples">
               <li>owner/repo (e.g., facebook/react)</li>
               <li>https://github.com/owner/repo</li>
@@ -90,19 +82,10 @@ export function AddRepoDialog({
           </div>
 
           <div className="dialog-footer">
-            <button
-              type="button"
-              onClick={handleClose}
-              className="btn"
-              disabled={isLoading}
-            >
+            <button type="button" onClick={handleClose} className="btn" disabled={isLoading}>
               {t.common.cancel}
             </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isLoading || !input.trim()}
-            >
+            <button type="submit" className="btn btn-primary" disabled={isLoading || !input.trim()}>
               {isLoading ? t.common.loading : t.dialog.addRepo.add}
             </button>
           </div>

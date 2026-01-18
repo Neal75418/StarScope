@@ -142,17 +142,11 @@ export function Trends() {
                     >
                       {repo.full_name}
                     </a>
-                    {repo.language && (
-                      <span className="repo-language">{repo.language}</span>
-                    )}
+                    {repo.language && <span className="repo-language">{repo.language}</span>}
                   </td>
                   <td className="stars-col">{formatNumber(repo.stars)}</td>
-                  <td className="delta-col positive">
-                    {formatDelta(repo.stars_delta_7d)}
-                  </td>
-                  <td className="delta-col positive">
-                    {formatDelta(repo.stars_delta_30d)}
-                  </td>
+                  <td className="delta-col positive">{formatDelta(repo.stars_delta_7d)}</td>
+                  <td className="delta-col positive">{formatDelta(repo.stars_delta_30d)}</td>
                   <td className="velocity-col">
                     {repo.velocity !== null ? repo.velocity.toFixed(1) : "—"}
                   </td>

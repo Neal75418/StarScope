@@ -19,13 +19,13 @@ interface HealthBadgeProps {
 // Grade color mapping
 const GRADE_COLORS: Record<string, { bg: string; text: string }> = {
   "A+": { bg: "#14532d", text: "#86efac" },
-  "A": { bg: "#166534", text: "#86efac" },
+  A: { bg: "#166534", text: "#86efac" },
   "B+": { bg: "#15803d", text: "#bbf7d0" },
-  "B": { bg: "#16a34a", text: "#dcfce7" },
+  B: { bg: "#16a34a", text: "#dcfce7" },
   "C+": { bg: "#ca8a04", text: "#fef9c3" },
-  "C": { bg: "#a16207", text: "#fef08a" },
-  "D": { bg: "#c2410c", text: "#fed7aa" },
-  "F": { bg: "#991b1b", text: "#fecaca" },
+  C: { bg: "#a16207", text: "#fef08a" },
+  D: { bg: "#c2410c", text: "#fed7aa" },
+  F: { bg: "#991b1b", text: "#fecaca" },
 };
 
 export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {

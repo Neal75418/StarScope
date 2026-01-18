@@ -135,10 +135,7 @@ export function Compare() {
         <div className="compare-sidebar">
           <div className="compare-sidebar-header">
             <h3>{t.compare.sidebar.title}</h3>
-            <button
-              className="btn btn-sm"
-              onClick={() => setShowCreateForm(!showCreateForm)}
-            >
+            <button className="btn btn-sm" onClick={() => setShowCreateForm(!showCreateForm)}>
               +
             </button>
           </div>
@@ -175,9 +172,7 @@ export function Compare() {
 
           <div className="compare-group-list">
             {groups.length === 0 ? (
-              <div className="compare-empty">
-                {t.compare.noGroups}
-              </div>
+              <div className="compare-empty">{t.compare.noGroups}</div>
             ) : (
               groups.map((group) => (
                 <div
@@ -213,17 +208,13 @@ export function Compare() {
           {!selectedGroup ? (
             <div className="compare-placeholder">
               <p>{t.compare.placeholder.selectGroup}</p>
-              <p className="hint">
-                {t.compare.placeholder.addReposHint}
-              </p>
+              <p className="hint">{t.compare.placeholder.addReposHint}</p>
             </div>
           ) : selectedGroup.members.length === 0 ? (
             <div className="compare-placeholder">
               <h2>{selectedGroup.group_name}</h2>
               <p>{t.compare.placeholder.emptyGroup}</p>
-              <p className="hint">
-                {t.compare.placeholder.addReposButton}
-              </p>
+              <p className="hint">{t.compare.placeholder.addReposButton}</p>
             </div>
           ) : (
             <>
@@ -291,9 +282,7 @@ export function Compare() {
                           </a>
                         </td>
                         <td>
-                          <span className="compare-language">
-                            {member.language || "-"}
-                          </span>
+                          <span className="compare-language">{member.language || "-"}</span>
                         </td>
                         <td className="compare-number">
                           {member.stars !== null ? formatNumber(member.stars) : "-"}
@@ -309,9 +298,7 @@ export function Compare() {
                             : "-"}
                         </td>
                         <td className="compare-number">
-                          {member.velocity !== null
-                            ? formatVelocity(member.velocity)
-                            : "-"}
+                          {member.velocity !== null ? formatVelocity(member.velocity) : "-"}
                         </td>
                         <td>
                           {member.health_grade ? (

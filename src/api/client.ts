@@ -139,10 +139,7 @@ export class ApiError extends Error {
 }
 
 // Helper function for API calls
-async function apiCall<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_ENDPOINT}${endpoint}`;
 
   try {
@@ -256,7 +253,9 @@ export async function getContextSignals(
 /**
  * Manually trigger context signal fetch for a repository.
  */
-export async function fetchRepoContext(repoId: number): Promise<{ repo_id: number; new_signals: Record<string, number> }> {
+export async function fetchRepoContext(
+  repoId: number
+): Promise<{ repo_id: number; new_signals: Record<string, number> }> {
   return apiCall(`/context/${repoId}/fetch`, {
     method: "POST",
   });
@@ -424,9 +423,7 @@ export async function searchByTags(
   matchAll: boolean = false
 ): Promise<SearchByTagsResponse> {
   const tagsParam = encodeURIComponent(tags.join(","));
-  return apiCall<SearchByTagsResponse>(
-    `/tags/search?tags=${tagsParam}&match_all=${matchAll}`
-  );
+  return apiCall<SearchByTagsResponse>(`/tags/search?tags=${tagsParam}&match_all=${matchAll}`);
 }
 
 // Recommendation types
@@ -475,9 +472,7 @@ export async function getSimilarRepos(
   repoId: number,
   limit: number = 10
 ): Promise<SimilarReposResponse> {
-  return apiCall<SimilarReposResponse>(
-    `/recommendations/similar/${repoId}?limit=${limit}`
-  );
+  return apiCall<SimilarReposResponse>(`/recommendations/similar/${repoId}?limit=${limit}`);
 }
 
 /**
@@ -486,10 +481,9 @@ export async function getSimilarRepos(
 export async function calculateRepoSimilarities(
   repoId: number
 ): Promise<CalculateSimilaritiesResponse> {
-  return apiCall<CalculateSimilaritiesResponse>(
-    `/recommendations/repo/${repoId}/calculate`,
-    { method: "POST" }
-  );
+  return apiCall<CalculateSimilaritiesResponse>(`/recommendations/repo/${repoId}/calculate`, {
+    method: "POST",
+  });
 }
 
 /**
@@ -623,10 +617,7 @@ export async function createCategory(data: CategoryCreate): Promise<Category> {
 /**
  * Update a category.
  */
-export async function updateCategory(
-  categoryId: number,
-  data: CategoryUpdate
-): Promise<Category> {
+export async function updateCategory(categoryId: number, data: CategoryUpdate): Promise<Category> {
   return apiCall<Category>(`/categories/${categoryId}`, {
     method: "PUT",
     body: JSON.stringify(data),
@@ -647,9 +638,7 @@ export async function deleteCategory(
 /**
  * Get repos in a category.
  */
-export async function getCategoryRepos(
-  categoryId: number
-): Promise<CategoryReposResponse> {
+export async function getCategoryRepos(categoryId: number): Promise<CategoryReposResponse> {
   return apiCall<CategoryReposResponse>(`/categories/${categoryId}/repos`);
 }
 
@@ -680,9 +669,7 @@ export async function removeRepoFromCategory(
 /**
  * Get categories for a repo.
  */
-export async function getRepoCategories(
-  repoId: number
-): Promise<RepoCategoriesResponse> {
+export async function getRepoCategories(repoId: number): Promise<RepoCategoriesResponse> {
   return apiCall<RepoCategoriesResponse>(`/categories/repo/${repoId}/categories`);
 }
 
@@ -778,9 +765,7 @@ export async function listComparisonGroups(): Promise<ComparisonGroupListRespons
 /**
  * Get a comparison group with full data.
  */
-export async function getComparisonGroup(
-  groupId: number
-): Promise<ComparisonGroupDetail> {
+export async function getComparisonGroup(groupId: number): Promise<ComparisonGroupDetail> {
   return apiCall<ComparisonGroupDetail>(`/comparisons/${groupId}`);
 }
 
@@ -852,17 +837,13 @@ export async function getComparisonChart(
   groupId: number,
   timeRange: "7d" | "30d" | "90d" = "30d"
 ): Promise<ComparisonChartData> {
-  return apiCall<ComparisonChartData>(
-    `/comparisons/${groupId}/chart?time_range=${timeRange}`
-  );
+  return apiCall<ComparisonChartData>(`/comparisons/${groupId}/chart?time_range=${timeRange}`);
 }
 
 /**
  * Get velocity comparison data.
  */
-export async function getVelocityComparison(
-  groupId: number
-): Promise<VelocityComparisonData> {
+export async function getVelocityComparison(groupId: number): Promise<VelocityComparisonData> {
   return apiCall<VelocityComparisonData>(`/comparisons/${groupId}/velocity`);
 }
 
@@ -916,15 +897,13 @@ export interface DetectionResult {
 /**
  * List all early signals.
  */
-export async function listEarlySignals(
-  options?: {
-    signal_type?: EarlySignalType;
-    severity?: EarlySignalSeverity;
-    include_acknowledged?: boolean;
-    include_expired?: boolean;
-    limit?: number;
-  }
-): Promise<EarlySignalListResponse> {
+export async function listEarlySignals(options?: {
+  signal_type?: EarlySignalType;
+  severity?: EarlySignalSeverity;
+  include_acknowledged?: boolean;
+  include_expired?: boolean;
+  limit?: number;
+}): Promise<EarlySignalListResponse> {
   const params = new URLSearchParams();
   if (options?.signal_type) params.append("signal_type", options.signal_type);
   if (options?.severity) params.append("severity", options.severity);
@@ -933,9 +912,7 @@ export async function listEarlySignals(
   if (options?.limit) params.append("limit", String(options.limit));
 
   const queryString = params.toString();
-  return apiCall<EarlySignalListResponse>(
-    `/early-signals${queryString ? `?${queryString}` : ""}`
-  );
+  return apiCall<EarlySignalListResponse>(`/early-signals${queryString ? `?${queryString}` : ""}`);
 }
 
 /**
@@ -1000,9 +977,7 @@ export async function triggerDetection(): Promise<DetectionResult> {
 /**
  * Delete an early signal.
  */
-export async function deleteSignal(
-  signalId: number
-): Promise<{ status: string; message: string }> {
+export async function deleteSignal(signalId: number): Promise<{ status: string; message: string }> {
   return apiCall(`/early-signals/${signalId}`, {
     method: "DELETE",
   });
@@ -1050,7 +1025,11 @@ export function getDigestUrl(period: "daily" | "weekly", format: "json" | "md" |
 // ==================== Webhook Types ====================
 
 export type WebhookType = "slack" | "discord" | "generic";
-export type WebhookTrigger = "signal_detected" | "daily_digest" | "weekly_digest" | "threshold_alert";
+export type WebhookTrigger =
+  | "signal_detected"
+  | "daily_digest"
+  | "weekly_digest"
+  | "threshold_alert";
 
 export interface Webhook {
   id: number;
@@ -1136,10 +1115,7 @@ export async function createWebhook(data: WebhookCreate): Promise<Webhook> {
 /**
  * Update a webhook.
  */
-export async function updateWebhook(
-  webhookId: number,
-  data: WebhookUpdate
-): Promise<Webhook> {
+export async function updateWebhook(webhookId: number, data: WebhookUpdate): Promise<Webhook> {
   return apiCall<Webhook>(`/webhooks/${webhookId}`, {
     method: "PUT",
     body: JSON.stringify(data),

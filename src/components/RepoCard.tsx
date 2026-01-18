@@ -96,21 +96,11 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
     <div className="repo-card">
       <div className="repo-header">
         <div className="repo-info">
-          <a
-            href={repo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="repo-name"
-          >
+          <a href={repo.url} target="_blank" rel="noopener noreferrer" className="repo-name">
             {repo.full_name}
           </a>
-          {repo.language && (
-            <span className="repo-language">{repo.language}</span>
-          )}
-          <HealthBadge
-            repoId={repo.id}
-            onShowDetails={setHealthDetails}
-          />
+          {repo.language && <span className="repo-language">{repo.language}</span>}
+          <HealthBadge repoId={repo.id} onShowDetails={setHealthDetails} />
         </div>
         <div className="repo-actions">
           <button
@@ -160,9 +150,7 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
         <TagList tags={tags} maxVisible={6} />
       ) : null}
 
-      {repo.description && (
-        <p className="repo-description">{repo.description}</p>
-      )}
+      {repo.description && <p className="repo-description">{repo.description}</p>}
 
       <div className="repo-stats">
         <div className="stat">
@@ -197,12 +185,7 @@ export function RepoCard({ repo, onFetch, onRemove, isLoading }: RepoCardProps) 
       )}
 
       {/* Similar Repos Panel */}
-      {showSimilar && (
-        <SimilarRepos
-          repoId={repo.id}
-          onClose={() => setShowSimilar(false)}
-        />
-      )}
+      {showSimilar && <SimilarRepos repoId={repo.id} onClose={() => setShowSimilar(false)} />}
 
       {/* Health Score Panel */}
       {healthDetails && (

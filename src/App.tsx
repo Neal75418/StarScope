@@ -16,38 +16,16 @@ import {
   MoonIcon,
   GlobeIcon,
 } from "./components/Icons";
-import {
-  I18nContext,
-  getInitialLanguage,
-  saveLanguage,
-  getTranslations,
-  Language,
-} from "./i18n";
-import {
-  ThemeContext,
-  getInitialTheme,
-  saveTheme,
-  applyTheme,
-  Theme,
-} from "./theme";
+import { I18nContext, getInitialLanguage, saveLanguage, getTranslations, Language } from "./i18n";
+import { ThemeContext, getInitialTheme, saveTheme, applyTheme, Theme } from "./theme";
 import "./App.css";
 
 // Lazy load pages for code splitting
-const Watchlist = lazy(() =>
-  import("./pages/Watchlist").then((m) => ({ default: m.Watchlist }))
-);
-const Trends = lazy(() =>
-  import("./pages/Trends").then((m) => ({ default: m.Trends }))
-);
-const Compare = lazy(() =>
-  import("./pages/Compare").then((m) => ({ default: m.Compare }))
-);
-const Signals = lazy(() =>
-  import("./pages/Signals").then((m) => ({ default: m.Signals }))
-);
-const Settings = lazy(() =>
-  import("./pages/Settings").then((m) => ({ default: m.Settings }))
-);
+const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
+const Trends = lazy(() => import("./pages/Trends").then((m) => ({ default: m.Trends })));
+const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
+const Signals = lazy(() => import("./pages/Signals").then((m) => ({ default: m.Signals })));
+const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
 
 type Page = "watchlist" | "trends" | "compare" | "signals" | "settings";
 
@@ -127,7 +105,14 @@ function App() {
             <nav className="nav-container">
               {/* Left: Logo and Navigation */}
               <div className="nav-left">
-                <a href="#" className="nav-logo" onClick={(e) => { e.preventDefault(); setCurrentPage("watchlist"); }}>
+                <a
+                  href="#"
+                  className="nav-logo"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage("watchlist");
+                  }}
+                >
                   <StarIcon size={32} className="logo-icon" />
                   <span className="logo-text">StarScope</span>
                 </a>
@@ -141,7 +126,9 @@ function App() {
                       aria-current={currentPage === item.id ? "page" : undefined}
                       aria-label={item.label}
                     >
-                      <span className="nav-item-icon" aria-hidden="true">{item.icon}</span>
+                      <span className="nav-item-icon" aria-hidden="true">
+                        {item.icon}
+                      </span>
                       <span className="nav-item-label">{item.label}</span>
                     </button>
                   ))}
@@ -158,9 +145,7 @@ function App() {
                   aria-label={language === "en" ? "切換為繁體中文" : "Switch to English"}
                 >
                   <GlobeIcon size={16} aria-hidden="true" />
-                  <span className="nav-action-label">
-                    {language === "en" ? "EN" : "中"}
-                  </span>
+                  <span className="nav-action-label">{language === "en" ? "EN" : "中"}</span>
                 </button>
 
                 {/* Theme Toggle */}
@@ -170,7 +155,11 @@ function App() {
                   title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                   aria-label={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
                 >
-                  {theme === "dark" ? <SunIcon size={16} aria-hidden="true" /> : <MoonIcon size={16} aria-hidden="true" />}
+                  {theme === "dark" ? (
+                    <SunIcon size={16} aria-hidden="true" />
+                  ) : (
+                    <MoonIcon size={16} aria-hidden="true" />
+                  )}
                 </button>
 
                 {/* Settings */}
