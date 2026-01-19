@@ -2,19 +2,20 @@
 Tests for services/webhook.py - Webhook notification service.
 """
 
-import pytest
 import json
-from datetime import datetime
 from unittest.mock import MagicMock, patch, AsyncMock
 
+import pytest
+
+from db.models import WebhookType, WebhookTrigger
 from services.webhook import (
     WebhookService,
-    _safe_json_loads,
     get_webhook_service,
     trigger_signal_webhooks,
     trigger_digest_webhooks,
 )
-from db.models import WebhookType, WebhookTrigger
+# Import module for accessing protected members in tests
+from services import webhook as webhook_module
 
 
 class TestSafeJsonLoads:
@@ -22,27 +23,27 @@ class TestSafeJsonLoads:
 
     def test_valid_json(self):
         """Test parsing valid JSON."""
-        result = _safe_json_loads('["a", "b", "c"]')
+        result = webhook_module._safe_json_loads('["a", "b", "c"]')
         assert result == ["a", "b", "c"]
 
     def test_empty_string(self):
         """Test empty string returns default."""
-        result = _safe_json_loads("")
+        result = webhook_module._safe_json_loads("")
         assert result == []
 
     def test_none_value(self):
         """Test None returns default."""
-        result = _safe_json_loads(None)
+        result = webhook_module._safe_json_loads(None)
         assert result == []
 
     def test_invalid_json(self):
         """Test invalid JSON returns default."""
-        result = _safe_json_loads("not valid json")
+        result = webhook_module._safe_json_loads("not valid json")
         assert result == []
 
     def test_custom_default(self):
         """Test custom default value."""
-        result = _safe_json_loads(None, default={"key": "value"})
+        result = webhook_module._safe_json_loads(None, default={"key": "value"})
         assert result == {"key": "value"}
 
 
@@ -153,7 +154,7 @@ class TestWebhookServiceSending:
     @pytest.mark.asyncio
     async def test_send_signal_notification_slack(self, test_db, mock_webhook, mock_early_signal):
         """Test sending signal notification to Slack."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
         mock_webhook.webhook_type = WebhookType.SLACK
 
         service = WebhookService()
@@ -173,7 +174,7 @@ class TestWebhookServiceSending:
     @pytest.mark.asyncio
     async def test_send_signal_notification_discord(self, test_db, mock_webhook, mock_early_signal):
         """Test sending signal notification to Discord."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
         mock_webhook.webhook_type = WebhookType.DISCORD
 
         service = WebhookService()
@@ -192,7 +193,7 @@ class TestWebhookServiceSending:
     @pytest.mark.asyncio
     async def test_send_signal_notification_failure(self, test_db, mock_webhook, mock_early_signal):
         """Test handling webhook failure."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
 
         service = WebhookService()
 
@@ -212,7 +213,7 @@ class TestWebhookServiceSending:
     async def test_send_webhook_timeout(self, test_db, mock_webhook, mock_early_signal):
         """Test handling webhook timeout."""
         import httpx
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
 
         service = WebhookService()
 
@@ -270,7 +271,6 @@ class TestGetWebhookService:
     def test_returns_singleton(self):
         """Test that service is a singleton."""
         # Reset singleton
-        import services.webhook as webhook_module
         webhook_module._webhook_service = None
 
         service1 = get_webhook_service()
@@ -285,7 +285,7 @@ class TestTriggerSignalWebhooks:
     @pytest.mark.asyncio
     async def test_triggers_matching_webhooks(self, test_db, mock_webhook, mock_early_signal):
         """Test that matching webhooks are triggered."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
         mock_webhook.triggers = json.dumps([WebhookTrigger.SIGNAL_DETECTED])
         mock_webhook.enabled = True
         test_db.commit()
@@ -302,7 +302,7 @@ class TestTriggerSignalWebhooks:
     @pytest.mark.asyncio
     async def test_skips_disabled_webhooks(self, test_db, mock_webhook, mock_early_signal):
         """Test that disabled webhooks are skipped."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
         mock_webhook.enabled = False
         test_db.commit()
 
@@ -318,7 +318,7 @@ class TestTriggerSignalWebhooks:
     @pytest.mark.asyncio
     async def test_respects_severity_filter(self, test_db, mock_webhook, mock_early_signal):
         """Test that severity filter is respected."""
-        repo, signal = mock_early_signal
+        _, signal = mock_early_signal
         signal.severity = "low"
         mock_webhook.triggers = json.dumps([WebhookTrigger.SIGNAL_DETECTED])
         mock_webhook.enabled = True

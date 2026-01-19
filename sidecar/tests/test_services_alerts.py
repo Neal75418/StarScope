@@ -3,22 +3,17 @@ Tests for services/alerts.py - Alert checking service.
 """
 
 import pytest
-from datetime import timedelta
-from unittest.mock import MagicMock, patch
-
+from db.models import AlertRule, AlertOperator, TriggeredAlert, Signal
 from services.alerts import (
     evaluate_condition,
     check_rule_for_repo,
     check_all_alerts,
-    _is_in_cooldown,
-    _create_triggered_alert,
-    _get_repos_for_rule,
-    _check_rule_alerts,
     get_unacknowledged_alerts,
     acknowledge_alert,
     acknowledge_all_alerts,
 )
-from db.models import AlertRule, AlertOperator, TriggeredAlert, Signal
+# Import internal functions for unit testing (testing implementation details)
+from services import alerts as alerts_module
 from utils.time import utc_now
 
 
@@ -83,7 +78,7 @@ class TestIsInCooldown:
 
     def test_no_previous_trigger(self, test_db, mock_repo):
         """Test returns False when no previous trigger."""
-        result = _is_in_cooldown(test_db, rule_id=999, repo_id=mock_repo.id)
+        result = alerts_module._is_in_cooldown(test_db, rule_id=999, repo_id=mock_repo.id)
         assert result is False
 
 
@@ -102,12 +97,12 @@ class TestCreateTriggeredAlert:
         test_db.add(rule)
         test_db.commit()
 
-        triggered = _create_triggered_alert(test_db, rule, mock_repo, 15.0)
+        triggered = alerts_module._create_triggered_alert(test_db, rule, mock_repo, 15.0)
 
         assert triggered is not None
         assert triggered.rule_id == rule.id
         assert triggered.repo_id == mock_repo.id
-        assert triggered.signal_value == 15.0
+        assert triggered.signal_value == pytest.approx(15.0)
 
         # Verify persisted
         from_db = test_db.query(TriggeredAlert).filter(TriggeredAlert.id == triggered.id).first()
@@ -130,7 +125,7 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = _get_repos_for_rule(test_db, rule)
+        repos = alerts_module._get_repos_for_rule(test_db, rule)
         assert len(repos) == 1
         assert repos[0].id == mock_repo.id
 
@@ -147,7 +142,7 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = _get_repos_for_rule(test_db, rule)
+        repos = alerts_module._get_repos_for_rule(test_db, rule)
         assert len(repos) == 3
 
     def test_nonexistent_repo(self, test_db):
@@ -163,7 +158,7 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = _get_repos_for_rule(test_db, rule)
+        repos = alerts_module._get_repos_for_rule(test_db, rule)
         assert repos == []
 
 
@@ -232,7 +227,7 @@ class TestCheckRuleForRepo:
 
         result = check_rule_for_repo(test_db, rule, mock_repo)
         assert result is not None
-        assert result.signal_value == 15.0
+        assert result.signal_value == pytest.approx(15.0)
 
 
 class TestCheckAllAlerts:

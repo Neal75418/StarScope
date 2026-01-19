@@ -2,9 +2,7 @@
 Tests for services/analyzer.py - Signal calculation engine.
 """
 
-import pytest
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
 
 from services.analyzer import (
     get_snapshot_for_date,
@@ -72,7 +70,7 @@ class TestGetSnapshotForDate:
 
     def test_returns_earlier_snapshot_when_allowed(self, test_db, mock_repo_with_snapshots):
         """Test returns earlier snapshot when exact match not found."""
-        repo, snapshots = mock_repo_with_snapshots
+        repo, _ = mock_repo_with_snapshots
         # Request a date between snapshots
         future_date = date.today() + timedelta(days=1)
         result = get_snapshot_for_date(repo.id, future_date, test_db, allow_earlier=True)

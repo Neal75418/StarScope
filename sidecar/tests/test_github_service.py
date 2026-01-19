@@ -247,10 +247,10 @@ class TestGitHubServiceTokenPriority:
         """Test prefers database token over environment."""
         reset_github_service()
 
-        with patch('services.github.get_setting') as mock_get_setting:
+        with patch('services.settings.get_setting') as mock_get_setting:
             mock_get_setting.return_value = "db-token"
 
-            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}):
+            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}, clear=True):
                 service = get_github_service()
                 assert service.token == "db-token"
 
@@ -260,10 +260,10 @@ class TestGitHubServiceTokenPriority:
         """Test falls back to environment when no database token."""
         reset_github_service()
 
-        with patch('services.github.get_setting') as mock_get_setting:
+        with patch('services.settings.get_setting') as mock_get_setting:
             mock_get_setting.return_value = None
 
-            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}):
+            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}, clear=True):
                 service = get_github_service()
                 assert service.token == "env-token"
 
@@ -273,10 +273,10 @@ class TestGitHubServiceTokenPriority:
         """Test handles exception when reading from database."""
         reset_github_service()
 
-        with patch('services.github.get_setting') as mock_get_setting:
+        with patch('services.settings.get_setting') as mock_get_setting:
             mock_get_setting.side_effect = Exception("DB Error")
 
-            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}):
+            with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}, clear=True):
                 service = get_github_service()
                 assert service.token == "env-token"
 
@@ -293,11 +293,12 @@ class TestGitHubService:
         # Reset to ensure clean state
         reset_github_service()
 
-        with patch.dict(os.environ, {"GITHUB_TOKEN": "test-token-123"}):
-            service = get_github_service()
-            assert service.token == "test-token-123"
-            assert "Authorization" in service.headers
-            assert service.headers["Authorization"] == "Bearer test-token-123"
+        with patch('services.settings.get_setting', return_value=None):
+            with patch.dict(os.environ, {"GITHUB_TOKEN": "test-token-123"}, clear=True):
+                service = get_github_service()
+                assert service.token == "test-token-123"
+                assert "Authorization" in service.headers
+                assert service.headers["Authorization"] == "Bearer test-token-123"
 
         # Clean up
         reset_github_service()
@@ -309,14 +310,11 @@ class TestGitHubService:
         # Reset to ensure clean state
         reset_github_service()
 
-        # Remove token from environment if present
-        env = os.environ.copy()
-        env.pop("GITHUB_TOKEN", None)
-
-        with patch.dict(os.environ, env, clear=True):
-            service = get_github_service()
-            assert service.token is None
-            assert "Authorization" not in service.headers
+        with patch('services.settings.get_setting', return_value=None):
+            with patch.dict(os.environ, {}, clear=True):
+                service = get_github_service()
+                assert service.token is None
+                assert "Authorization" not in service.headers
 
         # Clean up
         reset_github_service()

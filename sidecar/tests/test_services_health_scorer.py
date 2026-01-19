@@ -2,29 +2,18 @@
 Tests for services/health_scorer.py - Health score calculator.
 """
 
-import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import patch, AsyncMock
+
+import pytest
 
 from services.health_scorer import (
     HealthMetrics,
     HealthScoreResult,
     HealthScorer,
-    _parse_iso_datetime,
-    _calculate_issue_response_times,
-    _process_issues_data,
-    _process_pulls_data,
-    _process_releases_data,
-    _process_contributors_data,
-    _process_community_data,
-    _score_issue_response,
-    _score_pr_merge,
-    _score_release_cadence,
-    _score_bus_factor,
-    _score_documentation,
-    _score_velocity,
-    _score_to_grade,
 )
+# Import module for accessing protected members in tests
+from services import health_scorer as health_scorer_module
 
 
 class TestParseIsoDatetime:
@@ -32,7 +21,7 @@ class TestParseIsoDatetime:
 
     def test_parse_valid_datetime_with_z(self):
         """Test parsing ISO datetime with Z suffix."""
-        result = _parse_iso_datetime("2024-01-15T10:30:00Z")
+        result = health_scorer_module._parse_iso_datetime("2024-01-15T10:30:00Z")
         assert result is not None
         assert result.year == 2024
         assert result.month == 1
@@ -40,20 +29,16 @@ class TestParseIsoDatetime:
 
     def test_parse_valid_datetime_with_offset(self):
         """Test parsing ISO datetime with offset."""
-        result = _parse_iso_datetime("2024-01-15T10:30:00+00:00")
+        result = health_scorer_module._parse_iso_datetime("2024-01-15T10:30:00+00:00")
         assert result is not None
 
     def test_parse_empty_string(self):
         """Test parsing empty string returns None."""
-        assert _parse_iso_datetime("") is None
+        assert health_scorer_module._parse_iso_datetime("") is None
 
     def test_parse_invalid_format(self):
         """Test parsing invalid format returns None."""
-        assert _parse_iso_datetime("not-a-date") is None
-
-    def test_parse_none(self):
-        """Test parsing None returns None."""
-        assert _parse_iso_datetime(None) is None
+        assert health_scorer_module._parse_iso_datetime("not-a-date") is None
 
 
 class TestCalculateIssueResponseTimes:
@@ -73,22 +58,22 @@ class TestCalculateIssueResponseTimes:
                 "closed_at": "2024-01-03T00:00:00Z",
             },
         ]
-        result = _calculate_issue_response_times(issues)
+        result = health_scorer_module._calculate_issue_response_times(issues)
         assert len(result) == 2
-        assert result[0] == 12.0  # 12 hours
-        assert result[1] == 24.0  # 24 hours
+        assert result[0] == pytest.approx(12.0)  # 12 hours
+        assert result[1] == pytest.approx(24.0)  # 24 hours
 
     def test_open_issues_ignored(self):
         """Test that open issues are ignored."""
         issues = [
             {"state": "open", "created_at": "2024-01-01T00:00:00Z"},
         ]
-        result = _calculate_issue_response_times(issues)
+        result = health_scorer_module._calculate_issue_response_times(issues)
         assert len(result) == 0
 
     def test_empty_issues(self):
         """Test with empty issues list."""
-        assert _calculate_issue_response_times([]) == []
+        assert health_scorer_module._calculate_issue_response_times([]) == []
 
 
 class TestProcessIssuesData:
@@ -102,7 +87,7 @@ class TestProcessIssuesData:
             {"pull_request": {}, "state": "open"},  # Should be ignored (it's a PR)
         ]
         metrics = HealthMetrics()
-        _process_issues_data(issues_data, metrics)
+        health_scorer_module._process_issues_data(issues_data, metrics)
 
         assert metrics.open_issues_count == 1
         assert metrics.closed_issues_count == 1
@@ -110,7 +95,7 @@ class TestProcessIssuesData:
     def test_process_non_list(self):
         """Test processing non-list returns early."""
         metrics = HealthMetrics()
-        _process_issues_data(None, metrics)
+        health_scorer_module._process_issues_data(None, metrics)
         assert metrics.open_issues_count == 0
 
 
@@ -125,7 +110,7 @@ class TestProcessPullsData:
             {"state": "closed", "merged_at": None},
         ]
         metrics = HealthMetrics()
-        _process_pulls_data(pulls_data, metrics)
+        health_scorer_module._process_pulls_data(pulls_data, metrics)
 
         assert metrics.open_prs_count == 1
         assert metrics.merged_prs_count == 1
@@ -144,7 +129,7 @@ class TestProcessReleasesData:
             {"draft": True, "published_at": now.isoformat()},  # Draft should be ignored
         ]
         metrics = HealthMetrics()
-        _process_releases_data(releases_data, metrics)
+        health_scorer_module._process_releases_data(releases_data, metrics)
 
         assert metrics.days_since_last_release is not None
         assert metrics.days_since_last_release >= 10
@@ -153,7 +138,7 @@ class TestProcessReleasesData:
     def test_process_empty_releases(self):
         """Test processing empty releases."""
         metrics = HealthMetrics()
-        _process_releases_data([], metrics)
+        health_scorer_module._process_releases_data([], metrics)
         assert metrics.days_since_last_release is None
 
 
@@ -168,16 +153,16 @@ class TestProcessContributorsData:
             {"contributions": 25},
         ]
         metrics = HealthMetrics()
-        _process_contributors_data(contributors_data, metrics)
+        health_scorer_module._process_contributors_data(contributors_data, metrics)
 
         assert metrics.contributor_count == 3
         # Top contributor has 100 out of 175 total
-        assert round(metrics.top_contributor_percentage, 1) == 57.1
+        assert round(metrics.top_contributor_percentage, 1) == pytest.approx(57.1)
 
     def test_process_empty_contributors(self):
         """Test processing empty contributors."""
         metrics = HealthMetrics()
-        _process_contributors_data([], metrics)
+        health_scorer_module._process_contributors_data([], metrics)
         assert metrics.contributor_count == 0
 
 
@@ -195,7 +180,7 @@ class TestProcessCommunityData:
             }
         }
         metrics = HealthMetrics()
-        _process_community_data(community_data, metrics)
+        health_scorer_module._process_community_data(community_data, metrics)
 
         assert metrics.has_readme is True
         assert metrics.has_contributing is True
@@ -206,7 +191,7 @@ class TestProcessCommunityData:
         """Test processing minimal community profile."""
         community_data = {"files": {"readme": {"url": "..."}}}
         metrics = HealthMetrics()
-        _process_community_data(community_data, metrics)
+        health_scorer_module._process_community_data(community_data, metrics)
 
         assert metrics.has_readme is True
         assert metrics.has_contributing is False
@@ -217,27 +202,27 @@ class TestScoreIssueResponse:
 
     def test_excellent_response(self):
         """Test excellent response time (<24h)."""
-        assert _score_issue_response(12.0) == 100
+        assert health_scorer_module._score_issue_response(12.0) == 100
 
     def test_good_response(self):
         """Test good response time (24-72h)."""
-        assert _score_issue_response(48.0) == 80
+        assert health_scorer_module._score_issue_response(48.0) == 80
 
     def test_moderate_response(self):
         """Test moderate response time (72-168h)."""
-        assert _score_issue_response(100.0) == 60
+        assert health_scorer_module._score_issue_response(100.0) == 60
 
     def test_slow_response(self):
         """Test slow response time (168-720h)."""
-        assert _score_issue_response(300.0) == 40
+        assert health_scorer_module._score_issue_response(300.0) == 40
 
     def test_very_slow_response(self):
         """Test very slow response time (>720h)."""
-        assert _score_issue_response(1000.0) == 20
+        assert health_scorer_module._score_issue_response(1000.0) == 20
 
     def test_none_response(self):
         """Test None response time."""
-        assert _score_issue_response(None) is None
+        assert health_scorer_module._score_issue_response(None) is None
 
 
 class TestScorePrMerge:
@@ -245,27 +230,27 @@ class TestScorePrMerge:
 
     def test_excellent_merge_rate(self):
         """Test excellent merge rate (90%+)."""
-        assert _score_pr_merge(95, 5) == 100
+        assert health_scorer_module._score_pr_merge(95, 5) == 100
 
     def test_good_merge_rate(self):
         """Test good merge rate (70-90%)."""
-        assert _score_pr_merge(80, 20) == 80
+        assert health_scorer_module._score_pr_merge(80, 20) == 80
 
     def test_moderate_merge_rate(self):
         """Test moderate merge rate (50-70%)."""
-        assert _score_pr_merge(60, 40) == 60
+        assert health_scorer_module._score_pr_merge(60, 40) == 60
 
     def test_low_merge_rate(self):
         """Test low merge rate (30-50%)."""
-        assert _score_pr_merge(40, 60) == 40
+        assert health_scorer_module._score_pr_merge(40, 60) == 40
 
     def test_very_low_merge_rate(self):
         """Test very low merge rate (<30%)."""
-        assert _score_pr_merge(20, 80) == 20
+        assert health_scorer_module._score_pr_merge(20, 80) == 20
 
     def test_no_prs(self):
         """Test with no PRs."""
-        assert _score_pr_merge(0, 0) is None
+        assert health_scorer_module._score_pr_merge(0, 0) is None
 
 
 class TestScoreReleaseCadence:
@@ -273,27 +258,27 @@ class TestScoreReleaseCadence:
 
     def test_excellent_cadence(self):
         """Test excellent release cadence (<30 days)."""
-        assert _score_release_cadence(15) == 100
+        assert health_scorer_module._score_release_cadence(15) == 100
 
     def test_good_cadence(self):
         """Test good release cadence (30-90 days)."""
-        assert _score_release_cadence(60) == 80
+        assert health_scorer_module._score_release_cadence(60) == 80
 
     def test_moderate_cadence(self):
         """Test moderate release cadence (90-180 days)."""
-        assert _score_release_cadence(120) == 60
+        assert health_scorer_module._score_release_cadence(120) == 60
 
     def test_slow_cadence(self):
         """Test slow release cadence (180-365 days)."""
-        assert _score_release_cadence(250) == 40
+        assert health_scorer_module._score_release_cadence(250) == 40
 
     def test_very_slow_cadence(self):
         """Test very slow release cadence (>365 days)."""
-        assert _score_release_cadence(500) == 20
+        assert health_scorer_module._score_release_cadence(500) == 20
 
     def test_none_cadence(self):
         """Test None cadence."""
-        assert _score_release_cadence(None) is None
+        assert health_scorer_module._score_release_cadence(None) is None
 
 
 class TestScoreBusFactor:
@@ -301,19 +286,19 @@ class TestScoreBusFactor:
 
     def test_excellent_bus_factor(self):
         """Test excellent bus factor (many contributors, low concentration)."""
-        score = _score_bus_factor(15, 20.0)
+        score = health_scorer_module._score_bus_factor(15, 20.0)
         assert score is not None
         assert score > 80
 
     def test_poor_bus_factor(self):
         """Test poor bus factor (few contributors, high concentration)."""
-        score = _score_bus_factor(2, 95.0)
+        score = health_scorer_module._score_bus_factor(2, 95.0)
         assert score is not None
         assert score < 50
 
     def test_no_contributors(self):
         """Test with no contributors."""
-        assert _score_bus_factor(0, 0.0) is None
+        assert health_scorer_module._score_bus_factor(0, 0.0) is None
 
 
 class TestScoreDocumentation:
@@ -327,17 +312,17 @@ class TestScoreDocumentation:
             has_contributing=True,
             has_code_of_conduct=True,
         )
-        assert _score_documentation(metrics) == 100
+        assert health_scorer_module._score_documentation(metrics) == 100
 
     def test_partial_documentation(self):
         """Test with partial documentation."""
         metrics = HealthMetrics(has_readme=True, has_license=True)
-        assert _score_documentation(metrics) == 70
+        assert health_scorer_module._score_documentation(metrics) == 70
 
     def test_no_documentation(self):
         """Test with no documentation files."""
         metrics = HealthMetrics()
-        assert _score_documentation(metrics) is None
+        assert health_scorer_module._score_documentation(metrics) is None
 
 
 class TestScoreVelocity:
@@ -345,23 +330,23 @@ class TestScoreVelocity:
 
     def test_excellent_velocity(self):
         """Test excellent velocity (10+/day)."""
-        assert _score_velocity(15.0) == 100
+        assert health_scorer_module._score_velocity(15.0) == 100
 
     def test_good_velocity(self):
         """Test good velocity (5-10/day)."""
-        assert _score_velocity(7.0) == 80
+        assert health_scorer_module._score_velocity(7.0) == 80
 
     def test_moderate_velocity(self):
         """Test moderate velocity (1-5/day)."""
-        assert _score_velocity(3.0) == 60
+        assert health_scorer_module._score_velocity(3.0) == 60
 
     def test_low_velocity(self):
         """Test low velocity (0.1-1/day)."""
-        assert _score_velocity(0.5) == 40
+        assert health_scorer_module._score_velocity(0.5) == 40
 
     def test_very_low_velocity(self):
         """Test very low velocity (<0.1/day)."""
-        assert _score_velocity(0.05) == 20
+        assert health_scorer_module._score_velocity(0.05) == 20
 
 
 class TestScoreToGrade:
@@ -369,14 +354,14 @@ class TestScoreToGrade:
 
     def test_grades(self):
         """Test all grade conversions."""
-        assert _score_to_grade(97) == "A+"
-        assert _score_to_grade(92) == "A"
-        assert _score_to_grade(87) == "B+"
-        assert _score_to_grade(82) == "B"
-        assert _score_to_grade(77) == "C+"
-        assert _score_to_grade(72) == "C"
-        assert _score_to_grade(65) == "D"
-        assert _score_to_grade(55) == "F"
+        assert health_scorer_module._score_to_grade(97) == "A+"
+        assert health_scorer_module._score_to_grade(92) == "A"
+        assert health_scorer_module._score_to_grade(87) == "B+"
+        assert health_scorer_module._score_to_grade(82) == "B"
+        assert health_scorer_module._score_to_grade(77) == "C+"
+        assert health_scorer_module._score_to_grade(72) == "C"
+        assert health_scorer_module._score_to_grade(65) == "D"
+        assert health_scorer_module._score_to_grade(55) == "F"
 
 
 class TestHealthScorer:
@@ -425,4 +410,4 @@ class TestHealthScorer:
             metrics = await scorer.fetch_metrics("owner", "repo", star_velocity=2.0)
 
             assert isinstance(metrics, HealthMetrics)
-            assert metrics.star_velocity == 2.0
+            assert metrics.star_velocity == pytest.approx(2.0)

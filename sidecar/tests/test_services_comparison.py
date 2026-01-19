@@ -2,16 +2,11 @@
 Tests for services/comparison.py - Comparison service for repository analysis.
 """
 
-import pytest
-from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
+from datetime import date
+from unittest.mock import MagicMock
 
-from services.comparison import (
-    ComparisonService,
-    get_comparison_service,
-    _build_member_data,
-    _calculate_summary_stats,
-)
+import pytest
+
 from db.models import (
     ComparisonGroup,
     ComparisonMember,
@@ -19,8 +14,14 @@ from db.models import (
     HealthScore,
     Signal,
     SignalType,
-    WatchedRepo,
+    Repo,
 )
+from services.comparison import (
+    ComparisonService,
+    get_comparison_service,
+)
+# Import module for accessing protected members in tests
+from services import comparison as comparison_module
 
 
 class TestBuildMemberData:
@@ -58,14 +59,14 @@ class TestBuildMemberData:
         member = MagicMock()
         member.repo = mock_repo
 
-        result = _build_member_data(member, test_db)
+        result = comparison_module._build_member_data(member, test_db)
 
         assert result["repo_id"] == mock_repo.id
         assert result["full_name"] == mock_repo.full_name
         assert result["stars"] == 1000
         assert result["forks"] == 100
-        assert result["velocity"] == 5.5
-        assert result["health_score"] == 85.0
+        assert result["velocity"] == pytest.approx(5.5)
+        assert result["health_score"] == pytest.approx(85.0)
         assert result["health_grade"] == "A"
 
     def test_handles_missing_data(self, test_db, mock_repo):
@@ -73,7 +74,7 @@ class TestBuildMemberData:
         member = MagicMock()
         member.repo = mock_repo
 
-        result = _build_member_data(member, test_db)
+        result = comparison_module._build_member_data(member, test_db)
 
         assert result["repo_id"] == mock_repo.id
         assert result["stars"] is None
@@ -92,7 +93,7 @@ class TestCalculateSummaryStats:
             {"full_name": "repo3", "stars": 500, "velocity": 2.5, "health_score": 70.0},
         ]
 
-        result = _calculate_summary_stats(member_data)
+        result = comparison_module._calculate_summary_stats(member_data)
 
         assert result["total_members"] == 3
         assert result["leader_by_stars"] == "repo2"
@@ -100,7 +101,7 @@ class TestCalculateSummaryStats:
         assert result["leader_by_health"] == "repo2"
         assert result["total_stars"] == 3500
         assert result["avg_velocity"] == pytest.approx(5.833, rel=0.01)
-        assert result["avg_health"] == 80.0
+        assert result["avg_health"] == pytest.approx(80.0)
 
     def test_handles_none_values(self):
         """Test handles None values in member data."""
@@ -109,7 +110,7 @@ class TestCalculateSummaryStats:
             {"full_name": "repo2", "stars": 1000, "velocity": 5.0, "health_score": 80.0},
         ]
 
-        result = _calculate_summary_stats(member_data)
+        result = comparison_module._calculate_summary_stats(member_data)
 
         assert result["total_members"] == 2
         assert result["leader_by_stars"] == "repo2"
@@ -117,12 +118,12 @@ class TestCalculateSummaryStats:
 
     def test_handles_empty_list(self):
         """Test handles empty member data list."""
-        result = _calculate_summary_stats([])
+        result = comparison_module._calculate_summary_stats([])
 
         assert result["total_members"] == 0
         assert result["leader_by_stars"] is None
         assert result["total_stars"] == 0
-        assert result["avg_velocity"] == 0
+        assert result["avg_velocity"] == pytest.approx(0)
 
 
 class TestComparisonServiceGetSummary:
@@ -148,11 +149,12 @@ class TestComparisonServiceGetSummary:
 
     def test_returns_full_summary(self, test_db, mock_comparison_group):
         """Test returns full comparison summary."""
-        result = ComparisonService.get_comparison_summary(mock_comparison_group.id, test_db)
+        group, _ = mock_comparison_group
+        result = ComparisonService.get_comparison_summary(group.id, test_db)
 
         assert result is not None
-        assert result["group_id"] == mock_comparison_group.id
-        assert result["group_name"] == mock_comparison_group.name
+        assert result["group_id"] == group.id
+        assert result["group_name"] == group.name
         assert "members" in result
         assert "summary" in result
 
@@ -179,8 +181,9 @@ class TestComparisonServiceGetChartData:
 
     def test_uses_correct_time_range_7d(self, test_db, mock_comparison_group):
         """Test uses 7-day time range when specified."""
+        group, _ = mock_comparison_group
         result = ComparisonService.get_comparison_chart_data(
-            mock_comparison_group.id, test_db, time_range="7d"
+            group.id, test_db, time_range="7d"
         )
 
         assert result is not None
@@ -189,8 +192,9 @@ class TestComparisonServiceGetChartData:
 
     def test_uses_correct_time_range_30d(self, test_db, mock_comparison_group):
         """Test uses 30-day time range by default."""
+        group, _ = mock_comparison_group
         result = ComparisonService.get_comparison_chart_data(
-            mock_comparison_group.id, test_db
+            group.id, test_db
         )
 
         assert result is not None
@@ -199,8 +203,9 @@ class TestComparisonServiceGetChartData:
 
     def test_uses_correct_time_range_90d(self, test_db, mock_comparison_group):
         """Test uses 90-day time range when specified."""
+        group, _ = mock_comparison_group
         result = ComparisonService.get_comparison_chart_data(
-            mock_comparison_group.id, test_db, time_range="90d"
+            group.id, test_db, time_range="90d"
         )
 
         assert result is not None
@@ -218,10 +223,11 @@ class TestComparisonServiceGetVelocityComparison:
 
     def test_returns_velocity_data(self, test_db, mock_comparison_group):
         """Test returns velocity comparison data."""
-        result = ComparisonService.get_velocity_comparison(mock_comparison_group.id, test_db)
+        group, _ = mock_comparison_group
+        result = ComparisonService.get_velocity_comparison(group.id, test_db)
 
         assert result is not None
-        assert result["group_id"] == mock_comparison_group.id
+        assert result["group_id"] == group.id
         assert "data" in result
         assert isinstance(result["data"], list)
 
@@ -234,10 +240,11 @@ class TestComparisonServiceGetVelocityComparison:
 
         repos = []
         for i, velocity in enumerate([5.0, 15.0, 10.0]):
-            repo = WatchedRepo(
+            repo = Repo(
                 full_name=f"test/repo{i}",
-                owner=f"test",
+                owner="test",
                 name=f"repo{i}",
+                url=f"https://github.com/test/repo{i}",
             )
             test_db.add(repo)
             test_db.commit()
@@ -253,9 +260,9 @@ class TestComparisonServiceGetVelocityComparison:
 
         result = ComparisonService.get_velocity_comparison(group.id, test_db)
 
-        assert result["data"][0]["velocity"] == 15.0
-        assert result["data"][1]["velocity"] == 10.0
-        assert result["data"][2]["velocity"] == 5.0
+        assert result["data"][0]["velocity"] == pytest.approx(15.0)
+        assert result["data"][1]["velocity"] == pytest.approx(10.0)
+        assert result["data"][2]["velocity"] == pytest.approx(5.0)
 
 
 class TestGetComparisonService:
@@ -263,7 +270,6 @@ class TestGetComparisonService:
 
     def test_returns_singleton(self):
         """Test returns the same instance."""
-        import services.comparison as comparison_module
         comparison_module._comparison_service = None
 
         s1 = get_comparison_service()
@@ -273,7 +279,6 @@ class TestGetComparisonService:
 
     def test_creates_instance(self):
         """Test creates ComparisonService instance."""
-        import services.comparison as comparison_module
         comparison_module._comparison_service = None
 
         service = get_comparison_service()
