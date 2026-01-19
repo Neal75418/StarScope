@@ -119,7 +119,8 @@ class TaggerService:
             logger.warning(f"Request error fetching topics for {owner}/{repo}: {e}")
             return []
 
-    def extract_keywords(self, description: Optional[str]) -> List[str]:
+    @staticmethod
+    def extract_keywords(description: Optional[str]) -> List[str]:
         """Extract meaningful keywords from description."""
         if not description:
             return []
@@ -141,8 +142,8 @@ class TaggerService:
 
         return list(set(found))[:5]  # Limit to 5 inferred tags
 
+    @staticmethod
     def _get_or_create_tag(
-        self,
         name: str,
         tag_type: str,
         color: Optional[str],
@@ -166,8 +167,8 @@ class TaggerService:
         db.flush()  # Get the ID
         return tag
 
+    @staticmethod
     def _apply_tag(
-        self,
         repo_id: int,
         tag: Tag,
         source: str,
@@ -273,10 +274,11 @@ class TaggerService:
         repo_tag = self._apply_tag(repo_id, tag, "user", confidence=None, db=db)
         if repo_tag:
             db.commit()
-            return (tag, repo_tag)
+            return tag, repo_tag
         return None
 
-    def remove_tag(self, repo_id: int, tag_id: int, db: Session) -> bool:
+    @staticmethod
+    def remove_tag(repo_id: int, tag_id: int, db: Session) -> bool:
         """Remove a tag from a repo."""
         repo_tag = db.query(RepoTag).filter(
             RepoTag.repo_id == repo_id,
@@ -289,7 +291,8 @@ class TaggerService:
             return True
         return False
 
-    def get_repo_tags(self, repo_id: int, db: Session) -> List[dict]:
+    @staticmethod
+    def get_repo_tags(repo_id: int, db: Session) -> List[dict]:
         """Get all tags for a repo with metadata."""
         repo_tags = db.query(RepoTag).filter(RepoTag.repo_id == repo_id).all()
 

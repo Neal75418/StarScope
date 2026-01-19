@@ -7,8 +7,20 @@ Create Date: 2026-01-17
 """
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import op  # noqa: F401
+from alembic.operations import Operations
 import sqlalchemy as sa
+
+# Type hint for IDE support
+op: Operations
+
+# Foreign key reference constants (avoid code duplication warnings)
+FK_REPOS_ID = 'repos.id'
+FK_TAGS_ID = 'tags.id'
+FK_CATEGORIES_ID = 'categories.id'
+FK_ALERT_RULES_ID = 'alert_rules.id'
+FK_COMPARISON_GROUPS_ID = 'comparison_groups.id'
+FK_WEBHOOKS_ID = 'webhooks.id'
 
 # revision identifiers, used by Alembic.
 revision: str = 'initial_schema'
@@ -50,7 +62,7 @@ def upgrade() -> None:
         sa.Column('open_issues', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('snapshot_date', sa.Date(), nullable=False),
         sa.Column('fetched_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id', 'snapshot_date', name='uq_snapshot_repo_date')
     )
@@ -65,7 +77,7 @@ def upgrade() -> None:
         sa.Column('signal_type', sa.String(50), nullable=False),
         sa.Column('value', sa.Float(), nullable=False),
         sa.Column('calculated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_signals_repo_type', 'signals', ['repo_id', 'signal_type'])
@@ -83,7 +95,7 @@ def upgrade() -> None:
         sa.Column('enabled', sa.Integer(), server_default='1'),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
 
@@ -97,8 +109,8 @@ def upgrade() -> None:
         sa.Column('triggered_at', sa.DateTime(), nullable=True),
         sa.Column('acknowledged', sa.Integer(), server_default='0'),
         sa.Column('acknowledged_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['rule_id'], ['alert_rules.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['rule_id'], [FK_ALERT_RULES_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_triggered_alerts_rule', 'triggered_alerts', ['rule_id'])
@@ -121,7 +133,7 @@ def upgrade() -> None:
         sa.Column('is_prerelease', sa.Integer(), nullable=True),
         sa.Column('published_at', sa.DateTime(), nullable=True),
         sa.Column('fetched_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id', 'signal_type', 'external_id', name='uq_context_signal_unique')
     )
@@ -150,7 +162,7 @@ def upgrade() -> None:
         sa.Column('has_contributing', sa.Integer(), nullable=True),
         sa.Column('has_license', sa.Integer(), nullable=True),
         sa.Column('calculated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id')
     )
@@ -178,8 +190,8 @@ def upgrade() -> None:
         sa.Column('source', sa.String(20), nullable=False),
         sa.Column('confidence', sa.Float(), nullable=True),
         sa.Column('applied_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['tag_id'], ['tags.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['tag_id'], [FK_TAGS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id', 'tag_id', name='uq_repo_tag')
     )
@@ -196,8 +208,8 @@ def upgrade() -> None:
         sa.Column('shared_topics', sa.String(2048), nullable=True),
         sa.Column('same_language', sa.Integer(), nullable=False, server_default='0'),
         sa.Column('calculated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['similar_repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['similar_repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id', 'similar_repo_id', name='uq_similar_repo_pair')
     )
@@ -215,7 +227,7 @@ def upgrade() -> None:
         sa.Column('parent_id', sa.Integer(), nullable=True),
         sa.Column('sort_order', sa.Integer(), server_default='0'),
         sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['parent_id'], ['categories.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['parent_id'], [FK_CATEGORIES_ID], ondelete='SET NULL'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_categories_parent', 'categories', ['parent_id'])
@@ -228,8 +240,8 @@ def upgrade() -> None:
         sa.Column('repo_id', sa.Integer(), nullable=False),
         sa.Column('category_id', sa.Integer(), nullable=False),
         sa.Column('added_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['category_id'], [FK_CATEGORIES_ID], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('repo_id', 'category_id', name='uq_repo_category')
     )
@@ -255,8 +267,8 @@ def upgrade() -> None:
         sa.Column('repo_id', sa.Integer(), nullable=False),
         sa.Column('sort_order', sa.Integer(), server_default='0'),
         sa.Column('added_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['group_id'], ['comparison_groups.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['group_id'], [FK_COMPARISON_GROUPS_ID], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('group_id', 'repo_id', name='uq_comparison_member')
     )
@@ -277,7 +289,7 @@ def upgrade() -> None:
         sa.Column('expires_at', sa.DateTime(), nullable=True),
         sa.Column('acknowledged', sa.Integer(), server_default='0'),
         sa.Column('acknowledged_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['repo_id'], ['repos.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['repo_id'], [FK_REPOS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_early_signals_repo', 'early_signals', ['repo_id'])
@@ -315,7 +327,7 @@ def upgrade() -> None:
         sa.Column('status_code', sa.Integer(), nullable=True),
         sa.Column('error_message', sa.String(500), nullable=True),
         sa.Column('sent_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['webhook_id'], ['webhooks.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['webhook_id'], [FK_WEBHOOKS_ID], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_webhook_logs_webhook', 'webhook_logs', ['webhook_id'])

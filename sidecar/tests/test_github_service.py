@@ -5,9 +5,6 @@ Tests for GitHub service.
 import os
 from unittest.mock import patch
 
-import pytest
-
-
 class TestGitHubService:
     """Test cases for GitHub service."""
 

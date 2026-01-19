@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 GITHUB_API_BASE = "https://api.github.com"
 
 
+# Exception classes
 class GitHubAPIError(Exception):
     """Custom exception for GitHub API errors."""
     def __init__(self, message: str, status_code: Optional[int] = None):
@@ -33,16 +34,75 @@ class GitHubNotFoundError(GitHubAPIError):
     pass
 
 
+# Shared utilities for GitHub API requests
+def build_github_headers(token: Optional[str] = None) -> dict:
+    """Build standard GitHub API headers."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def handle_github_response(
+    response: "httpx.Response",
+    raise_on_error: bool = True,
+    context: str = ""
+) -> Optional[dict]:
+    """
+    Handle GitHub API response with standard error checking.
+
+    Args:
+        response: The httpx response object
+        raise_on_error: If True, raise exceptions; if False, return None on errors
+        context: Context string for error messages (e.g., "owner/repo")
+
+    Returns:
+        JSON response dict, or None if raise_on_error=False and error occurred
+
+    Raises:
+        GitHubNotFoundError: If 404 and raise_on_error=True
+        GitHubRateLimitError: If 403 and raise_on_error=True
+        GitHubAPIError: If 401 or other errors and raise_on_error=True
+    """
+    if response.status_code == 404:
+        if raise_on_error:
+            raise GitHubNotFoundError(
+                f"Resource not found: {context}" if context else "Resource not found",
+                status_code=404
+            )
+        return None
+
+    if response.status_code == 403:
+        remaining = response.headers.get("X-RateLimit-Remaining", "unknown")
+        if raise_on_error:
+            raise GitHubRateLimitError(
+                f"GitHub API rate limit exceeded (remaining: {remaining})",
+                status_code=403
+            )
+        logger.warning(f"Rate limit or forbidden: {context}")
+        return None
+
+    if response.status_code == 401:
+        if raise_on_error:
+            raise GitHubAPIError(
+                "GitHub API authentication failed - check token",
+                status_code=401
+            )
+        logger.error("GitHub API authentication failed")
+        return None
+
+    response.raise_for_status()
+    return response.json()
+
+
 class GitHubService:
     def __init__(self, token: Optional[str] = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS):
         self.token = token
         self.timeout = timeout
-        self.headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if token:
-            self.headers["Authorization"] = f"Bearer {token}"
+        self.headers = build_github_headers(token)
 
     async def get_repo(self, owner: str, repo: str) -> dict:
         """
@@ -58,29 +118,11 @@ class GitHubService:
                 f"{GITHUB_API_BASE}/repos/{owner}/{repo}",
                 headers=self.headers,
             )
-
-            if response.status_code == 404:
-                raise GitHubNotFoundError(
-                    f"Repository {owner}/{repo} not found",
-                    status_code=404
-                )
-
-            if response.status_code == 403:
-                # Check if it's rate limiting
-                remaining = response.headers.get("X-RateLimit-Remaining", "unknown")
-                raise GitHubRateLimitError(
-                    f"GitHub API rate limit exceeded (remaining: {remaining})",
-                    status_code=403
-                )
-
-            if response.status_code == 401:
-                raise GitHubAPIError(
-                    "GitHub API authentication failed - check token",
-                    status_code=401
-                )
-
-            response.raise_for_status()
-            return response.json()
+            return handle_github_response(
+                response,
+                raise_on_error=True,
+                context=f"{owner}/{repo}"
+            )
 
     async def get_repo_stargazers_count(self, owner: str, repo: str) -> int:
         """

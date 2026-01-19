@@ -37,6 +37,74 @@ class HNStory:
     created_at: datetime
 
 
+def _parse_created_at(created_at_str: str) -> datetime:
+    """Parse HN timestamp to datetime."""
+    try:
+        return datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return datetime.now(timezone.utc)
+
+
+def _parse_hn_hit(hit: dict, seen_ids: set) -> Optional[HNStory]:
+    """Parse a single HN API hit into an HNStory, or None if invalid/duplicate."""
+    object_id = hit.get("objectID")
+    if not object_id or object_id in seen_ids:
+        return None
+
+    seen_ids.add(object_id)
+
+    created_at = _parse_created_at(hit.get("created_at", ""))
+    story_url = hit.get("url") or f"https://news.ycombinator.com/item?id={object_id}"
+
+    return HNStory(
+        object_id=object_id,
+        title=hit.get("title", ""),
+        url=story_url,
+        points=hit.get("points") or 0,
+        num_comments=hit.get("num_comments") or 0,
+        author=hit.get("author", ""),
+        created_at=created_at,
+    )
+
+
+async def _execute_hn_query(
+    client: httpx.AsyncClient,
+    query: str,
+    seen_ids: set,
+    stories: List[HNStory],
+    errors: List[str]
+) -> None:
+    """Execute a single HN search query and append results."""
+    try:
+        response = await client.get(
+            HN_SEARCH_API,
+            params={"query": query, "tags": "story", "hitsPerPage": 20}
+        )
+
+        if response.status_code == 429:
+            logger.warning("HN API rate limit exceeded")
+            errors.append("Rate limit exceeded")
+            return
+
+        response.raise_for_status()
+        data = response.json()
+
+        for hit in data.get("hits", []):
+            story = _parse_hn_hit(hit, seen_ids)
+            if story:
+                stories.append(story)
+
+    except httpx.TimeoutException:
+        logger.warning(f"HN API timeout for query: {query}")
+        errors.append(f"Timeout for {query}")
+    except httpx.RequestError as e:
+        logger.warning(f"HN API request error for {query}: {e}")
+        errors.append(str(e))
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"HN API HTTP error for {query}: {e}")
+        errors.append(f"HTTP {e.response.status_code}")
+
+
 class HackerNewsService:
     """Service for searching Hacker News via Algolia API."""
 
@@ -67,65 +135,7 @@ class HackerNewsService:
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for query in queries:
-                try:
-                    response = await client.get(
-                        HN_SEARCH_API,
-                        params={
-                            "query": query,
-                            "tags": "story",
-                            "hitsPerPage": 20,
-                        }
-                    )
-
-                    if response.status_code == 429:
-                        logger.warning("HN API rate limit exceeded")
-                        errors.append("Rate limit exceeded")
-                        continue  # Try next query instead of failing
-
-                    response.raise_for_status()
-                    data = response.json()
-
-                    for hit in data.get("hits", []):
-                        object_id = hit.get("objectID")
-                        if not object_id or object_id in seen_ids:
-                            continue
-
-                        seen_ids.add(object_id)
-
-                        # Parse created_at timestamp
-                        created_at_str = hit.get("created_at", "")
-                        try:
-                            created_at = datetime.fromisoformat(
-                                created_at_str.replace("Z", "+00:00")
-                            )
-                        except (ValueError, AttributeError):
-                            created_at = datetime.now(timezone.utc)
-
-                        # Build story URL - use HN link if no external URL
-                        story_url = hit.get("url") or f"https://news.ycombinator.com/item?id={object_id}"
-
-                        stories.append(HNStory(
-                            object_id=object_id,
-                            title=hit.get("title", ""),
-                            url=story_url,
-                            points=hit.get("points") or 0,
-                            num_comments=hit.get("num_comments") or 0,
-                            author=hit.get("author", ""),
-                            created_at=created_at,
-                        ))
-
-                except httpx.TimeoutException:
-                    logger.warning(f"HN API timeout for query: {query}")
-                    errors.append(f"Timeout for {query}")
-                    continue  # Try next query
-                except httpx.RequestError as e:
-                    logger.warning(f"HN API request error for {query}: {e}")
-                    errors.append(str(e))
-                    continue  # Try next query
-                except httpx.HTTPStatusError as e:
-                    logger.warning(f"HN API HTTP error for {query}: {e}")
-                    errors.append(f"HTTP {e.response.status_code}")
-                    continue  # Try next query
+                await _execute_hn_query(client, query, seen_ids, stories, errors)
 
         # Only raise error if all queries failed and no results
         if not stories and errors:

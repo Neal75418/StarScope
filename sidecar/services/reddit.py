@@ -38,6 +38,101 @@ class RedditAPIError(Exception):
         self.status_code = status_code
 
 
+def _parse_created_utc(created_utc: float) -> datetime:
+    """Parse Reddit created_utc timestamp to datetime."""
+    try:
+        return datetime.fromtimestamp(created_utc, tz=timezone.utc)
+    except (ValueError, OSError):
+        return datetime.now(timezone.utc)
+
+
+def _is_valid_post(post_data: dict) -> bool:
+    """Check if a Reddit post is valid (not removed/deleted)."""
+    if not post_data.get("id"):
+        return False
+    if post_data.get("removed_by_category"):
+        return False
+    if post_data.get("author") == "[deleted]":
+        return False
+    return True
+
+
+def _parse_reddit_post(post_data: dict, seen_ids: set) -> Optional["RedditPost"]:
+    """Parse a single Reddit post, or None if invalid/duplicate."""
+    post_id = post_data.get("id", "")
+
+    if not post_id or post_id in seen_ids:
+        return None
+    if not _is_valid_post(post_data):
+        return None
+
+    seen_ids.add(post_id)
+
+    return RedditPost(
+        post_id=post_id,
+        title=post_data.get("title", ""),
+        url=post_data.get("url", ""),
+        permalink=f"https://reddit.com{post_data.get('permalink', '')}",
+        score=post_data.get("score", 0),
+        num_comments=post_data.get("num_comments", 0),
+        author=post_data.get("author", "unknown"),
+        subreddit=post_data.get("subreddit", ""),
+        created_at=_parse_created_utc(post_data.get("created_utc", 0)),
+    )
+
+
+async def _execute_reddit_query(
+    client: httpx.AsyncClient,
+    url: str,
+    query: str,
+    headers: dict,
+    seen_ids: set,
+    posts: List["RedditPost"],
+    errors: List[str]
+) -> None:
+    """Execute a single Reddit search query and append results."""
+    try:
+        response = await client.get(
+            url,
+            params={
+                "q": query,
+                "sort": "relevance",
+                "limit": 25,
+                "restrict_sr": "true",
+                "t": "all",
+            },
+            headers=headers,
+        )
+
+        if response.status_code == 429:
+            logger.warning("Reddit API rate limit exceeded")
+            errors.append("Rate limit exceeded")
+            return
+
+        if response.status_code == 403:
+            logger.warning("Reddit API forbidden - may need to adjust User-Agent")
+            errors.append("Access forbidden")
+            return
+
+        response.raise_for_status()
+        data = response.json()
+
+        for child in data.get("data", {}).get("children", []):
+            post = _parse_reddit_post(child.get("data", {}), seen_ids)
+            if post:
+                posts.append(post)
+
+    except httpx.TimeoutException:
+        logger.warning(f"Reddit API timeout for query: {query}")
+        errors.append(f"Timeout for {query}")
+    except httpx.RequestError as e:
+        logger.warning(f"Reddit API request error for {query}: {e}")
+        errors.append(str(e))
+    except httpx.HTTPStatusError as e:
+        logger.warning(f"Reddit API HTTP error for {query}: {e}")
+        errors.append(f"HTTP {e.response.status_code}")
+
+
 @dataclass
 class RedditPost:
     """Parsed Reddit post."""
@@ -89,75 +184,9 @@ class RedditService:
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for query in queries:
-                try:
-                    response = await client.get(
-                        url,
-                        params={
-                            "q": query,
-                            "sort": "relevance",
-                            "limit": 25,
-                            "restrict_sr": "true",
-                            "t": "all",  # All time
-                        },
-                        headers=self.headers,
-                    )
-
-                    if response.status_code == 429:
-                        logger.warning("Reddit API rate limit exceeded")
-                        errors.append("Rate limit exceeded")
-                        continue  # Try next query
-
-                    if response.status_code == 403:
-                        logger.warning("Reddit API forbidden - may need to adjust User-Agent")
-                        errors.append("Access forbidden")
-                        continue  # Try next query
-
-                    response.raise_for_status()
-                    data = response.json()
-
-                    for child in data.get("data", {}).get("children", []):
-                        post_data = child.get("data", {})
-                        post_id = post_data.get("id", "")
-
-                        # Skip duplicates and removed/deleted posts
-                        if not post_id or post_id in seen_ids:
-                            continue
-                        if post_data.get("removed_by_category") or post_data.get("author") == "[deleted]":
-                            continue
-
-                        seen_ids.add(post_id)
-
-                        # Parse created_utc timestamp
-                        created_utc = post_data.get("created_utc", 0)
-                        try:
-                            created_at = datetime.fromtimestamp(created_utc, tz=timezone.utc)
-                        except (ValueError, OSError):
-                            created_at = datetime.now(timezone.utc)
-
-                        posts.append(RedditPost(
-                            post_id=post_id,
-                            title=post_data.get("title", ""),
-                            url=post_data.get("url", ""),
-                            permalink=f"https://reddit.com{post_data.get('permalink', '')}",
-                            score=post_data.get("score", 0),
-                            num_comments=post_data.get("num_comments", 0),
-                            author=post_data.get("author", "unknown"),
-                            subreddit=post_data.get("subreddit", ""),
-                            created_at=created_at,
-                        ))
-
-                except httpx.TimeoutException:
-                    logger.warning(f"Reddit API timeout for query: {query}")
-                    errors.append(f"Timeout for {query}")
-                    continue  # Try next query
-                except httpx.RequestError as e:
-                    logger.warning(f"Reddit API request error for {query}: {e}")
-                    errors.append(str(e))
-                    continue  # Try next query
-                except httpx.HTTPStatusError as e:
-                    logger.warning(f"Reddit API HTTP error for {query}: {e}")
-                    errors.append(f"HTTP {e.response.status_code}")
-                    continue  # Try next query
+                await _execute_reddit_query(
+                    client, url, query, self.headers, seen_ids, posts, errors
+                )
 
         # Only raise error if all queries failed and no results
         if not posts and errors:

@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 GITHUB_API_BASE = "https://api.github.com"
 
+# Timezone constant for ISO datetime parsing
+UTC_OFFSET_SUFFIX = "+00:00"
+
 # Score weights (must sum to 1.0)
 WEIGHTS = {
     "issue_response": 0.20,
@@ -80,35 +83,246 @@ class HealthScoreResult:
     metrics: Optional[HealthMetrics] = None
 
 
+def _parse_iso_datetime(date_str: str) -> Optional[datetime]:
+    """Parse ISO datetime string with Z suffix to datetime."""
+    if not date_str:
+        return None
+    try:
+        return datetime.fromisoformat(date_str.replace("Z", UTC_OFFSET_SUFFIX))
+    except (ValueError, TypeError):
+        return None
+
+
+def _calculate_issue_response_times(issues: list) -> list:
+    """Calculate response times for closed issues."""
+    response_times = []
+    for issue in issues:
+        if issue.get("state") != "closed":
+            continue
+        created = _parse_iso_datetime(issue.get("created_at", ""))
+        closed = _parse_iso_datetime(issue.get("closed_at", ""))
+        if created and closed:
+            hours = (closed - created).total_seconds() / 3600
+            if hours > 0:
+                response_times.append(hours)
+    return response_times
+
+
+def _process_issues_data(issues_data: Any, metrics: HealthMetrics) -> None:
+    """Process issues data into metrics."""
+    if not isinstance(issues_data, list):
+        return
+
+    issues = [i for i in issues_data if "pull_request" not in i]
+    metrics.open_issues_count = len([i for i in issues if i.get("state") == "open"])
+    metrics.closed_issues_count = len([i for i in issues if i.get("state") == "closed"])
+
+    response_times = _calculate_issue_response_times(issues)
+    if response_times:
+        metrics.avg_issue_response_hours = sum(response_times) / len(response_times)
+
+
+def _process_pulls_data(pulls_data: Any, metrics: HealthMetrics) -> None:
+    """Process pull requests data into metrics."""
+    if not isinstance(pulls_data, list):
+        return
+
+    metrics.open_prs_count = len([p for p in pulls_data if p.get("state") == "open"])
+    metrics.merged_prs_count = len([p for p in pulls_data if p.get("merged_at")])
+    metrics.closed_prs_count = len([
+        p for p in pulls_data
+        if p.get("state") == "closed" and not p.get("merged_at")
+    ])
+
+
+def _process_releases_data(releases_data: Any, metrics: HealthMetrics) -> None:
+    """Process releases data into metrics."""
+    if not isinstance(releases_data, list) or not releases_data:
+        return
+
+    releases = [r for r in releases_data if not r.get("draft")]
+    if not releases:
+        return
+
+    # Days since last release
+    latest = releases[0]
+    published = _parse_iso_datetime(latest.get("published_at", ""))
+    if published:
+        metrics.days_since_last_release = (datetime.now(timezone.utc) - published).days
+
+    # Releases in last year
+    one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
+    for release in releases:
+        published = _parse_iso_datetime(release.get("published_at", ""))
+        if published and published > one_year_ago:
+            metrics.releases_last_year += 1
+
+
+def _process_contributors_data(contributors_data: Any, metrics: HealthMetrics) -> None:
+    """Process contributors data into metrics."""
+    if not isinstance(contributors_data, list):
+        return
+
+    metrics.contributor_count = len(contributors_data)
+    if metrics.contributor_count == 0:
+        return
+
+    total_contributions = sum(c.get("contributions", 0) for c in contributors_data)
+    if total_contributions > 0 and contributors_data:
+        top_contributions = contributors_data[0].get("contributions", 0)
+        metrics.top_contributor_percentage = (top_contributions / total_contributions) * 100
+
+
+def _process_community_data(community_data: Any, metrics: HealthMetrics) -> None:
+    """Process community profile data into metrics."""
+    if not isinstance(community_data, dict):
+        return
+
+    files = community_data.get("files", {})
+    metrics.has_readme = files.get("readme") is not None
+    metrics.has_contributing = files.get("contributing") is not None
+    metrics.has_code_of_conduct = files.get("code_of_conduct") is not None
+    if files.get("license"):
+        metrics.has_license = True
+
+
+# Scoring helper functions
+def _score_issue_response(hours: Optional[float]) -> Optional[float]:
+    """Score issue response time. < 24h = 100, < 72h = 80, etc."""
+    if hours is None:
+        return None
+    if hours < 24:
+        return 100
+    if hours < 72:
+        return 80
+    if hours < 168:
+        return 60
+    if hours < 720:
+        return 40
+    return 20
+
+
+def _score_pr_merge(merged: int, closed: int) -> Optional[float]:
+    """Score PR merge rate. 90%+ = 100, 70-90% = 80, etc."""
+    total = merged + closed
+    if total == 0:
+        return None
+    merge_rate = (merged / total) * 100
+    if merge_rate >= 90:
+        return 100
+    if merge_rate >= 70:
+        return 80
+    if merge_rate >= 50:
+        return 60
+    if merge_rate >= 30:
+        return 40
+    return 20
+
+
+def _score_release_cadence(days: Optional[int]) -> Optional[float]:
+    """Score release cadence. < 30 days = 100, < 90 = 80, etc."""
+    if days is None:
+        return None
+    if days < 30:
+        return 100
+    if days < 90:
+        return 80
+    if days < 180:
+        return 60
+    if days < 365:
+        return 40
+    return 20
+
+
+def _score_bus_factor(contributor_count: int, top_percentage: float) -> Optional[float]:
+    """Score bus factor based on contributor count and concentration."""
+    if contributor_count == 0:
+        return None
+
+    contributor_score = min(100, contributor_count * 10)
+
+    if top_percentage < 30:
+        concentration_score = 100
+    elif top_percentage < 50:
+        concentration_score = 80
+    elif top_percentage < 70:
+        concentration_score = 60
+    elif top_percentage < 90:
+        concentration_score = 40
+    else:
+        concentration_score = 20
+
+    return (contributor_score + concentration_score) / 2
+
+
+def _score_documentation(metrics: HealthMetrics) -> Optional[float]:
+    """Score documentation based on presence of key files."""
+    doc_points = 0
+    doc_items = 0
+
+    if metrics.has_readme:
+        doc_points += 40
+        doc_items += 1
+    if metrics.has_license:
+        doc_points += 30
+        doc_items += 1
+    if metrics.has_contributing:
+        doc_points += 20
+        doc_items += 1
+    if metrics.has_code_of_conduct:
+        doc_points += 10
+        doc_items += 1
+
+    return doc_points if doc_items > 0 else None
+
+
+def _score_velocity(star_velocity: float) -> float:
+    """Score velocity. 10+/day = 100, 5+/day = 80, etc."""
+    if star_velocity >= 10:
+        return 100
+    if star_velocity >= 5:
+        return 80
+    if star_velocity >= 1:
+        return 60
+    if star_velocity >= 0.1:
+        return 40
+    return 20
+
+
+def _score_to_grade(score: float) -> str:
+    """Convert numeric score to letter grade."""
+    if score >= 95:
+        return "A+"
+    if score >= 90:
+        return "A"
+    if score >= 85:
+        return "B+"
+    if score >= 80:
+        return "B"
+    if score >= 75:
+        return "C+"
+    if score >= 70:
+        return "C"
+    if score >= 60:
+        return "D"
+    return "F"
+
+
 class HealthScorer:
     """Service for calculating project health scores."""
 
     def __init__(self, token: Optional[str] = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS):
+        from services.github import build_github_headers
         self.token = token
         self.timeout = timeout
-        self.headers = {
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        if token:
-            self.headers["Authorization"] = f"Bearer {token}"
+        self.headers = build_github_headers(token)
 
     async def _fetch_json(self, client: httpx.AsyncClient, url: str, params: Optional[Dict] = None) -> Any:
         """Fetch JSON from GitHub API with error handling."""
+        from services.github import handle_github_response
         try:
             response = await client.get(url, params=params, headers=self.headers)
-
-            if response.status_code == 404:
-                return None
-            if response.status_code == 403:
-                logger.warning(f"Rate limit or forbidden: {url}")
-                return None
-            if response.status_code == 401:
-                logger.error("GitHub API authentication failed")
-                return None
-
-            response.raise_for_status()
-            return response.json()
+            return handle_github_response(response, raise_on_error=False, context=url)
         except httpx.TimeoutException:
             logger.warning(f"Timeout fetching {url}")
             return None
@@ -153,202 +367,39 @@ class HealthScorer:
             results = await asyncio.gather(*tasks.values(), return_exceptions=True)
             data = dict(zip(tasks.keys(), results))
 
-            # Process repo data
+            # Process repo data (basic info)
             if isinstance(data["repo"], dict):
                 metrics.has_license = data["repo"].get("license") is not None
                 metrics.open_issues_count = data["repo"].get("open_issues_count", 0)
 
-            # Process issues (filter out PRs which also appear in issues endpoint)
-            if isinstance(data["issues"], list):
-                issues = [i for i in data["issues"] if "pull_request" not in i]
-                metrics.open_issues_count = len([i for i in issues if i.get("state") == "open"])
-                metrics.closed_issues_count = len([i for i in issues if i.get("state") == "closed"])
-
-                # Calculate average response time for closed issues
-                response_times = []
-                for issue in issues:
-                    if issue.get("state") == "closed" and issue.get("created_at") and issue.get("closed_at"):
-                        try:
-                            created = datetime.fromisoformat(issue["created_at"].replace("Z", "+00:00"))
-                            closed = datetime.fromisoformat(issue["closed_at"].replace("Z", "+00:00"))
-                            hours = (closed - created).total_seconds() / 3600
-                            if hours > 0:
-                                response_times.append(hours)
-                        except (ValueError, TypeError):
-                            pass
-
-                if response_times:
-                    metrics.avg_issue_response_hours = sum(response_times) / len(response_times)
-
-            # Process PRs
-            if isinstance(data["pulls"], list):
-                metrics.open_prs_count = len([p for p in data["pulls"] if p.get("state") == "open"])
-                metrics.merged_prs_count = len([p for p in data["pulls"] if p.get("merged_at")])
-                metrics.closed_prs_count = len([p for p in data["pulls"] if p.get("state") == "closed" and not p.get("merged_at")])
-
-            # Process releases
-            if isinstance(data["releases"], list) and data["releases"]:
-                # Filter out drafts
-                releases = [r for r in data["releases"] if not r.get("draft")]
-                if releases:
-                    # Days since last release
-                    latest = releases[0]
-                    if latest.get("published_at"):
-                        try:
-                            published = datetime.fromisoformat(latest["published_at"].replace("Z", "+00:00"))
-                            metrics.days_since_last_release = (datetime.now(timezone.utc) - published).days
-                        except (ValueError, TypeError):
-                            pass
-
-                    # Releases in last year
-                    one_year_ago = datetime.now(timezone.utc) - timedelta(days=365)
-                    for release in releases:
-                        if release.get("published_at"):
-                            try:
-                                published = datetime.fromisoformat(release["published_at"].replace("Z", "+00:00"))
-                                if published > one_year_ago:
-                                    metrics.releases_last_year += 1
-                            except (ValueError, TypeError):
-                                pass
-
-            # Process contributors
-            if isinstance(data["contributors"], list):
-                metrics.contributor_count = len(data["contributors"])
-                if metrics.contributor_count > 0:
-                    total_contributions = sum(c.get("contributions", 0) for c in data["contributors"])
-                    if total_contributions > 0 and data["contributors"]:
-                        top_contributions = data["contributors"][0].get("contributions", 0)
-                        metrics.top_contributor_percentage = (top_contributions / total_contributions) * 100
-
-            # Process community profile
-            if isinstance(data["community"], dict):
-                files = data["community"].get("files", {})
-                metrics.has_readme = files.get("readme") is not None
-                metrics.has_contributing = files.get("contributing") is not None
-                metrics.has_code_of_conduct = files.get("code_of_conduct") is not None
-                # License might be in community profile too
-                if files.get("license"):
-                    metrics.has_license = True
+            # Process each data source using helper functions
+            _process_issues_data(data["issues"], metrics)
+            _process_pulls_data(data["pulls"], metrics)
+            _process_releases_data(data["releases"], metrics)
+            _process_contributors_data(data["contributors"], metrics)
+            _process_community_data(data["community"], metrics)
 
         return metrics
 
-    def calculate_scores(self, metrics: HealthMetrics) -> HealthScoreResult:
+    @staticmethod
+    def calculate_scores(metrics: HealthMetrics) -> HealthScoreResult:
         """Calculate health scores from metrics."""
-        scores: Dict[str, Optional[float]] = {}
-
-        # Issue Response Score (20%)
-        # < 24h = 100, < 72h = 80, < 168h (1 week) = 60, < 720h (1 month) = 40, else 20
-        if metrics.avg_issue_response_hours is not None:
-            hours = metrics.avg_issue_response_hours
-            if hours < 24:
-                scores["issue_response"] = 100
-            elif hours < 72:
-                scores["issue_response"] = 80
-            elif hours < 168:
-                scores["issue_response"] = 60
-            elif hours < 720:
-                scores["issue_response"] = 40
-            else:
-                scores["issue_response"] = 20
-        else:
-            scores["issue_response"] = None
-
-        # PR Merge Rate Score (20%)
-        total_prs = metrics.merged_prs_count + metrics.closed_prs_count
-        if total_prs > 0:
-            merge_rate = (metrics.merged_prs_count / total_prs) * 100
-            # 90%+ = 100, 70-90% = 80, 50-70% = 60, 30-50% = 40, <30% = 20
-            if merge_rate >= 90:
-                scores["pr_merge"] = 100
-            elif merge_rate >= 70:
-                scores["pr_merge"] = 80
-            elif merge_rate >= 50:
-                scores["pr_merge"] = 60
-            elif merge_rate >= 30:
-                scores["pr_merge"] = 40
-            else:
-                scores["pr_merge"] = 20
-        else:
-            scores["pr_merge"] = None
-
-        # Release Cadence Score (15%)
-        if metrics.days_since_last_release is not None:
-            days = metrics.days_since_last_release
-            # < 30 days = 100, < 90 = 80, < 180 = 60, < 365 = 40, else 20
-            if days < 30:
-                scores["release_cadence"] = 100
-            elif days < 90:
-                scores["release_cadence"] = 80
-            elif days < 180:
-                scores["release_cadence"] = 60
-            elif days < 365:
-                scores["release_cadence"] = 40
-            else:
-                scores["release_cadence"] = 20
-        else:
-            scores["release_cadence"] = None
-
-        # Bus Factor Score (15%)
-        # Based on contributor count and concentration
-        if metrics.contributor_count > 0:
-            # More contributors = better
-            contributor_score = min(100, metrics.contributor_count * 10)
-            # Less concentration = better (top contributor < 50% is ideal)
-            if metrics.top_contributor_percentage < 30:
-                concentration_score = 100
-            elif metrics.top_contributor_percentage < 50:
-                concentration_score = 80
-            elif metrics.top_contributor_percentage < 70:
-                concentration_score = 60
-            elif metrics.top_contributor_percentage < 90:
-                concentration_score = 40
-            else:
-                concentration_score = 20
-            scores["bus_factor"] = (contributor_score + concentration_score) / 2
-        else:
-            scores["bus_factor"] = None
-
-        # Documentation Score (10%)
-        doc_points = 0
-        doc_items = 0
-        if metrics.has_readme:
-            doc_points += 40
-            doc_items += 1
-        if metrics.has_license:
-            doc_points += 30
-            doc_items += 1
-        if metrics.has_contributing:
-            doc_points += 20
-            doc_items += 1
-        if metrics.has_code_of_conduct:
-            doc_points += 10
-            doc_items += 1
-
-        scores["documentation"] = doc_points if doc_items > 0 else None
-
-        # Dependency Score (10%) - placeholder, would need package.json analysis
-        # For now, we'll base it on whether the project has recent activity
-        scores["dependency"] = 70  # Default neutral score
-
-        # Velocity Score (10%)
-        if metrics.star_velocity > 0:
-            # Normalize velocity: 10+/day = 100, 5+/day = 80, 1+/day = 60, 0.1+/day = 40, else 20
-            if metrics.star_velocity >= 10:
-                scores["velocity"] = 100
-            elif metrics.star_velocity >= 5:
-                scores["velocity"] = 80
-            elif metrics.star_velocity >= 1:
-                scores["velocity"] = 60
-            elif metrics.star_velocity >= 0.1:
-                scores["velocity"] = 40
-            else:
-                scores["velocity"] = 20
-        else:
-            scores["velocity"] = 20
+        # Calculate individual scores using helper functions
+        scores: Dict[str, Optional[float]] = {
+            "issue_response": _score_issue_response(metrics.avg_issue_response_hours),
+            "pr_merge": _score_pr_merge(metrics.merged_prs_count, metrics.closed_prs_count),
+            "release_cadence": _score_release_cadence(metrics.days_since_last_release),
+            "bus_factor": _score_bus_factor(
+                metrics.contributor_count, metrics.top_contributor_percentage
+            ),
+            "documentation": _score_documentation(metrics),
+            "dependency": 70,  # Default neutral score (placeholder)
+            "velocity": _score_velocity(metrics.star_velocity),
+        }
 
         # Calculate overall score (weighted average of available scores)
-        total_weight = 0
-        weighted_sum = 0
+        total_weight = 0.0
+        weighted_sum = 0.0
 
         for key, weight in WEIGHTS.items():
             score = scores.get(key)
@@ -356,17 +407,11 @@ class HealthScorer:
                 weighted_sum += score * weight
                 total_weight += weight
 
-        if total_weight > 0:
-            overall = weighted_sum / total_weight
-        else:
-            overall = 0
-
-        # Determine grade
-        grade = self._score_to_grade(overall)
+        overall = weighted_sum / total_weight if total_weight > 0 else 0
 
         return HealthScoreResult(
             overall_score=round(overall, 1),
-            grade=grade,
+            grade=_score_to_grade(overall),
             issue_response_score=scores.get("issue_response"),
             pr_merge_score=scores.get("pr_merge"),
             release_cadence_score=scores.get("release_cadence"),
@@ -376,25 +421,6 @@ class HealthScorer:
             velocity_score=scores.get("velocity"),
             metrics=metrics,
         )
-
-    def _score_to_grade(self, score: float) -> str:
-        """Convert numeric score to letter grade."""
-        if score >= 95:
-            return "A+"
-        elif score >= 90:
-            return "A"
-        elif score >= 85:
-            return "B+"
-        elif score >= 80:
-            return "B"
-        elif score >= 75:
-            return "C+"
-        elif score >= 70:
-            return "C"
-        elif score >= 60:
-            return "D"
-        else:
-            return "F"
 
 
 # Module-level convenience functions

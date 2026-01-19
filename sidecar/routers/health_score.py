@@ -15,6 +15,9 @@ from db.models import Repo, HealthScore, Signal, SignalType
 from services.health_scorer import calculate_health_score, HealthScoreResult
 from utils.time import utc_now
 
+# Error message constants
+ERROR_REPO_NOT_FOUND = "Repository not found"
+
 router = APIRouter(prefix="/health-score", tags=["health-score"])
 
 
@@ -64,6 +67,14 @@ class HealthScoreSummary(BaseModel):
 
 
 # Helper functions
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
 def _to_bool_or_none(value: Optional[int]) -> Optional[bool]:
     """Convert SQLite integer to bool, preserving None."""
     return bool(value) if value is not None else None
@@ -142,9 +153,7 @@ async def get_health_score(
     Get the health score for a repository.
     Returns cached score if available.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    repo = _get_repo_or_404(repo_id, db)
 
     cached = db.query(HealthScore).filter(HealthScore.repo_id == repo_id).first()
     if cached:
@@ -164,9 +173,7 @@ async def calculate_repo_health_score(
     """
     Calculate (or recalculate) health score for a repository.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    repo = _get_repo_or_404(repo_id, db)
 
     # Get velocity from existing signals
     velocity_signal = db.query(Signal).filter(
@@ -209,9 +216,7 @@ async def get_health_score_summary(
     """
     Get a brief health score summary (for badges).
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    _get_repo_or_404(repo_id, db)
 
     cached = db.query(HealthScore).filter(HealthScore.repo_id == repo_id).first()
 

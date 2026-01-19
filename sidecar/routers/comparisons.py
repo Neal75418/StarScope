@@ -15,6 +15,11 @@ from db.models import ComparisonGroup, ComparisonMember, Repo
 from services.comparison import get_comparison_service
 from utils.time import utc_now
 
+# Error message constants
+ERROR_GROUP_NOT_FOUND = "Comparison group not found"
+ERROR_REPO_NOT_FOUND = "Repository not found"
+ERROR_REPO_NOT_IN_GROUP = "Repository is not in this comparison group"
+
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
 
 
@@ -59,7 +64,23 @@ class ComparisonGroupListResponse(BaseModel):
 
 
 # Helper functions
-def _group_to_response(group: ComparisonGroup, db: Session) -> ComparisonGroupResponse:
+def _get_group_or_404(group_id: int, db: Session) -> "ComparisonGroup":
+    """Get comparison group by ID or raise 404."""
+    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail=ERROR_GROUP_NOT_FOUND)
+    return group
+
+
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
+def _group_to_response(group: "ComparisonGroup", db: Session) -> ComparisonGroupResponse:
     """Convert ComparisonGroup model to response."""
     member_count = db.query(ComparisonMember).filter(
         ComparisonMember.group_id == group.id
@@ -103,7 +124,7 @@ async def get_comparison_group(
     result = service.get_comparison_summary(group_id, db)
 
     if result is None:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+        raise HTTPException(status_code=404, detail=ERROR_GROUP_NOT_FOUND)
 
     return result
 
@@ -138,9 +159,7 @@ async def update_comparison_group(
     """
     Update a comparison group.
     """
-    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+    group = _get_group_or_404(group_id, db)
 
     if request.name is not None:
         group.name = request.name
@@ -162,9 +181,7 @@ async def delete_comparison_group(
     """
     Delete a comparison group.
     """
-    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+    group = _get_group_or_404(group_id, db)
 
     group_name = group.name
     db.delete(group)
@@ -181,9 +198,7 @@ async def get_comparison_members(
     """
     Get members of a comparison group.
     """
-    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+    group = _get_group_or_404(group_id, db)
 
     members = db.query(ComparisonMember).filter(
         ComparisonMember.group_id == group_id
@@ -214,13 +229,8 @@ async def add_repo_to_comparison(
     """
     Add a repository to a comparison group.
     """
-    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
-
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    group = _get_group_or_404(group_id, db)
+    repo = _get_repo_or_404(repo_id, db)
 
     # Check if already in group
     existing = db.query(ComparisonMember).filter(
@@ -266,9 +276,7 @@ async def remove_repo_from_comparison(
     """
     Remove a repository from a comparison group.
     """
-    group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
-    if not group:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+    group = _get_group_or_404(group_id, db)
 
     member = db.query(ComparisonMember).filter(
         ComparisonMember.group_id == group_id,
@@ -276,7 +284,7 @@ async def remove_repo_from_comparison(
     ).first()
 
     if not member:
-        raise HTTPException(status_code=404, detail="Repository is not in this comparison group")
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_IN_GROUP)
 
     repo_name = member.repo.full_name
     db.delete(member)
@@ -303,7 +311,7 @@ async def get_comparison_chart_data(
     result = service.get_comparison_chart_data(group_id, db, time_range)
 
     if result is None:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+        raise HTTPException(status_code=404, detail=ERROR_GROUP_NOT_FOUND)
 
     return result
 
@@ -320,6 +328,6 @@ async def get_velocity_comparison(
     result = service.get_velocity_comparison(group_id, db)
 
     if result is None:
-        raise HTTPException(status_code=404, detail="Comparison group not found")
+        raise HTTPException(status_code=404, detail=ERROR_GROUP_NOT_FOUND)
 
     return result

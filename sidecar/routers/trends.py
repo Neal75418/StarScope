@@ -60,9 +60,10 @@ def _build_signal_map(db: Session) -> dict[int, dict[str, float]]:
     signal_map: dict[int, dict[str, float]] = {}
 
     for signal in all_signals:
-        if signal.repo_id not in signal_map:
-            signal_map[signal.repo_id] = {}
-        signal_map[signal.repo_id][signal.signal_type] = signal.value
+        rid = int(signal.repo_id)
+        if rid not in signal_map:
+            signal_map[rid] = {}
+        signal_map[rid][signal.signal_type] = signal.value
 
     return signal_map
 
@@ -96,7 +97,7 @@ def _build_stars_map(db: Session) -> dict[int, int]:
         .all()
     )
 
-    return {repo_id: stars for repo_id, stars in results}
+    return {int(repo_id): stars for repo_id, stars in results}
 
 
 @router.get("/", response_model=TrendsResponse)
@@ -122,13 +123,13 @@ async def get_trends(
     # Build list with metrics
     repo_metrics = []
     for repo in repos:
-        signals = signal_map.get(repo.id, {})
+        signals = signal_map.get(int(repo.id), {})
         stars_delta_7d = signals.get(SignalType.STARS_DELTA_7D)
         stars_delta_30d = signals.get(SignalType.STARS_DELTA_30D)
         velocity = signals.get(SignalType.VELOCITY)
         acceleration = signals.get(SignalType.ACCELERATION)
         trend = signals.get(SignalType.TREND)
-        stars = stars_map.get(repo.id)
+        stars = stars_map.get(int(repo.id))
 
         # Get sort value
         sort_value = {

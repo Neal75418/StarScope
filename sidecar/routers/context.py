@@ -17,6 +17,9 @@ from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
 from constants import MIN_HN_SCORE_FOR_BADGE, MIN_REDDIT_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 
+# Error message constants
+ERROR_REPO_NOT_FOUND = "Repository not found"
+
 router = APIRouter(prefix="/context", tags=["context"])
 
 
@@ -68,6 +71,15 @@ class FetchContextResponse(BaseModel):
     new_signals: dict
 
 
+# Helper functions
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
 # Endpoints
 @router.get("/{repo_id}/signals", response_model=ContextSignalsResponse)
 async def get_context_signals(
@@ -79,9 +91,7 @@ async def get_context_signals(
     """
     Get all context signals for a repository.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    _get_repo_or_404(repo_id, db)
 
     query = db.query(ContextSignal).filter(ContextSignal.repo_id == repo_id)
 
@@ -114,9 +124,7 @@ async def get_context_badges(
     Returns the most relevant badges to display on the repo card.
     Only returns badges that meet the score threshold.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    _get_repo_or_404(repo_id, db)
 
     badges: List[ContextBadge] = []
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
@@ -199,9 +207,7 @@ async def fetch_repo_context(
     Manually trigger context signal fetch for a repository.
     Fetches from HN, Reddit, and GitHub Releases.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    repo = _get_repo_or_404(repo_id, db)
 
     hn_count, reddit_count, release_count = await fetch_context_signals_for_repo(repo, db)
 

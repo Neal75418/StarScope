@@ -9,10 +9,20 @@ Tables:
 
 from datetime import datetime, date
 from typing import Optional, List
-from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
-from utils.time import utc_now
+# IDE may show warning - path is resolved at runtime via sys.path in main.py
+from utils.time import utc_now  # noqa: F401
+
+# Constants to avoid code duplication warnings
+CASCADE_DELETE_ORPHAN = "all, delete-orphan"
+FK_REPOS_ID = "repos.id"
+FK_TAGS_ID = "tags.id"
+FK_CATEGORIES_ID = "categories.id"
+FK_ALERT_RULES_ID = "alert_rules.id"
+FK_COMPARISON_GROUPS_ID = "comparison_groups.id"
+FK_WEBHOOKS_ID = "webhooks.id"
 
 
 class Base(DeclarativeBase):
@@ -45,10 +55,10 @@ class Repo(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
-    snapshots: Mapped[List["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade="all, delete-orphan")
-    signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade="all, delete-orphan")
-    context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade="all, delete-orphan")
-    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="repo", cascade="all, delete-orphan")
+    snapshots: Mapped[List["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
     # Indexes
     __table_args__ = (
@@ -67,7 +77,7 @@ class RepoSnapshot(Base):
     __tablename__ = "repo_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Stats at this point in time
     stars: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -101,7 +111,7 @@ class Signal(Base):
     __tablename__ = "signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Signal data
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "stars_delta_7d", "velocity"
@@ -137,7 +147,7 @@ class AlertRule(Base):
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     # Target (optional - if null, applies to all repos)
-    repo_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=True)
+    repo_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=True)
 
     # Condition
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "stars_delta_7d", "velocity"
@@ -153,7 +163,7 @@ class AlertRule(Base):
 
     # Relationships
     repo: Mapped[Optional["Repo"]] = relationship("Repo")
-    triggered_alerts: Mapped[List["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade="all, delete-orphan")
+    triggered_alerts: Mapped[List["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade=CASCADE_DELETE_ORPHAN)
 
     def __repr__(self) -> str:
         target = self.repo.full_name if self.repo else "all repos"
@@ -167,8 +177,8 @@ class TriggeredAlert(Base):
     __tablename__ = "triggered_alerts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    rule_id: Mapped[int] = mapped_column(Integer, ForeignKey("alert_rules.id", ondelete="CASCADE"), nullable=False)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    rule_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_ALERT_RULES_ID, ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Trigger details
     signal_value: Mapped[float] = mapped_column(Float, nullable=False)  # The value that triggered the alert
@@ -229,7 +239,7 @@ class ContextSignal(Base):
     __tablename__ = "context_signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Signal identification
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # hacker_news, reddit, github_release
@@ -274,7 +284,7 @@ class HealthScore(Base):
     __tablename__ = "health_scores"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False, unique=True)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False, unique=True)
 
     # Overall score (0-100)
     overall_score: Mapped[float] = mapped_column(Float, nullable=False)
@@ -336,7 +346,7 @@ class Tag(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
-    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="tag", cascade="all, delete-orphan")
+    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="tag", cascade=CASCADE_DELETE_ORPHAN)
 
     # Indexes
     __table_args__ = (
@@ -355,8 +365,8 @@ class RepoTag(Base):
     __tablename__ = "repo_tags"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
-    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey("tags.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
+    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_TAGS_ID, ondelete="CASCADE"), nullable=False)
 
     source: Mapped[str] = mapped_column(String(20), nullable=False)  # "auto" or "user"
     confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0.0-1.0 for inferred tags
@@ -385,8 +395,8 @@ class SimilarRepo(Base):
     __tablename__ = "similar_repos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
-    similar_repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
+    similar_repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Similarity metrics
     similarity_score: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0-1.0
@@ -423,13 +433,13 @@ class Category(Base):
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # Emoji
     color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # Hex color
-    parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
+    parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="SET NULL"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
     parent: Mapped[Optional["Category"]] = relationship("Category", remote_side="Category.id", backref="children")
-    repo_categories: Mapped[List["RepoCategory"]] = relationship("RepoCategory", back_populates="category", cascade="all, delete-orphan")
+    repo_categories: Mapped[List["RepoCategory"]] = relationship("RepoCategory", back_populates="category", cascade=CASCADE_DELETE_ORPHAN)
 
     # Indexes
     __table_args__ = (
@@ -448,8 +458,8 @@ class RepoCategory(Base):
     __tablename__ = "repo_categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
-    category_id: Mapped[int] = mapped_column(Integer, ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
+    category_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="CASCADE"), nullable=False)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # Relationships
@@ -481,7 +491,7 @@ class ComparisonGroup(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
-    members: Mapped[List["ComparisonMember"]] = relationship("ComparisonMember", back_populates="group", cascade="all, delete-orphan")
+    members: Mapped[List["ComparisonMember"]] = relationship("ComparisonMember", back_populates="group", cascade=CASCADE_DELETE_ORPHAN)
 
     def __repr__(self) -> str:
         return f"<ComparisonGroup id={self.id} name={self.name}>"
@@ -494,8 +504,8 @@ class ComparisonMember(Base):
     __tablename__ = "comparison_members"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[int] = mapped_column(Integer, ForeignKey("comparison_groups.id", ondelete="CASCADE"), nullable=False)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    group_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_COMPARISON_GROUPS_ID, ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
@@ -538,7 +548,7 @@ class EarlySignal(Base):
     __tablename__ = "early_signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey("repos.id", ondelete="CASCADE"), nullable=False)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Signal details
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -616,7 +626,7 @@ class Webhook(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationship
-    logs: Mapped[List["WebhookLog"]] = relationship("WebhookLog", back_populates="webhook", cascade="all, delete-orphan")
+    logs: Mapped[List["WebhookLog"]] = relationship("WebhookLog", back_populates="webhook", cascade=CASCADE_DELETE_ORPHAN)
 
     __table_args__ = (
         Index("ix_webhooks_type", "webhook_type"),
@@ -635,7 +645,7 @@ class WebhookLog(Base):
     __tablename__ = "webhook_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    webhook_id: Mapped[int] = mapped_column(Integer, ForeignKey("webhooks.id", ondelete="CASCADE"), nullable=False)
+    webhook_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_WEBHOOKS_ID, ondelete="CASCADE"), nullable=False)
 
     # Request details
     trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)

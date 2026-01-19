@@ -47,7 +47,8 @@ class GitHubReleasesService:
         if token:
             self.headers["Authorization"] = f"Bearer {token}"
 
-    def _handle_error_response(self, response: httpx.Response, owner: str, repo: str) -> None:
+    @staticmethod
+    def _handle_error_response(response: httpx.Response, owner: str, repo: str) -> None:
         """Handle error responses from GitHub API."""
         if response.status_code == 404:
             raise GitHubNotFoundError(

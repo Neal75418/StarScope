@@ -7,8 +7,12 @@ Create Date: 2026-01-18
 """
 from typing import Sequence, Union
 
-from alembic import op
+from alembic import op  # noqa: F401
+from alembic.operations import Operations
 import sqlalchemy as sa
+
+# Type hint for IDE support
+op: Operations
 
 
 # revision identifiers, used by Alembic.

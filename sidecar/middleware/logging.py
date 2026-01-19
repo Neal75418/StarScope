@@ -5,7 +5,7 @@ Request/Response logging middleware for StarScope.
 import time
 import logging
 import uuid
-from typing import Callable, List, Optional
+from typing import Any, Callable, List, Optional
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -92,7 +92,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             self._log_error(request, request_id, duration_ms, exc)
             raise
 
-    def _get_client_ip(self, request: Request) -> str:
+    @staticmethod
+    def _get_client_ip(request: Request) -> str:
         """Extract client IP from request, handling proxies."""
         # Check for forwarded header (from reverse proxy)
         forwarded = request.headers.get("X-Forwarded-For")
@@ -114,7 +115,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         self, request: Request, request_id: str, client_ip: str
     ) -> None:
         """Log incoming request details."""
-        log_data = {
+        log_data: dict[str, Any] = {
             "request_id": request_id,
             "method": request.method,
             "path": request.url.path,
@@ -180,8 +181,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             },
         )
 
+    @staticmethod
     def _log_error(
-        self,
         request: Request,
         request_id: str,
         duration_ms: float,

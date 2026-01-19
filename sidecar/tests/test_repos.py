@@ -2,9 +2,6 @@
 Tests for repository endpoints.
 """
 
-import pytest
-
-
 class TestReposEndpoints:
     """Test cases for /api/repos endpoints."""
 

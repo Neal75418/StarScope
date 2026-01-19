@@ -186,7 +186,8 @@ class GitHubAuthService:
                 "username": username,
             }
 
-    async def _get_username(self, token: str) -> Optional[str]:
+    @staticmethod
+    async def _get_username(token: str) -> Optional[str]:
         """Get the GitHub username for a token."""
         async with httpx.AsyncClient() as client:
             response = await client.get(
@@ -200,7 +201,8 @@ class GitHubAuthService:
                 return response.json().get("login")
             return None
 
-    async def get_connection_status(self) -> ConnectionStatus:
+    @staticmethod
+    async def get_connection_status() -> ConnectionStatus:
         """
         Get the current GitHub connection status.
         Checks if we have a valid token and returns user info.
@@ -262,7 +264,8 @@ class GitHubAuthService:
                     error=f"Network error: {str(e)}"
                 )
 
-    def disconnect(self) -> bool:
+    @staticmethod
+    def disconnect() -> bool:
         """
         Disconnect from GitHub by removing stored credentials.
         Returns True if credentials were removed, False if none existed.

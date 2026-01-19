@@ -45,8 +45,8 @@ async def lifespan(_app: FastAPI):
         from services.settings import get_setting
         from db.models import AppSettingKey
         has_oauth_token = get_setting(AppSettingKey.GITHUB_TOKEN) is not None
-    except Exception:
-        pass  # DB not initialized yet, will check later
+    except (ImportError, AttributeError, OSError):
+        pass  # DB not initialized yet or module unavailable, will check later
 
     if not github_token and not has_oauth_token:
         logger.warning(

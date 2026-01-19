@@ -24,6 +24,49 @@ OPERATORS: dict[str, Callable[[float, float], bool]] = {
 }
 
 
+def _is_in_cooldown(db: Session, rule_id: int, repo_id: int) -> bool:
+    """Check if alert was triggered recently (within cooldown period)."""
+    recent_trigger = (
+        db.query(TriggeredAlert)
+        .filter(
+            TriggeredAlert.rule_id == rule_id,
+            TriggeredAlert.repo_id == repo_id,
+        )
+        .order_by(TriggeredAlert.triggered_at.desc())
+        .first()
+    )
+
+    if not recent_trigger:
+        return False
+
+    time_diff = utc_now() - recent_trigger.triggered_at
+    return time_diff.total_seconds() < ALERT_COOLDOWN_SECONDS
+
+
+def _create_triggered_alert(
+    db: Session,
+    rule: "AlertRule",
+    repo: "Repo",
+    signal_value: float
+) -> "TriggeredAlert":
+    """Create and persist a triggered alert."""
+    triggered = TriggeredAlert(
+        rule_id=rule.id,
+        repo_id=repo.id,
+        signal_value=signal_value,
+        triggered_at=utc_now(),
+    )
+    db.add(triggered)
+    db.commit()
+
+    logger.info(
+        f"Alert triggered: {rule.name} for {repo.full_name} "
+        f"({rule.signal_type}={signal_value} {rule.operator} {rule.threshold})"
+    )
+
+    return triggered
+
+
 def evaluate_condition(value: float, operator_str: str, threshold: float) -> bool:
     """
     Evaluate a condition like 'value > threshold'.
@@ -46,9 +89,9 @@ def evaluate_condition(value: float, operator_str: str, threshold: float) -> boo
 
 def check_rule_for_repo(
     db: Session,
-    rule: AlertRule,
-    repo: Repo
-) -> Optional[TriggeredAlert]:
+    rule: "AlertRule",
+    repo: "Repo"
+) -> Optional["TriggeredAlert"]:
     """
     Check if a rule is triggered for a specific repo.
 
@@ -72,47 +115,23 @@ def check_rule_for_repo(
         logger.debug(f"No signal {rule.signal_type} for repo {repo.full_name}")
         return None
 
+    signal_value = float(signal.value)
+    threshold = float(rule.threshold)
+
     # Check if condition is met
-    if evaluate_condition(signal.value, rule.operator, rule.threshold):
-        # Check if we already triggered this alert recently (within last hour)
-        recent_trigger = (
-            db.query(TriggeredAlert)
-            .filter(
-                TriggeredAlert.rule_id == rule.id,
-                TriggeredAlert.repo_id == repo.id,
-            )
-            .order_by(TriggeredAlert.triggered_at.desc())
-            .first()
-        )
+    if not evaluate_condition(signal_value, rule.operator, threshold):
+        return None
 
-        # Don't trigger if already triggered in the last hour
-        if recent_trigger:
-            time_diff = utc_now() - recent_trigger.triggered_at
-            if time_diff.total_seconds() < ALERT_COOLDOWN_SECONDS:
-                logger.debug(f"Alert already triggered recently for {repo.full_name}")
-                return None
+    # Check cooldown period
+    if _is_in_cooldown(db, int(rule.id), int(repo.id)):
+        logger.debug(f"Alert already triggered recently for {repo.full_name}")
+        return None
 
-        # Create triggered alert
-        triggered = TriggeredAlert(
-            rule_id=rule.id,
-            repo_id=repo.id,
-            signal_value=signal.value,
-            triggered_at=utc_now(),
-        )
-        db.add(triggered)
-        db.commit()
-
-        logger.info(
-            f"Alert triggered: {rule.name} for {repo.full_name} "
-            f"({rule.signal_type}={signal.value} {rule.operator} {rule.threshold})"
-        )
-
-        return triggered
-
-    return None
+    # Create and return triggered alert
+    return _create_triggered_alert(db, rule, repo, signal_value)
 
 
-async def check_all_alerts(db: Session) -> List[TriggeredAlert]:
+def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
     """
     Check all enabled alert rules and trigger any that match.
 
@@ -122,7 +141,7 @@ async def check_all_alerts(db: Session) -> List[TriggeredAlert]:
     Returns:
         List of triggered alerts
     """
-    triggered_alerts = []
+    triggered_alerts: List["TriggeredAlert"] = []
 
     # Get all enabled rules
     rules = db.query(AlertRule).filter(AlertRule.enabled == True).all()
@@ -132,27 +151,35 @@ async def check_all_alerts(db: Session) -> List[TriggeredAlert]:
         return triggered_alerts
 
     for rule in rules:
-        try:
-            if rule.repo_id:
-                # Rule for specific repo
-                repo = db.query(Repo).filter(Repo.id == rule.repo_id).first()
-                if repo:
-                    triggered = check_rule_for_repo(db, rule, repo)
-                    if triggered:
-                        triggered_alerts.append(triggered)
-            else:
-                # Rule for all repos
-                repos = db.query(Repo).all()
-                for repo in repos:
-                    triggered = check_rule_for_repo(db, rule, repo)
-                    if triggered:
-                        triggered_alerts.append(triggered)
-
-        except Exception as e:
-            logger.error(f"Error checking rule {rule.name}: {e}")
-            continue
+        triggered_alerts.extend(_check_rule_alerts(db, rule))
 
     return triggered_alerts
+
+
+def _check_rule_alerts(db: Session, rule: "AlertRule") -> List["TriggeredAlert"]:
+    """Check a single rule against applicable repos."""
+    alerts: List["TriggeredAlert"] = []
+
+    try:
+        repos = _get_repos_for_rule(db, rule)
+        for repo in repos:
+            triggered = check_rule_for_repo(db, rule, repo)
+            if triggered:
+                alerts.append(triggered)
+    except Exception as e:
+        logger.error(f"Error checking rule {rule.name}: {e}")
+
+    return alerts
+
+
+def _get_repos_for_rule(db: Session, rule: "AlertRule") -> List["Repo"]:
+    """Get the repos that a rule applies to."""
+    if rule.repo_id:
+        # Rule for specific repo
+        repo = db.query(Repo).filter(Repo.id == rule.repo_id).first()
+        return [repo] if repo else []
+    # Rule for all repos
+    return db.query(Repo).all()
 
 
 def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:

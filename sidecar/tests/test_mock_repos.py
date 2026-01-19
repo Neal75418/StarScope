@@ -44,7 +44,7 @@ class TestSnapshotsWithMockData:
 
     def test_get_repo_snapshots_via_chart(self, client, mock_repo_with_snapshots):
         """Test getting snapshots via chart endpoint."""
-        repo, snapshots = mock_repo_with_snapshots
+        repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars?time_range=90d")
         assert response.status_code == 200
         data = response.json()
@@ -52,7 +52,7 @@ class TestSnapshotsWithMockData:
 
     def test_snapshot_star_growth(self, client, mock_repo_with_snapshots):
         """Test that snapshots show star growth via chart endpoint."""
-        repo, snapshots = mock_repo_with_snapshots
+        repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars?time_range=90d")
         assert response.status_code == 200
         data = response.json()
@@ -68,7 +68,7 @@ class TestSignalsWithMockData:
 
     def test_repo_with_signals_in_list(self, client, mock_repo_with_signals):
         """Test that repo with signals appears in list with signal data."""
-        repo, signal = mock_repo_with_signals
+        repo, _ = mock_repo_with_signals
         response = client.get("/api/repos")
         assert response.status_code == 200
         data = response.json()
@@ -84,7 +84,7 @@ class TestHealthScoreWithMockData:
 
     def test_get_health_score(self, client, mock_health_score):
         """Test getting health score for a repo."""
-        repo, score = mock_health_score
+        repo, _ = mock_health_score
         response = client.get(f"/api/health-score/{repo.id}")
         assert response.status_code == 200
         data = response.json()
@@ -93,7 +93,7 @@ class TestHealthScoreWithMockData:
 
     def test_get_health_score_summary(self, client, mock_health_score):
         """Test getting health score summary."""
-        repo, score = mock_health_score
+        repo, _ = mock_health_score
         response = client.get(f"/api/health-score/{repo.id}/summary")
         assert response.status_code == 200
         data = response.json()
@@ -105,7 +105,7 @@ class TestEarlySignalsWithMockData:
 
     def test_get_early_signals(self, client, mock_early_signal):
         """Test getting early signals for a repo."""
-        repo, signal = mock_early_signal
+        _, _ = mock_early_signal
         response = client.get("/api/early-signals")
         assert response.status_code == 200
         data = response.json()
@@ -114,7 +114,7 @@ class TestEarlySignalsWithMockData:
 
     def test_early_signal_severity(self, client, mock_early_signal):
         """Test early signal severity value."""
-        repo, signal = mock_early_signal
+        repo, _ = mock_early_signal
         response = client.get(f"/api/early-signals/repo/{repo.id}")
         assert response.status_code == 200
         data = response.json()
@@ -128,7 +128,7 @@ class TestComparisonWithMockData:
 
     def test_get_comparison_group(self, client, mock_comparison_group):
         """Test getting a comparison group."""
-        group, repos = mock_comparison_group
+        group, _ = mock_comparison_group
         response = client.get(f"/api/comparisons/{group.id}")
         assert response.status_code == 200
         data = response.json()
@@ -136,7 +136,7 @@ class TestComparisonWithMockData:
 
     def test_list_comparison_groups(self, client, mock_comparison_group):
         """Test listing comparison groups."""
-        group, repos = mock_comparison_group
+        _, _ = mock_comparison_group
         response = client.get("/api/comparisons")
         assert response.status_code == 200
         data = response.json()
@@ -199,7 +199,7 @@ class TestChartsWithMockData:
 
     def test_get_stars_chart_with_data(self, client, mock_repo_with_snapshots):
         """Test getting star chart with actual data."""
-        repo, snapshots = mock_repo_with_snapshots
+        repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars")
         assert response.status_code == 200
         data = response.json()
@@ -207,7 +207,7 @@ class TestChartsWithMockData:
 
     def test_get_stars_chart_time_ranges(self, client, mock_repo_with_snapshots):
         """Test star chart with different time ranges."""
-        repo, snapshots = mock_repo_with_snapshots
+        repo, _ = mock_repo_with_snapshots
         for time_range in ["7d", "30d", "90d"]:
             response = client.get(f"/api/charts/{repo.id}/stars?time_range={time_range}")
             assert response.status_code == 200

@@ -18,7 +18,33 @@ from db.database import get_db
 from db.models import Repo, RepoSnapshot, Signal, SignalType, EarlySignal
 from utils.time import utc_now
 
+# Media type constants
+MEDIA_TYPE_JSON = "application/json"
+MEDIA_TYPE_CSV = "text/csv"
+
+# Error message constants
+ERROR_REPO_NOT_FOUND = "Repository not found"
+
 router = APIRouter(prefix="/export", tags=["export"])
+
+
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
+def _get_repo_snapshots(
+    repo_id: int, days: int, db: Session
+) -> tuple["Repo", List["RepoSnapshot"]]:
+    """Get repo and its snapshots, raising 404 if repo not found."""
+    repo = _get_repo_or_404(repo_id, db)
+    snapshots = db.query(RepoSnapshot).filter(
+        RepoSnapshot.repo_id == repo_id
+    ).order_by(RepoSnapshot.snapshot_date.desc()).limit(days).all()
+    return repo, snapshots
 
 
 def _sanitize_csv_field(value: Optional[str]) -> str:
@@ -40,7 +66,7 @@ def _sanitize_csv_field(value: Optional[str]) -> str:
     return value
 
 
-def _batch_load_latest_snapshots(repo_ids: List[int], db: Session) -> Dict[int, RepoSnapshot]:
+def _batch_load_latest_snapshots(repo_ids: List[int], db: Session) -> Dict[int, "RepoSnapshot"]:
     """Batch load latest snapshots for multiple repos to avoid N+1 queries."""
     if not repo_ids:
         return {}
@@ -80,8 +106,8 @@ def _batch_load_signals(repo_ids: List[int], db: Session) -> Dict[int, Dict[str,
 
 
 def _build_repo_dict(
-    repo: Repo,
-    snapshot: Optional[RepoSnapshot],
+    repo: "Repo",
+    snapshot: Optional["RepoSnapshot"],
     signals: Dict[str, float]
 ) -> dict:
     """Build a repo dict from pre-loaded data."""
@@ -106,7 +132,7 @@ def _build_repo_dict(
     }
 
 
-def _get_repos_with_signals(repos: List[Repo], db: Session) -> List[dict]:
+def _get_repos_with_signals(repos: List["Repo"], db: Session) -> List[dict]:
     """Build repo dicts with signals using batch loading to avoid N+1 queries."""
     if not repos:
         return []
@@ -143,7 +169,7 @@ async def export_watchlist_json(
 
     return StreamingResponse(
         io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
-        media_type="application/json",
+        media_type=MEDIA_TYPE_JSON,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{datetime.now().strftime("%Y%m%d")}.json"'
         }
@@ -189,7 +215,7 @@ async def export_watchlist_csv(
     output.seek(0)
     return StreamingResponse(
         output,
-        media_type="text/csv",
+        media_type=MEDIA_TYPE_CSV,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{datetime.now().strftime("%Y%m%d")}.csv"'
         }
@@ -205,13 +231,7 @@ async def export_repo_history_json(
     """
     Export star history for a specific repository as JSON.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
-    snapshots = db.query(RepoSnapshot).filter(
-        RepoSnapshot.repo_id == repo_id
-    ).order_by(RepoSnapshot.snapshot_date.desc()).limit(days).all()
+    repo, snapshots = _get_repo_snapshots(repo_id, days, db)
 
     data = {
         "exported_at": utc_now().isoformat(),
@@ -234,7 +254,7 @@ async def export_repo_history_json(
 
     return StreamingResponse(
         io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
-        media_type="application/json",
+        media_type=MEDIA_TYPE_JSON,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_{repo.full_name.replace("/", "_")}_{datetime.now().strftime("%Y%m%d")}.json"'
         }
@@ -250,13 +270,7 @@ async def export_repo_history_csv(
     """
     Export star history for a specific repository as CSV.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
-    snapshots = db.query(RepoSnapshot).filter(
-        RepoSnapshot.repo_id == repo_id
-    ).order_by(RepoSnapshot.snapshot_date.desc()).limit(days).all()
+    repo, snapshots = _get_repo_snapshots(repo_id, days, db)
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -271,7 +285,7 @@ async def export_repo_history_csv(
     output.seek(0)
     return StreamingResponse(
         output,
-        media_type="text/csv",
+        media_type=MEDIA_TYPE_CSV,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_{repo.full_name.replace("/", "_")}_{datetime.now().strftime("%Y%m%d")}.csv"'
         }
@@ -316,7 +330,7 @@ async def export_signals_json(
 
     return StreamingResponse(
         io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
-        media_type="application/json",
+        media_type=MEDIA_TYPE_JSON,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_signals_{datetime.now().strftime("%Y%m%d")}.json"'
         }
@@ -360,7 +374,7 @@ async def export_signals_csv(
     output.seek(0)
     return StreamingResponse(
         output,
-        media_type="text/csv",
+        media_type=MEDIA_TYPE_CSV,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_signals_{datetime.now().strftime("%Y%m%d")}.csv"'
         }
@@ -401,7 +415,7 @@ async def export_full_report_json(
 
     return StreamingResponse(
         io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
-        media_type="application/json",
+        media_type=MEDIA_TYPE_JSON,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_report_{datetime.now().strftime("%Y%m%d")}.json"'
         }

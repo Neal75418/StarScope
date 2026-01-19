@@ -12,11 +12,14 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import AlertRule, TriggeredAlert, Repo, SignalType, AlertOperator
 from services.alerts import (
-    get_unacknowledged_alerts,
     acknowledge_alert,
     acknowledge_all_alerts,
     check_all_alerts,
 )
+
+# Error message constants
+ERROR_RULE_NOT_FOUND = "Rule not found"
+ERROR_ALERT_NOT_FOUND = "Alert not found"
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -91,6 +94,41 @@ class SignalTypeInfo(BaseModel):
 
 # --- Helper functions ---
 
+def _to_alert_rule_response(rule: "AlertRule") -> AlertRuleResponse:
+    """Convert an AlertRule model to AlertRuleResponse."""
+    return AlertRuleResponse(
+        id=rule.id,
+        name=rule.name,
+        description=rule.description,
+        repo_id=rule.repo_id,
+        repo_name=rule.repo.full_name if rule.repo else None,
+        signal_type=rule.signal_type,
+        operator=rule.operator,
+        threshold=rule.threshold,
+        enabled=bool(rule.enabled),
+        created_at=rule.created_at,
+        updated_at=rule.updated_at,
+    )
+
+
+def _to_triggered_alert_response(alert: "TriggeredAlert") -> TriggeredAlertResponse:
+    """Convert a TriggeredAlert model to TriggeredAlertResponse."""
+    return TriggeredAlertResponse(
+        id=alert.id,
+        rule_id=alert.rule_id,
+        rule_name=alert.rule.name,
+        repo_id=alert.repo_id,
+        repo_name=alert.repo.full_name,
+        signal_type=alert.rule.signal_type,
+        signal_value=alert.signal_value,
+        threshold=alert.rule.threshold,
+        operator=alert.rule.operator,
+        triggered_at=alert.triggered_at,
+        acknowledged=bool(alert.acknowledged),
+        acknowledged_at=alert.acknowledged_at,
+    )
+
+
 def validate_signal_type(signal_type: str) -> bool:
     """Check if a signal type is valid."""
     valid_types = [
@@ -154,22 +192,7 @@ async def list_rules(db: Session = Depends(get_db)):
     """List all alert rules."""
     rules = db.query(AlertRule).all()
 
-    return [
-        AlertRuleResponse(
-            id=rule.id,
-            name=rule.name,
-            description=rule.description,
-            repo_id=rule.repo_id,
-            repo_name=rule.repo.full_name if rule.repo else None,
-            signal_type=rule.signal_type,
-            operator=rule.operator,
-            threshold=rule.threshold,
-            enabled=bool(rule.enabled),
-            created_at=rule.created_at,
-            updated_at=rule.updated_at,
-        )
-        for rule in rules
-    ]
+    return [_to_alert_rule_response(rule) for rule in rules]
 
 
 @router.post("/rules", response_model=AlertRuleResponse)
@@ -203,19 +226,7 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_rule)
 
-    return AlertRuleResponse(
-        id=db_rule.id,
-        name=db_rule.name,
-        description=db_rule.description,
-        repo_id=db_rule.repo_id,
-        repo_name=db_rule.repo.full_name if db_rule.repo else None,
-        signal_type=db_rule.signal_type,
-        operator=db_rule.operator,
-        threshold=db_rule.threshold,
-        enabled=bool(db_rule.enabled),
-        created_at=db_rule.created_at,
-        updated_at=db_rule.updated_at,
-    )
+    return _to_alert_rule_response(db_rule)
 
 
 @router.get("/rules/{rule_id}", response_model=AlertRuleResponse)
@@ -223,21 +234,9 @@ async def get_rule(rule_id: int, db: Session = Depends(get_db)):
     """Get a specific alert rule."""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
-    return AlertRuleResponse(
-        id=rule.id,
-        name=rule.name,
-        description=rule.description,
-        repo_id=rule.repo_id,
-        repo_name=rule.repo.full_name if rule.repo else None,
-        signal_type=rule.signal_type,
-        operator=rule.operator,
-        threshold=rule.threshold,
-        enabled=bool(rule.enabled),
-        created_at=rule.created_at,
-        updated_at=rule.updated_at,
-    )
+    return _to_alert_rule_response(rule)
 
 
 @router.patch("/rules/{rule_id}", response_model=AlertRuleResponse)
@@ -245,7 +244,7 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
     """Update an alert rule."""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
     # Validate and update fields
     if update.signal_type is not None:
@@ -272,19 +271,7 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
     db.commit()
     db.refresh(rule)
 
-    return AlertRuleResponse(
-        id=rule.id,
-        name=rule.name,
-        description=rule.description,
-        repo_id=rule.repo_id,
-        repo_name=rule.repo.full_name if rule.repo else None,
-        signal_type=rule.signal_type,
-        operator=rule.operator,
-        threshold=rule.threshold,
-        enabled=bool(rule.enabled),
-        created_at=rule.created_at,
-        updated_at=rule.updated_at,
-    )
+    return _to_alert_rule_response(rule)
 
 
 @router.delete("/rules/{rule_id}")
@@ -292,7 +279,7 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     """Delete an alert rule."""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(status_code=404, detail="Rule not found")
+        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
     db.delete(rule)
     db.commit()
@@ -314,23 +301,7 @@ async def list_triggered_alerts(
 
     alerts = query.limit(limit).all()
 
-    return [
-        TriggeredAlertResponse(
-            id=alert.id,
-            rule_id=alert.rule_id,
-            rule_name=alert.rule.name,
-            repo_id=alert.repo_id,
-            repo_name=alert.repo.full_name,
-            signal_type=alert.rule.signal_type,
-            signal_value=alert.signal_value,
-            threshold=alert.rule.threshold,
-            operator=alert.rule.operator,
-            triggered_at=alert.triggered_at,
-            acknowledged=bool(alert.acknowledged),
-            acknowledged_at=alert.acknowledged_at,
-        )
-        for alert in alerts
-    ]
+    return [_to_triggered_alert_response(alert) for alert in alerts]
 
 
 @router.post("/triggered/{alert_id}/acknowledge")
@@ -338,7 +309,7 @@ async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db))
     """Acknowledge a triggered alert."""
     if acknowledge_alert(db, alert_id):
         return {"status": "acknowledged", "id": alert_id}
-    raise HTTPException(status_code=404, detail="Alert not found")
+    raise HTTPException(status_code=404, detail=ERROR_ALERT_NOT_FOUND)
 
 
 @router.post("/triggered/acknowledge-all")

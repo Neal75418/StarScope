@@ -19,6 +19,9 @@ from utils.time import utc_now
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 logger = logging.getLogger(__name__)
 
+# Error message constants
+ERROR_WEBHOOK_NOT_FOUND = "Webhook not found"
+
 
 def _safe_json_loads(json_str: Optional[str], default: Any = None) -> Any:
     """Safely parse JSON string, returning default value on error."""
@@ -93,19 +96,27 @@ class WebhookLogsResponse(BaseModel):
     total: int
 
 
-def _webhook_to_response(webhook: Webhook) -> WebhookResponse:
+def _get_webhook_or_404(webhook_id: int, db: Session) -> "Webhook":
+    """Get webhook by ID or raise 404."""
+    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
+    if not webhook:
+        raise HTTPException(status_code=404, detail=ERROR_WEBHOOK_NOT_FOUND)
+    return webhook
+
+
+def _webhook_to_response(webhook: "Webhook") -> WebhookResponse:
     """Convert Webhook model to response."""
     triggers = _safe_json_loads(webhook.triggers, [])
     return WebhookResponse(
-        id=webhook.id,
-        name=webhook.name,
-        webhook_type=webhook.webhook_type,
-        url=webhook.url,
+        id=int(webhook.id),
+        name=str(webhook.name),
+        webhook_type=str(webhook.webhook_type),
+        url=str(webhook.url),
         triggers=triggers,
-        min_severity=webhook.min_severity,
+        min_severity=str(webhook.min_severity) if webhook.min_severity else None,
         enabled=bool(webhook.enabled),
         last_triggered=webhook.last_triggered.isoformat() if webhook.last_triggered else None,
-        last_error=webhook.last_error,
+        last_error=str(webhook.last_error) if webhook.last_error else None,
         created_at=webhook.created_at.isoformat() if webhook.created_at else None,
     )
 
@@ -129,9 +140,7 @@ async def get_webhook(
     db: Session = Depends(get_db)
 ):
     """Get a specific webhook."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+    webhook = _get_webhook_or_404(webhook_id, db)
     return _webhook_to_response(webhook)
 
 
@@ -202,9 +211,7 @@ async def update_webhook(
     db: Session = Depends(get_db)
 ):
     """Update a webhook."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+    webhook = _get_webhook_or_404(webhook_id, db)
 
     if data.name is not None:
         webhook.name = data.name
@@ -237,10 +244,7 @@ async def delete_webhook(
     db: Session = Depends(get_db)
 ):
     """Delete a webhook."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
-
+    webhook = _get_webhook_or_404(webhook_id, db)
     db.delete(webhook)
     db.commit()
 
@@ -253,10 +257,7 @@ async def test_webhook(
     db: Session = Depends(get_db)
 ):
     """Send a test message to verify webhook configuration."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
-
+    webhook = _get_webhook_or_404(webhook_id, db)
     service = get_webhook_service()
     success = await service.test_webhook(webhook, db)
 
@@ -273,10 +274,7 @@ async def toggle_webhook(
     db: Session = Depends(get_db)
 ):
     """Toggle webhook enabled/disabled state."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
-
+    webhook = _get_webhook_or_404(webhook_id, db)
     webhook.enabled = not webhook.enabled
     db.commit()
 
@@ -293,10 +291,7 @@ async def get_webhook_logs(
     db: Session = Depends(get_db)
 ):
     """Get recent logs for a webhook."""
-    webhook = db.query(Webhook).filter(Webhook.id == webhook_id).first()
-    if not webhook:
-        raise HTTPException(status_code=404, detail="Webhook not found")
-
+    _get_webhook_or_404(webhook_id, db)
     logs = db.query(WebhookLog).filter(
         WebhookLog.webhook_id == webhook_id
     ).order_by(WebhookLog.sent_at.desc()).limit(limit).all()

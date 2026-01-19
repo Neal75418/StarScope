@@ -1,5 +1,7 @@
 # FastAPI and server
 fastapi>=0.115.0
+pydantic>=2.0.0  # Explicitly listed for IDE support (bundled with FastAPI)
+starlette>=0.40.0,<0.51.0  # Pinned: FastAPI 0.128.0 requires starlette<0.51.0
 uvicorn[standard]>=0.34.0
 python-dotenv>=1.0.0
 

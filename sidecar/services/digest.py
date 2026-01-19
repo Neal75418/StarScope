@@ -5,16 +5,15 @@ Produces daily and weekly digests in Markdown and HTML formats.
 
 import html
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Dict, Any, Optional
 
-from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 from db.models import (
     Repo, RepoSnapshot, Signal, SignalType,
-    EarlySignal, EarlySignalType, ContextSignal,
-)
+    EarlySignal, )
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -27,16 +26,159 @@ def _escape_html(text: Optional[str]) -> str:
     return html.escape(str(text))
 
 
+def _batch_load_repos_and_snapshots(
+    repo_ids: List[int],
+    db: Session
+) -> tuple[Dict[int, "Repo"], Dict[int, "RepoSnapshot"]]:
+    """
+    Batch load repos and their latest snapshots.
+    Returns: (repos_dict, snapshots_dict)
+    """
+    repos = {r.id: r for r in db.query(Repo).filter(Repo.id.in_(repo_ids)).all()}
+
+    latest_snapshots_subq = db.query(
+        RepoSnapshot.repo_id,
+        func.max(RepoSnapshot.snapshot_date).label("max_date")
+    ).filter(
+        RepoSnapshot.repo_id.in_(repo_ids)
+    ).group_by(RepoSnapshot.repo_id).subquery()
+
+    snapshots = {
+        s.repo_id: s for s in db.query(RepoSnapshot).join(
+            latest_snapshots_subq,
+            (RepoSnapshot.repo_id == latest_snapshots_subq.c.repo_id) &
+            (RepoSnapshot.snapshot_date == latest_snapshots_subq.c.max_date)
+        ).all()
+    }
+
+    return repos, snapshots
+
+
+def _render_velocity_table_md(digest: Dict[str, Any], lines: List[str]) -> None:
+    """Render velocity table in Markdown format."""
+    if not digest.get("top_by_velocity"):
+        return
+    lines.append("## Top by Velocity")
+    lines.append("")
+    lines.append("| Rank | Repository | Velocity | Stars | Language |")
+    lines.append("|------|------------|----------|-------|----------|")
+    for i, repo in enumerate(digest["top_by_velocity"], 1):
+        stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
+        velocity = f"{repo['velocity']:.1f}/day"
+        lang = repo['language'] or "-"
+        lines.append(f"| {i} | [{repo['repo_name']}]({repo['url']}) | {velocity} | {stars} | {lang} |")
+    lines.append("")
+
+
+def _render_gainers_table_md(digest: Dict[str, Any], lines: List[str]) -> None:
+    """Render biggest gainers table in Markdown format."""
+    if not digest.get("biggest_gainers"):
+        return
+    lines.append("## Biggest Gainers (7 days)")
+    lines.append("")
+    lines.append("| Rank | Repository | +Stars | Total | Language |")
+    lines.append("|------|------------|--------|-------|----------|")
+    for i, repo in enumerate(digest["biggest_gainers"], 1):
+        stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
+        delta = f"+{repo['delta']:,}"
+        lang = repo['language'] or "-"
+        lines.append(f"| {i} | [{repo['repo_name']}]({repo['url']}) | {delta} | {stars} | {lang} |")
+    lines.append("")
+
+
+def _render_signals_md(digest: Dict[str, Any], lines: List[str]) -> None:
+    """Render recent signals in Markdown format."""
+    if not digest.get("recent_signals"):
+        return
+    lines.append("## Recent Signals")
+    lines.append("")
+    for signal in digest["recent_signals"]:
+        severity_emoji = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(signal['severity'], "⚪")
+        signal_type = signal['signal_type'].replace('_', ' ').title()
+        lines.append(f"- {severity_emoji} **{signal['repo_name']}**: {signal_type}")
+        lines.append(f"  - {signal['description']}")
+    lines.append("")
+
+
+def _render_velocity_table_html(digest: Dict[str, Any]) -> str:
+    """Render velocity table in HTML format."""
+    if not digest.get("top_by_velocity"):
+        return ""
+    html_out = """
+    <h2>Top by Velocity</h2>
+    <table>
+        <thead>
+            <tr><th>Rank</th><th>Repository</th><th>Velocity</th><th>Stars</th><th>Language</th></tr>
+        </thead>
+        <tbody>
+"""
+    for i, repo in enumerate(digest["top_by_velocity"], 1):
+        stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
+        velocity = f"{repo['velocity']:.1f}/day"
+        lang = _escape_html(repo['language']) or "-"
+        repo_name = _escape_html(repo["repo_name"])
+        repo_url = _escape_html(repo["url"])
+        html_out += f'            <tr><td>{i}</td><td><a href="{repo_url}">{repo_name}</a></td><td>{velocity}</td><td>{stars}</td><td>{lang}</td></tr>\n'
+    html_out += """        </tbody>
+    </table>
+"""
+    return html_out
+
+
+def _render_gainers_table_html(digest: Dict[str, Any]) -> str:
+    """Render biggest gainers table in HTML format."""
+    if not digest.get("biggest_gainers"):
+        return ""
+    html_out = """
+    <h2>Biggest Gainers (7 days)</h2>
+    <table>
+        <thead>
+            <tr><th>Rank</th><th>Repository</th><th>+Stars</th><th>Total</th><th>Language</th></tr>
+        </thead>
+        <tbody>
+"""
+    for i, repo in enumerate(digest["biggest_gainers"], 1):
+        stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
+        delta = f"+{repo['delta']:,}"
+        lang = _escape_html(repo['language']) or "-"
+        repo_name = _escape_html(repo["repo_name"])
+        repo_url = _escape_html(repo["url"])
+        html_out += f'            <tr><td>{i}</td><td><a href="{repo_url}">{repo_name}</a></td><td>{delta}</td><td>{stars}</td><td>{lang}</td></tr>\n'
+    html_out += """        </tbody>
+    </table>
+"""
+    return html_out
+
+
+def _render_signals_html(digest: Dict[str, Any]) -> str:
+    """Render recent signals in HTML format."""
+    if not digest.get("recent_signals"):
+        return ""
+    html_out = """
+    <h2>Recent Signals</h2>
+"""
+    for signal in digest["recent_signals"]:
+        severity = _escape_html(signal['severity'])
+        signal_type = signal['signal_type'].replace('_', ' ').title()
+        repo_name = _escape_html(signal['repo_name'])
+        description = _escape_html(signal['description'])
+        html_out += f'''    <div class="signal {severity}">
+        <div class="signal-type">{repo_name}: {signal_type}</div>
+        <div class="signal-desc">{description}</div>
+    </div>
+'''
+    return html_out
+
+
 class DigestService:
     """Service for generating summary digests."""
 
+    @staticmethod
     def _get_top_repos_by_velocity(
-        self,
         db: Session,
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         """Get top repos by velocity using optimized JOIN query."""
-        # Use JOIN to avoid N+1 queries
         signals = db.query(Signal).filter(
             Signal.signal_type == SignalType.VELOCITY
         ).order_by(Signal.value.desc()).limit(limit).all()
@@ -44,43 +186,26 @@ class DigestService:
         if not signals:
             return []
 
-        # Batch fetch repos and latest snapshots
-        repo_ids = [s.repo_id for s in signals]
-        repos = {r.id: r for r in db.query(Repo).filter(Repo.id.in_(repo_ids)).all()}
-
-        # Get latest snapshot per repo in a single query
-        latest_snapshots_subq = db.query(
-            RepoSnapshot.repo_id,
-            func.max(RepoSnapshot.snapshot_date).label("max_date")
-        ).filter(
-            RepoSnapshot.repo_id.in_(repo_ids)
-        ).group_by(RepoSnapshot.repo_id).subquery()
-
-        snapshots = {
-            s.repo_id: s for s in db.query(RepoSnapshot).join(
-                latest_snapshots_subq,
-                (RepoSnapshot.repo_id == latest_snapshots_subq.c.repo_id) &
-                (RepoSnapshot.snapshot_date == latest_snapshots_subq.c.max_date)
-            ).all()
-        }
+        repo_ids = [int(s.repo_id) for s in signals]
+        repos, snapshots = _batch_load_repos_and_snapshots(repo_ids, db)
 
         results = []
         for signal in signals:
-            repo = repos.get(signal.repo_id)
+            repo = repos.get(int(signal.repo_id))
             if repo:
-                snapshot = snapshots.get(repo.id)
+                snapshot = snapshots.get(int(repo.id))
                 results.append({
                     "repo_name": repo.full_name,
                     "url": repo.url,
-                    "velocity": signal.value,
+                    "velocity": float(signal.value),
                     "stars": snapshot.stars if snapshot else None,
                     "language": repo.language,
                 })
 
         return results
 
+    @staticmethod
     def _get_biggest_gainers(
-        self,
         db: Session,
         days: int = 7,
         limit: int = 10
@@ -96,30 +221,14 @@ class DigestService:
         if not signals:
             return []
 
-        # Batch fetch repos and snapshots
-        repo_ids = [s.repo_id for s in signals]
-        repos = {r.id: r for r in db.query(Repo).filter(Repo.id.in_(repo_ids)).all()}
-
-        latest_snapshots_subq = db.query(
-            RepoSnapshot.repo_id,
-            func.max(RepoSnapshot.snapshot_date).label("max_date")
-        ).filter(
-            RepoSnapshot.repo_id.in_(repo_ids)
-        ).group_by(RepoSnapshot.repo_id).subquery()
-
-        snapshots = {
-            s.repo_id: s for s in db.query(RepoSnapshot).join(
-                latest_snapshots_subq,
-                (RepoSnapshot.repo_id == latest_snapshots_subq.c.repo_id) &
-                (RepoSnapshot.snapshot_date == latest_snapshots_subq.c.max_date)
-            ).all()
-        }
+        repo_ids = [int(s.repo_id) for s in signals]
+        repos, snapshots = _batch_load_repos_and_snapshots(repo_ids, db)
 
         results = []
         for signal in signals:
-            repo = repos.get(signal.repo_id)
+            repo = repos.get(int(signal.repo_id))
             if repo:
-                snapshot = snapshots.get(repo.id)
+                snapshot = snapshots.get(int(repo.id))
                 results.append({
                     "repo_name": repo.full_name,
                     "url": repo.url,
@@ -130,8 +239,8 @@ class DigestService:
 
         return results
 
+    @staticmethod
     def _get_recent_signals(
-        self,
         db: Session,
         days: int = 7,
         limit: int = 20
@@ -160,8 +269,8 @@ class DigestService:
             for s in signals
         ]
 
+    @staticmethod
     def _get_stats_summary(
-        self,
         db: Session,
         days: int = 7
     ) -> Dict[str, Any]:
@@ -227,7 +336,8 @@ class DigestService:
             "recent_signals": recent_signals,
         }
 
-    def render_markdown(self, digest: Dict[str, Any]) -> str:
+    @staticmethod
+    def render_markdown(digest: Dict[str, Any]) -> str:
         """Render digest as Markdown."""
         period = digest["period"].title()
         generated = digest["generated_at"][:10]
@@ -235,61 +345,29 @@ class DigestService:
 
         lines = [
             f"# StarScope {period} Digest",
-            f"",
+            "",
             f"*Generated: {generated}*",
-            f"",
-            f"## Summary",
-            f"",
+            "",
+            "## Summary",
+            "",
             f"- **Repos Tracked**: {stats['total_repos']:,}",
             f"- **Total Stars**: {stats['total_stars']:,}",
             f"- **New Signals**: {stats['new_signals']}",
             f"- **High Severity**: {stats['high_severity_signals']}",
-            f"",
+            "",
         ]
 
-        # Top by velocity
-        if digest.get("top_by_velocity"):
-            lines.append("## Top by Velocity")
-            lines.append("")
-            lines.append("| Rank | Repository | Velocity | Stars | Language |")
-            lines.append("|------|------------|----------|-------|----------|")
-            for i, repo in enumerate(digest["top_by_velocity"], 1):
-                stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
-                velocity = f"{repo['velocity']:.1f}/day"
-                lang = repo['language'] or "-"
-                lines.append(f"| {i} | [{repo['repo_name']}]({repo['url']}) | {velocity} | {stars} | {lang} |")
-            lines.append("")
-
-        # Biggest gainers (weekly only)
-        if digest.get("biggest_gainers"):
-            lines.append("## Biggest Gainers (7 days)")
-            lines.append("")
-            lines.append("| Rank | Repository | +Stars | Total | Language |")
-            lines.append("|------|------------|--------|-------|----------|")
-            for i, repo in enumerate(digest["biggest_gainers"], 1):
-                stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
-                delta = f"+{repo['delta']:,}"
-                lang = repo['language'] or "-"
-                lines.append(f"| {i} | [{repo['repo_name']}]({repo['url']}) | {delta} | {stars} | {lang} |")
-            lines.append("")
-
-        # Recent signals
-        if digest.get("recent_signals"):
-            lines.append("## Recent Signals")
-            lines.append("")
-            for signal in digest["recent_signals"]:
-                severity_emoji = {"high": "🔴", "medium": "🟡", "low": "⚪"}.get(signal['severity'], "⚪")
-                signal_type = signal['signal_type'].replace('_', ' ').title()
-                lines.append(f"- {severity_emoji} **{signal['repo_name']}**: {signal_type}")
-                lines.append(f"  - {signal['description']}")
-            lines.append("")
+        _render_velocity_table_md(digest, lines)
+        _render_gainers_table_md(digest, lines)
+        _render_signals_md(digest, lines)
 
         lines.append("---")
         lines.append("*Generated by StarScope*")
 
         return "\n".join(lines)
 
-    def render_html(self, digest: Dict[str, Any]) -> str:
+    @staticmethod
+    def render_html(digest: Dict[str, Any]) -> str:
         """Render digest as HTML."""
         period = digest["period"].title()
         generated = digest["generated_at"][:10]
@@ -346,63 +424,9 @@ class DigestService:
     </div>
 """
 
-        # Top by velocity
-        if digest.get("top_by_velocity"):
-            html_out += """
-    <h2>Top by Velocity</h2>
-    <table>
-        <thead>
-            <tr><th>Rank</th><th>Repository</th><th>Velocity</th><th>Stars</th><th>Language</th></tr>
-        </thead>
-        <tbody>
-"""
-            for i, repo in enumerate(digest["top_by_velocity"], 1):
-                stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
-                velocity = f"{repo['velocity']:.1f}/day"
-                lang = _escape_html(repo['language']) or "-"
-                repo_name = _escape_html(repo["repo_name"])
-                repo_url = _escape_html(repo["url"])
-                html_out += f'            <tr><td>{i}</td><td><a href="{repo_url}">{repo_name}</a></td><td>{velocity}</td><td>{stars}</td><td>{lang}</td></tr>\n'
-            html_out += """        </tbody>
-    </table>
-"""
-
-        # Biggest gainers
-        if digest.get("biggest_gainers"):
-            html_out += """
-    <h2>Biggest Gainers (7 days)</h2>
-    <table>
-        <thead>
-            <tr><th>Rank</th><th>Repository</th><th>+Stars</th><th>Total</th><th>Language</th></tr>
-        </thead>
-        <tbody>
-"""
-            for i, repo in enumerate(digest["biggest_gainers"], 1):
-                stars = f"{repo['stars']:,}" if repo['stars'] else "N/A"
-                delta = f"+{repo['delta']:,}"
-                lang = _escape_html(repo['language']) or "-"
-                repo_name = _escape_html(repo["repo_name"])
-                repo_url = _escape_html(repo["url"])
-                html_out += f'            <tr><td>{i}</td><td><a href="{repo_url}">{repo_name}</a></td><td>{delta}</td><td>{stars}</td><td>{lang}</td></tr>\n'
-            html_out += """        </tbody>
-    </table>
-"""
-
-        # Recent signals
-        if digest.get("recent_signals"):
-            html_out += """
-    <h2>Recent Signals</h2>
-"""
-            for signal in digest["recent_signals"]:
-                severity = _escape_html(signal['severity'])
-                signal_type = signal['signal_type'].replace('_', ' ').title()
-                repo_name = _escape_html(signal['repo_name'])
-                description = _escape_html(signal['description'])
-                html_out += f'''    <div class="signal {severity}">
-        <div class="signal-type">{repo_name}: {signal_type}</div>
-        <div class="signal-desc">{description}</div>
-    </div>
-'''
+        html_out += _render_velocity_table_html(digest)
+        html_out += _render_gainers_table_html(digest)
+        html_out += _render_signals_html(digest)
 
         html_out += """
     <div class="footer">

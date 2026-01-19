@@ -40,8 +40,8 @@ def test_engine():
 @pytest.fixture(scope="function")
 def test_db(test_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
-    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-    db = TestingSessionLocal()
+    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    db = testing_session_local()
     try:
         yield db
     finally:
@@ -64,10 +64,7 @@ def client(test_db) -> Generator[TestClient, None, None]:
         from main import app
 
         def override_get_db():
-            try:
-                yield test_db
-            finally:
-                pass
+            yield test_db
 
         app.dependency_overrides[get_db] = override_get_db
         with TestClient(app) as test_client:

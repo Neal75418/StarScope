@@ -8,11 +8,18 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import Repo, Tag, RepoTag, TagType
 from services.tagger import get_tagger_service, auto_tag_repo, auto_tag_all_repos
+
+# Error message constants
+ERROR_REPO_NOT_FOUND = "Repository not found"
+ERROR_TAG_NOT_FOUND = "Tag not found"
+ERROR_TAG_NOT_APPLIED = "Tag is not applied to this repository"
+VALID_TAG_TYPES = "language, topic, inferred, custom"
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
@@ -81,7 +88,15 @@ class SearchByTagsResponse(BaseModel):
 
 
 # Helper functions
-def _tag_to_response(tag: Tag) -> TagResponse:
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
+def _tag_to_response(tag: "Tag") -> TagResponse:
     """Convert Tag model to response."""
     return TagResponse(
         id=tag.id,
@@ -92,7 +107,7 @@ def _tag_to_response(tag: Tag) -> TagResponse:
     )
 
 
-def _repo_tag_to_response(repo_tag: RepoTag) -> RepoTagResponse:
+def _repo_tag_to_response(repo_tag: "RepoTag") -> RepoTagResponse:
     """Convert RepoTag to response."""
     return RepoTagResponse(
         id=repo_tag.tag.id,
@@ -121,7 +136,7 @@ async def list_tags(
         if tag_type not in [TagType.LANGUAGE, TagType.TOPIC, TagType.INFERRED, TagType.CUSTOM]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid tag type. Must be one of: language, topic, inferred, custom"
+                detail=f"Invalid tag type. Must be one of: {VALID_TAG_TYPES}"
             )
         query = query.filter(Tag.tag_type == tag_type)
 
@@ -141,10 +156,7 @@ async def get_repo_tags(
     """
     Get all tags for a specific repository.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
+    _get_repo_or_404(repo_id, db)
     repo_tags = db.query(RepoTag).filter(RepoTag.repo_id == repo_id).all()
 
     return RepoTagsResponse(
@@ -164,10 +176,7 @@ async def add_tag_to_repo(
     Add a custom tag to a repository.
     Creates the tag if it doesn't exist.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
+    _get_repo_or_404(repo_id, db)
     tagger = get_tagger_service()
     result = tagger.add_custom_tag(repo_id, request.name, request.color, db)
 
@@ -195,19 +204,17 @@ async def remove_tag_from_repo(
     """
     Remove a tag from a repository.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    _get_repo_or_404(repo_id, db)
 
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if not tag:
-        raise HTTPException(status_code=404, detail="Tag not found")
+        raise HTTPException(status_code=404, detail=ERROR_TAG_NOT_FOUND)
 
     tagger = get_tagger_service()
     removed = tagger.remove_tag(repo_id, tag_id, db)
 
     if not removed:
-        raise HTTPException(status_code=404, detail="Tag is not applied to this repository")
+        raise HTTPException(status_code=404, detail=ERROR_TAG_NOT_APPLIED)
 
     return {"status": "ok", "message": f"Tag '{tag.name}' removed from repository"}
 
@@ -221,10 +228,7 @@ async def trigger_auto_tag(
     Trigger auto-tagging for a specific repository.
     Fetches GitHub topics and analyzes description.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
+    _get_repo_or_404(repo_id, db)
     tags_applied = await auto_tag_repo(repo_id, db)
 
     return AutoTagResponse(
@@ -266,11 +270,10 @@ async def search_by_tags(
 
     if match_all:
         # Find repos that have ALL specified tags
-        # Start with repos that have the first tag
         base_query = db.query(RepoTag.repo_id).join(Tag).filter(
             Tag.name.in_(tag_names)
         ).group_by(RepoTag.repo_id).having(
-            db.query(Tag).filter(Tag.name.in_(tag_names)).count() == len(tag_names)
+            func.count(RepoTag.tag_id) == len(tag_names)
         )
         repo_ids = [r[0] for r in base_query.all()]
     else:

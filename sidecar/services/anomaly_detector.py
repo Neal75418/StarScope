@@ -8,7 +8,6 @@ from datetime import timedelta
 from typing import List, Optional, Dict, Any
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from db.models import (
     Repo, RepoSnapshot, Signal, SignalType,
@@ -35,7 +34,8 @@ VIRAL_HN_MIN_SCORE = 100  # Minimum HN score to trigger
 class AnomalyDetector:
     """Service for detecting early signals and anomalies."""
 
-    def detect_rising_star(self, repo: Repo, db: Session) -> Optional[EarlySignal]:
+    @staticmethod
+    def detect_rising_star(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
         Detect rising star pattern.
         Criteria: stars < 5000 AND (velocity > 10 OR velocity/stars > 0.01)
@@ -93,14 +93,15 @@ class AnomalyDetector:
             signal_type=EarlySignalType.RISING_STAR,
             severity=severity,
             description=f"Rising star: {stars:,} stars with {velocity:.1f} stars/day velocity",
-            velocity_value=velocity,
-            star_count=stars,
-            percentile_rank=percentile,
+            velocity_value=float(velocity),
+            star_count=int(stars),
+            percentile_rank=float(percentile),
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=7),  # Signal valid for 7 days
         )
 
-    def detect_sudden_spike(self, repo: Repo, db: Session) -> Optional[EarlySignal]:
+    @staticmethod
+    def detect_sudden_spike(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
         Detect sudden spike pattern.
         Criteria: today_delta > 3x avg_daily AND absolute > 100
@@ -147,13 +148,14 @@ class AnomalyDetector:
             signal_type=EarlySignalType.SUDDEN_SPIKE,
             severity=severity,
             description=f"Sudden spike: +{latest_delta:,} stars today (vs avg {avg_delta:.0f}/day)",
-            velocity_value=latest_delta,
-            star_count=snapshots[0].stars,
+            velocity_value=float(latest_delta),
+            star_count=int(snapshots[0].stars) if snapshots[0].stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=3),  # Short-lived signal
         )
 
-    def detect_breakout(self, repo: Repo, db: Session) -> Optional[EarlySignal]:
+    @staticmethod
+    def detect_breakout(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
         Detect breakout pattern.
         Criteria: prev_week velocity <= 0 AND curr_week velocity > 2
@@ -204,13 +206,14 @@ class AnomalyDetector:
             signal_type=EarlySignalType.BREAKOUT,
             severity=severity,
             description=f"Breakout: velocity went from {prev_weeks_velocity:.1f} to {current_weekly_velocity:.1f} stars/day",
-            velocity_value=current_weekly_velocity,
-            star_count=snapshot.stars if snapshot else None,
+            velocity_value=float(current_weekly_velocity),
+            star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=7),
         )
 
-    def detect_viral_hn(self, repo: Repo, db: Session) -> Optional[EarlySignal]:
+    @staticmethod
+    def detect_viral_hn(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
         Detect viral Hacker News signal.
         Criteria: HN post with score >= 100 in last 48 hours
@@ -245,24 +248,25 @@ class AnomalyDetector:
             signal_type=EarlySignalType.VIRAL_HN,
             severity=severity,
             description=f"Viral on HN: \"{hn_signal.title[:50]}...\" ({hn_signal.score} points)",
-            star_count=snapshot.stars if snapshot else None,
+            star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=3),
         )
 
-    def detect_all_for_repo(self, repo: Repo, db: Session) -> List[EarlySignal]:
+    @staticmethod
+    def detect_all_for_repo(repo: "Repo", db: Session) -> List["EarlySignal"]:
         """
         Run all detection algorithms for a single repo.
         Returns list of detected signals (not yet saved).
         """
-        signals: List[EarlySignal] = []
+        signals: List["EarlySignal"] = []
 
-        # Run each detector
+        # Run each detector (static methods)
         detectors = [
-            self.detect_rising_star,
-            self.detect_sudden_spike,
-            self.detect_breakout,
-            self.detect_viral_hn,
+            AnomalyDetector.detect_rising_star,
+            AnomalyDetector.detect_sudden_spike,
+            AnomalyDetector.detect_breakout,
+            AnomalyDetector.detect_viral_hn,
         ]
 
         for detector in detectors:
@@ -327,7 +331,7 @@ def get_anomaly_detector() -> AnomalyDetector:
     return _detector
 
 
-async def run_detection(db: Session) -> Dict[str, Any]:
+def run_detection(db: Session) -> Dict[str, Any]:
     """Convenience function to run detection."""
     detector = get_anomaly_detector()
     return detector.run_detection(db)

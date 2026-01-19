@@ -14,6 +14,13 @@ from db.database import get_db
 from db.models import Category, RepoCategory, Repo
 from utils.time import utc_now
 
+# Error message constants
+ERROR_CATEGORY_NOT_FOUND = "Category not found"
+ERROR_PARENT_CATEGORY_NOT_FOUND = "Parent category not found"
+ERROR_REPO_NOT_FOUND = "Repository not found"
+ERROR_CIRCULAR_REFERENCE = "Category cannot be its own parent"
+ERROR_REPO_NOT_IN_CATEGORY = "Repository is not in this category"
+
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
@@ -103,7 +110,7 @@ def _get_repo_count(category_id: int, db: Session) -> int:
     return db.query(RepoCategory).filter(RepoCategory.category_id == category_id).count()
 
 
-def _category_to_response(category: Category, db: Session) -> CategoryResponse:
+def _category_to_response(category: "Category", db: Session) -> CategoryResponse:
     """Convert Category model to response."""
     return CategoryResponse(
         id=category.id,
@@ -118,7 +125,7 @@ def _category_to_response(category: Category, db: Session) -> CategoryResponse:
     )
 
 
-def _build_tree(categories: List[Category], parent_id: Optional[int], db: Session) -> List[CategoryTreeNode]:
+def _build_tree(categories: List["Category"], parent_id: Optional[int], db: Session) -> List[CategoryTreeNode]:
     """Build tree structure from flat category list."""
     nodes = []
     for cat in categories:
@@ -136,6 +143,58 @@ def _build_tree(categories: List[Category], parent_id: Optional[int], db: Sessio
             )
             nodes.append(node)
     return sorted(nodes, key=lambda x: x.sort_order)
+
+
+def _repo_category_to_response(rc: "RepoCategory") -> RepoCategoryResponse:
+    """Convert RepoCategory model to RepoCategoryResponse."""
+    return RepoCategoryResponse(
+        id=rc.repo.id,
+        full_name=rc.repo.full_name,
+        description=rc.repo.description,
+        language=rc.repo.language,
+        added_at=rc.added_at,
+    )
+
+
+def _get_category_or_404(category_id: int, db: Session) -> "Category":
+    """Get category by ID or raise 404."""
+    category = db.query(Category).filter(Category.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail=ERROR_CATEGORY_NOT_FOUND)
+    return category
+
+
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
+
+
+def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Session) -> None:
+    """Validate parent category exists and no circular reference."""
+    parent = db.query(Category).filter(Category.id == parent_id).first()
+    if not parent:
+        raise HTTPException(status_code=404, detail=ERROR_PARENT_CATEGORY_NOT_FOUND)
+    if category_id and parent_id == category_id:
+        raise HTTPException(status_code=400, detail=ERROR_CIRCULAR_REFERENCE)
+
+
+def _apply_category_updates(category: "Category", request: CategoryUpdate) -> None:
+    """Apply update fields to category."""
+    if request.name is not None:
+        category.name = request.name
+    if request.description is not None:
+        category.description = request.description
+    if request.icon is not None:
+        category.icon = request.icon
+    if request.color is not None:
+        category.color = request.color
+    if request.parent_id is not None:
+        category.parent_id = request.parent_id if request.parent_id else None
+    if request.sort_order is not None:
+        category.sort_order = request.sort_order
 
 
 # Endpoints
@@ -178,10 +237,7 @@ async def get_category(
     """
     Get a specific category by ID.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-
+    category = _get_category_or_404(category_id, db)
     return _category_to_response(category, db)
 
 
@@ -195,9 +251,7 @@ async def create_category(
     """
     # Validate parent if specified
     if request.parent_id:
-        parent = db.query(Category).filter(Category.id == request.parent_id).first()
-        if not parent:
-            raise HTTPException(status_code=404, detail="Parent category not found")
+        _validate_parent_category(request.parent_id, None, db)
 
     # Get next sort order
     max_order = db.query(Category.sort_order).order_by(Category.sort_order.desc()).first()
@@ -228,34 +282,15 @@ async def update_category(
     """
     Update a category.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    category = _get_category_or_404(category_id, db)
 
     # Validate parent if changing
     if request.parent_id is not None and request.parent_id != category.parent_id:
         if request.parent_id:
-            # Check parent exists
-            parent = db.query(Category).filter(Category.id == request.parent_id).first()
-            if not parent:
-                raise HTTPException(status_code=404, detail="Parent category not found")
-            # Prevent circular reference
-            if request.parent_id == category_id:
-                raise HTTPException(status_code=400, detail="Category cannot be its own parent")
+            _validate_parent_category(request.parent_id, category_id, db)
 
-    # Update fields
-    if request.name is not None:
-        category.name = request.name
-    if request.description is not None:
-        category.description = request.description
-    if request.icon is not None:
-        category.icon = request.icon
-    if request.color is not None:
-        category.color = request.color
-    if request.parent_id is not None:
-        category.parent_id = request.parent_id if request.parent_id else None
-    if request.sort_order is not None:
-        category.sort_order = request.sort_order
+    # Update fields using a mapping for cleaner code
+    _apply_category_updates(category, request)
 
     db.commit()
     db.refresh(category)
@@ -272,10 +307,7 @@ async def delete_category(
     Delete a category.
     Child categories will have their parent_id set to null.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-
+    category = _get_category_or_404(category_id, db)
     category_name = category.name
     db.delete(category)
     db.commit()
@@ -291,23 +323,13 @@ async def get_category_repos(
     """
     Get all repositories in a category.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+    category = _get_category_or_404(category_id, db)
 
     repo_categories = db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id
     ).all()
 
-    repos = []
-    for rc in repo_categories:
-        repos.append(RepoCategoryResponse(
-            id=rc.repo.id,
-            full_name=rc.repo.full_name,
-            description=rc.repo.description,
-            language=rc.repo.language,
-            added_at=rc.added_at,
-        ))
+    repos = [_repo_category_to_response(rc) for rc in repo_categories]
 
     return CategoryReposResponse(
         category_id=category_id,
@@ -326,13 +348,8 @@ async def add_repo_to_category(
     """
     Add a repository to a category.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    category = _get_category_or_404(category_id, db)
+    repo = _get_repo_or_404(repo_id, db)
 
     # Check if already in category
     existing = db.query(RepoCategory).filter(
@@ -369,13 +386,8 @@ async def remove_repo_from_category(
     """
     Remove a repository from a category.
     """
-    category = db.query(Category).filter(Category.id == category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    category = _get_category_or_404(category_id, db)
+    repo = _get_repo_or_404(repo_id, db)
 
     repo_category = db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id,
@@ -383,7 +395,7 @@ async def remove_repo_from_category(
     ).first()
 
     if not repo_category:
-        raise HTTPException(status_code=404, detail="Repository is not in this category")
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_IN_CATEGORY)
 
     db.delete(repo_category)
     db.commit()
@@ -402,23 +414,22 @@ async def get_repo_categories(
     """
     Get all categories for a repository.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    _get_repo_or_404(repo_id, db)
 
     repo_categories = db.query(RepoCategory).filter(
         RepoCategory.repo_id == repo_id
     ).all()
 
-    categories = []
-    for rc in repo_categories:
-        categories.append({
+    categories = [
+        {
             "id": rc.category.id,
             "name": rc.category.name,
             "icon": rc.category.icon,
             "color": rc.category.color,
             "added_at": rc.added_at.isoformat() if rc.added_at else None,
-        })
+        }
+        for rc in repo_categories
+    ]
 
     return {
         "repo_id": repo_id,

@@ -2,6 +2,14 @@
 
 此檔案為 Claude Code (claude.ai/code) 在本專案中工作時提供指引。
 
+## 🤖 AI Assistant Skills
+> **IMPORTANT**: This project utilizes specialized AI skills.
+> Before writing any code, you MUST consult the guidelines in `.agent/skills/`.
+>
+> - **Tauri Master**: Read `.agent/skills/tauri-master/SKILL.md`
+> - **Python Sidecar**: Read `.agent/skills/python-sidecar/SKILL.md`
+> - **React Visualizer**: Read `.agent/skills/react-visualizer/SKILL.md`
+
 ## 專案概述
 
 StarScope 是一款桌面應用程式，透過速度分析（而非單純的 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。

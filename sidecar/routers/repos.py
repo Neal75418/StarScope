@@ -30,7 +30,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Error message constants
+ERROR_REPO_NOT_FOUND = "Repository not found"
+
 router = APIRouter()
+
+
+def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+    """Get repo by ID or raise 404."""
+    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    if not repo:
+        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
+    return repo
 
 
 def _validate_github_identifier(owner: str, name: str) -> None:
@@ -65,7 +76,7 @@ def _validate_github_identifier(owner: str, name: str) -> None:
         )
 
 
-def _build_snapshot_map(db: Session, repo_ids: List[int]) -> Dict[int, RepoSnapshot]:
+def _build_snapshot_map(db: Session, repo_ids: List[int]) -> Dict[int, "RepoSnapshot"]:
     """
     Pre-fetch latest snapshots for multiple repos in a single query.
     Returns: {repo_id: RepoSnapshot}
@@ -98,7 +109,7 @@ def _build_snapshot_map(db: Session, repo_ids: List[int]) -> Dict[int, RepoSnaps
     return {s.repo_id: s for s in snapshots}
 
 
-def _build_signal_map(db: Session, repo_ids: List[int]) -> Dict[int, Dict[str, float]]:
+def _build_signal_map(db: Session, repo_ids: List[int]) -> Dict[int, Dict[str, float | int]]:
     """
     Pre-fetch all signals for multiple repos in a single query.
     Returns: {repo_id: {signal_type: value}}
@@ -122,9 +133,9 @@ def _build_signal_map(db: Session, repo_ids: List[int]) -> Dict[int, Dict[str, f
 
 
 def _build_repo_with_signals(
-    repo: Repo,
-    snapshot: Optional[RepoSnapshot],
-    signals: Dict[str, float]
+    repo: "Repo",
+    snapshot: Optional["RepoSnapshot"],
+    signals: Dict[str, float | int]
 ) -> RepoWithSignals:
     """Build a RepoWithSignals response from pre-fetched data."""
     return RepoWithSignals(
@@ -148,7 +159,7 @@ def _build_repo_with_signals(
     )
 
 
-def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
+def get_repo_with_signals(repo: "Repo", db: Session) -> RepoWithSignals:
     """
     Build a RepoWithSignals response from a Repo model.
     For single repo lookup - uses individual queries.
@@ -163,36 +174,69 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
     )
 
 
+def _update_repo_metadata(repo: "Repo", github_data: Dict) -> None:
+    """Update repo metadata from GitHub API response."""
+    repo.description = github_data.get("description")
+    repo.language = github_data.get("language")
+    repo.updated_at = utc_now()
+
+
+def _create_or_update_snapshot(repo: "Repo", github_data: Dict, db: Session) -> None:
+    """Create or update today's snapshot for a repo."""
+    today = utc_today()
+    existing_snapshot = (
+        db.query(RepoSnapshot)
+        .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
+        .first()
+    )
+
+    if existing_snapshot:
+        existing_snapshot.stars = github_data.get("stargazers_count", 0)
+        existing_snapshot.forks = github_data.get("forks_count", 0)
+        existing_snapshot.watchers = github_data.get("watchers_count", 0)
+        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
+        existing_snapshot.fetched_at = utc_now()
+    else:
+        snapshot = RepoSnapshot(
+            repo_id=repo.id,
+            stars=github_data.get("stargazers_count", 0),
+            forks=github_data.get("forks_count", 0),
+            watchers=github_data.get("watchers_count", 0),
+            open_issues=github_data.get("open_issues_count", 0),
+            snapshot_date=today,
+        )
+        db.add(snapshot)
+
+
+def _build_repo_list_response(db: Session) -> RepoListResponse:
+    """Build RepoListResponse with all repos and their signals."""
+    repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
+    if not repos:
+        return RepoListResponse(repos=[], total=0)
+
+    repo_ids: List[int] = [r.id for r in repos]
+    snapshot_map = _build_snapshot_map(db, repo_ids)
+    signal_map = _build_signal_map(db, repo_ids)
+
+    repos_with_signals = [
+        _build_repo_with_signals(
+            repo,
+            snapshot_map.get(int(repo.id)),
+            signal_map.get(int(repo.id), {})
+        )
+        for repo in repos
+    ]
+
+    return RepoListResponse(repos=repos_with_signals, total=len(repos))
+
+
 @router.get("/repos", response_model=RepoListResponse)
 async def list_repos(db: Session = Depends(get_db)) -> RepoListResponse:
     """
     List all repositories in the watchlist with their latest signals.
     Uses batch queries to avoid N+1 problem.
     """
-    repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
-
-    if not repos:
-        return RepoListResponse(repos=[], total=0)
-
-    # Batch fetch all related data (3 queries total instead of 2N+1)
-    repo_ids = [r.id for r in repos]
-    snapshot_map = _build_snapshot_map(db, repo_ids)
-    signal_map = _build_signal_map(db, repo_ids)
-
-    # Build responses
-    repos_with_signals = [
-        _build_repo_with_signals(
-            repo,
-            snapshot_map.get(repo.id),
-            signal_map.get(repo.id, {})
-        )
-        for repo in repos
-    ]
-
-    return RepoListResponse(
-        repos=repos_with_signals,
-        total=len(repos),
-    )
+    return _build_repo_list_response(db)
 
 
 @router.post("/repos", response_model=RepoWithSignals, status_code=status.HTTP_201_CREATED)
@@ -275,10 +319,7 @@ async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSigna
     """
     Get a single repository by ID with its signals.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
+    repo = _get_repo_or_404(repo_id, db)
     return get_repo_with_signals(repo, db)
 
 
@@ -288,10 +329,7 @@ async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
     Remove a repository from the watchlist.
     This also deletes all associated snapshots and signals.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
+    repo = _get_repo_or_404(repo_id, db)
     db.delete(repo)
     db.commit()
     return None
@@ -303,9 +341,7 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     Manually fetch the latest data for a repository.
     Creates a new snapshot and recalculates signals.
     """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
+    repo = _get_repo_or_404(repo_id, db)
 
     # Fetch from GitHub
     github = GitHubService()
@@ -327,41 +363,12 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
             detail=f"Failed to fetch from GitHub: {str(e)}"
         )
 
-    # Update repo metadata
-    repo.description = github_data.get("description")
-    repo.language = github_data.get("language")
-    repo.updated_at = utc_now()
-
-    # Check if we already have a snapshot for today
-    today = utc_today()
-    existing_snapshot = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
-        .first()
-    )
-
-    if existing_snapshot:
-        # Update existing snapshot
-        existing_snapshot.stars = github_data.get("stargazers_count", 0)
-        existing_snapshot.forks = github_data.get("forks_count", 0)
-        existing_snapshot.watchers = github_data.get("watchers_count", 0)
-        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-        existing_snapshot.fetched_at = utc_now()
-    else:
-        # Create new snapshot
-        snapshot = RepoSnapshot(
-            repo_id=repo.id,
-            stars=github_data.get("stargazers_count", 0),
-            forks=github_data.get("forks_count", 0),
-            watchers=github_data.get("watchers_count", 0),
-            open_issues=github_data.get("open_issues_count", 0),
-            snapshot_date=today,
-        )
-        db.add(snapshot)
-
+    # Update repo metadata and create/update snapshot
+    _update_repo_metadata(repo, github_data)
+    _create_or_update_snapshot(repo, github_data, db)
     db.commit()
 
-    # Recalculate signals (will be implemented in Step 3)
+    # Recalculate signals
     from services.analyzer import calculate_signals
     calculate_signals(repo.id, db)
 
@@ -380,35 +387,9 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
         try:
             github_data = await github.get_repo(repo.owner, repo.name)
 
-            # Update repo metadata
-            repo.description = github_data.get("description")
-            repo.language = github_data.get("language")
-            repo.updated_at = utc_now()
-
-            # Create or update snapshot
-            today = utc_today()
-            existing_snapshot = (
-                db.query(RepoSnapshot)
-                .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
-                .first()
-            )
-
-            if existing_snapshot:
-                existing_snapshot.stars = github_data.get("stargazers_count", 0)
-                existing_snapshot.forks = github_data.get("forks_count", 0)
-                existing_snapshot.watchers = github_data.get("watchers_count", 0)
-                existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-                existing_snapshot.fetched_at = utc_now()
-            else:
-                snapshot = RepoSnapshot(
-                    repo_id=repo.id,
-                    stars=github_data.get("stargazers_count", 0),
-                    forks=github_data.get("forks_count", 0),
-                    watchers=github_data.get("watchers_count", 0),
-                    open_issues=github_data.get("open_issues_count", 0),
-                    snapshot_date=today,
-                )
-                db.add(snapshot)
+            # Update repo metadata and create/update snapshot
+            _update_repo_metadata(repo, github_data)
+            _create_or_update_snapshot(repo, github_data, db)
 
             # Recalculate signals
             from services.analyzer import calculate_signals
@@ -429,21 +410,5 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
 
     db.commit()
 
-    # Return updated list (using batch queries)
-    repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
-    if not repos:
-        return RepoListResponse(repos=[], total=0)
-
-    repo_ids = [r.id for r in repos]
-    snapshot_map = _build_snapshot_map(db, repo_ids)
-    signal_map = _build_signal_map(db, repo_ids)
-
-    repos_with_signals = [
-        _build_repo_with_signals(repo, snapshot_map.get(repo.id), signal_map.get(repo.id, {}))
-        for repo in repos
-    ]
-
-    return RepoListResponse(
-        repos=repos_with_signals,
-        total=len(repos),
-    )
+    # Return updated list
+    return _build_repo_list_response(db)

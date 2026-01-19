@@ -45,13 +45,13 @@ class WebhookService:
         """Close the HTTP client."""
         await self.client.aclose()
 
+    @staticmethod
     def _build_slack_payload(
-        self,
         title: str,
         text: str,
         color: str = "#2563eb",
         fields: Optional[List[Dict[str, Any]]] = None
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Build a Slack-compatible message payload."""
         attachment = {
             "color": color,
@@ -66,13 +66,13 @@ class WebhookService:
             "attachments": [attachment]
         }
 
+    @staticmethod
     def _build_discord_payload(
-        self,
         title: str,
         description: str,
         color: int = 0x2563eb,
         fields: Optional[List[Dict[str, Any]]] = None
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Build a Discord-compatible message payload."""
         embed = {
             "title": title,
@@ -93,11 +93,11 @@ class WebhookService:
             "embeds": [embed]
         }
 
+    @staticmethod
     def _build_generic_payload(
-        self,
         event_type: str,
         data: Dict[str, Any]
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Build a generic webhook payload."""
         return {
             "event": event_type,
@@ -106,7 +106,27 @@ class WebhookService:
             "data": data,
         }
 
-    def _severity_to_color(self, severity: str) -> tuple:
+    @staticmethod
+    def _build_digest_text(repos: List[Repo], signals: List[EarlySignal]) -> str:
+        """Build the summary text for a digest notification."""
+        text_parts = [f"*{len(repos)} repos tracked*"]
+        if signals:
+            text_parts.append(f"*{len(signals)} new signals detected*")
+
+            # Group by type
+            by_type: Dict[str, int] = {}
+            for s in signals:
+                by_type[s.signal_type] = by_type.get(s.signal_type, 0) + 1
+
+            for stype, count in sorted(by_type.items(), key=lambda x: -x[1]):
+                text_parts.append(f"  - {stype.replace('_', ' ').title()}: {count}")
+        else:
+            text_parts.append("No new signals detected")
+
+        return "\n".join(text_parts)
+
+    @staticmethod
+    def _severity_to_color(severity: str) -> tuple:
         """Convert severity to Slack color and Discord color int."""
         colors = {
             "high": ("#dc2626", 0xdc2626),
@@ -122,13 +142,17 @@ class WebhookService:
         db: Session
     ) -> bool:
         """Send a notification about a detected signal."""
-        slack_color, discord_color = self._severity_to_color(signal.severity)
+        severity = str(signal.severity) if signal.severity else "low"
+        signal_type = str(signal.signal_type) if signal.signal_type else ""
+        repo_full_name = str(signal.repo.full_name) if signal.repo else ""
 
-        title = f"New {signal.signal_type.replace('_', ' ').title()} Detected"
-        text = f"*{signal.repo.full_name}*\n{signal.description}"
+        slack_color, discord_color = self._severity_to_color(severity)
 
-        fields = [
-            {"title": "Severity", "value": signal.severity.upper(), "short": True},
+        title = f"New {signal_type.replace('_', ' ').title()} Detected"
+        text = f"*{repo_full_name}*\n{signal.description}"
+
+        fields: List[Dict[str, Any]] = [
+            {"title": "Severity", "value": severity.upper(), "short": True},
             {"title": "Stars", "value": f"{signal.star_count:,}" if signal.star_count else "N/A", "short": True},
         ]
         if signal.velocity_value:
@@ -141,9 +165,9 @@ class WebhookService:
         else:
             payload = self._build_generic_payload(WebhookTrigger.SIGNAL_DETECTED, {
                 "signal_id": signal.id,
-                "repo_name": signal.repo.full_name,
-                "signal_type": signal.signal_type,
-                "severity": signal.severity,
+                "repo_name": repo_full_name,
+                "signal_type": signal_type,
+                "severity": severity,
                 "description": signal.description,
                 "velocity": signal.velocity_value,
                 "stars": signal.star_count,
@@ -163,24 +187,10 @@ class WebhookService:
         period = "Daily" if digest_type == WebhookTrigger.DAILY_DIGEST else "Weekly"
         title = f"StarScope {period} Digest"
 
-        # Build summary text
-        text_parts = [f"*{len(repos)} repos tracked*"]
-        if signals:
-            text_parts.append(f"*{len(signals)} new signals detected*")
+        # Build summary text using helper
+        text = self._build_digest_text(repos, signals)
 
-            # Group by type
-            by_type: Dict[str, int] = {}
-            for s in signals:
-                by_type[s.signal_type] = by_type.get(s.signal_type, 0) + 1
-
-            for stype, count in sorted(by_type.items(), key=lambda x: -x[1]):
-                text_parts.append(f"  - {stype.replace('_', ' ').title()}: {count}")
-        else:
-            text_parts.append("No new signals detected")
-
-        text = "\n".join(text_parts)
-
-        fields = [
+        fields: List[Dict[str, Any]] = [
             {"title": "Repos Tracked", "value": str(len(repos)), "short": True},
             {"title": "New Signals", "value": str(len(signals)), "short": True},
         ]
@@ -190,17 +200,18 @@ class WebhookService:
         elif webhook.webhook_type == WebhookType.DISCORD:
             payload = self._build_discord_payload(title, text, 0x2563eb, fields)
         else:
+            signal_list: List[Dict[str, Any]] = [
+                {
+                    "repo": str(s.repo.full_name) if s.repo else "",
+                    "type": str(s.signal_type) if s.signal_type else "",
+                    "severity": str(s.severity) if s.severity else "",
+                }
+                for s in signals[:10]  # Limit to 10 in generic payload
+            ]
             payload = self._build_generic_payload(digest_type, {
                 "repos_count": len(repos),
                 "signals_count": len(signals),
-                "signals": [
-                    {
-                        "repo": s.repo.full_name,
-                        "type": s.signal_type,
-                        "severity": s.severity,
-                    }
-                    for s in signals[:10]  # Limit to 10 in generic payload
-                ],
+                "signals": signal_list,
             })
 
         return await self._send_webhook(webhook, digest_type, payload, db)
@@ -213,7 +224,10 @@ class WebhookService:
         db: Session
     ) -> bool:
         """Send the actual HTTP request to the webhook URL."""
-        webhook_id = webhook.id
+        webhook_id = int(webhook.id)
+        webhook_url = str(webhook.url) if webhook.url else ""
+        webhook_name = str(webhook.name) if webhook.name else ""
+
         log = WebhookLog(
             webhook_id=webhook_id,
             trigger_type=trigger_type,
@@ -225,7 +239,7 @@ class WebhookService:
 
         try:
             response = await self.client.post(
-                webhook.url,
+                webhook_url,
                 json=payload,
                 headers={"Content-Type": "application/json"}
             )
@@ -242,13 +256,13 @@ class WebhookService:
             log.success = False
             error_message = "Request timed out"
             log.error_message = error_message
-            logger.error(f"Webhook timeout: {webhook.name}")
+            logger.error(f"Webhook timeout: {webhook_name}")
 
         except Exception as e:
             log.success = False
             error_message = str(e)[:500]
             log.error_message = error_message
-            logger.error(f"Webhook error for {webhook.name}: {e}")
+            logger.error(f"Webhook error for {webhook_name}: {e}")
 
         # Use a single timestamp for consistency
         now = utc_now()
@@ -316,7 +330,9 @@ async def trigger_signal_webhooks(signal: EarlySignal, db: Session):
         # Check severity filter
         if webhook.min_severity:
             severity_order = {"low": 0, "medium": 1, "high": 2}
-            if severity_order.get(signal.severity, 0) < severity_order.get(webhook.min_severity, 0):
+            signal_sev = str(signal.severity) if signal.severity else "low"
+            min_sev = str(webhook.min_severity)
+            if severity_order.get(signal_sev, 0) < severity_order.get(min_sev, 0):
                 continue
 
         # Send the notification

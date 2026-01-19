@@ -23,7 +23,7 @@ def _get_existing_signal_map(
     signal_type: str,
     external_ids: List[str],
     db: Session
-) -> Dict[str, ContextSignal]:
+) -> Dict[str, "ContextSignal"]:
     """
     Batch load existing signals to avoid N+1 queries.
 
@@ -39,7 +39,18 @@ def _get_existing_signal_map(
         ContextSignal.external_id.in_(external_ids)
     ).all()
 
-    return {s.external_id: s for s in existing}
+    return {str(s.external_id): s for s in existing}
+
+
+def _update_existing_signal(
+    existing: "ContextSignal",
+    score: int,
+    comment_count: int
+) -> None:
+    """Update an existing signal with new score and comment count."""
+    existing.score = score
+    existing.comment_count = comment_count
+    existing.fetched_at = utc_now()
 
 
 def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
@@ -64,17 +75,13 @@ def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
     )
 
     count = 0
-    now = utc_now()
     for story in stories:
         existing = existing_map.get(story.object_id)
 
         if existing:
-            # Update score/comments if changed
-            existing.score = story.points
-            existing.comment_count = story.num_comments
-            existing.fetched_at = now
+            _update_existing_signal(existing, story.points, story.num_comments)
         else:
-            signal = ContextSignal(
+            db.add(ContextSignal(
                 repo_id=repo_id,
                 signal_type=ContextSignalType.HACKER_NEWS,
                 external_id=story.object_id,
@@ -84,8 +91,7 @@ def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
                 comment_count=story.num_comments,
                 author=story.author,
                 published_at=story.created_at,
-            )
-            db.add(signal)
+            ))
             count += 1
 
     return count
@@ -113,17 +119,13 @@ def _store_reddit_signals(repo_id: int, posts: List[RedditPost], db: Session) ->
     )
 
     count = 0
-    now = utc_now()
     for post in posts:
         existing = existing_map.get(post.post_id)
 
         if existing:
-            # Update score/comments if changed
-            existing.score = post.score
-            existing.comment_count = post.num_comments
-            existing.fetched_at = now
+            _update_existing_signal(existing, post.score, post.num_comments)
         else:
-            signal = ContextSignal(
+            db.add(ContextSignal(
                 repo_id=repo_id,
                 signal_type=ContextSignalType.REDDIT,
                 external_id=post.post_id,
@@ -133,8 +135,7 @@ def _store_reddit_signals(repo_id: int, posts: List[RedditPost], db: Session) ->
                 comment_count=post.num_comments,
                 author=post.author,
                 published_at=post.created_at,
-            )
-            db.add(signal)
+            ))
             count += 1
 
     return count
@@ -184,7 +185,7 @@ def _store_release_signals(repo_id: int, releases: List[GitHubRelease], db: Sess
     return count
 
 
-async def fetch_context_signals_for_repo(repo: Repo, db: Session) -> Tuple[int, int, int]:
+async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> Tuple[int, int, int]:
     """
     Fetch all context signals for a single repository.
     Fetches from HN, Reddit, and GitHub in parallel for better performance.

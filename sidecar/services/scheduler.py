@@ -97,28 +97,30 @@ async def fetch_all_repos_job():
         db.close()
 
 
-async def check_alerts_job():
+def check_alerts_job():
     """
     Background job to check alert rules and trigger notifications.
     This runs after fetching data.
     """
     logger.info("Checking alert rules...")
 
+    # Import here to avoid circular imports
+    try:
+        from services.alerts import check_all_alerts
+    except ImportError:
+        # alerts service not yet implemented
+        logger.debug("Alerts service not yet available")
+        return
+
     db: Session = SessionLocal()
     try:
-        # Import here to avoid circular imports
-        from services.alerts import check_all_alerts
-
-        triggered = await check_all_alerts(db)
+        triggered = check_all_alerts(db)
 
         if triggered:
             logger.info(f"Triggered {len(triggered)} alerts")
         else:
             logger.debug("No alerts triggered")
 
-    except ImportError:
-        # alerts service not yet implemented
-        logger.debug("Alerts service not yet available")
     except Exception as e:
         logger.error(f"Error checking alerts: {e}")
     finally:
@@ -230,4 +232,4 @@ async def trigger_fetch_now():
     """Manually trigger an immediate fetch of all repos."""
     logger.info("Manual fetch triggered")
     await fetch_all_repos_job()
-    await check_alerts_job()
+    check_alerts_job()
