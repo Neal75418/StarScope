@@ -14,6 +14,7 @@ import {
   DeviceCodeResponse,
 } from "../api/client";
 import { getErrorMessage } from "../utils/error";
+import { useI18n, interpolate } from "../i18n";
 
 type ConnectionState =
   | "loading"
@@ -24,6 +25,7 @@ type ConnectionState =
   | "error";
 
 export function GitHubConnection() {
+  const { t } = useI18n();
   const [state, setState] = useState<ConnectionState>("loading");
   const [status, setStatus] = useState<GitHubConnectionStatus | null>(null);
   const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
@@ -50,6 +52,7 @@ export function GitHubConnection() {
   // Fetch initial connection status
   useEffect(() => {
     fetchStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchStatus = async () => {
@@ -61,7 +64,7 @@ export function GitHubConnection() {
       setStatus(result);
       setState(result.connected ? "connected" : "disconnected");
     } catch (err) {
-      setError(getErrorMessage(err, "An error occurred"));
+      setError(getErrorMessage(err, t.githubConnection.errors.generic));
       setState("error");
     }
   };
@@ -88,7 +91,7 @@ export function GitHubConnection() {
       // Start polling for authorization
       startPolling(result.device_code, result.interval, result.expires_in);
     } catch (err) {
-      setError(getErrorMessage(err, "An error occurred"));
+      setError(getErrorMessage(err, t.githubConnection.errors.generic));
       setState("error");
     }
   };
@@ -104,7 +107,7 @@ export function GitHubConnection() {
     pollTimeoutRef.current = window.setTimeout(() => {
       console.warn("[GitHubAuth] Polling expired");
       stopPolling();
-      setError("Authorization expired. Please try again.");
+      setError(t.githubConnection.errors.expired);
       setState("disconnected");
       setDeviceCode(null);
     }, expiresIn * 1000);
@@ -112,14 +115,16 @@ export function GitHubConnection() {
     // The poll function that handles slow_down responses
     const doPoll = async () => {
       try {
-        setPollStatus(`Checking... (next check in ${currentIntervalRef.current}s)`);
+        setPollStatus(
+          interpolate(t.githubConnection.status.checking, { seconds: currentIntervalRef.current })
+        );
         console.warn(`[GitHubAuth] Polling... (interval: ${currentIntervalRef.current}s)`);
         const result = await pollAuthorization(code);
         console.warn("[GitHubAuth] Poll result:", result);
 
         if (result.status === "success") {
           console.warn("[GitHubAuth] Authorization successful!");
-          setPollStatus("Connected!");
+          setPollStatus(t.githubConnection.status.connected);
           stopPolling();
           setDeviceCode(null);
           setStatus({
@@ -131,7 +136,7 @@ export function GitHubConnection() {
           console.warn("[GitHubAuth] Authorization failed:", result.error);
           setPollStatus("");
           stopPolling();
-          setError(result.error || "Authorization failed");
+          setError(result.error || t.githubConnection.errors.failed);
           setState("disconnected");
           setDeviceCode(null);
         } else if (result.status === "pending" && result.slow_down && result.interval) {
@@ -141,7 +146,9 @@ export function GitHubConnection() {
             `[GitHubAuth] Slowing down: ${currentIntervalRef.current}s -> ${newInterval}s`
           );
           currentIntervalRef.current = newInterval;
-          setPollStatus(`Rate limited, waiting ${newInterval}s...`);
+          setPollStatus(
+            interpolate(t.githubConnection.status.rateLimited, { seconds: newInterval })
+          );
 
           // Restart the interval with new timing
           if (pollIntervalRef.current) {
@@ -151,13 +158,13 @@ export function GitHubConnection() {
         } else {
           // Regular pending - show next poll time
           setPollStatus(
-            `Waiting for authorization... (checking every ${currentIntervalRef.current}s)`
+            interpolate(t.githubConnection.status.waiting, { seconds: currentIntervalRef.current })
           );
         }
       } catch (err) {
         // Network error during polling - continue trying
         console.error("[GitHubAuth] Poll error:", err);
-        setPollStatus("Network error, retrying...");
+        setPollStatus(t.githubConnection.status.networkError);
       }
     };
 
@@ -195,7 +202,7 @@ export function GitHubConnection() {
       setStatus(null);
       setState("disconnected");
     } catch (err) {
-      setError(getErrorMessage(err, "An error occurred"));
+      setError(getErrorMessage(err, t.githubConnection.errors.generic));
       setState("error");
     }
   };
@@ -223,14 +230,14 @@ export function GitHubConnection() {
   return (
     <div className="github-connection">
       <div className="section-header">
-        <h3>GitHub Connection</h3>
+        <h3>{t.githubConnection.title}</h3>
       </div>
 
       {error && (
         <div className="github-error">
           {error}
           <button onClick={() => setError(null)} className="dismiss-btn">
-            Dismiss
+            {t.githubConnection.dismiss}
           </button>
         </div>
       )}
@@ -240,7 +247,7 @@ export function GitHubConnection() {
           <div className="status-icon">
             <span className="spinner" />
           </div>
-          <div className="status-text">Checking connection...</div>
+          <div className="status-text">{t.githubConnection.checking}</div>
         </div>
       )}
 
@@ -250,13 +257,11 @@ export function GitHubConnection() {
             <span className="icon-disconnected">!</span>
           </div>
           <div className="status-content">
-            <div className="status-text">Not connected</div>
-            <div className="status-hint">
-              Connect to GitHub for higher API rate limits (5,000/hour vs 60/hour)
-            </div>
+            <div className="status-text">{t.githubConnection.notConnected}</div>
+            <div className="status-hint">{t.githubConnection.connectHint}</div>
           </div>
           <button onClick={startDeviceFlow} className="btn btn-primary">
-            Connect GitHub
+            {t.githubConnection.connect}
           </button>
         </div>
       )}
@@ -266,33 +271,35 @@ export function GitHubConnection() {
           <div className="status-icon">
             <span className="spinner" />
           </div>
-          <div className="status-text">Initiating connection...</div>
+          <div className="status-text">{t.githubConnection.initiating}</div>
         </div>
       )}
 
       {state === "awaiting_auth" && deviceCode && (
         <div className="github-status awaiting">
           <div className="device-code-section">
-            <div className="device-code-label">Enter this code on GitHub:</div>
+            <div className="device-code-label">{t.githubConnection.enterCode}</div>
             <div className="device-code-box">
               <code className="device-code">{deviceCode.user_code}</code>
-              <button onClick={copyUserCode} className="btn btn-small" title="Copy code">
-                {copied ? "Copied!" : "Copy"}
+              <button
+                onClick={copyUserCode}
+                className="btn btn-small"
+                title={t.githubConnection.copy}
+              >
+                {copied ? t.githubConnection.copied : t.githubConnection.copy}
               </button>
             </div>
             <div className="device-code-hint">
               <span className="spinner-small" />
-              {pollStatus || "Waiting for authorization..."}
+              {pollStatus || t.githubConnection.waitingAuth}
             </div>
-            <div className="device-code-warning">
-              Please stay on this page until authorization is complete.
-            </div>
+            <div className="device-code-warning">{t.githubConnection.stayOnPage}</div>
             <div className="device-code-actions">
               <button onClick={openGitHubManually} className="btn btn-link">
-                Open GitHub manually
+                {t.githubConnection.openManually}
               </button>
               <button onClick={cancelAuth} className="btn">
-                Cancel
+                {t.githubConnection.cancel}
               </button>
             </div>
           </div>
@@ -306,17 +313,17 @@ export function GitHubConnection() {
           </div>
           <div className="status-content">
             <div className="status-text">
-              Connected as <strong>@{status.username}</strong>
+              {t.githubConnection.connectedAs} <strong>@{status.username}</strong>
             </div>
             {status.rate_limit_remaining !== undefined && (
               <div className="status-rate-limit">
                 API: {status.rate_limit_remaining?.toLocaleString()} /{" "}
-                {status.rate_limit_total?.toLocaleString()} remaining
+                {status.rate_limit_total?.toLocaleString()} {t.githubConnection.remaining}
               </div>
             )}
           </div>
           <button onClick={handleDisconnect} className="btn btn-danger">
-            Disconnect
+            {t.githubConnection.disconnect}
           </button>
         </div>
       )}
@@ -327,10 +334,10 @@ export function GitHubConnection() {
             <span className="icon-error">X</span>
           </div>
           <div className="status-content">
-            <div className="status-text">Connection error</div>
+            <div className="status-text">{t.githubConnection.connectionError}</div>
           </div>
           <button onClick={fetchStatus} className="btn">
-            Retry
+            {t.githubConnection.retry}
           </button>
         </div>
       )}

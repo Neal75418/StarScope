@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { CategoryTreeNode, getCategoryTree, createCategory, deleteCategory } from "../api/client";
+import { useI18n } from "../i18n";
 
 interface CategorySidebarProps {
   selectedCategoryId: number | null;
@@ -17,6 +18,7 @@ export function CategorySidebar({
   onSelectCategory,
   onCategoriesChange,
 }: CategorySidebarProps) {
+  const { t } = useI18n();
   const [tree, setTree] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function CategorySidebar({
       setTree(response.tree);
     } catch (err) {
       console.error("Failed to load categories:", err);
-      setError("Failed to load categories");
+      setError(t.categories.loadError);
     } finally {
       setLoading(false);
     }
@@ -41,6 +43,7 @@ export function CategorySidebar({
 
   useEffect(() => {
     fetchCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreateCategory = async (e: React.FormEvent) => {
@@ -61,7 +64,7 @@ export function CategorySidebar({
   const handleDeleteCategory = async (categoryId: number, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    if (!confirm("Are you sure you want to delete this category?")) {
+    if (!confirm(t.categories.deleteConfirm)) {
       return;
     }
 
@@ -120,7 +123,7 @@ export function CategorySidebar({
           <button
             className="category-delete-btn"
             onClick={(e) => handleDeleteCategory(node.id, e)}
-            title="Delete category"
+            title={t.categories.deleteCategory}
           >
             &times;
           </button>
@@ -139,9 +142,9 @@ export function CategorySidebar({
     return (
       <div className="category-sidebar">
         <div className="category-sidebar-header">
-          <h3>Categories</h3>
+          <h3>{t.categories.title}</h3>
         </div>
-        <div className="category-sidebar-loading">Loading...</div>
+        <div className="category-sidebar-loading">{t.categories.loading}</div>
       </div>
     );
   }
@@ -150,7 +153,7 @@ export function CategorySidebar({
     return (
       <div className="category-sidebar">
         <div className="category-sidebar-header">
-          <h3>Categories</h3>
+          <h3>{t.categories.title}</h3>
         </div>
         <div className="category-sidebar-error">{error}</div>
       </div>
@@ -160,11 +163,11 @@ export function CategorySidebar({
   return (
     <div className="category-sidebar">
       <div className="category-sidebar-header">
-        <h3>Categories</h3>
+        <h3>{t.categories.title}</h3>
         <button
           className="btn btn-sm"
           onClick={() => setShowAddForm(!showAddForm)}
-          title="Add category"
+          title={t.categories.addCategory}
         >
           +
         </button>
@@ -176,11 +179,11 @@ export function CategorySidebar({
             type="text"
             value={newCategoryName}
             onChange={(e) => setNewCategoryName(e.target.value)}
-            placeholder="Category name"
+            placeholder={t.categories.namePlaceholder}
             autoFocus
           />
           <button type="submit" className="btn btn-sm btn-primary">
-            Add
+            {t.categories.add}
           </button>
           <button
             type="button"
@@ -190,7 +193,7 @@ export function CategorySidebar({
               setNewCategoryName("");
             }}
           >
-            Cancel
+            {t.categories.cancel}
           </button>
         </form>
       )}
@@ -201,13 +204,13 @@ export function CategorySidebar({
           onClick={() => onSelectCategory(null)}
         >
           <span className="category-expand-spacer" />
-          <span className="category-name">All Repositories</span>
+          <span className="category-name">{t.categories.allRepos}</span>
         </div>
 
         {tree.map((node) => renderTreeNode(node))}
 
         {tree.length === 0 && !showAddForm && (
-          <div className="category-empty">No categories yet. Click + to create one.</div>
+          <div className="category-empty">{t.categories.empty}</div>
         )}
       </div>
     </div>
@@ -220,6 +223,7 @@ interface AddToCategoryDropdownProps {
 }
 
 export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryDropdownProps) {
+  const { t } = useI18n();
   const [tree, setTree] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -258,8 +262,12 @@ export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryD
 
   if (!isOpen) {
     return (
-      <button className="btn btn-sm" onClick={() => setIsOpen(true)} title="Add to category">
-        + Category
+      <button
+        className="btn btn-sm"
+        onClick={() => setIsOpen(true)}
+        title={t.categories.addToCategory}
+      >
+        {t.categories.addToCategoryButton}
       </button>
     );
   }
@@ -269,15 +277,15 @@ export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryD
   return (
     <div className="category-dropdown">
       <div className="category-dropdown-header">
-        <span>Add to Category</span>
+        <span>{t.categories.addToCategoryTitle}</span>
         <button className="btn btn-sm" onClick={() => setIsOpen(false)}>
           &times;
         </button>
       </div>
       {loading ? (
-        <div className="category-dropdown-loading">Loading...</div>
+        <div className="category-dropdown-loading">{t.categories.loading}</div>
       ) : flatCategories.length === 0 ? (
-        <div className="category-dropdown-empty">No categories</div>
+        <div className="category-dropdown-empty">{t.categories.noCategories}</div>
       ) : (
         <div className="category-dropdown-list">
           {flatCategories.map((cat) => (

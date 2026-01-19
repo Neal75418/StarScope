@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { HealthScoreResponse, calculateHealthScore } from "../api/client";
+import { useI18n, interpolate } from "../i18n";
 
 interface HealthScorePanelProps {
   details: HealthScoreResponse;
@@ -19,14 +20,21 @@ function getScoreColor(score: number | null): string {
   return "var(--danger-color)";
 }
 
-// Format hours to readable string
-function formatResponseTime(hours: number | null): string {
-  if (hours === null) return "N/A";
-  if (hours < 24) return `${hours.toFixed(1)}h`;
+// Format hours to readable string (requires translations object)
+type TimeTranslations = {
+  na: string;
+  hours: string;
+  days: string;
+  weeks: string;
+};
+
+function formatResponseTime(hours: number | null, timeT: TimeTranslations): string {
+  if (hours === null) return timeT.na;
+  if (hours < 24) return interpolate(timeT.hours, { value: hours.toFixed(1) });
   const days = hours / 24;
-  if (days < 7) return `${days.toFixed(1)} days`;
+  if (days < 7) return interpolate(timeT.days, { value: days.toFixed(1) });
   const weeks = days / 7;
-  return `${weeks.toFixed(1)} weeks`;
+  return interpolate(timeT.weeks, { value: weeks.toFixed(1) });
 }
 
 // Format date
@@ -73,6 +81,7 @@ function ScoreRow({ label, score, detail, weight }: ScoreRowProps) {
 }
 
 export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScorePanelProps) {
+  const { t } = useI18n();
   const [recalculating, setRecalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
@@ -107,7 +116,7 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
       }
     } catch (err) {
       if (!isMountedRef.current) return;
-      setError("Failed to recalculate. Please try again.");
+      setError(t.healthScore.recalculateFailed);
       console.error("Failed to recalculate health score:", err);
     } finally {
       if (isMountedRef.current) {
@@ -124,7 +133,7 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
         {/* Header */}
         <div className="health-panel-header">
           <div className="header-info">
-            <h3>Project Health Score</h3>
+            <h3>{t.healthScore.title}</h3>
             <span className="repo-name">{details.repo_name}</span>
           </div>
           <button className="close-btn" onClick={onClose}>
@@ -146,57 +155,69 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
               <span className="out-of">/100</span>
             </div>
             <div className="calculated-at">
-              Last calculated: {formatDate(details.calculated_at)}
+              {interpolate(t.healthScore.lastCalculated, {
+                date: formatDate(details.calculated_at),
+              })}
             </div>
           </div>
         </div>
 
         {/* Score Breakdown */}
         <div className="score-breakdown">
-          <h4>Score Breakdown</h4>
+          <h4>{t.healthScore.scoreBreakdown}</h4>
 
           <ScoreRow
-            label="Issue Response"
+            label={t.healthScore.metrics.issueResponse}
             score={details.issue_response_score}
             weight="20%"
             detail={
               metrics?.avg_issue_response_hours
-                ? `Avg: ${formatResponseTime(metrics.avg_issue_response_hours)}`
+                ? interpolate(t.healthScore.avgPrefix, {
+                    time: formatResponseTime(metrics.avg_issue_response_hours, t.healthScore.time),
+                  })
                 : undefined
             }
           />
 
           <ScoreRow
-            label="PR Merge Rate"
+            label={t.healthScore.metrics.prMergeRate}
             score={details.pr_merge_score}
             weight="20%"
             detail={
-              metrics?.pr_merge_rate ? `${metrics.pr_merge_rate.toFixed(0)}% merged` : undefined
+              metrics?.pr_merge_rate
+                ? interpolate(t.healthScore.format.merged, {
+                    rate: metrics.pr_merge_rate.toFixed(0),
+                  })
+                : undefined
             }
           />
 
           <ScoreRow
-            label="Release Cadence"
+            label={t.healthScore.metrics.releaseCadence}
             score={details.release_cadence_score}
             weight="15%"
             detail={
               metrics?.days_since_last_release != null
-                ? `${metrics.days_since_last_release} days ago`
+                ? interpolate(t.healthScore.time.daysAgo, { days: metrics.days_since_last_release })
                 : undefined
             }
           />
 
           <ScoreRow
-            label="Bus Factor"
+            label={t.healthScore.metrics.busFactor}
             score={details.bus_factor_score}
             weight="15%"
             detail={
-              metrics?.contributor_count ? `${metrics.contributor_count} contributors` : undefined
+              metrics?.contributor_count
+                ? interpolate(t.healthScore.format.contributors, {
+                    count: metrics.contributor_count,
+                  })
+                : undefined
             }
           />
 
           <ScoreRow
-            label="Documentation"
+            label={t.healthScore.metrics.documentation}
             score={details.documentation_score}
             weight="10%"
             detail={
@@ -207,14 +228,22 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
                     metrics.has_contributing && "CONTRIBUTING",
                   ]
                     .filter(Boolean)
-                    .join(", ") || "None"
+                    .join(", ") || t.healthScore.format.none
                 : undefined
             }
           />
 
-          <ScoreRow label="Dependencies" score={details.dependency_score} weight="10%" />
+          <ScoreRow
+            label={t.healthScore.metrics.dependencies}
+            score={details.dependency_score}
+            weight="10%"
+          />
 
-          <ScoreRow label="Star Velocity" score={details.velocity_score} weight="10%" />
+          <ScoreRow
+            label={t.healthScore.metrics.starVelocity}
+            score={details.velocity_score}
+            weight="10%"
+          />
         </div>
 
         {/* Error Display */}
@@ -223,10 +252,10 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
         {/* Actions */}
         <div className="health-panel-actions">
           <button className="btn btn-primary" onClick={handleRecalculate} disabled={recalculating}>
-            {recalculating ? "Calculating..." : "Recalculate"}
+            {recalculating ? t.healthScore.calculating : t.healthScore.recalculate}
           </button>
           <button className="btn" onClick={onClose}>
-            Close
+            {t.healthScore.close}
           </button>
         </div>
       </div>

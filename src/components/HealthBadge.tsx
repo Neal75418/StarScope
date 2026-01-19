@@ -10,6 +10,7 @@ import {
   HealthScoreSummary,
   HealthScoreResponse,
 } from "../api/client";
+import { useI18n, interpolate } from "../i18n";
 
 interface HealthBadgeProps {
   repoId: number;
@@ -29,6 +30,7 @@ const GRADE_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
+  const { t } = useI18n();
   const [summary, setSummary] = useState<HealthScoreSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
@@ -52,7 +54,7 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
           if (err.status === 404) {
             setSummary(null);
           } else {
-            setError("Failed to load");
+            setError(t.healthScore.failedToLoad);
             console.error("Health score error:", err);
           }
         }
@@ -66,6 +68,7 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
     return () => {
       isMountedRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoId]);
 
   const handleCalculate = async () => {
@@ -87,7 +90,7 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
       }
     } catch (err) {
       if (!isMountedRef.current) return;
-      setError("Calculation failed");
+      setError(t.healthScore.calculationFailed);
       console.error("Health score calculation error:", err);
     } finally {
       if (isMountedRef.current) {
@@ -131,7 +134,7 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
         className="health-badge health-badge-empty"
         onClick={handleCalculate}
         disabled={calculating}
-        title="Click to calculate health score"
+        title={t.healthScore.clickToCalculate}
       >
         {calculating ? "..." : "?"}
       </button>
@@ -145,7 +148,10 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
       className="health-badge"
       style={{ backgroundColor: colors.bg, color: colors.text }}
       onClick={handleClick}
-      title={`Health Score: ${summary.overall_score.toFixed(0)} (${summary.grade})`}
+      title={interpolate(t.health.titleFormat, {
+        score: summary.overall_score.toFixed(0),
+        grade: summary.grade,
+      })}
     >
       {summary.grade}
     </button>

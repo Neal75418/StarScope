@@ -30,11 +30,11 @@ const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m
 type Page = "watchlist" | "trends" | "compare" | "signals" | "settings";
 
 /** Loading fallback component */
-function PageLoader() {
+function PageLoader({ text }: { text?: string }) {
   return (
     <div className="page-loader">
       <div className="loader-spinner" />
-      <p>Loading...</p>
+      <p>{text || "Loading..."}</p>
     </div>
   );
 }
@@ -152,8 +152,16 @@ function App() {
                 <button
                   className="nav-action-btn"
                   onClick={toggleTheme}
-                  title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                  aria-label={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                  title={
+                    theme === "dark"
+                      ? t.settings.appearance.switchToLight
+                      : t.settings.appearance.switchToDark
+                  }
+                  aria-label={
+                    theme === "dark"
+                      ? t.settings.appearance.switchToLight
+                      : t.settings.appearance.switchToDark
+                  }
                 >
                   {theme === "dark" ? (
                     <SunIcon size={16} aria-hidden="true" />
@@ -179,7 +187,7 @@ function App() {
           {/* Main Content */}
           <main className="app-main">
             <ErrorBoundary>
-              <Suspense fallback={<PageLoader />}>{renderPage()}</Suspense>
+              <Suspense fallback={<PageLoader text={t.common.loading} />}>{renderPage()}</Suspense>
             </ErrorBoundary>
           </main>
         </div>

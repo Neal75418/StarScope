@@ -64,8 +64,8 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
           <div className="dialog-body">
             <p className="dialog-hint">{t.dialog.addRepo.hint}</p>
             <ul className="dialog-examples">
-              <li>owner/repo (e.g., facebook/react)</li>
-              <li>https://github.com/owner/repo</li>
+              <li>{t.dialog.addRepo.exampleFormat}</li>
+              <li>{t.dialog.addRepo.exampleUrl}</li>
             </ul>
 
             <input

@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useId } from "react";
+import { useI18n } from "../i18n";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -20,12 +21,15 @@ export function ConfirmDialog({
   isOpen,
   title,
   message,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  confirmText,
+  cancelText,
   variant = "default",
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useI18n();
+  const resolvedConfirmText = confirmText ?? t.common.confirm;
+  const resolvedCancelText = cancelText ?? t.common.cancel;
   const titleId = useId();
   const descId = useId();
 
@@ -70,10 +74,10 @@ export function ConfirmDialog({
 
         <div className="dialog-footer">
           <button type="button" onClick={onCancel} className="btn">
-            {cancelText}
+            {resolvedCancelText}
           </button>
           <button type="button" onClick={onConfirm} className={confirmButtonClass}>
-            {confirmText}
+            {resolvedConfirmText}
           </button>
         </div>
       </div>

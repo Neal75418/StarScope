@@ -54,7 +54,7 @@ export function Trends() {
       const data: TrendsResponse = await res.json();
       setTrends(data.repos);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch trends");
+      setError(err instanceof Error ? err.message : t.trends.loadingError);
     } finally {
       setLoading(false);
     }
@@ -62,6 +62,7 @@ export function Trends() {
 
   useEffect(() => {
     fetchTrends(sortBy);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 
   if (loading) {

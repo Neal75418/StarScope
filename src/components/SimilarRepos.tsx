@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { SimilarRepo, getSimilarRepos } from "../api/client";
+import { useI18n } from "../i18n";
 
 interface SimilarReposProps {
   repoId: number;
@@ -12,6 +13,7 @@ interface SimilarReposProps {
 }
 
 export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
+  const { t } = useI18n();
   const [similar, setSimilar] = useState<SimilarRepo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
       .catch((err) => {
         if (isMounted) {
           console.error("Failed to load similar repos:", err);
-          setError("Failed to load recommendations");
+          setError(t.similarRepos.loadError);
         }
       })
       .finally(() => {
@@ -42,6 +44,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoId]);
 
   const formatScore = (score: number): string => {
@@ -52,14 +55,14 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
     return (
       <div className="similar-repos">
         <div className="similar-repos-header">
-          <h4>Similar Repos</h4>
+          <h4>{t.similarRepos.title}</h4>
           {onClose && (
             <button className="btn btn-sm" onClick={onClose}>
               &times;
             </button>
           )}
         </div>
-        <div className="similar-repos-loading">Loading...</div>
+        <div className="similar-repos-loading">{t.similarRepos.loading}</div>
       </div>
     );
   }
@@ -68,7 +71,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
     return (
       <div className="similar-repos">
         <div className="similar-repos-header">
-          <h4>Similar Repos</h4>
+          <h4>{t.similarRepos.title}</h4>
           {onClose && (
             <button className="btn btn-sm" onClick={onClose}>
               &times;
@@ -84,14 +87,14 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
     return (
       <div className="similar-repos">
         <div className="similar-repos-header">
-          <h4>Similar Repos</h4>
+          <h4>{t.similarRepos.title}</h4>
           {onClose && (
             <button className="btn btn-sm" onClick={onClose}>
               &times;
             </button>
           )}
         </div>
-        <div className="similar-repos-empty">No similar repos found in your watchlist.</div>
+        <div className="similar-repos-empty">{t.similarRepos.empty}</div>
       </div>
     );
   }
@@ -99,7 +102,7 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
   return (
     <div className="similar-repos">
       <div className="similar-repos-header">
-        <h4>Similar Repos</h4>
+        <h4>{t.similarRepos.title}</h4>
         {onClose && (
           <button className="btn btn-sm" onClick={onClose}>
             &times;
@@ -118,14 +121,14 @@ export function SimilarRepos({ repoId, onClose }: SimilarReposProps) {
               >
                 {repo.full_name}
               </a>
-              <span className="similar-repo-score" title="Similarity score">
+              <span className="similar-repo-score" title={t.similarRepos.similarityScore}>
                 {formatScore(repo.similarity_score)}
               </span>
             </div>
             <div className="similar-repo-meta">
               {repo.language && <span className="similar-repo-language">{repo.language}</span>}
               {repo.same_language && (
-                <span className="similar-repo-badge same-lang">Same Language</span>
+                <span className="similar-repo-badge same-lang">{t.similarRepos.sameLanguage}</span>
               )}
             </div>
             {repo.shared_topics.length > 0 && (
@@ -159,6 +162,7 @@ interface SimilarReposButtonProps {
 }
 
 export function SimilarReposButton({ repoId }: SimilarReposButtonProps) {
+  const { t } = useI18n();
   const [showPanel, setShowPanel] = useState(false);
 
   return (
@@ -166,9 +170,9 @@ export function SimilarReposButton({ repoId }: SimilarReposButtonProps) {
       <button
         className={`btn btn-sm ${showPanel ? "active" : ""}`}
         onClick={() => setShowPanel(!showPanel)}
-        title="Show similar repositories"
+        title={t.similarRepos.showSimilar}
       >
-        Similar
+        {t.similarRepos.similar}
       </button>
       {showPanel && (
         <div className="similar-repos-panel">

@@ -16,7 +16,7 @@ import { formatNumber, formatDelta, formatVelocity } from "../utils/format";
 import { getErrorMessage } from "../utils/error";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
-import { useI18n } from "../i18n";
+import { useI18n, interpolate } from "../i18n";
 
 export function Compare() {
   const { t } = useI18n();
@@ -185,7 +185,7 @@ export function Compare() {
                   <div className="compare-group-info">
                     <span className="compare-group-name">{group.name}</span>
                     <span className="compare-group-count">
-                      {group.member_count} {group.member_count === 1 ? "repo" : "repos"}
+                      {interpolate(t.compare.sidebar.repoCount, { count: group.member_count })}
                     </span>
                   </div>
                   <button
