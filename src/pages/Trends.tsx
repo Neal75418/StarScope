@@ -49,7 +49,8 @@ export function Trends() {
     try {
       const res = await fetch(`${API_ENDPOINT}/trends/?sort_by=${sort}&limit=50`);
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+        setError(`HTTP ${res.status}`);
+        return;
       }
       const data: TrendsResponse = await res.json();
       setTrends(data.repos);
@@ -61,7 +62,7 @@ export function Trends() {
   };
 
   useEffect(() => {
-    fetchTrends(sortBy);
+    void fetchTrends(sortBy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortBy]);
 

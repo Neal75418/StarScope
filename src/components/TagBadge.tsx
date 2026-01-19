@@ -2,6 +2,7 @@
  * Tag badge component for displaying repo tags.
  */
 
+import { MouseEvent } from "react";
 import { RepoTag, TagType } from "../api/client";
 
 interface TagBadgeProps {
@@ -25,9 +26,9 @@ export function TagBadge({ tag, onRemove, onClick }: TagBadgeProps) {
   const getTextColor = (bgColor: string): string => {
     // Convert hex to RGB
     const hex = bgColor.replace("#", "");
-    const r = parseInt(hex.substr(0, 2), 16);
-    const g = parseInt(hex.substr(2, 2), 16);
-    const b = parseInt(hex.substr(4, 2), 16);
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
 
     // Calculate relative luminance
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
@@ -43,7 +44,7 @@ export function TagBadge({ tag, onRemove, onClick }: TagBadgeProps) {
     }
   };
 
-  const handleRemove = (e: React.MouseEvent) => {
+  const handleRemove = (e: MouseEvent) => {
     e.stopPropagation();
     if (onRemove) {
       onRemove(tag.id);

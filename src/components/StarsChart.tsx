@@ -49,7 +49,7 @@ export function StarsChart({ repoId }: StarsChartProps) {
       }
     };
 
-    fetchData();
+    void fetchData();
 
     return () => {
       isMounted = false;

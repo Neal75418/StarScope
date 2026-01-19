@@ -51,7 +51,7 @@ export function GitHubConnection() {
 
   // Fetch initial connection status
   useEffect(() => {
-    fetchStatus();
+    void fetchStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -209,7 +209,7 @@ export function GitHubConnection() {
 
   const copyUserCode = useCallback(() => {
     if (deviceCode?.user_code) {
-      navigator.clipboard.writeText(deviceCode.user_code);
+      void navigator.clipboard.writeText(deviceCode.user_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

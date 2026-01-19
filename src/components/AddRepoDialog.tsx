@@ -2,7 +2,7 @@
  * Dialog for adding a new repository to the watchlist.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useI18n } from "../i18n";
 
 interface AddRepoDialogProps {
@@ -32,7 +32,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     await onAdd(input.trim());

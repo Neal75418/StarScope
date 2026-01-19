@@ -101,8 +101,8 @@ export function Signals() {
   const handleAcknowledge = async (signalId: number) => {
     try {
       await acknowledgeSignal(signalId);
-      loadSignals();
-      loadSummary();
+      await loadSignals();
+      await loadSummary();
     } catch (err) {
       toast.error(getErrorMessage(err, "Failed to acknowledge signal"));
     }
@@ -116,8 +116,8 @@ export function Signals() {
     try {
       await acknowledgeAllSignals(filterType || undefined);
       toast.success(t.signals.toast.acknowledgedAll);
-      loadSignals();
-      loadSummary();
+      await loadSignals();
+      await loadSummary();
     } catch (err) {
       toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {
@@ -135,8 +135,8 @@ export function Signals() {
     try {
       await deleteSignal(confirmDialog.signalId);
       toast.success(t.signals.toast.deleted);
-      loadSignals();
-      loadSummary();
+      await loadSignals();
+      await loadSummary();
     } catch (err) {
       toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {
@@ -154,8 +154,8 @@ export function Signals() {
           signals: result.signals_detected,
         })
       );
-      loadSignals();
-      loadSummary();
+      await loadSignals();
+      await loadSummary();
     } catch (err) {
       toast.error(getErrorMessage(err, t.signals.loadingError));
     } finally {

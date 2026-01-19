@@ -2,7 +2,7 @@
  * Compare page - compare multiple repositories side by side.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import {
   ComparisonGroup,
   ComparisonGroupDetail,
@@ -59,7 +59,7 @@ export function Compare() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateGroup = async (e: React.FormEvent) => {
+  const handleCreateGroup = async (e: FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
 
@@ -69,7 +69,7 @@ export function Compare() {
       setNewGroupDesc("");
       setShowCreateForm(false);
       toast.success(t.compare.toast.groupCreated);
-      loadGroups();
+      await loadGroups();
     } catch (err) {
       toast.error(getErrorMessage(err, t.compare.loadingError));
     }
@@ -88,7 +88,7 @@ export function Compare() {
         setSelectedGroup(null);
       }
       toast.success(t.compare.toast.groupDeleted);
-      loadGroups();
+      await loadGroups();
     } catch (err) {
       toast.error(getErrorMessage(err, t.compare.loadingError));
     } finally {
@@ -101,7 +101,7 @@ export function Compare() {
 
     try {
       await removeRepoFromComparison(selectedGroup.group_id, repoId);
-      loadGroupDetail(selectedGroup.group_id);
+      await loadGroupDetail(selectedGroup.group_id);
     } catch (err) {
       toast.error(getErrorMessage(err, t.compare.loadingError));
     }

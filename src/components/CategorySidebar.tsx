@@ -3,7 +3,7 @@
  * Displays categories in a tree structure with create/edit capabilities.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent, MouseEvent } from "react";
 import { CategoryTreeNode, getCategoryTree, createCategory, deleteCategory } from "../api/client";
 import { useI18n } from "../i18n";
 
@@ -42,11 +42,11 @@ export function CategorySidebar({
   };
 
   useEffect(() => {
-    fetchCategories();
+    void fetchCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateCategory = async (e: React.FormEvent) => {
+  const handleCreateCategory = async (e: FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
 
@@ -54,14 +54,14 @@ export function CategorySidebar({
       await createCategory({ name: newCategoryName.trim() });
       setNewCategoryName("");
       setShowAddForm(false);
-      fetchCategories();
+      await fetchCategories();
       onCategoriesChange?.();
     } catch (err) {
       console.error("Failed to create category:", err);
     }
   };
 
-  const handleDeleteCategory = async (categoryId: number, e: React.MouseEvent) => {
+  const handleDeleteCategory = async (categoryId: number, e: MouseEvent) => {
     e.stopPropagation();
 
     if (!confirm(t.categories.deleteConfirm)) {
@@ -73,14 +73,14 @@ export function CategorySidebar({
       if (selectedCategoryId === categoryId) {
         onSelectCategory(null);
       }
-      fetchCategories();
+      await fetchCategories();
       onCategoriesChange?.();
     } catch (err) {
       console.error("Failed to delete category:", err);
     }
   };
 
-  const toggleExpanded = (categoryId: number, e: React.MouseEvent) => {
+  const toggleExpanded = (categoryId: number, e: MouseEvent) => {
     e.stopPropagation();
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -213,93 +213,6 @@ export function CategorySidebar({
           <div className="category-empty">{t.categories.empty}</div>
         )}
       </div>
-    </div>
-  );
-}
-
-interface AddToCategoryDropdownProps {
-  repoId: number;
-  onAdd: (categoryId: number) => Promise<void>;
-}
-
-export function AddToCategoryDropdown({ repoId: _repoId, onAdd }: AddToCategoryDropdownProps) {
-  const { t } = useI18n();
-  const [tree, setTree] = useState<CategoryTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      getCategoryTree()
-        .then((response) => setTree(response.tree))
-        .catch((err) => console.error("Failed to load categories:", err))
-        .finally(() => setLoading(false));
-    }
-  }, [isOpen]);
-
-  const handleSelect = async (categoryId: number) => {
-    try {
-      await onAdd(categoryId);
-      setIsOpen(false);
-    } catch (err) {
-      console.error("Failed to add to category:", err);
-    }
-  };
-
-  const flattenTree = (nodes: CategoryTreeNode[]): CategoryTreeNode[] => {
-    const result: CategoryTreeNode[] = [];
-    const flatten = (items: CategoryTreeNode[]) => {
-      for (const item of items) {
-        result.push(item);
-        if (item.children.length > 0) {
-          flatten(item.children);
-        }
-      }
-    };
-    flatten(nodes);
-    return result;
-  };
-
-  if (!isOpen) {
-    return (
-      <button
-        className="btn btn-sm"
-        onClick={() => setIsOpen(true)}
-        title={t.categories.addToCategory}
-      >
-        {t.categories.addToCategoryButton}
-      </button>
-    );
-  }
-
-  const flatCategories = flattenTree(tree);
-
-  return (
-    <div className="category-dropdown">
-      <div className="category-dropdown-header">
-        <span>{t.categories.addToCategoryTitle}</span>
-        <button className="btn btn-sm" onClick={() => setIsOpen(false)}>
-          &times;
-        </button>
-      </div>
-      {loading ? (
-        <div className="category-dropdown-loading">{t.categories.loading}</div>
-      ) : flatCategories.length === 0 ? (
-        <div className="category-dropdown-empty">{t.categories.noCategories}</div>
-      ) : (
-        <div className="category-dropdown-list">
-          {flatCategories.map((cat) => (
-            <button
-              key={cat.id}
-              className="category-dropdown-item"
-              onClick={() => handleSelect(cat.id)}
-            >
-              {cat.icon && <span className="category-icon">{cat.icon}</span>}
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

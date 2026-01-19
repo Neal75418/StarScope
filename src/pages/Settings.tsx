@@ -2,7 +2,7 @@
  * Settings page - export data and manage webhooks.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import {
   Webhook,
   WebhookCreate,
@@ -60,7 +60,7 @@ export function Settings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCreateWebhook = async (e: React.FormEvent) => {
+  const handleCreateWebhook = async (e: FormEvent) => {
     e.preventDefault();
     if (!newWebhook.name || !newWebhook.url) return;
 
@@ -75,7 +75,7 @@ export function Settings() {
       });
       setShowAddWebhook(false);
       toast.success(t.settings.webhooks.toast.created);
-      loadWebhooks();
+      await loadWebhooks();
     } catch (err) {
       toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
@@ -93,7 +93,7 @@ export function Settings() {
     try {
       await deleteWebhook(deleteConfirm.webhookId);
       toast.success(t.settings.webhooks.toast.deleted);
-      loadWebhooks();
+      await loadWebhooks();
     } catch (err) {
       toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
@@ -110,7 +110,7 @@ export function Settings() {
       } else {
         toast.error(t.settings.webhooks.toast.testFailed);
       }
-      loadWebhooks();
+      await loadWebhooks();
     } catch (err) {
       toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     } finally {
@@ -121,7 +121,7 @@ export function Settings() {
   const handleToggleWebhook = async (id: number) => {
     try {
       await toggleWebhook(id);
-      loadWebhooks();
+      await loadWebhooks();
     } catch (err) {
       toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
     }

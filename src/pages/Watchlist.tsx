@@ -83,7 +83,7 @@ export function Watchlist() {
       }
       setIsLoading(false);
     };
-    init();
+    void init();
   }, [checkConnection, loadRepos]);
 
   // Load category filter

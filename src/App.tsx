@@ -3,7 +3,7 @@
  * Main application entry point with theme and i18n support.
  */
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense, ReactNode } from "react";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   StarIcon,
@@ -89,7 +89,7 @@ function App() {
     }
   };
 
-  const navItems: { id: Page; label: string; icon: React.ReactNode }[] = [
+  const navItems: { id: Page; label: string; icon: ReactNode }[] = [
     { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={16} /> },
     { id: "trends", label: t.nav.trends, icon: <GraphIcon size={16} /> },
     { id: "signals", label: t.nav.signals, icon: <PulseIcon size={16} /> },
