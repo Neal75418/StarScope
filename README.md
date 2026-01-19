@@ -3,6 +3,8 @@
 **GitHub Project Intelligence for Engineers**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/Neal75418/StarScope/actions/workflows/test.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/test.yml)
+[![Release](https://github.com/Neal75418/StarScope/actions/workflows/release.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/release.yml)
 
 StarScope 是一個開源的**桌面工具**，幫工程師用「動能」而非「絕對數字」來觀察 GitHub 專案趨勢。
 
@@ -42,6 +44,10 @@ StarScope 是一個開源的**桌面工具**，幫工程師用「動能」而非
   - CSV/JSON 資料匯出
   - Webhook 整合（Slack/Discord）
   - 週報摘要產生
+
+- **多語言支援** — 英文/繁體中文雙語介面
+  - 語言切換即時生效
+  - 主題切換（淺色/深色）
 
 ---
 
@@ -116,13 +122,13 @@ graph TB
 
 - Node.js 18+
 - Rust (Tauri 需要)
-- Python 3.9+
+- Python 3.12+
 
 ### 快速開始
 
 ```bash
 # Clone 專案
-git clone https://github.com/your-username/StarScope.git
+git clone https://github.com/Neal75418/StarScope.git
 cd StarScope
 
 # 安裝前端依賴
@@ -292,7 +298,20 @@ StarScope/
 - [x] CSV/JSON 資料匯出
 - [x] Webhook 整合（Slack/Discord/Generic）
 - [x] 週報/日報摘要產生
-- [ ] 完整桌面打包（DMG/EXE/AppImage）
+- [x] 完整桌面打包（DMG/EXE/AppImage）
+
+### Phase 7 — 國際化 ✅
+
+- [x] i18n 基礎架構 (React Context + TypeScript)
+- [x] 英文 (EN) / 繁體中文 (zh-TW) 雙語支援
+- [x] 所有 UI 元件國際化 (120+ 處)
+- [x] 主題切換 (Light/Dark Mode)
+
+### Phase 8 — GitHub 整合 ✅
+
+- [x] GitHub OAuth Device Flow 認證
+- [x] API Rate Limit 顯示
+- [x] 連接狀態管理 (連接/斷開)
 
 ---
 
