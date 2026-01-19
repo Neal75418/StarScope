@@ -29,11 +29,13 @@ from services.scheduler import start_scheduler, stop_scheduler
 setup_logging(level="INFO")
 
 
+from typing import AsyncGenerator
+
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """
     Application lifespan handler.
     Initializes database on startup, starts scheduler.

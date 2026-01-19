@@ -89,6 +89,16 @@ npm run test:e2e:ui           # 互動式 UI 模式
 npm run test:e2e:headed       # 顯示瀏覽器視窗執行
 ```
 
+### 單元測試 (Vitest)
+```bash
+npm run test                  # 執行所有單元測試
+npm run test:ui               # Vitest UI 模式
+npm run test:coverage         # 執行測試並產生覆蓋率報告
+npm run test:watch            # Watch 模式
+```
+
+> **測試覆蓋率**: 81.73% (263 個測試案例)
+
 ### 完整開發流程
 ```bash
 # 終端機 1：啟動 Python sidecar
@@ -103,7 +113,9 @@ npm run tauri dev
 ### 前端 (src/)
 - `pages/` - 主要頁面：Watchlist、Trends、Signals、Compare、Settings
 - `components/` - 可重用元件：RepoCard、StarsChart、HealthBadge、GitHubConnection
+- `components/__tests__/` - **Vitest 單元測試 (263 個測試案例)**
 - `api/client.ts` - 與 sidecar 通訊的 API 客戶端函式
+- `api/__tests__/` - API 客戶端測試
 
 ### Sidecar (sidecar/)
 - `routers/` - FastAPI 端點（repos、alerts、webhooks、github_auth 等）
