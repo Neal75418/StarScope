@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "StarScope",
         "width": 1000,
         "height": 700,

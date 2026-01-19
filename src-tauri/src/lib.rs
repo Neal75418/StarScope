@@ -4,6 +4,35 @@ use tauri::{
     Emitter, Manager,
 };
 
+#[cfg(target_os = "macos")]
+use objc2_app_kit::{NSWindow, NSWindowButton, NSWindowCollectionBehavior};
+
+/// Disable the native macOS fullscreen button to work around
+/// a crash in macOS 26 beta during fullscreen transitions.
+/// See: https://github.com/tauri-apps/tauri/issues/11336
+#[cfg(target_os = "macos")]
+fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
+    let _ = window.with_webview(|webview| {
+        // Safety: webview.ns_window() returns a valid NSWindow pointer on macOS
+        #[allow(clippy::undocumented_unsafe_blocks)]
+        unsafe {
+            let ns_window_ptr = webview.ns_window();
+            let ns_window: &NSWindow = &*(ns_window_ptr as *const NSWindow);
+
+            // Method 1: Remove fullscreen capability from collection behavior
+            let mut behavior = ns_window.collectionBehavior();
+            behavior.remove(NSWindowCollectionBehavior::FullScreenPrimary);
+            behavior.remove(NSWindowCollectionBehavior::FullScreenAuxiliary);
+            ns_window.setCollectionBehavior(behavior);
+
+            // Method 2: Disable the zoom button (green button) directly
+            if let Some(zoom_button) = ns_window.standardWindowButton(NSWindowButton::ZoomButton) {
+                zoom_button.setEnabled(false);
+            }
+        }
+    });
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -16,6 +45,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
+            // Disable fullscreen button on macOS to prevent crash in macOS 26 beta
+            #[cfg(target_os = "macos")]
+            if let Some(window) = app.get_webview_window("main") {
+                disable_fullscreen_button(&window);
+            }
+
             // Create tray menu
             let show_item = MenuItem::with_id(app, "show", "Show StarScope", true, None::<&str>)?;
             let refresh_item = MenuItem::with_id(app, "refresh", "Refresh All", true, None::<&str>)?;
