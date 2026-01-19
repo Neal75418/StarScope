@@ -121,6 +121,7 @@ function App() {
                   {navItems.map((item) => (
                     <button
                       key={item.id}
+                      data-testid={`nav-${item.id}`}
                       className={`nav-item ${currentPage === item.id ? "active" : ""}`}
                       onClick={() => setCurrentPage(item.id)}
                       aria-current={currentPage === item.id ? "page" : undefined}
@@ -139,6 +140,7 @@ function App() {
               <div className="nav-right">
                 {/* Language Toggle */}
                 <button
+                  data-testid="lang-toggle"
                   className="nav-action-btn"
                   onClick={toggleLanguage}
                   title={language === "en" ? "切換為繁體中文" : "Switch to English"}
@@ -150,6 +152,7 @@ function App() {
 
                 {/* Theme Toggle */}
                 <button
+                  data-testid="theme-toggle"
                   className="nav-action-btn"
                   onClick={toggleTheme}
                   title={
@@ -172,6 +175,7 @@ function App() {
 
                 {/* Settings */}
                 <button
+                  data-testid="nav-settings"
                   className={`nav-action-btn ${currentPage === "settings" ? "active" : ""}`}
                   onClick={() => setCurrentPage("settings")}
                   title={t.nav.settings}

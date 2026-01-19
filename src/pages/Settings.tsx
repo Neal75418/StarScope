@@ -146,17 +146,17 @@ export function Settings() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{t.settings.title}</h1>
+        <h1 data-testid="page-title">{t.settings.title}</h1>
         <p className="subtitle">{t.settings.subtitle}</p>
       </header>
 
       {/* GitHub Connection Section */}
-      <section className="settings-section">
+      <section className="settings-section" data-testid="github-section">
         <GitHubConnection />
       </section>
 
       {/* Export Section */}
-      <section className="settings-section">
+      <section className="settings-section" data-testid="export-section">
         <h2>{t.settings.export.title}</h2>
         <p className="settings-description">{t.settings.export.subtitle}</p>
 
@@ -216,7 +216,7 @@ export function Settings() {
       </section>
 
       {/* Webhooks Section */}
-      <section className="settings-section">
+      <section className="settings-section" data-testid="webhooks-section">
         <div className="settings-section-header">
           <div>
             <h2>{t.settings.webhooks.title}</h2>

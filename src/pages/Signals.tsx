@@ -187,7 +187,7 @@ export function Signals() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{t.signals.title}</h1>
+        <h1 data-testid="page-title">{t.signals.title}</h1>
         <p className="subtitle">{t.signals.subtitle}</p>
       </header>
 
@@ -226,9 +226,10 @@ export function Signals() {
       )}
 
       {/* Toolbar */}
-      <div className="signals-toolbar">
-        <div className="signals-filters">
+      <div className="signals-toolbar" data-testid="signals-toolbar">
+        <div className="signals-filters" data-testid="signals-filters">
           <select
+            data-testid="filter-type"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as EarlySignalType | "")}
             className="signals-select"
@@ -242,6 +243,7 @@ export function Signals() {
           </select>
 
           <select
+            data-testid="filter-severity"
             value={filterSeverity}
             onChange={(e) => setFilterSeverity(e.target.value as EarlySignalSeverity | "")}
             className="signals-select"
@@ -277,9 +279,9 @@ export function Signals() {
       </div>
 
       {/* Signals List */}
-      <div className="signals-list">
+      <div className="signals-list" data-testid="signals-list">
         {signals.length === 0 ? (
-          <div className="signals-empty">
+          <div className="signals-empty" data-testid="empty-state">
             <p>{t.signals.emptyState.noSignals}</p>
             <p className="hint">
               {showAcknowledged

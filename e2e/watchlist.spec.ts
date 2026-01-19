@@ -6,42 +6,81 @@ test.describe("Watchlist Page", () => {
   });
 
   test("should display the watchlist page", async ({ page }) => {
-    await expect(page.locator("text=Watchlist")).toBeVisible();
+    await expect(page.getByTestId("page-title")).toBeVisible();
   });
 
-  test("should show empty state when no repos", async ({ page }) => {
-    // Check for empty state or repo list
-    const content = page.locator("main");
-    await expect(content).toBeVisible();
+  test("should show empty state or repo list", async ({ page }) => {
+    // Check for either repo list or empty state
+    const repoList = page.getByTestId("repo-list");
+    await expect(repoList).toBeVisible();
   });
 
   test("should have add repo button", async ({ page }) => {
-    const addButton = page.locator('button:has-text("Add"), button[aria-label*="add"]');
-    await expect(addButton.first()).toBeVisible();
+    const addButton = page.getByTestId("add-repo-btn");
+    await expect(addButton).toBeVisible();
   });
 
-  test("should open add repo dialog", async ({ page }) => {
-    const addButton = page.locator('button:has-text("Add")').first();
-    if (await addButton.isVisible()) {
-      await addButton.click();
-      // Check for dialog or input field
-      await expect(page.locator('input[placeholder*="owner"], input[placeholder*="repo"]').first()).toBeVisible({ timeout: 5000 });
-    }
+  test("should open add repo dialog when clicking add button", async ({ page }) => {
+    const addButton = page.getByTestId("add-repo-btn");
+    await addButton.click();
+    // Check for dialog input field
+    await expect(
+      page.locator('input[placeholder*="owner"], input[placeholder*="repo"]').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("should navigate to trends page", async ({ page }) => {
-    const trendsLink = page.locator('a[href*="trends"], button:has-text("Trends")').first();
-    if (await trendsLink.isVisible()) {
-      await trendsLink.click();
-      await expect(page).toHaveURL(/trends/);
-    }
+    const trendsNav = page.getByTestId("nav-trends");
+    await trendsNav.click();
+    await expect(page).toHaveURL(/trends/);
+  });
+
+  test("should navigate to signals page", async ({ page }) => {
+    const signalsNav = page.getByTestId("nav-signals");
+    await signalsNav.click();
+    await expect(page).toHaveURL(/signals/);
+  });
+
+  test("should navigate to compare page", async ({ page }) => {
+    const compareNav = page.getByTestId("nav-compare");
+    await compareNav.click();
+    await expect(page).toHaveURL(/compare/);
   });
 
   test("should navigate to settings page", async ({ page }) => {
-    const settingsLink = page.locator('a[href*="settings"], button:has-text("Settings")').first();
-    if (await settingsLink.isVisible()) {
-      await settingsLink.click();
-      await expect(page).toHaveURL(/settings/);
-    }
+    const settingsNav = page.getByTestId("nav-settings");
+    await settingsNav.click();
+    await expect(page).toHaveURL(/settings/);
+  });
+
+  test("should toggle theme", async ({ page }) => {
+    const themeToggle = page.getByTestId("theme-toggle");
+    await expect(themeToggle).toBeVisible();
+
+    // Get initial theme
+    const html = page.locator("html");
+    const initialTheme = await html.getAttribute("data-theme");
+
+    // Click theme toggle
+    await themeToggle.click();
+
+    // Theme should change
+    const newTheme = await html.getAttribute("data-theme");
+    expect(newTheme).not.toBe(initialTheme);
+  });
+
+  test("should toggle language", async ({ page }) => {
+    const langToggle = page.getByTestId("lang-toggle");
+    await expect(langToggle).toBeVisible();
+
+    // Get initial language indicator
+    const initialLang = await langToggle.textContent();
+
+    // Click language toggle
+    await langToggle.click();
+
+    // Language should change
+    const newLang = await langToggle.textContent();
+    expect(newLang).not.toBe(initialLang);
   });
 });

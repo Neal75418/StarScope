@@ -247,7 +247,7 @@ export function Watchlist() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{t.watchlist.title}</h1>
+        <h1 data-testid="page-title">{t.watchlist.title}</h1>
         <p className="subtitle">{t.watchlist.subtitle}</p>
       </header>
 
@@ -259,10 +259,19 @@ export function Watchlist() {
 
         <div className="watchlist-main">
           <div className="toolbar">
-            <button onClick={() => setIsDialogOpen(true)} className="btn btn-primary">
+            <button
+              data-testid="add-repo-btn"
+              onClick={() => setIsDialogOpen(true)}
+              className="btn btn-primary"
+            >
               + {t.watchlist.addRepo}
             </button>
-            <button onClick={handleRefreshAll} disabled={isRefreshing} className="btn">
+            <button
+              data-testid="refresh-all-btn"
+              onClick={handleRefreshAll}
+              disabled={isRefreshing}
+              className="btn"
+            >
               {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
             </button>
             {selectedCategoryId && (
@@ -282,9 +291,9 @@ export function Watchlist() {
             </div>
           )}
 
-          <div className="repo-list">
+          <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
-              <div className="empty-state">
+              <div className="empty-state" data-testid="empty-state">
                 {selectedCategoryId ? (
                   <p>{t.watchlist.empty.noCategory}</p>
                 ) : repos.length === 0 ? (

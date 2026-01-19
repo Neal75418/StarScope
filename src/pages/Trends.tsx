@@ -92,15 +92,16 @@ export function Trends() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{t.trends.title}</h1>
+        <h1 data-testid="page-title">{t.trends.title}</h1>
         <p className="subtitle">{t.trends.subtitle}</p>
       </header>
 
       <div className="toolbar">
-        <div className="sort-tabs">
+        <div className="sort-tabs" data-testid="sort-tabs">
           {SORT_KEYS.map((key) => (
             <button
               key={key}
+              data-testid={`sort-${key}`}
               className={`sort-tab ${sortBy === key ? "active" : ""}`}
               onClick={() => setSortBy(key)}
             >
@@ -111,11 +112,11 @@ export function Trends() {
       </div>
 
       {trends.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state" data-testid="empty-state">
           <p>{t.trends.empty}</p>
         </div>
       ) : (
-        <div className="trends-table">
+        <div className="trends-table" data-testid="trends-table">
           <table>
             <thead>
               <tr>

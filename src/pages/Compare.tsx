@@ -126,7 +126,7 @@ export function Compare() {
   return (
     <div className="page">
       <header className="page-header">
-        <h1>{t.compare.title}</h1>
+        <h1 data-testid="page-title">{t.compare.title}</h1>
         <p className="subtitle">{t.compare.subtitle}</p>
       </header>
 
@@ -135,7 +135,11 @@ export function Compare() {
         <div className="compare-sidebar">
           <div className="compare-sidebar-header">
             <h3>{t.compare.sidebar.title}</h3>
-            <button className="btn btn-sm" onClick={() => setShowCreateForm(!showCreateForm)}>
+            <button
+              data-testid="create-group-btn"
+              className="btn btn-sm"
+              onClick={() => setShowCreateForm(!showCreateForm)}
+            >
               +
             </button>
           </div>
@@ -170,9 +174,11 @@ export function Compare() {
             </form>
           )}
 
-          <div className="compare-group-list">
+          <div className="compare-group-list" data-testid="group-list">
             {groups.length === 0 ? (
-              <div className="compare-empty">{t.compare.noGroups}</div>
+              <div className="compare-empty" data-testid="empty-state">
+                {t.compare.noGroups}
+              </div>
             ) : (
               groups.map((group) => (
                 <div
