@@ -2,15 +2,15 @@
  * Unit tests for HealthBadge component
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { userEvent } from '@testing-library/user-event';
-import { HealthBadge } from '../HealthBadge';
-import * as apiClient from '../../api/client';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
+import { HealthBadge } from "../HealthBadge";
+import * as apiClient from "../../api/client";
 
 // Mock API client
-vi.mock('../../api/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../api/client')>();
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
   return {
     ...actual,
     getHealthScoreSummary: vi.fn(),
@@ -20,36 +20,36 @@ vi.mock('../../api/client', async (importOriginal) => {
 });
 
 // Mock i18n
-vi.mock('../../i18n', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../i18n')>();
+vi.mock("../../i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../i18n")>();
   return {
     ...actual,
     useI18n: () => ({
       t: {
         healthScore: {
-          failedToLoad: 'Failed to load health score',
-          calculationFailed: 'Calculation failed',
-          clickToCalculate: 'Click to calculate health score',
+          failedToLoad: "Failed to load health score",
+          calculationFailed: "Calculation failed",
+          clickToCalculate: "Click to calculate health score",
         },
         health: {
-          titleFormat: 'Score: {score}, Grade: {grade}',
+          titleFormat: "Score: {score}, Grade: {grade}",
         },
       },
     }),
   };
 });
 
-describe('HealthBadge', () => {
+describe("HealthBadge", () => {
   const mockSummary = {
     repo_id: 1,
     overall_score: 85,
-    grade: 'A',
-    calculated_at: '2024-01-10T00:00:00Z',
+    grade: "A",
+    calculated_at: "2024-01-10T00:00:00Z",
   };
 
   const mockFullDetails = {
     ...mockSummary,
-    repo_name: 'facebook/react',
+    repo_name: "facebook/react",
     issue_response_score: 90,
     pr_merge_score: 85,
     release_cadence_score: 80,
@@ -64,62 +64,62 @@ describe('HealthBadge', () => {
     vi.clearAllMocks();
   });
 
-  it('shows loading state initially', () => {
+  it("shows loading state initially", () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockImplementation(
       () => new Promise(() => {}) // Never resolves
     );
 
     render(<HealthBadge repoId={1} />);
 
-    expect(screen.getByText('...')).toBeInTheDocument();
-    expect(screen.getByText('...')).toHaveClass('health-badge-loading');
+    expect(screen.getByText("...")).toBeInTheDocument();
+    expect(screen.getByText("...")).toHaveClass("health-badge-loading");
   });
 
-  it('displays health score badge when data is loaded', async () => {
+  it("displays health score badge when data is loaded", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockResolvedValue(mockSummary);
 
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText("A")).toBeInTheDocument();
     });
 
-    const badge = screen.getByRole('button', { name: /A/i });
-    expect(badge).toHaveClass('health-badge');
+    const badge = screen.getByRole("button", { name: /A/i });
+    expect(badge).toHaveClass("health-badge");
   });
 
-  it('shows empty state with calculate button when no score exists (404)', async () => {
+  it("shows empty state with calculate button when no score exists (404)", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockRejectedValue({ status: 404 });
 
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('?')).toBeInTheDocument();
+      expect(screen.getByText("?")).toBeInTheDocument();
     });
 
-    const button = screen.getByRole('button', { name: '?' });
-    expect(button).toHaveClass('health-badge-empty');
-    expect(button).toHaveAttribute('title', 'Click to calculate health score');
+    const button = screen.getByRole("button", { name: "?" });
+    expect(button).toHaveClass("health-badge-empty");
+    expect(button).toHaveAttribute("title", "Click to calculate health score");
   });
 
-  it('shows error state when loading fails (non-404 error)', async () => {
+  it("shows error state when loading fails (non-404 error)", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockRejectedValue({
       status: 500,
-      detail: 'Internal server error',
+      detail: "Internal server error",
     });
 
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('!')).toBeInTheDocument();
+      expect(screen.getByText("!")).toBeInTheDocument();
     });
 
-    const errorBadge = screen.getByText('!');
-    expect(errorBadge).toHaveClass('health-badge-error');
-    expect(errorBadge).toHaveAttribute('title', 'Failed to load health score');
+    const errorBadge = screen.getByText("!");
+    expect(errorBadge).toHaveClass("health-badge-error");
+    expect(errorBadge).toHaveAttribute("title", "Failed to load health score");
   });
 
-  it('calculates health score when clicking empty badge', async () => {
+  it("calculates health score when clicking empty badge", async () => {
     const user = userEvent.setup();
     vi.mocked(apiClient.getHealthScoreSummary).mockRejectedValue({ status: 404 });
     vi.mocked(apiClient.calculateHealthScore).mockResolvedValue(mockFullDetails);
@@ -127,10 +127,10 @@ describe('HealthBadge', () => {
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('?')).toBeInTheDocument();
+      expect(screen.getByText("?")).toBeInTheDocument();
     });
 
-    const calculateButton = screen.getByRole('button', { name: '?' });
+    const calculateButton = screen.getByRole("button", { name: "?" });
     await user.click(calculateButton);
 
     await waitFor(() => {
@@ -139,11 +139,11 @@ describe('HealthBadge', () => {
 
     // After calculation, should show the grade
     await waitFor(() => {
-      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText("A")).toBeInTheDocument();
     });
   });
 
-  it('calls onShowDetails when clicking existing badge', async () => {
+  it("calls onShowDetails when clicking existing badge", async () => {
     const user = userEvent.setup();
     const mockOnShowDetails = vi.fn();
     vi.mocked(apiClient.getHealthScoreSummary).mockResolvedValue(mockSummary);
@@ -152,10 +152,10 @@ describe('HealthBadge', () => {
     render(<HealthBadge repoId={1} onShowDetails={mockOnShowDetails} />);
 
     await waitFor(() => {
-      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText("A")).toBeInTheDocument();
     });
 
-    const badge = screen.getByRole('button', { name: /A/i });
+    const badge = screen.getByRole("button", { name: /A/i });
     await user.click(badge);
 
     await waitFor(() => {
@@ -164,36 +164,36 @@ describe('HealthBadge', () => {
     });
   });
 
-  it('applies correct color for grade A', async () => {
+  it("applies correct color for grade A", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockResolvedValue({
       ...mockSummary,
-      grade: 'A',
+      grade: "A",
     });
 
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      const badge = screen.getByRole('button', { name: /A/i });
-      expect(badge).toHaveStyle({ backgroundColor: '#166534' });
+      const badge = screen.getByRole("button", { name: /A/i });
+      expect(badge).toHaveStyle({ backgroundColor: "#166534" });
     });
   });
 
-  it('applies correct color for grade F', async () => {
+  it("applies correct color for grade F", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockResolvedValue({
       ...mockSummary,
-      grade: 'F',
+      grade: "F",
       overall_score: 35,
     });
 
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      const badge = screen.getByRole('button', { name: /F/i });
-      expect(badge).toHaveStyle({ backgroundColor: '#991b1b' });
+      const badge = screen.getByRole("button", { name: /F/i });
+      expect(badge).toHaveStyle({ backgroundColor: "#991b1b" });
     });
   });
 
-  it('shows calculating state when calculate button is clicked', async () => {
+  it("shows calculating state when calculate button is clicked", async () => {
     const user = userEvent.setup();
     vi.mocked(apiClient.getHealthScoreSummary).mockRejectedValue({ status: 404 });
     vi.mocked(apiClient.calculateHealthScore).mockImplementation(
@@ -203,25 +203,25 @@ describe('HealthBadge', () => {
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText('?')).toBeInTheDocument();
+      expect(screen.getByText("?")).toBeInTheDocument();
     });
 
-    const calculateButton = screen.getByRole('button', { name: '?' });
+    const calculateButton = screen.getByRole("button", { name: "?" });
     await user.click(calculateButton);
 
     // Should show calculating state
     await waitFor(() => {
-      expect(screen.getByText('...')).toBeInTheDocument();
+      expect(screen.getByText("...")).toBeInTheDocument();
     });
 
     // Button should be disabled during calculation
     await waitFor(() => {
-      const button = screen.getByRole('button');
+      const button = screen.getByRole("button");
       expect(button).toBeDisabled();
     });
   });
 
-  it('cleans up async operations on unmount', async () => {
+  it("cleans up async operations on unmount", async () => {
     vi.mocked(apiClient.getHealthScoreSummary).mockResolvedValue(mockSummary);
 
     const { unmount } = render(<HealthBadge repoId={1} />);
