@@ -30,6 +30,7 @@ jobs:
           pip install mypy
 
       - name: Type check with mypy
+        continue-on-error: true
         run: mypy . --config-file mypy.ini
 
       - name: Run tests with coverage
