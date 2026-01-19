@@ -52,21 +52,24 @@ describe('CategorySidebar', () => {
   const mockOnCategoriesChange = vi.fn();
 
   const mockCategoryTree = {
+    total: 3,
     tree: [
       {
         id: 1,
         name: 'Frontend',
-        parent_id: null,
+        description: null,
         icon: '🎨',
         color: '#3b82f6',
+        sort_order: 0,
         repo_count: 5,
         children: [
           {
             id: 2,
             name: 'React',
-            parent_id: 1,
+            description: null,
             icon: '⚛️',
             color: null,
+            sort_order: 0,
             repo_count: 3,
             children: [],
           },
@@ -75,9 +78,10 @@ describe('CategorySidebar', () => {
       {
         id: 3,
         name: 'Backend',
-        parent_id: null,
+        description: null,
         icon: '⚙️',
         color: '#10b981',
+        sort_order: 1,
         repo_count: 2,
         children: [],
       },
@@ -187,7 +191,7 @@ describe('CategorySidebar', () => {
 
   it('shows add category form when add button clicked', async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: [] });
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ total: 0, tree: [] });
 
     render(
       <CategorySidebar
@@ -207,8 +211,8 @@ describe('CategorySidebar', () => {
 
   it('creates new category', async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: [] });
-    vi.mocked(apiClient.createCategory).mockResolvedValue({ id: 1, name: 'New Category', parent_id: null, icon: null, color: null });
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ total: 0, tree: [] });
+    vi.mocked(apiClient.createCategory).mockResolvedValue({ id: 1, name: 'New Category', description: null, icon: null, color: null, parent_id: null, sort_order: 0, created_at: '2026-01-19', repo_count: 0 });
 
     render(
       <CategorySidebar

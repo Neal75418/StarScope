@@ -41,6 +41,8 @@ vi.mock('../../i18n', async (importOriginal) => {
 
 describe('SimilarRepos', () => {
   const mockSimilarRepos = {
+    repo_id: 1,
+    total: 2,
     similar: [
       {
         repo_id: 2,
@@ -99,7 +101,7 @@ describe('SimilarRepos', () => {
   });
 
   it('shows empty state when no similar repos', async () => {
-    vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ similar: [] });
+    vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ repo_id: 1, total: 0, similar: [] });
 
     render(<SimilarRepos repoId={1} />);
 
@@ -180,7 +182,7 @@ describe('SimilarRepos', () => {
 describe('SimilarReposButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ similar: [] });
+    vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ repo_id: 1, total: 0, similar: [] });
   });
 
   it('renders button with text', () => {
