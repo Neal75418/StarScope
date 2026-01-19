@@ -63,7 +63,7 @@ describe("API Client", () => {
 
     it("extends Error", () => {
       const error = new ApiError(500, "Server error");
-      expect(error instanceof Error).toBe(true);
+      expect(error).toBeInstanceOf(Error);
     });
   });
 
