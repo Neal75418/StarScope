@@ -252,7 +252,7 @@ async def trigger_detection(
     """
     Manually trigger anomaly detection for all repos.
     """
-    result = await run_detection(db)
+    result = run_detection(db)
 
     return DetectionResultResponse(
         repos_scanned=result["repos_scanned"],

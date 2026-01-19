@@ -49,14 +49,24 @@ def test_db(test_engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture(scope="function")
-def client(test_db) -> Generator[TestClient, None, None]:
+def test_session_local(test_engine):
+    """Create a session factory bound to the test engine."""
+    return sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+
+@pytest.fixture(scope="function")
+def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
     """
     Create a test client with database override.
     Mocks the scheduler to prevent background tasks during tests.
+    Also patches SessionLocal to use the test database for services that bypass DI.
     """
     # Mock scheduler to prevent it from running during tests
+    # Also patch SessionLocal so services like settings.py use test DB
     with patch("services.scheduler.start_scheduler") as mock_start, \
-         patch("services.scheduler.stop_scheduler") as mock_stop:
+         patch("services.scheduler.stop_scheduler") as mock_stop, \
+         patch("db.database.SessionLocal", test_session_local), \
+         patch("services.settings.SessionLocal", test_session_local):
         mock_start.return_value = None
         mock_stop.return_value = None
 

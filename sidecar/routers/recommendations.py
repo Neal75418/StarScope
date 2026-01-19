@@ -106,7 +106,7 @@ async def recalculate_all(
     Recalculate similarity scores for all repositories in the watchlist.
     This is a potentially slow operation for large watchlists.
     """
-    result = await recalculate_all_similarities(db)
+    result = recalculate_all_similarities(db)
 
     return RecalculateAllResponse(
         total_repos=result["total_repos"],
