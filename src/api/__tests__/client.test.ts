@@ -616,4 +616,441 @@ describe("API Client", () => {
       expect(result.overall_score).toBe(85);
     });
   });
+
+  // Comparison group additional tests
+  describe("deleteComparisonGroup", () => {
+    it("deletes a group", async () => {
+      const { deleteComparisonGroup } = await import("../client");
+      const mockResponse = { status: "success", message: "Deleted" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await deleteComparisonGroup(1);
+      expect(result.status).toBe("success");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/comparisons/1"),
+        expect.objectContaining({ method: "DELETE" })
+      );
+    });
+  });
+
+  describe("addRepoToComparison", () => {
+    it("adds repo to group", async () => {
+      const { addRepoToComparison } = await import("../client");
+      const mockResponse = { status: "success", message: "Added" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await addRepoToComparison(1, 5);
+      expect(result.status).toBe("success");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/comparisons/1/repos/5"),
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+  });
+
+  describe("removeRepoFromComparison", () => {
+    it("removes repo from group", async () => {
+      const { removeRepoFromComparison } = await import("../client");
+      const mockResponse = { status: "success", message: "Removed" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await removeRepoFromComparison(1, 5);
+      expect(result.status).toBe("success");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/comparisons/1/repos/5"),
+        expect.objectContaining({ method: "DELETE" })
+      );
+    });
+  });
+
+  describe("getComparisonChart", () => {
+    it("returns chart data", async () => {
+      const { getComparisonChart } = await import("../client");
+      const mockResponse = {
+        group_id: 1,
+        time_range: "30d",
+        chart_data: [],
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getComparisonChart(1, "30d");
+      expect(result.group_id).toBe(1);
+    });
+  });
+
+  describe("getVelocityComparison", () => {
+    it("returns velocity data", async () => {
+      const { getVelocityComparison } = await import("../client");
+      const mockResponse = {
+        group_id: 1,
+        repos: [],
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getVelocityComparison(1);
+      expect(result.group_id).toBe(1);
+    });
+  });
+
+  // Early signal additional tests
+  describe("getRepoSignals", () => {
+    it("returns signals for repo", async () => {
+      const { getRepoSignals } = await import("../client");
+      const mockResponse = { signals: [], total: 0 };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getRepoSignals(1);
+      expect(result.total).toBe(0);
+    });
+
+    it("includes options in query", async () => {
+      const { getRepoSignals } = await import("../client");
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ signals: [], total: 0 }),
+      });
+
+      await getRepoSignals(1, { include_acknowledged: true });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("include_acknowledged=true"),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe("acknowledgeSignal", () => {
+    it("acknowledges a signal", async () => {
+      const { acknowledgeSignal } = await import("../client");
+      const mockResponse = { status: "success", message: "Acknowledged" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await acknowledgeSignal(1);
+      expect(result.status).toBe("success");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/early-signals/1/acknowledge"),
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+  });
+
+  describe("acknowledgeAllSignals", () => {
+    it("acknowledges all signals", async () => {
+      const { acknowledgeAllSignals } = await import("../client");
+      const mockResponse = { status: "success", message: "All acknowledged" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await acknowledgeAllSignals();
+      expect(result.status).toBe("success");
+    });
+
+    it("filters by signal type", async () => {
+      const { acknowledgeAllSignals } = await import("../client");
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "success", message: "Done" }),
+      });
+
+      await acknowledgeAllSignals("rising_star");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("signal_type=rising_star"),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe("triggerDetection", () => {
+    it("triggers anomaly detection", async () => {
+      const { triggerDetection } = await import("../client");
+      const mockResponse = {
+        repos_scanned: 10,
+        signals_detected: 2,
+        by_type: {},
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await triggerDetection();
+      expect(result.repos_scanned).toBe(10);
+    });
+  });
+
+  describe("deleteSignal", () => {
+    it("deletes a signal", async () => {
+      const { deleteSignal } = await import("../client");
+      const mockResponse = { status: "success", message: "Deleted" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await deleteSignal(1);
+      expect(result.status).toBe("success");
+    });
+  });
+
+  // Export URL tests
+  describe("Export URL functions", () => {
+    it("getExportWatchlistUrl returns correct URL", async () => {
+      const { getExportWatchlistUrl } = await import("../client");
+      const url = getExportWatchlistUrl("json");
+      expect(url).toContain("/export/watchlist.json");
+    });
+
+    it("getExportHistoryUrl returns correct URL", async () => {
+      const { getExportHistoryUrl } = await import("../client");
+      const url = getExportHistoryUrl(1, "csv", 30);
+      expect(url).toContain("/export/history/1.csv");
+      expect(url).toContain("days=30");
+    });
+
+    it("getExportSignalsUrl returns correct URL", async () => {
+      const { getExportSignalsUrl } = await import("../client");
+      const url = getExportSignalsUrl("json", true);
+      expect(url).toContain("signals.json");
+      expect(url).toContain("include_acknowledged=true");
+    });
+
+    it("getExportFullReportUrl returns correct URL", async () => {
+      const { getExportFullReportUrl } = await import("../client");
+      const url = getExportFullReportUrl();
+      expect(url).toContain("/export/full-report.json");
+    });
+
+    it("getDigestUrl returns correct URL", async () => {
+      const { getDigestUrl } = await import("../client");
+      const url = getDigestUrl("daily", "md");
+      expect(url).toContain("/export/digest/daily.md");
+    });
+  });
+
+  // Webhook tests
+  describe("Webhook API", () => {
+    it("listWebhooks returns webhooks", async () => {
+      const { listWebhooks } = await import("../client");
+      const mockResponse = { webhooks: [], total: 0 };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await listWebhooks();
+      expect(result.total).toBe(0);
+    });
+
+    it("getWebhook returns single webhook", async () => {
+      const { getWebhook } = await import("../client");
+      const mockResponse = { id: 1, name: "Test", webhook_type: "slack" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWebhook(1);
+      expect(result.id).toBe(1);
+    });
+
+    it("createWebhook creates webhook", async () => {
+      const { createWebhook } = await import("../client");
+      const mockResponse = { id: 1, name: "New Webhook" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await createWebhook({
+        name: "New Webhook",
+        webhook_type: "slack",
+        url: "https://hooks.slack.com/test",
+        triggers: ["signal_detected"],
+      });
+      expect(result.name).toBe("New Webhook");
+    });
+
+    it("updateWebhook updates webhook", async () => {
+      const { updateWebhook } = await import("../client");
+      const mockResponse = { id: 1, name: "Updated" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await updateWebhook(1, { name: "Updated" });
+      expect(result.name).toBe("Updated");
+    });
+
+    it("deleteWebhook deletes webhook", async () => {
+      const { deleteWebhook } = await import("../client");
+      const mockResponse = { status: "success", message: "Deleted" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await deleteWebhook(1);
+      expect(result.status).toBe("success");
+    });
+
+    it("testWebhook tests webhook", async () => {
+      const { testWebhook } = await import("../client");
+      const mockResponse = { status: "success", message: "Sent", success: true };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await testWebhook(1);
+      expect(result.success).toBe(true);
+    });
+
+    it("toggleWebhook toggles webhook", async () => {
+      const { toggleWebhook } = await import("../client");
+      const mockResponse = { status: "success", enabled: false };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await toggleWebhook(1);
+      expect(result.enabled).toBe(false);
+    });
+
+    it("getWebhookLogs returns logs", async () => {
+      const { getWebhookLogs } = await import("../client");
+      const mockResponse = { webhook_id: 1, logs: [], total: 0 };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWebhookLogs(1, 10);
+      expect(result.webhook_id).toBe(1);
+    });
+
+    it("getWebhookTypes returns types", async () => {
+      const { getWebhookTypes } = await import("../client");
+      const mockResponse = { types: [], triggers: [], severities: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getWebhookTypes();
+      expect(result.types).toEqual([]);
+    });
+  });
+
+  // GitHub Auth tests
+  describe("GitHub Auth API", () => {
+    it("initiateDeviceFlow starts auth flow", async () => {
+      const { initiateDeviceFlow } = await import("../client");
+      const mockResponse = {
+        device_code: "abc123",
+        user_code: "ABCD-1234",
+        verification_uri: "https://github.com/login/device",
+        expires_in: 900,
+        interval: 5,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await initiateDeviceFlow();
+      expect(result.user_code).toBe("ABCD-1234");
+    });
+
+    it("pollAuthorization polls for auth", async () => {
+      const { pollAuthorization } = await import("../client");
+      const mockResponse = { status: "pending" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await pollAuthorization("abc123");
+      expect(result.status).toBe("pending");
+    });
+
+    it("getGitHubConnectionStatus returns status", async () => {
+      const { getGitHubConnectionStatus } = await import("../client");
+      const mockResponse = {
+        connected: true,
+        username: "testuser",
+        rate_limit_remaining: 5000,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await getGitHubConnectionStatus();
+      expect(result.connected).toBe(true);
+      expect(result.username).toBe("testuser");
+    });
+
+    it("disconnectGitHub disconnects", async () => {
+      const { disconnectGitHub } = await import("../client");
+      const mockResponse = { success: true, message: "Disconnected" };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await disconnectGitHub();
+      expect(result.success).toBe(true);
+    });
+  });
+
+  // listEarlySignals with options
+  describe("listEarlySignals with options", () => {
+    it("passes all options to query string", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ signals: [], total: 0 }),
+      });
+
+      await listEarlySignals({
+        signal_type: "rising_star",
+        severity: "high",
+        include_acknowledged: true,
+        include_expired: true,
+        limit: 10,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/signal_type=rising_star/),
+        expect.any(Object)
+      );
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/severity=high/),
+        expect.any(Object)
+      );
+    });
+  });
 });
