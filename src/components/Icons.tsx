@@ -204,3 +204,39 @@ export function ChevronDownIcon({ size = 16, className, ariaLabel }: IconProps) 
     </svg>
   );
 }
+
+// Search/Discover icon
+export function SearchIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z" />
+    </svg>
+  );
+}
+
+// Fork icon
+export function ForkIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z" />
+    </svg>
+  );
+}
+
+// Home icon (dashboard)
+export function HomeIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M6.906.664a1.749 1.749 0 0 1 2.187 0l5.25 4.2c.415.332.657.835.657 1.367v7.019A1.75 1.75 0 0 1 13.25 15h-3.5a.75.75 0 0 1-.75-.75V9H7v5.25a.75.75 0 0 1-.75.75h-3.5A1.75 1.75 0 0 1 1 13.25V6.23c0-.531.242-1.034.657-1.366l5.25-4.2Z" />
+    </svg>
+  );
+}
+
+// Bell icon (notifications)
+export function BellIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947V5Z" />
+    </svg>
+  );
+}

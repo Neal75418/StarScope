@@ -7,6 +7,7 @@ import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer } from "../components/Toast";
+import { AnimatedPage, AnimatedList, AnimatedListItem } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
@@ -40,12 +41,15 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
 }
 
 // Empty state component
-function EmptyState({ hasCategory, hasRepos }: { hasCategory: boolean; hasRepos: boolean }) {
+function EmptyState({
+  hasRepos,
+  hasSearch,
+}: {
+  hasRepos: boolean;
+  hasSearch: boolean;
+}) {
   const { t } = useI18n();
 
-  if (hasCategory) {
-    return <p>{t.watchlist.empty.noCategory}</p>;
-  }
   if (!hasRepos) {
     return (
       <>
@@ -54,10 +58,14 @@ function EmptyState({ hasCategory, hasRepos }: { hasCategory: boolean; hasRepos:
       </>
     );
   }
-  return <p>{t.watchlist.empty.noFilter}</p>;
+  if (hasSearch) {
+    return <p>{t.watchlist.empty.noSearch}</p>;
+  }
+  // Category filter active but no repos match
+  return <p>{t.watchlist.empty.noCategory}</p>;
 }
 
-// Repo list component
+// Repo list component with staggered animation
 function RepoList({
   repos,
   loadingRepoId,
@@ -74,19 +82,20 @@ function RepoList({
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
 }) {
   return (
-    <>
+    <AnimatedList>
       {repos.map((repo) => (
-        <RepoCard
-          key={repo.id}
-          repo={repo}
-          onFetch={onFetch}
-          onRemove={onRemove}
-          isLoading={loadingRepoId === repo.id}
-          selectedCategoryId={selectedCategoryId}
-          onRemoveFromCategory={onRemoveFromCategory}
-        />
+        <AnimatedListItem key={repo.id}>
+          <RepoCard
+            repo={repo}
+            onFetch={onFetch}
+            onRemove={onRemove}
+            isLoading={loadingRepoId === repo.id}
+            selectedCategoryId={selectedCategoryId}
+            onRemoveFromCategory={onRemoveFromCategory}
+          />
+        </AnimatedListItem>
       ))}
-    </>
+    </AnimatedList>
   );
 }
 
@@ -112,6 +121,8 @@ function Toolbar({
   selectedCategoryId,
   displayedCount,
   totalCount,
+  searchQuery,
+  onSearchChange,
 }: {
   onAddRepo: () => void;
   onRefreshAll: () => void;
@@ -123,11 +134,24 @@ function Toolbar({
   selectedCategoryId: number | null;
   displayedCount: number;
   totalCount: number;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }) {
   const { t } = useI18n();
 
   return (
     <div className="toolbar">
+      <div className="toolbar-search">
+        <input
+          type="text"
+          placeholder={t.watchlist.searchPlaceholder}
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="search-input"
+          data-testid="watchlist-search"
+          aria-label={t.watchlist.searchPlaceholder}
+        />
+      </div>
       <button data-testid="add-repo-btn" onClick={onAddRepo} className="btn btn-primary">
         + {t.watchlist.addRepo}
       </button>
@@ -159,7 +183,7 @@ function Toolbar({
           ? (t.watchlist.recalculating ?? "Calculating...")
           : (t.watchlist.recalculateAll ?? "Recalculate")}
       </button>
-      {selectedCategoryId && (
+      {(selectedCategoryId || searchQuery) && (
         <span className="filter-indicator">
           {interpolate(t.watchlist.showing, {
             count: displayedCount,
@@ -188,6 +212,7 @@ export function Watchlist() {
     dialogError,
     isAddingRepo,
     selectedCategoryId,
+    searchQuery,
     removeConfirm,
     toast,
     handleAddRepo,
@@ -203,6 +228,7 @@ export function Watchlist() {
     closeAddDialog,
     clearError,
     setSelectedCategoryId,
+    setSearchQuery,
   } = useWatchlist();
 
   // Category operations for add/remove repo from category
@@ -233,7 +259,7 @@ export function Watchlist() {
   }
 
   return (
-    <div className="page">
+    <AnimatedPage className="page">
       <header className="page-header">
         <h1 data-testid="page-title">{t.watchlist.title}</h1>
         <p className="subtitle">{t.watchlist.subtitle}</p>
@@ -257,6 +283,8 @@ export function Watchlist() {
             selectedCategoryId={selectedCategoryId}
             displayedCount={displayedRepos.length}
             totalCount={repos.length}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
           />
 
           {error && <ErrorBanner error={error} onClear={clearError} />}
@@ -264,7 +292,10 @@ export function Watchlist() {
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                <EmptyState hasCategory={selectedCategoryId !== null} hasRepos={repos.length > 0} />
+                <EmptyState
+                  hasRepos={repos.length > 0}
+                  hasSearch={searchQuery.trim().length > 0}
+                />
               </div>
             ) : (
               <RepoList
@@ -301,6 +332,6 @@ export function Watchlist() {
       />
 
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
-    </div>
+    </AnimatedPage>
   );
 }

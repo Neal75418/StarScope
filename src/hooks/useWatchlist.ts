@@ -116,6 +116,7 @@ export function useWatchlist() {
     dialogError: addDialog.dialogError,
     isAddingRepo: addDialog.isAddingRepo,
     selectedCategoryId: categoryFilter.selectedCategoryId,
+    searchQuery: categoryFilter.searchQuery,
     removeConfirm: removeDialog.removeConfirm,
     toast,
 
@@ -133,5 +134,6 @@ export function useWatchlist() {
     closeAddDialog: addDialog.closeAddDialog,
     clearError: useCallback(() => repoOps.setError(null), [repoOps]),
     setSelectedCategoryId: categoryFilter.setSelectedCategoryId,
+    setSearchQuery: categoryFilter.setSearchQuery,
   };
 }

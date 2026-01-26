@@ -20,6 +20,10 @@ from .response import (
     error_response,
     paginated_response,
 )
+from .discovery import (
+    DiscoveryRepo,
+    SearchResponse,
+)
 
 __all__ = [
     # Repo schemas
@@ -38,4 +42,7 @@ __all__ = [
     "success_response",
     "error_response",
     "paginated_response",
+    # Discovery schemas
+    "DiscoveryRepo",
+    "SearchResponse",
 ]

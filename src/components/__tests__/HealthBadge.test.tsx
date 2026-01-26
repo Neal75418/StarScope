@@ -57,6 +57,7 @@ describe("HealthBadge", () => {
     documentation_score: 100,
     dependency_score: 75,
     velocity_score: 88,
+    commit_activity_score: 82,
     metrics: null,
   };
 

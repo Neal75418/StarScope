@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
+import { AnimatedPage } from "../components/motion";
 import { CompareSidebar, CompareContent } from "../components/compare";
 import { useCompare } from "../hooks/useCompare";
 import { useI18n } from "../i18n";
@@ -25,7 +26,7 @@ export function Compare() {
   }
 
   return (
-    <div className="page">
+    <AnimatedPage className="page">
       <header className="page-header">
         <h1 data-testid="page-title">{t.compare.title}</h1>
         <p className="subtitle">{t.compare.subtitle}</p>
@@ -65,6 +66,6 @@ export function Compare() {
       />
 
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
-    </div>
+    </AnimatedPage>
   );
 }

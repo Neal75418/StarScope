@@ -59,6 +59,8 @@ class Repo(Base):
     signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    commit_activities: Mapped[List["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    languages: Mapped[List["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
     # Indexes
     __table_args__ = (
@@ -298,6 +300,7 @@ class HealthScore(Base):
     documentation_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     dependency_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     velocity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    commit_activity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Raw data for transparency
     avg_issue_response_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -307,6 +310,8 @@ class HealthScore(Base):
     has_readme: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)  # SQLite bool
     has_contributing: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
     has_license: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
+    total_commits_52w: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    avg_commits_per_week: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # Timestamps
     calculated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
@@ -698,3 +703,69 @@ class AppSetting(Base):
 
     def __repr__(self) -> str:
         return f"<AppSetting key={self.key}>"
+
+
+# ==================== Commit Activity Models ====================
+
+class CommitActivity(Base):
+    """
+    Weekly commit activity data for a repository.
+    Fetched from GitHub Stats API: /repos/{owner}/{repo}/stats/commit_activity
+    """
+    __tablename__ = "commit_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
+
+    # Week data
+    week_start: Mapped[date] = mapped_column(Date, nullable=False)  # ISO week start (Sunday)
+    commit_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    # Timestamps
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    # Relationship
+    repo: Mapped["Repo"] = relationship("Repo", back_populates="commit_activities")
+
+    # Indexes and constraints
+    __table_args__ = (
+        UniqueConstraint("repo_id", "week_start", name="uq_commit_activity"),
+        Index("ix_commit_activity_repo", "repo_id"),
+        Index("ix_commit_activity_week", "week_start"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<CommitActivity repo_id={self.repo_id} week={self.week_start} commits={self.commit_count}>"
+
+
+# ==================== Repository Languages Models ====================
+
+class RepoLanguage(Base):
+    """
+    Programming language breakdown for a repository.
+    Fetched from GitHub API: /repos/{owner}/{repo}/languages
+    """
+    __tablename__ = "repo_languages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
+
+    # Language data
+    language: Mapped[str] = mapped_column(String(100), nullable=False)
+    bytes: Mapped[int] = mapped_column(Integer, default=0)  # Bytes of code
+    percentage: Mapped[float] = mapped_column(Float, default=0.0)  # Calculated percentage
+
+    # Timestamps
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    # Relationship
+    repo: Mapped["Repo"] = relationship("Repo", back_populates="languages")
+
+    # Indexes and constraints
+    __table_args__ = (
+        UniqueConstraint("repo_id", "language", name="uq_repo_language"),
+        Index("ix_repo_languages_repo", "repo_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<RepoLanguage repo_id={self.repo_id} lang={self.language} {self.percentage:.1f}%>"

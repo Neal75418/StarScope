@@ -4,6 +4,7 @@
 
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
+import { AnimatedPage, AnimatedList, AnimatedListItem } from "../components/motion";
 import { SignalCard, SignalSummaryCards, SignalToolbar } from "../components/signals";
 import { useI18n } from "../i18n";
 import { useSignals } from "../hooks/useSignals";
@@ -30,7 +31,7 @@ export function Signals() {
   const hasUnacknowledged = signalsState.signals.some((s) => !s.acknowledged);
 
   return (
-    <div className="page">
+    <AnimatedPage className="page">
       <header className="page-header">
         <h1 data-testid="page-title">{t.signals.title}</h1>
         <p className="subtitle">{t.signals.subtitle}</p>
@@ -62,14 +63,17 @@ export function Signals() {
             </p>
           </div>
         ) : (
-          signalsState.signals.map((signal) => (
-            <SignalCard
-              key={signal.id}
-              signal={signal}
-              onAcknowledge={actions.handleAcknowledge}
-              onDelete={actions.openDeleteDialog}
-            />
-          ))
+          <AnimatedList>
+            {signalsState.signals.map((signal) => (
+              <AnimatedListItem key={signal.id}>
+                <SignalCard
+                  signal={signal}
+                  onAcknowledge={actions.handleAcknowledge}
+                  onDelete={actions.openDeleteDialog}
+                />
+              </AnimatedListItem>
+            ))}
+          </AnimatedList>
         )}
       </div>
 
@@ -101,6 +105,6 @@ export function Signals() {
       />
 
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
-    </div>
+    </AnimatedPage>
   );
 }

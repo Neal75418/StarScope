@@ -76,6 +76,7 @@ describe("HealthScorePanel", () => {
     documentation_score: 95,
     dependency_score: 70,
     velocity_score: 88,
+    commit_activity_score: 82,
     calculated_at: "2024-01-15T10:00:00Z",
     metrics: {
       avg_issue_response_hours: 12.5,
@@ -85,6 +86,8 @@ describe("HealthScorePanel", () => {
       has_readme: true,
       has_license: true,
       has_contributing: true,
+      total_commits_52w: 520,
+      avg_commits_per_week: 10,
     },
   };
 

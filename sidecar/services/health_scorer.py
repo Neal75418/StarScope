@@ -23,13 +23,14 @@ UTC_OFFSET_SUFFIX = "+00:00"
 
 # Score weights (must sum to 1.0)
 WEIGHTS = {
-    "issue_response": 0.20,
-    "pr_merge": 0.20,
-    "release_cadence": 0.15,
-    "bus_factor": 0.15,
+    "issue_response": 0.18,
+    "pr_merge": 0.18,
+    "release_cadence": 0.14,
+    "bus_factor": 0.14,
     "documentation": 0.10,
-    "dependency": 0.10,
-    "velocity": 0.10,
+    "dependency": 0.08,
+    "velocity": 0.08,
+    "commit_activity": 0.10,
 }
 
 
@@ -63,6 +64,10 @@ class HealthMetrics:
     # Velocity (from existing signals)
     star_velocity: float = 0.0
 
+    # Commit activity (from GitHub Stats API)
+    total_commits_52w: int = 0
+    avg_commits_per_week: float = 0.0
+
 
 @dataclass
 class HealthScoreResult:
@@ -78,6 +83,7 @@ class HealthScoreResult:
     documentation_score: Optional[float] = None
     dependency_score: Optional[float] = None
     velocity_score: Optional[float] = None
+    commit_activity_score: Optional[float] = None
 
     # Raw metrics for transparency
     metrics: Optional[HealthMetrics] = None
@@ -186,6 +192,23 @@ def _process_community_data(community_data: Any, metrics: HealthMetrics) -> None
         metrics.has_license = True
 
 
+def _process_commit_activity_data(commit_activity_data: Any, metrics: HealthMetrics) -> None:
+    """
+    Process commit activity data into metrics.
+
+    GitHub API returns: [{week: timestamp, total: int, days: [int x 7]}, ...]
+    We calculate total commits over 52 weeks and average per week.
+    """
+    if not isinstance(commit_activity_data, list) or not commit_activity_data:
+        return
+
+    total_commits = sum(week.get("total", 0) for week in commit_activity_data)
+    weeks_count = len(commit_activity_data)
+
+    metrics.total_commits_52w = total_commits
+    metrics.avg_commits_per_week = total_commits / weeks_count if weeks_count > 0 else 0.0
+
+
 # Scoring helper functions
 def _score_issue_response(hours: Optional[float]) -> Optional[float]:
     """Score issue response time. < 24h = 100, < 72h = 80, etc."""
@@ -289,6 +312,30 @@ def _score_velocity(star_velocity: float) -> float:
     return 20
 
 
+def _score_commit_activity(avg_commits_per_week: float) -> Optional[float]:
+    """
+    Score commit activity based on average commits per week.
+
+    Scoring thresholds:
+    - 20+ commits/week = 100 (very active)
+    - 10-19 commits/week = 80 (active)
+    - 5-9 commits/week = 60 (moderately active)
+    - 1-4 commits/week = 40 (low activity)
+    - <1 commits/week = 20 (minimal activity)
+    """
+    if avg_commits_per_week <= 0:
+        return None
+    if avg_commits_per_week >= 20:
+        return 100
+    if avg_commits_per_week >= 10:
+        return 80
+    if avg_commits_per_week >= 5:
+        return 60
+    if avg_commits_per_week >= 1:
+        return 40
+    return 20
+
+
 def _score_to_grade(score: float) -> str:
     """Convert numeric score to letter grade."""
     if score >= 95:
@@ -362,6 +409,10 @@ class HealthScorer:
                     client,
                     f"{GITHUB_API_BASE}/repos/{owner}/{repo}/community/profile"
                 ),
+                "commit_activity": self._fetch_json(
+                    client,
+                    f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stats/commit_activity"
+                ),
             }
 
             results = await asyncio.gather(*tasks.values(), return_exceptions=True)
@@ -378,6 +429,7 @@ class HealthScorer:
             _process_releases_data(data["releases"], metrics)
             _process_contributors_data(data["contributors"], metrics)
             _process_community_data(data["community"], metrics)
+            _process_commit_activity_data(data["commit_activity"], metrics)
 
         return metrics
 
@@ -395,6 +447,7 @@ class HealthScorer:
             "documentation": _score_documentation(metrics),
             "dependency": 70,  # Default neutral score (placeholder)
             "velocity": _score_velocity(metrics.star_velocity),
+            "commit_activity": _score_commit_activity(metrics.avg_commits_per_week),
         }
 
         # Calculate overall score (weighted average of available scores)
@@ -419,6 +472,7 @@ class HealthScorer:
             documentation_score=scores.get("documentation"),
             dependency_score=scores.get("dependency"),
             velocity_score=scores.get("velocity"),
+            commit_activity_score=scores.get("commit_activity"),
             metrics=metrics,
         )
 

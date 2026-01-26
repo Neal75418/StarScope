@@ -86,6 +86,8 @@ export interface HealthMetrics {
   has_readme: boolean | null;
   has_contributing: boolean | null;
   has_license: boolean | null;
+  total_commits_52w: number | null;
+  avg_commits_per_week: number | null;
 }
 
 export interface HealthScoreResponse {
@@ -100,6 +102,7 @@ export interface HealthScoreResponse {
   documentation_score: number | null;
   dependency_score: number | null;
   velocity_score: number | null;
+  commit_activity_score: number | null;
   metrics: HealthMetrics | null;
   calculated_at: string;
 }
@@ -109,6 +112,87 @@ export interface HealthScoreSummary {
   overall_score: number;
   grade: string;
   calculated_at: string;
+}
+
+// Commit Activity types
+export interface CommitWeek {
+  week_start: string;
+  commit_count: number;
+}
+
+export interface CommitActivityResponse {
+  repo_id: number;
+  repo_name: string;
+  weeks: CommitWeek[];
+  total_commits_52w: number;
+  avg_commits_per_week: number;
+  last_updated: string | null;
+}
+
+export interface CommitActivitySummary {
+  repo_id: number;
+  total_commits_52w: number;
+  avg_commits_per_week: number;
+  last_updated: string | null;
+}
+
+// Languages types
+export interface LanguageBreakdown {
+  language: string;
+  bytes: number;
+  percentage: number;
+}
+
+export interface LanguagesResponse {
+  repo_id: number;
+  repo_name: string;
+  languages: LanguageBreakdown[];
+  primary_language: string | null;
+  total_bytes: number;
+  last_updated: string | null;
+}
+
+export interface LanguagesSummary {
+  repo_id: number;
+  primary_language: string | null;
+  language_count: number;
+  last_updated: string | null;
+}
+
+// Star History Backfill types
+export interface BackfillStatus {
+  repo_id: number;
+  repo_name: string;
+  can_backfill: boolean;
+  current_stars: number;
+  max_stars_allowed: number;
+  has_backfilled_data: boolean;
+  backfilled_days: number;
+  message: string;
+}
+
+export interface BackfillResult {
+  repo_id: number;
+  repo_name: string;
+  success: boolean;
+  total_stargazers: number;
+  snapshots_created: number;
+  earliest_date: string | null;
+  latest_date: string | null;
+  message: string;
+}
+
+export interface StarHistoryPoint {
+  date: string;
+  stars: number;
+}
+
+export interface StarHistoryResponse {
+  repo_id: number;
+  repo_name: string;
+  history: StarHistoryPoint[];
+  is_backfilled: boolean;
+  total_points: number;
 }
 
 // Chart types
@@ -294,6 +378,81 @@ export async function calculateHealthScore(repoId: number): Promise<HealthScoreR
   return apiCall<HealthScoreResponse>(`/health-score/${repoId}/calculate`, {
     method: "POST",
   });
+}
+
+// Commit Activity API functions
+
+/**
+ * Get cached commit activity for a repository.
+ */
+export async function getCommitActivity(repoId: number): Promise<CommitActivityResponse> {
+  return apiCall<CommitActivityResponse>(`/commit-activity/${repoId}`);
+}
+
+/**
+ * Fetch (or refresh) commit activity from GitHub.
+ */
+export async function fetchCommitActivity(repoId: number): Promise<CommitActivityResponse> {
+  return apiCall<CommitActivityResponse>(`/commit-activity/${repoId}/fetch`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Get brief commit activity summary (for badges/cards).
+ */
+export async function getCommitActivitySummary(repoId: number): Promise<CommitActivitySummary> {
+  return apiCall<CommitActivitySummary>(`/commit-activity/${repoId}/summary`);
+}
+
+// Languages API functions
+
+/**
+ * Get cached languages for a repository.
+ */
+export async function getLanguages(repoId: number): Promise<LanguagesResponse> {
+  return apiCall<LanguagesResponse>(`/languages/${repoId}`);
+}
+
+/**
+ * Fetch (or refresh) languages from GitHub.
+ */
+export async function fetchLanguages(repoId: number): Promise<LanguagesResponse> {
+  return apiCall<LanguagesResponse>(`/languages/${repoId}/fetch`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Get brief languages summary (for badges/cards).
+ */
+export async function getLanguagesSummary(repoId: number): Promise<LanguagesSummary> {
+  return apiCall<LanguagesSummary>(`/languages/${repoId}/summary`);
+}
+
+// Star History Backfill API functions
+
+/**
+ * Check if a repository is eligible for star history backfill.
+ */
+export async function getBackfillStatus(repoId: number): Promise<BackfillStatus> {
+  return apiCall<BackfillStatus>(`/star-history/${repoId}/status`);
+}
+
+/**
+ * Backfill star history for a repository (only for repos with < 5000 stars).
+ */
+export async function backfillStarHistory(repoId: number): Promise<BackfillResult> {
+  return apiCall<BackfillResult>(`/star-history/${repoId}/backfill`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Get full star history for a repository.
+ */
+export async function getStarHistory(repoId: number): Promise<StarHistoryResponse> {
+  return apiCall<StarHistoryResponse>(`/star-history/${repoId}`);
 }
 
 // Tag types
@@ -1240,4 +1399,214 @@ export async function disconnectGitHub(): Promise<DisconnectResponse> {
   return apiCall<DisconnectResponse>(`/github-auth/disconnect`, {
     method: "POST",
   });
+}
+
+// ==================== Alert Types ====================
+
+export interface SignalTypeInfo {
+  type: string;
+  name: string;
+  description: string;
+}
+
+export type AlertOperator = ">" | "<" | ">=" | "<=" | "==";
+
+export interface AlertRule {
+  id: number;
+  name: string;
+  description: string | null;
+  repo_id: number | null;
+  repo_name: string | null;
+  signal_type: string;
+  operator: AlertOperator;
+  threshold: number;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertRuleCreate {
+  name: string;
+  description?: string;
+  repo_id?: number;
+  signal_type: string;
+  operator: AlertOperator;
+  threshold: number;
+  enabled?: boolean;
+}
+
+export interface AlertRuleUpdate {
+  name?: string;
+  description?: string;
+  repo_id?: number;
+  signal_type?: string;
+  operator?: AlertOperator;
+  threshold?: number;
+  enabled?: boolean;
+}
+
+export interface TriggeredAlert {
+  id: number;
+  rule_id: number;
+  rule_name: string;
+  repo_id: number;
+  repo_name: string;
+  signal_type: string;
+  signal_value: number;
+  threshold: number;
+  operator: AlertOperator;
+  triggered_at: string;
+  acknowledged: boolean;
+  acknowledged_at: string | null;
+}
+
+// ==================== Alert API Functions ====================
+
+/**
+ * List available signal types for alert rules.
+ */
+export async function listSignalTypes(): Promise<SignalTypeInfo[]> {
+  return apiCall<SignalTypeInfo[]>(`/alerts/signal-types`);
+}
+
+/**
+ * List all alert rules.
+ */
+export async function listAlertRules(): Promise<AlertRule[]> {
+  return apiCall<AlertRule[]>(`/alerts/rules`);
+}
+
+/**
+ * Get a specific alert rule.
+ */
+export async function getAlertRule(ruleId: number): Promise<AlertRule> {
+  return apiCall<AlertRule>(`/alerts/rules/${ruleId}`);
+}
+
+/**
+ * Create a new alert rule.
+ */
+export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule> {
+  return apiCall<AlertRule>(`/alerts/rules`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update an alert rule.
+ */
+export async function updateAlertRule(ruleId: number, data: AlertRuleUpdate): Promise<AlertRule> {
+  return apiCall<AlertRule>(`/alerts/rules/${ruleId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Delete an alert rule.
+ */
+export async function deleteAlertRule(
+  ruleId: number
+): Promise<{ status: string; id: number }> {
+  return apiCall(`/alerts/rules/${ruleId}`, {
+    method: "DELETE",
+  });
+}
+
+/**
+ * List triggered alerts.
+ */
+export async function listTriggeredAlerts(
+  unacknowledgedOnly: boolean = false,
+  limit: number = 50
+): Promise<TriggeredAlert[]> {
+  const params = new URLSearchParams();
+  if (unacknowledgedOnly) params.append("unacknowledged_only", "true");
+  params.append("limit", String(limit));
+  return apiCall<TriggeredAlert[]>(`/alerts/triggered?${params}`);
+}
+
+/**
+ * Acknowledge a triggered alert.
+ */
+export async function acknowledgeTriggeredAlert(
+  alertId: number
+): Promise<{ status: string; id: number }> {
+  return apiCall(`/alerts/triggered/${alertId}/acknowledge`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Acknowledge all unacknowledged alerts.
+ */
+export async function acknowledgeAllTriggeredAlerts(): Promise<{ status: string; count: number }> {
+  return apiCall(`/alerts/triggered/acknowledge-all`, {
+    method: "POST",
+  });
+}
+
+/**
+ * Manually trigger alert check.
+ */
+export async function checkAlerts(): Promise<{
+  status: string;
+  triggered_count: number;
+  triggered: { id: number; rule_id: number; repo_id: number; signal_value: number }[];
+}> {
+  return apiCall(`/alerts/check`, {
+    method: "POST",
+  });
+}
+
+// ==================== Discovery Types ====================
+
+export interface DiscoveryRepo {
+  id: number;
+  full_name: string;
+  owner: string;
+  name: string;
+  description: string | null;
+  language: string | null;
+  stars: number;
+  forks: number;
+  url: string;
+  topics: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SearchResponse {
+  repos: DiscoveryRepo[];
+  total_count: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+export interface SearchFilters {
+  language?: string;
+  minStars?: number;
+  topic?: string;
+  sort?: "stars" | "forks" | "updated";
+}
+
+// ==================== Discovery API Functions ====================
+
+/**
+ * Search GitHub repositories using the GitHub Search API.
+ */
+export async function searchRepos(
+  query: string,
+  filters: SearchFilters = {},
+  page: number = 1
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({ q: query, page: String(page) });
+  if (filters.language) params.set("language", filters.language);
+  if (filters.minStars) params.set("min_stars", String(filters.minStars));
+  if (filters.topic) params.set("topic", filters.topic);
+  if (filters.sort) params.set("sort", filters.sort);
+
+  return apiCall<SearchResponse>(`/discovery/search?${params}`);
 }

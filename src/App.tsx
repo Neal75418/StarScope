@@ -13,13 +13,15 @@ import { useAppLanguage } from "./hooks/useAppLanguage";
 import "./App.css";
 
 // Lazy load pages for code splitting
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const Discovery = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.Discovery })));
 const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
 const Trends = lazy(() => import("./pages/Trends").then((m) => ({ default: m.Trends })));
 const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const Signals = lazy(() => import("./pages/Signals").then((m) => ({ default: m.Signals })));
 const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
 
-type Page = "watchlist" | "trends" | "compare" | "signals" | "settings";
+type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "compare" | "signals" | "settings";
 
 /** Loading fallback component */
 function PageLoader({ text }: { text?: string }) {
@@ -34,6 +36,10 @@ function PageLoader({ text }: { text?: string }) {
 /** Page router component */
 function PageContent({ page }: { page: Page }) {
   switch (page) {
+    case "dashboard":
+      return <Dashboard />;
+    case "discovery":
+      return <Discovery />;
     case "watchlist":
       return <Watchlist />;
     case "trends":
@@ -48,7 +54,7 @@ function PageContent({ page }: { page: Page }) {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("watchlist");
+  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const { theme, setTheme, toggleTheme } = useAppTheme();
   const { language, setLanguage, toggleLanguage, t } = useAppLanguage();
 

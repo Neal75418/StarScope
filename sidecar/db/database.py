@@ -5,7 +5,7 @@ SQLite database connection and session management.
 import os
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 
@@ -46,6 +46,18 @@ engine = create_engine(
     pool_pre_ping=True,  # Verify connections before use
     echo=False,  # Set to True for SQL debugging
 )
+
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_connection, _connection_record):
+    """
+    Enable WAL mode for better concurrent read/write performance.
+    WAL allows readers and writers to operate simultaneously without blocking.
+    """
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
+
 
 # Session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

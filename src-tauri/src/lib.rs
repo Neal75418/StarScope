@@ -70,8 +70,14 @@ fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
+    // Safely get the default window icon, returning an error if not configured
+    let icon = app
+        .default_window_icon()
+        .ok_or("No default window icon configured in tauri.conf.json")?
+        .clone();
+
     let _tray = TrayIconBuilder::new()
-        .icon(app.default_window_icon().unwrap().clone())
+        .icon(icon)
         .menu(&menu)
         .tooltip("StarScope - GitHub Project Intelligence")
         .on_menu_event(handle_tray_menu_event)

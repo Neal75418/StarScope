@@ -31,6 +31,8 @@ class HealthMetricsResponse(BaseModel):
     has_readme: Optional[bool]
     has_contributing: Optional[bool]
     has_license: Optional[bool]
+    total_commits_52w: Optional[int]
+    avg_commits_per_week: Optional[float]
 
 
 class HealthScoreResponse(BaseModel):
@@ -48,6 +50,7 @@ class HealthScoreResponse(BaseModel):
     documentation_score: Optional[float]
     dependency_score: Optional[float]
     velocity_score: Optional[float]
+    commit_activity_score: Optional[float]
 
     # Raw metrics
     metrics: Optional[HealthMetricsResponse]
@@ -90,6 +93,8 @@ def _build_metrics_response(score: HealthScore) -> HealthMetricsResponse:
         has_readme=_to_bool_or_none(score.has_readme),
         has_contributing=_to_bool_or_none(score.has_contributing),
         has_license=_to_bool_or_none(score.has_license),
+        total_commits_52w=score.total_commits_52w,
+        avg_commits_per_week=score.avg_commits_per_week,
     )
 
 
@@ -107,6 +112,7 @@ def _build_response(repo: Repo, score: HealthScore) -> HealthScoreResponse:
         documentation_score=score.documentation_score,
         dependency_score=score.dependency_score,
         velocity_score=score.velocity_score,
+        commit_activity_score=score.commit_activity_score,
         metrics=_build_metrics_response(score),
         calculated_at=score.calculated_at,
     )
@@ -133,6 +139,7 @@ def _update_health_score(score: HealthScore, result: HealthScoreResult) -> None:
     score.documentation_score = result.documentation_score
     score.dependency_score = result.dependency_score
     score.velocity_score = result.velocity_score
+    score.commit_activity_score = result.commit_activity_score
     score.avg_issue_response_hours = result.metrics.avg_issue_response_hours if result.metrics else None
     score.pr_merge_rate = _calculate_pr_merge_rate(result)
     score.days_since_last_release = result.metrics.days_since_last_release if result.metrics else None
@@ -140,6 +147,8 @@ def _update_health_score(score: HealthScore, result: HealthScoreResult) -> None:
     score.has_readme = result.metrics.has_readme if result.metrics else None
     score.has_contributing = result.metrics.has_contributing if result.metrics else None
     score.has_license = result.metrics.has_license if result.metrics else None
+    score.total_commits_52w = result.metrics.total_commits_52w if result.metrics else None
+    score.avg_commits_per_week = result.metrics.avg_commits_per_week if result.metrics else None
     score.calculated_at = utc_now()
 
 

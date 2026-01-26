@@ -131,6 +131,219 @@ class GitHubService:
         data = await self.get_repo(owner, repo)
         return data.get("stargazers_count", 0)
 
+    async def get_commit_activity(
+        self, owner: str, repo: str, max_retries: int = 3
+    ) -> list[dict]:
+        """
+        Get weekly commit activity for the past year.
+
+        The GitHub Stats API may return 202 while computing statistics.
+        We retry with exponential backoff until data is ready.
+
+        Returns:
+            List of weekly data: [{week: timestamp, total: int, days: [int x 7]}]
+            Empty list if data is unavailable.
+
+        Raises:
+            GitHubNotFoundError: Repository not found
+            GitHubRateLimitError: Rate limit exceeded
+            GitHubAPIError: Other API errors
+        """
+        import asyncio
+
+        url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stats/commit_activity"
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            for attempt in range(max_retries):
+                response = await client.get(url, headers=self.headers)
+
+                # 202 means GitHub is computing the stats, retry after delay
+                if response.status_code == 202:
+                    if attempt < max_retries - 1:
+                        delay = 2 ** attempt  # 1s, 2s, 4s
+                        logger.info(
+                            f"GitHub computing stats for {owner}/{repo}, "
+                            f"retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    # Max retries reached, return empty
+                    logger.warning(
+                        f"GitHub stats not ready after {max_retries} attempts for {owner}/{repo}"
+                    )
+                    return []
+
+                # 204 means no content (empty repo)
+                if response.status_code == 204:
+                    return []
+
+                # Handle standard responses
+                data = handle_github_response(
+                    response, raise_on_error=True, context=f"{owner}/{repo}/stats/commit_activity"
+                )
+                return data if data else []
+
+        return []
+
+    async def get_languages(self, owner: str, repo: str) -> dict[str, int]:
+        """
+        Get language statistics for a repository.
+
+        Returns:
+            Dict mapping language name to bytes of code: {"Python": 123456, ...}
+            Empty dict if unavailable.
+
+        Raises:
+            GitHubNotFoundError: Repository not found
+            GitHubRateLimitError: Rate limit exceeded
+            GitHubAPIError: Other API errors
+        """
+        url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/languages"
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(url, headers=self.headers)
+            data = handle_github_response(
+                response, raise_on_error=True, context=f"{owner}/{repo}/languages"
+            )
+            return data if data else {}
+
+    async def search_repos(
+        self,
+        query: str,
+        language: Optional[str] = None,
+        min_stars: Optional[int] = None,
+        topic: Optional[str] = None,
+        sort: str = "stars",
+        order: str = "desc",
+        page: int = 1,
+        per_page: int = 20,
+    ) -> dict:
+        """
+        Search GitHub repositories using the Search API.
+
+        Args:
+            query: Search query string
+            language: Filter by programming language
+            min_stars: Filter by minimum star count
+            topic: Filter by topic
+            sort: Sort field (stars, forks, updated)
+            order: Sort order (asc, desc)
+            page: Page number (1-indexed)
+            per_page: Results per page (max 100)
+
+        Returns:
+            GitHub Search API response with items and total_count
+
+        Raises:
+            GitHubRateLimitError: Rate limit exceeded (Search API: 30/min)
+            GitHubAPIError: Other API errors
+        """
+        # Build query with filters
+        q_parts = [query]
+        if language:
+            q_parts.append(f"language:{language}")
+        if min_stars is not None and min_stars > 0:
+            q_parts.append(f"stars:>={min_stars}")
+        if topic:
+            q_parts.append(f"topic:{topic}")
+
+        full_query = " ".join(q_parts)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{GITHUB_API_BASE}/search/repositories",
+                headers=self.headers,
+                params={
+                    "q": full_query,
+                    "sort": sort,
+                    "order": order,
+                    "page": page,
+                    "per_page": per_page,
+                },
+            )
+            return handle_github_response(
+                response, raise_on_error=True, context=f"search: {query}"
+            )
+
+    async def get_stargazers_with_dates(
+        self,
+        owner: str,
+        repo: str,
+        max_stars: int = 5000,
+        per_page: int = 100,
+    ) -> list[dict]:
+        """
+        Get stargazers with timestamps for a repository.
+
+        Uses GitHub's stargazers API with special Accept header to get timestamps.
+        Limited to repos with < max_stars to avoid rate limit exhaustion.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            max_stars: Maximum stars allowed (rejects if repo has more)
+            per_page: Results per page (max 100)
+
+        Returns:
+            List of stargazers: [{"starred_at": "2024-01-15T...", "user": {...}}, ...]
+            Empty list if repo exceeds max_stars limit.
+
+        Raises:
+            GitHubNotFoundError: Repository not found
+            GitHubRateLimitError: Rate limit exceeded
+            GitHubAPIError: Other API errors
+        """
+        # First, check if repo exceeds star limit
+        repo_data = await self.get_repo(owner, repo)
+        star_count = repo_data.get("stargazers_count", 0)
+
+        if star_count > max_stars:
+            logger.warning(
+                f"Repository {owner}/{repo} has {star_count} stars, "
+                f"exceeding limit of {max_stars}. Skipping stargazers fetch."
+            )
+            return []
+
+        # Special header to get starred_at timestamps
+        headers = {
+            **self.headers,
+            "Accept": "application/vnd.github.star+json",
+        }
+
+        all_stargazers = []
+        page = 1
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            while True:
+                response = await client.get(
+                    f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stargazers",
+                    headers=headers,
+                    params={"per_page": per_page, "page": page},
+                )
+
+                data = handle_github_response(
+                    response, raise_on_error=True, context=f"{owner}/{repo}/stargazers?page={page}"
+                )
+
+                if not data:
+                    break
+
+                all_stargazers.extend(data)
+
+                # Check if there are more pages
+                if len(data) < per_page:
+                    break
+
+                page += 1
+
+                # Safety limit to prevent infinite loops
+                if page > 100:  # Max 10,000 stars
+                    logger.warning(f"Reached page limit for {owner}/{repo} stargazers")
+                    break
+
+        logger.info(f"Fetched {len(all_stargazers)} stargazers for {owner}/{repo}")
+        return all_stargazers
+
 
 # Module-level convenience function for scheduler
 _default_service: Optional[GitHubService] = None

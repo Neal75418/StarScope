@@ -1,0 +1,617 @@
+/* Discovery Page Styles - Using App.css variables */
+
+/* Search Bar */
+.searchBar {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.searchInputWrapper {
+  flex: 1;
+  position: relative;
+}
+
+.searchInputIcon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.75rem 0.875rem 0.75rem 2.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-default);
+  color: var(--fg-default);
+  font-size: 0.9375rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.searchInput::placeholder {
+  color: var(--fg-subtle);
+}
+
+.searchButton {
+  padding: 0.75rem 1.25rem;
+  background: var(--success-emphasis);
+  color: var(--fg-on-emphasis);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: var(--success-hover);
+}
+
+.searchButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Trending Filters - GitHub style time range */
+.trendingSection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.trendingLabel {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.trendingTags {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.trendingTag {
+  padding: 0.375rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trendingTag:hover {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+  background: var(--accent-subtle);
+}
+
+.trendingTag.active {
+  background: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+}
+
+/* Saved Filters */
+.savedFilters {
+  position: relative;
+}
+
+.savedFiltersTrigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.savedFiltersTrigger:hover {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+}
+
+.rotated {
+  transform: rotate(180deg);
+}
+
+.savedFiltersCount {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+  border-radius: 9px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.savedFiltersDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.savedFiltersSaveSection {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.savedFiltersSaveBtn {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--bg-subtle);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.savedFiltersSaveBtn:hover {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+  background: var(--accent-subtle);
+}
+
+.savedFiltersSaveForm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.savedFiltersNameInput {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--fg-default);
+  font-size: 0.8125rem;
+}
+
+.savedFiltersNameInput:focus {
+  outline: none;
+  border-color: var(--accent-fg);
+}
+
+.savedFiltersSaveActions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.savedFiltersList {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.savedFiltersEmpty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+}
+
+.savedFilterItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.savedFilterItem:last-child {
+  border-bottom: none;
+}
+
+.savedFilterItem:hover {
+  background: var(--bg-subtle);
+}
+
+.savedFilterContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.savedFilterName {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--fg-default);
+  margin-bottom: 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.savedFilterSummary {
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.savedFilterDelete {
+  flex-shrink: 0;
+  padding: 0.25rem;
+  background: transparent;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.savedFilterItem:hover .savedFilterDelete {
+  opacity: 1;
+}
+
+.savedFilterDelete:hover {
+  background: var(--bg-default);
+  color: var(--danger-fg);
+}
+
+/* Active Filters */
+.activeFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+}
+
+.activeFiltersLabel {
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.activeFilterTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.activeFilterTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  background: var(--accent-emphasis);
+  color: var(--fg-on-emphasis);
+  border-radius: 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.removeFilterBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.removeFilterBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.clearAllBtn {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clearAllBtn:hover {
+  border-color: var(--danger-fg);
+  color: var(--danger-fg);
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.filterSelect {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--fg-default);
+  font-size: 0.875rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b949e' viewBox='0 0 16 16'%3E%3Cpath d='M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--accent-fg);
+}
+
+/* Results */
+.results {
+  flex: 1;
+}
+
+.resultsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.resultsCount {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.resultsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Result Card */
+.resultCard {
+  padding: 1rem 1.25rem;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.resultCard:hover {
+  border-color: var(--accent-muted);
+  transform: scale(var(--card-hover-scale));
+  box-shadow: var(--card-hover-shadow), 0 0 0 1px var(--card-glow);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.repoName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-fg);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.repoName:hover {
+  text-decoration: underline;
+}
+
+.externalIcon {
+  opacity: 0.6;
+}
+
+.addButton {
+  padding: 0.375rem 0.75rem;
+  background: var(--success-emphasis);
+  color: var(--fg-on-emphasis);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.addButton:hover:not(:disabled) {
+  background: var(--success-hover);
+}
+
+.addButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.addButton.inWatchlist {
+  background: var(--accent-emphasis);
+}
+
+.description {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 0.75rem 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.language {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+.languageDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.topic {
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.topicMore {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--fg-muted);
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.emptyHint {
+  color: var(--fg-subtle);
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.errorText {
+  color: var(--danger-fg);
+}
+
+/* Load More */
+.loadMoreWrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.loadMoreButton {
+  padding: 0.75rem 2rem;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--fg-default);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loadMoreButton:hover:not(:disabled) {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+}
+
+.loadMoreButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .searchBar {
+    flex-direction: column;
+  }
+
+  .searchButton {
+    width: 100%;
+  }
+
+  .filters {
+    gap: 0.5rem;
+  }
+
+  .filterSelect {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .addButton {
+    align-self: flex-start;
+  }
+}

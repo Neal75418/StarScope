@@ -10,11 +10,64 @@ export const translations = {
     // Navigation
     nav: {
       brand: "StarScope",
+      dashboard: "Dashboard",
+      discovery: "Discover",
       watchlist: "Watchlist",
       trends: "Trends",
       compare: "Compare",
       signals: "Signals",
       settings: "Settings",
+    },
+    // Dashboard page
+    dashboard: {
+      title: "Dashboard",
+      subtitle: "Overview of your tracked repositories",
+      stats: {
+        totalRepos: "Tracked Repos",
+        totalStars: "Total Stars",
+        weeklyStars: "Weekly Stars",
+        activeAlerts: "Active Alerts",
+      },
+      velocityDistribution: "Velocity Distribution",
+      recentActivity: "Recent Activity",
+      activity: {
+        justNow: "Just now",
+        empty: "No recent activity",
+      },
+    },
+    // Discovery page
+    discovery: {
+      title: "Discover",
+      subtitle: "Search and explore GitHub repositories",
+      searchPlaceholder: "Search repositories...",
+      searching: "Searching...",
+      addToWatchlist: "+ Watchlist",
+      inWatchlist: "In Watchlist",
+      trending: {
+        label: "Trending:",
+        today: "Today",
+        thisWeek: "This week",
+        thisMonth: "This month",
+      },
+      currentFilters: "Active filters:",
+      clearAll: "Clear all",
+      filters: {
+        allLanguages: "All Languages",
+        sortByStars: "Most Stars",
+        sortByForks: "Most Forks",
+        sortByUpdated: "Recently Updated",
+      },
+      empty: {
+        noResults: "No repositories found",
+        startSearch: "Search to discover new projects",
+        tryDifferent: "Try different keywords or filters",
+      },
+      error: {
+        rateLimit: "Rate limit reached. Try again later.",
+        generic: "Failed to search repositories",
+      },
+      loadMore: "Load More",
+      results: "{count} results",
     },
     // Watchlist page
     watchlist: {
@@ -30,11 +83,13 @@ export const translations = {
       recalculating: "Calculating...",
       recalculateComplete: "Processed {repos} repos, found {similarities} similarities",
       showing: "Showing {count} of {total} repos",
+      searchPlaceholder: "Search watchlist...",
       empty: {
         noRepos: "No repositories in your watchlist yet.",
         addPrompt: 'Click "Add Repository" to start tracking GitHub projects.',
         noCategory: "No repositories in this category.",
         noFilter: "No repositories match the current filter.",
+        noSearch: "No repositories match your search.",
       },
       connection: {
         title: "Connecting...",
@@ -307,6 +362,10 @@ export const translations = {
           updated: "Alert rule updated",
           deleted: "Alert rule deleted",
         },
+        confirm: {
+          deleteTitle: "Delete Alert Rule",
+          deleteMessage: "Are you sure you want to delete this alert rule? This action cannot be undone.",
+        },
       },
       webhooks: {
         title: "Webhooks",
@@ -418,6 +477,25 @@ export const translations = {
           failed: "Export failed",
         },
       },
+      import: {
+        title: "Import Repositories",
+        description: "Batch import repositories from CSV or JSON files.",
+        uploadFile: "Upload File",
+        fileHint: "Supports CSV, JSON, or TXT files with owner/repo format",
+        or: "or",
+        pasteText: "Paste Text",
+        textPlaceholder: "owner/repo (one per line)\nor JSON array",
+        parse: "Parse",
+        preview: "Preview",
+        repos: "repositories",
+        startImport: "Start Import",
+        importing: "Importing...",
+        complete: "Import Complete",
+        imported: "Imported",
+        skipped: "Skipped",
+        failed: "Failed",
+        importMore: "Import More",
+      },
       data: {
         title: "Data Management",
         clearCache: "Clear Cache",
@@ -438,6 +516,27 @@ export const translations = {
         license: "License",
       },
     },
+    // Notifications
+    notifications: {
+      title: "Notifications",
+      empty: "No notifications",
+      unread: "unread",
+      markAllRead: "Mark all as read",
+      clear: "Clear",
+      viewAll: "View all notifications",
+      justNow: "Just now",
+      minutesAgo: "{n} min ago",
+      hoursAgo: "{n} hr ago",
+      daysAgo: "{n} days ago",
+    },
+    // Saved Filters
+    savedFilters: {
+      title: "Saved",
+      empty: "No saved filters",
+      saveCurrent: "Save current filters",
+      namePlaceholder: "Filter name...",
+      noFilters: "No filters set",
+    },
     // Common
     common: {
       loading: "Loading...",
@@ -454,6 +553,7 @@ export const translations = {
       none: "None",
       yes: "Yes",
       no: "No",
+      retry: "Retry",
     },
     // Dialogs
     dialog: {
@@ -599,6 +699,64 @@ export const translations = {
         none: "None",
       },
     },
+    // Commit Activity
+    commitActivity: {
+      title: "Commit Activity",
+      subtitle: "Weekly commit activity for the past year",
+      totalCommits: "Total Commits (52w)",
+      avgPerWeek: "Avg Commits/Week",
+      lastUpdated: "Last updated: {date}",
+      fetch: "Fetch Activity",
+      refresh: "Refresh",
+      fetching: "Fetching...",
+      noData: "No commit data available",
+      fetchFailed: "Failed to fetch commit activity",
+      activityLevel: {
+        veryHigh: "Very Active",
+        high: "Active",
+        medium: "Moderate",
+        low: "Low",
+        minimal: "Minimal",
+      },
+    },
+    // Languages
+    languages: {
+      title: "Languages",
+      subtitle: "Programming language breakdown",
+      primary: "Primary Language",
+      totalBytes: "Total Code",
+      languageCount: "{count} languages",
+      fetch: "Fetch Languages",
+      refresh: "Refresh",
+      fetching: "Fetching...",
+      noData: "No language data available",
+      fetchFailed: "Failed to fetch languages",
+      lastUpdated: "Last updated: {date}",
+      bytes: "{bytes} bytes",
+      percentage: "{percentage}%",
+    },
+    // Star History Backfill
+    starHistory: {
+      title: "Star History",
+      backfill: "Backfill History",
+      backfilling: "Backfilling...",
+      backfillComplete: "Backfill complete! Created {count} data points.",
+      backfillFailed: "Backfill failed",
+      notEligible: "Not eligible for backfill (>5000 stars)",
+      eligible: "Eligible for backfill",
+      alreadyBackfilled: "Historical data available ({days} days)",
+      checking: "Checking...",
+      totalPoints: "{count} data points",
+      earliestDate: "Earliest: {date}",
+      latestDate: "Latest: {date}",
+      maxStars: "Max {count} stars for backfill",
+      // Offline UX
+      offline: "Offline - showing cached data",
+      offlineLabel: "Offline",
+      offlineHint: "Data may be outdated",
+      offlineNoBackfill: "Cannot backfill while offline",
+      rateLimited: "Rate limit exceeded. Please try again later.",
+    },
     // Similar Repos
     similarRepos: {
       title: "Similar Repos",
@@ -630,11 +788,64 @@ export const translations = {
     // Navigation
     nav: {
       brand: "StarScope",
+      dashboard: "儀表板",
+      discovery: "探索",
       watchlist: "追蹤清單",
       trends: "趨勢",
       compare: "比較",
       signals: "訊號",
       settings: "設定",
+    },
+    // Dashboard page
+    dashboard: {
+      title: "儀表板",
+      subtitle: "追蹤儲存庫總覽",
+      stats: {
+        totalRepos: "追蹤數量",
+        totalStars: "星星總數",
+        weeklyStars: "本週星數",
+        activeAlerts: "活躍警報",
+      },
+      velocityDistribution: "增長速度分佈",
+      recentActivity: "最近活動",
+      activity: {
+        justNow: "剛剛",
+        empty: "沒有最近活動",
+      },
+    },
+    // Discovery page
+    discovery: {
+      title: "探索",
+      subtitle: "搜尋和探索 GitHub 儲存庫",
+      searchPlaceholder: "搜尋儲存庫...",
+      searching: "搜尋中...",
+      addToWatchlist: "+ 追蹤",
+      inWatchlist: "已追蹤",
+      trending: {
+        label: "熱門趨勢：",
+        today: "今日",
+        thisWeek: "本週",
+        thisMonth: "本月",
+      },
+      currentFilters: "目前篩選：",
+      clearAll: "清除全部",
+      filters: {
+        allLanguages: "所有語言",
+        sortByStars: "依星數排序",
+        sortByForks: "依分支數排序",
+        sortByUpdated: "依更新時間排序",
+      },
+      empty: {
+        noResults: "找不到儲存庫",
+        startSearch: "搜尋以探索新專案",
+        tryDifferent: "試試不同的關鍵字或篩選條件",
+      },
+      error: {
+        rateLimit: "請求次數已達上限，請稍後再試",
+        generic: "搜尋失敗",
+      },
+      loadMore: "載入更多",
+      results: "{count} 個結果",
     },
     // Watchlist page
     watchlist: {
@@ -650,11 +861,13 @@ export const translations = {
       recalculating: "計算中...",
       recalculateComplete: "已處理 {repos} 個儲存庫，找到 {similarities} 個相似項目",
       showing: "顯示 {count} / {total} 個儲存庫",
+      searchPlaceholder: "搜尋追蹤清單...",
       empty: {
         noRepos: "追蹤清單中還沒有儲存庫。",
         addPrompt: "點擊「新增儲存庫」開始追蹤 GitHub 專案。",
         noCategory: "此分類中沒有儲存庫。",
         noFilter: "沒有符合篩選條件的儲存庫。",
+        noSearch: "沒有符合搜尋條件的儲存庫。",
       },
       connection: {
         title: "連線中...",
@@ -925,6 +1138,10 @@ export const translations = {
           updated: "警報規則已更新",
           deleted: "警報規則已刪除",
         },
+        confirm: {
+          deleteTitle: "刪除警報規則",
+          deleteMessage: "確定要刪除此警報規則嗎？此操作無法復原。",
+        },
       },
       webhooks: {
         title: "Webhooks",
@@ -1035,6 +1252,25 @@ export const translations = {
           failed: "匯出失敗",
         },
       },
+      import: {
+        title: "匯入儲存庫",
+        description: "從 CSV 或 JSON 檔案批次匯入儲存庫。",
+        uploadFile: "上傳檔案",
+        fileHint: "支援 CSV、JSON 或 TXT 檔案，格式為 owner/repo",
+        or: "或",
+        pasteText: "貼上文字",
+        textPlaceholder: "owner/repo（每行一個）\n或 JSON 陣列",
+        parse: "解析",
+        preview: "預覽",
+        repos: "個儲存庫",
+        startImport: "開始匯入",
+        importing: "匯入中...",
+        complete: "匯入完成",
+        imported: "已匯入",
+        skipped: "已跳過",
+        failed: "失敗",
+        importMore: "繼續匯入",
+      },
       data: {
         title: "資料管理",
         clearCache: "清除快取",
@@ -1055,6 +1291,27 @@ export const translations = {
         license: "授權條款",
       },
     },
+    // Notifications
+    notifications: {
+      title: "通知",
+      empty: "沒有通知",
+      unread: "未讀",
+      markAllRead: "全部標為已讀",
+      clear: "清除",
+      viewAll: "查看所有通知",
+      justNow: "剛剛",
+      minutesAgo: "{n} 分鐘前",
+      hoursAgo: "{n} 小時前",
+      daysAgo: "{n} 天前",
+    },
+    // Saved Filters
+    savedFilters: {
+      title: "已儲存",
+      empty: "沒有已儲存的篩選",
+      saveCurrent: "儲存目前篩選",
+      namePlaceholder: "篩選名稱...",
+      noFilters: "未設定篩選",
+    },
     // Common
     common: {
       loading: "載入中...",
@@ -1071,6 +1328,7 @@ export const translations = {
       none: "無",
       yes: "是",
       no: "否",
+      retry: "重試",
     },
     // Dialogs
     dialog: {
@@ -1215,6 +1473,64 @@ export const translations = {
         contributors: "{count} 位貢獻者",
         none: "無",
       },
+    },
+    // Commit Activity
+    commitActivity: {
+      title: "提交活動",
+      subtitle: "過去一年的每週提交活動",
+      totalCommits: "總提交數 (52週)",
+      avgPerWeek: "平均每週提交數",
+      lastUpdated: "最後更新：{date}",
+      fetch: "取得活動",
+      refresh: "重新整理",
+      fetching: "取得中...",
+      noData: "沒有可用的提交資料",
+      fetchFailed: "取得提交活動失敗",
+      activityLevel: {
+        veryHigh: "非常活躍",
+        high: "活躍",
+        medium: "中等",
+        low: "低度",
+        minimal: "極少",
+      },
+    },
+    // Languages
+    languages: {
+      title: "語言分布",
+      subtitle: "程式語言統計",
+      primary: "主要語言",
+      totalBytes: "總程式碼量",
+      languageCount: "{count} 種語言",
+      fetch: "取得語言資料",
+      refresh: "重新整理",
+      fetching: "取得中...",
+      noData: "沒有可用的語言資料",
+      fetchFailed: "取得語言資料失敗",
+      lastUpdated: "最後更新：{date}",
+      bytes: "{bytes} 位元組",
+      percentage: "{percentage}%",
+    },
+    // Star History Backfill
+    starHistory: {
+      title: "星數歷史",
+      backfill: "回填歷史",
+      backfilling: "回填中...",
+      backfillComplete: "回填完成！建立了 {count} 個資料點。",
+      backfillFailed: "回填失敗",
+      notEligible: "不符合回填資格 (>5000 星)",
+      eligible: "符合回填資格",
+      alreadyBackfilled: "已有歷史資料 ({days} 天)",
+      checking: "檢查中...",
+      totalPoints: "{count} 個資料點",
+      earliestDate: "最早：{date}",
+      latestDate: "最近：{date}",
+      maxStars: "最多 {count} 星可回填",
+      // Offline UX
+      offline: "離線中 - 顯示快取資料",
+      offlineLabel: "離線",
+      offlineHint: "資料可能已過時",
+      offlineNoBackfill: "離線時無法回填",
+      rateLimited: "請求超過限制，請稍後再試。",
     },
     // Similar Repos
     similarRepos: {

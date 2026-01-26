@@ -14,9 +14,11 @@ import {
 import { ChartDataPoint } from "../api/client";
 import { formatNumber, formatChartDate } from "../utils/format";
 import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
+import { StarHistoryBackfill } from "./StarHistoryBackfill";
 
 interface StarsChartProps {
   repoId: number;
+  currentStars?: number | null;
 }
 
 const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d"];
@@ -87,8 +89,8 @@ function ChartContent({ data }: ChartContentProps) {
   );
 }
 
-export function StarsChart({ repoId }: StarsChartProps) {
-  const { data, loading, error, timeRange, setTimeRange } = useStarsChart(repoId);
+export function StarsChart({ repoId, currentStars }: StarsChartProps) {
+  const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
 
   if (loading) {
     return <div className="chart-loading">Loading chart...</div>;
@@ -100,7 +102,14 @@ export function StarsChart({ repoId }: StarsChartProps) {
 
   if (data.length < 2) {
     return (
-      <div className="chart-empty">Not enough data for chart. Need at least 2 data points.</div>
+      <div className="stars-chart">
+        <div className="chart-empty">Not enough data for chart. Need at least 2 data points.</div>
+        <StarHistoryBackfill
+          repoId={repoId}
+          currentStars={currentStars ?? null}
+          onBackfillComplete={refetch}
+        />
+      </div>
     );
   }
 
@@ -108,6 +117,11 @@ export function StarsChart({ repoId }: StarsChartProps) {
     <div className="stars-chart">
       <TimeRangeSelector current={timeRange} onChange={setTimeRange} />
       <ChartContent data={data} />
+      <StarHistoryBackfill
+        repoId={repoId}
+        currentStars={currentStars ?? null}
+        onBackfillComplete={refetch}
+      />
     </div>
   );
 }

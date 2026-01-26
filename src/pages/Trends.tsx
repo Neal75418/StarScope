@@ -3,6 +3,7 @@
  */
 
 import { TrendArrow } from "../components/TrendArrow";
+import { AnimatedPage } from "../components/motion";
 import { formatNumber, formatDelta } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
@@ -60,7 +61,7 @@ export function Trends() {
   };
 
   return (
-    <div className="page">
+    <AnimatedPage className="page">
       <header className="page-header">
         <h1 data-testid="page-title">{t.trends.title}</h1>
         <p className="subtitle">{t.trends.subtitle}</p>
@@ -107,6 +108,6 @@ export function Trends() {
           </table>
         </div>
       )}
-    </div>
+    </AnimatedPage>
   );
 }

@@ -21,7 +21,7 @@ from middleware import LoggingMiddleware
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
-from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks, github_auth
+from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks, github_auth, discovery, commit_activity, languages, star_history
 from db import init_db
 from services.scheduler import start_scheduler, stop_scheduler
 
@@ -131,6 +131,10 @@ app.include_router(early_signals.router, prefix="/api", tags=["early-signals"])
 app.include_router(export.router, prefix="/api", tags=["export"])
 app.include_router(webhooks.router, prefix="/api", tags=["webhooks"])
 app.include_router(github_auth.router, prefix="/api", tags=["github-auth"])
+app.include_router(discovery.router, prefix="/api", tags=["discovery"])
+app.include_router(commit_activity.router, prefix="/api", tags=["commit-activity"])
+app.include_router(languages.router, prefix="/api", tags=["languages"])
+app.include_router(star_history.router, prefix="/api", tags=["star-history"])
 
 
 @app.get("/")

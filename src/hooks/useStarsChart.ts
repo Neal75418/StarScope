@@ -22,6 +22,7 @@ const initialState: ChartState = {
 export function useStarsChart(repoId: number) {
   const [state, setState] = useState<ChartState>(initialState);
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
+  const [refetchTrigger, setRefetchTrigger] = useState(0);
   const isMounted = useRef(true);
   // Prevent duplicate fetches from StrictMode
   const isFetchingRef = useRef(false);
@@ -30,6 +31,10 @@ export function useStarsChart(repoId: number) {
     if (isMounted.current) {
       setState((prev) => ({ ...prev, ...update }));
     }
+  }, []);
+
+  const refetch = useCallback(() => {
+    setRefetchTrigger((prev) => prev + 1);
   }, []);
 
   useEffect(() => {
@@ -55,7 +60,7 @@ export function useStarsChart(repoId: number) {
     return () => {
       isMounted.current = false;
     };
-  }, [repoId, timeRange, safeSetState]);
+  }, [repoId, timeRange, refetchTrigger, safeSetState]);
 
   return {
     data: state.data,
@@ -63,5 +68,6 @@ export function useStarsChart(repoId: number) {
     error: state.error,
     timeRange,
     setTimeRange,
+    refetch,
   };
 }
