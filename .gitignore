@@ -42,6 +42,7 @@ env/
 # PyInstaller
 build/
 *.spec
+!sidecar/starscope-sidecar.spec
 
 # SQLite database
 *.db
