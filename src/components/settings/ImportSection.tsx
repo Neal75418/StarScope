@@ -9,15 +9,35 @@ import { useImport, ParsedRepo } from "../../hooks/useImport";
 function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
   switch (status) {
     case "pending":
-      return <span className="import-status pending" aria-label="pending">○</span>;
+      return (
+        <span className="import-status pending" aria-label="pending">
+          ○
+        </span>
+      );
     case "importing":
-      return <span className="import-status importing" aria-label="importing">◐</span>;
+      return (
+        <span className="import-status importing" aria-label="importing">
+          ◐
+        </span>
+      );
     case "success":
-      return <span className="import-status success" aria-label="success">✓</span>;
+      return (
+        <span className="import-status success" aria-label="success">
+          ✓
+        </span>
+      );
     case "error":
-      return <span className="import-status error" aria-label="error">✗</span>;
+      return (
+        <span className="import-status error" aria-label="error">
+          ✗
+        </span>
+      );
     case "skipped":
-      return <span className="import-status skipped" aria-label="skipped">-</span>;
+      return (
+        <span className="import-status skipped" aria-label="skipped">
+          -
+        </span>
+      );
   }
 }
 
@@ -42,11 +62,7 @@ const RepoItem = memo(({ repo }: { repo: ParsedRepo }) => {
 });
 RepoItem.displayName = "RepoItem";
 
-function ImportPreview({
-  repos,
-}: {
-  repos: ParsedRepo[];
-}) {
+function ImportPreview({ repos }: { repos: ParsedRepo[] }) {
   const { t } = useI18n();
 
   if (repos.length === 0) return null;
@@ -104,16 +120,8 @@ export function ImportSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [textInput, setTextInput] = useState("");
 
-  const {
-    parsedRepos,
-    isImporting,
-    result,
-    parseError,
-    parseFile,
-    parseText,
-    startImport,
-    reset,
-  } = useImport();
+  const { parsedRepos, isImporting, result, parseError, parseFile, parseText, startImport, reset } =
+    useImport();
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,11 +228,7 @@ export function ImportSection() {
             >
               {isImporting ? t.settings.import.importing : t.settings.import.startImport}
             </button>
-            <button
-              className="btn"
-              onClick={handleReset}
-              disabled={isImporting}
-            >
+            <button className="btn" onClick={handleReset} disabled={isImporting}>
               {t.common.cancel}
             </button>
           </div>

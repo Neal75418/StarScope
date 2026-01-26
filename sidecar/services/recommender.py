@@ -261,7 +261,7 @@ class RecommenderService:
                 similarities_found += count
                 processed += 1
             except Exception as e:
-                logger.error(f"Failed to calculate similarities for {repo.full_name}: {e}")
+                logger.error(f"Failed to calculate similarities for {repo.full_name}: {e}", exc_info=True)
 
         logger.info(f"Recalculated similarities: {processed}/{total} repos, {similarities_found} pairs found")
 

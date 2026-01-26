@@ -2,12 +2,13 @@
 Trends API endpoints for viewing repos sorted by various metrics.
 """
 
-from typing import List, Optional
+from typing import List, Optional, cast
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func
+from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session, aliased
 
 from db.database import get_db
@@ -82,18 +83,19 @@ async def get_trends(
     sort_signal_type = _get_signal_type_for_sort(sort_by)
 
     # Create alias for sort signal to enable LEFT JOIN
-    SortSignal = aliased(Signal)
+    sort_signal = aliased(Signal)
+    sort_value = cast(ColumnElement, cast(object, sort_signal.value)).label("sort_value")
 
     # Query repos with sort signal, sorted and limited in SQL
     # This avoids loading ALL repos into memory
     results = (
-        db.query(Repo, SortSignal.value.label("sort_value"))
+        db.query(Repo, sort_value)
         .outerjoin(
-            SortSignal,
-            (Repo.id == SortSignal.repo_id) &
-            (SortSignal.signal_type == sort_signal_type)
+            sort_signal,
+            (Repo.id == sort_signal.repo_id) &
+            (sort_signal.signal_type == sort_signal_type)
         )
-        .order_by(desc(func.coalesce(SortSignal.value, 0)))
+        .order_by(desc(func.coalesce(sort_signal.value, 0)))
         .limit(limit)
         .all()
     )

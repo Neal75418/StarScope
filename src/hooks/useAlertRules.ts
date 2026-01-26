@@ -1,24 +1,8 @@
-/**
- * Hook for managing alert rules state and operations.
- */
-
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  AlertRule,
-  AlertRuleCreate,
-  AlertRuleUpdate,
-  SignalTypeInfo,
-  listAlertRules,
-  listSignalTypes,
-  createAlertRule,
-  updateAlertRule,
-  deleteAlertRule,
-  getRepos,
-  RepoWithSignals,
-} from "../api/client";
-import { getErrorMessage } from "../utils/error";
-import { useI18n } from "../i18n";
+import { useState, useCallback } from "react";
+import { AlertRule, AlertRuleCreate } from "../api/client";
 import { useDeleteConfirm } from "./useDeleteConfirm";
+import { useAlertRuleData } from "./useAlertRuleData";
+import { useAlertRuleOperations } from "./useAlertRuleOperations";
 
 const initialAlertRule: AlertRuleCreate = {
   name: "",
@@ -34,140 +18,36 @@ interface Toast {
 }
 
 export function useAlertRules(toast: Toast) {
-  const { t } = useI18n();
-  const [rules, setRules] = useState<AlertRule[]>([]);
-  const [signalTypes, setSignalTypes] = useState<SignalTypeInfo[]>([]);
-  const [repos, setRepos] = useState<RepoWithSignals[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
-
   const deleteConfirm = useDeleteConfirm();
 
-  // Prevent duplicate fetches from StrictMode
-  const hasFetchedRef = useRef(false);
+  const { rules, setRules, signalTypes, repos, isLoading, loadRules } = useAlertRuleData(toast);
 
-  const loadRules = useCallback(async () => {
-    try {
-      const data = await listAlertRules();
-      setRules(data);
-    } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
-    }
-  }, [toast, t]);
+  const {
+    isSubmitting,
+    handleCreate,
+    handleUpdate,
+    handleToggle,
+    handleDelete,
+    handleCheckNow,
+    handleAcknowledgeAll,
+  } = useAlertRuleOperations({
+    rules,
+    setRules,
+    loadRules,
+    toast,
+  });
 
-  const loadSignalTypes = useCallback(async () => {
-    try {
-      const data = await listSignalTypes();
-      setSignalTypes(data);
-    } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
-    }
-  }, [toast, t]);
-
-  const loadRepos = useCallback(async () => {
-    try {
-      const response = await getRepos();
-      setRepos(response.repos);
-    } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
-    }
-  }, [toast, t]);
-
-  useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-
-    setIsLoading(true);
-    Promise.all([loadRules(), loadSignalTypes(), loadRepos()]).finally(() =>
-      setIsLoading(false)
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleCreate = useCallback(
-    async (rule: AlertRuleCreate): Promise<boolean> => {
-      setIsSubmitting(true);
-      try {
-        await createAlertRule(rule);
-        await loadRules();
-        toast.success(t.settings.alerts.toast.created);
-        return true;
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.common.error));
-        return false;
-      } finally {
-        setIsSubmitting(false);
-      }
-    },
-    [loadRules, toast, t]
-  );
-
-  const handleUpdate = useCallback(
-    async (rule: AlertRuleCreate): Promise<boolean> => {
+  const onUpdate = useCallback(
+    async (rule: AlertRuleCreate) => {
       if (!editingRule) return false;
-      setIsSubmitting(true);
-      try {
-        const update: AlertRuleUpdate = {
-          name: rule.name,
-          description: rule.description,
-          repo_id: rule.repo_id,
-          signal_type: rule.signal_type,
-          operator: rule.operator,
-          threshold: rule.threshold,
-          enabled: rule.enabled,
-        };
-        await updateAlertRule(editingRule.id, update);
-        await loadRules();
+      const success = await handleUpdate(editingRule.id, rule);
+      if (success) {
         setEditingRule(null);
-        toast.success(t.settings.alerts.toast.updated);
-        return true;
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.common.error));
-        return false;
-      } finally {
-        setIsSubmitting(false);
       }
+      return success;
     },
-    [editingRule, loadRules, toast, t]
-  );
-
-  const handleToggle = useCallback(
-    async (id: number) => {
-      const rule = rules.find((r) => r.id === id);
-      if (!rule) return;
-
-      const newEnabled = !rule.enabled;
-
-      // Optimistic update
-      setRules((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, enabled: newEnabled } : r))
-      );
-
-      try {
-        await updateAlertRule(id, { enabled: newEnabled });
-      } catch (err) {
-        // Revert on failure
-        setRules((prev) =>
-          prev.map((r) => (r.id === id ? { ...r, enabled: !newEnabled } : r))
-        );
-        toast.error(getErrorMessage(err, t.common.error));
-      }
-    },
-    [rules, toast, t]
-  );
-
-  const handleDelete = useCallback(
-    async (id: number) => {
-      try {
-        await deleteAlertRule(id);
-        await loadRules();
-        toast.success(t.settings.alerts.toast.deleted);
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.common.error));
-      }
-    },
-    [loadRules, toast, t]
+    [editingRule, handleUpdate]
   );
 
   const handleEdit = useCallback((rule: AlertRule) => {
@@ -211,10 +91,12 @@ export function useAlertRules(toast: Toast) {
     editingRule,
     editingRuleData,
     handleCreate,
-    handleUpdate,
+    handleUpdate: onUpdate,
     handleToggle,
     handleEdit,
     handleCancelEdit,
+    handleCheckNow,
+    handleAcknowledgeAll,
     openDeleteConfirm: deleteConfirm.open,
     closeDeleteConfirm: deleteConfirm.close,
     confirmDelete,

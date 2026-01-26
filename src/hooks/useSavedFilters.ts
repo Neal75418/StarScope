@@ -35,9 +35,7 @@ function loadSavedFilters(): SavedFilter[] {
       const parsed = JSON.parse(stored) as SavedFilter[];
       // Validate and return
       if (Array.isArray(parsed)) {
-        return parsed.filter(
-          (f) => f && typeof f.id === "string" && typeof f.name === "string"
-        );
+        return parsed.filter((f) => f && f.id && f.name);
       }
     }
   } catch (err) {

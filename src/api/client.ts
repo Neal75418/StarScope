@@ -1506,9 +1506,7 @@ export async function updateAlertRule(ruleId: number, data: AlertRuleUpdate): Pr
 /**
  * Delete an alert rule.
  */
-export async function deleteAlertRule(
-  ruleId: number
-): Promise<{ status: string; id: number }> {
+export async function deleteAlertRule(ruleId: number): Promise<{ status: string; id: number }> {
   return apiCall(`/alerts/rules/${ruleId}`, {
     method: "DELETE",
   });

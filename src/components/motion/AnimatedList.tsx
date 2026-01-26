@@ -31,11 +31,7 @@ const itemVariants = {
   },
 };
 
-export function AnimatedList({
-  children,
-  className,
-  staggerDelay = 0.05,
-}: AnimatedListProps) {
+export function AnimatedList({ children, className, staggerDelay = 0.05 }: AnimatedListProps) {
   const variants = {
     ...containerVariants,
     visible: {
@@ -46,12 +42,7 @@ export function AnimatedList({
   };
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={variants}
-      className={className}
-    >
+    <motion.div initial="hidden" animate="visible" variants={variants} className={className}>
       {children}
     </motion.div>
   );
@@ -62,10 +53,7 @@ interface AnimatedListItemProps {
   className?: string;
 }
 
-export function AnimatedListItem({
-  children,
-  className,
-}: AnimatedListItemProps) {
+export function AnimatedListItem({ children, className }: AnimatedListItemProps) {
   return (
     <motion.div variants={itemVariants} className={className}>
       {children}

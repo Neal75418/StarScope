@@ -93,11 +93,7 @@ export function DiscoveryResults({
 
       {hasMore && (
         <div className={styles.loadMoreWrapper}>
-          <button
-            className={styles.loadMoreButton}
-            onClick={onLoadMore}
-            disabled={loading}
-          >
+          <button className={styles.loadMoreButton} onClick={onLoadMore} disabled={loading}>
             {loading ? t.discovery.searching : t.discovery.loadMore}
           </button>
         </div>

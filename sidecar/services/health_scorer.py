@@ -502,5 +502,5 @@ async def calculate_health_score(owner: str, repo: str, star_velocity: float = 0
         metrics = await scorer.fetch_metrics(owner, repo, star_velocity)
         return scorer.calculate_scores(metrics)
     except Exception as e:
-        logger.error(f"Failed to calculate health score for {owner}/{repo}: {e}")
+        logger.error(f"Failed to calculate health score for {owner}/{repo}: {e}", exc_info=True)
         return None

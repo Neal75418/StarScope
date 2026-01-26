@@ -3,11 +3,11 @@ Star History Backfill API endpoints.
 Provides historical star data backfilling for repositories with < 5000 stars.
 """
 
-from datetime import datetime, date, timezone
-from typing import List, Optional
 from collections import defaultdict
+from datetime import datetime, date
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

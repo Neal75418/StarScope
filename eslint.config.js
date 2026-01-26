@@ -5,6 +5,7 @@ import reactHooksPlugin from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 import prettierConfig from "eslint-config-prettier";
 
+// @ts-expect-error - tseslint types are strict, but this config is valid at runtime
 export default tseslint.config(
   // Ignore patterns
   {

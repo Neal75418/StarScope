@@ -1,3 +1,5 @@
+import type { SVGProps } from "react";
+
 /**
  * SVG Icon components for StarScope
  * GitHub-style icons using Octicons patterns
@@ -19,8 +21,8 @@ function getSvgProps(
   size: number,
   className?: string,
   ariaLabel?: string
-): React.SVGProps<SVGSVGElement> {
-  const baseProps: React.SVGProps<SVGSVGElement> = {
+): SVGProps<SVGSVGElement> {
+  const baseProps: SVGProps<SVGSVGElement> = {
     width: size,
     height: size,
     viewBox: "0 0 16 16",

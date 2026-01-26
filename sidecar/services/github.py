@@ -91,7 +91,7 @@ def handle_github_response(
                 "GitHub API authentication failed - check token",
                 status_code=401
             )
-        logger.error("GitHub API authentication failed")
+        logger.error("GitHub API authentication failed", exc_info=True)
         return None
 
     response.raise_for_status()
@@ -405,14 +405,14 @@ async def fetch_repo_data(owner: str, repo: str) -> Optional[dict]:
         logger.warning(f"Repository not found: {owner}/{repo}")
         return None
     except GitHubRateLimitError as e:
-        logger.error(f"GitHub rate limit exceeded: {e}")
+        logger.error(f"GitHub rate limit exceeded: {e}", exc_info=True)
         return None
     except GitHubAPIError as e:
-        logger.error(f"GitHub API error for {owner}/{repo}: {e}")
+        logger.error(f"GitHub API error for {owner}/{repo}: {e}", exc_info=True)
         return None
     except httpx.TimeoutException:
-        logger.error(f"Timeout fetching {owner}/{repo}")
+        logger.error(f"Timeout fetching {owner}/{repo}", exc_info=True)
         return None
     except httpx.RequestError as e:
-        logger.error(f"Network error fetching {owner}/{repo}: {e}")
+        logger.error(f"Network error fetching {owner}/{repo}: {e}", exc_info=True)
         return None

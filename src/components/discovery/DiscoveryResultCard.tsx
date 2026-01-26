@@ -35,12 +35,7 @@ export function DiscoveryResultCard({
   return (
     <div className={styles.resultCard}>
       <div className={styles.cardHeader}>
-        <a
-          href={repo.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.repoName}
-        >
+        <a href={repo.url} target="_blank" rel="noopener noreferrer" className={styles.repoName}>
           {repo.full_name}
           <LinkExternalIcon size={14} className={styles.externalIcon} />
         </a>
@@ -53,9 +48,7 @@ export function DiscoveryResultCard({
         </button>
       </div>
 
-      {repo.description && (
-        <p className={styles.description}>{repo.description}</p>
-      )}
+      {repo.description && <p className={styles.description}>{repo.description}</p>}
 
       <div className={styles.cardMeta}>
         {repo.language && (

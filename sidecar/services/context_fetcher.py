@@ -259,7 +259,7 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
             )
         except Exception as e:
             errors += 1
-            logger.error(f"Error fetching context signals for {repo.full_name}: {e}")
+            logger.error(f"Error fetching context signals for {repo.full_name}: {e}", exc_info=True)
 
     return {
         "repos_processed": len(repos),

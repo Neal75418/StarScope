@@ -17,44 +17,30 @@ StarScope 是一款桌面應用程式，透過速度分析（而非單純的 sta
 ## 架構
 
 ```mermaid
-graph TB
-    subgraph Desktop["🖥️ Tauri 桌面外殼"]
-        direction TB
-        T1["src-tauri/"]
-        T2["系統匣、桌面通知"]
-        T3["Rust 原生層"]
+flowchart LR
+    subgraph Desktop["Tauri Desktop"]
+        T["src-tauri/"]
     end
 
-    subgraph Frontend["⚛️ React 前端"]
-        direction TB
-        F1["src/"]
-        F2["TypeScript + React 19"]
-        F3["Recharts 資料視覺化"]
+    subgraph Frontend["React Frontend"]
+        F["src/"]
     end
 
-    subgraph Backend["🐍 Python Sidecar"]
-        direction TB
-        B1["sidecar/"]
-        B2["FastAPI REST API"]
-        B3["SQLite + SQLAlchemy + Alembic"]
-        B4["APScheduler 背景排程"]
+    subgraph Backend["Python Sidecar"]
+        B["sidecar/"]
     end
 
-    subgraph External["🌐 外部 API"]
-        direction LR
-        E1["GitHub API"]
-        E2["HackerNews API"]
-        E3["Reddit API"]
+    subgraph APIs["External APIs"]
+        G["GitHub"]
+        H["HackerNews"]
+        R["Reddit"]
     end
 
-    Desktop --> Frontend
-    Frontend <-->|"HTTP :8008"| Backend
-    Backend <--> External
-
-    style Desktop fill:#2d3748,stroke:#4a5568,color:#fff
-    style Frontend fill:#3182ce,stroke:#2c5282,color:#fff
-    style Backend fill:#38a169,stroke:#276749,color:#fff
-    style External fill:#805ad5,stroke:#553c9a,color:#fff
+    T --> F
+    F <-->|":8008"| B
+    B --> G
+    B --> H
+    B --> R
 ```
 
 ## 常用指令

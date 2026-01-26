@@ -284,7 +284,7 @@ class AnomalyDetector:
                     if not existing:
                         signals.append(signal)
             except Exception as e:
-                logger.error(f"Error in detector for {repo.full_name}: {e}")
+                logger.error(f"Error in detector for {repo.full_name}: {e}", exc_info=True)
 
         return signals
 
@@ -305,7 +305,7 @@ class AnomalyDetector:
                     total_signals += 1
                     signals_by_type[signal.signal_type] = signals_by_type.get(signal.signal_type, 0) + 1
             except Exception as e:
-                logger.error(f"Failed to detect signals for {repo.full_name}: {e}")
+                logger.error(f"Failed to detect signals for {repo.full_name}: {e}", exc_info=True)
 
         db.commit()
 

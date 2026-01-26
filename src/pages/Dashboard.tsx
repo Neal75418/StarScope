@@ -19,9 +19,7 @@ function StatCard({
   return (
     <div className="stat-card">
       <div className="stat-label">{label}</div>
-      <div className={`stat-value ${trend ? `trend-${trend}` : ""}`}>
-        {value}
-      </div>
+      <div className={`stat-value ${trend ? `trend-${trend}` : ""}`}>{value}</div>
     </div>
   );
 }
@@ -47,14 +45,8 @@ function StatsGrid({ stats }: { stats: DashboardStats }) {
 
   return (
     <div className="stats-grid">
-      <StatCard
-        label={t.dashboard.stats.totalRepos}
-        value={stats.totalRepos}
-      />
-      <StatCard
-        label={t.dashboard.stats.totalStars}
-        value={formatNumber(stats.totalStars)}
-      />
+      <StatCard label={t.dashboard.stats.totalRepos} value={stats.totalRepos} />
+      <StatCard label={t.dashboard.stats.totalStars} value={formatNumber(stats.totalStars)} />
       <StatCard
         label={t.dashboard.stats.weeklyStars}
         value={formatDelta(stats.weeklyStars)}
@@ -70,11 +62,7 @@ function StatsGrid({ stats }: { stats: DashboardStats }) {
 }
 
 // Velocity distribution chart component
-function VelocityChart({
-  data,
-}: {
-  data: { label: string; count: number }[];
-}) {
+function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
   const { t } = useI18n();
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 

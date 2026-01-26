@@ -244,7 +244,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
         created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
     )
     db.add(repo)
-    db.commit()
+    db.flush()
     db.refresh(repo)
 
     # Create initial snapshot
@@ -314,11 +314,14 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     # Update repo metadata and create/update snapshot
     _update_repo_metadata(repo, github_data)
     _create_or_update_snapshot(repo, github_data, db)
-    db.commit()
+    # db.commit() - moved to end to include signals
 
     # Recalculate signals
     from services.analyzer import calculate_signals
     calculate_signals(repo.id, db)
+
+    # Commit all changes atomically
+    db.commit()
 
     return get_repo_with_signals(repo, db)
 
@@ -344,16 +347,22 @@ async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
             # Recalculate signals
             from services.analyzer import calculate_signals
             calculate_signals(repo.id, db)
+            
+            # Commit per repo to ensure data consistency and avoid long transactions
+            db.commit()
 
         except GitHubNotFoundError:
+            db.rollback()
             logger.warning(f"Repository {repo.full_name} not found on GitHub, skipping")
             continue
         except GitHubAPIError as e:
+            db.rollback()
             # Covers GitHubRateLimitError and other API errors after retries exhausted
-            logger.error(f"GitHub API error for {repo.full_name} after retries: {e}")
+            logger.error(f"GitHub API error for {repo.full_name} after retries: {e}", exc_info=True)
             continue
 
-    db.commit()
+    # db.commit() - already committed per repo inside loop
+
 
     # Return updated list
     return _build_repo_list_response(db)

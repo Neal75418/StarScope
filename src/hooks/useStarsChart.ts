@@ -3,9 +3,9 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getStarsChart, ChartDataPoint } from "../api/client";
+import { getStarsChart, getStarHistory, ChartDataPoint } from "../api/client";
 
-export type TimeRange = "7d" | "30d" | "90d";
+export type TimeRange = "7d" | "30d" | "90d" | "all";
 
 interface ChartState {
   data: ChartDataPoint[];
@@ -45,8 +45,22 @@ export function useStarsChart(repoId: number) {
     const fetchData = async () => {
       safeSetState({ loading: true, error: null });
       try {
-        const response = await getStarsChart(repoId, timeRange);
-        safeSetState({ data: response.data_points, loading: false });
+        if (timeRange === "all") {
+          // Use getStarHistory API which returns complete star history from stargazers
+          // This endpoint fetches all stargazer timestamps and reconstructs cumulative star count
+          const response = await getStarHistory(repoId);
+          // Convert StarHistoryPoint[] to ChartDataPoint[]
+          // Note: Star history API only tracks stars, not forks (fork history unavailable via GitHub API)
+          const dataPoints: ChartDataPoint[] = response.history.map((point) => ({
+            date: point.date,
+            stars: point.stars,
+            forks: 0,
+          }));
+          safeSetState({ data: dataPoints, loading: false });
+        } else {
+          const response = await getStarsChart(repoId, timeRange);
+          safeSetState({ data: response.data_points, loading: false });
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load chart";
         safeSetState({ error: message, loading: false });

@@ -93,11 +93,23 @@ export function Settings() {
               {alerts.rules.length === 0 ? t.settings.alerts.noAlerts : ""}
             </p>
           </div>
-          {!isAlertFormVisible && (
-            <button className="btn btn-primary" onClick={() => setShowAddAlert(true)}>
-              {t.settings.alerts.create}
-            </button>
-          )}
+          <div className="settings-section-actions">
+            {!isAlertFormVisible && (
+              <>
+                <button
+                  className="btn"
+                  onClick={() => void alerts.handleCheckNow()}
+                  disabled={alerts.isSubmitting}
+                  title={t.settings.alerts.checkNow ?? "Check alerts now"}
+                >
+                  {t.settings.alerts.checkNow ?? "Check Now"}
+                </button>
+                <button className="btn btn-primary" onClick={() => setShowAddAlert(true)}>
+                  {t.settings.alerts.create}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {isAlertFormVisible && (

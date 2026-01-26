@@ -29,7 +29,9 @@
   background: var(--bg-default);
   color: var(--fg-default);
   font-size: 0.9375rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .searchInput:focus {
@@ -418,7 +420,9 @@
 .resultCard:hover {
   border-color: var(--accent-muted);
   transform: scale(var(--card-hover-scale));
-  box-shadow: var(--card-hover-shadow), 0 0 0 1px var(--card-glow);
+  box-shadow:
+    var(--card-hover-shadow),
+    0 0 0 1px var(--card-glow);
 }
 
 .cardHeader {

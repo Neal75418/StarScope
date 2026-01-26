@@ -210,5 +210,5 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
             )
             db.execute(stmt)
 
-    db.commit()
+    # db.commit() - moved to caller
     return signals

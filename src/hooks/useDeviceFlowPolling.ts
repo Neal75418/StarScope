@@ -33,7 +33,6 @@ export function useDeviceFlowPolling({
 
   const handleSuccess = useCallback(
     (username?: string) => {
-      console.warn("[GitHubAuth] Authorization successful!");
       setPollStatus(t.githubConnection.status.connected);
       stopPolling();
       onSuccess({ connected: true, username });
@@ -43,7 +42,7 @@ export function useDeviceFlowPolling({
 
   const handleError = useCallback(
     (error?: string) => {
-      console.warn("[GitHubAuth] Authorization failed:", error);
+      console.error("[GitHubAuth] Authorization failed:", error);
       setPollStatus("");
       stopPolling();
       onError(error || t.githubConnection.errors.failed);
@@ -68,12 +67,8 @@ export function useDeviceFlowPolling({
     (code: string, interval: number, expiresIn: number) => {
       codeRef.current = code;
       currentIntervalRef.current = Math.max(interval, 10);
-      console.warn(
-        `[GitHubAuth] Starting polling: interval=${currentIntervalRef.current}s, expires=${expiresIn}s`
-      );
 
       pollTimeoutRef.current = window.setTimeout(() => {
-        console.warn("[GitHubAuth] Polling expired");
         stopPolling();
         onExpired();
       }, expiresIn * 1000);
@@ -85,10 +80,7 @@ export function useDeviceFlowPolling({
               seconds: currentIntervalRef.current,
             })
           );
-          console.warn(`[GitHubAuth] Polling... (interval: ${currentIntervalRef.current}s)`);
           const result = await pollAuthorization(codeRef.current);
-          console.warn("[GitHubAuth] Poll result:", result);
-
           processResult(result, doPoll);
         } catch (err) {
           console.error("[GitHubAuth] Poll error:", err);

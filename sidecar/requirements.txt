@@ -1,9 +1,11 @@
 # FastAPI and server
 fastapi>=0.115.8
 pydantic>=2.0.0  # Explicitly listed for IDE support (bundled with FastAPI)
-# Note: starlette is managed by FastAPI - do not pin separately
+# Keep starlette unpinned to align with FastAPI's dependency range.
+starlette
 uvicorn[standard]>=0.34.0
 python-dotenv>=1.0.0
+keyring>=25.0.0
 
 # HTTP client for GitHub API
 httpx>=0.28.0

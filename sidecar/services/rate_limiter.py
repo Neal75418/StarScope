@@ -125,7 +125,7 @@ async def batch_fetch_with_retry(
             results[full_name] = None
             if on_failure:
                 await on_failure(owner, name, e.last_attempt.exception())
-            logger.error(f"Failed to fetch {full_name} after all retries: {e}")
+            logger.error(f"Failed to fetch {full_name} after all retries: {e}", exc_info=True)
         except Exception as e:
             # Non-retryable errors (e.g., GitHubNotFoundError)
             results[full_name] = None

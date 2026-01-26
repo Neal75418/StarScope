@@ -57,7 +57,7 @@ async def search_repos(
             detail="GitHub API rate limit exceeded. Please try again later.",
         )
     except GitHubAPIError as e:
-        logger.error(f"GitHub search API error: {e}")
+        logger.error(f"GitHub search API error: {e}", exc_info=True)
         raise HTTPException(
             status_code=502,
             detail=f"GitHub API error: {str(e)}",

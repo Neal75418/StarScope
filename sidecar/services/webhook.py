@@ -256,13 +256,13 @@ class WebhookService:
             log.success = False
             error_message = "Request timed out"
             log.error_message = error_message
-            logger.error(f"Webhook timeout: {webhook_name}")
+            logger.error(f"Webhook timeout: {webhook_name}", exc_info=True)
 
         except Exception as e:
             log.success = False
             error_message = str(e)[:500]
             log.error_message = error_message
-            logger.error(f"Webhook error for {webhook_name}: {e}")
+            logger.error(f"Webhook error for {webhook_name}: {e}", exc_info=True)
 
         # Use a single timestamp for consistency
         now = utc_now()
@@ -279,7 +279,7 @@ class WebhookService:
             db.add(log)
             db.commit()
         except Exception as commit_error:
-            logger.error(f"Failed to commit webhook log: {commit_error}")
+            logger.error(f"Failed to commit webhook log: {commit_error}", exc_info=True)
             db.rollback()
 
         return success

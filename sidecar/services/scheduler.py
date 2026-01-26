@@ -86,13 +86,13 @@ async def fetch_all_repos_job():
 
             except Exception as e:
                 error_count += 1
-                logger.error(f"Error fetching {repo.full_name}: {e}")
+                logger.error(f"Error fetching {repo.full_name}: {e}", exc_info=True)
                 db.rollback()
 
         logger.info(f"Scheduled fetch complete: {success_count} success, {error_count} errors")
 
     except Exception as e:
-        logger.error(f"Scheduler job error: {e}")
+        logger.error(f"Scheduler job error: {e}", exc_info=True)
     finally:
         db.close()
 
@@ -122,7 +122,7 @@ def check_alerts_job():
             logger.debug("No alerts triggered")
 
     except Exception as e:
-        logger.error(f"Error checking alerts: {e}")
+        logger.error(f"Error checking alerts: {e}", exc_info=True)
     finally:
         db.close()
 
@@ -146,7 +146,7 @@ async def fetch_context_signals_job():
             f"Errors={result['errors']}"
         )
     except Exception as e:
-        logger.error(f"Context signals job error: {e}")
+        logger.error(f"Context signals job error: {e}", exc_info=True)
     finally:
         db.close()
 

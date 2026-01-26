@@ -51,8 +51,15 @@
   --rank-bronze: #ff7b72;
   --rank-bronze-subtle: rgba(255, 123, 114, 0.2);
 
+  /* Helper colors */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, Liberation Mono, monospace;
+  --attention-subtle: rgba(163, 113, 247, 0.15);
+  --neutral-subtle: rgba(110, 118, 129, 0.1);
+  --warning-border: #f0b729;
+
   --shadow-sm: 0 1px 0 rgba(1, 4, 9, 0.1);
   --shadow-md: 0 3px 6px rgba(1, 4, 9, 0.15);
+
   --shadow-lg: 0 8px 24px rgba(1, 4, 9, 0.25);
   --shadow-xl: 0 12px 48px rgba(1, 4, 9, 0.35);
 
@@ -136,6 +143,11 @@
   /* Rank badge colors */
   --rank-bronze: #cf222e;
   --rank-bronze-subtle: rgba(207, 34, 46, 0.15);
+
+  /* Helper colors */
+  --attention-subtle: rgba(130, 80, 223, 0.1);
+  --neutral-subtle: rgba(175, 184, 193, 0.2);
+  --warning-border: #d29922;
 
   --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
   --shadow-md: 0 3px 6px rgba(140, 149, 159, 0.15);
@@ -957,7 +969,9 @@ body {
 .repo-card:hover {
   border-color: var(--accent-muted);
   transform: scale(var(--card-hover-scale));
-  box-shadow: var(--card-hover-shadow), 0 0 0 1px var(--card-glow);
+  box-shadow:
+    var(--card-hover-shadow),
+    0 0 0 1px var(--card-glow);
 }
 
 .repo-header {
@@ -1953,6 +1967,86 @@ body {
   border: 1px dashed var(--border-default);
 }
 
+/* Activity Badge */
+.activity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: default;
+  transition: transform 0.15s ease;
+}
+
+.activity-badge:hover {
+  transform: scale(1.05);
+}
+
+.activity-badge-loading {
+  background-color: var(--bg-muted);
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.activity-badge-error {
+  background-color: var(--danger-emphasis);
+  color: var(--fg-on-emphasis);
+}
+
+.activity-badge-empty {
+  background-color: var(--bg-muted);
+  color: var(--fg-muted);
+  border: 1px dashed var(--border-default);
+  cursor: pointer;
+}
+
+/* Language Badge */
+.language-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: default;
+  transition: transform 0.15s ease;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.language-badge:hover {
+  transform: scale(1.05);
+}
+
+.language-badge-loading {
+  background-color: var(--bg-muted);
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+.language-badge-error {
+  background-color: var(--danger-emphasis);
+  color: var(--fg-on-emphasis);
+}
+
+.language-badge-empty {
+  background-color: var(--bg-muted);
+  color: var(--fg-muted);
+  border: 1px dashed var(--border-default);
+  cursor: pointer;
+}
+
 /* Health Panel */
 .health-panel-overlay {
   position: fixed;
@@ -2551,7 +2645,14 @@ body {
   min-height: 100px;
   padding: 10px 12px;
   font-size: 13px;
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
   color: var(--fg-default);
   background-color: var(--bg-canvas);
   border: 1px solid var(--border-default);
@@ -2649,14 +2750,25 @@ body {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .import-item-name {
   flex: 1;
   color: var(--fg-default);
-  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
 }
 
 .import-item-error {
@@ -3033,7 +3145,7 @@ body {
   font-size: 13px;
   color: var(--fg-default);
   margin-top: 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-mono), monospace;
 }
 
 .alert-rule-target {

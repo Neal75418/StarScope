@@ -93,7 +93,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"Device flow initiation failed: {response.text}")
+                logger.error(f"Device flow initiation failed: {response.text}", exc_info=True)
                 raise GitHubAuthError(
                     f"Failed to initiate device flow: {response.status_code}"
                 )
@@ -123,7 +123,7 @@ class GitHubAuthService:
         logger.info(f"Polling for token with device_code: {device_code[:8]}...")
 
         if not self.client_id:
-            logger.error("Client ID not configured")
+            logger.error("Client ID not configured", exc_info=True)
             return {"status": "error", "error": "Client ID not configured"}
 
         async with httpx.AsyncClient() as client:
@@ -138,7 +138,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"Poll failed: HTTP {response.status_code}")
+                logger.error(f"Poll failed: HTTP {response.status_code}", exc_info=True)
                 return {"status": "error", "error": f"HTTP {response.status_code}"}
 
             data = response.json()
@@ -160,7 +160,7 @@ class GitHubAuthService:
                 logger.warning("User denied access")
                 return {"status": "error", "error": "User denied access"}
             elif error:
-                logger.error(f"Unknown error: {error}")
+                logger.error(f"Unknown error: {error}", exc_info=True)
                 return {"status": "error", "error": error}
 
             # Success! We have an access token

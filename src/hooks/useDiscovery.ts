@@ -2,116 +2,111 @@
  * Hook for Discovery page - searching GitHub repositories.
  */
 
-import { useState, useCallback, useRef } from "react";
-import { searchRepos, DiscoveryRepo, SearchFilters, ApiError } from "../api/client";
-import { useI18n } from "../i18n";
+import { useCallback, useState } from "react";
+import { SearchFilters } from "../api/client";
+import { TrendingPeriod } from "../components/discovery";
+import { useDiscoverySearch } from "./useDiscoverySearch";
 
 export type SortOption = "stars" | "forks" | "updated";
 
 export interface DiscoveryState {
-  query: string;
-  repos: DiscoveryRepo[];
-  totalCount: number;
-  page: number;
-  hasMore: boolean;
-  loading: boolean;
-  error: string | null;
+  // Filter state
+  keyword: string;
+  period: TrendingPeriod | undefined;
   filters: SearchFilters;
+  // UI state
+  hasSearched: boolean;
 }
 
 const INITIAL_STATE: DiscoveryState = {
-  query: "",
-  repos: [],
-  totalCount: 0,
-  page: 1,
-  hasMore: false,
-  loading: false,
-  error: null,
+  keyword: "",
+  period: undefined,
   filters: {},
+  hasSearched: false,
 };
 
 export function useDiscovery() {
-  const { t } = useI18n();
+  const { repos, totalCount, hasMore, loading, error, executeSearch, resetSearch } =
+    useDiscoverySearch();
   const [state, setState] = useState<DiscoveryState>(INITIAL_STATE);
 
-  // Prevent duplicate fetches from StrictMode
-  const isFetchingRef = useRef(false);
-
+  // Helper to trigger a new search (resets page to 1)
   const search = useCallback(
-    async (query: string, filters: SearchFilters = {}, page: number = 1) => {
-      if (!query.trim()) {
-        setState(INITIAL_STATE);
-        return;
-      }
-
-      // Skip if already fetching
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-
-      setState((prev) => ({
-        ...prev,
-        query,
-        filters,
-        page,
-        loading: true,
-        error: null,
-        // Clear repos if new search (page 1)
-        repos: page === 1 ? [] : prev.repos,
-      }));
-
-      try {
-        const result = await searchRepos(query, filters, page);
-
-        setState((prev) => ({
-          ...prev,
-          repos: page === 1 ? result.repos : [...prev.repos, ...result.repos],
-          totalCount: result.total_count,
-          hasMore: result.has_more,
-          loading: false,
-        }));
-      } catch (err) {
-        let errorMessage = t.discovery.error.generic;
-        if (err instanceof ApiError && err.status === 429) {
-          errorMessage = t.discovery.error.rateLimit;
-        }
-        setState((prev) => ({
-          ...prev,
-          loading: false,
-          error: errorMessage,
-        }));
-      } finally {
-        isFetchingRef.current = false;
-      }
+    (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
+      setState({ keyword: kw, period: p, filters: f, hasSearched: true });
+      void executeSearch(kw, p, f, 1);
     },
-    [t.discovery.error.generic, t.discovery.error.rateLimit]
+    [executeSearch]
+  );
+
+  // Setters that trigger search
+  const setKeyword = useCallback(
+    (kw: string) => {
+      search(kw, state.period, state.filters);
+    },
+    [state.period, state.filters, search]
+  );
+
+  const setPeriod = useCallback(
+    (p: TrendingPeriod | undefined) => {
+      search(state.keyword, p, state.filters);
+    },
+    [state.keyword, state.filters, search]
+  );
+
+  const setFilters = useCallback(
+    (f: SearchFilters) => {
+      search(state.keyword, state.period, f);
+    },
+    [state.keyword, state.period, search]
   );
 
   const loadMore = useCallback(() => {
-    if (state.hasMore && !state.loading && state.query) {
-      void search(state.query, state.filters, state.page + 1);
+    if (hasMore && !loading) {
+      // Calculate next page based on current count (assuming 30 per page or similar)
+      const nextPage = Math.floor(repos.length / 30) + 1;
+      void executeSearch(state.keyword, state.period, state.filters, nextPage);
     }
-  }, [state.hasMore, state.loading, state.query, state.filters, state.page, search]);
-
-  const setFilters = useCallback(
-    (newFilters: SearchFilters) => {
-      if (state.query) {
-        void search(state.query, newFilters, 1);
-      } else {
-        setState((prev) => ({ ...prev, filters: newFilters }));
-      }
-    },
-    [state.query, search]
-  );
+  }, [hasMore, loading, repos.length, state.keyword, state.period, state.filters, executeSearch]);
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE);
-  }, []);
+    resetSearch();
+  }, [resetSearch]);
+
+  // Utility actions for specific filter removals
+  const removeKeyword = useCallback(() => setKeyword(""), [setKeyword]);
+  const removePeriod = useCallback(() => setPeriod(undefined), [setPeriod]);
+  const removeLanguage = useCallback(() => {
+    setFilters({ ...state.filters, language: undefined });
+  }, [state.filters, setFilters]);
+
+  // Apply a saved filter set
+  const applySavedFilter = useCallback(
+    (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
+      search(kw, p, f);
+    },
+    [search]
+  );
 
   return {
-    ...state,
-    search,
-    loadMore,
+    repos,
+    totalCount,
+    hasMore,
+    loading,
+    error,
+    keyword: state.keyword,
+    period: state.period,
+    filters: state.filters,
+    hasSearched: state.hasSearched,
+    setKeyword,
+    setPeriod,
     setFilters,
+    removeKeyword,
+    removePeriod,
+    removeLanguage,
     reset,
+    loadMore,
+    applySavedFilter,
   };
 }

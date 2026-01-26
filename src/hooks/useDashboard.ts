@@ -3,12 +3,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import {
-  getRepos,
-  listTriggeredAlerts,
-  RepoWithSignals,
-  TriggeredAlert,
-} from "../api/client";
+import { getRepos, listTriggeredAlerts, RepoWithSignals, TriggeredAlert } from "../api/client";
 
 export interface DashboardStats {
   totalRepos: number;

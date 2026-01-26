@@ -24,7 +24,10 @@ const LANGUAGES = [
   { value: "php", label: "PHP" },
 ] as const;
 
-const SORT_OPTIONS: { value: SortOption; labelKey: keyof typeof import("../../i18n/translations").translations.en.discovery.filters }[] = [
+const SORT_OPTIONS: {
+  value: SortOption;
+  labelKey: keyof typeof import("../../i18n/translations").translations.en.discovery.filters;
+}[] = [
   { value: "stars", labelKey: "sortByStars" },
   { value: "forks", labelKey: "sortByForks" },
   { value: "updated", labelKey: "sortByUpdated" },

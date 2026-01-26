@@ -219,8 +219,8 @@ async def fetch_reddit_mentions(owner: str, repo_name: str) -> Optional[List[Red
         service = get_reddit_service()
         return await service.search_repo(repo_name, owner)
     except RedditAPIError as e:
-        logger.error(f"Failed to fetch Reddit mentions for {owner}/{repo_name}: {e}")
+        logger.error(f"Failed to fetch Reddit mentions for {owner}/{repo_name}: {e}", exc_info=True)
         return None
     except Exception as e:
-        logger.error(f"Unexpected error fetching Reddit mentions for {owner}/{repo_name}: {e}")
+        logger.error(f"Unexpected error fetching Reddit mentions for {owner}/{repo_name}: {e}", exc_info=True)
         return None

@@ -8,66 +8,69 @@ import { useSavedFilters, SavedFilter } from "../../hooks/useSavedFilters";
 import { SearchFilters } from "../../api/client";
 import { ChevronDownIcon, XIcon, CheckIcon, StarIcon } from "../Icons";
 import styles from "./Discovery.module.css";
+import { TrendingPeriod } from "./TrendingFilters";
 
 interface SavedFiltersProps {
   currentQuery: string;
-  currentPeriod: string | undefined;
+  currentPeriod: TrendingPeriod | undefined;
   currentFilters: SearchFilters;
-  onApply: (query: string, period: string | undefined, filters: SearchFilters) => void;
+  onApply: (query: string, period: TrendingPeriod | undefined, filters: SearchFilters) => void;
 }
 
-const FilterItem = memo(({
-  filter,
-  onApply,
-  onDelete,
-}: {
-  filter: SavedFilter;
-  onApply: () => void;
-  onDelete: () => void;
-}) => {
-  const { t } = useI18n();
+const FilterItem = memo(
+  ({
+    filter,
+    onApply,
+    onDelete,
+  }: {
+    filter: SavedFilter;
+    onApply: () => void;
+    onDelete: () => void;
+  }) => {
+    const { t } = useI18n();
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onDelete();
-  };
+    const handleDelete = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onDelete();
+    };
 
-  const getFilterSummary = () => {
-    const parts: string[] = [];
-    if (filter.query) parts.push(`"${filter.query}"`);
-    if (filter.period) parts.push(filter.period);
-    if (filter.filters.language) parts.push(filter.filters.language);
-    return parts.length > 0 ? parts.join(" • ") : t.savedFilters.noFilters;
-  };
+    const getFilterSummary = () => {
+      const parts: string[] = [];
+      if (filter.query) parts.push(`"${filter.query}"`);
+      if (filter.period) parts.push(filter.period);
+      if (filter.filters.language) parts.push(filter.filters.language);
+      return parts.length > 0 ? parts.join(" • ") : t.savedFilters.noFilters;
+    };
 
-  return (
-    <div
-      className={styles.savedFilterItem}
-      onClick={onApply}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onApply();
-        }
-      }}
-    >
-      <div className={styles.savedFilterContent}>
-        <div className={styles.savedFilterName}>{filter.name}</div>
-        <div className={styles.savedFilterSummary}>{getFilterSummary()}</div>
-      </div>
-      <button
-        className={styles.savedFilterDelete}
-        onClick={handleDelete}
-        aria-label={t.common.delete}
-        title={t.common.delete}
+    return (
+      <div
+        className={styles.savedFilterItem}
+        onClick={onApply}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onApply();
+          }
+        }}
       >
-        <XIcon size={14} />
-      </button>
-    </div>
-  );
-});
+        <div className={styles.savedFilterContent}>
+          <div className={styles.savedFilterName}>{filter.name}</div>
+          <div className={styles.savedFilterSummary}>{getFilterSummary()}</div>
+        </div>
+        <button
+          className={styles.savedFilterDelete}
+          onClick={handleDelete}
+          aria-label={t.common.delete}
+          title={t.common.delete}
+        >
+          <XIcon size={14} />
+        </button>
+      </div>
+    );
+  }
+);
 FilterItem.displayName = "FilterItem";
 
 export function SavedFilters({
@@ -146,7 +149,7 @@ export function SavedFilters({
 
   const handleApplyFilter = useCallback(
     (filter: SavedFilter) => {
-      onApply(filter.query, filter.period, filter.filters);
+      onApply(filter.query, filter.period as TrendingPeriod | undefined, filter.filters);
       setIsOpen(false);
     },
     [onApply]

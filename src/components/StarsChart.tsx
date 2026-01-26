@@ -21,7 +21,14 @@ interface StarsChartProps {
   currentStars?: number | null;
 }
 
-const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d"];
+const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d", "all"];
+
+const TIME_RANGE_LABELS: Record<TimeRange, string> = {
+  "7d": "7d",
+  "30d": "30d",
+  "90d": "90d",
+  all: "All",
+};
 
 const TOOLTIP_STYLE = {
   backgroundColor: "#1a1a1a",
@@ -43,7 +50,7 @@ function TimeRangeSelector({ current, onChange }: TimeRangeSelectorProps) {
           className={`chart-range-btn ${current === range ? "active" : ""}`}
           onClick={() => onChange(range)}
         >
-          {range}
+          {TIME_RANGE_LABELS[range]}
         </button>
       ))}
     </div>

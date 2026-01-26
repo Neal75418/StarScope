@@ -11,17 +11,11 @@ import { RepoWithSignals, getCategoryRepos } from "../api/client";
  */
 function matchesSearch(repo: RepoWithSignals, query: string): boolean {
   const lowerQuery = query.toLowerCase();
-
-  // Search in full name (owner/repo)
-  if (repo.full_name.toLowerCase().includes(lowerQuery)) return true;
-
-  // Search in description
-  if (repo.description?.toLowerCase().includes(lowerQuery)) return true;
-
-  // Search in language
-  if (repo.language?.toLowerCase().includes(lowerQuery)) return true;
-
-  return false;
+  return (
+    repo.full_name.toLowerCase().includes(lowerQuery) ||
+    (repo.description?.toLowerCase().includes(lowerQuery) ?? false) ||
+    (repo.language?.toLowerCase().includes(lowerQuery) ?? false)
+  );
 }
 
 export function useCategoryFilter(repos: RepoWithSignals[]) {

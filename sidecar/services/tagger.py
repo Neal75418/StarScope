@@ -341,7 +341,7 @@ async def auto_tag_repo(repo_id: int, db: Session) -> List[dict]:
         applied = await tagger.auto_tag_repo(repo, db)
         return [{"name": tag.name, "type": tag.tag_type, "source": source} for tag, source in applied]
     except Exception as e:
-        logger.error(f"Failed to auto-tag repo {repo_id}: {e}")
+        logger.error(f"Failed to auto-tag repo {repo_id}: {e}", exc_info=True)
         return []
 
 
@@ -364,7 +364,7 @@ async def auto_tag_all_repos(db: Session) -> dict:
                 tagged += 1
                 tags_applied += len(applied)
         except Exception as e:
-            logger.error(f"Failed to auto-tag {repo.full_name}: {e}")
+            logger.error(f"Failed to auto-tag {repo.full_name}: {e}", exc_info=True)
 
     logger.info(f"Auto-tagged {tagged}/{total} repos, {tags_applied} tags applied")
 

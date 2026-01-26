@@ -41,13 +41,7 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
 }
 
 // Empty state component
-function EmptyState({
-  hasRepos,
-  hasSearch,
-}: {
-  hasRepos: boolean;
-  hasSearch: boolean;
-}) {
+function EmptyState({ hasRepos, hasSearch }: { hasRepos: boolean; hasSearch: boolean }) {
   const { t } = useI18n();
 
   if (!hasRepos) {
@@ -292,10 +286,7 @@ export function Watchlist() {
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                <EmptyState
-                  hasRepos={repos.length > 0}
-                  hasSearch={searchQuery.trim().length > 0}
-                />
+                <EmptyState hasRepos={repos.length > 0} hasSearch={searchQuery.trim().length > 0} />
               </div>
             ) : (
               <RepoList

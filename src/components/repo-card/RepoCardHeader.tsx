@@ -5,6 +5,8 @@
 import { useState } from "react";
 import { RepoWithSignals, HealthScoreResponse, getExportHistoryUrl } from "../../api/client";
 import { HealthBadge } from "../HealthBadge";
+import { CommitActivityBadge } from "../CommitActivityBadge";
+import { LanguagesBadge } from "../LanguagesBadge";
 import { useI18n } from "../../i18n";
 
 interface RepoCardHeaderProps {
@@ -49,6 +51,8 @@ export function RepoCardHeader({
         </a>
         {repo.language && <span className="repo-language">{repo.language}</span>}
         <HealthBadge repoId={repo.id} onShowDetails={onShowHealthDetails} />
+        <CommitActivityBadge repoId={repo.id} />
+        <LanguagesBadge repoId={repo.id} />
         {activeSignalCount > 0 && (
           <span className="signal-badge" title={`${activeSignalCount} active signal(s)`}>
             ⚡ {activeSignalCount}

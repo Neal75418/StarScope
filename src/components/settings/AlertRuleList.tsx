@@ -43,7 +43,9 @@ const AlertRuleCard = memo(function AlertRuleCard({
         <div className="alert-rule-header">
           <span className="alert-rule-name">{rule.name}</span>
           <span className={`alert-rule-status ${rule.enabled ? "enabled" : "disabled"}`}>
-            {rule.enabled ? t.settings.webhooks.status.enabled : t.settings.webhooks.status.disabled}
+            {rule.enabled
+              ? t.settings.webhooks.status.enabled
+              : t.settings.webhooks.status.disabled}
           </span>
         </div>
         <div className="alert-rule-condition">
@@ -55,9 +57,7 @@ const AlertRuleCard = memo(function AlertRuleCard({
       </div>
       <div className="alert-rule-actions">
         <button className="btn btn-sm" onClick={() => onToggle(rule.id)}>
-          {rule.enabled
-            ? t.settings.webhooks.actions.disable
-            : t.settings.webhooks.actions.enable}
+          {rule.enabled ? t.settings.webhooks.actions.disable : t.settings.webhooks.actions.enable}
         </button>
         <button className="btn btn-sm" onClick={() => onEdit(rule)}>
           {t.common.edit}

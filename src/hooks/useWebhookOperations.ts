@@ -30,51 +30,70 @@ interface UseWebhookOperationsOptions {
 export function useWebhookOperations({ toast, onSuccess }: UseWebhookOperationsOptions) {
   const { t } = useI18n();
 
-  const handleCreate = useCallback(
-    async (webhook: WebhookCreate): Promise<boolean> => {
+  // Unified executor to reduce cognitive complexity and repetition
+  const executeOperation = useCallback(
+    async <R>(
+      operation: () => Promise<R>,
+      successMessage?: string,
+      refreshOnSuccess: boolean = true
+    ): Promise<R | undefined> => {
       try {
-        await createWebhook(webhook);
-        toast.success(t.settings.webhooks.toast.created);
-        await onSuccess();
-        return true;
+        const result = await operation();
+        if (successMessage) {
+          toast.success(successMessage);
+        }
+        if (refreshOnSuccess) {
+          await onSuccess();
+        }
+        return result;
       } catch (err) {
         toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
-        return false;
+        return undefined;
       }
     },
-    [onSuccess, toast, t]
+    [toast, onSuccess, t]
+  );
+
+  const handleCreate = useCallback(
+    async (webhook: WebhookCreate): Promise<boolean> => {
+      const result = await executeOperation(
+        () => createWebhook(webhook),
+        t.settings.webhooks.toast.created
+      );
+      return result !== undefined;
+    },
+    [executeOperation, t]
   );
 
   const handleUpdate = useCallback(
     async (id: number, webhook: WebhookUpdate): Promise<boolean> => {
-      try {
-        await updateWebhook(id, webhook);
-        toast.success(t.settings.webhooks.toast.updated);
-        await onSuccess();
-        return true;
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
-        return false;
-      }
+      const result = await executeOperation(
+        () => updateWebhook(id, webhook),
+        t.settings.webhooks.toast.updated
+      );
+      return result !== undefined;
     },
-    [onSuccess, toast, t]
+    [executeOperation, t]
   );
 
   const handleGetLogs = useCallback(
     async (id: number): Promise<WebhookLog[]> => {
-      try {
-        const response = await getWebhookLogs(id);
-        return response.logs;
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
-        return [];
-      }
+      const logs = await executeOperation(
+        async () => {
+          const response = await getWebhookLogs(id);
+          return response.logs;
+        },
+        undefined,
+        false // Don't refresh list just for logs
+      );
+      return logs || [];
     },
-    [toast, t]
+    [executeOperation]
   );
 
   const handleTest = useCallback(
     async (id: number): Promise<void> => {
+      // Test has custom logic for success/failure message based on result body
       try {
         const result = await testWebhook(id);
         if (result.success) {
@@ -87,32 +106,21 @@ export function useWebhookOperations({ toast, onSuccess }: UseWebhookOperationsO
         toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
       }
     },
-    [onSuccess, toast, t]
+    [toast, onSuccess, t]
   );
 
   const handleToggle = useCallback(
     async (id: number): Promise<void> => {
-      try {
-        await toggleWebhook(id);
-        await onSuccess();
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
-      }
+      await executeOperation(() => toggleWebhook(id));
     },
-    [onSuccess, toast, t]
+    [executeOperation]
   );
 
   const handleDelete = useCallback(
     async (id: number): Promise<void> => {
-      try {
-        await deleteWebhook(id);
-        toast.success(t.settings.webhooks.toast.deleted);
-        await onSuccess();
-      } catch (err) {
-        toast.error(getErrorMessage(err, t.settings.webhooks.toast.testFailed));
-      }
+      await executeOperation(() => deleteWebhook(id), t.settings.webhooks.toast.deleted);
     },
-    [onSuccess, toast, t]
+    [executeOperation, t]
   );
 
   return {

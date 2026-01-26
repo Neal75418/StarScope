@@ -9,13 +9,7 @@ interface FadeInProps {
   duration?: number;
 }
 
-export function FadeIn({
-  children,
-  className,
-  style,
-  delay = 0,
-  duration = 0.2,
-}: FadeInProps) {
+export function FadeIn({ children, className, style, delay = 0, duration = 0.2 }: FadeInProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }}

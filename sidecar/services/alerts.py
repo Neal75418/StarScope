@@ -167,7 +167,7 @@ def _check_rule_alerts(db: Session, rule: "AlertRule") -> List["TriggeredAlert"]
             if triggered:
                 alerts.append(triggered)
     except Exception as e:
-        logger.error(f"Error checking rule {rule.name}: {e}")
+        logger.error(f"Error checking rule {rule.name}: {e}", exc_info=True)
 
     return alerts
 

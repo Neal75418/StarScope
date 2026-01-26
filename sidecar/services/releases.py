@@ -129,13 +129,13 @@ class GitHubReleasesService:
                 return releases
 
             except httpx.TimeoutException:
-                logger.error(f"GitHub API timeout fetching releases for {owner}/{repo}")
+                logger.error(f"GitHub API timeout fetching releases for {owner}/{repo}", exc_info=True)
                 raise GitHubAPIError(f"Timeout fetching releases for {owner}/{repo}")
             except httpx.RequestError as e:
-                logger.error(f"GitHub API request error: {e}")
+                logger.error(f"GitHub API request error: {e}", exc_info=True)
                 raise GitHubAPIError(f"Failed to reach GitHub API: {e}")
             except httpx.HTTPStatusError as e:
-                logger.error(f"GitHub API HTTP error: {e}")
+                logger.error(f"GitHub API HTTP error: {e}", exc_info=True)
                 raise GitHubAPIError(
                     f"GitHub API error: {e.response.status_code}",
                     status_code=e.response.status_code
@@ -172,11 +172,11 @@ async def fetch_releases(owner: str, repo_name: str) -> Optional[List[GitHubRele
         logger.debug(f"No releases found for {owner}/{repo_name}")
         return []
     except GitHubRateLimitError as e:
-        logger.error(f"GitHub rate limit exceeded: {e}")
+        logger.error(f"GitHub rate limit exceeded: {e}", exc_info=True)
         return None
     except GitHubAPIError as e:
-        logger.error(f"Failed to fetch releases for {owner}/{repo_name}: {e}")
+        logger.error(f"Failed to fetch releases for {owner}/{repo_name}: {e}", exc_info=True)
         return None
     except Exception as e:
-        logger.error(f"Unexpected error fetching releases for {owner}/{repo_name}: {e}")
+        logger.error(f"Unexpected error fetching releases for {owner}/{repo_name}: {e}", exc_info=True)
         return None

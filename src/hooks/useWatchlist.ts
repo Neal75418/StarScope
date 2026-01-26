@@ -3,7 +3,7 @@
  * Composes smaller hooks for better separation of concerns.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useToast } from "../components/Toast";
 import { useI18n } from "../i18n";
 import { useConnection } from "./useConnection";
@@ -11,23 +11,26 @@ import { useRepoOperations } from "./useRepoOperations";
 import { useCategoryFilter } from "./useCategoryFilter";
 import { useAddRepoDialog } from "./useAddRepoDialog";
 import { useRemoveConfirm } from "./useRemoveConfirm";
-import { autoTagAllRepos, recalculateAllSimilarities } from "../api/client";
+import { useGlobalRepoActions } from "./useGlobalRepoActions";
 
 export function useWatchlist() {
   const { t } = useI18n();
   const toast = useToast();
-  const [isAutoTagging, setIsAutoTagging] = useState(false);
-  const [isRecalculatingSimilarities, setIsRecalculatingSimilarities] = useState(false);
 
   // Compose smaller hooks
   const connection = useConnection();
   const repoOps = useRepoOperations();
   const categoryFilter = useCategoryFilter(repoOps.repos);
+
+  // Dialogs
   const addDialog = useAddRepoDialog(repoOps.addNewRepo, t.toast.error);
   const removeDialog = useRemoveConfirm(repoOps.repos, repoOps.deleteRepo, toast, {
     success: t.toast.repoRemoved,
     error: t.toast.error,
   });
+
+  // Global Actions (Auto-tag, Recalculate)
+  const globalActions = useGlobalRepoActions(toast);
 
   // Prevent duplicate fetches from StrictMode
   const hasInitializedRef = useRef(false);
@@ -61,54 +64,12 @@ export function useWatchlist() {
     repoOps.setIsLoading(false);
   }, [connection, repoOps]);
 
-  // Auto-tag all repos
-  const handleAutoTagAll = useCallback(async () => {
-    setIsAutoTagging(true);
-    try {
-      const result = await autoTagAllRepos();
-      toast.success(
-        t.watchlist.autoTagComplete
-          ? t.watchlist.autoTagComplete
-              .replace("{repos}", String(result.repos_tagged))
-              .replace("{tags}", String(result.tags_applied))
-          : `Tagged ${result.repos_tagged} repos with ${result.tags_applied} tags`
-      );
-    } catch (err) {
-      console.error("Failed to auto-tag repos:", err);
-      toast.error(t.toast.error);
-    } finally {
-      setIsAutoTagging(false);
-    }
-  }, [toast, t]);
-
-  // Recalculate all similarities
-  const handleRecalculateAll = useCallback(async () => {
-    setIsRecalculatingSimilarities(true);
-    try {
-      const result = await recalculateAllSimilarities();
-      toast.success(
-        t.watchlist.recalculateComplete
-          ? t.watchlist.recalculateComplete
-              .replace("{repos}", String(result.processed))
-              .replace("{similarities}", String(result.similarities_found))
-          : `Processed ${result.processed} repos, found ${result.similarities_found} similarities`
-      );
-    } catch (err) {
-      console.error("Failed to recalculate similarities:", err);
-      toast.error(t.toast.error);
-    } finally {
-      setIsRecalculatingSimilarities(false);
-    }
-  }, [toast, t]);
-
   return {
     // State
     repos: repoOps.repos,
     displayedRepos: categoryFilter.displayedRepos,
     isLoading: repoOps.isLoading,
     isRefreshing: repoOps.isRefreshing,
-    isAutoTagging,
-    isRecalculatingSimilarities,
     loadingRepoId: repoOps.loadingRepoId,
     error: repoOps.error || connection.connectionError,
     isConnected: connection.isConnected,
@@ -120,6 +81,10 @@ export function useWatchlist() {
     removeConfirm: removeDialog.removeConfirm,
     toast,
 
+    // Global Action State
+    isAutoTagging: globalActions.isAutoTagging,
+    isRecalculatingSimilarities: globalActions.isRecalculatingSimilarities,
+
     // Actions
     handleAddRepo: addDialog.handleAddRepo,
     handleRemoveRepo: removeDialog.openRemoveConfirm,
@@ -127,8 +92,8 @@ export function useWatchlist() {
     cancelRemoveRepo: removeDialog.closeRemoveConfirm,
     handleFetchRepo: repoOps.refreshRepo,
     handleRefreshAll: repoOps.refreshAllRepos,
-    handleAutoTagAll,
-    handleRecalculateAll,
+    handleAutoTagAll: globalActions.handleAutoTagAll,
+    handleRecalculateAll: globalActions.handleRecalculateAll,
     handleRetry,
     openAddDialog: addDialog.openAddDialog,
     closeAddDialog: addDialog.closeAddDialog,
