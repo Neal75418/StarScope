@@ -120,6 +120,34 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'sidecar/requirements.txt'
+
+      - name: Install sidecar dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r sidecar/requirements.txt
+          pip install pyinstaller
+
+      - name: Build sidecar binary
+        working-directory: sidecar
+        run: pyinstaller starscope-sidecar.spec
+
+      - name: Copy sidecar binary to Tauri binaries (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cp sidecar/dist/starscope-sidecar-* src-tauri/binaries/
+
+      - name: Copy sidecar binary to Tauri binaries (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Copy-Item "sidecar\dist\starscope-sidecar-*.exe" -Destination "src-tauri\binaries\" -Force
+        shell: pwsh
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
