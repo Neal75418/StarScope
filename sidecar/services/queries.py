@@ -3,6 +3,8 @@ Shared database query utilities.
 Centralizes common query patterns to avoid code duplication.
 """
 
+from __future__ import annotations
+
 from typing import Any, cast
 
 from sqlalchemy import func

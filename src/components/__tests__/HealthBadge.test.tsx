@@ -19,23 +19,23 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-// Mock i18n
+// Mock i18n with stable references to prevent useEffect re-runs
+const mockT = {
+  healthScore: {
+    failedToLoad: "Failed to load health score",
+    calculationFailed: "Calculation failed",
+    clickToCalculate: "Click to calculate health score",
+  },
+  health: {
+    titleFormat: "Score: {score}, Grade: {grade}",
+  },
+};
+
 vi.mock("../../i18n", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../i18n")>();
   return {
     ...actual,
-    useI18n: () => ({
-      t: {
-        healthScore: {
-          failedToLoad: "Failed to load health score",
-          calculationFailed: "Calculation failed",
-          clickToCalculate: "Click to calculate health score",
-        },
-        health: {
-          titleFormat: "Score: {score}, Grade: {grade}",
-        },
-      },
-    }),
+    useI18n: () => ({ t: mockT }),
   };
 });
 
@@ -126,6 +126,7 @@ describe("HealthBadge", () => {
 
     render(<HealthBadge repoId={1} />);
 
+    // Wait for initial load to complete (shows "?")
     await waitFor(() => {
       expect(screen.getByText("?")).toBeInTheDocument();
     });
@@ -133,14 +134,16 @@ describe("HealthBadge", () => {
     const calculateButton = screen.getByRole("button", { name: "?" });
     await user.click(calculateButton);
 
-    await waitFor(() => {
-      expect(apiClient.calculateHealthScore).toHaveBeenCalledWith(1);
-    });
+    // Verify calculateHealthScore was called
+    expect(apiClient.calculateHealthScore).toHaveBeenCalledWith(1);
 
-    // After calculation, should show the grade
-    await waitFor(() => {
-      expect(screen.getByText("A")).toBeInTheDocument();
-    });
+    // After calculation completes, should show the grade
+    await waitFor(
+      () => {
+        expect(screen.getByText("A")).toBeInTheDocument();
+      },
+      { timeout: 3000 }
+    );
   });
 
   it("calls onShowDetails when clicking existing badge", async () => {

@@ -2,10 +2,27 @@
  * Unit tests for ContextBadges component
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ContextBadges } from "../ContextBadges";
 import type { ContextBadge } from "../../api/client";
+
+// Mock i18n
+vi.mock("../../i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../i18n")>();
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: {
+        repo: {
+          refreshContext: "Refresh Context",
+        },
+      },
+      language: "en",
+      setLanguage: vi.fn(),
+    }),
+  };
+});
 
 describe("ContextBadges", () => {
   const mockHnBadge: ContextBadge = {
@@ -32,9 +49,11 @@ describe("ContextBadges", () => {
     is_recent: true,
   };
 
-  it("renders nothing when badges array is empty", () => {
+  it("renders empty container when badges array is empty", () => {
     const { container } = render(<ContextBadges badges={[]} />);
-    expect(container.firstChild).toBeNull();
+    const badgesDiv = container.querySelector(".context-badges");
+    expect(badgesDiv).toBeInTheDocument();
+    expect(badgesDiv?.children.length).toBe(0);
   });
 
   it("renders HN badge with correct icon and color", () => {

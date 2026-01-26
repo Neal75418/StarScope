@@ -23,6 +23,10 @@ vi.mock("../../utils/format", () => ({
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   }),
+  formatChartDate: vi.fn((dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  }),
 }));
 
 describe("StarsChart", () => {

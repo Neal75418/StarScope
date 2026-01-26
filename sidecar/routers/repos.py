@@ -2,6 +2,8 @@
 Watchlist API endpoints for managing GitHub repositories.
 """
 
+from __future__ import annotations
+
 import re
 from datetime import datetime
 from typing import List, Optional, Dict
