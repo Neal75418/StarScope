@@ -83,11 +83,21 @@ app = FastAPI(
 
 # CORS configuration - allow Tauri frontend to call this API
 # Be more specific about allowed methods and headers for security
-ALLOWED_ORIGINS = [
-    "http://localhost:1420",  # Vite dev server
-    "tauri://localhost",      # Tauri production
-    "https://tauri.localhost", # Tauri on Windows
-]
+def get_allowed_origins() -> list[str]:
+    """
+    Get allowed CORS origins based on environment.
+    Production excludes localhost development server for security.
+    """
+    origins = [
+        "tauri://localhost",       # Tauri production (macOS/Linux)
+        "https://tauri.localhost", # Tauri on Windows
+    ]
+    if ENV != "production":
+        origins.append("http://localhost:1420")  # Vite dev server
+    return origins
+
+
+ALLOWED_ORIGINS = get_allowed_origins()
 
 app.add_middleware(
     CORSMiddleware,

@@ -12,6 +12,20 @@ export default defineConfig(async () => ({
   //
   // 1. prevent Vite from obscuring rust errors
   clearScreen: false,
+
+  // Build optimizations
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate large charting library for better caching
+          recharts: ["recharts"],
+          // Separate React runtime
+          "react-vendor": ["react", "react-dom"],
+        },
+      },
+    },
+  },
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: 1420,

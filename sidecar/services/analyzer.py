@@ -17,6 +17,12 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from db.models import RepoSnapshot, Signal, SignalType
 from utils.time import utc_now, utc_today
+from constants import (
+    TREND_VELOCITY_UPWARD_THRESHOLD,
+    TREND_VELOCITY_DOWNWARD_THRESHOLD,
+    TREND_ACCELERATION_DECLINE_THRESHOLD,
+    TREND_STRONG_DECLINE_THRESHOLD,
+)
 
 
 def get_snapshot_for_date(
@@ -145,11 +151,15 @@ def calculate_trend(
         return 0
 
     # Strong upward: positive velocity and positive acceleration
-    if velocity > 0.5 and (acceleration is None or acceleration > -0.1):
+    if velocity > TREND_VELOCITY_UPWARD_THRESHOLD and (
+        acceleration is None or acceleration > TREND_ACCELERATION_DECLINE_THRESHOLD
+    ):
         return 1
 
     # Strong downward: negative velocity or strongly negative acceleration
-    if velocity < -0.5 or (acceleration is not None and acceleration < -0.3):
+    if velocity < TREND_VELOCITY_DOWNWARD_THRESHOLD or (
+        acceleration is not None and acceleration < TREND_STRONG_DECLINE_THRESHOLD
+    ):
         return -1
 
     # Stable

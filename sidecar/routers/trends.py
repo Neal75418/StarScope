@@ -7,10 +7,12 @@ from enum import Enum
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session, aliased
 
 from db.database import get_db
 from db.models import Repo, Signal, SignalType
+from services.queries import build_signal_map, build_stars_map
 
 router = APIRouter(prefix="/api/trends", tags=["trends"])
 
@@ -51,53 +53,14 @@ class TrendsResponse(BaseModel):
     sort_by: str
 
 
-def _build_signal_map(db: Session) -> dict[int, dict[str, float]]:
-    """
-    Pre-fetch all signals and group by repo_id.
-    Returns: {repo_id: {signal_type: value}}
-    """
-    all_signals = db.query(Signal).all()
-    signal_map: dict[int, dict[str, float]] = {}
-
-    for signal in all_signals:
-        rid = int(signal.repo_id)
-        if rid not in signal_map:
-            signal_map[rid] = {}
-        signal_map[rid][signal.signal_type] = signal.value
-
-    return signal_map
-
-
-def _build_stars_map(db: Session) -> dict[int, int]:
-    """
-    Pre-fetch latest snapshot stars for all repos.
-    Returns: {repo_id: stars}
-    """
-    from db.models import RepoSnapshot
-    from sqlalchemy import func
-
-    # Subquery to get max snapshot_date per repo
-    subq = (
-        db.query(
-            RepoSnapshot.repo_id,
-            func.max(RepoSnapshot.snapshot_date).label("max_date")
-        )
-        .group_by(RepoSnapshot.repo_id)
-        .subquery()
-    )
-
-    # Join to get stars from latest snapshot
-    results = (
-        db.query(RepoSnapshot.repo_id, RepoSnapshot.stars)
-        .join(
-            subq,
-            (RepoSnapshot.repo_id == subq.c.repo_id) &
-            (RepoSnapshot.snapshot_date == subq.c.max_date)
-        )
-        .all()
-    )
-
-    return {int(repo_id): stars for repo_id, stars in results}
+def _get_signal_type_for_sort(sort_by: SortBy) -> str:
+    """Map SortBy enum to SignalType."""
+    return {
+        SortBy.VELOCITY: SignalType.VELOCITY,
+        SortBy.STARS_DELTA_7D: SignalType.STARS_DELTA_7D,
+        SortBy.STARS_DELTA_30D: SignalType.STARS_DELTA_30D,
+        SortBy.ACCELERATION: SignalType.ACCELERATION,
+    }[sort_by]
 
 
 @router.get("/", response_model=TrendsResponse)
@@ -115,51 +78,42 @@ async def get_trends(
     - stars_delta_30d: Stars gained in 30 days
     - acceleration: Rate of change in velocity
     """
-    # Pre-fetch all data in batch queries (fixes N+1 problem)
-    repos = db.query(Repo).all()
-    signal_map = _build_signal_map(db)
-    stars_map = _build_stars_map(db)
+    # Map sort_by to signal type
+    sort_signal_type = _get_signal_type_for_sort(sort_by)
 
-    # Build list with metrics
-    repo_metrics = []
-    for repo in repos:
-        signals = signal_map.get(int(repo.id), {})
-        stars_delta_7d = signals.get(SignalType.STARS_DELTA_7D)
-        stars_delta_30d = signals.get(SignalType.STARS_DELTA_30D)
-        velocity = signals.get(SignalType.VELOCITY)
-        acceleration = signals.get(SignalType.ACCELERATION)
-        trend = signals.get(SignalType.TREND)
-        stars = stars_map.get(int(repo.id))
+    # Create alias for sort signal to enable LEFT JOIN
+    SortSignal = aliased(Signal)
 
-        # Get sort value
-        sort_value = {
-            SortBy.VELOCITY: velocity,
-            SortBy.STARS_DELTA_7D: stars_delta_7d,
-            SortBy.STARS_DELTA_30D: stars_delta_30d,
-            SortBy.ACCELERATION: acceleration,
-        }.get(sort_by, 0) or 0
+    # Query repos with sort signal, sorted and limited in SQL
+    # This avoids loading ALL repos into memory
+    results = (
+        db.query(Repo, SortSignal.value.label("sort_value"))
+        .outerjoin(
+            SortSignal,
+            (Repo.id == SortSignal.repo_id) &
+            (SortSignal.signal_type == sort_signal_type)
+        )
+        .order_by(desc(func.coalesce(SortSignal.value, 0)))
+        .limit(limit)
+        .all()
+    )
 
-        repo_metrics.append({
-            "repo": repo,
-            "stars": stars,
-            "stars_delta_7d": stars_delta_7d,
-            "stars_delta_30d": stars_delta_30d,
-            "velocity": velocity,
-            "acceleration": acceleration,
-            "trend": int(trend) if trend else None,
-            "sort_value": sort_value,
-        })
+    if not results:
+        return TrendsResponse(repos=[], total=0, sort_by=sort_by.value)
 
-    # Sort by the chosen metric (descending)
-    repo_metrics.sort(key=lambda x: x["sort_value"], reverse=True)
+    # Get repo IDs for batch fetching remaining data
+    repo_ids = [repo.id for repo, _ in results]
 
-    # Limit results
-    repo_metrics = repo_metrics[:limit]
+    # Batch fetch signals and stars for only the limited result set
+    signal_map = build_signal_map(db, repo_ids)
+    stars_map = build_stars_map(db, repo_ids)
 
     # Build response with ranks
     trending_repos = []
-    for rank, item in enumerate(repo_metrics, start=1):
-        repo = item["repo"]
+    for rank, (repo, _) in enumerate(results, start=1):
+        signals = signal_map.get(int(repo.id), {})
+        trend_val = signals.get(SignalType.TREND)
+
         trending_repos.append(TrendingRepo(
             id=repo.id,
             owner=repo.owner,
@@ -168,12 +122,12 @@ async def get_trends(
             url=repo.url,
             description=repo.description,
             language=repo.language,
-            stars=item["stars"],
-            stars_delta_7d=item["stars_delta_7d"],
-            stars_delta_30d=item["stars_delta_30d"],
-            velocity=item["velocity"],
-            acceleration=item["acceleration"],
-            trend=item["trend"],
+            stars=stars_map.get(int(repo.id)),
+            stars_delta_7d=signals.get(SignalType.STARS_DELTA_7D),
+            stars_delta_30d=signals.get(SignalType.STARS_DELTA_30D),
+            velocity=signals.get(SignalType.VELOCITY),
+            acceleration=signals.get(SignalType.ACCELERATION),
+            trend=int(trend_val) if trend_val else None,
             rank=rank,
         ))
 

@@ -48,6 +48,7 @@ class ConnectionStatus:
     username: Optional[str] = None
     rate_limit_remaining: Optional[int] = None
     rate_limit_total: Optional[int] = None
+    rate_limit_reset: Optional[int] = None  # Unix timestamp when limit resets
     error: Optional[str] = None
 
 
@@ -244,6 +245,7 @@ class GitHubAuthService:
                         username=username,
                         rate_limit_remaining=core_limit.get("remaining"),
                         rate_limit_total=core_limit.get("limit"),
+                        rate_limit_reset=core_limit.get("reset"),
                     )
 
                 return ConnectionStatus(

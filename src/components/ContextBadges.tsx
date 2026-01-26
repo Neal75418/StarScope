@@ -3,9 +3,12 @@
  */
 
 import { ContextBadge } from "../api/client";
+import { useI18n } from "../i18n";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 const BADGE_CONFIG: Record<string, { bg: string; icon: string }> = {
@@ -14,8 +17,8 @@ const BADGE_CONFIG: Record<string, { bg: string; icon: string }> = {
   release: { bg: "#238636", icon: "v" },
 };
 
-export function ContextBadges({ badges }: ContextBadgesProps) {
-  if (badges.length === 0) return null;
+export function ContextBadges({ badges, onRefresh, isRefreshing }: ContextBadgesProps) {
+  const { t } = useI18n();
 
   return (
     <div className="context-badges">
@@ -36,6 +39,16 @@ export function ContextBadges({ badges }: ContextBadgesProps) {
           </a>
         );
       })}
+      {onRefresh && (
+        <button
+          className="context-refresh-btn"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          title={t.repo.refreshContext ?? "Refresh Context"}
+        >
+          {isRefreshing ? "↻" : "⟳"}
+        </button>
+      )}
     </div>
   );
 }

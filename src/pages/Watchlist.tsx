@@ -2,246 +2,250 @@
  * Watchlist page - main view showing all tracked repositories.
  */
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  RepoWithSignals,
-  getRepos,
-  addRepo,
-  removeRepo,
-  fetchRepo,
-  fetchAllRepos,
-  checkHealth,
-  getCategoryRepos,
-  ApiError,
-} from "../api/client";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { ToastContainer, useToast } from "../components/Toast";
+import { ToastContainer } from "../components/Toast";
 import { useI18n, interpolate } from "../i18n";
+import { useWatchlist } from "../hooks/useWatchlist";
+import { useCategoryOperations } from "../hooks/useCategoryOperations";
+import { RepoWithSignals } from "../api/client";
 
-export function Watchlist() {
+// Loading state component
+function LoadingState() {
   const { t } = useI18n();
-  const [repos, setRepos] = useState<RepoWithSignals[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [loadingRepoId, setLoadingRepoId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [dialogError, setDialogError] = useState<string | null>(null);
-  const [isAddingRepo, setIsAddingRepo] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-  const [filteredRepoIds, setFilteredRepoIds] = useState<Set<number> | null>(null);
-  const [removeConfirm, setRemoveConfirm] = useState<{
-    isOpen: boolean;
-    repoId: number | null;
-    repoName: string;
-  }>({
-    isOpen: false,
-    repoId: null,
-    repoName: "",
-  });
-  const toast = useToast();
+  return (
+    <div className="page">
+      <div className="loading">{t.common.loading}</div>
+    </div>
+  );
+}
 
-  // Check connection to sidecar
-  const checkConnection = useCallback(async () => {
-    try {
-      await checkHealth();
-      setIsConnected(true);
-      return true;
-    } catch {
-      setIsConnected(false);
-      setError(t.watchlist.connection.message);
-      return false;
-    }
-  }, [t.watchlist.connection.message]);
-
-  // Load repos
-  const loadRepos = useCallback(async () => {
-    try {
-      const response = await getRepos();
-      setRepos(response.repos);
-      setError(null);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.detail);
-      } else {
-        setError(t.common.error);
-      }
-    }
-  }, [t.common.error]);
-
-  // Initial load
-  useEffect(() => {
-    const init = async () => {
-      setIsLoading(true);
-      const connected = await checkConnection();
-      if (connected) {
-        await loadRepos();
-      }
-      setIsLoading(false);
-    };
-    void init();
-  }, [checkConnection, loadRepos]);
-
-  // Load category filter
-  useEffect(() => {
-    if (selectedCategoryId === null) {
-      setFilteredRepoIds(null);
-      return;
-    }
-
-    getCategoryRepos(selectedCategoryId)
-      .then((response) => {
-        setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
-      })
-      .catch((err) => {
-        console.error("Failed to load category repos:", err);
-        setFilteredRepoIds(null);
-      });
-  }, [selectedCategoryId]);
-
-  // Filter repos based on selected category
-  const displayedRepos = filteredRepoIds ? repos.filter((r) => filteredRepoIds.has(r.id)) : repos;
-
-  // Add repo handler
-  const handleAddRepo = async (input: string) => {
-    setIsAddingRepo(true);
-    setDialogError(null);
-
-    try {
-      // Parse input - could be "owner/repo" or a URL
-      let repoInput: { owner?: string; name?: string; url?: string };
-
-      if (input.includes("github.com")) {
-        repoInput = { url: input };
-      } else if (input.includes("/")) {
-        const [owner, name] = input.split("/");
-        repoInput = { owner, name };
-      } else {
-        setDialogError(t.dialog.addRepo.invalidFormat);
-        setIsAddingRepo(false);
-        return;
-      }
-
-      const newRepo = await addRepo(repoInput);
-      setRepos((prev) => [newRepo, ...prev]);
-      setIsDialogOpen(false);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setDialogError(err.detail);
-      } else {
-        setDialogError(t.toast.error);
-      }
-    } finally {
-      setIsAddingRepo(false);
-    }
-  };
-
-  // Remove repo handler
-  const handleRemoveRepo = (repoId: number) => {
-    const repo = repos.find((r) => r.id === repoId);
-    setRemoveConfirm({
-      isOpen: true,
-      repoId,
-      repoName: repo?.full_name || "",
-    });
-  };
-
-  const confirmRemoveRepo = async () => {
-    if (!removeConfirm.repoId) return;
-
-    setLoadingRepoId(removeConfirm.repoId);
-    try {
-      await removeRepo(removeConfirm.repoId);
-      setRepos((prev) => prev.filter((r) => r.id !== removeConfirm.repoId));
-      toast.success(t.toast.repoRemoved);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        toast.error(err.detail);
-      } else {
-        toast.error(t.toast.error);
-      }
-    } finally {
-      setLoadingRepoId(null);
-      setRemoveConfirm({ isOpen: false, repoId: null, repoName: "" });
-    }
-  };
-
-  // Fetch single repo handler
-  const handleFetchRepo = async (repoId: number) => {
-    setLoadingRepoId(repoId);
-    try {
-      const updated = await fetchRepo(repoId);
-      setRepos((prev) => prev.map((r) => (r.id === repoId ? updated : r)));
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.detail);
-      } else {
-        setError(t.common.error);
-      }
-    } finally {
-      setLoadingRepoId(null);
-    }
-  };
-
-  // Refresh all repos
-  const handleRefreshAll = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await fetchAllRepos();
-      setRepos(response.repos);
-      setError(null);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.detail);
-      } else {
-        setError(t.common.error);
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  // Retry connection
-  const handleRetry = async () => {
-    setIsLoading(true);
-    setError(null);
-    const connected = await checkConnection();
-    if (connected) {
-      await loadRepos();
-    }
-    setIsLoading(false);
-  };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="page">
-        <div className="loading">{t.common.loading}</div>
+// Connection error component
+function ConnectionError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useI18n();
+  return (
+    <div className="page">
+      <div className="error-container">
+        <h2>{t.watchlist.connection.title}</h2>
+        <p>{t.watchlist.connection.message}</p>
+        <p className="hint">{t.watchlist.connection.autoRetry}</p>
+        <button onClick={onRetry} className="btn btn-primary">
+          {t.watchlist.connection.retry}
+        </button>
       </div>
+    </div>
+  );
+}
+
+// Empty state component
+function EmptyState({
+  hasCategory,
+  hasRepos,
+}: {
+  hasCategory: boolean;
+  hasRepos: boolean;
+}) {
+  const { t } = useI18n();
+
+  if (hasCategory) {
+    return <p>{t.watchlist.empty.noCategory}</p>;
+  }
+  if (!hasRepos) {
+    return (
+      <>
+        <p>{t.watchlist.empty.noRepos}</p>
+        <p>{t.watchlist.empty.addPrompt}</p>
+      </>
     );
   }
+  return <p>{t.watchlist.empty.noFilter}</p>;
+}
 
-  // Connection error
+// Repo list component
+function RepoList({
+  repos,
+  loadingRepoId,
+  onFetch,
+  onRemove,
+  selectedCategoryId,
+  onRemoveFromCategory,
+}: {
+  repos: RepoWithSignals[];
+  loadingRepoId: number | null;
+  onFetch: (id: number) => void;
+  onRemove: (id: number) => void;
+  selectedCategoryId?: number | null;
+  onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
+}) {
+  return (
+    <>
+      {repos.map((repo) => (
+        <RepoCard
+          key={repo.id}
+          repo={repo}
+          onFetch={onFetch}
+          onRemove={onRemove}
+          isLoading={loadingRepoId === repo.id}
+          selectedCategoryId={selectedCategoryId}
+          onRemoveFromCategory={onRemoveFromCategory}
+        />
+      ))}
+    </>
+  );
+}
+
+// Error banner component
+function ErrorBanner({
+  error,
+  onClear,
+}: {
+  error: string;
+  onClear: () => void;
+}) {
+  return (
+    <div className="error-banner">
+      {error}
+      <button onClick={onClear}>x</button>
+    </div>
+  );
+}
+
+// Toolbar component
+function Toolbar({
+  onAddRepo,
+  onRefreshAll,
+  onAutoTagAll,
+  onRecalculateAll,
+  isRefreshing,
+  isAutoTagging,
+  isRecalculating,
+  selectedCategoryId,
+  displayedCount,
+  totalCount,
+}: {
+  onAddRepo: () => void;
+  onRefreshAll: () => void;
+  onAutoTagAll: () => void;
+  onRecalculateAll: () => void;
+  isRefreshing: boolean;
+  isAutoTagging: boolean;
+  isRecalculating: boolean;
+  selectedCategoryId: number | null;
+  displayedCount: number;
+  totalCount: number;
+}) {
+  const { t } = useI18n();
+
+  return (
+    <div className="toolbar">
+      <button
+        data-testid="add-repo-btn"
+        onClick={onAddRepo}
+        className="btn btn-primary"
+      >
+        + {t.watchlist.addRepo}
+      </button>
+      <button
+        data-testid="refresh-all-btn"
+        onClick={onRefreshAll}
+        disabled={isRefreshing}
+        className="btn"
+      >
+        {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
+      </button>
+      <button
+        onClick={onAutoTagAll}
+        disabled={isAutoTagging}
+        className="btn"
+        title={t.watchlist.autoTagAll ?? "Auto-Tag All"}
+      >
+        {isAutoTagging
+          ? t.watchlist.autoTagging ?? "Tagging..."
+          : t.watchlist.autoTagAll ?? "Auto-Tag All"}
+      </button>
+      <button
+        onClick={onRecalculateAll}
+        disabled={isRecalculating}
+        className="btn"
+        title={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
+      >
+        {isRecalculating
+          ? t.watchlist.recalculating ?? "Calculating..."
+          : t.watchlist.recalculateAll ?? "Recalculate"}
+      </button>
+      {selectedCategoryId && (
+        <span className="filter-indicator">
+          {interpolate(t.watchlist.showing, {
+            count: displayedCount,
+            total: totalCount,
+          })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Main Watchlist component
+export function Watchlist() {
+  const { t } = useI18n();
+  const {
+    repos,
+    displayedRepos,
+    isLoading,
+    isRefreshing,
+    isAutoTagging,
+    isRecalculatingSimilarities,
+    loadingRepoId,
+    error,
+    isConnected,
+    isDialogOpen,
+    dialogError,
+    isAddingRepo,
+    selectedCategoryId,
+    removeConfirm,
+    toast,
+    handleAddRepo,
+    handleRemoveRepo,
+    confirmRemoveRepo,
+    cancelRemoveRepo,
+    handleFetchRepo,
+    handleRefreshAll,
+    handleAutoTagAll,
+    handleRecalculateAll,
+    handleRetry,
+    openAddDialog,
+    closeAddDialog,
+    clearError,
+    setSelectedCategoryId,
+  } = useWatchlist();
+
+  // Category operations for add/remove repo from category
+  const categoryOps = useCategoryOperations(() => {
+    // Trigger re-selection to refresh the filtered list
+    if (selectedCategoryId) {
+      const current = selectedCategoryId;
+      setSelectedCategoryId(null);
+      setTimeout(() => setSelectedCategoryId(current), 0);
+    }
+  });
+
+  const handleRemoveFromCategory = async (categoryId: number, repoId: number) => {
+    const success = await categoryOps.removeFromCategory(categoryId, repoId);
+    if (success) {
+      toast.success(t.categories.removedFromCategory);
+    } else {
+      toast.error(t.toast.error);
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingState />;
+  }
+
   if (!isConnected) {
-    return (
-      <div className="page">
-        <div className="error-container">
-          <h2>{t.watchlist.connection.title}</h2>
-          <p>{error}</p>
-          <p className="hint">
-            {t.watchlist.connection.hint}
-            <code>cd sidecar && python main.py</code>
-          </p>
-          <button onClick={handleRetry} className="btn btn-primary">
-            {t.watchlist.connection.retry}
-          </button>
-        </div>
-      </div>
-    );
+    return <ConnectionError onRetry={handleRetry} />;
   }
 
   return (
@@ -258,63 +262,38 @@ export function Watchlist() {
         />
 
         <div className="watchlist-main">
-          <div className="toolbar">
-            <button
-              data-testid="add-repo-btn"
-              onClick={() => setIsDialogOpen(true)}
-              className="btn btn-primary"
-            >
-              + {t.watchlist.addRepo}
-            </button>
-            <button
-              data-testid="refresh-all-btn"
-              onClick={handleRefreshAll}
-              disabled={isRefreshing}
-              className="btn"
-            >
-              {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
-            </button>
-            {selectedCategoryId && (
-              <span className="filter-indicator">
-                {interpolate(t.watchlist.showing, {
-                  count: displayedRepos.length,
-                  total: repos.length,
-                })}
-              </span>
-            )}
-          </div>
+          <Toolbar
+            onAddRepo={openAddDialog}
+            onRefreshAll={handleRefreshAll}
+            onAutoTagAll={handleAutoTagAll}
+            onRecalculateAll={handleRecalculateAll}
+            isRefreshing={isRefreshing}
+            isAutoTagging={isAutoTagging}
+            isRecalculating={isRecalculatingSimilarities}
+            selectedCategoryId={selectedCategoryId}
+            displayedCount={displayedRepos.length}
+            totalCount={repos.length}
+          />
 
-          {error && (
-            <div className="error-banner">
-              {error}
-              <button onClick={() => setError(null)}>x</button>
-            </div>
-          )}
+          {error && <ErrorBanner error={error} onClear={clearError} />}
 
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                {selectedCategoryId ? (
-                  <p>{t.watchlist.empty.noCategory}</p>
-                ) : repos.length === 0 ? (
-                  <>
-                    <p>{t.watchlist.empty.noRepos}</p>
-                    <p>{t.watchlist.empty.addPrompt}</p>
-                  </>
-                ) : (
-                  <p>{t.watchlist.empty.noFilter}</p>
-                )}
+                <EmptyState
+                  hasCategory={selectedCategoryId !== null}
+                  hasRepos={repos.length > 0}
+                />
               </div>
             ) : (
-              displayedRepos.map((repo) => (
-                <RepoCard
-                  key={repo.id}
-                  repo={repo}
-                  onFetch={handleFetchRepo}
-                  onRemove={handleRemoveRepo}
-                  isLoading={loadingRepoId === repo.id}
-                />
-              ))
+              <RepoList
+                repos={displayedRepos}
+                loadingRepoId={loadingRepoId}
+                onFetch={handleFetchRepo}
+                onRemove={handleRemoveRepo}
+                selectedCategoryId={selectedCategoryId}
+                onRemoveFromCategory={handleRemoveFromCategory}
+              />
             )}
           </div>
         </div>
@@ -322,10 +301,7 @@ export function Watchlist() {
 
       <AddRepoDialog
         isOpen={isDialogOpen}
-        onClose={() => {
-          setIsDialogOpen(false);
-          setDialogError(null);
-        }}
+        onClose={closeAddDialog}
         onAdd={handleAddRepo}
         isLoading={isAddingRepo}
         error={dialogError}
@@ -334,11 +310,13 @@ export function Watchlist() {
       <ConfirmDialog
         isOpen={removeConfirm.isOpen}
         title={t.dialog.removeRepo.title}
-        message={interpolate(t.dialog.removeRepo.message, { name: removeConfirm.repoName })}
+        message={interpolate(t.dialog.removeRepo.message, {
+          name: removeConfirm.repoName,
+        })}
         confirmText={t.dialog.removeRepo.confirm}
         variant="danger"
         onConfirm={confirmRemoveRepo}
-        onCancel={() => setRemoveConfirm({ isOpen: false, repoId: null, repoName: "" })}
+        onCancel={cancelRemoveRepo}
       />
 
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />

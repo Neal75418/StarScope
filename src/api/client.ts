@@ -142,32 +142,30 @@ export class ApiError extends Error {
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_ENDPOINT}${endpoint}`;
 
+  let response: Response;
   try {
-    const response = await fetch(url, {
+    response = await fetch(url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: "Unknown error" }));
-      throw new ApiError(response.status, error.detail || `HTTP ${response.status}`);
-    }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return null as T;
-    }
-
-    return response.json();
   } catch (error) {
-    if (error instanceof ApiError) {
-      throw error;
-    }
     throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : "Unknown"}`);
   }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+    throw new ApiError(response.status, error.detail || `HTTP ${response.status}`);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  return response.json();
 }
 
 // API functions
@@ -759,7 +757,7 @@ export interface VelocityComparisonData {
  * List all comparison groups.
  */
 export async function listComparisonGroups(): Promise<ComparisonGroupListResponse> {
-  return apiCall<ComparisonGroupListResponse>(`/comparisons`);
+  return apiCall<ComparisonGroupListResponse>(`/comparisons/`);
 }
 
 /**
@@ -912,7 +910,7 @@ export async function listEarlySignals(options?: {
   if (options?.limit) params.append("limit", String(options.limit));
 
   const queryString = params.toString();
-  return apiCall<EarlySignalListResponse>(`/early-signals${queryString ? `?${queryString}` : ""}`);
+  return apiCall<EarlySignalListResponse>(`/early-signals/${queryString ? `?${queryString}` : ""}`);
 }
 
 /**
@@ -1092,7 +1090,7 @@ export interface WebhookTypesResponse {
  * List all webhooks.
  */
 export async function listWebhooks(): Promise<WebhookListResponse> {
-  return apiCall<WebhookListResponse>(`/webhooks`);
+  return apiCall<WebhookListResponse>(`/webhooks/`);
 }
 
 /**
@@ -1196,6 +1194,7 @@ export interface GitHubConnectionStatus {
   username?: string;
   rate_limit_remaining?: number;
   rate_limit_total?: number;
+  rate_limit_reset?: number; // Unix timestamp when limit resets
   error?: string;
 }
 

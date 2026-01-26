@@ -2,7 +2,6 @@
  * Star history chart using Recharts.
  */
 
-import { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -12,49 +11,84 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { getStarsChart, ChartDataPoint } from "../api/client";
-import { formatNumber } from "../utils/format";
+import { ChartDataPoint } from "../api/client";
+import { formatNumber, formatChartDate } from "../utils/format";
+import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
 
 interface StarsChartProps {
   repoId: number;
 }
 
-type TimeRange = "7d" | "30d" | "90d";
+const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d"];
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "#1a1a1a",
+  border: "1px solid #333",
+  borderRadius: "4px",
+};
+
+interface TimeRangeSelectorProps {
+  current: TimeRange;
+  onChange: (range: TimeRange) => void;
+}
+
+function TimeRangeSelector({ current, onChange }: TimeRangeSelectorProps) {
+  return (
+    <div className="chart-controls">
+      {TIME_RANGES.map((range) => (
+        <button
+          key={range}
+          className={`chart-range-btn ${current === range ? "active" : ""}`}
+          onClick={() => onChange(range)}
+        >
+          {range}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface ChartContentProps {
+  data: ChartDataPoint[];
+}
+
+function ChartContent({ data }: ChartContentProps) {
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: "#888", fontSize: 11 }}
+          tickFormatter={formatChartDate}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          tick={{ fill: "#888", fontSize: 11 }}
+          tickFormatter={(value) => formatNumber(value)}
+          width={50}
+        />
+        <Tooltip
+          contentStyle={TOOLTIP_STYLE}
+          labelStyle={{ color: "#fff" }}
+          formatter={(value) => [formatNumber(value as number), "Stars"]}
+          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+        />
+        <Line
+          type="monotone"
+          dataKey="stars"
+          stroke="#f0db4f"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: "#f0db4f" }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
 
 export function StarsChart({ repoId }: StarsChartProps) {
-  const [data, setData] = useState<ChartDataPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>("30d");
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await getStarsChart(repoId, timeRange);
-        if (isMounted) {
-          setData(response.data_points);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err.message : "Failed to load chart");
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void fetchData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [repoId, timeRange]);
+  const { data, loading, error, timeRange, setTimeRange } = useStarsChart(repoId);
 
   if (loading) {
     return <div className="chart-loading">Loading chart...</div>;
@@ -70,58 +104,10 @@ export function StarsChart({ repoId }: StarsChartProps) {
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  };
-
   return (
     <div className="stars-chart">
-      <div className="chart-controls">
-        {(["7d", "30d", "90d"] as TimeRange[]).map((range) => (
-          <button
-            key={range}
-            className={`chart-range-btn ${timeRange === range ? "active" : ""}`}
-            onClick={() => setTimeRange(range)}
-          >
-            {range}
-          </button>
-        ))}
-      </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: "#888", fontSize: 11 }}
-            tickFormatter={formatDate}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={{ fill: "#888", fontSize: 11 }}
-            tickFormatter={(value) => formatNumber(value)}
-            width={50}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#1a1a1a",
-              border: "1px solid #333",
-              borderRadius: "4px",
-            }}
-            labelStyle={{ color: "#fff" }}
-            formatter={(value) => [formatNumber(value as number), "Stars"]}
-            labelFormatter={(label) => new Date(label).toLocaleDateString()}
-          />
-          <Line
-            type="monotone"
-            dataKey="stars"
-            stroke="#f0db4f"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, fill: "#f0db4f" }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <TimeRangeSelector current={timeRange} onChange={setTimeRange} />
+      <ChartContent data={data} />
     </div>
   );
 }

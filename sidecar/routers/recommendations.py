@@ -68,7 +68,7 @@ async def get_similar_repos(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    similar = await find_similar_repos(repo_id, db, limit)
+    similar = find_similar_repos(repo_id, db, limit)
 
     return SimilarReposResponse(
         repo_id=repo_id,
@@ -90,7 +90,7 @@ async def calculate_similarities_for_repo(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    count = await calculate_repo_similarities(repo_id, db)
+    count = calculate_repo_similarities(repo_id, db)
 
     return CalculateSimilaritiesResponse(
         repo_id=repo_id,

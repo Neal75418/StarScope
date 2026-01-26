@@ -10,8 +10,6 @@ from typing import Optional
 from services.github_auth import (
     get_github_auth_service,
     GitHubAuthError,
-    DeviceCodeResponse,
-    ConnectionStatus,
 )
 
 router = APIRouter(prefix="/github-auth", tags=["github-auth"])
@@ -47,6 +45,7 @@ class ConnectionStatusModel(BaseModel):
     username: Optional[str] = None
     rate_limit_remaining: Optional[int] = None
     rate_limit_total: Optional[int] = None
+    rate_limit_reset: Optional[int] = None  # Unix timestamp when limit resets
     error: Optional[str] = None
 
 
@@ -122,6 +121,7 @@ async def get_connection_status():
         username=status.username,
         rate_limit_remaining=status.rate_limit_remaining,
         rate_limit_total=status.rate_limit_total,
+        rate_limit_reset=status.rate_limit_reset,
         error=status.error,
     )
 

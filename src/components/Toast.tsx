@@ -64,7 +64,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 }
 
 // Hook for managing toasts
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -87,13 +87,17 @@ export function useToast() {
 
   const warning = useCallback((message: string) => addToast("warning", message), [addToast]);
 
-  return {
-    toasts,
-    addToast,
-    dismissToast,
-    success,
-    error,
-    info,
-    warning,
-  };
+  // Memoize return object to prevent infinite loops in consumers
+  return useMemo(
+    () => ({
+      toasts,
+      addToast,
+      dismissToast,
+      success,
+      error,
+      info,
+      warning,
+    }),
+    [toasts, addToast, dismissToast, success, error, info, warning]
+  );
 }

@@ -33,3 +33,11 @@ export function formatVelocity(num: number | null): string {
   if (num === null) return "—";
   return num.toFixed(1) + "/day";
 }
+
+/**
+ * Format date string for chart axis labels (e.g., "2024-01-15" -> "1/15")
+ */
+export function formatChartDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}

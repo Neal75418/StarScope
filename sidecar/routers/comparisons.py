@@ -3,8 +3,8 @@ Comparisons API endpoints.
 Provides CRUD for comparison groups and comparison data generation.
 """
 
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
@@ -64,7 +64,7 @@ class ComparisonGroupListResponse(BaseModel):
 
 
 # Helper functions
-def _get_group_or_404(group_id: int, db: Session) -> "ComparisonGroup":
+def _get_group_or_404(group_id: int, db: Session) -> ComparisonGroup:
     """Get comparison group by ID or raise 404."""
     group = db.query(ComparisonGroup).filter(ComparisonGroup.id == group_id).first()
     if not group:
@@ -72,7 +72,7 @@ def _get_group_or_404(group_id: int, db: Session) -> "ComparisonGroup":
     return group
 
 
-def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
+def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
     """Get repo by ID or raise 404."""
     repo = db.query(Repo).filter(Repo.id == repo_id).first()
     if not repo:
@@ -80,7 +80,7 @@ def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
     return repo
 
 
-def _group_to_response(group: "ComparisonGroup", db: Session) -> ComparisonGroupResponse:
+def _group_to_response(group: ComparisonGroup, db: Session) -> ComparisonGroupResponse:
     """Convert ComparisonGroup model to response."""
     member_count = db.query(ComparisonMember).filter(
         ComparisonMember.group_id == group.id
@@ -301,7 +301,7 @@ async def remove_repo_from_comparison(
 @router.get("/{group_id}/chart")
 async def get_comparison_chart_data(
     group_id: int,
-    time_range: str = Query("30d", regex="^(7d|30d|90d)$"),
+    time_range: str = Query("30d", pattern="^(7d|30d|90d)$"),
     db: Session = Depends(get_db)
 ):
     """
