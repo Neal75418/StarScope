@@ -40,11 +40,9 @@ describe("CategoryEditModal", () => {
     description: "Test description",
     icon: "📁",
     color: "#ff0000",
-    parent_id: null,
-    display_order: 0,
+    sort_order: 0,
     repo_count: 5,
     children: [],
-    repos: [],
   };
 
   const defaultProps = {
