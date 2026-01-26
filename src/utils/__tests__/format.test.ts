@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatNumber, formatDelta, formatVelocity } from "../format";
+import { formatNumber, formatDelta, formatVelocity, formatChartDate } from "../format";
 
 describe("formatNumber", () => {
   it("formats null as dash", () => {
@@ -75,5 +75,17 @@ describe("formatVelocity", () => {
   it("formats velocity to 1 decimal place", () => {
     expect(formatVelocity(50.123)).toBe("50.1/day");
     expect(formatVelocity(99.999)).toBe("100.0/day");
+  });
+});
+
+describe("formatChartDate", () => {
+  it("formats ISO date string to M/D format", () => {
+    expect(formatChartDate("2024-01-15")).toBe("1/15");
+    expect(formatChartDate("2024-12-25")).toBe("12/25");
+  });
+
+  it("formats ISO datetime string to M/D format", () => {
+    expect(formatChartDate("2024-01-15T12:30:00Z")).toBe("1/15");
+    expect(formatChartDate("2024-06-01T00:00:00Z")).toBe("6/1");
   });
 });

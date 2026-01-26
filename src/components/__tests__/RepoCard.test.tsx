@@ -23,6 +23,19 @@ vi.mock("../../api/client", async (importOriginal) => {
         calculated_at: "2024-01-10T00:00:00Z",
       })
     ),
+    getSimilarRepos: vi.fn(() =>
+      Promise.resolve({
+        repo_id: 1,
+        similar: [],
+        total: 0,
+      })
+    ),
+    calculateRepoSimilarities: vi.fn(() =>
+      Promise.resolve({
+        repo_id: 1,
+        similarities_found: 0,
+      })
+    ),
   };
 });
 
@@ -51,6 +64,13 @@ vi.mock("../../i18n", async (importOriginal) => {
         healthScore: {
           failedToLoad: "Failed to load",
           clickToCalculate: "Click to calculate",
+        },
+        similarRepos: {
+          title: "Similar Repositories",
+          recalculate: "Recalculate",
+          loadError: "Failed to load",
+          empty: "No similar repos found",
+          close: "Close",
         },
       },
     }),
@@ -206,5 +226,62 @@ describe("RepoCard", () => {
     const repoLink = screen.getByRole("link", { name: "facebook/react" });
     expect(repoLink).toHaveAttribute("target", "_blank");
     expect(repoLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("handles null description gracefully", () => {
+    const repoWithNullDesc = { ...mockRepo, description: null };
+    render(<RepoCard repo={repoWithNullDesc} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
+
+    expect(screen.getByText("facebook/react")).toBeInTheDocument();
+  });
+
+  it("handles null velocity gracefully", () => {
+    const repoWithNullVelocity = { ...mockRepo, velocity: null };
+    render(<RepoCard repo={repoWithNullVelocity} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
+
+    expect(screen.getByText("Velocity")).toBeInTheDocument();
+  });
+
+  it("handles null deltas gracefully", () => {
+    const repoWithNullDeltas = { ...mockRepo, stars_delta_7d: null, stars_delta_30d: null };
+    render(<RepoCard repo={repoWithNullDeltas} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
+
+    expect(screen.getByText("7d")).toBeInTheDocument();
+    expect(screen.getByText("30d")).toBeInTheDocument();
+  });
+
+  it("handles null language gracefully", () => {
+    const repoWithNullLang = { ...mockRepo, language: null };
+    render(<RepoCard repo={repoWithNullLang} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
+
+    expect(screen.getByText("facebook/react")).toBeInTheDocument();
+  });
+
+  it("can click similar button", async () => {
+    const user = userEvent.setup();
+    render(<RepoCard repo={mockRepo} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
+
+    const similarButton = screen.getByRole("button", { name: /similar/i });
+    expect(similarButton).toBeInTheDocument();
+
+    await user.click(similarButton);
+
+    // Button should still be in the document after click
+    expect(similarButton).toBeInTheDocument();
+  });
+
+  it("renders with selectedCategoryId prop", () => {
+    const mockOnRemoveFromCategory = vi.fn();
+    render(
+      <RepoCard
+        repo={mockRepo}
+        onFetch={mockOnFetch}
+        onRemove={mockOnRemove}
+        selectedCategoryId={5}
+        onRemoveFromCategory={mockOnRemoveFromCategory}
+      />
+    );
+
+    expect(screen.getByText("facebook/react")).toBeInTheDocument();
   });
 });
