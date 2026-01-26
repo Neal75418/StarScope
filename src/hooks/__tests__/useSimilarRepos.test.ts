@@ -128,7 +128,9 @@ describe("useSimilarRepos", () => {
       similar: mockSimilarRepos,
       total: 1,
     });
-    vi.mocked(apiClient.calculateRepoSimilarities).mockRejectedValue(new Error("Calculation failed"));
+    vi.mocked(apiClient.calculateRepoSimilarities).mockRejectedValue(
+      new Error("Calculation failed")
+    );
 
     const { result } = renderHook(() => useSimilarRepos(1));
 

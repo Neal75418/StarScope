@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getScoreColor, formatResponseTime, formatDate, TimeTranslations } from "../healthScoreUtils";
+import {
+  getScoreColor,
+  formatResponseTime,
+  formatDate,
+  TimeTranslations,
+} from "../healthScoreUtils";
 
 describe("healthScoreUtils", () => {
   describe("getScoreColor", () => {

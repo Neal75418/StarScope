@@ -146,7 +146,9 @@ describe("useStarsChart", () => {
     });
 
     await waitFor(() => {
-      expect(vi.mocked(apiClient.getStarsChart).mock.calls.length).toBeGreaterThan(initialCallCount);
+      expect(vi.mocked(apiClient.getStarsChart).mock.calls.length).toBeGreaterThan(
+        initialCallCount
+      );
     });
   });
 });
