@@ -85,7 +85,15 @@ function WebhookCard({
   );
 }
 
-export function WebhookList({ webhooks, testingId, onTest, onToggle, onEdit, onDelete, onViewLogs }: WebhookListProps) {
+export function WebhookList({
+  webhooks,
+  testingId,
+  onTest,
+  onToggle,
+  onEdit,
+  onDelete,
+  onViewLogs,
+}: WebhookListProps) {
   const { t } = useI18n();
 
   if (webhooks.length === 0) {

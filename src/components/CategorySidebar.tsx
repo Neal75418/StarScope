@@ -38,28 +38,25 @@ export function CategorySidebar({
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
 
-  const handleEdit = useCallback(
-    async (node: CategoryTreeNode, e: MouseEvent) => {
-      e.stopPropagation();
-      // Fetch fresh category data to ensure we have the latest
-      try {
-        const freshCategory = await getCategory(node.id);
-        // Merge fresh data with tree node structure (preserving children)
-        setEditingCategory({
-          ...node,
-          name: freshCategory.name,
-          description: freshCategory.description,
-          icon: freshCategory.icon,
-          color: freshCategory.color,
-        });
-      } catch (err) {
-        // Fallback to the tree node if fetch fails
-        console.error("Failed to fetch category, using cached data:", err);
-        setEditingCategory(node);
-      }
-    },
-    []
-  );
+  const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
+    e.stopPropagation();
+    // Fetch fresh category data to ensure we have the latest
+    try {
+      const freshCategory = await getCategory(node.id);
+      // Merge fresh data with tree node structure (preserving children)
+      setEditingCategory({
+        ...node,
+        name: freshCategory.name,
+        description: freshCategory.description,
+        icon: freshCategory.icon,
+        color: freshCategory.color,
+      });
+    } catch (err) {
+      // Fallback to the tree node if fetch fails
+      console.error("Failed to fetch category, using cached data:", err);
+      setEditingCategory(node);
+    }
+  }, []);
 
   const handleEditSubmit = useCallback(
     async (categoryId: number, data: Parameters<typeof handleUpdateCategory>[1]) => {
@@ -102,10 +99,7 @@ export function CategorySidebar({
       />
 
       {showAddForm && (
-        <CategoryAddForm
-          onSubmit={handleCreateCategory}
-          onCancel={() => setShowAddForm(false)}
-        />
+        <CategoryAddForm onSubmit={handleCreateCategory} onCancel={() => setShowAddForm(false)} />
       )}
 
       <div className="category-list">

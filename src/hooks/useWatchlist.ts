@@ -24,12 +24,10 @@ export function useWatchlist() {
   const repoOps = useRepoOperations();
   const categoryFilter = useCategoryFilter(repoOps.repos);
   const addDialog = useAddRepoDialog(repoOps.addNewRepo, t.toast.error);
-  const removeDialog = useRemoveConfirm(
-    repoOps.repos,
-    repoOps.deleteRepo,
-    toast,
-    { success: t.toast.repoRemoved, error: t.toast.error }
-  );
+  const removeDialog = useRemoveConfirm(repoOps.repos, repoOps.deleteRepo, toast, {
+    success: t.toast.repoRemoved,
+    error: t.toast.error,
+  });
 
   // Prevent duplicate fetches from StrictMode
   const hasInitializedRef = useRef(false);

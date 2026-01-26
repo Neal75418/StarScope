@@ -3,11 +3,7 @@
  */
 
 import { useCallback, useState } from "react";
-import {
-  addRepoToCategory,
-  removeRepoFromCategory,
-  getRepoCategories,
-} from "../api/client";
+import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
 
 interface CategoryOperationsResult {
   isLoading: boolean;

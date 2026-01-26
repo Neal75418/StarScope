@@ -59,7 +59,11 @@ export function GitHubConnection() {
       )}
 
       {state === "connected" && status && (
-        <ConnectionConnected status={status} onDisconnect={handleDisconnect} onRefresh={fetchStatus} />
+        <ConnectionConnected
+          status={status}
+          onDisconnect={handleDisconnect}
+          onRefresh={fetchStatus}
+        />
       )}
 
       {state === "error" && <ConnectionError onRetry={fetchStatus} />}

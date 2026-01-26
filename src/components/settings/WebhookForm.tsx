@@ -3,7 +3,13 @@
  */
 
 import { useState, useEffect, FormEvent } from "react";
-import { WebhookCreate, WebhookType, WebhookTrigger, getWebhookTypes, WebhookTypesResponse } from "../../api/client";
+import {
+  WebhookCreate,
+  WebhookType,
+  WebhookTrigger,
+  getWebhookTypes,
+  WebhookTypesResponse,
+} from "../../api/client";
 import { useI18n } from "../../i18n";
 
 interface WebhookFormProps {
@@ -28,7 +34,13 @@ const FALLBACK_TRIGGERS: { id: WebhookTrigger; name: string }[] = [
   { id: "threshold_alert", name: "Alert Fired" },
 ];
 
-export function WebhookForm({ initialData, isSubmitting, isEditMode = false, onSubmit, onCancel }: WebhookFormProps) {
+export function WebhookForm({
+  initialData,
+  isSubmitting,
+  isEditMode = false,
+  onSubmit,
+  onCancel,
+}: WebhookFormProps) {
   const { t } = useI18n();
   const [webhook, setWebhook] = useState<WebhookCreate>(initialData);
   const [typesData, setTypesData] = useState<WebhookTypesResponse | null>(null);
@@ -91,11 +103,14 @@ export function WebhookForm({ initialData, isSubmitting, isEditMode = false, onS
           <label>{t.settings.webhooks.form.type}</label>
           <select
             value={webhook.webhook_type}
-            onChange={(e) => setWebhook({ ...webhook, webhook_type: e.target.value as WebhookType })}
+            onChange={(e) =>
+              setWebhook({ ...webhook, webhook_type: e.target.value as WebhookType })
+            }
           >
             {webhookTypes.map((type) => (
               <option key={type.id} value={type.id}>
-                {t.settings.webhooks.types[type.id as keyof typeof t.settings.webhooks.types] ?? type.name}
+                {t.settings.webhooks.types[type.id as keyof typeof t.settings.webhooks.types] ??
+                  type.name}
               </option>
             ))}
           </select>
@@ -132,8 +147,12 @@ export function WebhookForm({ initialData, isSubmitting, isEditMode = false, onS
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting
-            ? (isEditMode ? t.settings.webhooks.actions.saving : t.settings.webhooks.actions.creating)
-            : (isEditMode ? t.settings.webhooks.actions.saveWebhook : t.settings.webhooks.actions.createWebhook)}
+            ? isEditMode
+              ? t.settings.webhooks.actions.saving
+              : t.settings.webhooks.actions.creating
+            : isEditMode
+              ? t.settings.webhooks.actions.saveWebhook
+              : t.settings.webhooks.actions.createWebhook}
         </button>
         <button type="button" className="btn" onClick={onCancel}>
           {t.common.cancel}

@@ -100,20 +100,17 @@ export function useWebhooks(toast: Toast) {
     [operations]
   );
 
-  const handleEdit = useCallback(
-    async (webhook: Webhook) => {
-      // Fetch fresh webhook data to ensure we have the latest
-      try {
-        const freshWebhook = await getWebhook(webhook.id);
-        setEditingWebhook(freshWebhook);
-      } catch (err) {
-        // Fallback to the passed webhook if fetch fails
-        console.error("Failed to fetch webhook, using cached data:", err);
-        setEditingWebhook(webhook);
-      }
-    },
-    []
-  );
+  const handleEdit = useCallback(async (webhook: Webhook) => {
+    // Fetch fresh webhook data to ensure we have the latest
+    try {
+      const freshWebhook = await getWebhook(webhook.id);
+      setEditingWebhook(freshWebhook);
+    } catch (err) {
+      // Fallback to the passed webhook if fetch fails
+      console.error("Failed to fetch webhook, using cached data:", err);
+      setEditingWebhook(webhook);
+    }
+  }, []);
 
   const handleCancelEdit = useCallback(() => {
     setEditingWebhook(null);

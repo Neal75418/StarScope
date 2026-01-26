@@ -29,10 +29,7 @@ function GroupItem({
   const { t } = useI18n();
 
   return (
-    <div
-      className={`compare-group-item ${isSelected ? "selected" : ""}`}
-      onClick={onSelect}
-    >
+    <div className={`compare-group-item ${isSelected ? "selected" : ""}`} onClick={onSelect}>
       <div className="compare-group-info">
         <span className="compare-group-name">{group.name}</span>
         <span className="compare-group-count">

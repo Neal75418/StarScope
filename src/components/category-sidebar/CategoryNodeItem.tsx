@@ -38,10 +38,7 @@ export function CategoryNodeItem({
       onClick={() => onSelect(node.id)}
     >
       {hasChildren ? (
-        <button
-          className="category-expand-btn"
-          onClick={(e) => onToggleExpand(node.id, e)}
-        >
+        <button className="category-expand-btn" onClick={(e) => onToggleExpand(node.id, e)}>
           {isExpanded ? "▼" : "▶"}
         </button>
       ) : (
@@ -50,10 +47,7 @@ export function CategoryNodeItem({
 
       {node.icon && <span className="category-icon">{node.icon}</span>}
 
-      <span
-        className="category-name"
-        style={node.color ? { color: node.color } : undefined}
-      >
+      <span className="category-name" style={node.color ? { color: node.color } : undefined}>
         {node.name}
       </span>
 

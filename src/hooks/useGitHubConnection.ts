@@ -37,7 +37,8 @@ interface UseGitHubConnectionResult {
 
 export function useGitHubConnection(): UseGitHubConnectionResult {
   const { t } = useI18n();
-  const { status, setStatus, state, setState, error, setError, fetchStatus } = useConnectionStatus();
+  const { status, setStatus, state, setState, error, setError, fetchStatus } =
+    useConnectionStatus();
   const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
   const [pollStatus, setPollStatus] = useState<string>("");
 

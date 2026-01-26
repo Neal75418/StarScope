@@ -16,9 +16,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return err instanceof ApiError ? err.detail : fallback;
 }
 
-function parseRepoInput(
-  input: string
-): { owner?: string; name?: string; url?: string } | null {
+function parseRepoInput(input: string): { owner?: string; name?: string; url?: string } | null {
   if (input.includes("github.com")) return { url: input };
   if (input.includes("/")) {
     const [owner, name] = input.split("/");

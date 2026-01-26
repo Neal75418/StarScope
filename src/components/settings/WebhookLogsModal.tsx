@@ -13,13 +13,9 @@ function LogItem({ log }: { log: WebhookLog }) {
   return (
     <div className={`webhook-log-item ${statusClass}`}>
       <div className="log-header">
-        <span className={`log-status ${statusClass}`}>
-          {log.success ? "✓" : "✗"}
-        </span>
+        <span className={`log-status ${statusClass}`}>{log.success ? "✓" : "✗"}</span>
         <span className="log-trigger">{log.trigger_type}</span>
-        <span className="log-time">
-          {new Date(log.sent_at).toLocaleString()}
-        </span>
+        <span className="log-time">{new Date(log.sent_at).toLocaleString()}</span>
       </div>
       <div className="log-details">
         <div className="log-response">
@@ -70,8 +66,12 @@ export function WebhookLogsModal({ webhookName, logs, isLoading, onClose }: Webh
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal webhook-logs-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>{t.settings.webhooks.logs.title}: {webhookName}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <h3>
+            {t.settings.webhooks.logs.title}: {webhookName}
+          </h3>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
         <div className="modal-content">
           <LogsContent logs={logs} isLoading={isLoading} />

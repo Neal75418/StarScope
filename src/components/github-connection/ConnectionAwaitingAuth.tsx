@@ -30,11 +30,7 @@ export function ConnectionAwaitingAuth({
         <div className="device-code-label">{t.githubConnection.enterCode}</div>
         <div className="device-code-box">
           <code className="device-code">{deviceCode.user_code}</code>
-          <button
-            onClick={onCopy}
-            className="btn btn-small"
-            title={t.githubConnection.copy}
-          >
+          <button onClick={onCopy} className="btn btn-small" title={t.githubConnection.copy}>
             {copied ? t.githubConnection.copied : t.githubConnection.copy}
           </button>
         </div>

@@ -34,13 +34,7 @@ function ErrorBadge({ error }: { error: string }) {
   );
 }
 
-function EmptyBadge({
-  calculating,
-  onClick,
-}: {
-  calculating: boolean;
-  onClick: () => void;
-}) {
+function EmptyBadge({ calculating, onClick }: { calculating: boolean; onClick: () => void }) {
   const { t } = useI18n();
   return (
     <button
@@ -82,8 +76,10 @@ function GradeBadge({
 }
 
 export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
-  const { summary, loading, calculating, error, handleCalculate, handleClick } =
-    useHealthBadge({ repoId, onShowDetails });
+  const { summary, loading, calculating, error, handleCalculate, handleClick } = useHealthBadge({
+    repoId,
+    onShowDetails,
+  });
 
   if (loading) {
     return <LoadingBadge />;
@@ -97,11 +93,5 @@ export function HealthBadge({ repoId, onShowDetails }: HealthBadgeProps) {
     return <EmptyBadge calculating={calculating} onClick={handleCalculate} />;
   }
 
-  return (
-    <GradeBadge
-      grade={summary.grade}
-      score={summary.overall_score}
-      onClick={handleClick}
-    />
-  );
+  return <GradeBadge grade={summary.grade} score={summary.overall_score} onClick={handleClick} />;
 }

@@ -7,10 +7,7 @@ import { formatNumber } from "../../utils/format";
 import { interpolate } from "../../i18n";
 import { SIGNAL_TYPE_ICONS, SEVERITY_COLORS, useSignalLabels } from "./signalLabels";
 
-function formatRelativeTime(
-  dateStr: string,
-  t: ReturnType<typeof useSignalLabels>["t"]
-): string {
+function formatRelativeTime(dateStr: string, t: ReturnType<typeof useSignalLabels>["t"]): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();

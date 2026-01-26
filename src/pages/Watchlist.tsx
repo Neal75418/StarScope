@@ -40,13 +40,7 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
 }
 
 // Empty state component
-function EmptyState({
-  hasCategory,
-  hasRepos,
-}: {
-  hasCategory: boolean;
-  hasRepos: boolean;
-}) {
+function EmptyState({ hasCategory, hasRepos }: { hasCategory: boolean; hasRepos: boolean }) {
   const { t } = useI18n();
 
   if (hasCategory) {
@@ -97,13 +91,7 @@ function RepoList({
 }
 
 // Error banner component
-function ErrorBanner({
-  error,
-  onClear,
-}: {
-  error: string;
-  onClear: () => void;
-}) {
+function ErrorBanner({ error, onClear }: { error: string; onClear: () => void }) {
   return (
     <div className="error-banner">
       {error}
@@ -140,11 +128,7 @@ function Toolbar({
 
   return (
     <div className="toolbar">
-      <button
-        data-testid="add-repo-btn"
-        onClick={onAddRepo}
-        className="btn btn-primary"
-      >
+      <button data-testid="add-repo-btn" onClick={onAddRepo} className="btn btn-primary">
         + {t.watchlist.addRepo}
       </button>
       <button
@@ -162,8 +146,8 @@ function Toolbar({
         title={t.watchlist.autoTagAll ?? "Auto-Tag All"}
       >
         {isAutoTagging
-          ? t.watchlist.autoTagging ?? "Tagging..."
-          : t.watchlist.autoTagAll ?? "Auto-Tag All"}
+          ? (t.watchlist.autoTagging ?? "Tagging...")
+          : (t.watchlist.autoTagAll ?? "Auto-Tag All")}
       </button>
       <button
         onClick={onRecalculateAll}
@@ -172,8 +156,8 @@ function Toolbar({
         title={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
       >
         {isRecalculating
-          ? t.watchlist.recalculating ?? "Calculating..."
-          : t.watchlist.recalculateAll ?? "Recalculate"}
+          ? (t.watchlist.recalculating ?? "Calculating...")
+          : (t.watchlist.recalculateAll ?? "Recalculate")}
       </button>
       {selectedCategoryId && (
         <span className="filter-indicator">
@@ -280,10 +264,7 @@ export function Watchlist() {
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                <EmptyState
-                  hasCategory={selectedCategoryId !== null}
-                  hasRepos={repos.length > 0}
-                />
+                <EmptyState hasCategory={selectedCategoryId !== null} hasRepos={repos.length > 0} />
               </div>
             ) : (
               <RepoList

@@ -4,7 +4,13 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import { Language, getInitialLanguage, saveLanguage, getTranslations, TranslationKeys } from "../i18n";
+import {
+  Language,
+  getInitialLanguage,
+  saveLanguage,
+  getTranslations,
+  TranslationKeys,
+} from "../i18n";
 
 export interface UseAppLanguageReturn {
   language: Language;

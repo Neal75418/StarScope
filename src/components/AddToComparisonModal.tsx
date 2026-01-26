@@ -3,11 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
-import {
-  ComparisonGroup,
-  listComparisonGroups,
-  addRepoToComparison,
-} from "../api/client";
+import { ComparisonGroup, listComparisonGroups, addRepoToComparison } from "../api/client";
 import { useI18n } from "../i18n";
 
 interface AddToComparisonModalProps {
@@ -64,7 +60,9 @@ export function AddToComparisonModal({
       <div className="modal add-to-comparison-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{t.compare.addToGroup.title}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
         <div className="modal-content">
           <p className="add-to-comparison-subtitle">
@@ -89,9 +87,7 @@ export function AddToComparisonModal({
                   disabled={isSubmitting}
                 >
                   <span className="group-name">{group.name}</span>
-                  <span className="group-count">
-                    ({group.member_count} repos)
-                  </span>
+                  <span className="group-count">({group.member_count} repos)</span>
                 </button>
               ))}
             </div>

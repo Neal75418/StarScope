@@ -13,10 +13,7 @@ interface UseCategoryExpandResult {
 export function useCategoryExpand(): UseCategoryExpandResult {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
-  const isExpanded = useCallback(
-    (id: number) => expandedIds.has(id),
-    [expandedIds]
-  );
+  const isExpanded = useCallback((id: number) => expandedIds.has(id), [expandedIds]);
 
   const toggleExpanded = useCallback((categoryId: number, e: MouseEvent) => {
     e.stopPropagation();

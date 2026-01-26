@@ -54,10 +54,7 @@ export function CompareSidebar({
       </div>
 
       {showCreateForm && (
-        <CreateGroupForm
-          onSubmit={onCreateGroup}
-          onCancel={() => setShowCreateForm(false)}
-        />
+        <CreateGroupForm onSubmit={onCreateGroup} onCancel={() => setShowCreateForm(false)} />
       )}
 
       <GroupList

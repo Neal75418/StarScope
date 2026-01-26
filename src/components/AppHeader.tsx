@@ -57,7 +57,9 @@ export function AppHeader({
   const isDark = theme === "dark";
   const isEnglish = language === "en";
 
-  const themeTitle = isDark ? t.settings.appearance.switchToLight : t.settings.appearance.switchToDark;
+  const themeTitle = isDark
+    ? t.settings.appearance.switchToLight
+    : t.settings.appearance.switchToDark;
   const langTitle = isEnglish ? "切換為繁體中文" : "Switch to English";
 
   return (
@@ -118,7 +120,11 @@ export function AppHeader({
             title={themeTitle}
             aria-label={themeTitle}
           >
-            {isDark ? <SunIcon size={16} aria-hidden="true" /> : <MoonIcon size={16} aria-hidden="true" />}
+            {isDark ? (
+              <SunIcon size={16} aria-hidden="true" />
+            ) : (
+              <MoonIcon size={16} aria-hidden="true" />
+            )}
           </button>
 
           {/* Settings */}

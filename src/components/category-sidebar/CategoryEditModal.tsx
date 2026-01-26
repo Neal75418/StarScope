@@ -47,7 +47,9 @@ export function CategoryEditModal({
       <div className="modal category-edit-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{t.categories.editCategory}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-content">

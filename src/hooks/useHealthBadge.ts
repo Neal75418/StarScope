@@ -26,8 +26,7 @@ export function useHealthBadge({
   repoId,
   onShowDetails,
 }: UseHealthBadgeOptions): UseHealthBadgeResult {
-  const { summary, setSummary, loading, error, setError, isMountedRef } =
-    useHealthSummary(repoId);
+  const { summary, setSummary, loading, error, setError, isMountedRef } = useHealthSummary(repoId);
 
   const { calculating, handleCalculate, handleShowDetails } = useHealthCalculate({
     repoId,

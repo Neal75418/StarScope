@@ -43,9 +43,7 @@ function CompareTableRow({
       <td>
         <span className="compare-language">{member.language || "-"}</span>
       </td>
-      <td className="compare-number">
-        {member.stars !== null ? formatNumber(member.stars) : "-"}
-      </td>
+      <td className="compare-number">{member.stars !== null ? formatNumber(member.stars) : "-"}</td>
       <td className="compare-delta">
         {member.stars_delta_7d !== null ? formatDelta(member.stars_delta_7d) : "-"}
       </td>
@@ -68,11 +66,7 @@ function CompareTableRow({
         )}
       </td>
       <td>
-        <button
-          className="btn btn-sm btn-danger"
-          onClick={onRemove}
-          title={removeTitle}
-        >
+        <button className="btn btn-sm btn-danger" onClick={onRemove} title={removeTitle}>
           &times;
         </button>
       </td>

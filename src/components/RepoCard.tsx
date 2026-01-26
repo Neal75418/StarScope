@@ -6,12 +6,7 @@ import { useState, useCallback } from "react";
 import { RepoWithSignals, HealthScoreResponse } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { AddToComparisonModal } from "./AddToComparisonModal";
-import {
-  RepoCardHeader,
-  RepoCardStats,
-  RepoCardContent,
-  RepoCardPanels,
-} from "./repo-card";
+import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
 
 interface RepoCardProps {
   repo: RepoWithSignals;

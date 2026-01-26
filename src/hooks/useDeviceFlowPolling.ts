@@ -97,7 +97,13 @@ export function useDeviceFlowPolling({
       };
 
       const processResult = (
-        result: { status: string; username?: string; error?: string; slow_down?: boolean; interval?: number },
+        result: {
+          status: string;
+          username?: string;
+          error?: string;
+          slow_down?: boolean;
+          interval?: number;
+        },
         pollFn: () => Promise<void>
       ) => {
         if (result.status === "success") {

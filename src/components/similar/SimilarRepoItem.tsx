@@ -14,9 +14,7 @@ function formatScore(score: number): string {
 }
 
 function truncateDescription(description: string, maxLength: number = 100): string {
-  return description.length > maxLength
-    ? description.substring(0, maxLength) + "..."
-    : description;
+  return description.length > maxLength ? description.substring(0, maxLength) + "..." : description;
 }
 
 function TopicsList({ topics }: { topics: string[] }) {
@@ -32,9 +30,7 @@ function TopicsList({ topics }: { topics: string[] }) {
           {topic}
         </span>
       ))}
-      {remainingCount > 0 && (
-        <span className="similar-topic-more">+{remainingCount}</span>
-      )}
+      {remainingCount > 0 && <span className="similar-topic-more">+{remainingCount}</span>}
     </div>
   );
 }
@@ -45,12 +41,7 @@ export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
   return (
     <div className="similar-repo-item">
       <div className="similar-repo-info">
-        <a
-          href={repo.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="similar-repo-name"
-        >
+        <a href={repo.url} target="_blank" rel="noopener noreferrer" className="similar-repo-name">
           {repo.full_name}
         </a>
         <span className="similar-repo-score" title={t.similarRepos.similarityScore}>

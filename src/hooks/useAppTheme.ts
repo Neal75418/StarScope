@@ -36,8 +36,5 @@ export function useAppTheme(): UseAppThemeReturn {
   }, [theme]);
 
   // Memoize return object to prevent unnecessary re-renders
-  return useMemo(
-    () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme]
-  );
+  return useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 }

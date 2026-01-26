@@ -18,11 +18,7 @@ export function CategorySidebarHeader({
   return (
     <div className="category-sidebar-header">
       <h3>{t.categories.title}</h3>
-      <button
-        className="btn btn-sm"
-        onClick={onToggleAddForm}
-        title={t.categories.addCategory}
-      >
+      <button className="btn btn-sm" onClick={onToggleAddForm} title={t.categories.addCategory}>
         {showAddForm ? "−" : "+"}
       </button>
     </div>

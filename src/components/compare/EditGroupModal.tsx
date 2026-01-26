@@ -13,12 +13,7 @@ interface EditGroupModalProps {
   onClose: () => void;
 }
 
-export function EditGroupModal({
-  group,
-  isSubmitting,
-  onSubmit,
-  onClose,
-}: EditGroupModalProps) {
+export function EditGroupModal({ group, isSubmitting, onSubmit, onClose }: EditGroupModalProps) {
   const { t } = useI18n();
   const [name, setName] = useState(group.name);
   const [description, setDescription] = useState(group.description ?? "");
@@ -27,11 +22,7 @@ export function EditGroupModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    const success = await onSubmit(
-      group.id,
-      name.trim(),
-      description.trim() || undefined
-    );
+    const success = await onSubmit(group.id, name.trim(), description.trim() || undefined);
     if (success) {
       onClose();
     }
@@ -42,7 +33,9 @@ export function EditGroupModal({
       <div className="modal edit-group-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{t.compare.form.editGroup}</h3>
-          <button className="modal-close" onClick={onClose}>&times;</button>
+          <button className="modal-close" onClick={onClose}>
+            &times;
+          </button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-content">
