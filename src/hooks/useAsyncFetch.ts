@@ -2,7 +2,7 @@
  * Generic hook for async data fetching with cleanup.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 interface UseAsyncFetchResult<T> {
   data: T;
@@ -19,13 +19,7 @@ export function useAsyncFetch<T, R>(
   const [data, setData] = useState<T>(initialData);
   const [loading, setLoading] = useState(true);
 
-  // Prevent duplicate fetches from StrictMode
-  const isFetchingRef = useRef(false);
-
   useEffect(() => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-
     let isMounted = true;
     setLoading(true);
 
@@ -38,7 +32,6 @@ export function useAsyncFetch<T, R>(
       })
       .finally(() => {
         if (isMounted) setLoading(false);
-        isFetchingRef.current = false;
       });
 
     return () => {

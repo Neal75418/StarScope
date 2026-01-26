@@ -3,7 +3,6 @@
  */
 
 import { ContextBadge } from "../api/client";
-import { useI18n } from "../i18n";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
@@ -11,44 +10,62 @@ interface ContextBadgesProps {
   isRefreshing?: boolean;
 }
 
-const BADGE_CONFIG: Record<string, { bg: string; icon: string }> = {
-  hn: { bg: "#ff6600", icon: "Y" },
-  reddit: { bg: "#ff4500", icon: "r/" },
-  release: { bg: "#238636", icon: "v" },
+const BADGE_CONFIG: Record<
+  string,
+  { icon: string; label: string; color: string; tooltip: string }
+> = {
+  hn: { icon: "🔶", label: "HN", color: "#ff6600", tooltip: "Hacker News 討論分數" },
+  reddit: { icon: "💬", label: "Reddit", color: "#ff4500", tooltip: "Reddit 討論熱度" },
+  release: { icon: "🏷️", label: "", color: "#238636", tooltip: "最新發布版本" },
 };
 
-export function ContextBadges({ badges, onRefresh, isRefreshing }: ContextBadgesProps) {
-  const { t } = useI18n();
+function formatValue(badge: ContextBadge): string {
+  if (badge.type === "hn") {
+    const match = badge.label.match(/(\d+)/);
+    if (match) return match[1];
+  } else if (badge.type === "reddit") {
+    const match = badge.label.match(/(\d+)/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      return num >= 1000 ? (num / 1000).toFixed(1) + "k" : match[1];
+    }
+  } else if (badge.type === "release") {
+    const match = badge.label.match(/(v[\d.]+)/);
+    if (match) return match[1];
+  }
+  return badge.label;
+}
+
+export function ContextBadges({ badges }: ContextBadgesProps) {
+  if (badges.length === 0) return null;
 
   return (
     <div className="context-badges">
       {badges.map((badge) => {
-        const config = BADGE_CONFIG[badge.type] || { bg: "#666", icon: "?" };
+        const config = BADGE_CONFIG[badge.type] || {
+          icon: "❓",
+          label: "?",
+          color: "#666",
+          tooltip: badge.label,
+        };
+        const value = formatValue(badge);
+
         return (
           <a
             key={badge.url}
             href={badge.url}
             target="_blank"
             rel="noopener noreferrer"
-            className={`context-badge ${badge.is_recent ? "recent" : ""}`}
-            style={{ backgroundColor: config.bg }}
-            title={badge.label}
+            className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""}`}
+            style={{ "--badge-color": config.color } as React.CSSProperties}
+            title={`${config.tooltip}: ${badge.label}`}
           >
             <span className="badge-icon">{config.icon}</span>
-            <span className="badge-label">{badge.label}</span>
+            {config.label && <span className="badge-label">{config.label}</span>}
+            <span className="badge-value">{value}</span>
           </a>
         );
       })}
-      {onRefresh && (
-        <button
-          className="context-refresh-btn"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          title={t.repo.refreshContext ?? "Refresh Context"}
-        >
-          {isRefreshing ? "↻" : "⟳"}
-        </button>
-      )}
     </div>
   );
 }

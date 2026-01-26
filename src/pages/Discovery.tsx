@@ -24,15 +24,18 @@ export function Discovery() {
   const { t } = useI18n();
   const toast = useToast();
   const discovery = useDiscovery();
-  const { repos: watchlist } = useWatchlist();
+  const { repos: watchlist, handleRefreshAll } = useWatchlist();
 
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
+  // Track locally added repo names for immediate UI feedback
+  const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
-  // Create a Set of watchlist full_names for quick lookup
-  const watchlistFullNames = useMemo(
-    () => new Set(watchlist.map((r) => r.full_name.toLowerCase())),
-    [watchlist]
-  );
+  // Create a Set of watchlist full_names for quick lookup (includes locally added)
+  const watchlistFullNames = useMemo(() => {
+    const names = new Set(watchlist.map((r) => r.full_name.toLowerCase()));
+    locallyAdded.forEach((name) => names.add(name));
+    return names;
+  }, [watchlist, locallyAdded]);
 
   // Get period display label for active filters
   const getPeriodLabel = useCallback(
@@ -60,28 +63,10 @@ export function Discovery() {
       setAddingRepoId(repo.id);
       try {
         await addRepo({ owner: repo.owner, name: repo.name });
-        // We rely on useWatchlist to refresh its state via SWR or manually if needed,
-        // but here we just show the toast. The watchlist prop will update if useWatchlist updates.
-        // Actually useWatchlist uses internal state from useRepoOperations which updates on handleAddRepo.
-        // Since we are bypassing useWatchlist's handleAddRepo here (calling addRepo directly),
-        // the watchlist might not update immediately if it's not polling.
-        // It's better to use useWatchlist's handleAddRepo if possible, but that takes a string url/name.
-        // Let's stick to the original logic for now, but usually we should sync.
-        // The original logic just added it to local 'watchlist' state.
-        // Now 'watchlist' comes from useWatchlist.
-        // If useWatchlist doesn't know about this change, the UI won't update "In Watchlist".
-        // IMPROVEMENT: We should use a method from useWatchlist to add, or force refresh.
-        // But useWatchlist.handleAddRepo opens a dialog.
-        // Let's check useRepoOperations exposed by useWatchlist.
-        // useWatchlist exposes handleFetchRepo and handleRefreshAll.
-        // Maybe we should just trigger a refresh of the watchlist.
-
-        // For this refactor, I will keep it simple and maybe trigger a global refresh if possible,
-        // or just accept it might not update instantly until the next poll/focus.
-        // Actually, let's see if we can just call 'addRepo' and then 'handleRefreshAll'?
-        // But since we don't have handleRefreshAll here easily without extracting it...
-        // Wait, useWatchlist exposes 'handleRefreshAll'.
-        // So I can grab it.
+        // Immediately update local state for UI feedback
+        setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
+        // Refresh watchlist in background to sync with backend
+        void handleRefreshAll();
         toast.success(t.toast.repoAdded);
       } catch {
         toast.error(t.toast.error);
@@ -89,7 +74,7 @@ export function Discovery() {
         setAddingRepoId(null);
       }
     },
-    [toast, t.toast.repoAdded, t.toast.error]
+    [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
   );
 
   return (

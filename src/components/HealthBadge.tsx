@@ -43,7 +43,7 @@ function EmptyBadge({ calculating, onClick }: { calculating: boolean; onClick: (
       disabled={calculating}
       title={t.healthScore.clickToCalculate}
     >
-      {calculating ? "..." : "?"}
+      {calculating ? "..." : "♡"}
     </button>
   );
 }

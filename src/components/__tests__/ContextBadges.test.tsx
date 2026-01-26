@@ -2,32 +2,15 @@
  * Unit tests for ContextBadges component
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ContextBadges } from "../ContextBadges";
 import type { ContextBadge } from "../../api/client";
 
-// Mock i18n
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        repo: {
-          refreshContext: "Refresh Context",
-        },
-      },
-      language: "en",
-      setLanguage: vi.fn(),
-    }),
-  };
-});
-
 describe("ContextBadges", () => {
   const mockHnBadge: ContextBadge = {
     type: "hn",
-    label: "HN #1",
+    label: "HN: 500 pts",
     url: "https://news.ycombinator.com/item?id=123",
     score: 500,
     is_recent: true,
@@ -35,82 +18,102 @@ describe("ContextBadges", () => {
 
   const mockRedditBadge: ContextBadge = {
     type: "reddit",
-    label: "r/programming",
+    label: "Reddit: 1250",
     url: "https://reddit.com/r/programming/123",
-    score: 250,
+    score: 1250,
     is_recent: false,
   };
 
   const mockReleaseBadge: ContextBadge = {
     type: "release",
-    label: "v2.0.0",
+    label: "Release v2.0.0",
     url: "https://github.com/facebook/react/releases/tag/v2.0.0",
     score: null,
     is_recent: true,
   };
 
-  it("renders empty container when badges array is empty", () => {
+  it("returns null when badges array is empty", () => {
     const { container } = render(<ContextBadges badges={[]} />);
-    const badgesDiv = container.querySelector(".context-badges");
-    expect(badgesDiv).toBeInTheDocument();
-    expect(badgesDiv?.children.length).toBe(0);
+    expect(container.firstChild).toBeNull();
   });
 
-  it("renders HN badge with correct icon and color", () => {
+  it("renders HN badge with icon, label and parsed value", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
-    const link = screen.getByRole("link", { name: /HN #1/ });
-    expect(link).toBeInTheDocument();
+    // Icon and "HN" label
+    expect(screen.getByText("🔶")).toBeInTheDocument();
+    expect(screen.getByText("HN")).toBeInTheDocument();
+    // Parsed value from "HN: 500 pts"
+    expect(screen.getByText("500")).toBeInTheDocument();
+
+    const link = screen.getByRole("link");
     expect(link).toHaveAttribute("href", "https://news.ycombinator.com/item?id=123");
-    expect(link).toHaveStyle({ backgroundColor: "#ff6600" });
-    expect(screen.getByText("Y")).toBeInTheDocument();
   });
 
-  it("renders Reddit badge with correct icon and color", () => {
+  it("renders Reddit badge with icon, label and formatted value", () => {
     render(<ContextBadges badges={[mockRedditBadge]} />);
 
-    const link = screen.getByRole("link", { name: /r\/programming/ });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveStyle({ backgroundColor: "#ff4500" });
-    expect(screen.getByText("r/")).toBeInTheDocument();
+    // Icon and "Reddit" label
+    expect(screen.getByText("💬")).toBeInTheDocument();
+    expect(screen.getByText("Reddit")).toBeInTheDocument();
+    // Parsed and formatted value from "Reddit: 1250" -> "1.3k"
+    expect(screen.getByText("1.3k")).toBeInTheDocument();
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "https://reddit.com/r/programming/123");
   });
 
-  it("renders Release badge with correct icon and color", () => {
+  it("renders Release badge with icon and version", () => {
     render(<ContextBadges badges={[mockReleaseBadge]} />);
 
-    const link = screen.getByRole("link", { name: /v2\.0\.0/ });
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveStyle({ backgroundColor: "#238636" });
-    expect(screen.getByText("v")).toBeInTheDocument();
+    // Icon (no label for release)
+    expect(screen.getByText("🏷️")).toBeInTheDocument();
+    // Parsed version from "Release v2.0.0"
+    expect(screen.getByText("v2.0.0")).toBeInTheDocument();
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveAttribute("href", "https://github.com/facebook/react/releases/tag/v2.0.0");
   });
 
   it("renders multiple badges", () => {
     render(<ContextBadges badges={[mockHnBadge, mockRedditBadge, mockReleaseBadge]} />);
 
-    expect(screen.getByText("HN #1")).toBeInTheDocument();
-    expect(screen.getByText("r/programming")).toBeInTheDocument();
-    expect(screen.getByText("v2.0.0")).toBeInTheDocument();
+    // All icons should be present
+    expect(screen.getByText("🔶")).toBeInTheDocument();
+    expect(screen.getByText("💬")).toBeInTheDocument();
+    expect(screen.getByText("🏷️")).toBeInTheDocument();
+
+    // All links should be present
+    const links = screen.getAllByRole("link");
+    expect(links).toHaveLength(3);
   });
 
   it("applies recent class to recent badges", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
-    const link = screen.getByRole("link", { name: /HN #1/ });
+    const link = screen.getByRole("link");
     expect(link).toHaveClass("recent");
   });
 
   it("does not apply recent class to non-recent badges", () => {
     render(<ContextBadges badges={[mockRedditBadge]} />);
 
-    const link = screen.getByRole("link", { name: /r\/programming/ });
+    const link = screen.getByRole("link");
     expect(link).not.toHaveClass("recent");
   });
 
   it("opens links in new tab", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
-    const link = screen.getByRole("link", { name: /HN #1/ });
+    const link = screen.getByRole("link");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("applies badge type class for styling", () => {
+    render(<ContextBadges badges={[mockHnBadge]} />);
+
+    const link = screen.getByRole("link");
+    expect(link).toHaveClass("context-badge-hn");
   });
 });

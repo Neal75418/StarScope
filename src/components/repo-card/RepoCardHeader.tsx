@@ -7,6 +7,7 @@ import { RepoWithSignals, HealthScoreResponse, getExportHistoryUrl } from "../..
 import { HealthBadge } from "../HealthBadge";
 import { CommitActivityBadge } from "../CommitActivityBadge";
 import { LanguagesBadge } from "../LanguagesBadge";
+import { LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 
 interface RepoCardHeaderProps {
@@ -48,6 +49,7 @@ export function RepoCardHeader({
       <div className="repo-info">
         <a href={repo.url} target="_blank" rel="noopener noreferrer" className="repo-name">
           {repo.full_name}
+          <LinkExternalIcon size={14} />
         </a>
         {repo.language && <span className="repo-language">{repo.language}</span>}
         <HealthBadge repoId={repo.id} onShowDetails={onShowHealthDetails} />

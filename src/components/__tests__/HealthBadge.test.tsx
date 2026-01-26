@@ -95,10 +95,10 @@ describe("HealthBadge", () => {
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("?")).toBeInTheDocument();
+      expect(screen.getByText("♡")).toBeInTheDocument();
     });
 
-    const button = screen.getByRole("button", { name: "?" });
+    const button = screen.getByRole("button", { name: "♡" });
     expect(button).toHaveClass("health-badge-empty");
     expect(button).toHaveAttribute("title", "Click to calculate health score");
   });
@@ -127,12 +127,12 @@ describe("HealthBadge", () => {
 
     render(<HealthBadge repoId={1} />);
 
-    // Wait for initial load to complete (shows "?")
+    // Wait for initial load to complete (shows "♡")
     await waitFor(() => {
-      expect(screen.getByText("?")).toBeInTheDocument();
+      expect(screen.getByText("♡")).toBeInTheDocument();
     });
 
-    const calculateButton = screen.getByRole("button", { name: "?" });
+    const calculateButton = screen.getByRole("button", { name: "♡" });
     await user.click(calculateButton);
 
     // Verify calculateHealthScore was called
@@ -207,10 +207,10 @@ describe("HealthBadge", () => {
     render(<HealthBadge repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("?")).toBeInTheDocument();
+      expect(screen.getByText("♡")).toBeInTheDocument();
     });
 
-    const calculateButton = screen.getByRole("button", { name: "?" });
+    const calculateButton = screen.getByRole("button", { name: "♡" });
     await user.click(calculateButton);
 
     // Should show calculating state
