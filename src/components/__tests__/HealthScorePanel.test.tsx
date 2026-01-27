@@ -160,11 +160,11 @@ describe("HealthScorePanel", () => {
     // Portal renders outside container, so we query directly from document
     const overlay = document.querySelector(".health-panel-overlay");
     expect(overlay).toBeInTheDocument();
-    
+
     if (overlay) {
       await user.click(overlay);
     }
-    
+
     expect(mockOnClose).toHaveBeenCalled();
   });
 
