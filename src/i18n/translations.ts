@@ -667,6 +667,9 @@ export const translations = {
         iconPlaceholder: "Emoji",
         color: "Color",
       },
+      expand: "Expand",
+      collapse: "Collapse",
+
     },
     // Health Score Panel
     healthScore: {
@@ -1450,6 +1453,8 @@ export const translations = {
         iconPlaceholder: "表情符號",
         color: "顏色",
       },
+      expand: "展開",
+      collapse: "收起",
     },
     // Health Score Panel
     healthScore: {

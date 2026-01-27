@@ -38,7 +38,11 @@ export function CategoryNodeItem({
       onClick={() => onSelect(node.id)}
     >
       {hasChildren ? (
-        <button className="category-expand-btn" onClick={(e) => onToggleExpand(node.id, e)}>
+        <button 
+          className="category-expand-btn" 
+          onClick={(e) => onToggleExpand(node.id, e)}
+          aria-label={isExpanded ? t.categories.collapse : t.categories.expand}
+        >
           {isExpanded ? "▼" : "▶"}
         </button>
       ) : (
@@ -57,6 +61,7 @@ export function CategoryNodeItem({
         className="category-edit-btn"
         onClick={(e) => onEdit(node, e)}
         title={t.categories.editCategory}
+        aria-label={t.categories.editCategory}
       >
         &#9998;
       </button>
@@ -65,6 +70,7 @@ export function CategoryNodeItem({
         className="category-delete-btn"
         onClick={(e) => onDelete(node.id, e)}
         title={t.categories.deleteCategory}
+        aria-label={t.categories.deleteCategory}
       >
         &times;
       </button>

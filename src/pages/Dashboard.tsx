@@ -5,6 +5,7 @@
 import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
+import { Skeleton } from "../components/Skeleton";
 
 // Stat card component
 function StatCard({
@@ -152,9 +153,64 @@ export function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="page">
-        <div className="loading">{t.common.loading}</div>
-      </div>
+      <AnimatedPage className="page dashboard-page">
+        <header className="page-header">
+          <h1 data-testid="page-title">{t.dashboard.title}</h1>
+          <p className="subtitle">{t.dashboard.subtitle}</p>
+        </header>
+
+        {/* Stats Grid Skeleton */}
+        <div className="stats-grid">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="stat-card">
+              <Skeleton width={100} height={16} style={{ marginBottom: 8 }} />
+              <Skeleton width={60} height={32} />
+            </div>
+          ))}
+        </div>
+
+        <div className="dashboard-grid">
+          {/* Velocity Chart Skeleton */}
+          <div className="dashboard-section">
+            <Skeleton width={150} height={24} style={{ marginBottom: 16 }} />
+            <div className="velocity-chart">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="velocity-bar-container" style={{ gap: 8 }}>
+                  <Skeleton width={40} height={16} />
+                  <Skeleton
+                    width="100%"
+                    height={8}
+                    style={{ flex: 1, opacity: 0.3 }}
+                    variant="rounded"
+                  />
+                  <Skeleton width={20} height={16} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity List Skeleton */}
+          <div className="dashboard-section">
+            <Skeleton width={150} height={24} style={{ marginBottom: 16 }} />
+            <div className="activity-list">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="activity-item"
+                  style={{ display: "flex", gap: 12, alignItems: "center" }}
+                >
+                  <Skeleton variant="circular" width={24} height={24} />
+                  <div style={{ flex: 1 }}>
+                    <Skeleton width="60%" height={16} style={{ marginBottom: 4 }} />
+                    <Skeleton width="40%" height={12} />
+                  </div>
+                  <Skeleton width={40} height={12} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AnimatedPage>
     );
   }
 

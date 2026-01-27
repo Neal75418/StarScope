@@ -92,6 +92,9 @@
 
   /* Overlay */
   --overlay-bg: rgba(1, 4, 9, 0.8);
+
+  /* Dynamic Badge Color Default */
+  --badge-color: var(--fg-muted);
 }
 
 /* Light Theme */
@@ -178,6 +181,9 @@
 
   /* Overlay */
   --overlay-bg: rgba(31, 35, 40, 0.5);
+
+  /* Dynamic Badge Color Default */
+  --badge-color: var(--fg-muted);
 }
 
 * {
@@ -225,21 +231,11 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  /* Scale UI based on viewport width: 80% at 800px, 100% at 1000px, 120% at 1200px */
-  zoom: clamp(0.8, 0.5 + 0.05vw, 1.2);
-}
-
-/* Firefox doesn't support zoom, use transform instead */
-@supports not (zoom: 1) {
-  .app {
-    transform: scale(clamp(0.8, 0.5 + 0.05vw, 1.2));
-    transform-origin: top left;
-    width: calc(100% / clamp(0.8, 0.5 + 0.05vw, 1.2));
-  }
 }
 
 .main-content {
   flex: 1;
+  width: 100%;
 }
 
 /* ==================== GitHub-Style Navigation ==================== */
@@ -257,7 +253,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  max-width: 1400px;
+  width: 100%;
+  max-width: 1200px; /* Standard wide container */
   margin: 0 auto;
   padding: 0 24px;
   height: 62px;
@@ -558,6 +555,7 @@ body {
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -671,7 +669,8 @@ body {
 /* Page Layout */
 .page {
   padding: 24px;
-  max-width: 1280px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -1585,6 +1584,24 @@ body {
   color: var(--fg-muted);
   margin: 0;
   line-height: 1.4;
+}
+
+.stat-card {
+  background-color: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition:
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Category Sidebar */
@@ -3228,6 +3245,32 @@ body {
   gap: 12px;
 }
 
+/* Repository Cards */
+.repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.repo-card {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-default);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.repo-card:hover {
+  border-color: var(--border-muted);
+  transform: translateY(-2px);
+  box-shadow: var(--card-hover-shadow);
+  z-index: 10;
+}
+
 .alert-rule-card {
   display: flex;
   align-items: center;
@@ -4573,5 +4616,99 @@ a:focus-visible {
   .repo-card:hover,
   .resultCard:hover {
     transform: none;
+  }
+}
+
+/* Empty State Styling */
+.empty-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  background-color: var(--bg-default);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg);
+  margin-top: 32px;
+}
+
+.empty-state-icon {
+  color: var(--fg-muted);
+  margin-bottom: 24px;
+  opacity: 0.5;
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--fg-default);
+  margin-bottom: 8px;
+}
+
+.empty-state-description {
+  color: var(--fg-muted);
+  max-width: 400px;
+  margin-bottom: 24px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+
+/* ==================== Responsive Breakpoints ==================== */
+
+/* Tablet and smaller desktops */
+@media (max-width: 1024px) {
+  .page {
+    padding: 20px;
+  }
+  
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile Devices */
+@media (max-width: 768px) {
+  .nav-container {
+    padding: 0 16px;
+  }
+
+  .nav-left {
+    gap: 12px;
+  }
+
+  .nav-item-label {
+    display: none; /* Hide labels on mobile to save space */
+  }
+
+  .page {
+    padding: 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar-search {
+    max-width: 100%;
+  }
+  
+  /* Stack buttons in toolbar */
+  .toolbar .btn {
+    width: 100%;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
   }
 }

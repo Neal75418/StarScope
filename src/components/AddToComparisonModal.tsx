@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ComparisonGroup, listComparisonGroups, addRepoToComparison } from "../api/client";
 import { useI18n } from "../i18n";
 
@@ -55,7 +56,7 @@ export function AddToComparisonModal({
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal add-to-comparison-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -99,6 +100,7 @@ export function AddToComparisonModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

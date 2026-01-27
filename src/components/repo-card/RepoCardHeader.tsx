@@ -66,6 +66,7 @@ export function RepoCardHeader({
           onClick={onToggleChart}
           className={`btn btn-sm ${showChart ? "active" : ""}`}
           title={t.repo.chart}
+          aria-label={showChart ? `${t.repo.hide} chart` : t.repo.chart}
         >
           {showChart ? t.repo.hide : t.repo.chart}
         </button>
@@ -73,6 +74,7 @@ export function RepoCardHeader({
           onClick={onToggleSimilar}
           className={`btn btn-sm ${showSimilar ? "active" : ""}`}
           title={t.repo.similar}
+          aria-label={t.repo.similar}
         >
           {t.repo.similar}
         </button>
@@ -82,6 +84,7 @@ export function RepoCardHeader({
             disabled={isLoading}
             className="btn btn-sm"
             title={t.repo.addToComparison}
+            aria-label={t.repo.addToComparison}
           >
             {t.repo.addToComparison}
           </button>
@@ -91,6 +94,9 @@ export function RepoCardHeader({
             onClick={() => setShowExportMenu(!showExportMenu)}
             className={`btn btn-sm ${showExportMenu ? "active" : ""}`}
             title={t.repo.exportHistory ?? "Export History"}
+            aria-label={t.repo.exportHistory ?? "Export History"}
+            aria-haspopup="true"
+            aria-expanded={showExportMenu}
           >
             {t.repo.exportHistory ?? "Export"}
           </button>
@@ -120,6 +126,7 @@ export function RepoCardHeader({
           disabled={isLoading}
           className="btn btn-sm"
           title={t.repo.refresh}
+          aria-label={t.repo.refresh}
         >
           {t.repo.refresh}
         </button>
@@ -129,6 +136,7 @@ export function RepoCardHeader({
             disabled={isLoading}
             className="btn btn-sm btn-warning"
             title={t.repo.removeFromCategory}
+            aria-label={t.repo.removeFromCategory}
           >
             {t.repo.removeFromCategory}
           </button>
@@ -138,6 +146,7 @@ export function RepoCardHeader({
           disabled={isLoading}
           className="btn btn-sm btn-danger"
           title={t.repo.remove}
+          aria-label={t.repo.remove}
         >
           {t.repo.remove}
         </button>

@@ -2,12 +2,13 @@
  * Watchlist page - main view showing all tracked repositories.
  */
 
+import React from "react";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer } from "../components/Toast";
-import { AnimatedPage, AnimatedList, AnimatedListItem } from "../components/motion";
+import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
@@ -41,25 +42,54 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
 }
 
 // Empty state component
-function EmptyState({ hasRepos, hasSearch }: { hasRepos: boolean; hasSearch: boolean }) {
+function EmptyStateView({ hasRepos, hasSearch, onAddRepo }: { hasRepos: boolean; hasSearch: boolean; onAddRepo: () => void }) {
   const { t } = useI18n();
 
   if (!hasRepos) {
     return (
-      <>
-        <p>{t.watchlist.empty.noRepos}</p>
-        <p>{t.watchlist.empty.addPrompt}</p>
-      </>
+      <EmptyState
+        title={t.watchlist.empty.noRepos}
+        description={t.watchlist.empty.addPrompt}
+        actionLabel={t.watchlist.addRepo}
+        onAction={onAddRepo}
+      />);}
+  if (hasSearch) {
+    return (
+      <EmptyState
+        title={t.watchlist.empty.noSearch}
+        description="Try adjusting your search terms"
+        icon={
+           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+             <circle cx="11" cy="11" r="8" />
+             <line x1="21" y1="21" x2="16.65" y2="16.65" />
+           </svg>
+        }
+      />
     );
   }
-  if (hasSearch) {
-    return <p>{t.watchlist.empty.noSearch}</p>;
-  }
   // Category filter active but no repos match
-  return <p>{t.watchlist.empty.noCategory}</p>;
+  return (
+      <EmptyState
+        title={t.watchlist.empty.noCategory}
+        description="No repositories in this category"
+        icon={
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        }
+      />
+  );
 }
 
-// Repo list component with staggered animation
+// Virtualized Repo List
+// Reverted to simple list for stability
+// import * as ReactWindow from "react-window";
+// import { AutoSizer } from "react-virtualized-auto-sizer";
+import { EmptyState } from "../components/EmptyState";
+
+// Fix for react-window v2 exports mismatch (List vs FixedSizeList)
+// const FixedSizeList = (ReactWindow as any).List || (ReactWindow as any).FixedSizeList;
+
 function RepoList({
   repos,
   loadingRepoId,
@@ -76,9 +106,9 @@ function RepoList({
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
 }) {
   return (
-    <AnimatedList>
+    <div className="repo-list-container" style={{ paddingBottom: 40 }}>
       {repos.map((repo) => (
-        <AnimatedListItem key={repo.id}>
+        <div key={repo.id} style={{ marginBottom: 16 }}>
           <RepoCard
             repo={repo}
             onFetch={onFetch}
@@ -87,9 +117,9 @@ function RepoList({
             selectedCategoryId={selectedCategoryId}
             onRemoveFromCategory={onRemoveFromCategory}
           />
-        </AnimatedListItem>
+        </div>
       ))}
-    </AnimatedList>
+    </div>
   );
 }
 
@@ -146,7 +176,7 @@ function Toolbar({
           aria-label={t.watchlist.searchPlaceholder}
         />
       </div>
-      <button data-testid="add-repo-btn" onClick={onAddRepo} className="btn btn-primary">
+      <button data-testid="add-repo-btn" onClick={onAddRepo} className="btn btn-primary" aria-label={t.watchlist.addRepo}>
         + {t.watchlist.addRepo}
       </button>
       <button
@@ -154,6 +184,7 @@ function Toolbar({
         onClick={onRefreshAll}
         disabled={isRefreshing}
         className="btn"
+        aria-label={t.watchlist.refreshAll}
       >
         {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
       </button>
@@ -162,6 +193,7 @@ function Toolbar({
         disabled={isAutoTagging}
         className="btn"
         title={t.watchlist.autoTagAll ?? "Auto-Tag All"}
+        aria-label={t.watchlist.autoTagAll ?? "Auto-Tag All"}
       >
         {isAutoTagging
           ? (t.watchlist.autoTagging ?? "Tagging...")
@@ -172,6 +204,7 @@ function Toolbar({
         disabled={isRecalculating}
         className="btn"
         title={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
+        aria-label={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
       >
         {isRecalculating
           ? (t.watchlist.recalculating ?? "Calculating...")
@@ -286,7 +319,11 @@ export function Watchlist() {
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                <EmptyState hasRepos={repos.length > 0} hasSearch={searchQuery.trim().length > 0} />
+                <EmptyStateView 
+                    hasRepos={repos.length > 0} 
+                    hasSearch={searchQuery.trim().length > 0} 
+                    onAddRepo={openAddDialog}
+                />
               </div>
             ) : (
               <RepoList

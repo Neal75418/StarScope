@@ -2,6 +2,7 @@
  * Health score details panel showing comprehensive health metrics.
  */
 
+import { createPortal } from "react-dom";
 import { HealthScoreResponse } from "../api/client";
 import { useHealthScorePanel } from "../hooks/useHealthScorePanel";
 import {
@@ -24,7 +25,7 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
     onRecalculate,
   });
 
-  return (
+  return createPortal(
     <div className="health-panel-overlay" onClick={onClose}>
       <div className="health-panel" onClick={(e) => e.stopPropagation()}>
         <HealthPanelHeader repoName={details.repo_name} onClose={onClose} />
@@ -39,6 +40,7 @@ export function HealthScorePanel({ details, onClose, onRecalculate }: HealthScor
           onClose={onClose}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
