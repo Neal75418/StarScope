@@ -2,7 +2,6 @@
  * Watchlist page - main view showing all tracked repositories.
  */
 
-import React from "react";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
