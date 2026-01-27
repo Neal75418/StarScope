@@ -669,7 +669,6 @@ export const translations = {
       },
       expand: "Expand",
       collapse: "Collapse",
-
     },
     // Health Score Panel
     healthScore: {

@@ -155,13 +155,16 @@ describe("HealthScorePanel", () => {
 
   it("calls onClose when overlay clicked", async () => {
     const user = userEvent.setup();
-    const { container } = render(<HealthScorePanel details={mockDetails} onClose={mockOnClose} />);
+    render(<HealthScorePanel details={mockDetails} onClose={mockOnClose} />);
 
-    const overlay = container.querySelector(".health-panel-overlay");
+    // Portal renders outside container, so we query directly from document
+    const overlay = document.querySelector(".health-panel-overlay");
+    expect(overlay).toBeInTheDocument();
+    
     if (overlay) {
       await user.click(overlay);
     }
-
+    
     expect(mockOnClose).toHaveBeenCalled();
   });
 

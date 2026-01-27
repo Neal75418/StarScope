@@ -42,7 +42,15 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
 }
 
 // Empty state component
-function EmptyStateView({ hasRepos, hasSearch, onAddRepo }: { hasRepos: boolean; hasSearch: boolean; onAddRepo: () => void }) {
+function EmptyStateView({
+  hasRepos,
+  hasSearch,
+  onAddRepo,
+}: {
+  hasRepos: boolean;
+  hasSearch: boolean;
+  onAddRepo: () => void;
+}) {
   const { t } = useI18n();
 
   if (!hasRepos) {
@@ -52,32 +60,52 @@ function EmptyStateView({ hasRepos, hasSearch, onAddRepo }: { hasRepos: boolean;
         description={t.watchlist.empty.addPrompt}
         actionLabel={t.watchlist.addRepo}
         onAction={onAddRepo}
-      />);}
+      />
+    );
+  }
   if (hasSearch) {
     return (
       <EmptyState
         title={t.watchlist.empty.noSearch}
         description="Try adjusting your search terms"
         icon={
-           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-             <circle cx="11" cy="11" r="8" />
-             <line x1="21" y1="21" x2="16.65" y2="16.65" />
-           </svg>
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
         }
       />
     );
   }
   // Category filter active but no repos match
   return (
-      <EmptyState
-        title={t.watchlist.empty.noCategory}
-        description="No repositories in this category"
-        icon={
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          </svg>
-        }
-      />
+    <EmptyState
+      title={t.watchlist.empty.noCategory}
+      description="No repositories in this category"
+      icon={
+        <svg
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+      }
+    />
   );
 }
 
@@ -176,7 +204,12 @@ function Toolbar({
           aria-label={t.watchlist.searchPlaceholder}
         />
       </div>
-      <button data-testid="add-repo-btn" onClick={onAddRepo} className="btn btn-primary" aria-label={t.watchlist.addRepo}>
+      <button
+        data-testid="add-repo-btn"
+        onClick={onAddRepo}
+        className="btn btn-primary"
+        aria-label={t.watchlist.addRepo}
+      >
         + {t.watchlist.addRepo}
       </button>
       <button
@@ -319,10 +352,10 @@ export function Watchlist() {
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
-                <EmptyStateView 
-                    hasRepos={repos.length > 0} 
-                    hasSearch={searchQuery.trim().length > 0} 
-                    onAddRepo={openAddDialog}
+                <EmptyStateView
+                  hasRepos={repos.length > 0}
+                  hasSearch={searchQuery.trim().length > 0}
+                  onAddRepo={openAddDialog}
                 />
               </div>
             ) : (

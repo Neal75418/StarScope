@@ -1021,7 +1021,12 @@ body {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--accent-emphasis), var(--success-emphasis), var(--attention-emphasis));
+  background: linear-gradient(
+    90deg,
+    var(--accent-emphasis),
+    var(--success-emphasis),
+    var(--attention-emphasis)
+  );
   opacity: 0;
   transition: opacity 0.25s ease;
 }
@@ -2100,8 +2105,13 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .health-badge-error {
@@ -4654,7 +4664,6 @@ a:focus-visible {
   line-height: 1.5;
 }
 
-
 /* ==================== Responsive Breakpoints ==================== */
 
 /* Tablet and smaller desktops */
@@ -4662,7 +4671,7 @@ a:focus-visible {
   .page {
     padding: 20px;
   }
-  
+
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -4702,7 +4711,7 @@ a:focus-visible {
   .toolbar-search {
     max-width: 100%;
   }
-  
+
   /* Stack buttons in toolbar */
   .toolbar .btn {
     width: 100%;

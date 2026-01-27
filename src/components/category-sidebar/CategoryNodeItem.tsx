@@ -38,8 +38,8 @@ export function CategoryNodeItem({
       onClick={() => onSelect(node.id)}
     >
       {hasChildren ? (
-        <button 
-          className="category-expand-btn" 
+        <button
+          className="category-expand-btn"
           onClick={(e) => onToggleExpand(node.id, e)}
           aria-label={isExpanded ? t.categories.collapse : t.categories.expand}
         >

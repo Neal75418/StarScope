@@ -1,5 +1,3 @@
-
-
 import React from "react";
 
 interface EmptyStateProps {
@@ -10,13 +8,7 @@ interface EmptyStateProps {
   icon?: React.ReactNode;
 }
 
-export function EmptyState({
-  title,
-  description,
-  actionLabel,
-  onAction,
-  icon,
-}: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <div className="empty-state-container">
       <div className="empty-state-icon">
