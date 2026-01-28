@@ -4,6 +4,7 @@ Uses APScheduler to run jobs at configured intervals.
 """
 
 import logging
+from datetime import timedelta
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -177,7 +178,10 @@ def start_scheduler(fetch_interval_minutes: int = 60):
     # Add the alerts check job (runs 1 minute after fetch)
     scheduler.add_job(
         check_alerts_job,
-        trigger=IntervalTrigger(minutes=fetch_interval_minutes, start_date=utc_now()),
+        trigger=IntervalTrigger(
+            minutes=fetch_interval_minutes,
+            start_date=utc_now() + timedelta(minutes=1),
+        ),
         id="check_alerts",
         name="Check alert rules",
         replace_existing=True,

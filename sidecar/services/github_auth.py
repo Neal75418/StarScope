@@ -142,7 +142,8 @@ class GitHubAuthService:
                 return {"status": "error", "error": f"HTTP {response.status_code}"}
 
             data = response.json()
-            logger.info(f"Poll response: {data}")
+            # Avoid logging sensitive fields like access_token.
+            logger.info(f"Poll response status: {data.get('error') or 'success'}")
 
             # Check for errors
             error = data.get("error")
