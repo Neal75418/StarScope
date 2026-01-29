@@ -38,11 +38,7 @@ function CompareTableRow({
   return (
     <tr>
       <td>
-        <a
-          href={member.url}
-          onClick={handleLinkClick}
-          className="compare-repo-link"
-        >
+        <a href={member.url} onClick={handleLinkClick} className="compare-repo-link">
           {member.full_name}
         </a>
       </td>

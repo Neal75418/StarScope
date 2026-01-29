@@ -77,7 +77,7 @@ describe("SimilarRepos", () => {
   });
 
   it("shows loading state initially", () => {
-    vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => { }));
+    vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => {}));
 
     render(<SimilarRepos repoId={1} />);
 
