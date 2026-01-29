@@ -2,9 +2,11 @@
  * Result card for a discovered repository.
  */
 
+import React from "react";
 import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import styles from "./Discovery.module.css";
 
 interface DiscoveryResultCardProps {
@@ -32,10 +34,15 @@ export function DiscoveryResultCard({
 }: DiscoveryResultCardProps) {
   const { t } = useI18n();
 
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    await openUrl(repo.url);
+  };
+
   return (
     <div className={styles.resultCard}>
       <div className={styles.cardHeader}>
-        <a href={repo.url} target="_blank" rel="noopener noreferrer" className={styles.repoName}>
+        <a href={repo.url} onClick={handleLinkClick} className={styles.repoName}>
           {repo.full_name}
           <LinkExternalIcon size={14} className={styles.externalIcon} />
         </a>

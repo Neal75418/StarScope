@@ -10,14 +10,22 @@ import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
 
 const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
 
+import React from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+
 function TrendRow({ repo }: { repo: TrendingRepo }) {
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    await openUrl(repo.url);
+  };
+
   return (
     <tr>
       <td className="rank-col">
         <span className="rank-badge">{repo.rank}</span>
       </td>
       <td className="repo-col">
-        <a href={repo.url} target="_blank" rel="noopener noreferrer" className="repo-link">
+        <a href={repo.url} onClick={handleLinkClick} className="repo-link">
           {repo.full_name}
         </a>
         {repo.language && <span className="repo-language">{repo.language}</span>}

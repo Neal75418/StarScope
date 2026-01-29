@@ -2,6 +2,8 @@
  * Context badges showing HN, Reddit, and release information.
  */
 
+import React from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { ContextBadge } from "../api/client";
 
 interface ContextBadgesProps {
@@ -39,6 +41,11 @@ function formatValue(badge: ContextBadge): string {
 export function ContextBadges({ badges }: ContextBadgesProps) {
   if (badges.length === 0) return null;
 
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    e.preventDefault();
+    await openUrl(url);
+  };
+
   return (
     <div className="context-badges">
       {badges.map((badge) => {
@@ -54,8 +61,7 @@ export function ContextBadges({ badges }: ContextBadgesProps) {
           <a
             key={badge.url}
             href={badge.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={(e) => handleLinkClick(e, badge.url)}
             className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""}`}
             style={{ "--badge-color": config.color } as React.CSSProperties}
             title={`${config.tooltip}: ${badge.label}`}

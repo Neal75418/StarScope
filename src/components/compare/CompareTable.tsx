@@ -2,6 +2,8 @@
  * Comparison table component.
  */
 
+import React from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { ComparisonGroupDetail } from "../../api/client";
 import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
 import { useI18n } from "../../i18n";
@@ -28,13 +30,17 @@ function CompareTableRow({
   onRemove: () => void;
   removeTitle: string;
 }) {
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    await openUrl(member.url);
+  };
+
   return (
     <tr>
       <td>
         <a
           href={member.url}
-          target="_blank"
-          rel="noopener noreferrer"
+          onClick={handleLinkClick}
           className="compare-repo-link"
         >
           {member.full_name}

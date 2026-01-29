@@ -2,6 +2,8 @@
  * Export data section component.
  */
 
+import React from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   getExportWatchlistUrl,
   getExportSignalsUrl,
@@ -12,6 +14,11 @@ import { useI18n } from "../../i18n";
 
 export function ExportSection() {
   const { t } = useI18n();
+
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
+    e.preventDefault();
+    await openUrl(url);
+  };
 
   return (
     <section className="settings-section" data-testid="export-section">
@@ -59,7 +66,11 @@ export function ExportSection() {
           <h3>{t.settings.export.cards.weeklyDigest.title}</h3>
           <p>{t.settings.export.cards.weeklyDigest.desc}</p>
           <div className="export-actions">
-            <a href={getDigestUrl("weekly", "html")} className="btn btn-sm" target="_blank">
+            <a
+              href={getDigestUrl("weekly", "html")}
+              className="btn btn-sm"
+              onClick={(e) => handleLinkClick(e, getDigestUrl("weekly", "html"))}
+            >
               {t.settings.export.html}
             </a>
             <a href={getDigestUrl("weekly", "md")} className="btn btn-sm" download>

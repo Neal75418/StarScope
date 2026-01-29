@@ -2,6 +2,8 @@
  * Individual similar repo item component.
  */
 
+import React from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { SimilarRepo } from "../../api/client";
 import { useI18n } from "../../i18n";
 
@@ -38,10 +40,15 @@ function TopicsList({ topics }: { topics: string[] }) {
 export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
   const { t } = useI18n();
 
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    await openUrl(repo.url);
+  };
+
   return (
     <div className="similar-repo-item">
       <div className="similar-repo-info">
-        <a href={repo.url} target="_blank" rel="noopener noreferrer" className="similar-repo-name">
+        <a href={repo.url} onClick={handleLinkClick} className="similar-repo-name">
           {repo.full_name}
         </a>
         <span className="similar-repo-score" title={t.similarRepos.similarityScore}>

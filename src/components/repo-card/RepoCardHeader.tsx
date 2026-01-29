@@ -2,7 +2,8 @@
  * Repo card header with name, language, health badge and actions.
  */
 
-import { useState } from "react";
+import React, { useState } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { RepoWithSignals, HealthScoreResponse, getExportHistoryUrl } from "../../api/client";
 import { HealthBadge } from "../HealthBadge";
 import { CommitActivityBadge } from "../CommitActivityBadge";
@@ -44,10 +45,15 @@ export function RepoCardHeader({
   const { t } = useI18n();
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    await openUrl(repo.url);
+  };
+
   return (
     <div className="repo-header">
       <div className="repo-info">
-        <a href={repo.url} target="_blank" rel="noopener noreferrer" className="repo-name">
+        <a href={repo.url} onClick={handleLinkClick} className="repo-name">
           {repo.full_name}
           <LinkExternalIcon size={14} />
         </a>

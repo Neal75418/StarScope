@@ -2,10 +2,16 @@
  * Unit tests for ContextBadges component
  */
 
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ContextBadges } from "../ContextBadges";
 import type { ContextBadge } from "../../api/client";
+import { openUrl } from "@tauri-apps/plugin-opener";
+
+// Mock the openUrl function
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
+}));
 
 describe("ContextBadges", () => {
   const mockHnBadge: ContextBadge = {
@@ -102,12 +108,20 @@ describe("ContextBadges", () => {
     expect(link).not.toHaveClass("recent");
   });
 
-  it("opens links in new tab", () => {
+  it("opens links in browser using openUrl", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
     const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toBeInTheDocument();
+
+    // Verify it doesn't have target="_blank" anymore
+    expect(link).not.toHaveAttribute("target");
+
+    // Click the link
+    fireEvent.click(link);
+
+    // Verify openUrl was called with the correct URL
+    expect(openUrl).toHaveBeenCalledWith(mockHnBadge.url);
   });
 
   it("applies badge type class for styling", () => {
