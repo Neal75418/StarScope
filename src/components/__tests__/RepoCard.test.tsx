@@ -8,6 +8,11 @@ import { userEvent } from "@testing-library/user-event";
 import { RepoCard } from "../RepoCard";
 import type { RepoWithSignals } from "../../api/client";
 
+// Mock tauri opener
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
+}));
+
 // Mock API client
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -220,12 +225,16 @@ describe("RepoCard", () => {
     });
   });
 
-  it("opens external link in new tab", () => {
+  it("opens external link in new tab", async () => {
+    const user = userEvent.setup();
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
     render(<RepoCard repo={mockRepo} onFetch={mockOnFetch} onRemove={mockOnRemove} />);
 
     const repoLink = screen.getByRole("link", { name: "facebook/react" });
-    expect(repoLink).toHaveAttribute("target", "_blank");
-    expect(repoLink).toHaveAttribute("rel", "noopener noreferrer");
+    expect(repoLink).not.toHaveAttribute("target");
+
+    await user.click(repoLink);
+    expect(openUrl).toHaveBeenCalledWith("https://github.com/facebook/react");
   });
 
   it("handles null description gracefully", () => {

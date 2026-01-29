@@ -8,6 +8,11 @@ import { userEvent } from "@testing-library/user-event";
 import { SimilarRepos, SimilarReposButton } from "../SimilarRepos";
 import * as apiClient from "../../api/client";
 
+// Mock tauri opener
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn(),
+}));
+
 // Mock API client
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -72,7 +77,7 @@ describe("SimilarRepos", () => {
   });
 
   it("shows loading state initially", () => {
-    vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => {}));
+    vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => { }));
 
     render(<SimilarRepos repoId={1} />);
 
@@ -167,14 +172,18 @@ describe("SimilarRepos", () => {
   });
 
   it("opens links in new tab", async () => {
+    const user = userEvent.setup();
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
     render(<SimilarRepos repoId={1} />);
 
-    await waitFor(() => {
+    await waitFor(async () => {
       const link = screen.getByRole("link", { name: "vuejs/vue" });
-      expect(link).toHaveAttribute("target", "_blank");
-      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      expect(link).not.toHaveAttribute("target");
+
+      await user.click(link);
+      expect(openUrl).toHaveBeenCalledWith("https://github.com/vuejs/vue");
     });
   });
 });
