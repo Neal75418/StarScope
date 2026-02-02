@@ -3,7 +3,9 @@ Background scheduler service for periodic data fetching.
 Uses APScheduler to run jobs at configured intervals.
 """
 
+import asyncio
 import logging
+import threading
 from datetime import timedelta
 from typing import Optional
 
@@ -17,19 +19,22 @@ from services.github import fetch_repo_data
 from services.analyzer import calculate_signals
 from services.context_fetcher import fetch_all_context_signals
 from utils.time import utc_now, utc_today
-from constants import CONTEXT_FETCH_INTERVAL_HOURS
+from constants import CONTEXT_FETCH_INTERVAL_MINUTES
 
 logger = logging.getLogger(__name__)
 
 # Global scheduler instance
 _scheduler: Optional[AsyncIOScheduler] = None
+_scheduler_lock = threading.Lock()
 
 
 def get_scheduler() -> AsyncIOScheduler:
     """Get the global scheduler instance."""
     global _scheduler
     if _scheduler is None:
-        _scheduler = AsyncIOScheduler()
+        with _scheduler_lock:
+            if _scheduler is None:
+                _scheduler = AsyncIOScheduler()
     return _scheduler
 
 
@@ -57,17 +62,31 @@ async def fetch_all_repos_job():
                 github_data = await fetch_repo_data(repo.owner, repo.name)
 
                 if github_data:
-                    # Create new snapshot
-                    snapshot = RepoSnapshot(
-                        repo_id=repo.id,
-                        stars=github_data.get("stargazers_count", 0),
-                        forks=github_data.get("forks_count", 0),
-                        watchers=github_data.get("subscribers_count", 0),
-                        open_issues=github_data.get("open_issues_count", 0),
-                        snapshot_date=utc_today(),
-                        fetched_at=utc_now()
-                    )
-                    db.add(snapshot)
+                    # Upsert snapshot: update if one already exists for today
+                    today = utc_today()
+                    existing_snapshot = db.query(RepoSnapshot).filter(
+                        RepoSnapshot.repo_id == repo.id,
+                        RepoSnapshot.snapshot_date == today,
+                    ).first()
+
+                    if existing_snapshot:
+                        existing_snapshot.stars = github_data.get("stargazers_count", 0)
+                        existing_snapshot.forks = github_data.get("forks_count", 0)
+                        existing_snapshot.watchers = github_data.get("subscribers_count", 0)
+                        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
+                        existing_snapshot.fetched_at = utc_now()
+                        snapshot = existing_snapshot
+                    else:
+                        snapshot = RepoSnapshot(
+                            repo_id=repo.id,
+                            stars=github_data.get("stargazers_count", 0),
+                            forks=github_data.get("forks_count", 0),
+                            watchers=github_data.get("subscribers_count", 0),
+                            open_issues=github_data.get("open_issues_count", 0),
+                            snapshot_date=today,
+                            fetched_at=utc_now()
+                        )
+                        db.add(snapshot)
 
                     # Update repo metadata
                     repo.description = github_data.get("description")
@@ -87,8 +106,8 @@ async def fetch_all_repos_job():
 
             except Exception as e:
                 error_count += 1
-                logger.error(f"Error fetching {repo.full_name}: {e}", exc_info=True)
                 db.rollback()
+                logger.error(f"Error fetching {repo.full_name}: {e}", exc_info=True)
 
         logger.info(f"Scheduled fetch complete: {success_count} success, {error_count} errors")
 
@@ -188,10 +207,10 @@ def start_scheduler(fetch_interval_minutes: int = 60):
         max_instances=1,
     )
 
-    # Add context signals job (runs every 6 hours)
+    # Add context signals job (runs every 30 minutes)
     scheduler.add_job(
         fetch_context_signals_job,
-        trigger=IntervalTrigger(hours=CONTEXT_FETCH_INTERVAL_HOURS),
+        trigger=IntervalTrigger(minutes=CONTEXT_FETCH_INTERVAL_MINUTES),
         id="fetch_context_signals",
         name="Fetch context signals (HN, Reddit, Releases)",
         replace_existing=True,
@@ -201,7 +220,7 @@ def start_scheduler(fetch_interval_minutes: int = 60):
     scheduler.start()
     logger.info(
         f"Scheduler started: data fetch every {fetch_interval_minutes}min, "
-        f"context signals every {CONTEXT_FETCH_INTERVAL_HOURS}h"
+        f"context signals every {CONTEXT_FETCH_INTERVAL_MINUTES}min"
     )
 
 
@@ -233,7 +252,10 @@ def get_scheduler_status() -> dict:
 
 
 async def trigger_fetch_now():
-    """Manually trigger an immediate fetch of all repos."""
+    """Manually trigger an immediate fetch of all repos and context signals."""
     logger.info("Manual fetch triggered")
     await fetch_all_repos_job()
-    check_alerts_job()
+    # Run sync alert check in a thread to avoid blocking the event loop
+    await asyncio.to_thread(check_alerts_job)
+    # Also fetch context signals (HN, Reddit, Releases)
+    await fetch_context_signals_job()

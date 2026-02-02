@@ -9,38 +9,28 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import Repo, RepoSnapshot, Signal, SignalType, EarlySignal
+from routers.dependencies import get_repo_or_404
 from utils.time import utc_now
 
 # Media type constants
 MEDIA_TYPE_JSON = "application/json"
 MEDIA_TYPE_CSV = "text/csv"
 
-# Error message constants
-ERROR_REPO_NOT_FOUND = "Repository not found"
-
 router = APIRouter(prefix="/export", tags=["export"])
-
-
-def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
 
 
 def _get_repo_snapshots(
     repo_id: int, days: int, db: Session
 ) -> tuple["Repo", List["RepoSnapshot"]]:
     """Get repo and its snapshots, raising 404 if repo not found."""
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
     snapshots = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id
     ).order_by(RepoSnapshot.snapshot_date.desc()).limit(days).all()

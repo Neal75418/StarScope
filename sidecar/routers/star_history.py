@@ -12,13 +12,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from db.models import Repo, RepoSnapshot
+from db.models import RepoSnapshot
+from routers.dependencies import get_repo_or_404
 from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
 from utils.time import utc_now
 
 # Constants
 MAX_STARS_FOR_BACKFILL = 5000
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_TOO_MANY_STARS = f"Repository has too many stars (>{MAX_STARS_FOR_BACKFILL}). Backfill is not available."
 
 router = APIRouter(prefix="/star-history", tags=["star-history"])
@@ -65,14 +65,6 @@ class StarHistoryResponse(BaseModel):
 
 
 # Helper functions
-def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
-
-
 def _parse_starred_at(starred_at: str) -> Optional[date]:
     """Parse ISO datetime string to date."""
     if not starred_at:
@@ -174,7 +166,7 @@ async def get_backfill_status(
     """
     Check if a repository is eligible for star history backfill.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     # Get current star count from latest snapshot
     latest_snapshot = db.query(RepoSnapshot).filter(
@@ -219,7 +211,7 @@ async def backfill_star_history(
     Only available for repositories with < 5000 stars.
     Fetches all stargazers with timestamps and creates historical snapshots.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     try:
         service = get_github_service()
@@ -323,7 +315,7 @@ async def get_star_history(
     Get the full star history for a repository.
     Returns all available snapshots ordered by date.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     snapshots = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id

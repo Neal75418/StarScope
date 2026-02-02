@@ -23,7 +23,7 @@ ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
 from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks, github_auth, discovery, commit_activity, languages, star_history
 from db import init_db
-from services.scheduler import start_scheduler, stop_scheduler
+from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
 # Configure logging before anything else
 setup_logging(level="INFO")
@@ -64,6 +64,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Start background scheduler
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)
+
+    # Fetch data immediately on startup (don't wait for the first interval)
+    import asyncio
+    asyncio.ensure_future(trigger_fetch_now())
 
     logger.info(f"StarScope Engine started (ENV={ENV}, DEBUG={DEBUG})")
 

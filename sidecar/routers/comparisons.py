@@ -11,13 +11,13 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from db.models import ComparisonGroup, ComparisonMember, Repo
+from db.models import ComparisonGroup, ComparisonMember
+from routers.dependencies import get_repo_or_404
 from services.comparison import get_comparison_service
 from utils.time import utc_now
 
 # Error message constants
 ERROR_GROUP_NOT_FOUND = "Comparison group not found"
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_REPO_NOT_IN_GROUP = "Repository is not in this comparison group"
 
 router = APIRouter(prefix="/comparisons", tags=["comparisons"])
@@ -70,14 +70,6 @@ def _get_group_or_404(group_id: int, db: Session) -> ComparisonGroup:
     if not group:
         raise HTTPException(status_code=404, detail=ERROR_GROUP_NOT_FOUND)
     return group
-
-
-def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
 
 
 def _group_to_response(group: ComparisonGroup, db: Session) -> ComparisonGroupResponse:
@@ -230,7 +222,7 @@ async def add_repo_to_comparison(
     Add a repository to a comparison group.
     """
     group = _get_group_or_404(group_id, db)
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     # Check if already in group
     existing = db.query(ComparisonMember).filter(

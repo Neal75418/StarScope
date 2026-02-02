@@ -13,11 +13,10 @@ from sqlalchemy import func
 
 from db.database import get_db
 from db.models import Repo, CommitActivity
+from routers.dependencies import get_repo_or_404
 from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
 from utils.time import utc_now
 
-# Error message constants
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_FETCH_FAILED = "Failed to fetch commit activity from GitHub"
 
 router = APIRouter(prefix="/commit-activity", tags=["commit-activity"])
@@ -49,14 +48,6 @@ class CommitActivitySummary(BaseModel):
 
 
 # Helper functions
-def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
-
-
 def _build_response(repo: Repo, activities: List[CommitActivity]) -> CommitActivityResponse:
     """Build CommitActivityResponse from repo and activity records."""
     weeks = [
@@ -126,7 +117,7 @@ async def get_commit_activity(
     Get cached commit activity for a repository.
     Returns 404 if not yet fetched.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     activities = db.query(CommitActivity).filter(
         CommitActivity.repo_id == repo_id
@@ -150,7 +141,7 @@ async def fetch_commit_activity(
     Fetch (or refresh) commit activity from GitHub.
     Replaces existing cached data.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     try:
         service = get_github_service()
@@ -188,7 +179,7 @@ async def get_commit_activity_summary(
     """
     Get brief commit activity summary (for badges/cards).
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
 
     # Aggregate in database for efficiency
     result = db.query(

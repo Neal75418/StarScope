@@ -5,6 +5,7 @@ Handles fetching repository data from GitHub.
 
 import logging
 import os
+import threading
 import httpx
 from typing import Optional
 
@@ -310,11 +311,11 @@ class GitHubService:
             "Accept": "application/vnd.github.star+json",
         }
 
-        all_stargazers = []
-        page = 1
+        all_stargazers: list[dict] = []
+        max_pages = 100  # Safety limit: max 10,000 stars
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
-            while True:
+            for page in range(1, max_pages + 1):
                 response = await client.get(
                     f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stargazers",
                     headers=headers,
@@ -330,16 +331,10 @@ class GitHubService:
 
                 all_stargazers.extend(data)
 
-                # Check if there are more pages
                 if len(data) < per_page:
                     break
-
-                page += 1
-
-                # Safety limit to prevent infinite loops
-                if page > 100:  # Max 10,000 stars
-                    logger.warning(f"Reached page limit for {owner}/{repo} stargazers")
-                    break
+            else:
+                logger.warning(f"Reached page limit for {owner}/{repo} stargazers")
 
         logger.info(f"Fetched {len(all_stargazers)} stargazers for {owner}/{repo}")
         return all_stargazers
@@ -347,6 +342,24 @@ class GitHubService:
 
 # Module-level convenience function for scheduler
 _default_service: Optional[GitHubService] = None
+_service_lock = threading.Lock()
+
+
+def _resolve_github_token() -> Optional[str]:
+    """Resolve GitHub token from database (OAuth) or environment variable."""
+    try:
+        from services.settings import get_setting
+        token = get_setting(AppSettingKey.GITHUB_TOKEN)
+        if token:
+            logger.info("Using GitHub token from database (OAuth)")
+            return token
+    except Exception as e:
+        logger.debug(f"Could not read token from database: {e}")
+
+    token = os.getenv(GITHUB_TOKEN_ENV_VAR)
+    if token:
+        logger.info("Using GitHub token from environment variable")
+    return token
 
 
 def get_github_service() -> GitHubService:
@@ -362,24 +375,9 @@ def get_github_service() -> GitHubService:
     """
     global _default_service
     if _default_service is None:
-        token = None
-
-        # First, try to get token from database (OAuth Device Flow)
-        try:
-            from services.settings import get_setting
-            token = get_setting(AppSettingKey.GITHUB_TOKEN)
-            if token:
-                logger.info("Using GitHub token from database (OAuth)")
-        except Exception as e:
-            logger.debug(f"Could not read token from database: {e}")
-
-        # Fallback to environment variable
-        if not token:
-            token = os.getenv(GITHUB_TOKEN_ENV_VAR)
-            if token:
-                logger.info("Using GitHub token from environment variable")
-
-        _default_service = GitHubService(token=token)
+        with _service_lock:
+            if _default_service is None:
+                _default_service = GitHubService(token=_resolve_github_token())
     return _default_service
 
 
@@ -390,7 +388,8 @@ def reset_github_service() -> None:
     Useful for testing or when the token needs to be refreshed.
     """
     global _default_service
-    _default_service = None
+    with _service_lock:
+        _default_service = None
 
 
 async def fetch_repo_data(owner: str, repo: str) -> Optional[dict]:

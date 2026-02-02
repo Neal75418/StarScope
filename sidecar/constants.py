@@ -4,7 +4,7 @@ Centralized location for magic numbers and configuration values.
 """
 
 # Scheduler settings
-DEFAULT_FETCH_INTERVAL_MINUTES = 60
+DEFAULT_FETCH_INTERVAL_MINUTES = 30
 ALERT_CHECK_DELAY_MINUTES = 1
 
 # Alert settings
@@ -28,7 +28,7 @@ MAX_OWNER_LENGTH = 39
 # Context Signal settings
 HN_API_TIMEOUT_SECONDS = 15.0
 REDDIT_API_TIMEOUT_SECONDS = 15.0
-CONTEXT_FETCH_INTERVAL_HOURS = 6
+CONTEXT_FETCH_INTERVAL_MINUTES = 30
 
 # Badge display thresholds
 MIN_HN_SCORE_FOR_BADGE = 50

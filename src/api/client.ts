@@ -1598,7 +1598,8 @@ export interface SearchFilters {
 export async function searchRepos(
   query: string,
   filters: SearchFilters = {},
-  page: number = 1
+  page: number = 1,
+  signal?: AbortSignal
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({ q: query, page: String(page) });
   if (filters.language) params.set("language", filters.language);
@@ -1606,5 +1607,5 @@ export async function searchRepos(
   if (filters.topic) params.set("topic", filters.topic);
   if (filters.sort) params.set("sort", filters.sort);
 
-  return apiCall<SearchResponse>(`/discovery/search?${params}`);
+  return apiCall<SearchResponse>(`/discovery/search?${params}`, { signal });
 }

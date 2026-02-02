@@ -9,53 +9,63 @@ import { Notification } from "./useNotifications";
 
 const POLL_INTERVAL = 60000; // 1 minute
 
+async function fetchAndMergeNotifications(
+  setNotifications: Dispatch<SetStateAction<Notification[]>>,
+  readIds: Set<string>,
+  setError: Dispatch<SetStateAction<string | null>>,
+  setIsLoading: Dispatch<SetStateAction<boolean>>
+): Promise<void> {
+  try {
+    const alerts = await listTriggeredAlerts(false, 50);
+    const newNotifications = sortNotifications(alertsToNotifications(alerts, readIds));
+    setNotifications((prev) => mergeNotifications(newNotifications, prev));
+    setError(null);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Failed to fetch notifications");
+  } finally {
+    setIsLoading(false);
+  }
+}
+
 export function useNotificationPolling(
   setNotifications: Dispatch<SetStateAction<Notification[]>>,
   readIdsRef: { current: Set<string> }
 ) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pollIntervalRef = useRef<number | null>(null);
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      // Fetch unacknowledged alerts
-      const alerts = await listTriggeredAlerts(false, 50);
+  // Use a ref so the polling interval always calls the latest logic
+  // without needing to be torn down and recreated.
+  const fetchRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  fetchRef.current = () =>
+    fetchAndMergeNotifications(setNotifications, readIdsRef.current, setError, setIsLoading);
 
-      // Convert and sort
-      const newNotifications = sortNotifications(alertsToNotifications(alerts, readIdsRef.current));
-
-      // Merge with existing state
-      setNotifications((prev) => mergeNotifications(newNotifications, prev));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch notifications");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [readIdsRef, setNotifications]);
-
-  // Initial fetch operations
+  // Set up polling with a stable interval that never re-creates
   useEffect(() => {
-    // Initial fetch
-    void fetchNotifications();
+    let cancelled = false;
 
-    // Polling setup
-    pollIntervalRef.current = window.setInterval(() => {
-      void fetchNotifications();
+    const poll = async () => {
+      if (!cancelled) {
+        await fetchRef.current();
+      }
+    };
+
+    void poll();
+
+    const intervalId = window.setInterval(() => {
+      void poll();
     }, POLL_INTERVAL);
 
     return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
+      cancelled = true;
+      clearInterval(intervalId);
     };
-  }, [fetchNotifications]);
+  }, []); // Empty deps — interval is created once and uses ref for latest logic
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
-    await fetchNotifications();
-  }, [fetchNotifications]);
+    await fetchRef.current();
+  }, []);
 
   return { isLoading, error, refresh };
 }

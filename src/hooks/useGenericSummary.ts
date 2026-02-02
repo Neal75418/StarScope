@@ -111,6 +111,8 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
+  // Track fetching state via ref to keep fetchData callback stable
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -132,19 +134,25 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
   }, [repoId, failedToLoadMessage, getSummary, triggerFetch, logPrefix]);
 
   const fetchData = useCallback(async () => {
-    if (fetching) return;
-    await fetchSummaryData({
-      repoId,
-      failedToLoadMessage,
-      getSummary,
-      triggerFetch,
-      logPrefix,
-      isMountedRef,
-      setSummary,
-      setFetching,
-      setError,
-    });
-  }, [repoId, fetching, failedToLoadMessage, getSummary, triggerFetch, logPrefix]);
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setFetching(true);
+    try {
+      await fetchSummaryData({
+        repoId,
+        failedToLoadMessage,
+        getSummary,
+        triggerFetch,
+        logPrefix,
+        isMountedRef,
+        setSummary,
+        setFetching,
+        setError,
+      });
+    } finally {
+      fetchingRef.current = false;
+    }
+  }, [repoId, failedToLoadMessage, getSummary, triggerFetch, logPrefix]);
 
   return { summary, loading, fetching, error, fetchData };
 }

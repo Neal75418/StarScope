@@ -4,6 +4,7 @@ Detects rising stars, sudden spikes, breakouts, and other anomalies.
 """
 
 import logging
+import threading
 from datetime import timedelta
 from typing import List, Optional, Dict, Any
 
@@ -320,14 +321,17 @@ class AnomalyDetector:
 
 # Module-level singleton
 _detector: Optional[AnomalyDetector] = None
+_detector_lock = threading.Lock()
 
 
 def get_anomaly_detector() -> AnomalyDetector:
     """Get the default anomaly detector instance."""
     global _detector
     if _detector is None:
-        _detector = AnomalyDetector()
-        logger.info("Anomaly detector initialized")
+        with _detector_lock:
+            if _detector is None:
+                _detector = AnomalyDetector()
+                logger.info("Anomaly detector initialized")
     return _detector
 
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { SearchFilters, DiscoveryRepo } from "../api/client";
-import { buildCombinedQuery, fetchSearchResults } from "../utils/searchHelpers";
+import { buildCombinedQuery, fetchSearchResults, SearchResult } from "../utils/searchHelpers";
 import { TrendingPeriod } from "../components/discovery";
 import { useI18n } from "../i18n";
 
@@ -20,12 +20,40 @@ const INITIAL_SEARCH_STATE: DiscoverySearchState = {
   error: null,
 };
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function runSearch(
+  query: string,
+  filters: SearchFilters,
+  page: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  t: any,
+  signal: AbortSignal
+): Promise<SearchResult | null> {
+  try {
+    return await fetchSearchResults(query, filters, page, t, signal);
+  } catch (err) {
+    if (isAbortError(err)) return null;
+    return { repos: [], totalCount: 0, hasMore: false, error: t.discovery.error.generic };
+  }
+}
+
+function toFinishedState(result: SearchResult): Omit<DiscoverySearchState, "repos"> {
+  return {
+    totalCount: result.totalCount,
+    hasMore: result.hasMore,
+    loading: false,
+    error: result.error || null,
+  };
+}
+
 export function useDiscoverySearch() {
   const { t } = useI18n();
   const [searchState, setSearchState] = useState<DiscoverySearchState>(INITIAL_SEARCH_STATE);
-  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // The core search function
   const executeSearch = useCallback(
     async (
       keyword: string,
@@ -40,9 +68,9 @@ export function useDiscoverySearch() {
         return;
       }
 
-      // Check if we are already fetching exactly this
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       setSearchState((prev) => ({
         ...prev,
@@ -51,22 +79,20 @@ export function useDiscoverySearch() {
         repos: page === 1 ? [] : prev.repos,
       }));
 
-      const result = await fetchSearchResults(query, filters, page, t);
+      const result = await runSearch(query, filters, page, t, controller.signal);
+
+      if (!result || controller.signal.aborted) return;
 
       setSearchState((prev) => ({
+        ...toFinishedState(result),
         repos: page === 1 ? result.repos : [...prev.repos, ...result.repos],
-        totalCount: result.totalCount,
-        hasMore: result.hasMore,
-        loading: false,
-        error: result.error || null,
       }));
-
-      isFetchingRef.current = false;
     },
     [t]
   );
 
   const resetSearch = useCallback(() => {
+    abortControllerRef.current?.abort();
     setSearchState(INITIAL_SEARCH_STATE);
   }, []);
 

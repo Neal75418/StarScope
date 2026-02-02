@@ -13,10 +13,9 @@ from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import Repo, Tag, RepoTag, TagType
+from routers.dependencies import get_repo_or_404
 from services.tagger import get_tagger_service, auto_tag_repo, auto_tag_all_repos
 
-# Error message constants
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_TAG_NOT_FOUND = "Tag not found"
 ERROR_TAG_NOT_APPLIED = "Tag is not applied to this repository"
 VALID_TAG_TYPES = "language, topic, inferred, custom"
@@ -88,14 +87,6 @@ class SearchByTagsResponse(BaseModel):
 
 
 # Helper functions
-def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
-
-
 def _tag_to_response(tag: "Tag") -> TagResponse:
     """Convert Tag model to response."""
     return TagResponse(
@@ -156,7 +147,7 @@ async def get_repo_tags(
     """
     Get all tags for a specific repository.
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
     repo_tags = db.query(RepoTag).filter(RepoTag.repo_id == repo_id).all()
 
     return RepoTagsResponse(
@@ -176,7 +167,7 @@ async def add_tag_to_repo(
     Add a custom tag to a repository.
     Creates the tag if it doesn't exist.
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
     tagger = get_tagger_service()
     result = tagger.add_custom_tag(repo_id, request.name, request.color, db)
 
@@ -204,7 +195,7 @@ async def remove_tag_from_repo(
     """
     Remove a tag from a repository.
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
 
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if not tag:
@@ -228,7 +219,7 @@ async def trigger_auto_tag(
     Trigger auto-tagging for a specific repository.
     Fetches GitHub topics and analyzes description.
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
     tags_applied = await auto_tag_repo(repo_id, db)
 
     return AutoTagResponse(

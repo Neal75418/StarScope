@@ -12,11 +12,10 @@ from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import Repo, RepoLanguage
+from routers.dependencies import get_repo_or_404
 from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
 from utils.time import utc_now
 
-# Error message constants
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_FETCH_FAILED = "Failed to fetch languages from GitHub"
 
 router = APIRouter(prefix="/languages", tags=["languages"])
@@ -49,14 +48,6 @@ class LanguagesSummary(BaseModel):
 
 
 # Helper functions
-def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
-
-
 def _build_response(repo: Repo, languages: List[RepoLanguage]) -> LanguagesResponse:
     """Build LanguagesResponse from repo and language records."""
     sorted_languages = sorted(languages, key=lambda x: x.bytes, reverse=True)
@@ -133,7 +124,7 @@ async def get_languages(
     Get cached languages for a repository.
     Returns 404 if not yet fetched.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     languages = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id
@@ -157,7 +148,7 @@ async def fetch_languages(
     Fetch (or refresh) languages from GitHub.
     Replaces existing cached data.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     try:
         service = get_github_service()
@@ -184,7 +175,7 @@ async def get_languages_summary(
     """
     Get brief languages summary (for badges/cards).
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
 
     languages = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id

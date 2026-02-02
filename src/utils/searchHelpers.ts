@@ -13,16 +13,23 @@ export async function fetchSearchResults(
   filters: SearchFilters,
   page: number,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any
+  t: any,
+  signal?: AbortSignal
 ): Promise<SearchResult> {
   try {
-    const result = await searchRepos(query, filters, page);
+    signal?.throwIfAborted();
+    const result = await searchRepos(query, filters, page, signal);
+    signal?.throwIfAborted();
     return {
       repos: result.repos,
       totalCount: result.total_count,
       hasMore: result.has_more,
     };
   } catch (err) {
+    // Re-throw abort errors so callers can distinguish cancellation
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err;
+    }
     let errorMessage = t.discovery.error.generic;
     if (err instanceof ApiError && err.status === 429) {
       errorMessage = t.discovery.error.rateLimit;

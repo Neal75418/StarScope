@@ -19,62 +19,52 @@ const initialState: ChartState = {
   error: null,
 };
 
+async function fetchChartDataPoints(
+  repoId: number,
+  timeRange: TimeRange
+): Promise<ChartDataPoint[]> {
+  if (timeRange === "all") {
+    const response = await getStarHistory(repoId);
+    return response.history.map((point) => ({
+      date: point.date,
+      stars: point.stars,
+      forks: 0,
+    }));
+  }
+  const response = await getStarsChart(repoId, timeRange);
+  return response.data_points;
+}
+
 export function useStarsChart(repoId: number) {
   const [state, setState] = useState<ChartState>(initialState);
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   const [refetchTrigger, setRefetchTrigger] = useState(0);
-  const isMounted = useRef(true);
-  // Prevent duplicate fetches from StrictMode
-  const isFetchingRef = useRef(false);
-
-  const safeSetState = useCallback((update: Partial<ChartState>) => {
-    if (isMounted.current) {
-      setState((prev) => ({ ...prev, ...update }));
-    }
-  }, []);
+  // Tracks the latest fetch to discard stale responses
+  const fetchIdRef = useRef(0);
 
   const refetch = useCallback(() => {
     setRefetchTrigger((prev) => prev + 1);
   }, []);
 
   useEffect(() => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    isMounted.current = true;
+    const currentFetchId = ++fetchIdRef.current;
 
-    const fetchData = async () => {
-      safeSetState({ loading: true, error: null });
-      try {
-        if (timeRange === "all") {
-          // Use getStarHistory API which returns complete star history from stargazers
-          // This endpoint fetches all stargazer timestamps and reconstructs cumulative star count
-          const response = await getStarHistory(repoId);
-          // Convert StarHistoryPoint[] to ChartDataPoint[]
-          // Note: Star history API only tracks stars, not forks (fork history unavailable via GitHub API)
-          const dataPoints: ChartDataPoint[] = response.history.map((point) => ({
-            date: point.date,
-            stars: point.stars,
-            forks: 0,
-          }));
-          safeSetState({ data: dataPoints, loading: false });
-        } else {
-          const response = await getStarsChart(repoId, timeRange);
-          safeSetState({ data: response.data_points, loading: false });
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+
+    fetchChartDataPoints(repoId, timeRange).then(
+      (dataPoints) => {
+        if (currentFetchId === fetchIdRef.current) {
+          setState({ data: dataPoints, loading: false, error: null });
         }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load chart";
-        safeSetState({ error: message, loading: false });
-      } finally {
-        isFetchingRef.current = false;
+      },
+      (err) => {
+        if (currentFetchId === fetchIdRef.current) {
+          const message = err instanceof Error ? err.message : "Failed to load chart";
+          setState({ data: [], error: message, loading: false });
+        }
       }
-    };
-
-    void fetchData();
-
-    return () => {
-      isMounted.current = false;
-    };
-  }, [repoId, timeRange, refetchTrigger, safeSetState]);
+    );
+  }, [repoId, timeRange, refetchTrigger]);
 
   return {
     data: state.data,

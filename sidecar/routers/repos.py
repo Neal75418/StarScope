@@ -28,24 +28,14 @@ from services.github import (
 )
 from services.rate_limiter import fetch_repo_with_retry
 from services.queries import build_signal_map, build_snapshot_map
+from routers.dependencies import get_repo_or_404
 from utils.time import utc_now, utc_today
 
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Error message constants
-ERROR_REPO_NOT_FOUND = "Repository not found"
-
 router = APIRouter()
-
-
-def _get_repo_or_404(repo_id: int, db: Session) -> Repo:
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
 
 
 def _validate_github_identifier(owner: str, name: str) -> None:
@@ -267,7 +257,7 @@ async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSigna
     """
     Get a single repository by ID with its signals.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
     return get_repo_with_signals(repo, db)
 
 
@@ -277,7 +267,7 @@ async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
     Remove a repository from the watchlist.
     This also deletes all associated snapshots and signals.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
     db.delete(repo)
     db.commit()
     return None
@@ -289,7 +279,7 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     Manually fetch the latest data for a repository.
     Creates a new snapshot and recalculates signals.
     """
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
     # Fetch from GitHub
     github = GitHubService()

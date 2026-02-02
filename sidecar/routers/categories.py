@@ -3,21 +3,22 @@ Categories API endpoints.
 Provides CRUD operations for user-defined repository categories.
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from db.models import Category, RepoCategory, Repo
+from db.models import Category, RepoCategory
+from routers.dependencies import get_repo_or_404
 from utils.time import utc_now
 
 # Error message constants
 ERROR_CATEGORY_NOT_FOUND = "Category not found"
 ERROR_PARENT_CATEGORY_NOT_FOUND = "Parent category not found"
-ERROR_REPO_NOT_FOUND = "Repository not found"
 ERROR_CIRCULAR_REFERENCE = "Category cannot be its own parent"
 ERROR_REPO_NOT_IN_CATEGORY = "Repository is not in this category"
 
@@ -105,47 +106,64 @@ class CategoryReposResponse(BaseModel):
 
 
 # Helper functions
+def _build_repo_count_map(db: Session) -> Dict[int, int]:
+    """Batch load repo counts for all categories in a single query."""
+    rows = db.query(
+        RepoCategory.category_id,
+        func.count(RepoCategory.repo_id),
+    ).group_by(RepoCategory.category_id).all()
+    return dict((cat_id, count) for cat_id, count in rows)
+
+
 def _get_repo_count(category_id: int, db: Session) -> int:
-    """Get number of repos in a category."""
+    """Get number of repos in a single category."""
     return db.query(RepoCategory).filter(RepoCategory.category_id == category_id).count()
 
 
-def _category_to_response(category: "Category", db: Session) -> CategoryResponse:
+def _category_base_fields(category: Category, repo_count_map: Dict[int, int]) -> Dict:
+    """Extract common fields shared by CategoryResponse and CategoryTreeNode."""
+    return {
+        "id": category.id,
+        "name": category.name,
+        "description": category.description,
+        "icon": category.icon,
+        "color": category.color,
+        "sort_order": category.sort_order,
+        "repo_count": repo_count_map.get(category.id, 0),
+    }
+
+
+def _category_to_response(
+    category: Category,
+    repo_count_map: Dict[int, int],
+) -> CategoryResponse:
     """Convert Category model to response."""
     return CategoryResponse(
-        id=category.id,
-        name=category.name,
-        description=category.description,
-        icon=category.icon,
-        color=category.color,
+        **_category_base_fields(category, repo_count_map),
         parent_id=category.parent_id,
-        sort_order=category.sort_order,
         created_at=category.created_at,
-        repo_count=_get_repo_count(category.id, db),
     )
 
 
-def _build_tree(categories: List["Category"], parent_id: Optional[int], db: Session) -> List[CategoryTreeNode]:
+def _build_tree(
+    categories: List[Category],
+    parent_id: Optional[int],
+    repo_count_map: Dict[int, int],
+) -> List[CategoryTreeNode]:
     """Build tree structure from flat category list."""
     nodes = []
     for cat in categories:
         if cat.parent_id == parent_id:
-            children = _build_tree(categories, cat.id, db)
+            children = _build_tree(categories, cat.id, repo_count_map)
             node = CategoryTreeNode(
-                id=cat.id,
-                name=cat.name,
-                description=cat.description,
-                icon=cat.icon,
-                color=cat.color,
-                sort_order=cat.sort_order,
-                repo_count=_get_repo_count(cat.id, db),
+                **_category_base_fields(cat, repo_count_map),
                 children=children,
             )
             nodes.append(node)
     return sorted(nodes, key=lambda x: x.sort_order)
 
 
-def _repo_category_to_response(rc: "RepoCategory") -> RepoCategoryResponse:
+def _repo_category_to_response(rc: RepoCategory) -> RepoCategoryResponse:
     """Convert RepoCategory model to RepoCategoryResponse."""
     return RepoCategoryResponse(
         id=rc.repo.id,
@@ -156,20 +174,13 @@ def _repo_category_to_response(rc: "RepoCategory") -> RepoCategoryResponse:
     )
 
 
-def _get_category_or_404(category_id: int, db: Session) -> "Category":
+def _get_category_or_404(category_id: int, db: Session) -> Category:
     """Get category by ID or raise 404."""
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail=ERROR_CATEGORY_NOT_FOUND)
     return category
 
-
-def _get_repo_or_404(repo_id: int, db: Session) -> "Repo":
-    """Get repo by ID or raise 404."""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_FOUND)
-    return repo
 
 
 def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Session) -> None:
@@ -181,20 +192,22 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
         raise HTTPException(status_code=400, detail=ERROR_CIRCULAR_REFERENCE)
 
 
-def _apply_category_updates(category: "Category", request: CategoryUpdate) -> None:
-    """Apply update fields to category."""
-    if request.name is not None:
-        category.name = request.name
-    if request.description is not None:
-        category.description = request.description
-    if request.icon is not None:
-        category.icon = request.icon
-    if request.color is not None:
-        category.color = request.color
+def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:
+    """Find a RepoCategory association by category and repo ID."""
+    return db.query(RepoCategory).filter(
+        RepoCategory.category_id == category_id,
+        RepoCategory.repo_id == repo_id
+    ).first()
+
+
+def _apply_category_updates(category: Category, request: CategoryUpdate) -> None:
+    """Apply non-None update fields to category."""
+    for field in ("name", "description", "icon", "color", "sort_order"):
+        value = getattr(request, field)
+        if value is not None:
+            setattr(category, field, value)
     if request.parent_id is not None:
         category.parent_id = request.parent_id if request.parent_id else None
-    if request.sort_order is not None:
-        category.sort_order = request.sort_order
 
 
 # Endpoints
@@ -206,9 +219,10 @@ async def list_categories(
     List all categories (flat list).
     """
     categories = db.query(Category).order_by(Category.sort_order, Category.name).all()
+    repo_count_map = _build_repo_count_map(db)
 
     return CategoryListResponse(
-        categories=[_category_to_response(c, db) for c in categories],
+        categories=[_category_to_response(c, repo_count_map) for c in categories],
         total=len(categories),
     )
 
@@ -221,7 +235,8 @@ async def get_category_tree(
     Get categories as a hierarchical tree structure.
     """
     categories = db.query(Category).all()
-    tree = _build_tree(categories, None, db)
+    repo_count_map = _build_repo_count_map(db)
+    tree = _build_tree(categories, None, repo_count_map)
 
     return CategoryTreeResponse(
         tree=tree,
@@ -238,7 +253,8 @@ async def get_category(
     Get a specific category by ID.
     """
     category = _get_category_or_404(category_id, db)
-    return _category_to_response(category, db)
+    count = _get_repo_count(category_id, db)
+    return _category_to_response(category, {category_id: count})
 
 
 @router.post("/", response_model=CategoryResponse)
@@ -270,7 +286,8 @@ async def create_category(
     db.commit()
     db.refresh(category)
 
-    return _category_to_response(category, db)
+    # Newly created category has 0 repos
+    return _category_to_response(category, {})
 
 
 @router.put("/{category_id}", response_model=CategoryResponse)
@@ -295,7 +312,8 @@ async def update_category(
     db.commit()
     db.refresh(category)
 
-    return _category_to_response(category, db)
+    count = _get_repo_count(category_id, db)
+    return _category_to_response(category, {category_id: count})
 
 
 @router.delete("/{category_id}")
@@ -349,15 +367,9 @@ async def add_repo_to_category(
     Add a repository to a category.
     """
     category = _get_category_or_404(category_id, db)
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
-    # Check if already in category
-    existing = db.query(RepoCategory).filter(
-        RepoCategory.category_id == category_id,
-        RepoCategory.repo_id == repo_id
-    ).first()
-
-    if existing:
+    if _find_repo_category(category_id, repo_id, db):
         raise HTTPException(
             status_code=409,
             detail=f"Repository is already in category '{category.name}'"
@@ -387,13 +399,9 @@ async def remove_repo_from_category(
     Remove a repository from a category.
     """
     category = _get_category_or_404(category_id, db)
-    repo = _get_repo_or_404(repo_id, db)
+    repo = get_repo_or_404(repo_id, db)
 
-    repo_category = db.query(RepoCategory).filter(
-        RepoCategory.category_id == category_id,
-        RepoCategory.repo_id == repo_id
-    ).first()
-
+    repo_category = _find_repo_category(category_id, repo_id, db)
     if not repo_category:
         raise HTTPException(status_code=404, detail=ERROR_REPO_NOT_IN_CATEGORY)
 
@@ -414,7 +422,7 @@ async def get_repo_categories(
     """
     Get all categories for a repository.
     """
-    _get_repo_or_404(repo_id, db)
+    get_repo_or_404(repo_id, db)
 
     repo_categories = db.query(RepoCategory).filter(
         RepoCategory.repo_id == repo_id
