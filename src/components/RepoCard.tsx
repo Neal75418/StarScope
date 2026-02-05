@@ -25,13 +25,8 @@ export function RepoCard({
   selectedCategoryId,
   onRemoveFromCategory,
 }: RepoCardProps) {
-  const {
-    badges,
-    badgesLoading,
-    activeSignalCount,
-    refreshContext,
-    isRefreshingContext,
-  } = useRepoCardData(repo.id);
+  const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
+    useRepoCardData(repo.id);
   const [showChart, setShowChart] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false);
 

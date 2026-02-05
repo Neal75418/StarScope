@@ -43,9 +43,7 @@ const AlertRuleCard = memo(function AlertRuleCard({
         <div className="alert-rule-header">
           <span className="alert-rule-name">{rule.name}</span>
           <span className={`alert-rule-status ${rule.enabled ? "enabled" : "disabled"}`}>
-            {rule.enabled
-              ? t.settings.alerts.status.enabled
-              : t.settings.alerts.status.disabled}
+            {rule.enabled ? t.settings.alerts.status.enabled : t.settings.alerts.status.disabled}
           </span>
         </div>
         <div className="alert-rule-condition">

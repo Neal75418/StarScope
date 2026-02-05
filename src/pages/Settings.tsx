@@ -7,12 +7,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
 import { AnimatedPage } from "../components/motion";
-import {
-  ExportSection,
-  ImportSection,
-  AlertRuleForm,
-  AlertRuleList,
-} from "../components/settings";
+import { ExportSection, ImportSection, AlertRuleForm, AlertRuleList } from "../components/settings";
 import { useAlertRules } from "../hooks/useAlertRules";
 import { useI18n } from "../i18n";
 
