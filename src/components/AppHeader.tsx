@@ -9,7 +9,6 @@ import {
   RepoIcon,
   GraphIcon,
   PulseIcon,
-  GitCompareIcon,
   GearIcon,
   SunIcon,
   MoonIcon,
@@ -20,7 +19,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { Theme } from "../theme";
 import { Language, TranslationKeys } from "../i18n";
 
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "compare" | "signals" | "settings";
+type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "signals" | "settings";
 
 interface NavItem {
   id: Page;
@@ -45,7 +44,6 @@ function buildNavItems(t: TranslationKeys): NavItem[] {
     { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={16} /> },
     { id: "trends", label: t.nav.trends, icon: <GraphIcon size={16} /> },
     { id: "signals", label: t.nav.signals, icon: <PulseIcon size={16} /> },
-    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={16} /> },
   ];
 }
 

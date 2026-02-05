@@ -79,27 +79,6 @@ class TestSignalsWithMockData:
         assert repo_data.get("velocity") is not None or data["total"] >= 1
 
 
-class TestHealthScoreWithMockData:
-    """Test health score with mock data."""
-
-    def test_get_health_score(self, client, mock_health_score):
-        """Test getting health score for a repo."""
-        repo, _ = mock_health_score
-        response = client.get(f"/api/health-score/{repo.id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["overall_score"] == pytest.approx(75.5)
-        assert data["grade"] == "B+"
-
-    def test_get_health_score_summary(self, client, mock_health_score):
-        """Test getting health score summary."""
-        repo, _ = mock_health_score
-        response = client.get(f"/api/health-score/{repo.id}/summary")
-        assert response.status_code == 200
-        data = response.json()
-        assert "overall_score" in data
-
-
 class TestEarlySignalsWithMockData:
     """Test early signals with mock data."""
 
@@ -142,38 +121,6 @@ class TestComparisonWithMockData:
         data = response.json()
         assert data["total"] >= 1
         assert len(data["groups"]) >= 1
-
-
-class TestWebhookWithMockData:
-    """Test webhook operations with mock data."""
-
-    def test_get_webhook(self, client, mock_webhook):
-        """Test getting a webhook."""
-        response = client.get(f"/api/webhooks/{mock_webhook.id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["name"] == "Test Slack Webhook"
-        assert data["webhook_type"] == "slack"
-        assert data["enabled"] is True
-
-    def test_update_webhook(self, client, mock_webhook):
-        """Test updating a webhook."""
-        response = client.put(
-            f"/api/webhooks/{mock_webhook.id}",
-            json={"name": "Updated Webhook", "enabled": False}
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["name"] == "Updated Webhook"
-        assert data["enabled"] is False
-
-    def test_list_webhooks(self, client, mock_webhook):
-        """Test listing webhooks."""
-        response = client.get("/api/webhooks")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] >= 1
-        assert len(data["webhooks"]) >= 1
 
 
 class TestCategoryWithMockData:

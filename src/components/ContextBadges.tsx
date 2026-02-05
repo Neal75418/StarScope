@@ -1,5 +1,5 @@
 /**
- * Context badges showing HN, Reddit, and release information.
+ * Context badges showing HN information.
  */
 
 import React from "react";
@@ -17,22 +17,11 @@ const BADGE_CONFIG: Record<
   { icon: string; label: string; color: string; tooltip: string }
 > = {
   hn: { icon: "🔶", label: "HN", color: "#ff6600", tooltip: "Hacker News 討論分數" },
-  reddit: { icon: "💬", label: "Reddit", color: "#ff4500", tooltip: "Reddit 討論熱度" },
-  release: { icon: "🏷️", label: "", color: "#238636", tooltip: "最新發布版本" },
 };
 
 function formatValue(badge: ContextBadge): string {
   if (badge.type === "hn") {
     const match = badge.label.match(/(\d+)/);
-    if (match) return match[1];
-  } else if (badge.type === "reddit") {
-    const match = badge.label.match(/(\d+)/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      return num >= 1000 ? (num / 1000).toFixed(1) + "k" : match[1];
-    }
-  } else if (badge.type === "release") {
-    const match = badge.label.match(/(v[\d.]+)/);
     if (match) return match[1];
   }
   return badge.label;

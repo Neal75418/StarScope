@@ -1,24 +1,13 @@
 /**
  * Export data section component.
+ * Simplified to only export watchlist as JSON.
  */
 
-import React from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import {
-  getExportWatchlistUrl,
-  getExportSignalsUrl,
-  getExportFullReportUrl,
-  getDigestUrl,
-} from "../../api/client";
+import { getExportWatchlistJsonUrl } from "../../api/client";
 import { useI18n } from "../../i18n";
 
 export function ExportSection() {
   const { t } = useI18n();
-
-  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
-    e.preventDefault();
-    await openUrl(url);
-  };
 
   return (
     <section className="settings-section" data-testid="export-section">
@@ -30,53 +19,7 @@ export function ExportSection() {
           <h3>{t.settings.export.cards.watchlist.title}</h3>
           <p>{t.settings.export.cards.watchlist.desc}</p>
           <div className="export-actions">
-            <a href={getExportWatchlistUrl("json")} className="btn btn-sm" download>
-              {t.settings.export.json}
-            </a>
-            <a href={getExportWatchlistUrl("csv")} className="btn btn-sm" download>
-              {t.settings.export.csv}
-            </a>
-          </div>
-        </div>
-
-        <div className="export-card">
-          <h3>{t.settings.export.cards.signals.title}</h3>
-          <p>{t.settings.export.cards.signals.desc}</p>
-          <div className="export-actions">
-            <a href={getExportSignalsUrl("json")} className="btn btn-sm" download>
-              {t.settings.export.json}
-            </a>
-            <a href={getExportSignalsUrl("csv")} className="btn btn-sm" download>
-              {t.settings.export.csv}
-            </a>
-          </div>
-        </div>
-
-        <div className="export-card">
-          <h3>{t.settings.export.cards.fullReport.title}</h3>
-          <p>{t.settings.export.cards.fullReport.desc}</p>
-          <div className="export-actions">
-            <a href={getExportFullReportUrl()} className="btn btn-sm btn-primary" download>
-              {t.settings.export.cards.fullReport.download}
-            </a>
-          </div>
-        </div>
-
-        <div className="export-card">
-          <h3>{t.settings.export.cards.weeklyDigest.title}</h3>
-          <p>{t.settings.export.cards.weeklyDigest.desc}</p>
-          <div className="export-actions">
-            <a
-              href={getDigestUrl("weekly", "html")}
-              className="btn btn-sm"
-              onClick={(e) => handleLinkClick(e, getDigestUrl("weekly", "html"))}
-            >
-              {t.settings.export.html}
-            </a>
-            <a href={getDigestUrl("weekly", "md")} className="btn btn-sm" download>
-              {t.settings.export.markdown}
-            </a>
-            <a href={getDigestUrl("weekly", "json")} className="btn btn-sm" download>
+            <a href={getExportWatchlistJsonUrl()} className="btn btn-sm btn-primary" download>
               {t.settings.export.json}
             </a>
           </div>

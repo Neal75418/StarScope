@@ -21,7 +21,7 @@ from middleware import LoggingMiddleware
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
-from routers import health, repos, scheduler, alerts, trends, context, charts, health_score, tags, recommendations, categories, comparisons, early_signals, export, webhooks, github_auth, discovery, commit_activity, languages, star_history
+from routers import health, repos, scheduler, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history
 from db import init_db
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
@@ -126,14 +126,10 @@ app.include_router(alerts.router, tags=["alerts"])
 app.include_router(trends.router, tags=["trends"])
 app.include_router(context.router, prefix="/api", tags=["context"])
 app.include_router(charts.router, prefix="/api", tags=["charts"])
-app.include_router(health_score.router, prefix="/api", tags=["health-score"])
-app.include_router(tags.router, prefix="/api", tags=["tags"])
 app.include_router(recommendations.router, prefix="/api", tags=["recommendations"])
 app.include_router(categories.router, prefix="/api", tags=["categories"])
-app.include_router(comparisons.router, prefix="/api", tags=["comparisons"])
 app.include_router(early_signals.router, prefix="/api", tags=["early-signals"])
 app.include_router(export.router, prefix="/api", tags=["export"])
-app.include_router(webhooks.router, prefix="/api", tags=["webhooks"])
 app.include_router(github_auth.router, prefix="/api", tags=["github-auth"])
 app.include_router(discovery.router, prefix="/api", tags=["discovery"])
 app.include_router(commit_activity.router, prefix="/api", tags=["commit-activity"])

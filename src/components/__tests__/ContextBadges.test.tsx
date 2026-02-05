@@ -1,5 +1,5 @@
 /**
- * Unit tests for ContextBadges component
+ * Unit tests for ContextBadges component (HN only after simplification)
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -22,20 +22,12 @@ describe("ContextBadges", () => {
     is_recent: true,
   };
 
-  const mockRedditBadge: ContextBadge = {
-    type: "reddit",
-    label: "Reddit: 1250",
-    url: "https://reddit.com/r/programming/123",
-    score: 1250,
+  const mockHnBadgeNonRecent: ContextBadge = {
+    type: "hn",
+    label: "HN: 200 pts",
+    url: "https://news.ycombinator.com/item?id=456",
+    score: 200,
     is_recent: false,
-  };
-
-  const mockReleaseBadge: ContextBadge = {
-    type: "release",
-    label: "Release v2.0.0",
-    url: "https://github.com/facebook/react/releases/tag/v2.0.0",
-    score: null,
-    is_recent: true,
   };
 
   it("returns null when badges array is empty", () => {
@@ -56,42 +48,12 @@ describe("ContextBadges", () => {
     expect(link).toHaveAttribute("href", "https://news.ycombinator.com/item?id=123");
   });
 
-  it("renders Reddit badge with icon, label and formatted value", () => {
-    render(<ContextBadges badges={[mockRedditBadge]} />);
-
-    // Icon and "Reddit" label
-    expect(screen.getByText("💬")).toBeInTheDocument();
-    expect(screen.getByText("Reddit")).toBeInTheDocument();
-    // Parsed and formatted value from "Reddit: 1250" -> "1.3k"
-    expect(screen.getByText("1.3k")).toBeInTheDocument();
-
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "https://reddit.com/r/programming/123");
-  });
-
-  it("renders Release badge with icon and version", () => {
-    render(<ContextBadges badges={[mockReleaseBadge]} />);
-
-    // Icon (no label for release)
-    expect(screen.getByText("🏷️")).toBeInTheDocument();
-    // Parsed version from "Release v2.0.0"
-    expect(screen.getByText("v2.0.0")).toBeInTheDocument();
-
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "https://github.com/facebook/react/releases/tag/v2.0.0");
-  });
-
-  it("renders multiple badges", () => {
-    render(<ContextBadges badges={[mockHnBadge, mockRedditBadge, mockReleaseBadge]} />);
-
-    // All icons should be present
-    expect(screen.getByText("🔶")).toBeInTheDocument();
-    expect(screen.getByText("💬")).toBeInTheDocument();
-    expect(screen.getByText("🏷️")).toBeInTheDocument();
+  it("renders multiple HN badges", () => {
+    render(<ContextBadges badges={[mockHnBadge, mockHnBadgeNonRecent]} />);
 
     // All links should be present
     const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(3);
+    expect(links).toHaveLength(2);
   });
 
   it("applies recent class to recent badges", () => {
@@ -102,7 +64,7 @@ describe("ContextBadges", () => {
   });
 
   it("does not apply recent class to non-recent badges", () => {
-    render(<ContextBadges badges={[mockRedditBadge]} />);
+    render(<ContextBadges badges={[mockHnBadgeNonRecent]} />);
 
     const link = screen.getByRole("link");
     expect(link).not.toHaveClass("recent");

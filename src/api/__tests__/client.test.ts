@@ -1,5 +1,6 @@
 /**
  * Unit tests for API client functions
+ * (Simplified after removing Tags, Comparisons, Health Score, and Webhooks)
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -13,16 +14,7 @@ import {
   fetchAllRepos,
   getContextBadges,
   getContextSignals,
-  getHealthScoreSummary,
-  getHealthScore,
-  calculateHealthScore,
   getStarsChart,
-  listTags,
-  getRepoTags,
-  addTagToRepo,
-  removeTagFromRepo,
-  autoTagRepo,
-  searchByTags,
   getSimilarRepos,
   getRecommendationStats,
   listCategories,
@@ -32,9 +24,6 @@ import {
   getCategoryRepos,
   addRepoToCategory,
   getRepoCategories,
-  listComparisonGroups,
-  getComparisonGroup,
-  createComparisonGroup,
   listEarlySignals,
   getSignalSummary,
   ApiError,
@@ -225,44 +214,6 @@ describe("API Client", () => {
     });
   });
 
-  describe("getHealthScoreSummary", () => {
-    it("returns health score summary", async () => {
-      const mockResponse = {
-        repo_id: 1,
-        overall_score: 85,
-        grade: "A",
-        calculated_at: "2024-01-15",
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getHealthScoreSummary(1);
-      expect(result).not.toBeNull();
-      if (result) {
-        expect(result.grade).toBe("A");
-      }
-    });
-  });
-
-  describe("calculateHealthScore", () => {
-    it("calculates and returns health score", async () => {
-      const mockResponse = {
-        repo_id: 1,
-        overall_score: 90,
-        grade: "A",
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await calculateHealthScore(1);
-      expect(result.overall_score).toBe(90);
-    });
-  });
-
   describe("getStarsChart", () => {
     it("returns chart data", async () => {
       const mockResponse = {
@@ -299,99 +250,6 @@ describe("API Client", () => {
       });
 
       expect(checkHealth()).rejects.toThrow();
-    });
-  });
-
-  // Tag API tests
-  describe("listTags", () => {
-    it("returns all tags", async () => {
-      const mockResponse = { tags: [{ id: 1, name: "React" }], total: 1 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await listTags();
-      expect(result.tags).toHaveLength(1);
-    });
-
-    it("filters by tag type", async () => {
-      const mockResponse = { tags: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      await listTags("topic");
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("tag_type=topic"),
-        expect.any(Object)
-      );
-    });
-  });
-
-  describe("getRepoTags", () => {
-    it("returns tags for a repo", async () => {
-      const mockResponse = { repo_id: 1, tags: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getRepoTags(1);
-      expect(result.repo_id).toBe(1);
-    });
-  });
-
-  describe("addTagToRepo", () => {
-    it("adds a tag to repo", async () => {
-      const mockResponse = { repo_id: 1, tags: [{ id: 1, name: "custom" }], total: 1 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await addTagToRepo(1, "custom", "#ff0000");
-      expect(result.tags).toHaveLength(1);
-    });
-  });
-
-  describe("removeTagFromRepo", () => {
-    it("removes a tag from repo", async () => {
-      const mockResponse = { status: "success", message: "Tag removed" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await removeTagFromRepo(1, 5);
-      expect(result.status).toBe("success");
-    });
-  });
-
-  describe("autoTagRepo", () => {
-    it("triggers auto-tagging", async () => {
-      const mockResponse = { repo_id: 1, tags_applied: [], total_applied: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await autoTagRepo(1);
-      expect(result.repo_id).toBe(1);
-    });
-  });
-
-  describe("searchByTags", () => {
-    it("searches by tags", async () => {
-      const mockResponse = { repos: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await searchByTags(["react", "typescript"]);
-      expect(result.total).toBe(0);
     });
   });
 
@@ -532,46 +390,6 @@ describe("API Client", () => {
     });
   });
 
-  // Comparison API tests
-  describe("listComparisonGroups", () => {
-    it("returns comparison groups", async () => {
-      const mockResponse = { groups: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await listComparisonGroups();
-      expect(result.total).toBe(0);
-    });
-  });
-
-  describe("getComparisonGroup", () => {
-    it("returns group detail", async () => {
-      const mockResponse = { group_id: 1, group_name: "Test", members: [], summary: {} };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getComparisonGroup(1);
-      expect(result.group_id).toBe(1);
-    });
-  });
-
-  describe("createComparisonGroup", () => {
-    it("creates comparison group", async () => {
-      const mockResponse = { id: 1, name: "New Group" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await createComparisonGroup("New Group", "Description");
-      expect(result.name).toBe("New Group");
-    });
-  });
-
   // Early Signal API tests
   describe("listEarlySignals", () => {
     it("returns early signals", async () => {
@@ -596,114 +414,6 @@ describe("API Client", () => {
 
       const result = await getSignalSummary();
       expect(result.total_active).toBe(5);
-    });
-  });
-
-  describe("getHealthScore", () => {
-    it("returns full health score", async () => {
-      const mockResponse = {
-        repo_id: 1,
-        overall_score: 85,
-        grade: "A",
-        issue_response_score: 90,
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getHealthScore(1);
-      expect(result.overall_score).toBe(85);
-    });
-  });
-
-  // Comparison group additional tests
-  describe("deleteComparisonGroup", () => {
-    it("deletes a group", async () => {
-      const { deleteComparisonGroup } = await import("../client");
-      const mockResponse = { status: "success", message: "Deleted" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await deleteComparisonGroup(1);
-      expect(result.status).toBe("success");
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/comparisons/1"),
-        expect.objectContaining({ method: "DELETE" })
-      );
-    });
-  });
-
-  describe("addRepoToComparison", () => {
-    it("adds repo to group", async () => {
-      const { addRepoToComparison } = await import("../client");
-      const mockResponse = { status: "success", message: "Added" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await addRepoToComparison(1, 5);
-      expect(result.status).toBe("success");
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/comparisons/1/repos/5"),
-        expect.objectContaining({ method: "POST" })
-      );
-    });
-  });
-
-  describe("removeRepoFromComparison", () => {
-    it("removes repo from group", async () => {
-      const { removeRepoFromComparison } = await import("../client");
-      const mockResponse = { status: "success", message: "Removed" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await removeRepoFromComparison(1, 5);
-      expect(result.status).toBe("success");
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/comparisons/1/repos/5"),
-        expect.objectContaining({ method: "DELETE" })
-      );
-    });
-  });
-
-  describe("getComparisonChart", () => {
-    it("returns chart data", async () => {
-      const { getComparisonChart } = await import("../client");
-      const mockResponse = {
-        group_id: 1,
-        time_range: "30d",
-        chart_data: [],
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getComparisonChart(1, "30d");
-      expect(result.group_id).toBe(1);
-    });
-  });
-
-  describe("getVelocityComparison", () => {
-    it("returns velocity data", async () => {
-      const { getVelocityComparison } = await import("../client");
-      const mockResponse = {
-        group_id: 1,
-        repos: [],
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getVelocityComparison(1);
-      expect(result.group_id).toBe(1);
     });
   });
 
@@ -816,152 +526,10 @@ describe("API Client", () => {
 
   // Export URL tests
   describe("Export URL functions", () => {
-    it("getExportWatchlistUrl returns correct URL", async () => {
-      const { getExportWatchlistUrl } = await import("../client");
-      const url = getExportWatchlistUrl("json");
+    it("getExportWatchlistJsonUrl returns correct URL", async () => {
+      const { getExportWatchlistJsonUrl } = await import("../client");
+      const url = getExportWatchlistJsonUrl();
       expect(url).toContain("/export/watchlist.json");
-    });
-
-    it("getExportHistoryUrl returns correct URL", async () => {
-      const { getExportHistoryUrl } = await import("../client");
-      const url = getExportHistoryUrl(1, "csv", 30);
-      expect(url).toContain("/export/history/1.csv");
-      expect(url).toContain("days=30");
-    });
-
-    it("getExportSignalsUrl returns correct URL", async () => {
-      const { getExportSignalsUrl } = await import("../client");
-      const url = getExportSignalsUrl("json", true);
-      expect(url).toContain("signals.json");
-      expect(url).toContain("include_acknowledged=true");
-    });
-
-    it("getExportFullReportUrl returns correct URL", async () => {
-      const { getExportFullReportUrl } = await import("../client");
-      const url = getExportFullReportUrl();
-      expect(url).toContain("/export/full-report.json");
-    });
-
-    it("getDigestUrl returns correct URL", async () => {
-      const { getDigestUrl } = await import("../client");
-      const url = getDigestUrl("daily", "md");
-      expect(url).toContain("/export/digest/daily.md");
-    });
-  });
-
-  // Webhook tests
-  describe("Webhook API", () => {
-    it("listWebhooks returns webhooks", async () => {
-      const { listWebhooks } = await import("../client");
-      const mockResponse = { webhooks: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await listWebhooks();
-      expect(result.total).toBe(0);
-    });
-
-    it("getWebhook returns single webhook", async () => {
-      const { getWebhook } = await import("../client");
-      const mockResponse = { id: 1, name: "Test", webhook_type: "slack" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getWebhook(1);
-      expect(result.id).toBe(1);
-    });
-
-    it("createWebhook creates webhook", async () => {
-      const { createWebhook } = await import("../client");
-      const mockResponse = { id: 1, name: "New Webhook" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await createWebhook({
-        name: "New Webhook",
-        webhook_type: "slack",
-        url: "https://hooks.slack.com/test",
-        triggers: ["signal_detected"],
-      });
-      expect(result.name).toBe("New Webhook");
-    });
-
-    it("updateWebhook updates webhook", async () => {
-      const { updateWebhook } = await import("../client");
-      const mockResponse = { id: 1, name: "Updated" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await updateWebhook(1, { name: "Updated" });
-      expect(result.name).toBe("Updated");
-    });
-
-    it("deleteWebhook deletes webhook", async () => {
-      const { deleteWebhook } = await import("../client");
-      const mockResponse = { status: "success", message: "Deleted" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await deleteWebhook(1);
-      expect(result.status).toBe("success");
-    });
-
-    it("testWebhook tests webhook", async () => {
-      const { testWebhook } = await import("../client");
-      const mockResponse = { status: "success", message: "Sent", success: true };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await testWebhook(1);
-      expect(result.success).toBe(true);
-    });
-
-    it("toggleWebhook toggles webhook", async () => {
-      const { toggleWebhook } = await import("../client");
-      const mockResponse = { status: "success", enabled: false };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await toggleWebhook(1);
-      expect(result.enabled).toBe(false);
-    });
-
-    it("getWebhookLogs returns logs", async () => {
-      const { getWebhookLogs } = await import("../client");
-      const mockResponse = { webhook_id: 1, logs: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getWebhookLogs(1, 10);
-      expect(result.webhook_id).toBe(1);
-    });
-
-    it("getWebhookTypes returns types", async () => {
-      const { getWebhookTypes } = await import("../client");
-      const mockResponse = { types: [], triggers: [], severities: [] };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getWebhookTypes();
-      expect(result.types).toEqual([]);
     });
   });
 

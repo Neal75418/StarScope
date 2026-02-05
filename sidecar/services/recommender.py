@@ -10,7 +10,7 @@ from typing import List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 
-from db.models import Repo, SimilarRepo, RepoTag, Tag, RepoSnapshot
+from db.models import Repo, SimilarRepo, RepoSnapshot
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -37,20 +37,9 @@ def _parse_topics_json(topics_json: Optional[str]) -> Set[str]:
     return set()
 
 
-def _get_repo_topics(repo: Repo, db: Session) -> Set[str]:
-    """Get all topics for a repo (from topics field and topic tags)."""
-    topics: Set[str] = _parse_topics_json(repo.topics)
-
-    # From topic tags
-    repo_tags = db.query(RepoTag).join(Tag).filter(
-        RepoTag.repo_id == repo.id,
-        Tag.tag_type == "topic"
-    ).all()
-
-    for rt in repo_tags:
-        topics.add(rt.tag.name.lower())
-
-    return topics
+def _get_repo_topics(repo: Repo) -> Set[str]:
+    """Get all topics for a repo from topics field."""
+    return _parse_topics_json(repo.topics)
 
 
 def _jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
@@ -225,13 +214,13 @@ class RecommenderService:
             return 0
 
         # Get this repo's topics and star count
-        repo_topics = _get_repo_topics(repo, db)
+        repo_topics = _get_repo_topics(repo)
         repo_stars = _get_latest_stars(repo_id, db)
 
         count = 0
         for other in other_repos:
             other_id = int(other.id)
-            other_topics = _get_repo_topics(other, db)
+            other_topics = _get_repo_topics(other)
             other_stars = _get_latest_stars(other_id, db)
 
             score, shared, same_lang = RecommenderService.calculate_similarity(

@@ -1,15 +1,14 @@
 /**
- * Hook for fetching repo card data (badges, tags, and signals).
+ * Hook for fetching repo card data (badges and signals).
  * Uses useAsyncFetch for reduced complexity.
+ * Simplified version without tags.
  */
 
 import { useState, useCallback } from "react";
 import {
   ContextBadge,
-  RepoTag,
   EarlySignal,
   getContextBadges,
-  getRepoTags,
   getRepoSignals,
   fetchRepoContext,
 } from "../api/client";
@@ -18,8 +17,6 @@ import { useAsyncFetch } from "./useAsyncFetch";
 interface UseRepoCardDataResult {
   badges: ContextBadge[];
   badgesLoading: boolean;
-  tags: RepoTag[];
-  tagsLoading: boolean;
   signals: EarlySignal[];
   signalsLoading: boolean;
   activeSignalCount: number;
@@ -37,14 +34,6 @@ export function useRepoCardData(repoId: number): UseRepoCardDataResult {
     [] as ContextBadge[],
     [repoId, refreshKey],
     "badges"
-  );
-
-  const { data: tags, loading: tagsLoading } = useAsyncFetch(
-    () => getRepoTags(repoId),
-    (response) => response.tags,
-    [] as RepoTag[],
-    [repoId],
-    "tags"
   );
 
   const { data: signals, loading: signalsLoading } = useAsyncFetch(
@@ -74,8 +63,6 @@ export function useRepoCardData(repoId: number): UseRepoCardDataResult {
   return {
     badges,
     badgesLoading,
-    tags,
-    tagsLoading,
     signals,
     signalsLoading,
     activeSignalCount,

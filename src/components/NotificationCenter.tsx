@@ -9,7 +9,7 @@ import { BellIcon, CheckIcon, XIcon } from "./Icons";
 import { useI18n } from "../i18n";
 import { Notification, useNotifications } from "../hooks/useNotifications";
 
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "compare" | "signals" | "settings";
+type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "signals" | "settings";
 
 interface NotificationCenterProps {
   onNavigate: (page: Page) => void;

@@ -18,11 +18,8 @@ from utils.time import utc_now  # noqa: F401
 # Constants to avoid code duplication warnings
 CASCADE_DELETE_ORPHAN = "all, delete-orphan"
 FK_REPOS_ID = "repos.id"
-FK_TAGS_ID = "tags.id"
 FK_CATEGORIES_ID = "categories.id"
 FK_ALERT_RULES_ID = "alert_rules.id"
-FK_COMPARISON_GROUPS_ID = "comparison_groups.id"
-FK_WEBHOOKS_ID = "webhooks.id"
 
 
 class Base(DeclarativeBase):
@@ -58,7 +55,6 @@ class Repo(Base):
     snapshots: Mapped[List["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     commit_activities: Mapped[List["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     languages: Mapped[List["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
@@ -229,14 +225,12 @@ class AlertOperator:
 class ContextSignalType:
     """Constants for context signal types."""
     HACKER_NEWS = "hacker_news"
-    REDDIT = "reddit"
-    GITHUB_RELEASE = "github_release"
 
 
 class ContextSignal(Base):
     """
     External context signals about a repository.
-    Tracks mentions on Hacker News, Reddit, and GitHub releases.
+    Tracks mentions on Hacker News.
     """
     __tablename__ = "context_signals"
 
@@ -244,21 +238,21 @@ class ContextSignal(Base):
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # Signal identification
-    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # hacker_news, reddit, github_release
-    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN story ID, Reddit post ID, release tag
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # hacker_news only
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN story ID
 
     # Content
     title: Mapped[str] = mapped_column(String(1024), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
 
     # Optional metadata
-    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN points, Reddit upvotes
+    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN points
     comment_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # For GitHub releases
+    # Deprecated: kept for DB compatibility, no longer used
     version_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    is_prerelease: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)  # SQLite bool as int
+    is_prerelease: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
 
     # Timestamps
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When it was published externally
@@ -276,120 +270,6 @@ class ContextSignal(Base):
 
     def __repr__(self) -> str:
         return f"<ContextSignal repo_id={self.repo_id} type={self.signal_type} title={self.title[:30] if self.title else ''}>"
-
-
-class HealthScore(Base):
-    """
-    Project health score for a repository.
-    Calculated from various GitHub metrics.
-    """
-    __tablename__ = "health_scores"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False, unique=True)
-
-    # Overall score (0-100)
-    overall_score: Mapped[float] = mapped_column(Float, nullable=False)
-    grade: Mapped[str] = mapped_column(String(2), nullable=False)  # A+, A, B+, B, C+, C, D, F
-
-    # Individual metrics (0-100 each)
-    issue_response_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    pr_merge_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    release_cadence_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    bus_factor_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    documentation_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    dependency_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    velocity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    commit_activity_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    # Raw data for transparency
-    avg_issue_response_hours: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    pr_merge_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Percentage
-    days_since_last_release: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    contributor_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    has_readme: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)  # SQLite bool
-    has_contributing: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
-    has_license: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
-    total_commits_52w: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    avg_commits_per_week: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    # Timestamps
-    calculated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # Relationship
-    repo: Mapped["Repo"] = relationship("Repo")
-
-    # Indexes
-    __table_args__ = (
-        Index("ix_health_scores_overall", "overall_score"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<HealthScore repo_id={self.repo_id} score={self.overall_score} grade={self.grade}>"
-
-
-# Tag type constants
-class TagType:
-    """Constants for tag types."""
-    LANGUAGE = "language"    # Programming language tag
-    TOPIC = "topic"          # GitHub topics
-    INFERRED = "inferred"    # Inferred from description
-    CUSTOM = "custom"        # User-defined custom tag
-
-
-class Tag(Base):
-    """
-    A tag that can be applied to repositories.
-    Tags can be system-generated (auto) or user-created (custom).
-    """
-    __tablename__ = "tags"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
-    tag_type: Mapped[str] = mapped_column(String(20), nullable=False)  # language, topic, inferred, custom
-    color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # Hex color for UI (e.g., "#3b82f6")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # Relationships
-    repo_tags: Mapped[List["RepoTag"]] = relationship("RepoTag", back_populates="tag", cascade=CASCADE_DELETE_ORPHAN)
-
-    # Indexes
-    __table_args__ = (
-        Index("ix_tags_type", "tag_type"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<Tag name={self.name} type={self.tag_type}>"
-
-
-class RepoTag(Base):
-    """
-    Many-to-many relationship between repos and tags.
-    Stores metadata about how/when the tag was applied.
-    """
-    __tablename__ = "repo_tags"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
-    tag_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_TAGS_ID, ondelete="CASCADE"), nullable=False)
-
-    source: Mapped[str] = mapped_column(String(20), nullable=False)  # "auto" or "user"
-    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0.0-1.0 for inferred tags
-    applied_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # Relationships
-    repo: Mapped["Repo"] = relationship("Repo", back_populates="repo_tags")
-    tag: Mapped["Tag"] = relationship("Tag", back_populates="repo_tags")
-
-    # Indexes and constraints
-    __table_args__ = (
-        UniqueConstraint("repo_id", "tag_id", name="uq_repo_tag"),
-        Index("ix_repo_tags_repo", "repo_id"),
-        Index("ix_repo_tags_tag", "tag_id"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<RepoTag repo_id={self.repo_id} tag_id={self.tag_id} source={self.source}>"
 
 
 class SimilarRepo(Base):
@@ -482,52 +362,6 @@ class RepoCategory(Base):
         return f"<RepoCategory repo_id={self.repo_id} category_id={self.category_id}>"
 
 
-class ComparisonGroup(Base):
-    """
-    A group of repositories for comparison.
-    E.g., "JS Runtimes" with Bun, Deno, Node.
-    """
-    __tablename__ = "comparison_groups"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(200), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
-
-    # Relationships
-    members: Mapped[List["ComparisonMember"]] = relationship("ComparisonMember", back_populates="group", cascade=CASCADE_DELETE_ORPHAN)
-
-    def __repr__(self) -> str:
-        return f"<ComparisonGroup id={self.id} name={self.name}>"
-
-
-class ComparisonMember(Base):
-    """
-    A repository member of a comparison group.
-    """
-    __tablename__ = "comparison_members"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    group_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_COMPARISON_GROUPS_ID, ondelete="CASCADE"), nullable=False)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
-    sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # Relationships
-    group: Mapped["ComparisonGroup"] = relationship("ComparisonGroup", back_populates="members")
-    repo: Mapped["Repo"] = relationship("Repo")
-
-    # Indexes and constraints
-    __table_args__ = (
-        UniqueConstraint("group_id", "repo_id", name="uq_comparison_member"),
-        Index("ix_comparison_members_group", "group_id"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<ComparisonMember group_id={self.group_id} repo_id={self.repo_id}>"
-
-
 # Early Signal type constants
 class EarlySignalType:
     """Constants for early signal types."""
@@ -586,94 +420,6 @@ class EarlySignal(Base):
 
     def __repr__(self) -> str:
         return f"<EarlySignal repo_id={self.repo_id} type={self.signal_type} severity={self.severity}>"
-
-
-# ==================== Webhook Models ====================
-
-class WebhookType:
-    """Constants for webhook types."""
-    SLACK = "slack"
-    DISCORD = "discord"
-    GENERIC = "generic"  # Generic HTTP POST
-
-
-class WebhookTrigger:
-    """Constants for webhook trigger events."""
-    SIGNAL_DETECTED = "signal_detected"    # New early signal
-    DAILY_DIGEST = "daily_digest"          # Daily summary
-    WEEKLY_DIGEST = "weekly_digest"        # Weekly summary
-    THRESHOLD_ALERT = "threshold_alert"    # Custom threshold exceeded
-
-
-class Webhook(Base):
-    """
-    Configured webhooks for notifications.
-    Supports Slack, Discord, and generic HTTP POST.
-    """
-    __tablename__ = "webhooks"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False)
-    webhook_type: Mapped[str] = mapped_column(String(20), nullable=False)  # slack, discord, generic
-    url: Mapped[str] = mapped_column(String(1024), nullable=False)
-
-    # Trigger configuration
-    triggers: Mapped[str] = mapped_column(String(500), nullable=False)  # JSON array of trigger types
-    min_severity: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # low, medium, high
-
-    # Status
-    enabled: Mapped[bool] = mapped_column(Integer, default=True)  # SQLite bool
-    last_triggered: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    last_error: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
-
-    # Relationship
-    logs: Mapped[List["WebhookLog"]] = relationship("WebhookLog", back_populates="webhook", cascade=CASCADE_DELETE_ORPHAN)
-
-    __table_args__ = (
-        Index("ix_webhooks_type", "webhook_type"),
-        Index("ix_webhooks_enabled", "enabled"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<Webhook name={self.name} type={self.webhook_type}>"
-
-
-class WebhookLog(Base):
-    """
-    Log of webhook invocations.
-    Tracks success/failure for debugging.
-    """
-    __tablename__ = "webhook_logs"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    webhook_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_WEBHOOKS_ID, ondelete="CASCADE"), nullable=False)
-
-    # Request details
-    trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    payload_summary: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
-    # Response
-    success: Mapped[bool] = mapped_column(Integer, default=False)  # SQLite bool
-    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
-    # Timestamp
-    sent_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # Relationship
-    webhook: Mapped["Webhook"] = relationship("Webhook", back_populates="logs")
-
-    __table_args__ = (
-        Index("ix_webhook_logs_webhook", "webhook_id"),
-        Index("ix_webhook_logs_sent", "sent_at"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<WebhookLog webhook_id={self.webhook_id} success={self.success}>"
 
 
 # ==================== App Settings Models ====================

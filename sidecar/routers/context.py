@@ -1,6 +1,6 @@
 """
 Context signals API endpoints.
-Provides context information about why a repo is trending (HN, Reddit, Releases).
+Provides context information about why a repo is trending (HN only).
 """
 
 from typing import List, Optional
@@ -16,7 +16,7 @@ from db.models import ContextSignal, ContextSignalType
 from routers.dependencies import get_repo_or_404
 from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
-from constants import MIN_HN_SCORE_FOR_BADGE, MIN_REDDIT_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
+from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 
 router = APIRouter(prefix="/context", tags=["context"])
 
@@ -49,9 +49,9 @@ class ContextSignalsResponse(BaseModel):
 
 
 class ContextBadge(BaseModel):
-    """A badge to display on repo card."""
-    type: str  # "hn", "reddit", "release"
-    label: str  # "HN: 150 pts", "Reddit: 200 upvotes", "Release v2.0"
+    """A badge to display on repo card (HN only)."""
+    type: str  # "hn"
+    label: str  # "HN: 150 pts"
     url: str
     score: Optional[int]
     is_recent: bool  # Published within last 7 days
@@ -73,20 +73,21 @@ class FetchContextResponse(BaseModel):
 @router.get("/{repo_id}/signals", response_model=ContextSignalsResponse)
 async def get_context_signals(
     repo_id: int,
-    signal_type: Optional[str] = Query(None, description="Filter by signal type (hacker_news, reddit, github_release)"),
+    signal_type: Optional[str] = Query(None, description="Filter by signal type (hacker_news only)"),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
     """
     Get all context signals for a repository.
+    Only Hacker News signals are supported.
     """
     get_repo_or_404(repo_id, db)
 
     query = db.query(ContextSignal).filter(ContextSignal.repo_id == repo_id)
 
     if signal_type:
-        # Validate signal type
-        valid_types = [ContextSignalType.HACKER_NEWS, ContextSignalType.REDDIT, ContextSignalType.GITHUB_RELEASE]
+        # Validate signal type - only HN is supported now
+        valid_types = [ContextSignalType.HACKER_NEWS]
         if signal_type not in valid_types:
             raise HTTPException(
                 status_code=400,
@@ -110,7 +111,7 @@ async def get_context_badges(
 ):
     """
     Get context badges for a repository.
-    Returns the most relevant badges to display on the repo card.
+    Returns HN badges to display on the repo card.
     Only returns badges that meet the score threshold.
     """
     get_repo_or_404(repo_id, db)
@@ -146,44 +147,6 @@ async def get_context_badges(
             is_recent=_is_recent(top_hn.published_at),
         ))
 
-    # Get top Reddit post (by score)
-    top_reddit = (
-        db.query(ContextSignal)
-        .filter(
-            ContextSignal.repo_id == repo_id,
-            ContextSignal.signal_type == ContextSignalType.REDDIT
-        )
-        .order_by(desc(ContextSignal.score))
-        .first()
-    )
-    if top_reddit and top_reddit.score and top_reddit.score >= MIN_REDDIT_SCORE_FOR_BADGE:
-        badges.append(ContextBadge(
-            type="reddit",
-            label=f"Reddit: {top_reddit.score}",
-            url=top_reddit.url,
-            score=top_reddit.score,
-            is_recent=_is_recent(top_reddit.published_at),
-        ))
-
-    # Get latest release (always show if exists)
-    latest_release = (
-        db.query(ContextSignal)
-        .filter(
-            ContextSignal.repo_id == repo_id,
-            ContextSignal.signal_type == ContextSignalType.GITHUB_RELEASE
-        )
-        .order_by(desc(ContextSignal.published_at))
-        .first()
-    )
-    if latest_release and latest_release.version_tag:
-        badges.append(ContextBadge(
-            type="release",
-            label=f"Release {latest_release.version_tag}",
-            url=latest_release.url,
-            score=None,
-            is_recent=_is_recent(latest_release.published_at),
-        ))
-
     return ContextBadgesResponse(badges=badges, repo_id=repo_id)
 
 
@@ -194,17 +157,15 @@ async def fetch_repo_context(
 ):
     """
     Manually trigger context signal fetch for a repository.
-    Fetches from HN, Reddit, and GitHub Releases.
+    Fetches from Hacker News.
     """
     repo = get_repo_or_404(repo_id, db)
 
-    hn_count, reddit_count, release_count = await fetch_context_signals_for_repo(repo, db)
+    hn_count = await fetch_context_signals_for_repo(repo, db)
 
     return FetchContextResponse(
         repo_id=repo_id,
         new_signals={
             "hacker_news": hn_count,
-            "reddit": reddit_count,
-            "releases": release_count,
         }
     )

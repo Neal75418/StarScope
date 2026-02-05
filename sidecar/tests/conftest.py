@@ -213,27 +213,6 @@ def mock_multiple_repos(test_db):
 
 
 @pytest.fixture
-def mock_webhook(test_db):
-    """Create a mock webhook configuration."""
-    from db.models import Webhook
-    from utils.time import utc_now
-
-    webhook = Webhook(
-        name="Test Slack Webhook",
-        url="https://hooks.slack.com/services/xxx/yyy/zzz",
-        webhook_type="slack",
-        triggers='["signal_detected", "daily_digest"]',
-        enabled=True,
-        created_at=utc_now(),
-        updated_at=utc_now(),
-    )
-    test_db.add(webhook)
-    test_db.commit()
-    test_db.refresh(webhook)
-    return webhook
-
-
-@pytest.fixture
 def mock_category(test_db):
     """Create a mock category."""
     from db.models import Category
@@ -299,26 +278,3 @@ def mock_early_signal(test_db, mock_repo):
     return mock_repo, signal
 
 
-@pytest.fixture
-def mock_health_score(test_db, mock_repo):
-    """Create a mock health score."""
-    from db.models import HealthScore
-    from utils.time import utc_now
-
-    score = HealthScore(
-        repo_id=mock_repo.id,
-        overall_score=75.5,
-        grade="B+",
-        issue_response_score=80.0,
-        pr_merge_score=70.0,
-        release_cadence_score=85.0,
-        bus_factor_score=60.0,
-        documentation_score=75.0,
-        dependency_score=80.0,
-        velocity_score=73.0,
-        calculated_at=utc_now(),
-    )
-    test_db.add(score)
-    test_db.commit()
-    test_db.refresh(score)
-    return mock_repo, score

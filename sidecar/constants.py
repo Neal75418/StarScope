@@ -25,14 +25,12 @@ GITHUB_REPO_NAME_PATTERN = r"^[a-zA-Z0-9._-]+$"
 MAX_REPO_NAME_LENGTH = 100
 MAX_OWNER_LENGTH = 39
 
-# Context Signal settings
+# Context Signal settings (HN only after simplification)
 HN_API_TIMEOUT_SECONDS = 15.0
-REDDIT_API_TIMEOUT_SECONDS = 15.0
 CONTEXT_FETCH_INTERVAL_MINUTES = 30
 
 # Badge display thresholds
 MIN_HN_SCORE_FOR_BADGE = 50
-MIN_REDDIT_SCORE_FOR_BADGE = 50
 RECENT_THRESHOLD_DAYS = 7
 
 # Trend calculation thresholds

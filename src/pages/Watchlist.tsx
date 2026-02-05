@@ -164,10 +164,8 @@ function ErrorBanner({ error, onClear }: { error: string; onClear: () => void })
 function Toolbar({
   onAddRepo,
   onRefreshAll,
-  onAutoTagAll,
   onRecalculateAll,
   isRefreshing,
-  isAutoTagging,
   isRecalculating,
   selectedCategoryId,
   displayedCount,
@@ -177,10 +175,8 @@ function Toolbar({
 }: {
   onAddRepo: () => void;
   onRefreshAll: () => void;
-  onAutoTagAll: () => void;
   onRecalculateAll: () => void;
   isRefreshing: boolean;
-  isAutoTagging: boolean;
   isRecalculating: boolean;
   selectedCategoryId: number | null;
   displayedCount: number;
@@ -221,17 +217,6 @@ function Toolbar({
         {isRefreshing ? t.watchlist.refreshing : t.watchlist.refreshAll}
       </button>
       <button
-        onClick={onAutoTagAll}
-        disabled={isAutoTagging}
-        className="btn"
-        title={t.watchlist.autoTagAll ?? "Auto-Tag All"}
-        aria-label={t.watchlist.autoTagAll ?? "Auto-Tag All"}
-      >
-        {isAutoTagging
-          ? (t.watchlist.autoTagging ?? "Tagging...")
-          : (t.watchlist.autoTagAll ?? "Auto-Tag All")}
-      </button>
-      <button
         onClick={onRecalculateAll}
         disabled={isRecalculating}
         className="btn"
@@ -262,7 +247,6 @@ export function Watchlist() {
     displayedRepos,
     isLoading,
     isRefreshing,
-    isAutoTagging,
     isRecalculatingSimilarities,
     loadingRepoId,
     error,
@@ -280,7 +264,6 @@ export function Watchlist() {
     cancelRemoveRepo,
     handleFetchRepo,
     handleRefreshAll,
-    handleAutoTagAll,
     handleRecalculateAll,
     handleRetry,
     openAddDialog,
@@ -334,10 +317,8 @@ export function Watchlist() {
           <Toolbar
             onAddRepo={openAddDialog}
             onRefreshAll={handleRefreshAll}
-            onAutoTagAll={handleAutoTagAll}
             onRecalculateAll={handleRecalculateAll}
             isRefreshing={isRefreshing}
-            isAutoTagging={isAutoTagging}
             isRecalculating={isRecalculatingSimilarities}
             selectedCategoryId={selectedCategoryId}
             displayedCount={displayedRepos.length}

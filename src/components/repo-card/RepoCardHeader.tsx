@@ -1,17 +1,17 @@
 /**
- * Repo card header with name, language, health badge and actions.
+ * Repo card header with name, language, and actions.
+ * Simplified version without health badge and comparison.
  */
 
-import React, { useState } from "react";
+import React from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { RepoWithSignals, HealthScoreResponse, getExportHistoryUrl } from "../../api/client";
-import { HealthBadge } from "../HealthBadge";
+import { RepoWithSignals } from "../../api/client";
 import { CommitActivityBadge } from "../CommitActivityBadge";
 import { LanguagesBadge } from "../LanguagesBadge";
 import { LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 
-interface RepoCardHeaderProps {
+export interface RepoCardHeaderProps {
   repo: RepoWithSignals;
   showChart: boolean;
   showSimilar: boolean;
@@ -23,8 +23,6 @@ interface RepoCardHeaderProps {
   onFetch: () => void;
   onRemove: () => void;
   onRemoveFromCategory?: () => void;
-  onAddToComparison?: () => void;
-  onShowHealthDetails: (details: HealthScoreResponse | null) => void;
 }
 
 export function RepoCardHeader({
@@ -39,11 +37,8 @@ export function RepoCardHeader({
   onFetch,
   onRemove,
   onRemoveFromCategory,
-  onAddToComparison,
-  onShowHealthDetails,
 }: RepoCardHeaderProps) {
   const { t } = useI18n();
-  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -58,7 +53,6 @@ export function RepoCardHeader({
           <LinkExternalIcon size={14} />
         </a>
         {repo.language && <span className="repo-language">{repo.language}</span>}
-        <HealthBadge repoId={repo.id} onShowDetails={onShowHealthDetails} />
         <CommitActivityBadge repoId={repo.id} />
         <LanguagesBadge repoId={repo.id} />
         {activeSignalCount > 0 && (
@@ -84,49 +78,6 @@ export function RepoCardHeader({
         >
           {t.repo.similar}
         </button>
-        {onAddToComparison && (
-          <button
-            onClick={onAddToComparison}
-            disabled={isLoading}
-            className="btn btn-sm"
-            title={t.repo.addToComparison}
-            aria-label={t.repo.addToComparison}
-          >
-            {t.repo.addToComparison}
-          </button>
-        )}
-        <div className="export-dropdown">
-          <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            className={`btn btn-sm ${showExportMenu ? "active" : ""}`}
-            title={t.repo.exportHistory ?? "Export History"}
-            aria-label={t.repo.exportHistory ?? "Export History"}
-            aria-haspopup="true"
-            aria-expanded={showExportMenu}
-          >
-            {t.repo.exportHistory ?? "Export"}
-          </button>
-          {showExportMenu && (
-            <div className="export-dropdown-menu">
-              <a
-                href={getExportHistoryUrl(repo.id, "json")}
-                className="export-option"
-                download
-                onClick={() => setShowExportMenu(false)}
-              >
-                JSON
-              </a>
-              <a
-                href={getExportHistoryUrl(repo.id, "csv")}
-                className="export-option"
-                download
-                onClick={() => setShowExportMenu(false)}
-              >
-                CSV
-              </a>
-            </div>
-          )}
-        </div>
         <button
           onClick={onFetch}
           disabled={isLoading}

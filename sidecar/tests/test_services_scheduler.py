@@ -149,8 +149,6 @@ class TestFetchContextSignalsJob:
 
             mock_fetch.return_value = {
                 "new_hn_signals": 5,
-                "new_reddit_signals": 3,
-                "new_release_signals": 2,
                 "errors": 0,
             }
 

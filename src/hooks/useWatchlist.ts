@@ -82,7 +82,6 @@ export function useWatchlist() {
     toast,
 
     // Global Action State
-    isAutoTagging: globalActions.isAutoTagging,
     isRecalculatingSimilarities: globalActions.isRecalculatingSimilarities,
 
     // Actions
@@ -92,7 +91,6 @@ export function useWatchlist() {
     cancelRemoveRepo: removeDialog.closeRemoveConfirm,
     handleFetchRepo: repoOps.refreshRepo,
     handleRefreshAll: repoOps.refreshAllRepos,
-    handleAutoTagAll: globalActions.handleAutoTagAll,
     handleRecalculateAll: globalActions.handleRecalculateAll,
     handleRetry,
     openAddDialog: addDialog.openAddDialog,

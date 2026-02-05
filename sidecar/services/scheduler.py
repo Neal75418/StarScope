@@ -150,8 +150,7 @@ def check_alerts_job():
 async def fetch_context_signals_job():
     """
     Background job to fetch context signals for all repos.
-    Fetches from Hacker News, Reddit, and GitHub Releases.
-    Runs less frequently than main data fetch (every 6 hours).
+    Fetches from Hacker News.
     """
     logger.info("Starting scheduled context signals fetch...")
 
@@ -161,8 +160,6 @@ async def fetch_context_signals_job():
         logger.info(
             f"Context signals fetch complete: "
             f"HN={result['new_hn_signals']}, "
-            f"Reddit={result['new_reddit_signals']}, "
-            f"Releases={result['new_release_signals']}, "
             f"Errors={result['errors']}"
         )
     except Exception as e:
@@ -212,7 +209,7 @@ def start_scheduler(fetch_interval_minutes: int = 60):
         fetch_context_signals_job,
         trigger=IntervalTrigger(minutes=CONTEXT_FETCH_INTERVAL_MINUTES),
         id="fetch_context_signals",
-        name="Fetch context signals (HN, Reddit, Releases)",
+        name="Fetch context signals (HN)",
         replace_existing=True,
         max_instances=1,
     )
@@ -257,5 +254,5 @@ async def trigger_fetch_now():
     await fetch_all_repos_job()
     # Run sync alert check in a thread to avoid blocking the event loop
     await asyncio.to_thread(check_alerts_job)
-    # Also fetch context signals (HN, Reddit, Releases)
+    # Also fetch HN context signals
     await fetch_context_signals_job()
