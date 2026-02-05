@@ -230,33 +230,6 @@ def mock_category(test_db):
 
 
 @pytest.fixture
-def mock_comparison_group(test_db, mock_multiple_repos):
-    """Create a mock comparison group with repos."""
-    from db.models import ComparisonGroup, ComparisonMember
-    from utils.time import utc_now
-
-    group = ComparisonGroup(
-        name="Frontend Battle",
-        description="Comparing popular frontend frameworks",
-        created_at=utc_now(),
-    )
-    test_db.add(group)
-    test_db.commit()
-
-    # Add repos to group
-    for repo in mock_multiple_repos:
-        member = ComparisonMember(
-            group_id=group.id,
-            repo_id=repo.id,
-        )
-        test_db.add(member)
-
-    test_db.commit()
-    test_db.refresh(group)
-    return group, mock_multiple_repos
-
-
-@pytest.fixture
 def mock_early_signal(test_db, mock_repo):
     """Create a mock early signal."""
     from db.models import EarlySignal

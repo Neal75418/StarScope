@@ -144,7 +144,7 @@ def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
     triggered_alerts: List["TriggeredAlert"] = []
 
     # Get all enabled rules
-    rules = db.query(AlertRule).filter(AlertRule.enabled == True).all()
+    rules = db.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
 
     if not rules:
         logger.debug("No enabled alert rules")
@@ -194,7 +194,7 @@ def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:
     """
     return (
         db.query(TriggeredAlert)
-        .filter(TriggeredAlert.acknowledged == False)
+        .filter(TriggeredAlert.acknowledged.is_(False))
         .order_by(TriggeredAlert.triggered_at.desc())
         .all()
     )
@@ -232,7 +232,7 @@ def acknowledge_all_alerts(db: Session) -> int:
     """
     count = (
         db.query(TriggeredAlert)
-        .filter(TriggeredAlert.acknowledged == False)
+        .filter(TriggeredAlert.acknowledged.is_(False))
         .update({
             TriggeredAlert.acknowledged: True,
             TriggeredAlert.acknowledged_at: utc_now(),

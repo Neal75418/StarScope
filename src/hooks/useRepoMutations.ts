@@ -19,8 +19,12 @@ function getErrorMessage(err: unknown, fallback: string): string {
 function parseRepoInput(input: string): { owner?: string; name?: string; url?: string } | null {
   if (input.includes("github.com")) return { url: input };
   if (input.includes("/")) {
-    const [owner, name] = input.split("/");
-    return { owner, name };
+    const parts = input.split("/");
+    // Ensure we have exactly 2 parts (owner/name)
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return null;
+    }
+    return { owner: parts[0], name: parts[1] };
   }
   return null;
 }

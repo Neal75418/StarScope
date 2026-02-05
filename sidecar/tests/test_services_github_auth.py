@@ -319,7 +319,7 @@ class TestGetConnectionStatus:
 
                 result = await GitHubAuthService.get_connection_status()
 
-                assert result.connected is True  # Assume connected on timeout
+                assert result.connected is False  # Cannot verify connection on timeout
                 assert "timeout" in result.error.lower()
 
 

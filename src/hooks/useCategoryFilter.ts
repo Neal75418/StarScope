@@ -38,13 +38,22 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
       return;
     }
 
+    // Track the category ID at the time of request to prevent race conditions
+    const requestedCategoryId = selectedCategoryId;
+
     getCategoryRepos(selectedCategoryId)
       .then((response) => {
-        setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
+        // Only update state if the category hasn't changed while fetching
+        if (requestedCategoryId === selectedCategoryId) {
+          setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
+        }
       })
       .catch((err) => {
-        console.error("Failed to load category repos:", err);
-        setFilteredRepoIds(null);
+        // Only update state if the category hasn't changed while fetching
+        if (requestedCategoryId === selectedCategoryId) {
+          console.error("Failed to load category repos:", err);
+          setFilteredRepoIds(null);
+        }
       });
   }, [selectedCategoryId]);
 

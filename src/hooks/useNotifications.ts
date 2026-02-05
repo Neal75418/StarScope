@@ -13,7 +13,7 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   link?: {
-    page: "watchlist" | "signals" | "settings";
+    page: "watchlist" | "dashboard" | "settings";
     params?: Record<string, string>;
   };
   metadata?: {

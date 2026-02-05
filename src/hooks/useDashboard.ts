@@ -104,18 +104,19 @@ export function useDashboard() {
   // Compute velocity distribution for chart
   const velocityDistribution = useMemo(() => {
     const ranges = [
-      { label: "< 0", min: -Infinity, max: 0 },
-      { label: "0-10", min: 0, max: 10 },
-      { label: "10-50", min: 10, max: 50 },
-      { label: "50-100", min: 50, max: 100 },
-      { label: "> 100", min: 100, max: Infinity },
+      { label: "< 0", min: -Infinity, max: 0, inclusive: false },
+      { label: "0-10", min: 0, max: 10, inclusive: false },
+      { label: "10-50", min: 10, max: 50, inclusive: false },
+      { label: "50-100", min: 50, max: 100, inclusive: false },
+      { label: "100+", min: 100, max: Infinity, inclusive: true },
     ];
 
     return ranges.map((range) => ({
       label: range.label,
       count: repos.filter((r) => {
         const v = r.velocity ?? 0;
-        return v >= range.min && v < range.max;
+        // Use inclusive upper bound for the last range
+        return v >= range.min && (range.inclusive ? v <= range.max : v < range.max);
       }).length,
     }));
   }, [repos]);

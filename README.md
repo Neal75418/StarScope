@@ -8,7 +8,7 @@
 
 StarScope 是一個開源的**桌面工具**，幫工程師用「動能」而非「絕對數字」來觀察 GitHub 專案趨勢。
 
-> "Don't just count stars. Understand momentum."
+> "Don't just count stars. Catch rising stars early."
 
 ---
 
@@ -25,25 +25,13 @@ StarScope 是一個開源的**桌面工具**，幫工程師用「動能」而非
 
 - **Context Signal** — 告訴你「為什麼」專案爆紅
   - Hacker News 熱門討論偵測
-  - Reddit 社群熱度追蹤
-  - GitHub Releases 發布追蹤
-
-- **健康度評分** — 綜合 7 維度評估專案健康度
-  - Issue 回應時間
-  - PR 合併率
-  - Release 頻率
-  - Bus Factor（核心貢獻者數量）
 
 - **智慧功能**
-  - 自動標籤分類
   - 相似專案推薦
   - 早期訊號偵測（Rising Star）
-  - 生態系比較（如 Bun vs Deno）
 
-- **輸出與整合**
-  - CSV/JSON 資料匯出
-  - Webhook 整合（Slack/Discord）
-  - 週報摘要產生
+- **資料匯出**
+  - JSON 格式匯出 Watchlist
 
 - **多語言支援** — 英文/繁體中文雙語介面
   - 語言切換即時生效
@@ -58,7 +46,7 @@ graph TB
     subgraph Client["🖥️ Desktop Client"]
         direction TB
         subgraph UI["React Frontend"]
-            Pages["📄 Pages<br/>Watchlist / Trends / Signals / Compare"]
+            Pages["📄 Pages<br/>Watchlist / Trends / Discovery"]
             Components["🧩 Components<br/>RepoCard / Charts / Badges"]
         end
         subgraph Native["Rust Native"]
@@ -74,7 +62,6 @@ graph TB
         subgraph Core["Core Services"]
             Fetch["📥 GitHub Fetcher"]
             Analyze["📊 Signal Analyzer"]
-            Score["💯 Health Scorer"]
             Detect["🎯 Anomaly Detector"]
         end
         subgraph Data["Data Layer"]
@@ -89,14 +76,12 @@ graph TB
     subgraph External["🌐 External Services"]
         GH["fab:fa-github GitHub API"]
         HN["📰 Hacker News"]
-        RD["🤖 Reddit"]
     end
 
     Components <-->|HTTP| API
     Native -.->|IPC| API
     Fetch --> GH
     Analyze --> HN
-    Analyze --> RD
 
     classDef client fill:#1a1a2e,stroke:#16213e,color:#fff
     classDef engine fill:#0f3460,stroke:#1a1a2e,color:#fff
@@ -174,14 +159,13 @@ StarScope/
 │   ├── api/                # API 客戶端
 │   ├── components/         # UI 元件
 │   │   ├── RepoCard.tsx
-│   │   ├── HealthBadge.tsx
 │   │   ├── ContextBadges.tsx
 │   │   ├── StarsChart.tsx
 │   │   └── ...
 │   ├── pages/              # 頁面
 │   │   ├── Watchlist.tsx
-│   │   ├── Compare.tsx
-│   │   ├── Signals.tsx
+│   │   ├── Trends.tsx
+│   │   ├── Discovery.tsx
 │   │   └── Settings.tsx
 │   └── App.tsx
 │
@@ -198,17 +182,13 @@ StarScope/
     ├── routers/
     │   ├── repos.py        # Watchlist API
     │   ├── categories.py   # 分類 API
-    │   ├── comparisons.py  # 比較 API
     │   ├── early_signals.py
-    │   ├── export.py       # 匯出 API
-    │   └── webhooks.py     # Webhook API
+    │   └── export.py       # 匯出 API
     └── services/
         ├── analyzer.py     # 訊號計算
-        ├── health_scorer.py
         ├── context_fetcher.py
         ├── anomaly_detector.py
-        ├── webhook.py
-        └── digest.py
+        └── recommender.py  # 相似專案推薦
 ```
 
 ---
@@ -224,48 +204,42 @@ StarScope/
 | `/api/repos/{id}`       | DELETE | 移除專案            |
 | `/api/repos/{id}/fetch` | POST   | 更新專案資料          |
 
-### 分類與標籤
+### 分類與推薦
 
 | 端點                                  | 方法  | 說明     |
 |-------------------------------------|-----|--------|
 | `/api/categories`                   | GET | 取得分類列表 |
-| `/api/tags`                         | GET | 取得標籤列表 |
 | `/api/recommendations/similar/{id}` | GET | 取得相似專案 |
 
-### 比較與訊號
+### 早期訊號
 
-| 端點                           | 方法       | 說明     |
-|------------------------------|----------|--------|
-| `/api/comparisons`           | GET/POST | 比較群組管理 |
-| `/api/early-signals`         | GET      | 早期訊號列表 |
-| `/api/early-signals/trigger` | POST     | 觸發異常偵測 |
+| 端點                           | 方法   | 說明      |
+|------------------------------|------|---------|
+| `/api/early-signals`         | GET  | 早期訊號列表  |
+| `/api/early-signals/trigger` | POST | 觸發異常偵測  |
 
-### 匯出與 Webhook
+### 匯出
 
-| 端點                      | 方法       | 說明                      |
-|-------------------------|----------|-------------------------|
-| `/api/export/watchlist` | GET      | 匯出 Watchlist (JSON/CSV) |
-| `/api/export/signals`   | GET      | 匯出訊號資料                  |
-| `/api/digest/{period}`  | GET      | 產生週報/日報                 |
-| `/api/webhooks`         | GET/POST | Webhook 管理              |
+| 端點                           | 方法  | 說明                  |
+|------------------------------|-----|---------------------|
+| `/api/export/watchlist.json` | GET | 匯出 Watchlist (JSON) |
 
 ---
 
 ## 開發狀態
 
-**功能完整** — 所有計畫功能已實作完成
+**功能完整** — 專注於核心價值的精簡設計
 
 | 模組        | 狀態                           |
 |-----------|------------------------------|
 | 核心追蹤      | Watchlist、Velocity 分析、趨勢偵測   |
-| 訊號系統      | HN/Reddit/Releases 整合、警報規則   |
-| 健康度評分     | 7 維度評估、Bus Factor            |
-| 智慧功能      | 自動標籤、相似推薦、早期訊號               |
-| 輸出整合      | CSV/JSON 匯出、Webhook、週報       |
+| 訊號系統      | HN 整合、警報規則                   |
+| 智慧功能      | 相似推薦、早期訊號偵測                  |
+| 匯出        | JSON 格式匯出                    |
 | 國際化       | 英/繁中雙語、深淺主題                  |
 | GitHub 整合 | OAuth Device Flow、Rate Limit |
 
-> 測試覆蓋率：81.73% (263 tests)
+> 測試覆蓋：331 frontend tests + backend tests
 
 ---
 

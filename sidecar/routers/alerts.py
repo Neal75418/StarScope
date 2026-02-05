@@ -262,6 +262,11 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
     if update.description is not None:
         rule.description = update.description
     if update.repo_id is not None:
+        # Validate repo exists before updating
+        if update.repo_id:
+            repo = db.query(Repo).filter(Repo.id == update.repo_id).first()
+            if not repo:
+                raise HTTPException(status_code=404, detail=f"Repo not found: {update.repo_id}")
         rule.repo_id = update.repo_id
     if update.threshold is not None:
         rule.threshold = update.threshold
@@ -297,7 +302,7 @@ async def list_triggered_alerts(
     query = db.query(TriggeredAlert).order_by(TriggeredAlert.triggered_at.desc())
 
     if unacknowledged_only:
-        query = query.filter(TriggeredAlert.acknowledged == False)
+        query = query.filter(TriggeredAlert.acknowledged.is_(False))
 
     alerts = query.limit(limit).all()
 
@@ -322,7 +327,7 @@ async def acknowledge_all(db: Session = Depends(get_db)):
 @router.post("/check")
 async def check_alerts_now(db: Session = Depends(get_db)):
     """Manually trigger an alert check."""
-    triggered = await check_all_alerts(db)
+    triggered = check_all_alerts(db)
     return {
         "status": "checked",
         "triggered_count": len(triggered),

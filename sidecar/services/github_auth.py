@@ -256,13 +256,13 @@ class GitHubAuthService:
 
             except httpx.TimeoutException:
                 return ConnectionStatus(
-                    connected=True,  # Assume connected if just a timeout
+                    connected=False,  # Cannot verify connection on timeout
                     username=get_setting(AppSettingKey.GITHUB_USERNAME),
                     error="Connection timeout"
                 )
             except httpx.RequestError as e:
                 return ConnectionStatus(
-                    connected=True,  # Assume connected if network error
+                    connected=False,  # Cannot verify connection on network error
                     username=get_setting(AppSettingKey.GITHUB_USERNAME),
                     error=f"Network error: {str(e)}"
                 )

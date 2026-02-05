@@ -17,10 +17,9 @@ const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default:
 const Discovery = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.Discovery })));
 const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
 const Trends = lazy(() => import("./pages/Trends").then((m) => ({ default: m.Trends })));
-const Signals = lazy(() => import("./pages/Signals").then((m) => ({ default: m.Signals })));
 const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
 
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "signals" | "settings";
+type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
 /** Loading fallback component */
 function PageLoader({ text }: { text?: string }) {
@@ -43,8 +42,6 @@ function PageContent({ page }: { page: Page }) {
       return <Watchlist />;
     case "trends":
       return <Trends />;
-    case "signals":
-      return <Signals />;
     case "settings":
       return <Settings />;
   }

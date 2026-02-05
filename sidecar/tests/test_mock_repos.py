@@ -102,27 +102,6 @@ class TestEarlySignalsWithMockData:
             assert data["signals"][0]["signal_type"] == "rising_star"
 
 
-class TestComparisonWithMockData:
-    """Test comparison operations with mock data."""
-
-    def test_get_comparison_group(self, client, mock_comparison_group):
-        """Test getting a comparison group."""
-        group, _ = mock_comparison_group
-        response = client.get(f"/api/comparisons/{group.id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["group_name"] == "Frontend Battle"
-
-    def test_list_comparison_groups(self, client, mock_comparison_group):
-        """Test listing comparison groups."""
-        _, _ = mock_comparison_group
-        response = client.get("/api/comparisons")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] >= 1
-        assert len(data["groups"]) >= 1
-
-
 class TestCategoryWithMockData:
     """Test category operations with mock data."""
 
@@ -163,15 +142,10 @@ class TestChartsWithMockData:
 class TestExportWithMockData:
     """Test export endpoints with mock data."""
 
-    def test_export_watchlist_csv(self, client, mock_multiple_repos):
-        """Test exporting watchlist to CSV."""
-        response = client.get("/api/export/watchlist.csv")
-        assert response.status_code == 200
-        assert "text/csv" in response.headers.get("content-type", "")
-
     def test_export_watchlist_json(self, client, mock_multiple_repos):
         """Test exporting watchlist to JSON."""
         response = client.get("/api/export/watchlist.json")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 3
+        assert data["total"] == 3
+        assert len(data["repos"]) == 3

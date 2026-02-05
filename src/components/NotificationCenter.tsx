@@ -9,7 +9,7 @@ import { BellIcon, CheckIcon, XIcon } from "./Icons";
 import { useI18n } from "../i18n";
 import { Notification, useNotifications } from "../hooks/useNotifications";
 
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "signals" | "settings";
+type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
 interface NotificationCenterProps {
   onNavigate: (page: Page) => void;
@@ -233,7 +233,7 @@ function NotificationDropdown({
 
       {showFooter && (
         <div className="notification-footer">
-          <button className="notification-view-all" onClick={() => onNavigate("signals")}>
+          <button className="notification-view-all" onClick={() => onNavigate("dashboard")}>
             {t.notifications.viewAll}
           </button>
         </div>
