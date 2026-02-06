@@ -1,9 +1,13 @@
+/**
+ * 通知已讀狀態的 localStorage 持久化管理。
+ */
+
 import { useRef, useCallback } from "react";
 
 const STORAGE_KEY = "starscope_notifications_read";
 
 /**
- * Load read notification IDs from localStorage.
+ * 從 localStorage 載入已讀通知 ID。
  */
 function loadReadIds(): Set<string> {
   try {
@@ -13,19 +17,19 @@ function loadReadIds(): Set<string> {
       return new Set(parsed);
     }
   } catch (err) {
-    console.warn("Failed to load notification read IDs:", err);
+    console.warn("載入已讀通知 ID 失敗:", err);
   }
   return new Set();
 }
 
 /**
- * Save read notification IDs to localStorage.
+ * 將已讀通知 ID 儲存至 localStorage。
  */
 function saveReadIds(ids: Set<string>): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch (err) {
-    console.warn("Failed to save notification read IDs:", err);
+    console.warn("儲存已讀通知 ID 失敗:", err);
   }
 }
 

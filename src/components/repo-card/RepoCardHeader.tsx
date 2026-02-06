@@ -1,6 +1,5 @@
 /**
- * Repo card header with name, language, and actions.
- * Simplified version without health badge and comparison.
+ * Repo 卡片標題列，含名稱、語言與操作按鈕。
  */
 
 import React from "react";

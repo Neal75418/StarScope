@@ -1,3 +1,5 @@
+"""應用程式設定服務，管理鍵值對設定與 Keyring 整合。"""
+
 import logging
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -13,25 +15,25 @@ SERVICE_NAME = "starscope"
 
 
 def _is_token_key(key: str) -> bool:
-    """Check if the key is for sensitive token."""
+    """檢查 key 是否為敏感 token。"""
     return key == AppSettingKey.GITHUB_TOKEN
 
 
 def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
     """
-    Get a setting value by key.
-    For GITHUB_TOKEN, tries Keyring first, then DB (and migrates if found).
+    依 key 取得設定值。
+    GITHUB_TOKEN 優先從 Keyring 取得，再從 DB 取得（若找到則自動遷移）。
     """
-    # Specific handling for GITHUB_TOKEN using Keyring
+    # GITHUB_TOKEN 使用 Keyring 特殊處理
     if _is_token_key(key):
         try:
             token = keyring.get_password(SERVICE_NAME, key)
             if token:
                 return token
         except Exception as e:
-            logger.warning(f"Failed to access keyring for {key}: {e}")
+            logger.warning(f"[設定] 存取 keyring 失敗 ({key}): {e}")
 
-    # Fallback to DB (or for non-token settings)
+    # 回退至 DB（或非 token 設定）
     close_db = False
     if db is None:
         db = SessionLocal()
@@ -41,20 +43,20 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
         setting = db.query(AppSetting).filter(AppSetting.key == key).first()
         value = setting.value if setting else None
 
-        # Migration Logic: If we found token in DB but not in Keyring, move it!
+        # 遷移邏輯：若在 DB 找到 token 但 Keyring 中沒有，則遷移！
         if value and _is_token_key(key):
             try:
-                logger.info("Migrating GitHub token from Database to Keyring...")
+                logger.info("[設定] 正在將 GitHub token 從資料庫遷移至 Keyring...")
                 keyring.set_password(SERVICE_NAME, key, value)
-                # Verify it saved before deleting
+                # 刪除前先驗證是否已儲存
                 if keyring.get_password(SERVICE_NAME, key) == value:
                     db.delete(setting)
                     db.commit()
-                    logger.info("Token migration successful: Removed from DB.")
+                    logger.info("[設定] Token 遷移成功: 已從資料庫中移除")
                 else:
-                    logger.error("Token migration failed: Keyring verification mismatch.", exc_info=True)
+                    logger.error("[設定] Token 遷移失敗: Keyring 驗證不一致", exc_info=True)
             except Exception as e:
-                logger.error(f"Token migration failed: {e}", exc_info=True)
+                logger.error(f"[設定] Token 遷移失敗: {e}", exc_info=True)
 
         return value
     finally:
@@ -64,22 +66,22 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
 
 def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
     """
-    Set a setting value.
-    For GITHUB_TOKEN, stores in Keyring and deletes from DB.
+    設定一個設定值。
+    GITHUB_TOKEN 儲存至 Keyring 並從 DB 刪除。
     """
-    # Specific handling for GITHUB_TOKEN using Keyring
+    # GITHUB_TOKEN 使用 Keyring 特殊處理
     if _is_token_key(key):
         try:
             keyring.set_password(SERVICE_NAME, key, value)
-            # Ensure we delete any legacy value from DB
+            # 確保刪除 DB 中的舊值
             delete_setting_from_db(key, db)
-            logger.info(f"Setting '{key}' saved to Keyring successfully")
+            logger.info(f"[設定] 設定 '{key}' 已成功儲存至 Keyring")
             return
         except Exception as e:
-            logger.error(f"Failed to save {key} to keyring: {e}", exc_info=True)
+            logger.error(f"[設定] 儲存 {key} 至 keyring 失敗: {e}", exc_info=True)
             raise
 
-    # Normal DB path
+    # 一般 DB 路徑
     close_db = False
     if db is None:
         db = SessionLocal()
@@ -93,10 +95,10 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
             setting = AppSetting(key=key, value=value)
             db.add(setting)
         db.commit()
-        logger.info(f"Setting '{key}' saved successfully")
+        logger.info(f"[設定] 設定 '{key}' 已成功儲存")
     except Exception as e:
         db.rollback()
-        logger.error(f"Failed to save setting '{key}': {e}", exc_info=True)
+        logger.error(f"[設定] 儲存設定 '{key}' 失敗: {e}", exc_info=True)
         raise
     finally:
         if close_db:
@@ -105,30 +107,30 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
 
 def delete_setting(key: str, db: Optional[Session] = None) -> bool:
     """
-    Delete a setting by key.
-    For GITHUB_TOKEN, deletes from Keyring AND DB.
+    依 key 刪除設定。
+    GITHUB_TOKEN 同時從 Keyring 與 DB 刪除。
     """
     deleted = False
 
-    # Delete from Keyring if it's a token
+    # 若為 token 則從 Keyring 刪除
     if _is_token_key(key):
         try:
             keyring.delete_password(SERVICE_NAME, key)
             deleted = True
-            logger.info(f"Setting '{key}' deleted from Keyring")
+            logger.info(f"[設定] 設定 '{key}' 已從 Keyring 刪除")
         except PasswordDeleteError:
-            # Password not found in keyring
+            # Keyring 中找不到密碼
             pass
         except Exception as e:
-            logger.warning(f"Error accessing keyring during delete {key}: {e}")
+            logger.warning(f"[設定] 刪除 {key} 時存取 keyring 失敗: {e}")
 
-    # Delete from DB
+    # 從 DB 刪除
     db_deleted = delete_setting_from_db(key, db)
     return deleted or db_deleted
 
 
 def delete_setting_from_db(key: str, db: Optional[Session] = None) -> bool:
-    """Helper to delete from DB regardless of key access method."""
+    """無論 key 存取方式如何，皆從 DB 刪除的輔助函式。"""
     close_db = False
     if db is None:
         db = SessionLocal()
@@ -139,12 +141,12 @@ def delete_setting_from_db(key: str, db: Optional[Session] = None) -> bool:
         if setting:
             db.delete(setting)
             db.commit()
-            logger.info(f"Setting '{key}' deleted from DB")
+            logger.info(f"[設定] 設定 '{key}' 已從資料庫刪除")
             return True
         return False
     except Exception as e:
         db.rollback()
-        logger.error(f"Failed to delete setting '{key}' from DB: {e}", exc_info=True)
+        logger.error(f"[設定] 從資料庫刪除設定 '{key}' 失敗: {e}", exc_info=True)
         raise
     finally:
         if close_db:

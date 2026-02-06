@@ -1,6 +1,5 @@
 /**
- * Hook for managing repository CRUD operations.
- * Composes state and mutation hooks.
+ * Repository CRUD 操作，組合狀態與 mutation hooks。
  */
 
 import { useCallback, useMemo } from "react";

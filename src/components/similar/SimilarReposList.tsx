@@ -1,5 +1,5 @@
 /**
- * Similar repos list component.
+ * 相似 repo 列表元件。
  */
 
 import { SimilarRepo } from "../../api/client";

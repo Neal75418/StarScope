@@ -1,3 +1,5 @@
+//! StarScope Tauri 應用程式核心邏輯，包含 sidecar 管理、系統匣與視窗控制。
+
 use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -5,8 +7,9 @@ use tauri::{
     App, AppHandle, Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
+use tracing::{info, warn};
 
-/// State to hold the sidecar child process for cleanup on exit
+/// 保存 sidecar 子程序以便退出時清理。
 struct SidecarState {
     child: Mutex<Option<CommandChild>>,
 }
@@ -14,8 +17,7 @@ struct SidecarState {
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSWindow, NSWindowButton, NSWindowCollectionBehavior};
 
-/// Disable the native macOS fullscreen button to work around
-/// a crash in macOS 26 beta during fullscreen transitions.
+/// 停用 macOS 原生全螢幕按鈕，繞過 macOS 26 beta 全螢幕切換時的當機問題。
 /// See: https://github.com/tauri-apps/tauri/issues/11336
 #[cfg(target_os = "macos")]
 fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
@@ -37,7 +39,7 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
     });
 }
 
-/// Start the Python sidecar process with graceful fallback
+/// 啟動 Python sidecar，失敗時優雅降級。
 fn start_sidecar(app: &App) {
     let state = match app.shell().sidecar("starscope-sidecar") {
         Ok(cmd) => match cmd.spawn() {
@@ -45,16 +47,14 @@ fn start_sidecar(app: &App) {
                 child: Mutex::new(Some(child)),
             },
             Err(e) => {
-                eprintln!("Warning: Failed to spawn sidecar: {e}");
-                eprintln!("Please run './start-dev.sh' for development.");
+                warn!("sidecar 啟動失敗: {e}，開發環境請執行 './start-dev.sh'");
                 SidecarState {
                     child: Mutex::new(None),
                 }
             }
         },
         Err(e) => {
-            eprintln!("Warning: Sidecar not found: {e}");
-            eprintln!("Please run './start-dev.sh' for development.");
+            warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
             SidecarState {
                 child: Mutex::new(None),
             }
@@ -63,14 +63,14 @@ fn start_sidecar(app: &App) {
     app.manage(state);
 }
 
-/// Set up the system tray icon and menu
+/// 設定系統匣圖示與選單。
 fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let show_item = MenuItem::with_id(app, "show", "Show StarScope", true, None::<&str>)?;
     let refresh_item = MenuItem::with_id(app, "refresh", "Refresh All", true, None::<&str>)?;
     let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
-    // Safely get the default window icon, returning an error if not configured
+    // 安全取得預設視窗圖示，未設定時回傳錯誤
     let icon = app
         .default_window_icon()
         .ok_or("No default window icon configured in tauri.conf.json")?
@@ -87,7 +87,7 @@ fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Handle tray menu item clicks
+/// 處理系統匣選單點擊事件。
 fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     match event.id.as_ref() {
         "show" => show_main_window(app),
@@ -101,7 +101,7 @@ fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     }
 }
 
-/// Handle tray icon click (show window on left click)
+/// 處理系統匣圖示點擊（左鍵顯示視窗）。
 fn handle_tray_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
     if let TrayIconEvent::Click {
         button: MouseButton::Left,
@@ -113,7 +113,7 @@ fn handle_tray_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
     }
 }
 
-/// Show and focus the main window
+/// 顯示並聚焦主視窗。
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -121,7 +121,7 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
-/// Clean up sidecar process on window close
+/// 視窗關閉時清理 sidecar 程序。
 fn cleanup_sidecar(app: &AppHandle) {
     if let Some(state) = app.try_state::<SidecarState>() {
         if let Ok(mut child_guard) = state.child.lock() {
@@ -139,6 +139,15 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "starscope_lib=info".into()),
+        )
+        .init();
+
+    info!("StarScope 啟動中");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())

@@ -1,3 +1,7 @@
+/**
+ * Backfill 狀態徽章，顯示是否已有回填資料。
+ */
+
 interface BackfillStatusBadgeProps {
   status: {
     has_backfilled_data: boolean;

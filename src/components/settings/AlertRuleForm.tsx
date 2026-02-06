@@ -1,5 +1,5 @@
 /**
- * Alert rule creation/edit form component.
+ * 警示規則建立 / 編輯表單元件。
  */
 
 import { useState, useEffect, FormEvent } from "react";
@@ -37,7 +37,7 @@ export function AlertRuleForm({
   const [rule, setRule] = useState<AlertRuleCreate>(initialData);
   const [applyToAll, setApplyToAll] = useState(initialData.repo_id === undefined);
 
-  // Reset form when initialData changes (for edit mode)
+  // initialData 變更時重設表單（編輯模式用）
   useEffect(() => {
     setRule(initialData);
     setApplyToAll(initialData.repo_id === undefined);
@@ -59,13 +59,13 @@ export function AlertRuleForm({
 
     const success = await onSubmit(ruleData);
     if (success) {
-      // Parent component handles closing the form and resetting state
-      // Form will receive fresh initialData when reopened
+      // 父元件負責關閉表單與重設狀態
+      // 重新開啟時會收到新的 initialData
       onCancel();
     }
   };
 
-  // Get translated signal type name
+  // 取得翻譯後的訊號類型名稱
   const getSignalTypeLabel = (type: string): string => {
     const conditionKey = type as keyof typeof t.settings.alerts.conditions;
     if (t.settings.alerts.conditions[conditionKey]) {

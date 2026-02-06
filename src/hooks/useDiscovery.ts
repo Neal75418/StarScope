@@ -1,20 +1,21 @@
 /**
- * Hook for Discovery page - searching GitHub repositories.
+ * 探索頁面：GitHub Repository 搜尋與篩選。
  */
 
 import { useCallback, useState } from "react";
 import { SearchFilters } from "../api/client";
 import { TrendingPeriod } from "../components/discovery";
 import { useDiscoverySearch } from "./useDiscoverySearch";
+import { GITHUB_SEARCH_PAGE_SIZE } from "../constants/api";
 
 export type SortOption = "stars" | "forks" | "updated";
 
 export interface DiscoveryState {
-  // Filter state
+  // 篩選狀態
   keyword: string;
   period: TrendingPeriod | undefined;
   filters: SearchFilters;
-  // UI state
+  // UI 狀態
   hasSearched: boolean;
 }
 
@@ -30,7 +31,7 @@ export function useDiscovery() {
     useDiscoverySearch();
   const [state, setState] = useState<DiscoveryState>(INITIAL_STATE);
 
-  // Helper to trigger a new search (resets page to 1)
+  // 觸發新搜尋（重設頁碼為 1）
   const search = useCallback(
     (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
       setState({ keyword: kw, period: p, filters: f, hasSearched: true });
@@ -39,7 +40,7 @@ export function useDiscovery() {
     [executeSearch]
   );
 
-  // Setters that trigger search
+  // 設定值同時觸發搜尋
   const setKeyword = useCallback(
     (kw: string) => {
       search(kw, state.period, state.filters);
@@ -63,8 +64,7 @@ export function useDiscovery() {
 
   const loadMore = useCallback(() => {
     if (hasMore && !loading) {
-      // Calculate next page based on current count (assuming 30 per page or similar)
-      const nextPage = Math.floor(repos.length / 30) + 1;
+      const nextPage = Math.floor(repos.length / GITHUB_SEARCH_PAGE_SIZE) + 1;
       void executeSearch(state.keyword, state.period, state.filters, nextPage);
     }
   }, [hasMore, loading, repos.length, state.keyword, state.period, state.filters, executeSearch]);
@@ -74,14 +74,14 @@ export function useDiscovery() {
     resetSearch();
   }, [resetSearch]);
 
-  // Utility actions for specific filter removals
+  // 移除特定篩選條件的便利方法
   const removeKeyword = useCallback(() => setKeyword(""), [setKeyword]);
   const removePeriod = useCallback(() => setPeriod(undefined), [setPeriod]);
   const removeLanguage = useCallback(() => {
     setFilters({ ...state.filters, language: undefined });
   }, [state.filters, setFilters]);
 
-  // Apply a saved filter set
+  // 套用已儲存的篩選條件
   const applySavedFilter = useCallback(
     (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
       search(kw, p, f);

@@ -1,5 +1,5 @@
 /**
- * Hook for managing repository list state.
+ * Repository 列表狀態管理。
  */
 
 import { useState } from "react";

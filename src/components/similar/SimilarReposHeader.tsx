@@ -1,5 +1,5 @@
 /**
- * Similar repos panel header component.
+ * 相似 repo 面板標題列元件。
  */
 
 import { useI18n } from "../../i18n";

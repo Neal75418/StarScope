@@ -67,7 +67,7 @@ class TestFetchAllReposJob:
         """Test fetches repos from watchlist."""
         with patch('services.scheduler.SessionLocal', return_value=test_db), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
-             patch('services.scheduler.calculate_signals') as mock_signals:
+             patch('services.scheduler.update_repo_from_github') as mock_update:
 
             mock_fetch.return_value = {
                 "stargazers_count": 1000,
@@ -81,7 +81,7 @@ class TestFetchAllReposJob:
             await fetch_all_repos_job()
 
             mock_fetch.assert_called_once()
-            mock_signals.assert_called_once()
+            mock_update.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):

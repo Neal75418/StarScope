@@ -1,3 +1,7 @@
+/**
+ * 動畫列表元件，支援子項目交錯進場效果。
+ */
+
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 

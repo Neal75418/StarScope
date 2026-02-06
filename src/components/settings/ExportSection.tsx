@@ -1,9 +1,8 @@
 /**
- * Export data section component.
- * Simplified to only export watchlist as JSON.
+ * 資料匯出區塊元件，匯出 watchlist 為 JSON 或 CSV。
  */
 
-import { getExportWatchlistJsonUrl } from "../../api/client";
+import { getExportWatchlistJsonUrl, getExportWatchlistCsvUrl } from "../../api/client";
 import { useI18n } from "../../i18n";
 
 export function ExportSection() {
@@ -21,6 +20,9 @@ export function ExportSection() {
           <div className="export-actions">
             <a href={getExportWatchlistJsonUrl()} className="btn btn-sm btn-primary" download>
               {t.settings.export.json}
+            </a>
+            <a href={getExportWatchlistCsvUrl()} className="btn btn-sm btn-outline" download>
+              {t.settings.export.csv}
             </a>
           </div>
         </div>

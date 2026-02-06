@@ -1,8 +1,12 @@
+/**
+ * Repository 匯入：解析檔案 / 文字並執行匯入。
+ */
+
 import { useState, useCallback } from "react";
 import { parseRepositories, removeDuplicates } from "../utils/importHelpers";
 import type { ParsedRepo } from "../utils/importHelpers";
 
-// Re-export types for consumers
+// 重新匯出型別供外部使用
 export type { ParsedRepo, ImportResult } from "../utils/importHelpers";
 import { useImportExecutor } from "./useImportExecutor";
 
@@ -26,13 +30,13 @@ export function useImport() {
         const repos = parseRepositories(content, file.name);
 
         if (repos.length === 0) {
-          setParseError("No valid repositories found in file");
+          setParseError("檔案中未找到有效的 Repository");
           return;
         }
 
         setParsedRepos(removeDuplicates(repos));
       } catch (err) {
-        setParseError(err instanceof Error ? err.message : "Failed to parse file");
+        setParseError(err instanceof Error ? err.message : "檔案解析失敗");
       }
     },
     [setResult]
@@ -47,7 +51,7 @@ export function useImport() {
       const repos = parseRepositories(text);
 
       if (repos.length === 0) {
-        setParseError("No valid repositories found");
+        setParseError("未找到有效的 Repository");
         return;
       }
 

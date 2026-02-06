@@ -1,5 +1,5 @@
 /**
- * Hook for GitHub OAuth Device Flow connection management.
+ * GitHub OAuth Device Flow 連線管理。
  */
 
 import { useState, useCallback } from "react";
@@ -89,7 +89,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
       try {
         await openUrl(result.verification_uri);
       } catch (openErr) {
-        console.warn("Failed to open browser automatically:", openErr);
+        console.warn("自動開啟瀏覽器失敗:", openErr);
       }
 
       startPolling(result.device_code, result.interval, result.expires_in);

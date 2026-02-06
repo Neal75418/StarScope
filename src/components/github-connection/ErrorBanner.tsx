@@ -1,5 +1,5 @@
 /**
- * Error banner for GitHub connection errors.
+ * GitHub 連線錯誤橫幅。
  */
 
 import { useI18n } from "../../i18n";

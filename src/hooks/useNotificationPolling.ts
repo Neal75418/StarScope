@@ -1,3 +1,7 @@
+/**
+ * 通知輪詢邏輯，定時取得已觸發警報。
+ */
+
 import { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from "react";
 import { listTriggeredAlerts } from "../api/client";
 import {
@@ -7,7 +11,7 @@ import {
 } from "../utils/notificationHelpers";
 import { Notification } from "./useNotifications";
 
-const POLL_INTERVAL = 60000; // 1 minute
+const POLL_INTERVAL = 60000; // 1 分鐘
 
 async function fetchAndMergeNotifications(
   setNotifications: Dispatch<SetStateAction<Notification[]>>,
@@ -21,7 +25,7 @@ async function fetchAndMergeNotifications(
     setNotifications((prev) => mergeNotifications(newNotifications, prev));
     setError(null);
   } catch (err) {
-    setError(err instanceof Error ? err.message : "Failed to fetch notifications");
+    setError(err instanceof Error ? err.message : "通知取得失敗");
   } finally {
     setIsLoading(false);
   }
@@ -34,13 +38,13 @@ export function useNotificationPolling(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Use a ref so the polling interval always calls the latest logic
-  // without needing to be torn down and recreated.
+  // 使用 ref 讓輪詢 interval 總是呼叫最新邏輯，
+  // 無需拆除重建。
   const fetchRef = useRef<() => Promise<void>>(() => Promise.resolve());
   fetchRef.current = () =>
     fetchAndMergeNotifications(setNotifications, readIdsRef.current, setError, setIsLoading);
 
-  // Set up polling with a stable interval that never re-creates
+  // 建立穩定的輪詢 interval，不會重新建立
   useEffect(() => {
     let cancelled = false;
 
@@ -60,7 +64,7 @@ export function useNotificationPolling(
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, []); // Empty deps — interval is created once and uses ref for latest logic
+  }, []); // 空依賴 — interval 僅建立一次，透過 ref 取得最新邏輯
 
   const refresh = useCallback(async () => {
     setIsLoading(true);

@@ -1,3 +1,7 @@
+/**
+ * 匯入流程執行器，協調解析與批次匯入。
+ */
+
 import { ParsedRepo } from "../utils/importHelpers";
 import { executeImportFlow } from "../utils/importExecutorHelpers";
 import { useImportState } from "./useImportState";
@@ -11,7 +15,7 @@ interface UseImportExecutorOptions {
 export function useImportExecutor({ parsedRepos, setParsedRepos }: UseImportExecutorOptions) {
   const { isImporting, result, setResult, reset, cancel, complete } = useImportState();
 
-  // Helper to update a specific repo by fullName
+  // 依 fullName 更新特定 repo 狀態
   const updateRepo = useCallback(
     (fullName: string, updates: Partial<ParsedRepo>) => {
       setParsedRepos((prev) =>
@@ -26,7 +30,7 @@ export function useImportExecutor({ parsedRepos, setParsedRepos }: UseImportExec
 
     const controller = reset();
 
-    // Orchestrate the full flow
+    // 執行完整匯入流程
     const outcome = await executeImportFlow(parsedRepos, controller, updateRepo);
 
     if (!controller.signal.aborted) {

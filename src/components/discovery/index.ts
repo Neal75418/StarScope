@@ -1,5 +1,5 @@
 /**
- * Discovery components barrel export.
+ * Discovery 元件匯出。
  */
 
 export { DiscoverySearchBar } from "./DiscoverySearchBar";

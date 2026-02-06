@@ -1,6 +1,5 @@
 /**
- * Toast notification component.
- * Displays temporary success, error, or info messages.
+ * Toast 通知元件，顯示暫時性的成功、錯誤或資訊訊息。
  */
 
 import { useEffect } from "react";
@@ -36,10 +35,10 @@ export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
   };
 
   return (
-    <div className={`toast toast-${toast.type}`}>
+    <div className={`toast toast-${toast.type}`} role={toast.type === "error" ? "alert" : undefined}>
       <span className="toast-icon">{icons[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
-      <button className="toast-dismiss" onClick={() => onDismiss(toast.id)}>
+      <button className="toast-dismiss" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">
         &times;
       </button>
     </div>
@@ -55,7 +54,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" role="status" aria-live="polite">
       {toasts.map((toast) => (
         <Toast key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
@@ -63,7 +62,7 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   );
 }
 
-// Hook for managing toasts
+// 管理 toast 的 hook
 import { useState, useCallback, useMemo } from "react";
 
 export function useToast() {
@@ -87,7 +86,7 @@ export function useToast() {
 
   const warning = useCallback((message: string) => addToast("warning", message), [addToast]);
 
-  // Memoize return object to prevent infinite loops in consumers
+  // Memoize 回傳物件以避免消費端無限迴圈
   return useMemo(
     () => ({
       toasts,

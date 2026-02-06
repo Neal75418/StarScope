@@ -1,3 +1,7 @@
+/**
+ * Backfill 操作按鈕元件。
+ */
+
 interface BackfillControlsProps {
   handleBackfill: () => void;
   loadStatus: () => void;
@@ -33,7 +37,7 @@ export function BackfillControls({
         {backfilling ? t.starHistory.backfilling : t.starHistory.backfill}
       </button>
 
-      {/* Retry button when offline */}
+      {/* 離線時的重試按鈕 */}
       {isOffline && (
         <button
           className="btn btn-ghost btn-sm backfill-retry-btn"

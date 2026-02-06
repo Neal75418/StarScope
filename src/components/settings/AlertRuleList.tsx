@@ -1,5 +1,5 @@
 /**
- * Alert rule list component.
+ * 警示規則列表元件。
  */
 
 import { memo } from "react";
@@ -28,7 +28,7 @@ const AlertRuleCard = memo(function AlertRuleCard({
 }: AlertRuleCardProps) {
   const { t } = useI18n();
 
-  // Get translated condition name
+  // 取得翻譯後的條件名稱
   const getConditionLabel = (signalType: string): string => {
     const conditionKey = signalType as keyof typeof t.settings.alerts.conditions;
     if (t.settings.alerts.conditions[conditionKey]) {

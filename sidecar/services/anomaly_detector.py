@@ -1,6 +1,6 @@
 """
-Anomaly detection service for identifying early signals.
-Detects rising stars, sudden spikes, breakouts, and other anomalies.
+異常偵測服務，用於識別早期訊號。
+偵測 rising star、突然暴漲、breakout 及其他異常。
 """
 
 import logging
@@ -19,7 +19,7 @@ from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
-# Detection thresholds
+# 偵測門檻
 RISING_STAR_MAX_STARS = 5000  # Max stars to be considered "rising"
 RISING_STAR_MIN_VELOCITY = 10  # Min velocity to be notable
 RISING_STAR_VELOCITY_RATIO = 0.01  # velocity/stars ratio threshold
@@ -33,15 +33,15 @@ VIRAL_HN_MIN_SCORE = 100  # Minimum HN score to trigger
 
 
 class AnomalyDetector:
-    """Service for detecting early signals and anomalies."""
+    """偵測早期訊號與異常的服務。"""
 
     @staticmethod
     def detect_rising_star(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
-        Detect rising star pattern.
-        Criteria: stars < 5000 AND (velocity > 10 OR velocity/stars > 0.01)
+        偵測 rising star 模式。
+        條件：stars < 5000 且（velocity > 10 或 velocity/stars > 0.01）
         """
-        # Get latest snapshot
+        # 取得最新快照
         snapshot = db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == repo.id
         ).order_by(RepoSnapshot.snapshot_date.desc()).first()
@@ -51,11 +51,11 @@ class AnomalyDetector:
 
         stars = snapshot.stars
 
-        # Only for repos under threshold
+        # 僅處理門檻以下的 repo
         if stars >= RISING_STAR_MAX_STARS:
             return None
 
-        # Get velocity signal
+        # 取得 velocity 訊號
         velocity_signal = db.query(Signal).filter(
             Signal.repo_id == repo.id,
             Signal.signal_type == SignalType.VELOCITY
@@ -66,14 +66,14 @@ class AnomalyDetector:
 
         velocity = velocity_signal.value
 
-        # Check conditions
+        # 檢查條件
         velocity_ratio = velocity / stars if stars > 0 else 0
         is_rising = velocity >= RISING_STAR_MIN_VELOCITY or velocity_ratio >= RISING_STAR_VELOCITY_RATIO
 
         if not is_rising:
             return None
 
-        # Determine severity
+        # 決定嚴重等級
         if velocity >= 50 or velocity_ratio >= 0.05:
             severity = EarlySignalSeverity.HIGH
         elif velocity >= 20 or velocity_ratio >= 0.02:
@@ -81,13 +81,16 @@ class AnomalyDetector:
         else:
             severity = EarlySignalSeverity.LOW
 
-        # Calculate percentile (simplified - based on velocity)
-        all_velocities = [
-            s.value for s in db.query(Signal).filter(
-                Signal.signal_type == SignalType.VELOCITY
-            ).all()
-        ]
-        percentile = (sum(1 for v in all_velocities if v < velocity) / len(all_velocities) * 100) if all_velocities else 0
+        # 用 SQL COUNT 計算百分位數，避免全表載入
+        from sqlalchemy import func as sa_func
+        total = db.query(sa_func.count(Signal.id)).filter(
+            Signal.signal_type == SignalType.VELOCITY
+        ).scalar() or 0
+        below = db.query(sa_func.count(Signal.id)).filter(
+            Signal.signal_type == SignalType.VELOCITY,
+            Signal.value < velocity
+        ).scalar() or 0
+        percentile = (below / total * 100) if total > 0 else 0
 
         return EarlySignal(
             repo_id=repo.id,
@@ -104,10 +107,10 @@ class AnomalyDetector:
     @staticmethod
     def detect_sudden_spike(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
-        Detect sudden spike pattern.
-        Criteria: today_delta > 3x avg_daily AND absolute > 100
+        偵測突然暴漲模式。
+        條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
         """
-        # Get recent snapshots
+        # 取得近期快照
         snapshots = db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == repo.id
         ).order_by(RepoSnapshot.snapshot_date.desc()).limit(30).all()
@@ -115,7 +118,7 @@ class AnomalyDetector:
         if len(snapshots) < 2:
             return None
 
-        # Calculate daily deltas
+        # 計算每日差值
         deltas = []
         for i in range(len(snapshots) - 1):
             delta = snapshots[i].stars - snapshots[i + 1].stars
@@ -127,7 +130,7 @@ class AnomalyDetector:
         latest_delta = deltas[0] if deltas else 0
         avg_delta = sum(deltas[1:]) / len(deltas[1:]) if len(deltas) > 1 else 0
 
-        # Check spike conditions
+        # 檢查暴漲條件
         is_spike = (
             latest_delta > avg_delta * SUDDEN_SPIKE_MULTIPLIER and
             latest_delta >= SUDDEN_SPIKE_MIN_ABSOLUTE
@@ -158,10 +161,10 @@ class AnomalyDetector:
     @staticmethod
     def detect_breakout(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
-        Detect breakout pattern.
-        Criteria: prev_week velocity <= 0 AND curr_week velocity > 2
+        偵測 breakout 模式。
+        條件：上週 velocity <= 0 且本週 velocity > 2
         """
-        # Get weekly velocity data
+        # 取得每週 velocity 資料
         delta_7d = db.query(Signal).filter(
             Signal.repo_id == repo.id,
             Signal.signal_type == SignalType.STARS_DELTA_7D
@@ -177,10 +180,10 @@ class AnomalyDetector:
 
         current_weekly_velocity = delta_7d.value / 7 if delta_7d.value else 0
 
-        # Estimate prev week velocity from 30d delta
+        # 從 30 天 delta 估算上週 velocity
         prev_weeks_velocity = (delta_30d.value - delta_7d.value) / 23 if delta_30d.value else 0
 
-        # Check breakout conditions
+        # 檢查 breakout 條件
         is_breakout = (
             prev_weeks_velocity <= 0 and
             current_weekly_velocity >= BREAKOUT_VELOCITY_THRESHOLD
@@ -189,7 +192,7 @@ class AnomalyDetector:
         if not is_breakout:
             return None
 
-        # Get star count
+        # 取得 star 數
         snapshot = db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == repo.id
         ).order_by(RepoSnapshot.snapshot_date.desc()).first()
@@ -216,8 +219,8 @@ class AnomalyDetector:
     @staticmethod
     def detect_viral_hn(repo: "Repo", db: Session) -> Optional["EarlySignal"]:
         """
-        Detect viral Hacker News signal.
-        Criteria: HN post with score >= 100 in last 48 hours
+        偵測 Hacker News 爆紅訊號。
+        條件：48 小時內 HN 貼文分數 >= 100
         """
         cutoff = utc_now() - timedelta(hours=48)
 
@@ -257,12 +260,12 @@ class AnomalyDetector:
     @staticmethod
     def detect_all_for_repo(repo: "Repo", db: Session) -> List["EarlySignal"]:
         """
-        Run all detection algorithms for a single repo.
-        Returns list of detected signals (not yet saved).
+        對單一 repo 執行所有偵測演算法。
+        回傳偵測到的訊號列表（尚未儲存）。
         """
         signals: List["EarlySignal"] = []
 
-        # Run each detector (static methods)
+        # 執行各偵測器（static methods）
         detectors = [
             AnomalyDetector.detect_rising_star,
             AnomalyDetector.detect_sudden_spike,
@@ -274,7 +277,7 @@ class AnomalyDetector:
             try:
                 signal = detector(repo, db)
                 if signal:
-                    # Check if similar signal already exists
+                    # 檢查是否已存在相似訊號
                     existing = db.query(EarlySignal).filter(
                         EarlySignal.repo_id == repo.id,
                         EarlySignal.signal_type == signal.signal_type,
@@ -285,14 +288,14 @@ class AnomalyDetector:
                     if not existing:
                         signals.append(signal)
             except Exception as e:
-                logger.error(f"Error in detector for {repo.full_name}: {e}", exc_info=True)
+                logger.error(f"[異常偵測] {repo.full_name} 偵測器錯誤: {e}", exc_info=True)
 
         return signals
 
     def run_detection(self, db: Session) -> Dict[str, Any]:
         """
-        Run anomaly detection for all repos.
-        Returns summary of detected signals.
+        對所有 repo 執行異常偵測。
+        回傳偵測到的訊號摘要。
         """
         repos = db.query(Repo).all()
         total_signals = 0
@@ -306,11 +309,11 @@ class AnomalyDetector:
                     total_signals += 1
                     signals_by_type[signal.signal_type] = signals_by_type.get(signal.signal_type, 0) + 1
             except Exception as e:
-                logger.error(f"Failed to detect signals for {repo.full_name}: {e}", exc_info=True)
+                logger.error(f"[異常偵測] {repo.full_name} 訊號偵測失敗: {e}", exc_info=True)
 
         db.commit()
 
-        logger.info(f"Anomaly detection complete: {total_signals} signals detected")
+        logger.info(f"[異常偵測] 異常偵測完成: 偵測到 {total_signals} 個訊號")
 
         return {
             "repos_scanned": len(repos),
@@ -319,23 +322,23 @@ class AnomalyDetector:
         }
 
 
-# Module-level singleton
+# 模組層級 singleton
 _detector: Optional[AnomalyDetector] = None
 _detector_lock = threading.Lock()
 
 
 def get_anomaly_detector() -> AnomalyDetector:
-    """Get the default anomaly detector instance."""
+    """取得預設的異常偵測器實例。"""
     global _detector
     if _detector is None:
         with _detector_lock:
             if _detector is None:
                 _detector = AnomalyDetector()
-                logger.info("Anomaly detector initialized")
+                logger.info("[異常偵測] 異常偵測器已初始化")
     return _detector
 
 
 def run_detection(db: Session) -> Dict[str, Any]:
-    """Convenience function to run detection."""
+    """執行偵測的便利函式。"""
     detector = get_anomaly_detector()
     return detector.run_detection(db)

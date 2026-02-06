@@ -1,10 +1,11 @@
 /**
- * Hook for user code clipboard and URL actions.
+ * 使用者代碼的剪貼簿與 URL 操作。
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { DeviceCodeResponse } from "../api/client";
+import { CLIPBOARD_FEEDBACK_MS } from "../constants/api";
 
 interface UseUserCodeActionsResult {
   copied: boolean;
@@ -18,7 +19,7 @@ export function useUserCodeActions(
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Cleanup timeout on unmount to prevent memory leak
+  // 元件卸載時清除 timeout 防止記憶體洩漏
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -31,11 +32,11 @@ export function useUserCodeActions(
     if (deviceCode?.user_code) {
       void navigator.clipboard.writeText(deviceCode.user_code);
       setCopied(true);
-      // Clear previous timeout if exists
+      // 清除先前的 timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
+      timeoutRef.current = setTimeout(() => setCopied(false), CLIPBOARD_FEEDBACK_MS);
     }
   }, [deviceCode]);
 

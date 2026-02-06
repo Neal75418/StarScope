@@ -1,5 +1,5 @@
 """
-Trends API endpoints for viewing repos sorted by various metrics.
+趨勢 API 端點，依各種指標排序檢視 repo。
 """
 
 from typing import List, Optional, cast
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/trends", tags=["trends"])
 
 
 class SortBy(str, Enum):
-    """Available sort options for trends."""
+    """趨勢的可用排序選項。"""
     VELOCITY = "velocity"
     STARS_DELTA_7D = "stars_delta_7d"
     STARS_DELTA_30D = "stars_delta_30d"
@@ -27,7 +27,7 @@ class SortBy(str, Enum):
 
 
 class TrendingRepo(BaseModel):
-    """A repo with its trending metrics."""
+    """含趨勢指標的 repo。"""
     id: int
     owner: str
     name: str
@@ -48,14 +48,14 @@ class TrendingRepo(BaseModel):
 
 
 class TrendsResponse(BaseModel):
-    """Response for trends list."""
+    """趨勢列表的回應。"""
     repos: List[TrendingRepo]
     total: int
     sort_by: str
 
 
 def _get_signal_type_for_sort(sort_by: SortBy) -> str:
-    """Map SortBy enum to SignalType."""
+    """將 SortBy enum 映射為 SignalType。"""
     return {
         SortBy.VELOCITY: SignalType.VELOCITY,
         SortBy.STARS_DELTA_7D: SignalType.STARS_DELTA_7D,
@@ -68,33 +68,52 @@ def _get_signal_type_for_sort(sort_by: SortBy) -> str:
 async def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
+    language: Optional[str] = Query(None, description="Filter by programming language"),
+    min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),
     db: Session = Depends(get_db)
 ):
     """
-    Get repos sorted by trending metrics.
+    依趨勢指標排序取得 repo。
 
-    Available sort options:
-    - velocity: Stars per day (7-day average)
-    - stars_delta_7d: Stars gained in 7 days
-    - stars_delta_30d: Stars gained in 30 days
-    - acceleration: Rate of change in velocity
+    可用排序選項：
+    - velocity: 每日 star 數（7 天平均）
+    - stars_delta_7d: 7 天內增加的 star 數
+    - stars_delta_30d: 30 天內增加的 star 數
+    - acceleration: velocity 的變化率
     """
-    # Map sort_by to signal type
+    # 將 sort_by 映射為訊號類型
     sort_signal_type = _get_signal_type_for_sort(sort_by)
 
-    # Create alias for sort signal to enable LEFT JOIN
+    # 為排序訊號建立別名以啟用 LEFT JOIN
     sort_signal = aliased(Signal)
     sort_value = cast(ColumnElement, cast(object, sort_signal.value)).label("sort_value")
 
-    # Query repos with sort signal, sorted and limited in SQL
-    # This avoids loading ALL repos into memory
-    results = (
+    # 在 SQL 中查詢 repo 並排序、限制
+    # 避免將所有 repo 載入記憶體
+    query = (
         db.query(Repo, sort_value)
         .outerjoin(
             sort_signal,
             (Repo.id == sort_signal.repo_id) &
             (sort_signal.signal_type == sort_signal_type)
         )
+    )
+
+    # 語言篩選
+    if language:
+        query = query.filter(func.lower(Repo.language) == language.lower())
+
+    # 最低 star 數篩選（透過 stars 訊號）
+    if min_stars is not None:
+        stars_signal = aliased(Signal)
+        query = query.outerjoin(
+            stars_signal,
+            (Repo.id == stars_signal.repo_id) &
+            (stars_signal.signal_type == SignalType.STARS)
+        ).filter(func.coalesce(stars_signal.value, 0) >= min_stars)
+
+    results = (
+        query
         .order_by(desc(func.coalesce(sort_signal.value, 0)))
         .limit(limit)
         .all()
@@ -103,14 +122,14 @@ async def get_trends(
     if not results:
         return TrendsResponse(repos=[], total=0, sort_by=sort_by.value)
 
-    # Get repo IDs for batch fetching remaining data
+    # 取得 repo ID 以批次抓取剩餘資料
     repo_ids = [repo.id for repo, _ in results]
 
-    # Batch fetch signals and stars for only the limited result set
+    # 僅為限制後的結果集批次抓取訊號與 star 數
     signal_map = build_signal_map(db, repo_ids)
     stars_map = build_stars_map(db, repo_ids)
 
-    # Build response with ranks
+    # 建立含排名的回應
     trending_repos = []
     for rank, (repo, _) in enumerate(results, start=1):
         signals = signal_map.get(int(repo.id), {})
@@ -145,7 +164,7 @@ async def get_top_velocity(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
 ):
-    """Get top repos by velocity (stars per day)."""
+    """依 velocity（每日 star 數）取得排名前列的 repo。"""
     response = await get_trends(sort_by=SortBy.VELOCITY, limit=limit, db=db)
     return response.repos
 
@@ -155,7 +174,7 @@ async def get_top_delta_7d(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
 ):
-    """Get top repos by 7-day star delta."""
+    """依 7 天 star 增量取得排名前列的 repo。"""
     response = await get_trends(sort_by=SortBy.STARS_DELTA_7D, limit=limit, db=db)
     return response.repos
 
@@ -165,6 +184,6 @@ async def get_top_acceleration(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
 ):
-    """Get top repos by acceleration (momentum change)."""
+    """依 acceleration（動量變化）取得排名前列的 repo。"""
     response = await get_trends(sort_by=SortBy.ACCELERATION, limit=limit, db=db)
     return response.repos

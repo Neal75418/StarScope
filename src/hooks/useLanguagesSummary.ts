@@ -1,5 +1,5 @@
 /**
- * Hook for fetching languages summary.
+ * 程式語言摘要的取得。
  */
 
 import { useMemo } from "react";
@@ -10,14 +10,14 @@ import { useGenericSummary, UseGenericSummaryResult } from "./useGenericSummary"
 export function useLanguagesSummary(repoId: number): UseGenericSummaryResult<LanguagesSummary> {
   const { t } = useI18n();
 
-  // Memoize config to prevent unnecessary re-renders
+  // 記憶化 config 避免不必要的 re-render
   const config = useMemo(
     () => ({
       repoId,
-      failedToLoadMessage: t.languages?.failedToLoad ?? "Failed to load",
+      failedToLoadMessage: t.languages?.failedToLoad ?? "載入失敗",
       getSummary: getLanguagesSummary,
       triggerFetch: fetchLanguages,
-      logPrefix: "Languages summary",
+      logPrefix: "程式語言摘要",
     }),
     [repoId, t.languages?.failedToLoad]
   );

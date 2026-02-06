@@ -1,19 +1,36 @@
 /**
- * Trends page - shows repos sorted by various metrics
+ * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
  */
 
 import { TrendArrow } from "../components/TrendArrow";
+import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
 import { formatNumber, formatDelta } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
+import { addRepo } from "../api/client";
+import { getRepos } from "../api/client";
 
 const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
 
-import React from "react";
+const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
+
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-function TrendRow({ repo }: { repo: TrendingRepo }) {
+const TrendRow = React.memo(function TrendRow({
+  repo,
+  isInWatchlist,
+  isAdding,
+  onAddToWatchlist,
+  t,
+}: {
+  repo: TrendingRepo;
+  isInWatchlist: boolean;
+  isAdding: boolean;
+  onAddToWatchlist: (repo: TrendingRepo) => void;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     await openUrl(repo.url);
@@ -37,16 +54,119 @@ function TrendRow({ repo }: { repo: TrendingRepo }) {
       <td className="trend-col">
         <TrendArrow trend={repo.trend} />
       </td>
+      <td className="action-col">
+        {isInWatchlist ? (
+          <span className="trends-in-watchlist">{t.trends.filters.inWatchlist}</span>
+        ) : (
+          <button
+            className="btn btn-sm btn-outline trends-add-btn"
+            onClick={() => onAddToWatchlist(repo)}
+            disabled={isAdding}
+          >
+            {t.trends.filters.addToWatchlist}
+          </button>
+        )}
+      </td>
     </tr>
   );
-}
+});
 
 export function Trends() {
   const { t } = useI18n();
-  const { trends, loading, error, sortBy, setSortBy, retry } = useTrends();
+  const {
+    trends,
+    loading,
+    error,
+    sortBy,
+    setSortBy,
+    languageFilter,
+    setLanguageFilter,
+    minStarsFilter,
+    setMinStarsFilter,
+    availableLanguages,
+    retry,
+  } = useTrends();
+
+  // Watchlist 狀態
+  const [watchlistNames, setWatchlistNames] = useState<Set<string>>(new Set());
+  const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
+  const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
+
+  useEffect(() => {
+    getRepos()
+      .then((res) => {
+        const names = new Set(res.repos.map((r) => r.full_name.toLowerCase()));
+        setWatchlistNames(names);
+      })
+      .catch(() => {});
+  }, []);
+
+  const allWatchlistNames = useMemo(() => {
+    const merged = new Set(watchlistNames);
+    locallyAdded.forEach((n) => merged.add(n));
+    return merged;
+  }, [watchlistNames, locallyAdded]);
+
+  const handleAddToWatchlist = useCallback(async (repo: TrendingRepo) => {
+    setAddingRepoId(repo.id);
+    try {
+      await addRepo({ owner: repo.owner, name: repo.name });
+      setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
+    } catch {
+      // 靜默處理
+    } finally {
+      setAddingRepoId(null);
+    }
+  }, []);
 
   if (loading) {
-    return <div className="loading">{t.trends.loading}</div>;
+    return (
+      <AnimatedPage className="page">
+        <header className="page-header">
+          <h1 data-testid="page-title">{t.trends.title}</h1>
+          <p className="subtitle">{t.trends.subtitle}</p>
+        </header>
+
+        <div className="toolbar">
+          <div className="sort-tabs">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} width={80} height={32} variant="rounded" />
+            ))}
+          </div>
+        </div>
+
+        <div className="trends-table">
+          <table>
+            <thead>
+              <tr>
+                <th className="rank-col">{t.trends.columns.rank}</th>
+                <th className="repo-col">{t.trends.columns.repo}</th>
+                <th className="stars-col">{t.trends.columns.stars}</th>
+                <th className="delta-col">{t.trends.columns.delta7d}</th>
+                <th className="delta-col">{t.trends.columns.delta30d}</th>
+                <th className="velocity-col">{t.trends.columns.velocity}</th>
+                <th className="trend-col">{t.repo.trend}</th>
+                <th className="action-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 10 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="rank-col"><Skeleton width={24} height={24} variant="circular" /></td>
+                  <td className="repo-col"><Skeleton width="70%" height={16} /></td>
+                  <td className="stars-col"><Skeleton width={40} height={16} /></td>
+                  <td className="delta-col"><Skeleton width={40} height={16} /></td>
+                  <td className="delta-col"><Skeleton width={40} height={16} /></td>
+                  <td className="velocity-col"><Skeleton width={30} height={16} /></td>
+                  <td className="trend-col"><Skeleton width={20} height={16} /></td>
+                  <td className="action-col"><Skeleton width={60} height={24} variant="rounded" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </AnimatedPage>
+    );
   }
 
   if (error) {
@@ -76,17 +196,45 @@ export function Trends() {
       </header>
 
       <div className="toolbar">
-        <div className="sort-tabs" data-testid="sort-tabs">
+        <div className="sort-tabs" data-testid="sort-tabs" role="tablist" aria-label="Sort options">
           {SORT_KEYS.map((key) => (
             <button
               key={key}
               data-testid={`sort-${key}`}
               className={`sort-tab ${sortBy === key ? "active" : ""}`}
               onClick={() => setSortBy(key)}
+              role="tab"
+              aria-selected={sortBy === key}
             >
               {sortLabels[key]}
             </button>
           ))}
+        </div>
+
+        <div className="trends-filters">
+          <select
+            className="trends-filter-select"
+            value={languageFilter}
+            onChange={(e) => setLanguageFilter(e.target.value)}
+            aria-label="Filter by language"
+          >
+            <option value="">{t.trends.filters.allLanguages}</option>
+            {availableLanguages.map((lang) => (
+              <option key={lang} value={lang}>{lang}</option>
+            ))}
+          </select>
+
+          <select
+            className="trends-filter-select"
+            value={minStarsFilter ?? ""}
+            onChange={(e) => setMinStarsFilter(e.target.value ? Number(e.target.value) : null)}
+            aria-label="Minimum stars"
+          >
+            <option value="">{t.trends.filters.minStars}</option>
+            {MIN_STARS_OPTIONS.map((n) => (
+              <option key={n} value={n}>≥ {formatNumber(n)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -106,11 +254,19 @@ export function Trends() {
                 <th className="delta-col">{t.trends.columns.delta30d}</th>
                 <th className="velocity-col">{t.trends.columns.velocity}</th>
                 <th className="trend-col">{t.repo.trend}</th>
+                <th className="action-col"></th>
               </tr>
             </thead>
             <tbody>
               {trends.map((repo) => (
-                <TrendRow key={repo.id} repo={repo} />
+                <TrendRow
+                  key={repo.id}
+                  repo={repo}
+                  isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
+                  isAdding={addingRepoId === repo.id}
+                  onAddToWatchlist={handleAddToWatchlist}
+                  t={t}
+                />
               ))}
             </tbody>
           </table>

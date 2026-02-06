@@ -21,6 +21,8 @@ export default defineConfig(async () => ({
           recharts: ["recharts"],
           // Separate React runtime
           "react-vendor": ["react", "react-dom"],
+          // Separate animation library (~45KB gzipped)
+          "framer-motion": ["framer-motion"],
         },
       },
     },

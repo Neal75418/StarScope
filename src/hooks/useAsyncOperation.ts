@@ -1,3 +1,7 @@
+/**
+ * 通用非同步操作封裝，含 loading 與 toast 通知。
+ */
+
 import { useState, useCallback } from "react";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";

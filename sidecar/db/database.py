@@ -1,22 +1,23 @@
-"""
-SQLite database connection and session management.
-"""
+"""SQLite 資料庫連線與 session 管理。"""
 
+import logging
 import os
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
+logger = logging.getLogger(__name__)
+
 
 def get_app_data_dir() -> Path:
     """
-    Get OS-standard app data directory, overridable via environment variables.
+    取得 OS 標準的應用程式資料目錄，可透過環境變數覆蓋。
 
-    Priority:
-    1. STARSCOPE_DATA_DIR - explicit override for testing/custom paths
-    2. TAURI_APP_DATA_DIR - injected by Tauri for production
-    3. Fallback to ~/.starscope for development
+    優先順序:
+    1. STARSCOPE_DATA_DIR — 明確覆蓋（測試或自訂路徑）
+    2. TAURI_APP_DATA_DIR — Tauri 正式環境注入
+    3. 回退至 ~/.starscope（開發環境）
     """
     if env_path := os.environ.get("STARSCOPE_DATA_DIR"):
         return Path(env_path)
@@ -24,49 +25,49 @@ def get_app_data_dir() -> Path:
     if tauri_path := os.environ.get("TAURI_APP_DATA_DIR"):
         return Path(tauri_path)
 
-    # Fallback for development
+    # 開發環境回退
     return Path.home() / ".starscope"
 
 
-# Database file location
+# 資料庫檔案位置
 APP_DATA_DIR = get_app_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = APP_DATA_DIR / "starscope.db"
 
-# SQLite connection URL
+# SQLite 連線 URL
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
-# Create engine with SQLite-specific settings
+# 建立 engine（含 SQLite 專用設定）
 engine = create_engine(
     DATABASE_URL,
     connect_args={
-        "check_same_thread": False,  # Required for SQLite with FastAPI
-        "timeout": 30,  # Wait up to 30s for locks (default: 5s)
+        "check_same_thread": False,  # SQLite 搭配 FastAPI 必須設定
+        "timeout": 30,  # 鎖等待最多 30 秒（預設 5 秒）
     },
-    pool_pre_ping=True,  # Verify connections before use
-    echo=False,  # Set to True for SQL debugging
+    pool_pre_ping=True,  # 使用前驗證連線
+    echo=False,  # 設為 True 可除錯 SQL
 )
 
 
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, _connection_record):
     """
-    Enable WAL mode for better concurrent read/write performance.
-    WAL allows readers and writers to operate simultaneously without blocking.
+    啟用 WAL 模式以提升併發讀寫效能。
+    WAL 允許讀取與寫入同時進行而不互相阻塞。
     """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
 
 
-# Session factory
+# Session 工廠
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db():
     """
-    Dependency for FastAPI routes.
-    Yields a database session and ensures it's closed after use.
+    FastAPI 路由的依賴注入。
+    產出資料庫 session 並確保使用後關閉。
     """
     db = SessionLocal()
     try:
@@ -77,9 +78,9 @@ def get_db():
 
 def init_db():
     """
-    Initialize the database by creating all tables.
-    Should be called once when the application starts.
+    建立所有資料表以初始化資料庫。
+    應在應用程式啟動時呼叫一次。
     """
     from .models import Base
     Base.metadata.create_all(bind=engine)
-    print(f"Database initialized at: {DATABASE_PATH}")
+    logger.info(f"[資料庫] 初始化完成: {DATABASE_PATH}")

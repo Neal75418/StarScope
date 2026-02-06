@@ -1,5 +1,5 @@
 /**
- * Hook for managing polling interval and timeout refs.
+ * 輪詢 interval 與 timeout ref 管理。
  */
 
 import { useRef, useEffect, useCallback, RefObject } from "react";
@@ -34,7 +34,7 @@ export function usePollingRefs(): UsePollingRefsResult {
     currentIntervalRef.current = DEFAULT_INTERVAL;
   }, []);
 
-  // Clean up on unmount
+  // 元件卸載時清除 timer
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {

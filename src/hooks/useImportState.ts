@@ -1,3 +1,7 @@
+/**
+ * 匯入流程的狀態管理（進行中、結果、取消）。
+ */
+
 import { useState, useRef } from "react";
 import { ImportResult } from "../utils/importHelpers";
 

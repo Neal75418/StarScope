@@ -1,22 +1,18 @@
 import type { SVGProps } from "react";
 
 /**
- * SVG Icon components for StarScope
- * GitHub-style icons using Octicons patterns
- *
- * Accessibility:
- * - Decorative icons: aria-hidden="true" (default)
- * - Functional icons: provide ariaLabel prop
+ * StarScope SVG icon 元件，採用 GitHub Octicons 風格。
+ * 裝飾性 icon 預設 aria-hidden="true"；功能性 icon 須傳入 ariaLabel。
  */
 
 interface IconProps {
   size?: number;
   className?: string;
-  /** Accessible label for functional icons. If omitted, icon is treated as decorative. */
+  /** 功能性 icon 的無障礙標籤。未提供時視為裝飾性 icon。 */
   ariaLabel?: string;
 }
 
-/** Common SVG props with accessibility support */
+/** 含無障礙支援的通用 SVG props */
 function getSvgProps(
   size: number,
   className?: string,
@@ -36,7 +32,7 @@ function getSvgProps(
   return { ...baseProps, "aria-hidden": true };
 }
 
-// Star icon (filled)
+// 星星 icon（實心）
 export function StarIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -45,7 +41,7 @@ export function StarIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Star icon (outline)
+// 星星 icon（空心）
 export function StarOutlineIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -54,7 +50,7 @@ export function StarOutlineIcon({ size = 16, className, ariaLabel }: IconProps) 
   );
 }
 
-// Gear/Settings icon
+// 齒輪 / 設定 icon
 export function GearIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -72,7 +68,7 @@ export function RepoIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Graph/Trending icon
+// 圖表 / 趨勢 icon
 export function GraphIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -81,7 +77,7 @@ export function GraphIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Pulse/Signal icon
+// 脈衝 / 訊號 icon
 export function PulseIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -90,7 +86,7 @@ export function PulseIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Git compare icon
+// Git 比較 icon
 export function GitCompareIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -99,7 +95,7 @@ export function GitCompareIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Sun icon (light mode)
+// 太陽 icon（淺色模式）
 export function SunIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -108,7 +104,7 @@ export function SunIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Moon icon (dark mode)
+// 月亮 icon（深色模式）
 export function MoonIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -117,7 +113,7 @@ export function MoonIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Globe icon (language)
+// 地球 icon（語言切換）
 export function GlobeIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -126,7 +122,7 @@ export function GlobeIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Plus icon
+// 加號 icon
 export function PlusIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -135,7 +131,7 @@ export function PlusIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Sync/Refresh icon
+// 同步 / 重新整理 icon
 export function SyncIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -144,7 +140,7 @@ export function SyncIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// X/Close icon
+// 關閉 icon
 export function XIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -153,7 +149,7 @@ export function XIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Trash icon
+// 垃圾桶 icon
 export function TrashIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -162,7 +158,7 @@ export function TrashIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Chart icon
+// 圖表 icon
 export function ChartIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -171,7 +167,7 @@ export function ChartIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Link external icon
+// 外部連結 icon
 export function LinkExternalIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -180,7 +176,7 @@ export function LinkExternalIcon({ size = 16, className, ariaLabel }: IconProps)
   );
 }
 
-// Check icon
+// 勾選 icon
 export function CheckIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -189,7 +185,7 @@ export function CheckIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Copy icon
+// 複製 icon
 export function CopyIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -198,7 +194,7 @@ export function CopyIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Chevron down icon
+// 向下箭頭 icon
 export function ChevronDownIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -207,7 +203,7 @@ export function ChevronDownIcon({ size = 16, className, ariaLabel }: IconProps) 
   );
 }
 
-// Search/Discover icon
+// 搜尋 icon
 export function SearchIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -225,7 +221,7 @@ export function ForkIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Home icon (dashboard)
+// 首頁 icon（Dashboard）
 export function HomeIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -234,7 +230,7 @@ export function HomeIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Bell icon (notifications)
+// 鈴鐺 icon（通知）
 export function BellIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>

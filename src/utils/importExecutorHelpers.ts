@@ -1,8 +1,12 @@
+/**
+ * 匯入執行器輔助函式。
+ */
+
 import { addRepo, getRepos } from "../api/client";
 import { ParsedRepo } from "./importHelpers";
 
 /**
- * Run the import loop for a list of repos.
+ * 執行儲存庫列表的匯入迴圈。
  */
 export async function runImportLoop(
   reposToProcess: ParsedRepo[],
@@ -33,7 +37,7 @@ export async function runImportLoop(
 }
 
 /**
- * orchestrates the whole import flow: fetching existing repos, then running the loop.
+ * 編排完整匯入流程：先取得現有儲存庫，再執行匯入迴圈。
  */
 export async function executeImportFlow(
   parsedRepos: ParsedRepo[],
@@ -61,7 +65,7 @@ export async function fetchExistingRepoSet(): Promise<Set<string>> {
 }
 
 /**
- * Execute an async operation with exponential backoff retry for rate limits.
+ * 以指數退避重試執行非同步操作，用於處理 rate limit。
  */
 export async function executeWithRetry<T>(
   operation: () => Promise<T>,
@@ -82,7 +86,7 @@ export async function executeWithRetry<T>(
       const isRateLimit = errorMessage.includes("rate") || errorMessage.includes("429");
 
       if (isRateLimit && attempt < maxAttempts - 1) {
-        // Exponential backoff: 2s, 4s, 8s...
+        // 指數退避：2s、4s、8s...
         const delay = Math.pow(2, attempt + 1) * 1000;
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
@@ -94,8 +98,8 @@ export async function executeWithRetry<T>(
 }
 
 /**
- * Process a single repository import.
- * Returns the outcome status.
+ * 處理單一儲存庫的匯入。
+ * 回傳結果狀態。
  */
 export async function processSingleRepo(
   repo: ParsedRepo,
@@ -103,16 +107,16 @@ export async function processSingleRepo(
   existingSet: Set<string>,
   updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void
 ): Promise<"success" | "skipped" | "failed"> {
-  // Check cancellation
+  // 檢查是否已取消
   if (signal.aborted) return "failed";
 
-  // Check duplicate
+  // 檢查是否重複
   if (existingSet.has(repo.fullName.toLowerCase())) {
     updateRepo(repo.fullName, { status: "skipped" });
     return "skipped";
   }
 
-  // Mark importing
+  // 標記為匯入中
   updateRepo(repo.fullName, { status: "importing" });
 
   try {

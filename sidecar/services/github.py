@@ -1,6 +1,6 @@
 """
-GitHub API service.
-Handles fetching repository data from GitHub.
+GitHub API 服務。
+負責從 GitHub 取得 repo 資料。
 """
 
 import logging
@@ -17,27 +17,27 @@ logger = logging.getLogger(__name__)
 GITHUB_API_BASE = "https://api.github.com"
 
 
-# Exception classes
+# 例外類別
 class GitHubAPIError(Exception):
-    """Custom exception for GitHub API errors."""
+    """GitHub API 錯誤的自訂例外。"""
     def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message)
         self.status_code = status_code
 
 
 class GitHubRateLimitError(GitHubAPIError):
-    """Raised when GitHub API rate limit is exceeded."""
+    """GitHub API 速率限制超過時拋出。"""
     pass
 
 
 class GitHubNotFoundError(GitHubAPIError):
-    """Raised when repository is not found."""
+    """找不到 repo 時拋出。"""
     pass
 
 
-# Shared utilities for GitHub API requests
+# GitHub API 請求的共用工具
 def build_github_headers(token: Optional[str] = None) -> dict:
-    """Build standard GitHub API headers."""
+    """建立標準 GitHub API headers。"""
     headers = {
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
@@ -53,20 +53,20 @@ def handle_github_response(
     context: str = ""
 ) -> Optional[dict]:
     """
-    Handle GitHub API response with standard error checking.
+    處理 GitHub API 回應，含標準錯誤檢查。
 
     Args:
-        response: The httpx response object
-        raise_on_error: If True, raise exceptions; if False, return None on errors
-        context: Context string for error messages (e.g., "owner/repo")
+        response: httpx 回應物件
+        raise_on_error: 為 True 時拋出例外；為 False 時錯誤回傳 None
+        context: 錯誤訊息的上下文字串（例如 "owner/repo"）
 
     Returns:
-        JSON response dict, or None if raise_on_error=False and error occurred
+        JSON 回應字典，或若 raise_on_error=False 且發生錯誤則為 None
 
     Raises:
-        GitHubNotFoundError: If 404 and raise_on_error=True
-        GitHubRateLimitError: If 403 and raise_on_error=True
-        GitHubAPIError: If 401 or other errors and raise_on_error=True
+        GitHubNotFoundError: 404 且 raise_on_error=True 時
+        GitHubRateLimitError: 403 且 raise_on_error=True 時
+        GitHubAPIError: 401 或其他錯誤且 raise_on_error=True 時
     """
     if response.status_code == 404:
         if raise_on_error:
@@ -83,7 +83,7 @@ def handle_github_response(
                 f"GitHub API rate limit exceeded (remaining: {remaining})",
                 status_code=403
             )
-        logger.warning(f"Rate limit or forbidden: {context}")
+        logger.warning(f"[GitHub API] 速率限制或禁止存取: {context}")
         return None
 
     if response.status_code == 401:
@@ -92,7 +92,7 @@ def handle_github_response(
                 "GitHub API authentication failed - check token",
                 status_code=401
             )
-        logger.error("GitHub API authentication failed", exc_info=True)
+        logger.error("[GitHub API] GitHub API 驗證失敗", exc_info=True)
         return None
 
     response.raise_for_status()
@@ -107,12 +107,12 @@ class GitHubService:
 
     async def get_repo(self, owner: str, repo: str) -> dict:
         """
-        Get repository information.
+        取得 repo 資訊。
 
         Raises:
-            GitHubNotFoundError: Repository not found (404)
-            GitHubRateLimitError: Rate limit exceeded (403)
-            GitHubAPIError: Other API errors
+            GitHubNotFoundError: 找不到 repo（404）
+            GitHubRateLimitError: 速率限制超過（403）
+            GitHubAPIError: 其他 API 錯誤
         """
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -127,7 +127,7 @@ class GitHubService:
 
     async def get_repo_stargazers_count(self, owner: str, repo: str) -> int:
         """
-        Get the current star count for a repository.
+        取得 repo 目前的 star 數。
         """
         data = await self.get_repo(owner, repo)
         return data.get("stargazers_count", 0)
@@ -136,19 +136,19 @@ class GitHubService:
         self, owner: str, repo: str, max_retries: int = 3
     ) -> list[dict]:
         """
-        Get weekly commit activity for the past year.
+        取得過去一年的每週 commit 活動。
 
-        The GitHub Stats API may return 202 while computing statistics.
-        We retry with exponential backoff until data is ready.
+        GitHub Stats API 計算統計時可能回傳 202。
+        我們以指數退避重試直到資料就緒。
 
         Returns:
-            List of weekly data: [{week: timestamp, total: int, days: [int x 7]}]
-            Empty list if data is unavailable.
+            每週資料列表：[{week: timestamp, total: int, days: [int x 7]}]
+            資料不可用時回傳空列表。
 
         Raises:
-            GitHubNotFoundError: Repository not found
-            GitHubRateLimitError: Rate limit exceeded
-            GitHubAPIError: Other API errors
+            GitHubNotFoundError: 找不到 repo
+            GitHubRateLimitError: 速率限制超過
+            GitHubAPIError: 其他 API 錯誤
         """
         import asyncio
 
@@ -158,27 +158,27 @@ class GitHubService:
             for attempt in range(max_retries):
                 response = await client.get(url, headers=self.headers)
 
-                # 202 means GitHub is computing the stats, retry after delay
+                # 202 表示 GitHub 正在計算統計，延遲後重試
                 if response.status_code == 202:
                     if attempt < max_retries - 1:
                         delay = 2 ** attempt  # 1s, 2s, 4s
                         logger.info(
-                            f"GitHub computing stats for {owner}/{repo}, "
-                            f"retrying in {delay}s (attempt {attempt + 1}/{max_retries})"
+                            f"[GitHub API] GitHub 正在計算 {owner}/{repo} 的統計資料，"
+                            f"{delay} 秒後重試 (第 {attempt + 1}/{max_retries} 次)"
                         )
                         await asyncio.sleep(delay)
                         continue
-                    # Max retries reached, return empty
+                    # 已達最大重試次數，回傳空列表
                     logger.warning(
-                        f"GitHub stats not ready after {max_retries} attempts for {owner}/{repo}"
+                        f"[GitHub API] {owner}/{repo} 的統計資料在 {max_retries} 次嘗試後仍未就緒"
                     )
                     return []
 
-                # 204 means no content (empty repo)
+                # 204 表示無內容（空 repo）
                 if response.status_code == 204:
                     return []
 
-                # Handle standard responses
+                # 處理標準回應
                 data = handle_github_response(
                     response, raise_on_error=True, context=f"{owner}/{repo}/stats/commit_activity"
                 )
@@ -188,16 +188,16 @@ class GitHubService:
 
     async def get_languages(self, owner: str, repo: str) -> dict[str, int]:
         """
-        Get language statistics for a repository.
+        取得 repo 的語言統計。
 
         Returns:
-            Dict mapping language name to bytes of code: {"Python": 123456, ...}
-            Empty dict if unavailable.
+            語言名稱對應程式碼位元組數的字典：{"Python": 123456, ...}
+            不可用時回傳空字典。
 
         Raises:
-            GitHubNotFoundError: Repository not found
-            GitHubRateLimitError: Rate limit exceeded
-            GitHubAPIError: Other API errors
+            GitHubNotFoundError: 找不到 repo
+            GitHubRateLimitError: 速率限制超過
+            GitHubAPIError: 其他 API 錯誤
         """
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/languages"
 
@@ -220,26 +220,26 @@ class GitHubService:
         per_page: int = 20,
     ) -> dict:
         """
-        Search GitHub repositories using the Search API.
+        使用 Search API 搜尋 GitHub repo。
 
         Args:
-            query: Search query string
-            language: Filter by programming language
-            min_stars: Filter by minimum star count
-            topic: Filter by topic
-            sort: Sort field (stars, forks, updated)
-            order: Sort order (asc, desc)
-            page: Page number (1-indexed)
-            per_page: Results per page (max 100)
+            query: 搜尋查詢字串
+            language: 依程式語言篩選
+            min_stars: 依最低 star 數篩選
+            topic: 依 topic 篩選
+            sort: 排序欄位（stars、forks、updated）
+            order: 排序方向（asc、desc）
+            page: 頁碼（從 1 開始）
+            per_page: 每頁筆數（最大 100）
 
         Returns:
-            GitHub Search API response with items and total_count
+            GitHub Search API 回應，含 items 與 total_count
 
         Raises:
-            GitHubRateLimitError: Rate limit exceeded (Search API: 30/min)
-            GitHubAPIError: Other API errors
+            GitHubRateLimitError: 速率限制超過（Search API：30/min）
+            GitHubAPIError: 其他 API 錯誤
         """
-        # Build query with filters
+        # 組合查詢與篩選條件
         q_parts = [query]
         if language:
             q_parts.append(f"language:{language}")
@@ -274,38 +274,38 @@ class GitHubService:
         per_page: int = 100,
     ) -> list[dict]:
         """
-        Get stargazers with timestamps for a repository.
+        取得 repo 的 stargazer（含時間戳記）。
 
-        Uses GitHub's stargazers API with special Accept header to get timestamps.
-        Limited to repos with < max_stars to avoid rate limit exhaustion.
+        使用特殊 Accept header 的 GitHub stargazers API 以取得時間戳記。
+        限制 star 數 < max_stars 的 repo，避免耗盡速率限制。
 
         Args:
-            owner: Repository owner
-            repo: Repository name
-            max_stars: Maximum stars allowed (rejects if repo has more)
-            per_page: Results per page (max 100)
+            owner: repo 擁有者
+            repo: repo 名稱
+            max_stars: 允許的最大 star 數（超過則拒絕）
+            per_page: 每頁筆數（最大 100）
 
         Returns:
-            List of stargazers: [{"starred_at": "2024-01-15T...", "user": {...}}, ...]
-            Empty list if repo exceeds max_stars limit.
+            Stargazer 列表：[{"starred_at": "2024-01-15T...", "user": {...}}, ...]
+            超過 max_stars 限制時回傳空列表。
 
         Raises:
-            GitHubNotFoundError: Repository not found
-            GitHubRateLimitError: Rate limit exceeded
-            GitHubAPIError: Other API errors
+            GitHubNotFoundError: 找不到 repo
+            GitHubRateLimitError: 速率限制超過
+            GitHubAPIError: 其他 API 錯誤
         """
-        # First, check if repo exceeds star limit
+        # 先檢查 repo 是否超過 star 上限
         repo_data = await self.get_repo(owner, repo)
         star_count = repo_data.get("stargazers_count", 0)
 
         if star_count > max_stars:
             logger.warning(
-                f"Repository {owner}/{repo} has {star_count} stars, "
-                f"exceeding limit of {max_stars}. Skipping stargazers fetch."
+                f"[GitHub API] {owner}/{repo} 有 {star_count} 顆星，"
+                f"超過上限 {max_stars}，跳過 stargazers 抓取"
             )
             return []
 
-        # Special header to get starred_at timestamps
+        # 特殊 header 以取得 starred_at 時間戳記
         headers = {
             **self.headers,
             "Accept": "application/vnd.github.star+json",
@@ -334,44 +334,44 @@ class GitHubService:
                 if len(data) < per_page:
                     break
             else:
-                logger.warning(f"Reached page limit for {owner}/{repo} stargazers")
+                logger.warning(f"[GitHub API] {owner}/{repo} stargazers 已達分頁上限")
 
-        logger.info(f"Fetched {len(all_stargazers)} stargazers for {owner}/{repo}")
+        logger.info(f"[GitHub API] 已抓取 {owner}/{repo} 的 {len(all_stargazers)} 個 stargazers")
         return all_stargazers
 
 
-# Module-level convenience function for scheduler
+# 供排程器使用的模組層級便利函式
 _default_service: Optional[GitHubService] = None
 _service_lock = threading.Lock()
 
 
 def _resolve_github_token() -> Optional[str]:
-    """Resolve GitHub token from database (OAuth) or environment variable."""
+    """從資料庫（OAuth）或環境變數解析 GitHub token。"""
     try:
         from services.settings import get_setting
         token = get_setting(AppSettingKey.GITHUB_TOKEN)
         if token:
-            logger.info("Using GitHub token from database (OAuth)")
+            logger.info("[GitHub API] 使用資料庫中的 GitHub token (OAuth)")
             return token
     except Exception as e:
-        logger.debug(f"Could not read token from database: {e}")
+        logger.debug(f"[GitHub API] 無法從資料庫讀取 token: {e}")
 
     token = os.getenv(GITHUB_TOKEN_ENV_VAR)
     if token:
-        logger.info("Using GitHub token from environment variable")
+        logger.info("[GitHub API] 使用環境變數中的 GitHub token")
     return token
 
 
 def get_github_service() -> GitHubService:
     """
-    Get the default GitHub service instance.
+    取得預設的 GitHub service 實例。
 
-    Token priority:
-    1. Database (from OAuth Device Flow)
-    2. Environment variable (legacy fallback)
+    Token 優先順序：
+    1. 資料庫（來自 OAuth Device Flow）
+    2. 環境變數（舊版回退）
 
-    The service is cached as a singleton for the application lifetime.
-    Call reset_github_service() to refresh when token changes.
+    服務在應用程式生命週期內以 singleton 快取。
+    Token 變更時呼叫 reset_github_service() 以刷新。
     """
     global _default_service
     if _default_service is None:
@@ -383,9 +383,9 @@ def get_github_service() -> GitHubService:
 
 def reset_github_service() -> None:
     """
-    Reset the default GitHub service instance.
+    重設預設的 GitHub service 實例。
 
-    Useful for testing or when the token needs to be refreshed.
+    用於測試或 token 需要刷新時。
     """
     global _default_service
     with _service_lock:
@@ -394,24 +394,24 @@ def reset_github_service() -> None:
 
 async def fetch_repo_data(owner: str, repo: str) -> Optional[dict]:
     """
-    Fetch repository data from GitHub.
-    Returns None if the request fails.
+    從 GitHub 取得 repo 資料。
+    請求失敗時回傳 None。
     """
     try:
         service = get_github_service()
         return await service.get_repo(owner, repo)
     except GitHubNotFoundError:
-        logger.warning(f"Repository not found: {owner}/{repo}")
+        logger.warning(f"[GitHub API] 找不到 repo: {owner}/{repo}")
         return None
     except GitHubRateLimitError as e:
-        logger.error(f"GitHub rate limit exceeded: {e}", exc_info=True)
+        logger.error(f"[GitHub API] GitHub 速率限制已超出: {e}", exc_info=True)
         return None
     except GitHubAPIError as e:
-        logger.error(f"GitHub API error for {owner}/{repo}: {e}", exc_info=True)
+        logger.error(f"[GitHub API] {owner}/{repo} API 錯誤: {e}", exc_info=True)
         return None
     except httpx.TimeoutException:
-        logger.error(f"Timeout fetching {owner}/{repo}", exc_info=True)
+        logger.error(f"[GitHub API] 抓取 {owner}/{repo} 逾時", exc_info=True)
         return None
     except httpx.RequestError as e:
-        logger.error(f"Network error fetching {owner}/{repo}: {e}", exc_info=True)
+        logger.error(f"[GitHub API] 抓取 {owner}/{repo} 網路錯誤: {e}", exc_info=True)
         return None

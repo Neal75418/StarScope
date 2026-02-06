@@ -1,3 +1,7 @@
+/**
+ * Star 歷史回填狀態查詢與離線處理。
+ */
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import { BackfillStatus, getBackfillStatus, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
@@ -11,7 +15,7 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
   const [isOffline, setIsOffline] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Keep last successful status when offline
+  // 離線時保留最後成功的狀態
   const lastStatusRef = useRef<BackfillStatus | null>(null);
 
   const loadStatus = useCallback(async () => {
@@ -30,15 +34,15 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
         setStatus(null);
         lastStatusRef.current = null;
       } else if (isNetworkError(err)) {
-        // Network error - show offline state but keep last data
-        console.warn("Network error loading backfill status:", err);
+        // 網路錯誤 — 顯示離線狀態但保留上次資料
+        console.warn("回填狀態載入時網路錯誤:", err);
         setIsOffline(true);
         if (lastStatusRef.current) {
           setStatus(lastStatusRef.current);
         }
-        setError(t.starHistory.offline ?? "Offline - showing cached data");
+        setError(t.starHistory.offline ?? "離線中 — 顯示快取資料");
       } else {
-        console.error("Failed to load backfill status:", err);
+        console.error("回填狀態載入失敗:", err);
         setError(t.starHistory.backfillFailed);
       }
     } finally {
@@ -57,6 +61,6 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     isOffline,
     lastUpdated,
     loadStatus,
-    setError, // Exposed for other hooks/components to set error
+    setError, // 開放給其他 hook / 元件設定錯誤
   };
 }

@@ -1,5 +1,5 @@
 /**
- * Hook for managing add repo dialog state and operations.
+ * 新增 Repo 對話框狀態與操作管理。
  */
 
 import { useState, useCallback } from "react";

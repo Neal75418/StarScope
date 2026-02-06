@@ -1,3 +1,7 @@
+/**
+ * 通用空狀態元件。
+ */
+
 import React from "react";
 
 interface EmptyStateProps {

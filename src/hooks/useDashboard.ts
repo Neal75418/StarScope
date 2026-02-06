@@ -1,9 +1,19 @@
 /**
- * Hook for managing dashboard state and statistics.
+ * Dashboard 狀態管理與統計資料運算。
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { getRepos, listTriggeredAlerts, RepoWithSignals, TriggeredAlert } from "../api/client";
+import {
+  getRepos,
+  listTriggeredAlerts,
+  listEarlySignals,
+  getSignalSummary,
+  acknowledgeSignal,
+  RepoWithSignals,
+  TriggeredAlert,
+  EarlySignal,
+  SignalSummary,
+} from "../api/client";
 
 export interface DashboardStats {
   totalRepos: number;
@@ -23,10 +33,12 @@ export interface RecentActivity {
 export function useDashboard() {
   const [repos, setRepos] = useState<RepoWithSignals[]>([]);
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([]);
+  const [earlySignals, setEarlySignals] = useState<EarlySignal[]>([]);
+  const [signalSummary, setSignalSummary] = useState<SignalSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Prevent duplicate fetches from StrictMode
+  // 避免 StrictMode 重複請求
   const hasFetchedRef = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -34,15 +46,19 @@ export function useDashboard() {
       setIsLoading(true);
       setError(null);
 
-      const [reposResponse, alertsResponse] = await Promise.all([
+      const [reposResponse, alertsResponse, signalsResponse, summaryResponse] = await Promise.all([
         getRepos(),
-        listTriggeredAlerts(false), // Get unacknowledged alerts
+        listTriggeredAlerts(false),
+        listEarlySignals({ limit: 5 }),
+        getSignalSummary(),
       ]);
 
       setRepos(reposResponse.repos);
       setAlerts(alertsResponse);
+      setEarlySignals(signalsResponse.signals);
+      setSignalSummary(summaryResponse);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      setError(err instanceof Error ? err.message : "Dashboard 資料載入失敗");
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +70,19 @@ export function useDashboard() {
     void loadData();
   }, [loadData]);
 
-  // Compute statistics from repos data
+  const handleAcknowledgeSignal = useCallback(async (signalId: number) => {
+    try {
+      await acknowledgeSignal(signalId);
+      setEarlySignals((prev) => prev.filter((s) => s.id !== signalId));
+      setSignalSummary((prev) =>
+        prev ? { ...prev, total_active: Math.max(0, prev.total_active - 1) } : prev
+      );
+    } catch {
+      // 確認失敗不影響主要功能
+    }
+  }, []);
+
+  // 從 repos 資料計算統計數值
   const stats: DashboardStats = useMemo(() => {
     const totalRepos = repos.length;
     const totalStars = repos.reduce((sum, r) => sum + (r.stars ?? 0), 0);
@@ -69,11 +97,11 @@ export function useDashboard() {
     };
   }, [repos, alerts]);
 
-  // Generate recent activity from repos and alerts
+  // 從 repos 與 alerts 產生近期活動
   const recentActivity: RecentActivity[] = useMemo(() => {
     const activities: RecentActivity[] = [];
 
-    // Add all repos as activities
+    // 將所有 repos 加為活動項目
     for (const repo of repos) {
       activities.push({
         id: `repo-${repo.id}`,
@@ -84,7 +112,7 @@ export function useDashboard() {
       });
     }
 
-    // Add all alerts as activities
+    // 將所有 alerts 加為活動項目
     for (const alert of alerts) {
       activities.push({
         id: `alert-${alert.id}`,
@@ -95,13 +123,13 @@ export function useDashboard() {
       });
     }
 
-    // Sort all activities by timestamp and return top 10
+    // 依時間排序並回傳前 10 筆
     return activities
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10);
   }, [repos, alerts]);
 
-  // Compute velocity distribution for chart
+  // 計算 velocity 分佈供圖表使用
   const velocityDistribution = useMemo(() => {
     const ranges = [
       { label: "< 0", min: -Infinity, max: 0, inclusive: false },
@@ -115,7 +143,7 @@ export function useDashboard() {
       label: range.label,
       count: repos.filter((r) => {
         const v = r.velocity ?? 0;
-        // Use inclusive upper bound for the last range
+        // 最後一個區間使用包含上界
         return v >= range.min && (range.inclusive ? v <= range.max : v < range.max);
       }).length,
     }));
@@ -125,6 +153,9 @@ export function useDashboard() {
     stats,
     recentActivity,
     velocityDistribution,
+    earlySignals,
+    signalSummary,
+    acknowledgeSignal: handleAcknowledgeSignal,
     isLoading,
     error,
     refresh: loadData,

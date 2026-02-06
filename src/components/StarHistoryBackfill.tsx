@@ -1,3 +1,7 @@
+/**
+ * Star 歷史回填元件，管理 backfill 狀態與操作。
+ */
+
 import { useI18n } from "../i18n";
 import { formatRelativeTime } from "../utils/backfillHelpers";
 import { useBackfillStatus } from "../hooks/useBackfillStatus";
@@ -21,7 +25,7 @@ export function StarHistoryBackfill({
 }: StarHistoryBackfillProps) {
   const { t } = useI18n();
 
-  // Check if should render based on star count
+  // 依 star 數判斷是否需要顯示
   const exceedsStarLimit = currentStars !== null && currentStars > MAX_STARS_FOR_BACKFILL;
 
   const { status, loading, error, isOffline, lastUpdated, loadStatus, setError } =
@@ -35,7 +39,7 @@ export function StarHistoryBackfill({
     setError,
   });
 
-  // Don't show component if stars exceed limit
+  // star 數超過上限時不顯示
   if (exceedsStarLimit) {
     return null;
   }
@@ -48,7 +52,7 @@ export function StarHistoryBackfill({
     );
   }
 
-  // Don't render if not eligible based on status
+  // 狀態顯示不符合資格時不渲染
   if (status && !status.can_backfill) {
     return null;
   }

@@ -1,5 +1,5 @@
 """
-Discovery API endpoints for searching GitHub repositories.
+探索 API 端點，用於搜尋 GitHub repo。
 """
 
 from typing import Optional
@@ -30,14 +30,14 @@ async def search_repos(
     per_page: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> SearchResponse:
     """
-    Search GitHub repositories using the GitHub Search API.
+    使用 GitHub Search API 搜尋 repo。
 
-    Returns repositories matching the search query with optional filters.
-    Results are not cached - each request hits the GitHub API directly.
+    回傳符合搜尋條件的 repo（含可選篩選條件）。
+    結果不快取 — 每次請求直接呼叫 GitHub API。
 
-    Rate limits:
-    - Unauthenticated: 10 requests/minute
-    - Authenticated: 30 requests/minute
+    速率限制：
+    - 未認證：10 次/分鐘
+    - 已認證：30 次/分鐘
     """
     github = get_github_service()
 
@@ -57,13 +57,13 @@ async def search_repos(
             detail="GitHub API rate limit exceeded. Please try again later.",
         )
     except GitHubAPIError as e:
-        logger.error(f"GitHub search API error: {e}", exc_info=True)
+        logger.error(f"[探索] GitHub Search API 錯誤: {e}", exc_info=True)
         raise HTTPException(
             status_code=502,
             detail=f"GitHub API error: {str(e)}",
         )
 
-    # Transform GitHub API response to our schema
+    # 將 GitHub API 回應轉換為我們的 schema
     repos = [
         DiscoveryRepo(
             id=item["id"],

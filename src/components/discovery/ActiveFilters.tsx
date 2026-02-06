@@ -1,6 +1,5 @@
 /**
- * Shows currently active filters with remove buttons.
- * Supports: keyword, time period, and language filters.
+ * 顯示目前啟用的篩選條件，含移除按鈕。
  */
 
 import { useI18n } from "../../i18n";
@@ -27,7 +26,7 @@ export function ActiveFilters({
 }: ActiveFiltersProps) {
   const { t } = useI18n();
 
-  // Don't render if no filters are active
+  // 無啟用篩選時不渲染
   if (!keyword && !period && !language) {
     return null;
   }

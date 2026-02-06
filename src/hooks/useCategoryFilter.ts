@@ -1,13 +1,12 @@
 /**
- * Hook for managing category filtering and search.
+ * 分類篩選與搜尋管理。
  */
 
 import { useState, useEffect, useMemo } from "react";
 import { RepoWithSignals, getCategoryRepos } from "../api/client";
 
 /**
- * Check if a repo matches the search query.
- * Searches in: full_name, description, language
+ * 檢查 repo 是否符合搜尋關鍵字（搜尋範圍：full_name、description、language）。
  */
 function matchesSearch(repo: RepoWithSignals, query: string): boolean {
   const lowerQuery = query.toLowerCase();
@@ -24,7 +23,7 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
 
-  // Debounce search query to avoid excessive filtering on every keystroke
+  // 搜尋防抖，避免每次按鍵都觸發篩選
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
@@ -38,20 +37,20 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
       return;
     }
 
-    // Track the category ID at the time of request to prevent race conditions
+    // 記錄請求時的分類 ID，防止 race condition
     const requestedCategoryId = selectedCategoryId;
 
     getCategoryRepos(selectedCategoryId)
       .then((response) => {
-        // Only update state if the category hasn't changed while fetching
+        // 僅在分類未於請求期間切換時更新狀態
         if (requestedCategoryId === selectedCategoryId) {
           setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
         }
       })
       .catch((err) => {
-        // Only update state if the category hasn't changed while fetching
+        // 僅在分類未於請求期間切換時更新狀態
         if (requestedCategoryId === selectedCategoryId) {
-          console.error("Failed to load category repos:", err);
+          console.error("分類 Repo 載入失敗:", err);
           setFilteredRepoIds(null);
         }
       });
@@ -60,12 +59,12 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
   const displayedRepos = useMemo(() => {
     let result = repos;
 
-    // Apply category filter
+    // 套用分類篩選
     if (filteredRepoIds) {
       result = result.filter((r) => filteredRepoIds.has(r.id));
     }
 
-    // Apply search filter (uses debounced value for performance)
+    // 套用搜尋篩選（使用防抖值提升效能）
     const trimmedQuery = debouncedSearchQuery.trim();
     if (trimmedQuery) {
       result = result.filter((r) => matchesSearch(r, trimmedQuery));

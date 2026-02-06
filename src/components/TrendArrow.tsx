@@ -1,5 +1,5 @@
 /**
- * Trend arrow component showing direction indicator.
+ * 趨勢箭頭元件，顯示方向指示。
  */
 
 interface TrendArrowProps {

@@ -1,5 +1,5 @@
 /**
- * Awaiting authorization state for GitHub connection.
+ * GitHub 連線等待授權狀態。
  */
 
 import { DeviceCodeResponse } from "../../api/client";

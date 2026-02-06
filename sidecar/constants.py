@@ -1,41 +1,41 @@
 """
-Application constants.
-Centralized location for magic numbers and configuration values.
+應用程式常數。
+集中管理 magic numbers 與設定值。
 """
 
-# Scheduler settings
+# 排程器設定
 DEFAULT_FETCH_INTERVAL_MINUTES = 30
 ALERT_CHECK_DELAY_MINUTES = 1
 
-# Alert settings
-ALERT_COOLDOWN_SECONDS = 3600  # 1 hour between duplicate alerts
+# 警報設定
+ALERT_COOLDOWN_SECONDS = 3600  # 重複警報間隔 1 小時
 
-# API limits
+# API 限制
 MAX_REPOS_PER_PAGE = 100
 DEFAULT_TRENDS_LIMIT = 50
 MAX_TRENDS_LIMIT = 100
 
-# GitHub settings
+# GitHub 設定
 GITHUB_API_TIMEOUT_SECONDS = 30.0
-GITHUB_TOKEN_ENV_VAR = "GITHUB_TOKEN"  # Environment variable name for GitHub token
+GITHUB_TOKEN_ENV_VAR = "GITHUB_TOKEN"  # GitHub token 的環境變數名稱
 
-# Validation
+# 驗證
 GITHUB_USERNAME_PATTERN = r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$"
 GITHUB_REPO_NAME_PATTERN = r"^[a-zA-Z0-9._-]+$"
 MAX_REPO_NAME_LENGTH = 100
 MAX_OWNER_LENGTH = 39
 
-# Context Signal settings (HN only after simplification)
+# Context Signal 設定（簡化後僅保留 HN）
 HN_API_TIMEOUT_SECONDS = 15.0
 CONTEXT_FETCH_INTERVAL_MINUTES = 30
 
-# Badge display thresholds
+# Badge 顯示門檻
 MIN_HN_SCORE_FOR_BADGE = 50
 RECENT_THRESHOLD_DAYS = 7
 
-# Trend calculation thresholds
-# Used in analyzer.py calculate_trend() to determine trend direction
-TREND_VELOCITY_UPWARD_THRESHOLD = 0.5       # Minimum velocity for upward trend
-TREND_VELOCITY_DOWNWARD_THRESHOLD = -0.5    # Velocity below this = downward trend
-TREND_ACCELERATION_DECLINE_THRESHOLD = -0.1 # Acceleration threshold for upward trend
-TREND_STRONG_DECLINE_THRESHOLD = -0.3       # Acceleration below this = strong decline
+# 趨勢計算門檻
+# 用於 analyzer.py calculate_trend() 判斷趨勢方向
+TREND_VELOCITY_UPWARD_THRESHOLD = 0.5       # 上升趨勢的最低 velocity
+TREND_VELOCITY_DOWNWARD_THRESHOLD = -0.5    # 低於此值視為下降趨勢
+TREND_ACCELERATION_DECLINE_THRESHOLD = -0.1 # 上升趨勢的加速度門檻
+TREND_STRONG_DECLINE_THRESHOLD = -0.3       # 低於此值視為強烈衰退

@@ -1,6 +1,5 @@
 /**
- * Hook for fetching GitHub connection status.
- * Includes deduplication to prevent double fetches from React StrictMode.
+ * GitHub 連線狀態查詢，含 StrictMode 防重複請求。
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -25,15 +24,15 @@ export function useConnectionStatus(): UseConnectionStatusResult {
   const [state, setState] = useState<ConnectionState>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  // Prevent duplicate fetches from StrictMode double-invocation
+  // 避免 StrictMode 重複請求
   const isFetchingRef = useRef(false);
   const hasFetchedRef = useRef(false);
 
-  // Extract specific error message to avoid depending on entire t object
+  // 僅取用特定錯誤訊息，避免依賴整個 t 物件
   const genericErrorMessage = t.githubConnection.errors.generic;
 
   const fetchStatus = useCallback(async () => {
-    // Skip if already fetching (prevents StrictMode double-fetch)
+    // 避免重複請求（防止 StrictMode 雙重觸發）
     if (isFetchingRef.current) {
       return;
     }
@@ -54,9 +53,9 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     }
   }, [genericErrorMessage]);
 
-  // Only fetch on mount, with StrictMode deduplication
+  // 僅在掛載時請求，含 StrictMode 去重
   useEffect(() => {
-    // Skip if already fetched on initial mount (StrictMode runs twice)
+    // 已在首次掛載時請求過（StrictMode 會執行兩次）
     if (hasFetchedRef.current) {
       return;
     }

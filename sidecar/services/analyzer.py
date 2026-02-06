@@ -1,12 +1,12 @@
 """
-Signal calculation engine for StarScope.
+StarScope 的訊號計算引擎。
 
-Calculates metrics like:
-- stars_delta_7d: Star change over 7 days
-- stars_delta_30d: Star change over 30 days
-- velocity: Stars gained per day
-- acceleration: Rate of change of velocity
-- trend: Overall trend direction (-1, 0, 1)
+計算指標包含：
+- stars_delta_7d：7 天 star 變化量
+- stars_delta_30d：30 天 star 變化量
+- velocity：每日 star 增量
+- acceleration：velocity 的變化率
+- trend：整體趨勢方向（-1, 0, 1）
 """
 
 from datetime import date, timedelta
@@ -32,10 +32,10 @@ def get_snapshot_for_date(
     allow_earlier: bool = True
 ) -> Optional[RepoSnapshot]:
     """
-    Get a snapshot for a specific date.
-    If allow_earlier is True and no exact match, get the closest earlier snapshot.
+    取得指定日期的快照。
+    若 allow_earlier 為 True 且無完全匹配，取最接近的較早快照。
     """
-    # Try exact match first
+    # 先嘗試完全匹配
     snapshot = (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo_id, RepoSnapshot.snapshot_date == target_date)
@@ -45,7 +45,7 @@ def get_snapshot_for_date(
     if snapshot or not allow_earlier:
         return snapshot
 
-    # Get closest earlier snapshot
+    # 取得最接近的較早快照
     return (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo_id, RepoSnapshot.snapshot_date <= target_date)
@@ -60,8 +60,8 @@ def calculate_delta(
     db: Session
 ) -> Optional[float]:
     """
-    Calculate the star delta over a given number of days.
-    Returns None if insufficient data.
+    計算指定天數的 star 差值。
+    資料不足時回傳 None。
     """
     today = utc_today()
     past_date = today - timedelta(days=days)
@@ -72,7 +72,7 @@ def calculate_delta(
     if not current_snapshot or not past_snapshot:
         return None
 
-    # If both snapshots are the same (same date), we can't calculate delta
+    # 若兩個快照為同一天，無法計算差值
     if current_snapshot.snapshot_date == past_snapshot.snapshot_date:
         return 0.0
 
@@ -85,7 +85,7 @@ def calculate_velocity(
     days: int = 7
 ) -> Optional[float]:
     """
-    Calculate velocity (stars per day) over the given period.
+    計算指定期間的 velocity（每日 star 數）。
     """
     delta = calculate_delta(repo_id, days, db)
     if delta is None:
@@ -99,39 +99,38 @@ def calculate_acceleration(
     db: Session
 ) -> Optional[float]:
     """
-    Calculate acceleration (rate of change of velocity).
-    Compares this week's velocity to last week's velocity.
-    Returns percentage change.
+    計算 acceleration（velocity 的變化率）。
+    比較本週與上週的 velocity，回傳百分比變化。
     """
     today = utc_today()
     one_week_ago = today - timedelta(days=7)
     two_weeks_ago = today - timedelta(days=14)
 
-    # This week's velocity
+    # 本週的 velocity
     current_snapshot = get_snapshot_for_date(repo_id, today, db)
     week_ago_snapshot = get_snapshot_for_date(repo_id, one_week_ago, db)
 
-    # Last week's velocity
+    # 上週的 velocity
     two_week_ago_snapshot = get_snapshot_for_date(repo_id, two_weeks_ago, db)
 
     if not all([current_snapshot, week_ago_snapshot, two_week_ago_snapshot]):
         return None
 
-    # Calculate velocities
+    # 計算 velocity
     this_week_delta = current_snapshot.stars - week_ago_snapshot.stars
     last_week_delta = week_ago_snapshot.stars - two_week_ago_snapshot.stars
 
     this_week_velocity = this_week_delta / 7.0
     last_week_velocity = last_week_delta / 7.0
 
-    # Calculate acceleration as percentage change
-    # Handle edge cases to avoid division by zero
-    if abs(last_week_velocity) < 0.001:  # Effectively zero
+    # 以百分比變化計算 acceleration
+    # 處理邊界情況以避免除以零
+    if abs(last_week_velocity) < 0.001:  # 實質為零
         if this_week_velocity > 0.001:
-            return 1.0  # Strong growth from near-zero baseline
+            return 1.0  # 從接近零的基準線強勁成長
         elif this_week_velocity < -0.001:
-            return -1.0  # Strong decline from near-zero baseline
-        return 0.0  # Both near zero = stable
+            return -1.0  # 從接近零的基準線強烈衰退
+        return 0.0  # 兩者都接近零 = 穩定
 
     return (this_week_velocity - last_week_velocity) / abs(last_week_velocity)
 
@@ -141,46 +140,47 @@ def calculate_trend(
     acceleration: Optional[float]
 ) -> int:
     """
-    Determine trend direction based on velocity and acceleration.
+    根據 velocity 與 acceleration 判斷趨勢方向。
+
     Returns:
-        1: Upward trend (growing)
-        0: Stable
-        -1: Downward trend (declining)
+        1：上升趨勢（成長中）
+        0：穩定
+        -1：下降趨勢（衰退中）
     """
     if velocity is None:
         return 0
 
-    # Strong upward: positive velocity and positive acceleration
+    # 強勢上升：正向 velocity 且正向 acceleration
     if velocity > TREND_VELOCITY_UPWARD_THRESHOLD and (
         acceleration is None or acceleration > TREND_ACCELERATION_DECLINE_THRESHOLD
     ):
         return 1
 
-    # Strong downward: negative velocity or strongly negative acceleration
+    # 強勢下降：負向 velocity 或強烈負向 acceleration
     if velocity < TREND_VELOCITY_DOWNWARD_THRESHOLD or (
         acceleration is not None and acceleration < TREND_STRONG_DECLINE_THRESHOLD
     ):
         return -1
 
-    # Stable
+    # 穩定
     return 0
 
 
 def calculate_signals(repo_id: int, db: Session) -> dict:
     """
-    Calculate all signals for a repository and store them in the database.
-    Returns a dictionary of signal values.
+    計算 repo 的所有訊號並儲存至資料庫。
+    回傳訊號值的字典。
     """
     signals = {}
 
-    # Calculate each signal
+    # 計算各項訊號
     delta_7d = calculate_delta(repo_id, 7, db)
     delta_30d = calculate_delta(repo_id, 30, db)
     velocity = calculate_velocity(repo_id, db)
     acceleration = calculate_acceleration(repo_id, db)
     trend = calculate_trend(velocity, acceleration)
 
-    # Store signals
+    # 儲存訊號
     signal_values = [
         (SignalType.STARS_DELTA_7D, delta_7d),
         (SignalType.STARS_DELTA_30D, delta_30d),
@@ -193,8 +193,8 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
         if value is not None:
             signals[signal_type] = value
 
-            # Upsert signal using SQLite's INSERT OR REPLACE pattern
-            # This is atomic and prevents race conditions
+            # 使用 SQLite 的 INSERT OR REPLACE 模式進行 upsert
+            # 此操作為原子性，可防止競態條件
             stmt = sqlite_insert(Signal).values(
                 repo_id=repo_id,
                 signal_type=signal_type,
@@ -210,5 +210,4 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
             )
             db.execute(stmt)
 
-    # db.commit() - moved to caller
     return signals

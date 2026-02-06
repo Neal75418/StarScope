@@ -1,10 +1,10 @@
 /**
- * API client for communicating with the Python sidecar.
+ * 與 Python sidecar 通訊的 API client。
  */
 
 import { API_ENDPOINT } from "../config";
 
-// Types
+// 型別定義
 export interface RepoWithSignals {
   id: number;
   owner: string;
@@ -21,7 +21,7 @@ export interface RepoWithSignals {
   stars_delta_30d: number | null;
   velocity: number | null;
   acceleration: number | null;
-  trend: number | null; // -1, 0, 1
+  trend: number | null; // -1, 0, 1 表示趨勢方向
   last_fetched: string | null;
 }
 
@@ -42,7 +42,7 @@ export interface HealthResponse {
   timestamp: string;
 }
 
-// Context Signal types (HN only after simplification)
+// Context Signal 型別（簡化後僅保留 HN）
 export interface ContextBadge {
   type: "hn";
   label: string;
@@ -77,7 +77,7 @@ export interface ContextSignalsResponse {
   repo_id: number;
 }
 
-// Commit Activity types
+// Commit 活動型別
 export interface CommitWeek {
   week_start: string;
   commit_count: number;
@@ -99,7 +99,7 @@ export interface CommitActivitySummary {
   last_updated: string | null;
 }
 
-// Languages types
+// 語言統計型別
 export interface LanguageBreakdown {
   language: string;
   bytes: number;
@@ -122,7 +122,7 @@ export interface LanguagesSummary {
   last_updated: string | null;
 }
 
-// Star History Backfill types
+// 星數歷史回填型別
 export interface BackfillStatus {
   repo_id: number;
   repo_name: string;
@@ -158,7 +158,7 @@ export interface StarHistoryResponse {
   total_points: number;
 }
 
-// Chart types
+// 圖表型別
 export interface ChartDataPoint {
   date: string;
   stars: number;
@@ -174,7 +174,7 @@ export interface StarsChartResponse {
   max_stars: number;
 }
 
-// API Error class
+// API 錯誤類別
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -185,21 +185,42 @@ export class ApiError extends Error {
   }
 }
 
-// Helper function for API calls
+// 預設請求逾時時間（毫秒）
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+// API 呼叫輔助函式
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_ENDPOINT}${endpoint}`;
+
+  // 透過 AbortController 設定逾時，同時尊重呼叫端提供的 signal
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), DEFAULT_TIMEOUT_MS);
+
+  const callerSignal = options.signal;
+  if (callerSignal) {
+    callerSignal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  }
 
   let response: Response;
   try {
     response = await fetch(url, {
       ...options,
+      signal: timeoutController.signal,
       headers: {
         "Content-Type": "application/json",
         ...options.headers,
       },
     });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      if (callerSignal?.aborted) {
+        throw new ApiError(0, "Request cancelled");
+      }
+      throw new ApiError(0, "Request timed out");
+    }
     throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : "Unknown"}`);
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
@@ -207,7 +228,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw new ApiError(response.status, error.detail || `HTTP ${response.status}`);
   }
 
-  // Handle 204 No Content
+  // 處理 204 No Content 回應
   if (response.status === 204) {
     return null as T;
   }
@@ -215,24 +236,24 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   return response.json();
 }
 
-// API functions
+// API 函式
 
 /**
- * Check if the sidecar is running.
+ * 檢查 sidecar 是否運行中。
  */
 export async function checkHealth(): Promise<HealthResponse> {
   return apiCall<HealthResponse>("/health");
 }
 
 /**
- * Get all repositories in the watchlist.
+ * 取得追蹤清單中所有儲存庫。
  */
 export async function getRepos(): Promise<RepoListResponse> {
   return apiCall<RepoListResponse>("/repos");
 }
 
 /**
- * Add a new repository to the watchlist.
+ * 新增儲存庫至追蹤清單。
  */
 export async function addRepo(input: RepoCreate): Promise<RepoWithSignals> {
   return apiCall<RepoWithSignals>("/repos", {
@@ -242,14 +263,7 @@ export async function addRepo(input: RepoCreate): Promise<RepoWithSignals> {
 }
 
 /**
- * Get a single repository by ID.
- */
-export async function getRepo(repoId: number): Promise<RepoWithSignals> {
-  return apiCall<RepoWithSignals>(`/repos/${repoId}`);
-}
-
-/**
- * Remove a repository from the watchlist.
+ * 從追蹤清單移除儲存庫。
  */
 export async function removeRepo(repoId: number): Promise<void> {
   return apiCall<void>(`/repos/${repoId}`, {
@@ -258,7 +272,7 @@ export async function removeRepo(repoId: number): Promise<void> {
 }
 
 /**
- * Fetch the latest data for a repository.
+ * 取得儲存庫的最新資料。
  */
 export async function fetchRepo(repoId: number): Promise<RepoWithSignals> {
   return apiCall<RepoWithSignals>(`/repos/${repoId}/fetch`, {
@@ -267,7 +281,7 @@ export async function fetchRepo(repoId: number): Promise<RepoWithSignals> {
 }
 
 /**
- * Fetch the latest data for all repositories.
+ * 取得所有儲存庫的最新資料。
  */
 export async function fetchAllRepos(): Promise<RepoListResponse> {
   return apiCall<RepoListResponse>("/repos/fetch-all", {
@@ -275,17 +289,34 @@ export async function fetchAllRepos(): Promise<RepoListResponse> {
   });
 }
 
-// Context Signal API functions
+// Context Signal API 函式
 
 /**
- * Get context badges for a repository.
+ * 取得儲存庫的 context badge。
  */
 export async function getContextBadges(repoId: number): Promise<ContextBadgesResponse> {
   return apiCall<ContextBadgesResponse>(`/context/${repoId}/badges`);
 }
 
 /**
- * Get all context signals for a repository.
+ * 批次取得多個儲存庫的 context badge。
+ */
+export async function getContextBadgesBatch(
+  repoIds: number[]
+): Promise<Record<string, ContextBadgesResponse>> {
+  const res = await apiCall<{ results: Record<string, ContextBadgesResponse> }>(
+    "/context/badges/batch",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_ids: repoIds }),
+    }
+  );
+  return res.results;
+}
+
+/**
+ * 取得儲存庫的所有 context signal。
  */
 export async function getContextSignals(
   repoId: number,
@@ -296,7 +327,7 @@ export async function getContextSignals(
 }
 
 /**
- * Manually trigger context signal fetch for a repository.
+ * 手動觸發儲存庫的 context signal 抓取。
  */
 export async function fetchRepoContext(
   repoId: number
@@ -306,10 +337,10 @@ export async function fetchRepoContext(
   });
 }
 
-// Chart API functions
+// 圖表 API 函式
 
 /**
- * Get star history chart data for a repository.
+ * 取得儲存庫的星數歷史圖表資料。
  */
 export async function getStarsChart(
   repoId: number,
@@ -318,17 +349,17 @@ export async function getStarsChart(
   return apiCall<StarsChartResponse>(`/charts/${repoId}/stars?time_range=${timeRange}`);
 }
 
-// Commit Activity API functions
+// Commit 活動 API 函式
 
 /**
- * Get cached commit activity for a repository.
+ * 取得儲存庫的快取 commit 活動。
  */
 export async function getCommitActivity(repoId: number): Promise<CommitActivityResponse> {
   return apiCall<CommitActivityResponse>(`/commit-activity/${repoId}`);
 }
 
 /**
- * Fetch (or refresh) commit activity from GitHub.
+ * 從 GitHub 抓取（或重新整理）commit 活動。
  */
 export async function fetchCommitActivity(repoId: number): Promise<CommitActivityResponse> {
   return apiCall<CommitActivityResponse>(`/commit-activity/${repoId}/fetch`, {
@@ -337,23 +368,23 @@ export async function fetchCommitActivity(repoId: number): Promise<CommitActivit
 }
 
 /**
- * Get brief commit activity summary (for badges/cards).
+ * 取得簡要 commit 活動摘要（供 badge/card 使用）。
  */
 export async function getCommitActivitySummary(repoId: number): Promise<CommitActivitySummary> {
   return apiCall<CommitActivitySummary>(`/commit-activity/${repoId}/summary`);
 }
 
-// Languages API functions
+// 語言統計 API 函式
 
 /**
- * Get cached languages for a repository.
+ * 取得儲存庫的快取語言資料。
  */
 export async function getLanguages(repoId: number): Promise<LanguagesResponse> {
   return apiCall<LanguagesResponse>(`/languages/${repoId}`);
 }
 
 /**
- * Fetch (or refresh) languages from GitHub.
+ * 從 GitHub 抓取（或重新整理）語言資料。
  */
 export async function fetchLanguages(repoId: number): Promise<LanguagesResponse> {
   return apiCall<LanguagesResponse>(`/languages/${repoId}/fetch`, {
@@ -362,23 +393,23 @@ export async function fetchLanguages(repoId: number): Promise<LanguagesResponse>
 }
 
 /**
- * Get brief languages summary (for badges/cards).
+ * 取得簡要語言摘要（供 badge/card 使用）。
  */
 export async function getLanguagesSummary(repoId: number): Promise<LanguagesSummary> {
   return apiCall<LanguagesSummary>(`/languages/${repoId}/summary`);
 }
 
-// Star History Backfill API functions
+// 星數歷史回填 API 函式
 
 /**
- * Check if a repository is eligible for star history backfill.
+ * 檢查儲存庫是否符合星數歷史回填資格。
  */
 export async function getBackfillStatus(repoId: number): Promise<BackfillStatus> {
   return apiCall<BackfillStatus>(`/star-history/${repoId}/status`);
 }
 
 /**
- * Backfill star history for a repository (only for repos with < 5000 stars).
+ * 回填儲存庫的星數歷史（僅限 < 5000 星的儲存庫）。
  */
 export async function backfillStarHistory(repoId: number): Promise<BackfillResult> {
   return apiCall<BackfillResult>(`/star-history/${repoId}/backfill`, {
@@ -387,13 +418,13 @@ export async function backfillStarHistory(repoId: number): Promise<BackfillResul
 }
 
 /**
- * Get full star history for a repository.
+ * 取得儲存庫的完整星數歷史。
  */
 export async function getStarHistory(repoId: number): Promise<StarHistoryResponse> {
   return apiCall<StarHistoryResponse>(`/star-history/${repoId}`);
 }
 
-// Recommendation types
+// 推薦系統型別
 
 export interface SimilarRepo {
   repo_id: number;
@@ -404,6 +435,9 @@ export interface SimilarRepo {
   similarity_score: number;
   shared_topics: string[];
   same_language: boolean;
+  topic_score?: number;
+  language_score?: number;
+  magnitude_score?: number;
 }
 
 export interface SimilarReposResponse {
@@ -430,10 +464,10 @@ export interface RecommendationStats {
   average_similarity_score: number;
 }
 
-// Recommendation API functions
+// 推薦系統 API 函式
 
 /**
- * Get similar repositories for a given repo.
+ * 取得指定儲存庫的相似儲存庫。
  */
 export async function getSimilarRepos(
   repoId: number,
@@ -443,7 +477,7 @@ export async function getSimilarRepos(
 }
 
 /**
- * Calculate similarities for a specific repository.
+ * 計算指定儲存庫的相似度。
  */
 export async function calculateRepoSimilarities(
   repoId: number
@@ -454,7 +488,7 @@ export async function calculateRepoSimilarities(
 }
 
 /**
- * Recalculate similarities for all repositories.
+ * 重新計算所有儲存庫的相似度。
  */
 export async function recalculateAllSimilarities(): Promise<RecalculateAllResponse> {
   return apiCall<RecalculateAllResponse>(`/recommendations/recalculate`, {
@@ -463,13 +497,13 @@ export async function recalculateAllSimilarities(): Promise<RecalculateAllRespon
 }
 
 /**
- * Get recommendation system statistics.
+ * 取得推薦系統統計資料。
  */
 export async function getRecommendationStats(): Promise<RecommendationStats> {
   return apiCall<RecommendationStats>(`/recommendations/stats`);
 }
 
-// Category types
+// 分類型別
 
 export interface Category {
   id: number;
@@ -492,11 +526,6 @@ export interface CategoryTreeNode {
   sort_order: number;
   repo_count: number;
   children: CategoryTreeNode[];
-}
-
-export interface CategoryListResponse {
-  categories: Category[];
-  total: number;
 }
 
 export interface CategoryTreeResponse {
@@ -548,31 +577,24 @@ export interface RepoCategoriesResponse {
   total: number;
 }
 
-// Category API functions
+// 分類 API 函式
 
 /**
- * List all categories (flat list).
- */
-export async function listCategories(): Promise<CategoryListResponse> {
-  return apiCall<CategoryListResponse>(`/categories`);
-}
-
-/**
- * Get categories as a tree structure.
+ * 以樹狀結構取得分類。
  */
 export async function getCategoryTree(): Promise<CategoryTreeResponse> {
   return apiCall<CategoryTreeResponse>(`/categories/tree`);
 }
 
 /**
- * Get a specific category.
+ * 取得特定分類。
  */
 export async function getCategory(categoryId: number): Promise<Category> {
   return apiCall<Category>(`/categories/${categoryId}`);
 }
 
 /**
- * Create a new category.
+ * 建立新分類。
  */
 export async function createCategory(data: CategoryCreate): Promise<Category> {
   return apiCall<Category>(`/categories`, {
@@ -582,7 +604,7 @@ export async function createCategory(data: CategoryCreate): Promise<Category> {
 }
 
 /**
- * Update a category.
+ * 更新分類。
  */
 export async function updateCategory(categoryId: number, data: CategoryUpdate): Promise<Category> {
   return apiCall<Category>(`/categories/${categoryId}`, {
@@ -592,7 +614,7 @@ export async function updateCategory(categoryId: number, data: CategoryUpdate): 
 }
 
 /**
- * Delete a category.
+ * 刪除分類。
  */
 export async function deleteCategory(
   categoryId: number
@@ -603,14 +625,14 @@ export async function deleteCategory(
 }
 
 /**
- * Get repos in a category.
+ * 取得分類中的儲存庫。
  */
 export async function getCategoryRepos(categoryId: number): Promise<CategoryReposResponse> {
   return apiCall<CategoryReposResponse>(`/categories/${categoryId}/repos`);
 }
 
 /**
- * Add a repo to a category.
+ * 將儲存庫加入分類。
  */
 export async function addRepoToCategory(
   categoryId: number,
@@ -622,7 +644,7 @@ export async function addRepoToCategory(
 }
 
 /**
- * Remove a repo from a category.
+ * 從分類移除儲存庫。
  */
 export async function removeRepoFromCategory(
   categoryId: number,
@@ -634,13 +656,13 @@ export async function removeRepoFromCategory(
 }
 
 /**
- * Get categories for a repo.
+ * 取得儲存庫所屬的分類。
  */
 export async function getRepoCategories(repoId: number): Promise<RepoCategoriesResponse> {
   return apiCall<RepoCategoriesResponse>(`/categories/repo/${repoId}/categories`);
 }
 
-// Early Signal types
+// 早期信號型別
 
 export type EarlySignalType =
   | "rising_star"
@@ -685,10 +707,10 @@ export interface DetectionResult {
   by_type: Record<string, number>;
 }
 
-// Early Signal API functions
+// 早期信號 API 函式
 
 /**
- * List all early signals.
+ * 列出所有早期信號。
  */
 export async function listEarlySignals(options?: {
   signal_type?: EarlySignalType;
@@ -709,7 +731,7 @@ export async function listEarlySignals(options?: {
 }
 
 /**
- * Get early signals for a specific repository.
+ * 取得特定儲存庫的早期信號。
  */
 export async function getRepoSignals(
   repoId: number,
@@ -729,14 +751,31 @@ export async function getRepoSignals(
 }
 
 /**
- * Get signal summary statistics.
+ * 批次取得多個儲存庫的早期信號。
+ */
+export async function getRepoSignalsBatch(
+  repoIds: number[]
+): Promise<Record<string, EarlySignalListResponse>> {
+  const res = await apiCall<{ results: Record<string, EarlySignalListResponse> }>(
+    "/early-signals/batch",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_ids: repoIds }),
+    }
+  );
+  return res.results;
+}
+
+/**
+ * 取得信號摘要統計。
  */
 export async function getSignalSummary(): Promise<SignalSummary> {
   return apiCall<SignalSummary>(`/early-signals/summary`);
 }
 
 /**
- * Acknowledge a signal.
+ * 確認（acknowledge）一個信號。
  */
 export async function acknowledgeSignal(
   signalId: number
@@ -747,7 +786,7 @@ export async function acknowledgeSignal(
 }
 
 /**
- * Acknowledge all signals.
+ * 確認所有信號。
  */
 export async function acknowledgeAllSignals(
   signalType?: EarlySignalType
@@ -759,7 +798,7 @@ export async function acknowledgeAllSignals(
 }
 
 /**
- * Trigger anomaly detection.
+ * 觸發異常偵測。
  */
 export async function triggerDetection(): Promise<DetectionResult> {
   return apiCall<DetectionResult>(`/early-signals/detect`, {
@@ -768,7 +807,7 @@ export async function triggerDetection(): Promise<DetectionResult> {
 }
 
 /**
- * Delete an early signal.
+ * 刪除一個早期信號。
  */
 export async function deleteSignal(signalId: number): Promise<{ status: string; message: string }> {
   return apiCall(`/early-signals/${signalId}`, {
@@ -776,16 +815,23 @@ export async function deleteSignal(signalId: number): Promise<{ status: string; 
   });
 }
 
-// ==================== Export API ====================
+// ==================== 匯出 API ====================
 
 /**
- * Get export download URL for watchlist JSON.
+ * 取得追蹤清單 JSON 的匯出下載 URL。
  */
 export function getExportWatchlistJsonUrl(): string {
   return `${API_ENDPOINT}/export/watchlist.json`;
 }
 
-// ==================== GitHub Auth Types ====================
+/**
+ * 取得追蹤清單 CSV 的匯出下載 URL。
+ */
+export function getExportWatchlistCsvUrl(): string {
+  return `${API_ENDPOINT}/export/watchlist.csv`;
+}
+
+// ==================== GitHub 驗證型別 ====================
 
 export interface DeviceCodeResponse {
   device_code: string;
@@ -800,7 +846,7 @@ export interface PollResponse {
   username?: string;
   error?: string;
   slow_down?: boolean;
-  interval?: number; // New interval to use when slow_down is true
+  interval?: number; // slow_down 為 true 時使用的新間隔
 }
 
 export interface GitHubConnectionStatus {
@@ -808,7 +854,7 @@ export interface GitHubConnectionStatus {
   username?: string;
   rate_limit_remaining?: number;
   rate_limit_total?: number;
-  rate_limit_reset?: number; // Unix timestamp when limit resets
+  rate_limit_reset?: number; // 配額重置的 Unix timestamp
   error?: string;
 }
 
@@ -817,11 +863,11 @@ export interface DisconnectResponse {
   message: string;
 }
 
-// ==================== GitHub Auth API Functions ====================
+// ==================== GitHub 驗證 API 函式 ====================
 
 /**
- * Initiate GitHub Device Flow authentication.
- * Returns device code and user code for the user to enter on GitHub.
+ * 啟動 GitHub Device Flow 驗證。
+ * 回傳 device code 與 user code 供使用者在 GitHub 上輸入。
  */
 export async function initiateDeviceFlow(): Promise<DeviceCodeResponse> {
   return apiCall<DeviceCodeResponse>(`/github-auth/device-code`, {
@@ -830,8 +876,8 @@ export async function initiateDeviceFlow(): Promise<DeviceCodeResponse> {
 }
 
 /**
- * Poll for authorization status during Device Flow.
- * Call this periodically until status is "success" or "error"/"expired".
+ * 在 Device Flow 期間輪詢授權狀態。
+ * 定期呼叫直到 status 為 "success" 或 "error"/"expired"。
  */
 export async function pollAuthorization(deviceCode: string): Promise<PollResponse> {
   return apiCall<PollResponse>(`/github-auth/poll`, {
@@ -841,14 +887,14 @@ export async function pollAuthorization(deviceCode: string): Promise<PollRespons
 }
 
 /**
- * Get the current GitHub connection status.
+ * 取得目前 GitHub 連線狀態。
  */
 export async function getGitHubConnectionStatus(): Promise<GitHubConnectionStatus> {
   return apiCall<GitHubConnectionStatus>(`/github-auth/status`);
 }
 
 /**
- * Disconnect from GitHub by removing stored credentials.
+ * 移除已儲存的憑證以中斷 GitHub 連線。
  */
 export async function disconnectGitHub(): Promise<DisconnectResponse> {
   return apiCall<DisconnectResponse>(`/github-auth/disconnect`, {
@@ -856,7 +902,7 @@ export async function disconnectGitHub(): Promise<DisconnectResponse> {
   });
 }
 
-// ==================== Alert Types ====================
+// ==================== 警報型別 ====================
 
 export interface SignalTypeInfo {
   type: string;
@@ -915,31 +961,31 @@ export interface TriggeredAlert {
   acknowledged_at: string | null;
 }
 
-// ==================== Alert API Functions ====================
+// ==================== 警報 API 函式 ====================
 
 /**
- * List available signal types for alert rules.
+ * 列出警報規則可用的信號類型。
  */
 export async function listSignalTypes(): Promise<SignalTypeInfo[]> {
   return apiCall<SignalTypeInfo[]>(`/alerts/signal-types`);
 }
 
 /**
- * List all alert rules.
+ * 列出所有警報規則。
  */
 export async function listAlertRules(): Promise<AlertRule[]> {
   return apiCall<AlertRule[]>(`/alerts/rules`);
 }
 
 /**
- * Get a specific alert rule.
+ * 取得特定警報規則。
  */
 export async function getAlertRule(ruleId: number): Promise<AlertRule> {
   return apiCall<AlertRule>(`/alerts/rules/${ruleId}`);
 }
 
 /**
- * Create a new alert rule.
+ * 建立新警報規則。
  */
 export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule> {
   return apiCall<AlertRule>(`/alerts/rules`, {
@@ -949,7 +995,7 @@ export async function createAlertRule(data: AlertRuleCreate): Promise<AlertRule>
 }
 
 /**
- * Update an alert rule.
+ * 更新警報規則。
  */
 export async function updateAlertRule(ruleId: number, data: AlertRuleUpdate): Promise<AlertRule> {
   return apiCall<AlertRule>(`/alerts/rules/${ruleId}`, {
@@ -959,7 +1005,7 @@ export async function updateAlertRule(ruleId: number, data: AlertRuleUpdate): Pr
 }
 
 /**
- * Delete an alert rule.
+ * 刪除警報規則。
  */
 export async function deleteAlertRule(ruleId: number): Promise<{ status: string; id: number }> {
   return apiCall(`/alerts/rules/${ruleId}`, {
@@ -968,7 +1014,7 @@ export async function deleteAlertRule(ruleId: number): Promise<{ status: string;
 }
 
 /**
- * List triggered alerts.
+ * 列出已觸發的警報。
  */
 export async function listTriggeredAlerts(
   unacknowledgedOnly: boolean = false,
@@ -981,7 +1027,7 @@ export async function listTriggeredAlerts(
 }
 
 /**
- * Acknowledge a triggered alert.
+ * 確認一個已觸發的警報。
  */
 export async function acknowledgeTriggeredAlert(
   alertId: number
@@ -992,7 +1038,7 @@ export async function acknowledgeTriggeredAlert(
 }
 
 /**
- * Acknowledge all unacknowledged alerts.
+ * 確認所有未確認的警報。
  */
 export async function acknowledgeAllTriggeredAlerts(): Promise<{ status: string; count: number }> {
   return apiCall(`/alerts/triggered/acknowledge-all`, {
@@ -1001,7 +1047,7 @@ export async function acknowledgeAllTriggeredAlerts(): Promise<{ status: string;
 }
 
 /**
- * Manually trigger alert check.
+ * 手動觸發警報檢查。
  */
 export async function checkAlerts(): Promise<{
   status: string;
@@ -1013,7 +1059,7 @@ export async function checkAlerts(): Promise<{
   });
 }
 
-// ==================== Discovery Types ====================
+// ==================== 探索型別 ====================
 
 export interface DiscoveryRepo {
   id: number;
@@ -1045,10 +1091,10 @@ export interface SearchFilters {
   sort?: "stars" | "forks" | "updated";
 }
 
-// ==================== Discovery API Functions ====================
+// ==================== 探索 API 函式 ====================
 
 /**
- * Search GitHub repositories using the GitHub Search API.
+ * 使用 GitHub Search API 搜尋儲存庫。
  */
 export async function searchRepos(
   query: string,

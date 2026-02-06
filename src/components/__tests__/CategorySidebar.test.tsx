@@ -26,6 +26,11 @@ vi.mock("../../i18n", async (importOriginal) => {
     ...actual,
     useI18n: () => ({
       t: {
+        common: {
+          confirm: "Confirm",
+          cancel: "Cancel",
+          close: "Close",
+        },
         categories: {
           title: "Categories",
           loading: "Loading...",

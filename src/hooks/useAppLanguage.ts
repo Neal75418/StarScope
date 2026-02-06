@@ -1,6 +1,5 @@
 /**
- * Custom hook for language/i18n management.
- * Encapsulates language state and persistence.
+ * 語言 / i18n 狀態管理與持久化。
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -37,7 +36,7 @@ export function useAppLanguage(): UseAppLanguageReturn {
 
   const t = getTranslations(language);
 
-  // Memoize return object to prevent infinite loops in consumers
+  // 記憶化回傳物件，避免消費端無限迴圈
   return useMemo(
     () => ({ language, setLanguage, toggleLanguage, t }),
     [language, setLanguage, toggleLanguage, t]

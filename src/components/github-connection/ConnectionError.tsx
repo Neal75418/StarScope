@@ -1,5 +1,5 @@
 /**
- * Error state for GitHub connection.
+ * GitHub 連線錯誤狀態元件。
  */
 
 import { useI18n } from "../../i18n";

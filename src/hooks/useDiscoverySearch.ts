@@ -1,3 +1,7 @@
+/**
+ * 探索頁面的搜尋邏輯與狀態管理。
+ */
+
 import { useState, useCallback, useRef } from "react";
 import { SearchFilters, DiscoveryRepo } from "../api/client";
 import { buildCombinedQuery, fetchSearchResults, SearchResult } from "../utils/searchHelpers";

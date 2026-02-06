@@ -1,5 +1,5 @@
 /**
- * Hook for managing signals state and data fetching.
+ * 訊號狀態管理與資料取得。
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -22,7 +22,7 @@ export function useSignals() {
   const [filterSeverity, setFilterSeverity] = useState<EarlySignalSeverity | "">("");
   const [showAcknowledged, setShowAcknowledged] = useState(false);
 
-  // Prevent duplicate fetches from StrictMode
+  // 避免 StrictMode 重複請求
   const isFetchingRef = useRef(false);
 
   const loadSignals = useCallback(async () => {
@@ -34,7 +34,7 @@ export function useSignals() {
       });
       setSignals(response.signals);
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to load early signals"));
+      setError(getErrorMessage(err, "早期訊號載入失敗"));
     }
   }, [filterType, filterSeverity, showAcknowledged]);
 
@@ -43,7 +43,7 @@ export function useSignals() {
       const data = await getSignalSummary();
       setSummary(data);
     } catch {
-      // Summary loading failure is non-critical
+      // 摘要載入失敗不影響主要功能
     }
   }, []);
 

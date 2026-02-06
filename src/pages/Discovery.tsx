@@ -1,6 +1,5 @@
 /**
- * Discovery page - search and explore GitHub repositories.
- * Supports combining: keyword search + time period + language filters.
+ * Discovery 頁面，搜尋與探索 GitHub repo，支援關鍵字＋時間區間＋語言篩選。
  */
 
 import { useState, useCallback, useMemo } from "react";
@@ -27,17 +26,17 @@ export function Discovery() {
   const { repos: watchlist, handleRefreshAll } = useWatchlist();
 
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
-  // Track locally added repo names for immediate UI feedback
+  // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
-  // Create a Set of watchlist full_names for quick lookup (includes locally added)
+  // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
   const watchlistFullNames = useMemo(() => {
     const names = new Set(watchlist.map((r) => r.full_name.toLowerCase()));
     locallyAdded.forEach((name) => names.add(name));
     return names;
   }, [watchlist, locallyAdded]);
 
-  // Get period display label for active filters
+  // 取得時間區間的顯示文字
   const getPeriodLabel = useCallback(
     (period: TrendingPeriod): string => {
       switch (period) {
@@ -52,20 +51,20 @@ export function Discovery() {
     [t.discovery.trending]
   );
 
-  // Handle clearing all filters
+  // 清除所有篩選條件
   const handleClearAll = useCallback(() => {
     discovery.reset();
   }, [discovery]);
 
-  // Handle adding repo to watchlist
+  // 將 repo 加入 watchlist
   const handleAddToWatchlist = useCallback(
     async (repo: DiscoveryRepo) => {
       setAddingRepoId(repo.id);
       try {
         await addRepo({ owner: repo.owner, name: repo.name });
-        // Immediately update local state for UI feedback
+        // 立即更新本地狀態以即時反映 UI
         setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
-        // Refresh watchlist in background to sync with backend
+        // 背景重新整理 watchlist 以同步後端資料
         void handleRefreshAll();
         toast.success(t.toast.repoAdded);
       } catch {

@@ -1,3 +1,7 @@
+/**
+ * 搜尋與探索功能的輔助函式。
+ */
+
 import { TrendingPeriod } from "../components/discovery";
 import { searchRepos, SearchFilters, DiscoveryRepo, ApiError } from "../api/client";
 
@@ -26,7 +30,7 @@ export async function fetchSearchResults(
       hasMore: result.has_more,
     };
   } catch (err) {
-    // Re-throw abort errors so callers can distinguish cancellation
+    // 重新拋出 abort 錯誤，讓呼叫端能區分取消操作
     if (err instanceof DOMException && err.name === "AbortError") {
       throw err;
     }
@@ -43,7 +47,7 @@ export async function fetchSearchResults(
   }
 }
 
-// Start Date Utilities
+// 起始日期工具
 export function getStartDateForPeriod(period: TrendingPeriod): string {
   const now = new Date();
   switch (period) {
@@ -71,7 +75,7 @@ export function getMinStarsForPeriod(period: TrendingPeriod): number {
   }
 }
 
-// Build query logic
+// 組合查詢邏輯
 export function buildCombinedQuery(
   keyword: string,
   period: TrendingPeriod | undefined,

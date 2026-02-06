@@ -1,3 +1,7 @@
+/**
+ * Star 歷史回填操作。
+ */
+
 import { useState, useCallback } from "react";
 import { backfillStarHistory } from "../api/client";
 import { useI18n } from "../i18n";
@@ -23,9 +27,9 @@ export function useBackfillAction({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const handleBackfill = useCallback(async () => {
-    // Don't allow backfill when offline
+    // 離線時不允許回填
     if (isOffline) {
-      setError(t.starHistory.offlineNoBackfill ?? "Cannot backfill while offline");
+      setError(t.starHistory.offlineNoBackfill ?? "離線狀態下無法執行回填");
       return;
     }
 
@@ -38,14 +42,14 @@ export function useBackfillAction({
         setSuccessMessage(
           t.starHistory.backfillComplete.replace("{count}", String(result.snapshots_created))
         );
-        // Reload status after backfill
+        // 回填完成後重新載入狀態
         await onSuccess();
         onComplete?.();
       } else {
         setError(result.message);
       }
     } catch (err) {
-      console.error("Backfill failed:", err);
+      console.error("回填失敗:", err);
       const errorMessage = getBackfillErrorMessage(err, t);
       setError(errorMessage);
     } finally {

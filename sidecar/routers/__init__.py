@@ -1,4 +1,5 @@
-# Routers package
+"""路由套件，匯出所有 API 路由模組。"""
+
 from . import health
 from . import repos
 from . import scheduler

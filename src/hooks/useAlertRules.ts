@@ -1,3 +1,7 @@
+/**
+ * 警報規則整合管理，組合資料與操作 hooks。
+ */
+
 import { useState, useCallback } from "react";
 import { AlertRule, AlertRuleCreate } from "../api/client";
 import { useDeleteConfirm } from "./useDeleteConfirm";
@@ -64,7 +68,7 @@ export function useAlertRules(toast: Toast) {
     deleteConfirm.close();
   }, [deleteConfirm, handleDelete]);
 
-  // Convert AlertRule to AlertRuleCreate for form
+  // 將 AlertRule 轉為 AlertRuleCreate 供表單使用
   const editingRuleData: AlertRuleCreate | null = editingRule
     ? {
         name: editingRule.name,

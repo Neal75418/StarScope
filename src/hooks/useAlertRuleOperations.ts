@@ -1,3 +1,7 @@
+/**
+ * 警報規則的 CRUD 與檢查操作。
+ */
+
 import { useCallback, Dispatch, SetStateAction } from "react";
 import {
   AlertRule,
@@ -80,13 +84,13 @@ export function useAlertRuleOperations({
 
       const newEnabled = !rule.enabled;
 
-      // Optimistic update
+      // 樂觀更新 UI
       setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: newEnabled } : r)));
 
       try {
         await updateAlertRule(id, { enabled: newEnabled });
       } catch (err) {
-        // Revert on failure
+        // 失敗時還原
         setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !newEnabled } : r)));
         toast.error(getErrorMessage(err, t.common.error));
       }

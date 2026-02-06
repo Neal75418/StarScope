@@ -1,5 +1,5 @@
 /**
- * Form for adding a new category.
+ * 新增分類的表單。
  */
 
 import { useState, FormEvent } from "react";

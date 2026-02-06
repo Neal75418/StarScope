@@ -1,5 +1,5 @@
 /**
- * Error state for category sidebar.
+ * 分類側邊欄的錯誤狀態。
  */
 
 import { useI18n } from "../../i18n";

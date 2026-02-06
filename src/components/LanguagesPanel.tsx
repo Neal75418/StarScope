@@ -1,10 +1,11 @@
 /**
- * Languages panel showing programming language breakdown visualization.
+ * 程式語言面板，視覺化呈現語言佔比。
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { LanguagesResponse, getLanguages, fetchLanguages, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
+import { getLanguageColor } from "../constants/languageColors";
 
 interface LanguagesPanelProps {
   repoId: number;
@@ -13,50 +14,7 @@ interface LanguagesPanelProps {
 }
 
 /**
- * GitHub language colors (subset of common languages).
- */
-const LANGUAGE_COLORS: Record<string, string> = {
-  JavaScript: "#f1e05a",
-  TypeScript: "#3178c6",
-  Python: "#3572A5",
-  Java: "#b07219",
-  Go: "#00ADD8",
-  Rust: "#dea584",
-  "C++": "#f34b7d",
-  C: "#555555",
-  "C#": "#178600",
-  Ruby: "#701516",
-  PHP: "#4F5D95",
-  Swift: "#F05138",
-  Kotlin: "#A97BFF",
-  Scala: "#c22d40",
-  Shell: "#89e051",
-  HTML: "#e34c26",
-  CSS: "#563d7c",
-  SCSS: "#c6538c",
-  Vue: "#41b883",
-  Dart: "#00B4AB",
-  Elixir: "#6e4a7e",
-  Haskell: "#5e5086",
-  Lua: "#000080",
-  R: "#198CE7",
-  Perl: "#0298c3",
-  "Objective-C": "#438eff",
-  Clojure: "#db5855",
-  Dockerfile: "#384d54",
-  Makefile: "#427819",
-  Jupyter: "#DA5B0B",
-};
-
-/**
- * Get color for a language, with fallback.
- */
-function getLanguageColor(language: string): string {
-  return LANGUAGE_COLORS[language] || "#8b949e";
-}
-
-/**
- * Format bytes to human-readable string.
+ * 將位元組格式化為易讀字串。
  */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -242,7 +200,7 @@ export function LanguagesPanel({ repoId, repoName, onClose }: LanguagesPanelProp
       if (err instanceof ApiError && err.status === 404) {
         setData(null);
       } else {
-        console.error("Failed to load languages:", err);
+        console.error("載入程式語言資料失敗:", err);
         setError(t.languages.fetchFailed);
       }
     } finally {
@@ -270,7 +228,7 @@ export function LanguagesPanel({ repoId, repoName, onClose }: LanguagesPanelProp
   return (
     <div className="languages-overlay" onClick={onClose}>
       <div className="languages-panel" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+        {/* 標題列 */}
         <div className="languages-header">
           <div>
             <h3>{t.languages.title}</h3>
@@ -281,7 +239,7 @@ export function LanguagesPanel({ repoId, repoName, onClose }: LanguagesPanelProp
           </button>
         </div>
 
-        {/* Content */}
+        {/* 內容區 */}
         <div className="languages-content">
           <LanguagesContent
             loading={loading}

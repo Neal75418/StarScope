@@ -1,6 +1,5 @@
 /**
- * Hook for managing saved filter presets.
- * Uses localStorage to persist filter configurations.
+ * 已儲存篩選條件的管理，使用 localStorage 持久化。
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -19,39 +18,39 @@ const STORAGE_KEY = "starscope_saved_filters";
 const MAX_SAVED_FILTERS = 20;
 
 /**
- * Generate a unique ID for a saved filter.
+ * 產生唯一的篩選條件 ID。
  */
 function generateId(): string {
   return `filter-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 /**
- * Load saved filters from localStorage.
+ * 從 localStorage 載入已儲存篩選條件。
  */
 function loadSavedFilters(): SavedFilter[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as SavedFilter[];
-      // Validate and return
+      // 驗證後回傳
       if (Array.isArray(parsed)) {
         return parsed.filter((f) => f && f.id && f.name);
       }
     }
   } catch (err) {
-    console.warn("Failed to load saved filters:", err);
+    console.warn("載入已儲存篩選條件失敗:", err);
   }
   return [];
 }
 
 /**
- * Save filters to localStorage.
+ * 將篩選條件儲存至 localStorage。
  */
 function saveSavedFilters(filters: SavedFilter[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
   } catch (err) {
-    console.warn("Failed to save filters:", err);
+    console.warn("篩選條件儲存失敗:", err);
   }
 }
 
@@ -61,7 +60,7 @@ export function useSavedFilters() {
   const mountedRef = useRef(true);
   const savedFiltersRef = useRef<SavedFilter[]>([]);
 
-  // Load from localStorage on mount
+  // 掛載時從 localStorage 載入
   useEffect(() => {
     const loaded = loadSavedFilters();
     if (mountedRef.current) {
@@ -74,12 +73,12 @@ export function useSavedFilters() {
     };
   }, []);
 
-  // Save to localStorage when filters change (but not on initial load)
+  // 篩選條件變更時存入 localStorage（初次載入除外）
   useEffect(() => {
     if (isLoaded) {
       saveSavedFilters(savedFilters);
     }
-    // Keep ref in sync for stale closure prevention
+    // 同步 ref 避免閉包取到舊值
     savedFiltersRef.current = savedFilters;
   }, [savedFilters, isLoaded]);
 
@@ -90,14 +89,14 @@ export function useSavedFilters() {
       period: string | undefined,
       filters: SearchFilters
     ): SavedFilter => {
-      // Generate ID and timestamp outside setter for return value
+      // 在 setter 外產生 ID 與時間戳以便回傳
       const id = generateId();
       const createdAt = new Date().toISOString();
       const trimmedName = name.trim();
 
-      // Use ref to get current count for default name
+      // 透過 ref 取得目前數量以產生預設名稱
       const currentCount = savedFiltersRef.current.length;
-      const filterName = trimmedName || `Filter ${currentCount + 1}`;
+      const filterName = trimmedName || `篩選條件 ${currentCount + 1}`;
 
       const newFilter: SavedFilter = {
         id,
@@ -109,7 +108,7 @@ export function useSavedFilters() {
       };
 
       setSavedFilters((prev) => {
-        // Remove oldest if at max
+        // 超過上限時移除最舊的
         const updated = [newFilter, ...prev];
         if (updated.length > MAX_SAVED_FILTERS) {
           return updated.slice(0, MAX_SAVED_FILTERS);

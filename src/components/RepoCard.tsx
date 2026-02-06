@@ -1,10 +1,9 @@
 /**
- * Repository card component displaying repo info, signals, and context badges.
- * Simplified version focusing on core metrics.
+ * Repo 卡片元件，顯示 repo 資訊、訊號與情境徽章。
  */
 
-import { useState, useCallback } from "react";
-import { RepoWithSignals } from "../api/client";
+import { useState, useCallback, memo } from "react";
+import { ContextBadge, EarlySignal, RepoWithSignals } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
 
@@ -15,22 +14,31 @@ interface RepoCardProps {
   isLoading?: boolean;
   selectedCategoryId?: number | null;
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
+  /** 由父層批次預載的 badges，避免每張卡個別請求 */
+  preloadedBadges?: ContextBadge[];
+  /** 由父層批次預載的 signals，避免每張卡個別請求 */
+  preloadedSignals?: EarlySignal[];
 }
 
-export function RepoCard({
+export const RepoCard = memo(function RepoCard({
   repo,
   onFetch,
   onRemove,
   isLoading,
   selectedCategoryId,
   onRemoveFromCategory,
+  preloadedBadges,
+  preloadedSignals,
 }: RepoCardProps) {
+  const preloaded = preloadedBadges || preloadedSignals
+    ? { badges: preloadedBadges, signals: preloadedSignals }
+    : undefined;
   const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
-    useRepoCardData(repo.id);
+    useRepoCardData(repo.id, preloaded);
   const [showChart, setShowChart] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false);
 
-  // Memoize handlers to prevent unnecessary re-renders of memoized children
+  // Memoize handler 以避免 memoized 子元件不必要的 re-render
   const handleToggleChart = useCallback(() => setShowChart((prev) => !prev), []);
   const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
   const handleFetch = useCallback(() => onFetch(repo.id), [onFetch, repo.id]);
@@ -60,6 +68,7 @@ export function RepoCard({
       />
 
       <RepoCardContent
+        repoId={repo.id}
         description={repo.description}
         badges={badges}
         badgesLoading={badgesLoading}
@@ -77,4 +86,4 @@ export function RepoCard({
       />
     </div>
   );
-}
+});

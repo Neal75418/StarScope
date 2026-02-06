@@ -1,13 +1,14 @@
 /**
- * Repo card content section (badges, description).
- * Simplified version without tags.
+ * Repo 卡片內容區（徽章、描述）。
  */
 
+import { memo } from "react";
 import { ContextBadge } from "../../api/client";
 import { ContextBadges } from "../ContextBadges";
 import { useI18n } from "../../i18n";
 
 interface RepoCardContentProps {
+  repoId: number;
   description?: string | null;
   badges: ContextBadge[];
   badgesLoading: boolean;
@@ -15,7 +16,8 @@ interface RepoCardContentProps {
   isRefreshingContext?: boolean;
 }
 
-export function RepoCardContent({
+export const RepoCardContent = memo(function RepoCardContent({
+  repoId,
   description,
   badges,
   badgesLoading,
@@ -31,6 +33,7 @@ export function RepoCardContent({
       ) : (
         <ContextBadges
           badges={badges}
+          repoId={repoId}
           onRefresh={onRefreshContext}
           isRefreshing={isRefreshingContext}
         />
@@ -39,4 +42,4 @@ export function RepoCardContent({
       {description && <p className="repo-description">{description}</p>}
     </>
   );
-}
+});

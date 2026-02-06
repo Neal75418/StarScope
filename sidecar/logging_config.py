@@ -1,6 +1,4 @@
-"""
-Logging configuration for StarScope sidecar.
-"""
+"""StarScope sidecar 的 logging 設定。"""
 
 import logging
 import sys
@@ -12,16 +10,16 @@ def setup_logging(
     log_format: Optional[str] = None,
 ) -> None:
     """
-    Configure logging for the application.
+    設定應用程式 logging。
 
     Args:
-        level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        log_format: Custom log format string
+        level: 日誌層級（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+        log_format: 自訂日誌格式字串
     """
     if log_format is None:
         log_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
 
-    # Configure root logger
+    # 設定 root logger
     logging.basicConfig(
         level=getattr(logging, level.upper()),
         format=log_format,
@@ -31,12 +29,12 @@ def setup_logging(
         ],
     )
 
-    # Set third-party loggers to WARNING to reduce noise
+    # 將第三方 logger 設為 WARNING 以減少雜訊
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
-    # Get our app logger
+    # 取得應用程式 logger
     logger = logging.getLogger("starscope")
-    logger.info(f"Logging configured at {level} level")
+    logger.info(f"[日誌] 日誌層級已設定為 {level}")

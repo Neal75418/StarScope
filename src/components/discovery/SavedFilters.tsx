@@ -1,5 +1,5 @@
 /**
- * Saved filters dropdown for quick access to saved filter presets.
+ * 已儲存篩選條件的下拉選單，快速套用篩選預設。
  */
 
 import { useState, useCallback, useRef, useEffect, memo } from "react";
@@ -88,7 +88,7 @@ export function SavedFilters({
 
   const { savedFilters, saveFilter, deleteFilter, hasFilters } = useSavedFilters();
 
-  // Check if there are active filters to save
+  // 檢查是否有可儲存的啟用篩選
   const hasActiveFilters =
     currentQuery.trim() !== "" ||
     currentPeriod !== undefined ||
@@ -96,7 +96,7 @@ export function SavedFilters({
       (key) => currentFilters[key as keyof SearchFilters] !== undefined
     );
 
-  // Close on click outside
+  // 點擊外部時關閉
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -115,7 +115,7 @@ export function SavedFilters({
     };
   }, [isOpen]);
 
-  // Focus input when entering save mode
+  // 進入儲存模式時自動聚焦輸入框
   useEffect(() => {
     if (isSaving && inputRef.current) {
       inputRef.current.focus();
@@ -191,7 +191,7 @@ export function SavedFilters({
 
       {isOpen && (
         <div className={styles.savedFiltersDropdown} role="menu">
-          {/* Save current filters */}
+          {/* 儲存目前篩選條件 */}
           {hasActiveFilters && (
             <div className={styles.savedFiltersSaveSection}>
               {isSaving ? (
@@ -232,7 +232,7 @@ export function SavedFilters({
             </div>
           )}
 
-          {/* Saved filters list */}
+          {/* 已儲存篩選列表 */}
           <div className={styles.savedFiltersList}>
             {savedFilters.length === 0 ? (
               <div className={styles.savedFiltersEmpty}>{t.savedFilters.empty}</div>

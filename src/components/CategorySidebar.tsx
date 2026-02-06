@@ -1,6 +1,5 @@
 /**
- * Category sidebar component for organizing repositories.
- * Displays categories in a tree structure with create/edit capabilities.
+ * 分類側邊欄元件，以樹狀結構組織 repo 並支援新增 / 編輯。
  */
 
 import { useState, useCallback, MouseEvent } from "react";
@@ -8,6 +7,8 @@ import { CategoryTreeNode, getCategory } from "../api/client";
 import { useI18n } from "../i18n";
 import { useCategoryTree } from "../hooks/useCategoryTree";
 import { useCategoryExpand } from "../hooks/useCategoryExpand";
+import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
+import { ConfirmDialog } from "./ConfirmDialog";
 import {
   CategoryAddForm,
   CategoryEditModal,
@@ -37,13 +38,14 @@ export function CategorySidebar({
     useCategoryTree(onCategoriesChange);
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
+  const deleteConfirm = useDeleteConfirm();
 
   const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
     e.stopPropagation();
-    // Fetch fresh category data to ensure we have the latest
+    // 取得最新的分類資料以確保一致性
     try {
       const freshCategory = await getCategory(node.id);
-      // Merge fresh data with tree node structure (preserving children)
+      // 合併最新資料與樹節點結構（保留 children）
       setEditingCategory({
         ...node,
         name: freshCategory.name,
@@ -52,8 +54,8 @@ export function CategorySidebar({
         color: freshCategory.color,
       });
     } catch (err) {
-      // Fallback to the tree node if fetch fails
-      console.error("Failed to fetch category, using cached data:", err);
+      // 取得失敗時使用樹節點快取資料
+      console.error("分類載入失敗，使用快取資料:", err);
       setEditingCategory(node);
     }
   }, []);
@@ -71,17 +73,21 @@ export function CategorySidebar({
   );
 
   const handleDelete = useCallback(
-    async (categoryId: number, e: MouseEvent) => {
+    (_categoryId: number, e: MouseEvent) => {
       e.stopPropagation();
-      if (!confirm(t.categories.deleteConfirm)) return;
-
-      const success = await handleDeleteCategory(categoryId);
-      if (success && selectedCategoryId === categoryId) {
-        onSelectCategory(null);
-      }
+      deleteConfirm.open(_categoryId);
     },
-    [t, handleDeleteCategory, selectedCategoryId, onSelectCategory]
+    [deleteConfirm]
   );
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (deleteConfirm.itemId === null) return;
+    const success = await handleDeleteCategory(deleteConfirm.itemId);
+    if (success && selectedCategoryId === deleteConfirm.itemId) {
+      onSelectCategory(null);
+    }
+    deleteConfirm.close();
+  }, [deleteConfirm, handleDeleteCategory, selectedCategoryId, onSelectCategory]);
 
   if (loading) {
     return <CategorySidebarLoading />;
@@ -137,6 +143,15 @@ export function CategorySidebar({
           onClose={() => setEditingCategory(null)}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title={t.categories.deleteCategory}
+        message={t.categories.deleteConfirm}
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={deleteConfirm.close}
+      />
     </div>
   );
 }

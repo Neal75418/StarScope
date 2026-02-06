@@ -1,3 +1,7 @@
+/**
+ * 匯入儲存庫的解析與驗證工具。
+ */
+
 export interface ParsedRepo {
   owner: string;
   name: string;
@@ -14,9 +18,9 @@ export interface ImportResult {
 }
 
 /**
- * Validate GitHub owner and repo name.
- * GitHub usernames/orgs: 1-39 chars, alphanumeric or hyphens, can't start with hyphen.
- * Repo names: similar but can have dots and underscores.
+ * 驗證 GitHub owner 與 repo 名稱。
+ * GitHub 使用者名稱/組織：1-39 字元，英數字或連字號，不可以連字號開頭。
+ * Repo 名稱：類似但可包含點與底線。
  */
 export function isValidGitHubIdentifier(str: string): boolean {
   const validPattern = /^[a-zA-Z0-9]([a-zA-Z0-9._-]{0,38})?$/;
@@ -24,13 +28,13 @@ export function isValidGitHubIdentifier(str: string): boolean {
 }
 
 /**
- * Parse a GitHub repo URL or owner/name format.
+ * 解析 GitHub repo URL 或 owner/name 格式。
  */
 export function parseRepoString(input: string): { owner: string; name: string } | null {
   const trimmed = input.trim();
   if (!trimmed) return null;
 
-  // Try URL format: https://github.com/owner/repo
+  // 嘗試 URL 格式：https://github.com/owner/repo
   const urlMatch = trimmed.match(/github\.com\/([^/]+)\/([^/\s]+)/i);
   if (urlMatch) {
     const owner = urlMatch[1];
@@ -41,7 +45,7 @@ export function parseRepoString(input: string): { owner: string; name: string } 
     return null;
   }
 
-  // Try owner/repo format
+  // 嘗試 owner/repo 格式
   const slashMatch = trimmed.match(/^([^/\s]+)\/([^/\s]+)$/);
   if (slashMatch) {
     const owner = slashMatch[1];
@@ -55,7 +59,7 @@ export function parseRepoString(input: string): { owner: string; name: string } 
 }
 
 /**
- * Remove duplicate repos from the list (case-insensitive).
+ * 從列表中移除重複的儲存庫（不分大小寫）。
  */
 export function removeDuplicates(repos: ParsedRepo[]): ParsedRepo[] {
   const seen = new Set<string>();
@@ -68,32 +72,32 @@ export function removeDuplicates(repos: ParsedRepo[]): ParsedRepo[] {
 }
 
 /**
- * Parse CSV content into repo list.
+ * 將 CSV 內容解析為儲存庫列表。
  */
 export function parseCSV(content: string): ParsedRepo[] {
   const lines = content.split(/\r?\n/).filter((line) => line.trim());
   const repos: ParsedRepo[] = [];
 
   for (const line of lines) {
-    // Skip header row if it looks like a header
+    // 跳過看起來像標題的列
     if (line.toLowerCase().includes("owner") && line.toLowerCase().includes("repo")) {
       continue;
     }
 
-    // Try to parse as comma-separated or just a repo string
+    // 嘗試解析為逗號分隔或單一 repo 字串
     const parts = line.split(",").map((p) => p.trim().replace(/^["']|["']$/g, ""));
 
     let parsed: { owner: string; name: string } | null = null;
 
     if (parts.length >= 2) {
-      // Two columns: owner, repo
+      // 兩欄格式：owner, repo
       const owner = parts[0];
       const name = parts[1];
       if (isValidGitHubIdentifier(owner) && isValidGitHubIdentifier(name)) {
         parsed = { owner, name };
       }
     } else if (parts.length === 1) {
-      // Single column: owner/repo or URL
+      // 單欄格式：owner/repo 或 URL
       parsed = parseRepoString(parts[0]);
     }
 
@@ -111,10 +115,10 @@ export function parseCSV(content: string): ParsedRepo[] {
 }
 
 /**
- * Parse JSON content into repo list.
+ * 將 JSON 內容解析為儲存庫列表。
  */
 /**
- * Try to parse a single JSON item into a ParsedRepo.
+ * 嘗試將單一 JSON 項目解析為 ParsedRepo。
  */
 function parseRepoItem(item: unknown): { owner: string; name: string } | null {
   if (typeof item === "string") {
@@ -140,14 +144,14 @@ function parseRepoItem(item: unknown): { owner: string; name: string } | null {
 }
 
 /**
- * Parse JSON content into repo list.
+ * 將 JSON 內容解析為儲存庫列表。
  */
 export function parseJSON(content: string): ParsedRepo[] {
   try {
     const data: unknown = JSON.parse(content);
     const repos: ParsedRepo[] = [];
 
-    // Handle array of strings or objects
+    // 處理字串陣列或物件陣列
     const items = Array.isArray(data) ? data : [data];
 
     for (const item of items) {
@@ -170,13 +174,13 @@ export function parseJSON(content: string): ParsedRepo[] {
 }
 
 /**
- * Parse repository content based on file extension or auto-detection.
+ * 依副檔名或自動偵測格式來解析儲存庫內容。
  */
 export function parseRepositories(content: string, filename?: string): ParsedRepo[] {
   const trimmed = content.trim();
   if (!trimmed) return [];
 
-  // Try based on extension
+  // 依副檔名嘗試解析
   if (filename) {
     if (filename.endsWith(".json")) {
       return parseJSON(content);
@@ -185,7 +189,7 @@ export function parseRepositories(content: string, filename?: string): ParsedRep
     }
   }
 
-  // Auto-detect format
+  // 自動偵測格式
   if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
     return parseJSON(content);
   } else {

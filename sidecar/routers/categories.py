@@ -1,6 +1,6 @@
 """
-Categories API endpoints.
-Provides CRUD operations for user-defined repository categories.
+分類 API 端點。
+提供使用者自訂 repo 分類的 CRUD 操作。
 """
 
 from typing import Dict, List, Optional
@@ -16,7 +16,7 @@ from db.models import Category, RepoCategory
 from routers.dependencies import get_repo_or_404
 from utils.time import utc_now
 
-# Error message constants
+# 錯誤訊息常數
 ERROR_CATEGORY_NOT_FOUND = "Category not found"
 ERROR_PARENT_CATEGORY_NOT_FOUND = "Parent category not found"
 ERROR_CIRCULAR_REFERENCE = "Category cannot be its own parent"
@@ -25,9 +25,9 @@ ERROR_REPO_NOT_IN_CATEGORY = "Repository is not in this category"
 router = APIRouter(prefix="/categories", tags=["categories"])
 
 
-# Request/Response schemas
+# 請求/回應 schema
 class CategoryCreate(BaseModel):
-    """Schema for creating a category."""
+    """建立分類的 schema。"""
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
@@ -36,7 +36,7 @@ class CategoryCreate(BaseModel):
 
 
 class CategoryUpdate(BaseModel):
-    """Schema for updating a category."""
+    """更新分類的 schema。"""
     name: Optional[str] = None
     description: Optional[str] = None
     icon: Optional[str] = None
@@ -46,7 +46,7 @@ class CategoryUpdate(BaseModel):
 
 
 class CategoryResponse(BaseModel):
-    """Schema for a category."""
+    """分類的 schema。"""
     id: int
     name: str
     description: Optional[str]
@@ -62,7 +62,7 @@ class CategoryResponse(BaseModel):
 
 
 class CategoryTreeNode(BaseModel):
-    """Schema for a category in tree structure."""
+    """樹狀結構中的分類 schema。"""
     id: int
     name: str
     description: Optional[str]
@@ -77,19 +77,19 @@ class CategoryTreeNode(BaseModel):
 
 
 class CategoryListResponse(BaseModel):
-    """Response for category list."""
+    """分類列表的回應。"""
     categories: List[CategoryResponse]
     total: int
 
 
 class CategoryTreeResponse(BaseModel):
-    """Response for category tree."""
+    """分類樹的回應。"""
     tree: List[CategoryTreeNode]
     total: int
 
 
 class RepoCategoryResponse(BaseModel):
-    """Schema for a repo in a category."""
+    """分類中 repo 的 schema。"""
     id: int
     full_name: str
     description: Optional[str]
@@ -98,16 +98,16 @@ class RepoCategoryResponse(BaseModel):
 
 
 class CategoryReposResponse(BaseModel):
-    """Response for repos in a category."""
+    """分類中 repo 的回應。"""
     category_id: int
     category_name: str
     repos: List[RepoCategoryResponse]
     total: int
 
 
-# Helper functions
+# 輔助函式
 def _build_repo_count_map(db: Session) -> Dict[int, int]:
-    """Batch load repo counts for all categories in a single query."""
+    """以單一查詢批次載入所有分類的 repo 數量。"""
     rows = db.query(
         RepoCategory.category_id,
         func.count(RepoCategory.repo_id),
@@ -116,12 +116,12 @@ def _build_repo_count_map(db: Session) -> Dict[int, int]:
 
 
 def _get_repo_count(category_id: int, db: Session) -> int:
-    """Get number of repos in a single category."""
+    """取得單一分類中的 repo 數量。"""
     return db.query(RepoCategory).filter(RepoCategory.category_id == category_id).count()
 
 
 def _category_base_fields(category: Category, repo_count_map: Dict[int, int]) -> Dict:
-    """Extract common fields shared by CategoryResponse and CategoryTreeNode."""
+    """擷取 CategoryResponse 與 CategoryTreeNode 共用的欄位。"""
     return {
         "id": category.id,
         "name": category.name,
@@ -137,7 +137,7 @@ def _category_to_response(
     category: Category,
     repo_count_map: Dict[int, int],
 ) -> CategoryResponse:
-    """Convert Category model to response."""
+    """將 Category model 轉換為回應。"""
     return CategoryResponse(
         **_category_base_fields(category, repo_count_map),
         parent_id=category.parent_id,
@@ -150,7 +150,7 @@ def _build_tree(
     parent_id: Optional[int],
     repo_count_map: Dict[int, int],
 ) -> List[CategoryTreeNode]:
-    """Build tree structure from flat category list."""
+    """從扁平分類列表建立樹狀結構。"""
     nodes = []
     for cat in categories:
         if cat.parent_id == parent_id:
@@ -164,7 +164,7 @@ def _build_tree(
 
 
 def _repo_category_to_response(rc: RepoCategory) -> RepoCategoryResponse:
-    """Convert RepoCategory model to RepoCategoryResponse."""
+    """將 RepoCategory model 轉換為 RepoCategoryResponse。"""
     return RepoCategoryResponse(
         id=rc.repo.id,
         full_name=rc.repo.full_name,
@@ -175,7 +175,7 @@ def _repo_category_to_response(rc: RepoCategory) -> RepoCategoryResponse:
 
 
 def _get_category_or_404(category_id: int, db: Session) -> Category:
-    """Get category by ID or raise 404."""
+    """依 ID 取得分類，不存在則拋出 404。"""
     category = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail=ERROR_CATEGORY_NOT_FOUND)
@@ -184,7 +184,7 @@ def _get_category_or_404(category_id: int, db: Session) -> Category:
 
 
 def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Session) -> None:
-    """Validate parent category exists and no circular reference."""
+    """驗證父分類是否存在且無循環參考。"""
     parent = db.query(Category).filter(Category.id == parent_id).first()
     if not parent:
         raise HTTPException(status_code=404, detail=ERROR_PARENT_CATEGORY_NOT_FOUND)
@@ -193,7 +193,7 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
 
 
 def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:
-    """Find a RepoCategory association by category and repo ID."""
+    """依分類與 repo ID 查詢 RepoCategory 關聯。"""
     return db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id,
         RepoCategory.repo_id == repo_id
@@ -201,7 +201,7 @@ def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional
 
 
 def _apply_category_updates(category: Category, request: CategoryUpdate) -> None:
-    """Apply non-None update fields to category."""
+    """將非 None 的更新欄位套用至分類。"""
     for field in ("name", "description", "icon", "color", "sort_order"):
         value = getattr(request, field)
         if value is not None:
@@ -210,7 +210,7 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
         category.parent_id = request.parent_id if request.parent_id else None
 
 
-# Endpoints
+# 端點
 @router.get("/", response_model=CategoryListResponse)
 async def list_categories(
     skip: int = 0,
@@ -218,16 +218,16 @@ async def list_categories(
     db: Session = Depends(get_db)
 ):
     """
-    List all categories (flat list) with pagination.
+    列出所有分類（扁平列表），含分頁。
 
     Args:
-        skip: Number of records to skip (default: 0)
-        limit: Maximum number of records to return (default: 100, max: 500)
+        skip: 跳過的紀錄數（預設 0）
+        limit: 回傳的最大紀錄數（預設 100，上限 500）
     """
-    # Cap limit to prevent excessive data retrieval
+    # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
 
-    # Get total count
+    # 取得總數
     total = db.query(Category).count()
 
     categories = (
@@ -250,7 +250,7 @@ async def get_category_tree(
     db: Session = Depends(get_db)
 ):
     """
-    Get categories as a hierarchical tree structure.
+    以階層樹狀結構取得分類。
     """
     categories = db.query(Category).all()
     repo_count_map = _build_repo_count_map(db)
@@ -268,7 +268,7 @@ async def get_category(
     db: Session = Depends(get_db)
 ):
     """
-    Get a specific category by ID.
+    依 ID 取得特定分類。
     """
     category = _get_category_or_404(category_id, db)
     count = _get_repo_count(category_id, db)
@@ -281,13 +281,13 @@ async def create_category(
     db: Session = Depends(get_db)
 ):
     """
-    Create a new category.
+    建立新分類。
     """
-    # Validate parent if specified
+    # 驗證指定的父分類
     if request.parent_id:
         _validate_parent_category(request.parent_id, None, db)
 
-    # Get next sort order
+    # 取得下一個排序順序
     max_order = db.query(Category.sort_order).order_by(Category.sort_order.desc()).first()
     next_order = (max_order[0] + 1) if max_order else 0
 
@@ -304,7 +304,7 @@ async def create_category(
     db.commit()
     db.refresh(category)
 
-    # Newly created category has 0 repos
+    # 新建立的分類有 0 個 repo
     return _category_to_response(category, {})
 
 
@@ -315,16 +315,16 @@ async def update_category(
     db: Session = Depends(get_db)
 ):
     """
-    Update a category.
+    更新分類。
     """
     category = _get_category_or_404(category_id, db)
 
-    # Validate parent if changing
+    # 變更父分類時進行驗證
     if request.parent_id is not None and request.parent_id != category.parent_id:
         if request.parent_id:
             _validate_parent_category(request.parent_id, category_id, db)
 
-    # Update fields using a mapping for cleaner code
+    # 使用映射更新欄位以簡化程式碼
     _apply_category_updates(category, request)
 
     db.commit()
@@ -340,8 +340,8 @@ async def delete_category(
     db: Session = Depends(get_db)
 ):
     """
-    Delete a category.
-    Child categories will have their parent_id set to null.
+    刪除分類。
+    子分類的 parent_id 將被設為 null。
     """
     category = _get_category_or_404(category_id, db)
     category_name = category.name
@@ -359,19 +359,19 @@ async def get_category_repos(
     db: Session = Depends(get_db)
 ):
     """
-    Get all repositories in a category with pagination.
+    取得分類中的所有 repo（含分頁）。
 
     Args:
-        category_id: The category ID
-        skip: Number of records to skip (default: 0)
-        limit: Maximum number of records to return (default: 100, max: 500)
+        category_id: 分類 ID
+        skip: 跳過的紀錄數（預設 0）
+        limit: 回傳的最大紀錄數（預設 100，上限 500）
     """
-    # Cap limit to prevent excessive data retrieval
+    # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
 
     category = _get_category_or_404(category_id, db)
 
-    # Get total count
+    # 取得總數
     total = db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id
     ).count()
@@ -401,7 +401,7 @@ async def add_repo_to_category(
     db: Session = Depends(get_db)
 ):
     """
-    Add a repository to a category.
+    將 repo 加入分類。
     """
     category = _get_category_or_404(category_id, db)
     repo = get_repo_or_404(repo_id, db)
@@ -433,7 +433,7 @@ async def remove_repo_from_category(
     db: Session = Depends(get_db)
 ):
     """
-    Remove a repository from a category.
+    從分類中移除 repo。
     """
     category = _get_category_or_404(category_id, db)
     repo = get_repo_or_404(repo_id, db)
@@ -457,7 +457,7 @@ async def get_repo_categories(
     db: Session = Depends(get_db)
 ):
     """
-    Get all categories for a repository.
+    取得 repo 所屬的所有分類。
     """
     get_repo_or_404(repo_id, db)
 

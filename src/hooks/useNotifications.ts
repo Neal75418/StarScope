@@ -1,3 +1,7 @@
+/**
+ * 通知中心：整合儲存、輪詢與操作邏輯。
+ */
+
 import { useState, useCallback } from "react";
 import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
@@ -27,13 +31,13 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Storage for read status
+  // 已讀狀態儲存
   const { readIdsRef, markIdAsRead, markIdsAsRead } = useNotificationStorage();
 
-  // Polling logic
+  // 輪詢邏輯
   const { isLoading, error, refresh } = useNotificationPolling(setNotifications, readIdsRef);
 
-  // Action logic
+  // 操作邏輯
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
     notifications,
     setNotifications,

@@ -1,6 +1,6 @@
 /**
- * Request cache for deduplicating and caching API requests.
- * Prevents duplicate concurrent requests and caches responses for a short TTL.
+ * API 請求的 cache 與去重機制。
+ * 防止重複的並發請求，並在短 TTL 內快取回應。
  */
 
 interface CacheEntry<T> {
@@ -12,67 +12,67 @@ interface PendingRequest<T> {
   promise: Promise<T>;
 }
 
-// Default TTL of 30 seconds
+// 預設 TTL 為 30 秒
 const DEFAULT_TTL_MS = 30 * 1000;
 
-// In-memory cache for responses
+// 記憶體內的回應 cache
 const cache = new Map<string, CacheEntry<unknown>>();
 
-// In-flight requests for deduplication
+// 進行中的請求，用於去重
 const pendingRequests = new Map<string, PendingRequest<unknown>>();
 
 /**
- * Execute a request with caching and deduplication.
+ * 執行帶有快取與去重的請求。
  *
- * @param key - Unique cache key for this request
- * @param fetchFn - Function that returns a Promise with the data
- * @param ttlMs - Cache TTL in milliseconds (default: 30s)
- * @returns Cached or fresh data
+ * @param key - 此請求的唯一 cache key
+ * @param fetchFn - 回傳資料 Promise 的函式
+ * @param ttlMs - cache TTL（毫秒，預設 30 秒）
+ * @returns 快取或最新的資料
  */
 export async function cachedRequest<T>(
   key: string,
   fetchFn: () => Promise<T>,
   ttlMs: number = DEFAULT_TTL_MS
 ): Promise<T> {
-  // Check cache first
+  // 先檢查 cache
   const cached = cache.get(key) as CacheEntry<T> | undefined;
   if (cached && Date.now() - cached.timestamp < ttlMs) {
     return cached.data;
   }
 
-  // Check if request is already in-flight
+  // 檢查請求是否已在進行中
   const pending = pendingRequests.get(key) as PendingRequest<T> | undefined;
   if (pending) {
     return pending.promise;
   }
 
-  // Create new request
+  // 建立新請求
   const promise = fetchFn()
     .then((data) => {
-      // Cache the response
+      // 快取回應
       cache.set(key, { data, timestamp: Date.now() });
       return data;
     })
     .finally(() => {
-      // Remove from pending regardless of success/failure
+      // 無論成功或失敗，都從待處理中移除
       pendingRequests.delete(key);
     });
 
-  // Track as pending
+  // 標記為進行中
   pendingRequests.set(key, { promise });
 
   return promise;
 }
 
 /**
- * Invalidate a specific cache entry.
+ * 使特定 cache 項目失效。
  */
 export function invalidateCache(key: string): void {
   cache.delete(key);
 }
 
 /**
- * Invalidate all cache entries matching a prefix.
+ * 使所有符合前綴的 cache 項目失效。
  */
 export function invalidateCacheByPrefix(prefix: string): void {
   for (const key of cache.keys()) {
@@ -83,8 +83,8 @@ export function invalidateCacheByPrefix(prefix: string): void {
 }
 
 /**
- * Clear the entire cache and pending requests.
- * Useful for testing to ensure a clean state between tests.
+ * 清除整個 cache 與待處理請求。
+ * 適用於測試時確保乾淨的狀態。
  */
 export function clearCache(): void {
   cache.clear();
@@ -92,7 +92,7 @@ export function clearCache(): void {
 }
 
 /**
- * Get cache statistics for debugging.
+ * 取得 cache 統計資訊（供除錯用）。
  */
 export function getCacheStats(): { cacheSize: number; pendingRequests: number } {
   return {

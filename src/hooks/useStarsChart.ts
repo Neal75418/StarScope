@@ -1,5 +1,5 @@
 /**
- * Hook for fetching star chart data.
+ * Star 圖表資料的取得。
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -39,7 +39,7 @@ export function useStarsChart(repoId: number) {
   const [state, setState] = useState<ChartState>(initialState);
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   const [refetchTrigger, setRefetchTrigger] = useState(0);
-  // Tracks the latest fetch to discard stale responses
+  // 追蹤最新請求 ID，捨棄過期回應
   const fetchIdRef = useRef(0);
 
   const refetch = useCallback(() => {
@@ -59,7 +59,7 @@ export function useStarsChart(repoId: number) {
       },
       (err) => {
         if (currentFetchId === fetchIdRef.current) {
-          const message = err instanceof Error ? err.message : "Failed to load chart";
+          const message = err instanceof Error ? err.message : "圖表載入失敗";
           setState({ data: [], error: message, loading: false });
         }
       }

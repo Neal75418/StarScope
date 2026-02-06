@@ -1,5 +1,5 @@
 /**
- * Modal for editing category details.
+ * 編輯分類詳細資訊的 modal。
  */
 
 import { useState, FormEvent } from "react";

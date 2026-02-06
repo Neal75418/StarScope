@@ -1,6 +1,4 @@
-"""
-Request/Response logging middleware for StarScope.
-"""
+"""StarScope 的 Request/Response 日誌 middleware。"""
 
 import time
 import logging
@@ -16,12 +14,12 @@ logger = logging.getLogger("starscope.middleware")
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """
-    Middleware that logs request and response details.
+    記錄 request 與 response 細節的 middleware。
 
-    Logs include:
-    - Request: method, path, client IP, request ID
-    - Response: status code, response time
-    - Errors: exception details with stack trace
+    記錄內容：
+    - Request：method、path、client IP、request ID
+    - Response：status code、回應時間
+    - Error：例外詳情與 stack trace
     """
 
     def __init__(
@@ -32,13 +30,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         slow_request_threshold_ms: float = 1000.0,
     ):
         """
-        Initialize the logging middleware.
+        初始化日誌 middleware。
 
         Args:
-            app: The ASGI application
-            exclude_paths: List of paths to exclude from logging (e.g., health checks)
-            log_headers: Whether to log request headers (disabled by default for security)
-            slow_request_threshold_ms: Threshold in ms to log slow request warnings (default: 1000ms)
+            app: ASGI 應用程式
+            exclude_paths: 排除日誌記錄的路徑列表（例如 health check）
+            log_headers: 是否記錄 request headers（預設關閉以保障安全）
+            slow_request_threshold_ms: 慢請求警告門檻（毫秒，預設 1000ms）
         """
         super().__init__(app)
         self.exclude_paths = exclude_paths or ["/api/health", "/"]
@@ -46,8 +44,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         self.slow_request_threshold_ms = slow_request_threshold_ms
 
     def _should_exclude(self, path: str) -> bool:
-        """Check if the path should be excluded from logging."""
-        # Normalize path by removing trailing slash
+        """檢查路徑是否應排除日誌記錄。"""
+        # 移除尾部斜線以正規化路徑
         normalized_path = path.rstrip("/") or "/"
         for excluded in self.exclude_paths:
             excluded_normalized = excluded.rstrip("/") or "/"
@@ -58,31 +56,31 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: Callable
     ) -> Response:
-        """Process the request and log details."""
-        # Skip logging for excluded paths
+        """處理 request 並記錄詳情。"""
+        # 跳過排除路徑的日誌記錄
         if self._should_exclude(request.url.path):
             return await call_next(request)
 
-        # Generate unique request ID for tracing
+        # 產生唯一 request ID 用於追蹤
         request_id = str(uuid.uuid4())[:8]
 
-        # Get client info
+        # 取得 client 資訊
         client_ip = self._get_client_ip(request)
 
-        # Log request
+        # 記錄 request
         self._log_request(request, request_id, client_ip)
 
-        # Track response time
+        # 追蹤回應時間
         start_time = time.perf_counter()
 
         try:
             response = await call_next(request)
             duration_ms = (time.perf_counter() - start_time) * 1000
 
-            # Log response
+            # 記錄 response
             self._log_response(request, response, request_id, duration_ms)
 
-            # Add request ID to response headers for debugging
+            # 將 request ID 加入 response headers 以利除錯
             response.headers["X-Request-ID"] = request_id
 
             return response
@@ -94,18 +92,18 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _get_client_ip(request: Request) -> str:
-        """Extract client IP from request, handling proxies."""
-        # Check for forwarded header (from reverse proxy)
+        """從 request 提取 client IP，處理 proxy 情況。"""
+        # 檢查轉發 header（來自 reverse proxy）
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
             return forwarded.split(",")[0].strip()
 
-        # Check for real IP header
+        # 檢查 real IP header
         real_ip = request.headers.get("X-Real-IP")
         if real_ip:
             return real_ip
 
-        # Fall back to direct client
+        # 回退至直接 client
         if request.client:
             return request.client.host
 
@@ -114,7 +112,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     def _log_request(
         self, request: Request, request_id: str, client_ip: str
     ) -> None:
-        """Log incoming request details."""
+        """記錄收到的 request 詳情。"""
         log_data: dict[str, Any] = {
             "request_id": request_id,
             "method": request.method,
@@ -122,14 +120,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "client_ip": client_ip,
         }
 
-        # Add query params if present
+        # 如有 query 參數則加入
         if request.url.query:
             log_data["query"] = request.url.query
 
-        # Optionally log headers (with sensitive data masked)
+        # 選擇性記錄 headers（遮蔽敏感資料）
         if self.log_headers:
             headers = dict(request.headers)
-            # Mask sensitive headers
+            # 遮蔽敏感 headers
             for key in ["authorization", "cookie", "x-api-key"]:
                 if key in headers:
                     headers[key] = "***"
@@ -147,11 +145,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request_id: str,
         duration_ms: float,
     ) -> None:
-        """Log outgoing response details."""
+        """記錄送出的 response 詳情。"""
         status = response.status_code
         is_slow = duration_ms >= self.slow_request_threshold_ms
 
-        # Determine log level: error status > slow request > client error > normal
+        # 決定日誌等級：server error > 慢請求 > client error > 正常
         if status >= 500:
             log_level = logging.ERROR
         elif is_slow:
@@ -161,8 +159,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         else:
             log_level = logging.INFO
 
-        # Build log message with slow request indicator
-        slow_indicator = " [SLOW]" if is_slow else ""
+        # 建立含慢請求標記的日誌訊息
+        slow_indicator = " [慢請求]" if is_slow else ""
         log_message = (
             f"[{request_id}] <-- {request.method} {request.url.path} "
             f"{status} ({duration_ms:.2f}ms){slow_indicator}"
@@ -188,10 +186,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         duration_ms: float,
         exc: Exception,
     ) -> None:
-        """Log error details with exception info."""
+        """記錄錯誤詳情與例外資訊。"""
         logger.error(
             f"[{request_id}] <-- {request.method} {request.url.path} "
-            f"ERROR ({duration_ms:.2f}ms): {exc}",
+            f"錯誤 ({duration_ms:.2f}ms): {exc}",
             extra={
                 "request_id": request_id,
                 "method": request.method,

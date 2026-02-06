@@ -1,15 +1,15 @@
 """
-Context signals API endpoints.
-Provides context information about why a repo is trending (HN only).
+情境訊號 API 端點。
+提供 repo 為何趨勢上升的情境資訊（僅 HN）。
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from db.database import get_db
 from db.models import ContextSignal, ContextSignalType
@@ -21,9 +21,9 @@ from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 router = APIRouter(prefix="/context", tags=["context"])
 
 
-# Response schemas
+# 回應 schema
 class ContextSignalResponse(BaseModel):
-    """Schema for a context signal."""
+    """情境訊號的 schema。"""
     id: int
     signal_type: str
     external_id: str
@@ -42,14 +42,14 @@ class ContextSignalResponse(BaseModel):
 
 
 class ContextSignalsResponse(BaseModel):
-    """Response for context signals list."""
+    """情境訊號列表的回應。"""
     signals: List[ContextSignalResponse]
     total: int
     repo_id: int
 
 
 class ContextBadge(BaseModel):
-    """A badge to display on repo card (HN only)."""
+    """顯示在 repo 卡片上的徽章（僅 HN）。"""
     type: str  # "hn"
     label: str  # "HN: 150 pts"
     url: str
@@ -58,18 +58,28 @@ class ContextBadge(BaseModel):
 
 
 class ContextBadgesResponse(BaseModel):
-    """Response for context badges."""
+    """情境徽章的回應。"""
     badges: List[ContextBadge]
     repo_id: int
 
 
+class BatchBadgesRequest(BaseModel):
+    """批次取得徽章的請求。"""
+    repo_ids: List[int]
+
+
+class BatchBadgesResponse(BaseModel):
+    """批次取得徽章的回應，key 為 repo_id 字串。"""
+    results: Dict[str, ContextBadgesResponse]
+
+
 class FetchContextResponse(BaseModel):
-    """Response for manual context fetch."""
+    """手動抓取情境的回應。"""
     repo_id: int
     new_signals: dict
 
 
-# Endpoints
+# 端點
 @router.get("/{repo_id}/signals", response_model=ContextSignalsResponse)
 async def get_context_signals(
     repo_id: int,
@@ -78,15 +88,15 @@ async def get_context_signals(
     db: Session = Depends(get_db)
 ):
     """
-    Get all context signals for a repository.
-    Only Hacker News signals are supported.
+    取得 repo 的所有情境訊號。
+    僅支援 Hacker News 訊號。
     """
     get_repo_or_404(repo_id, db)
 
     query = db.query(ContextSignal).filter(ContextSignal.repo_id == repo_id)
 
     if signal_type:
-        # Validate signal type - only HN is supported now
+        # 驗證訊號類型 — 目前僅支援 HN
         valid_types = [ContextSignalType.HACKER_NEWS]
         if signal_type not in valid_types:
             raise HTTPException(
@@ -110,9 +120,9 @@ async def get_context_badges(
     db: Session = Depends(get_db)
 ):
     """
-    Get context badges for a repository.
-    Returns HN badges to display on the repo card.
-    Only returns badges that meet the score threshold.
+    取得 repo 的情境徽章。
+    回傳顯示在 repo 卡片上的 HN 徽章。
+    僅回傳達到分數門檻的徽章。
     """
     get_repo_or_404(repo_id, db)
 
@@ -120,15 +130,15 @@ async def get_context_badges(
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
     def _is_recent(published_at: Optional[datetime]) -> bool:
-        """Check if a datetime is recent, handling timezone-naive datetimes."""
+        """檢查 datetime 是否為近期，處理無時區的 datetime。"""
         if not published_at:
             return False
-        # Handle timezone-naive datetimes from DB
+        # 處理 DB 中無時區的 datetime
         if published_at.tzinfo is None:
             published_at = published_at.replace(tzinfo=timezone.utc)
         return published_at > recent_threshold
 
-    # Get top HN story (by score)
+    # 取得分數最高的 HN 文章
     top_hn = (
         db.query(ContextSignal)
         .filter(
@@ -156,8 +166,8 @@ async def fetch_repo_context(
     db: Session = Depends(get_db)
 ):
     """
-    Manually trigger context signal fetch for a repository.
-    Fetches from Hacker News.
+    手動觸發 repo 的情境訊號抓取。
+    從 Hacker News 抓取。
     """
     repo = get_repo_or_404(repo_id, db)
 
@@ -169,3 +179,68 @@ async def fetch_repo_context(
             "hacker_news": hn_count,
         }
     )
+
+
+@router.post("/badges/batch", response_model=BatchBadgesResponse)
+async def get_context_badges_batch(
+    request: BatchBadgesRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批次取得多個 repo 的情境徽章。
+    用單一查詢取代 N 次個別請求。
+    """
+    repo_ids = request.repo_ids
+    if not repo_ids:
+        return BatchBadgesResponse(results={})
+
+    recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
+
+    def _is_recent(published_at: Optional[datetime]) -> bool:
+        if not published_at:
+            return False
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=timezone.utc)
+        return published_at > recent_threshold
+
+    # 一次查詢所有 repo 的最高分 HN 文章（含 min(id) 作為同分 tiebreaker）
+    from sqlalchemy import and_
+    top_hn_subquery = db.query(
+        ContextSignal.repo_id,
+        func.max(ContextSignal.score).label("max_score"),
+        func.min(ContextSignal.id).label("min_id")
+    ).filter(
+        ContextSignal.repo_id.in_(repo_ids),
+        ContextSignal.signal_type == ContextSignalType.HACKER_NEWS
+    ).group_by(ContextSignal.repo_id).subquery()
+
+    top_signals = db.query(ContextSignal).join(
+        top_hn_subquery,
+        and_(
+            ContextSignal.repo_id == top_hn_subquery.c.repo_id,
+            ContextSignal.score == top_hn_subquery.c.max_score,
+            ContextSignal.id == top_hn_subquery.c.min_id
+        )
+    ).all()
+
+    # 組裝結果
+    results: Dict[str, ContextBadgesResponse] = {}
+    for signal in top_signals:
+        if signal.score and signal.score >= MIN_HN_SCORE_FOR_BADGE:
+            badge = ContextBadge(
+                type="hn",
+                label=f"HN: {signal.score} pts",
+                url=signal.url,
+                score=signal.score,
+                is_recent=_is_recent(signal.published_at),
+            )
+            results[str(signal.repo_id)] = ContextBadgesResponse(
+                badges=[badge], repo_id=signal.repo_id
+            )
+
+    # 沒有徽章的 repo 也要回傳空結果
+    for rid in repo_ids:
+        if str(rid) not in results:
+            results[str(rid)] = ContextBadgesResponse(badges=[], repo_id=rid)
+
+    return BatchBadgesResponse(results=results)

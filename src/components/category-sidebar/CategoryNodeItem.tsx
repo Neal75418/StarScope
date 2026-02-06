@@ -1,5 +1,5 @@
 /**
- * Single category node item in the tree.
+ * 樹狀結構中的單一分類節點項目。
  */
 
 import { MouseEvent } from "react";

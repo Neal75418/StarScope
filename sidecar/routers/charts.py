@@ -1,6 +1,6 @@
 """
-Chart data API endpoints for trend visualization.
-Provides historical data for frontend charts.
+圖表資料 API 端點，用於趨勢視覺化。
+提供前端圖表所需的歷史資料。
 """
 
 from typing import List
@@ -20,21 +20,21 @@ router = APIRouter(prefix="/charts", tags=["charts"])
 
 
 class TimeRange(str, Enum):
-    """Time range options for charts."""
+    """圖表的時間範圍選項。"""
     WEEK = "7d"
     MONTH = "30d"
     QUARTER = "90d"
 
 
 class ChartDataPoint(BaseModel):
-    """A single data point for charts."""
+    """圖表的單一資料點。"""
     date: date
     stars: int
     forks: int
 
 
 class StarsChartResponse(BaseModel):
-    """Response for star history chart."""
+    """Star 歷史圖表的回應。"""
     repo_id: int
     repo_name: str
     time_range: str
@@ -50,14 +50,14 @@ async def get_stars_chart(
     db: Session = Depends(get_db)
 ):
     """
-    Get historical star count data for charting.
-    Returns data points for the specified time range.
+    取得圖表用的歷史 star 數資料。
+    回傳指定時間範圍的資料點。
     """
     repo = db.query(Repo).filter(Repo.id == repo_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # Calculate date range
+    # 計算日期範圍
     days_map = {
         TimeRange.WEEK: 7,
         TimeRange.MONTH: 30,
@@ -66,7 +66,7 @@ async def get_stars_chart(
     days = days_map[time_range]
     start_date = utc_today() - timedelta(days=days)
 
-    # Fetch snapshots in date range
+    # 抓取日期範圍內的快照
     snapshots = (
         db.query(RepoSnapshot)
         .filter(
@@ -86,7 +86,7 @@ async def get_stars_chart(
         for s in snapshots
     ]
 
-    # Calculate min/max for chart scaling
+    # 計算圖表縮放的最小/最大值
     if data_points:
         stars_values = [p.stars for p in data_points]
         min_stars = min(stars_values)

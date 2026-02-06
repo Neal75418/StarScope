@@ -1,5 +1,5 @@
 /**
- * Header for category sidebar with title and add button.
+ * 分類側邊欄標題列，含新增按鈕。
  */
 
 import { useI18n } from "../../i18n";

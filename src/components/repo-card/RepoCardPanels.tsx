@@ -1,6 +1,5 @@
 /**
- * Repo card expandable panels (chart, similar repos).
- * Simplified version without health score panel.
+ * Repo 卡片可展開面板（圖表、相似 repo）。
  */
 
 import { StarsChart } from "../StarsChart";

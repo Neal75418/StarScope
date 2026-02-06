@@ -1,6 +1,5 @@
 /**
- * Custom hook for theme management.
- * Encapsulates theme state, persistence, and DOM updates.
+ * 主題狀態管理、持久化與 DOM 更新。
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -30,11 +29,11 @@ export function useAppTheme(): UseAppThemeReturn {
     });
   }, []);
 
-  // Apply theme on mount
+  // 掛載時套用主題
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
 
-  // Memoize return object to prevent unnecessary re-renders
+  // 記憶化回傳物件，避免不必要的 re-render
   return useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 }

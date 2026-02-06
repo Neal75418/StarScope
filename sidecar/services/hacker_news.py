@@ -1,6 +1,6 @@
 """
-Hacker News API service.
-Searches for repository mentions using the Algolia HN Search API.
+Hacker News API 服務。
+使用 Algolia HN Search API 搜尋 repo 提及。
 API: https://hn.algolia.com/api
 """
 
@@ -19,7 +19,7 @@ HN_SEARCH_API = "https://hn.algolia.com/api/v1/search"
 
 
 class HackerNewsAPIError(Exception):
-    """Custom exception for HN API errors."""
+    """HN API 錯誤的自訂例外。"""
     def __init__(self, message: str, status_code: Optional[int] = None):
         super().__init__(message)
         self.status_code = status_code
@@ -27,7 +27,7 @@ class HackerNewsAPIError(Exception):
 
 @dataclass
 class HNStory:
-    """Parsed Hacker News story."""
+    """已解析的 Hacker News 文章。"""
     object_id: str
     title: str
     url: str
@@ -38,7 +38,7 @@ class HNStory:
 
 
 def _parse_created_at(created_at_str: str) -> datetime:
-    """Parse HN timestamp to datetime."""
+    """將 HN 時間戳記解析為 datetime。"""
     try:
         return datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
@@ -46,7 +46,7 @@ def _parse_created_at(created_at_str: str) -> datetime:
 
 
 def _parse_hn_hit(hit: dict, seen_ids: set) -> Optional[HNStory]:
-    """Parse a single HN API hit into an HNStory, or None if invalid/duplicate."""
+    """將單一 HN API 結果解析為 HNStory，無效或重複時回傳 None。"""
     object_id = hit.get("objectID")
     if not object_id or object_id in seen_ids:
         return None
@@ -74,7 +74,7 @@ async def _execute_hn_query(
     stories: List[HNStory],
     errors: List[str]
 ) -> None:
-    """Execute a single HN search query and append results."""
+    """執行單一 HN 搜尋查詢並附加結果。"""
     try:
         response = await client.get(
             HN_SEARCH_API,
@@ -82,7 +82,7 @@ async def _execute_hn_query(
         )
 
         if response.status_code == 429:
-            logger.warning("HN API rate limit exceeded")
+            logger.warning("[HN] API 速率限制已超出")
             errors.append("Rate limit exceeded")
             return
 
@@ -95,64 +95,64 @@ async def _execute_hn_query(
                 stories.append(story)
 
     except httpx.TimeoutException:
-        logger.warning(f"HN API timeout for query: {query}")
+        logger.warning(f"[HN] API 查詢逾時: {query}")
         errors.append(f"Timeout for {query}")
     except httpx.RequestError as e:
-        logger.warning(f"HN API request error for {query}: {e}")
+        logger.warning(f"[HN] API 請求錯誤 ({query}): {e}")
         errors.append(str(e))
     except httpx.HTTPStatusError as e:
-        logger.warning(f"HN API HTTP error for {query}: {e}")
+        logger.warning(f"[HN] API HTTP 錯誤 ({query}): {e}")
         errors.append(f"HTTP {e.response.status_code}")
 
 
 class HackerNewsService:
-    """Service for searching Hacker News via Algolia API."""
+    """透過 Algolia API 搜尋 Hacker News 的服務。"""
 
     def __init__(self, timeout: float = HN_API_TIMEOUT_SECONDS):
         self.timeout = timeout
 
     async def search_repo(self, repo_name: str, owner: str) -> List[HNStory]:
         """
-        Search HN for mentions of a repository.
-        Searches for both "owner/repo" and just "repo" name.
+        搜尋 HN 上關於 repo 的提及。
+        同時搜尋 "owner/repo" 與 "repo" 名稱。
 
         Args:
-            repo_name: Repository name
-            owner: Repository owner
+            repo_name: repo 名稱
+            owner: repo 擁有者
 
         Returns:
-            List of HNStory objects
+            HNStory 物件列表
 
         Raises:
-            HackerNewsAPIError: Only if all queries fail
+            HackerNewsAPIError: 僅在所有查詢皆失敗時拋出
         """
         stories: List[HNStory] = []
         seen_ids: set = set()
         errors: List[str] = []
 
-        # Search with full name first (more specific), then repo name alone
+        # 先搜尋完整名稱（更精確），再搜尋 repo 名稱
         queries = [f"{owner}/{repo_name}", repo_name]
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for query in queries:
                 await _execute_hn_query(client, query, seen_ids, stories, errors)
 
-        # Only raise error if all queries failed and no results
+        # 僅在所有查詢失敗且無結果時拋出錯誤
         if not stories and errors:
             raise HackerNewsAPIError(f"All queries failed: {'; '.join(errors)}")
 
-        # Sort by points (highest first)
+        # 依分數排序（最高優先）
         stories.sort(key=lambda s: s.points, reverse=True)
 
         return stories
 
 
-# Module-level convenience functions
+# 模組層級便利函式
 _default_service: Optional[HackerNewsService] = None
 
 
 def get_hn_service() -> HackerNewsService:
-    """Get the default HN service instance."""
+    """取得預設的 HN 服務實例。"""
     global _default_service
     if _default_service is None:
         _default_service = HackerNewsService()
@@ -161,15 +161,15 @@ def get_hn_service() -> HackerNewsService:
 
 async def fetch_hn_mentions(owner: str, repo_name: str) -> Optional[List[HNStory]]:
     """
-    Convenience function to fetch HN mentions for a repo.
-    Returns None if the request fails.
+    抓取 repo HN 提及的便利函式。
+    請求失敗時回傳 None。
     """
     try:
         service = get_hn_service()
         return await service.search_repo(repo_name, owner)
     except HackerNewsAPIError as e:
-        logger.error(f"Failed to fetch HN mentions for {owner}/{repo_name}: {e}", exc_info=True)
+        logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及失敗: {e}", exc_info=True)
         return None
     except Exception as e:
-        logger.error(f"Unexpected error fetching HN mentions for {owner}/{repo_name}: {e}", exc_info=True)
+        logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及時發生非預期錯誤: {e}", exc_info=True)
         return None

@@ -1,3 +1,7 @@
+/**
+ * 回填錯誤訊息的輔助函式。
+ */
+
 import { ApiError } from "../api/client";
 import { isNetworkError } from "./backfillHelpers";
 

@@ -1,3 +1,7 @@
+/**
+ * 通知的已讀、全部已讀與清除操作。
+ */
+
 import { useCallback, Dispatch, SetStateAction } from "react";
 import { acknowledgeTriggeredAlert } from "../api/client";
 import { Notification } from "./useNotifications";
@@ -18,7 +22,7 @@ export function useNotificationActions(
     try {
       await acknowledgeTriggeredAlert(alertId);
     } catch (err) {
-      console.warn(`Failed to acknowledge alert ${alertId}:`, err);
+      console.warn(`警報確認失敗 (ID: ${alertId}):`, err);
     }
   };
 
@@ -26,12 +30,12 @@ export function useNotificationActions(
     async (notificationId: string) => {
       markIdAsRead(notificationId);
 
-      // Optimistic update
+      // 樂觀更新 UI
       setNotifications((prev) =>
         prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
       );
 
-      // Identify and acknowledge alert on server
+      // 若為警報類型，同步確認至伺服器
       const notification = notifications.find((n) => n.id === notificationId);
       if (notification?.type === "alert" && notification.metadata?.alertId) {
         await handleAcknowledgeAlert(notification.metadata.alertId);
@@ -41,7 +45,7 @@ export function useNotificationActions(
   );
 
   const markAllAsRead = useCallback(async () => {
-    // Identify unread alerts
+    // 找出未讀警報
     const alertIdsToAcknowledge: number[] = [];
     notifications.forEach((n) => {
       if (!n.read && n.type === "alert" && n.metadata?.alertId) {
@@ -49,13 +53,13 @@ export function useNotificationActions(
       }
     });
 
-    // Update storage
+    // 更新儲存狀態
     markIdsAsRead(notifications.map((n) => n.id));
 
-    // Update state
+    // 更新元件狀態
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
-    // Sync to server
+    // 同步至伺服器
     await Promise.all(alertIdsToAcknowledge.map(handleAcknowledgeAlert));
   }, [markIdsAsRead, notifications, setNotifications]);
 

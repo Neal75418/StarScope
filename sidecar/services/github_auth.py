@@ -1,6 +1,6 @@
 """
-GitHub Device Flow authentication service.
-Handles OAuth device flow for desktop applications.
+GitHub Device Flow 驗證服務。
+處理桌面應用程式的 OAuth device flow。
 """
 
 import logging
@@ -15,25 +15,25 @@ from services.github import reset_github_service
 
 logger = logging.getLogger(__name__)
 
-# GitHub OAuth endpoints
+# GitHub OAuth 端點
 GITHUB_DEVICE_CODE_URL = "https://github.com/login/device/code"
 GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 GITHUB_RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 
-# Read Client ID from environment variable
-# User must set this in .env file
+# 從環境變數讀取 Client ID
+# 使用者需在 .env 檔案中設定
 GITHUB_CLIENT_ID_ENV_VAR = "GITHUB_CLIENT_ID"
 
-# OAuth scopes needed for StarScope
-# - repo: Access to public/private repositories (for private repo tracking)
-# - read:user: Read user profile information
+# StarScope 所需的 OAuth scopes
+# - repo: 存取公開/私有 repo（用於追蹤私有 repo）
+# - read:user: 讀取使用者個人資訊
 GITHUB_OAUTH_SCOPES = "repo read:user"
 
 
 @dataclass
 class DeviceCodeResponse:
-    """Response from GitHub device code endpoint."""
+    """GitHub device code 端點的回應。"""
     device_code: str
     user_code: str
     verification_uri: str
@@ -43,38 +43,38 @@ class DeviceCodeResponse:
 
 @dataclass
 class ConnectionStatus:
-    """GitHub connection status."""
+    """GitHub 連線狀態。"""
     connected: bool
     username: Optional[str] = None
     rate_limit_remaining: Optional[int] = None
     rate_limit_total: Optional[int] = None
-    rate_limit_reset: Optional[int] = None  # Unix timestamp when limit resets
+    rate_limit_reset: Optional[int] = None  # 限制重設的 Unix 時間戳記
     error: Optional[str] = None
 
 
 class GitHubAuthError(Exception):
-    """Custom exception for GitHub auth errors."""
+    """GitHub 驗證錯誤的自訂例外。"""
     pass
 
 
 class GitHubAuthService:
-    """Service for handling GitHub Device Flow authentication."""
+    """處理 GitHub Device Flow 驗證的服務。"""
 
     def __init__(self):
         self.client_id = os.getenv(GITHUB_CLIENT_ID_ENV_VAR)
         if not self.client_id:
             logger.warning(
-                f"GitHub Client ID not configured. "
-                f"Set {GITHUB_CLIENT_ID_ENV_VAR} in .env file to enable GitHub OAuth."
+                f"[GitHub 驗證] 未設定 GitHub Client ID，"
+                f"請在 .env 檔案中設定 {GITHUB_CLIENT_ID_ENV_VAR} 以啟用 GitHub OAuth"
             )
 
     async def initiate_device_flow(self) -> DeviceCodeResponse:
         """
-        Start the device flow authentication.
-        Returns a device code and user code for the user to enter on GitHub.
+        啟動 device flow 驗證。
+        回傳 device code 與 user code 供使用者在 GitHub 上輸入。
 
         Raises:
-            GitHubAuthError: If device flow initiation fails
+            GitHubAuthError: device flow 啟動失敗時拋出
         """
         if not self.client_id:
             raise GitHubAuthError(
@@ -93,13 +93,13 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"Device flow initiation failed: {response.text}", exc_info=True)
+                logger.error(f"[GitHub 驗證] Device flow 啟動失敗: {response.text}", exc_info=True)
                 raise GitHubAuthError(
                     f"Failed to initiate device flow: {response.status_code}"
                 )
 
             data = response.json()
-            logger.info(f"Device flow initiated. User code: {data.get('user_code')}")
+            logger.info(f"[GitHub 驗證] Device flow 已啟動，使用者代碼: {data.get('user_code')}")
 
             return DeviceCodeResponse(
                 device_code=data["device_code"],
@@ -111,19 +111,19 @@ class GitHubAuthService:
 
     async def poll_for_token(self, device_code: str) -> dict:
         """
-        Poll GitHub for the access token after user authorizes.
+        使用者授權後輪詢 GitHub 取得 access token。
 
         Returns:
-            dict with keys:
+            包含以下 key 的字典：
                 - status: "success" | "pending" | "expired" | "error"
-                - access_token: (only if success)
-                - username: (only if success)
-                - error: (only if error)
+                - access_token:（僅成功時）
+                - username:（僅成功時）
+                - error:（僅錯誤時）
         """
-        logger.info(f"Polling for token with device_code: {device_code[:8]}...")
+        logger.info(f"[GitHub 驗證] 正在輪詢 token，device_code: {device_code[:8]}...")
 
         if not self.client_id:
-            logger.error("Client ID not configured", exc_info=True)
+            logger.error("[GitHub 驗證] 未設定 Client ID", exc_info=True)
             return {"status": "error", "error": "Client ID not configured"}
 
         async with httpx.AsyncClient() as client:
@@ -138,49 +138,49 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"Poll failed: HTTP {response.status_code}", exc_info=True)
+                logger.error(f"[GitHub 驗證] 輪詢失敗: HTTP {response.status_code}", exc_info=True)
                 return {"status": "error", "error": f"HTTP {response.status_code}"}
 
             data = response.json()
-            # Avoid logging sensitive fields like access_token.
-            logger.info(f"Poll response status: {data.get('error') or 'success'}")
+            # 避免記錄敏感欄位如 access_token。
+            logger.info(f"[GitHub 驗證] 輪詢回應狀態: {data.get('error') or 'success'}")
 
-            # Check for errors
+            # 檢查錯誤
             error = data.get("error")
             if error == "authorization_pending":
-                logger.info("Authorization pending...")
+                logger.info("[GitHub 驗證] 授權等待中...")
                 return {"status": "pending"}
             elif error == "slow_down":
                 new_interval = data.get("interval", 10)
-                logger.info(f"Rate limited, slowing down to {new_interval}s interval")
+                logger.info(f"[GitHub 驗證] 速率受限，降速至 {new_interval} 秒間隔")
                 return {"status": "pending", "slow_down": True, "interval": new_interval}
             elif error == "expired_token":
-                logger.warning("Device code expired")
+                logger.warning("[GitHub 驗證] Device code 已過期")
                 return {"status": "expired", "error": "Device code expired"}
             elif error == "access_denied":
-                logger.warning("User denied access")
+                logger.warning("[GitHub 驗證] 使用者拒絕授權")
                 return {"status": "error", "error": "User denied access"}
             elif error:
-                logger.error(f"Unknown error: {error}", exc_info=True)
+                logger.error(f"[GitHub 驗證] 未知錯誤: {error}", exc_info=True)
                 return {"status": "error", "error": error}
 
-            # Success! We have an access token
+            # 成功！已取得 access token
             access_token = data.get("access_token")
             if not access_token:
                 return {"status": "error", "error": "No access token in response"}
 
-            # Get user info
+            # 取得使用者資訊
             username = await self._get_username(access_token)
 
-            # Save token and username to database
+            # 將 token 與使用者名稱儲存至資料庫
             set_setting(AppSettingKey.GITHUB_TOKEN, access_token)
             if username:
                 set_setting(AppSettingKey.GITHUB_USERNAME, username)
 
-            # Reset the GitHub service to pick up the new token
+            # 重設 GitHub 服務以使用新 token
             reset_github_service()
 
-            logger.info(f"GitHub connected successfully as @{username}")
+            logger.info(f"[GitHub 驗證] GitHub 已成功連結，帳號: @{username}")
 
             return {
                 "status": "success",
@@ -190,7 +190,7 @@ class GitHubAuthService:
 
     @staticmethod
     async def _get_username(token: str) -> Optional[str]:
-        """Get the GitHub username for a token."""
+        """取得 token 對應的 GitHub 使用者名稱。"""
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 GITHUB_USER_URL,
@@ -206,15 +206,15 @@ class GitHubAuthService:
     @staticmethod
     async def get_connection_status() -> ConnectionStatus:
         """
-        Get the current GitHub connection status.
-        Checks if we have a valid token and returns user info.
+        取得目前的 GitHub 連線狀態。
+        檢查是否有有效的 token 並回傳使用者資訊。
         """
         token = get_setting(AppSettingKey.GITHUB_TOKEN)
 
         if not token:
             return ConnectionStatus(connected=False)
 
-        # Verify token is still valid by checking rate limit
+        # 透過檢查速率限制驗證 token 是否仍有效
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(
@@ -227,7 +227,7 @@ class GitHubAuthService:
                 )
 
                 if response.status_code == 401:
-                    # Token is invalid, clean up
+                    # Token 無效，清理資料
                     delete_setting(AppSettingKey.GITHUB_TOKEN)
                     delete_setting(AppSettingKey.GITHUB_USERNAME)
                     reset_github_service()
@@ -256,13 +256,13 @@ class GitHubAuthService:
 
             except httpx.TimeoutException:
                 return ConnectionStatus(
-                    connected=False,  # Cannot verify connection on timeout
+                    connected=False,  # 逾時，無法驗證連線
                     username=get_setting(AppSettingKey.GITHUB_USERNAME),
                     error="Connection timeout"
                 )
             except httpx.RequestError as e:
                 return ConnectionStatus(
-                    connected=False,  # Cannot verify connection on network error
+                    connected=False,  # 網路錯誤，無法驗證連線
                     username=get_setting(AppSettingKey.GITHUB_USERNAME),
                     error=f"Network error: {str(e)}"
                 )
@@ -270,27 +270,27 @@ class GitHubAuthService:
     @staticmethod
     def disconnect() -> bool:
         """
-        Disconnect from GitHub by removing stored credentials.
-        Returns True if credentials were removed, False if none existed.
+        移除已儲存的憑證以中斷 GitHub 連結。
+        憑證已移除回傳 True，不存在回傳 False。
         """
         token_deleted = delete_setting(AppSettingKey.GITHUB_TOKEN)
         delete_setting(AppSettingKey.GITHUB_USERNAME)
 
-        # Reset the GitHub service
+        # 重設 GitHub 服務
         reset_github_service()
 
         if token_deleted:
-            logger.info("GitHub disconnected successfully")
+            logger.info("[GitHub 驗證] GitHub 已成功斷開連結")
 
         return token_deleted
 
 
-# Module-level singleton
+# 模組層級 singleton
 _auth_service: Optional[GitHubAuthService] = None
 
 
 def get_github_auth_service() -> GitHubAuthService:
-    """Get the singleton GitHub auth service instance."""
+    """取得 GitHub 驗證服務的 singleton 實例。"""
     global _auth_service
     if _auth_service is None:
         _auth_service = GitHubAuthService()

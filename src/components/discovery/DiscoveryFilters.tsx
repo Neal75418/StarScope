@@ -1,6 +1,5 @@
 /**
- * Simplified filter dropdowns for Discovery page.
- * Only language and sort - keeping it simple and human-friendly.
+ * Discovery 頁面的篩選下拉選單，僅含語言與排序。
  */
 
 import { useI18n } from "../../i18n";

@@ -1,3 +1,7 @@
+/**
+ * 警報規則資料取得與狀態管理。
+ */
+
 import { useState, useRef, useCallback, useEffect } from "react";
 import {
   AlertRule,
@@ -60,7 +64,7 @@ export function useAlertRuleData(toast: Toast) {
 
   return {
     rules,
-    setRules, // Exposed for optimistic updates
+    setRules, // 開放給 optimistic update 使用
     signalTypes,
     repos,
     isLoading,

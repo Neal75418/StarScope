@@ -1,5 +1,5 @@
 /**
- * Loading state for category sidebar.
+ * 分類側邊欄的載入中狀態。
  */
 
 import { useI18n } from "../../i18n";

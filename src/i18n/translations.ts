@@ -1,13 +1,13 @@
 /**
- * Translation strings for StarScope
- * Supports: English (en), Traditional Chinese (zh-TW)
+ * StarScope 翻譯字串。
+ * 支援：English (en)、繁體中文 (zh-TW)。
  */
 
 export type Language = "en" | "zh-TW";
 
 export const translations = {
   en: {
-    // Navigation
+    // 導航列
     nav: {
       brand: "StarScope",
       dashboard: "Dashboard",
@@ -16,7 +16,7 @@ export const translations = {
       trends: "Trends",
       settings: "Settings",
     },
-    // Dashboard page
+    // 儀表板頁面
     dashboard: {
       title: "Dashboard",
       subtitle: "Overview of your tracked repositories",
@@ -32,8 +32,18 @@ export const translations = {
         justNow: "Just now",
         empty: "No recent activity",
       },
+      signals: {
+        title: "Signal Spotlight",
+        acknowledge: "Acknowledge",
+        types: {
+          risingStar: "Rising Star",
+          suddenSpike: "Sudden Spike",
+          breakout: "Breakout",
+          viralHn: "Viral on HN",
+        },
+      },
     },
-    // Discovery page
+    // 探索頁面
     discovery: {
       title: "Discover",
       subtitle: "Search and explore GitHub repositories",
@@ -67,7 +77,7 @@ export const translations = {
       loadMore: "Load More",
       results: "{count} results",
     },
-    // Watchlist page
+    // 追蹤清單頁面
     watchlist: {
       title: "StarScope",
       subtitle: "GitHub Project Intelligence",
@@ -93,7 +103,7 @@ export const translations = {
         retry: "Retry Now",
       },
     },
-    // Repo card
+    // 儲存庫卡片
     repo: {
       stars: "Stars",
       velocity: "Velocity",
@@ -108,7 +118,7 @@ export const translations = {
       removeFromCategory: "Remove from Category",
       loadingBadges: "Loading badges...",
     },
-    // Trends page
+    // 趨勢頁面
     trends: {
       title: "Trends",
       subtitle: "Top performing repositories by velocity",
@@ -138,8 +148,14 @@ export const translations = {
         delta30d: "30d Δ",
         acceleration: "Accel",
       },
+      filters: {
+        allLanguages: "All Languages",
+        minStars: "Min Stars",
+        addToWatchlist: "+ Watchlist",
+        inWatchlist: "In Watchlist",
+      },
     },
-    // Settings page
+    // 設定頁面
     settings: {
       title: "Settings",
       subtitle: "Manage connections, export data, and configure notifications",
@@ -215,6 +231,7 @@ export const translations = {
         title: "Export Data",
         subtitle: "Download your watchlist data for backup or analysis.",
         json: "JSON",
+        csv: "CSV",
         cards: {
           watchlist: {
             title: "Watchlist",
@@ -265,7 +282,7 @@ export const translations = {
         license: "License",
       },
     },
-    // Notifications
+    // 通知
     notifications: {
       title: "Notifications",
       empty: "No notifications",
@@ -278,7 +295,7 @@ export const translations = {
       hoursAgo: "{n} hr ago",
       daysAgo: "{n} days ago",
     },
-    // Saved Filters
+    // 已儲存篩選
     savedFilters: {
       title: "Saved",
       empty: "No saved filters",
@@ -286,7 +303,7 @@ export const translations = {
       namePlaceholder: "Filter name...",
       noFilters: "No filters set",
     },
-    // Common
+    // 共用
     common: {
       loading: "Loading...",
       error: "Error",
@@ -304,7 +321,7 @@ export const translations = {
       no: "No",
       retry: "Retry",
     },
-    // Dialogs
+    // 對話框
     dialog: {
       addRepo: {
         title: "Add Repository",
@@ -321,7 +338,7 @@ export const translations = {
         confirm: "Remove",
       },
     },
-    // Toast messages
+    // Toast 訊息
     toast: {
       repoAdded: "Repository added to watchlist",
       repoRemoved: "Repository removed from watchlist",
@@ -329,7 +346,7 @@ export const translations = {
       error: "An error occurred",
       copied: "Copied to clipboard",
     },
-    // GitHub Connection
+    // GitHub 連線
     githubConnection: {
       title: "GitHub Connection",
       checking: "Checking connection...",
@@ -365,7 +382,7 @@ export const translations = {
         networkError: "Network error, retrying...",
       },
     },
-    // Categories
+    // 分類
     categories: {
       title: "Categories",
       loading: "Loading...",
@@ -397,7 +414,7 @@ export const translations = {
       expand: "Expand",
       collapse: "Collapse",
     },
-    // Commit Activity
+    // Commit 活動
     commitActivity: {
       title: "Commit Activity",
       subtitle: "Weekly commit activity for the past year",
@@ -420,7 +437,7 @@ export const translations = {
         minimal: "Minimal",
       },
     },
-    // Languages
+    // 語言
     languages: {
       title: "Languages",
       subtitle: "Programming language breakdown",
@@ -438,7 +455,7 @@ export const translations = {
       bytes: "{bytes} bytes",
       percentage: "{percentage}%",
     },
-    // Star History Backfill
+    // 星數歷史回填
     starHistory: {
       title: "Star History",
       backfill: "Backfill History",
@@ -453,14 +470,14 @@ export const translations = {
       earliestDate: "Earliest: {date}",
       latestDate: "Latest: {date}",
       maxStars: "Max {count} stars for backfill",
-      // Offline UX
+      // 離線體驗
       offline: "Offline - showing cached data",
       offlineLabel: "Offline",
       offlineHint: "Data may be outdated",
       offlineNoBackfill: "Cannot backfill while offline",
       rateLimited: "Rate limit exceeded. Please try again later.",
     },
-    // Similar Repos
+    // 相似儲存庫
     similarRepos: {
       title: "Similar Repos",
       loading: "Loading...",
@@ -471,8 +488,17 @@ export const translations = {
       similarityScore: "Similarity score",
       sameLanguage: "Same Language",
       recalculate: "Recalculate",
+      breakdown: {
+        topics: "Topics",
+        language: "Language",
+        starScale: "Star Scale",
+      },
     },
-    // Error Boundary
+    // HN 討論面板
+    contextBadges: {
+      noDiscussions: "No discussions found",
+    },
+    // 錯誤邊界
     errorBoundary: {
       title: "Something went wrong",
       message: "An unexpected error occurred",
@@ -480,7 +506,7 @@ export const translations = {
       reloadApp: "Reload App",
       errorDetails: "Error Details",
     },
-    // Relative Time
+    // 相對時間
     relativeTime: {
       justNow: "Just now",
       hoursAgo: "{hours}h ago",
@@ -488,7 +514,7 @@ export const translations = {
     },
   },
   "zh-TW": {
-    // Navigation
+    // 導航列
     nav: {
       brand: "StarScope",
       dashboard: "儀表板",
@@ -497,7 +523,7 @@ export const translations = {
       trends: "趨勢",
       settings: "設定",
     },
-    // Dashboard page
+    // 儀表板頁面
     dashboard: {
       title: "儀表板",
       subtitle: "追蹤儲存庫總覽",
@@ -513,8 +539,18 @@ export const translations = {
         justNow: "剛剛",
         empty: "沒有最近活動",
       },
+      signals: {
+        title: "訊號焦點",
+        acknowledge: "確認",
+        types: {
+          risingStar: "新星崛起",
+          suddenSpike: "突然飆升",
+          breakout: "爆發突破",
+          viralHn: "HN 熱門",
+        },
+      },
     },
-    // Discovery page
+    // 探索頁面
     discovery: {
       title: "探索",
       subtitle: "搜尋和探索 GitHub 儲存庫",
@@ -548,7 +584,7 @@ export const translations = {
       loadMore: "載入更多",
       results: "{count} 個結果",
     },
-    // Watchlist page
+    // 追蹤清單頁面
     watchlist: {
       title: "StarScope",
       subtitle: "GitHub 專案情報分析",
@@ -574,7 +610,7 @@ export const translations = {
         retry: "立即重試",
       },
     },
-    // Repo card
+    // 儲存庫卡片
     repo: {
       stars: "星星數",
       velocity: "成長速度",
@@ -589,7 +625,7 @@ export const translations = {
       removeFromCategory: "從分類移除",
       loadingBadges: "載入徽章中...",
     },
-    // Trends page
+    // 趨勢頁面
     trends: {
       title: "趨勢分析",
       subtitle: "依成長速度排名的熱門儲存庫",
@@ -619,8 +655,14 @@ export const translations = {
         delta30d: "30天 Δ",
         acceleration: "加速度",
       },
+      filters: {
+        allLanguages: "所有語言",
+        minStars: "最低星數",
+        addToWatchlist: "+ 追蹤",
+        inWatchlist: "已追蹤",
+      },
     },
-    // Settings page
+    // 設定頁面
     settings: {
       title: "設定",
       subtitle: "管理連線、匯出資料和設定通知",
@@ -695,6 +737,7 @@ export const translations = {
         title: "匯出資料",
         subtitle: "下載追蹤清單資料以進行備份或分析。",
         json: "JSON",
+        csv: "CSV",
         cards: {
           watchlist: {
             title: "追蹤清單",
@@ -745,7 +788,7 @@ export const translations = {
         license: "授權條款",
       },
     },
-    // Notifications
+    // 通知
     notifications: {
       title: "通知",
       empty: "沒有通知",
@@ -758,7 +801,7 @@ export const translations = {
       hoursAgo: "{n} 小時前",
       daysAgo: "{n} 天前",
     },
-    // Saved Filters
+    // 已儲存篩選
     savedFilters: {
       title: "已儲存",
       empty: "沒有已儲存的篩選",
@@ -766,7 +809,7 @@ export const translations = {
       namePlaceholder: "篩選名稱...",
       noFilters: "未設定篩選",
     },
-    // Common
+    // 共用
     common: {
       loading: "載入中...",
       error: "錯誤",
@@ -784,7 +827,7 @@ export const translations = {
       no: "否",
       retry: "重試",
     },
-    // Dialogs
+    // 對話框
     dialog: {
       addRepo: {
         title: "新增儲存庫",
@@ -801,7 +844,7 @@ export const translations = {
         confirm: "移除",
       },
     },
-    // Toast messages
+    // Toast 訊息
     toast: {
       repoAdded: "儲存庫已加入追蹤清單",
       repoRemoved: "儲存庫已從追蹤清單移除",
@@ -809,7 +852,7 @@ export const translations = {
       error: "發生錯誤",
       copied: "已複製到剪貼簿",
     },
-    // GitHub Connection
+    // GitHub 連線
     githubConnection: {
       title: "GitHub 連線",
       checking: "檢查連線中...",
@@ -845,7 +888,7 @@ export const translations = {
         networkError: "網路錯誤，重試中...",
       },
     },
-    // Categories
+    // 分類
     categories: {
       title: "分類",
       loading: "載入中...",
@@ -877,7 +920,7 @@ export const translations = {
       expand: "展開",
       collapse: "收起",
     },
-    // Commit Activity
+    // Commit 活動
     commitActivity: {
       title: "提交活動",
       subtitle: "過去一年的每週提交活動",
@@ -900,7 +943,7 @@ export const translations = {
         minimal: "極少",
       },
     },
-    // Languages
+    // 語言
     languages: {
       title: "語言分布",
       subtitle: "程式語言統計",
@@ -918,7 +961,7 @@ export const translations = {
       bytes: "{bytes} 位元組",
       percentage: "{percentage}%",
     },
-    // Star History Backfill
+    // 星數歷史回填
     starHistory: {
       title: "星數歷史",
       backfill: "回填歷史",
@@ -933,14 +976,14 @@ export const translations = {
       earliestDate: "最早：{date}",
       latestDate: "最近：{date}",
       maxStars: "最多 {count} 星可回填",
-      // Offline UX
+      // 離線體驗
       offline: "離線中 - 顯示快取資料",
       offlineLabel: "離線",
       offlineHint: "資料可能已過時",
       offlineNoBackfill: "離線時無法回填",
       rateLimited: "請求超過限制，請稍後再試。",
     },
-    // Similar Repos
+    // 相似儲存庫
     similarRepos: {
       title: "相似儲存庫",
       loading: "載入中...",
@@ -951,8 +994,17 @@ export const translations = {
       similarityScore: "相似度分數",
       sameLanguage: "相同語言",
       recalculate: "重新計算",
+      breakdown: {
+        topics: "主題",
+        language: "語言",
+        starScale: "星數量級",
+      },
     },
-    // Error Boundary
+    // HN 討論面板
+    contextBadges: {
+      noDiscussions: "找不到相關討論",
+    },
+    // 錯誤邊界
     errorBoundary: {
       title: "發生錯誤",
       message: "發生了非預期的錯誤",
@@ -960,7 +1012,7 @@ export const translations = {
       reloadApp: "重新載入應用",
       errorDetails: "錯誤詳情",
     },
-    // Relative Time
+    // 相對時間
     relativeTime: {
       justNow: "剛才",
       hoursAgo: "{hours} 小時前",
@@ -969,7 +1021,7 @@ export const translations = {
   },
 };
 
-// Helper type to convert literal types to strings recursively
+// 將字面型別遞迴轉換為 string 的輔助型別
 type DeepStringify<T> = {
   [K in keyof T]: T[K] extends string ? string : DeepStringify<T[K]>;
 };

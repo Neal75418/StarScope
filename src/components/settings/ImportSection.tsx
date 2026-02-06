@@ -1,5 +1,5 @@
 /**
- * Import section for batch importing repositories.
+ * 批次匯入 repo 的區塊元件。
  */
 
 import { useState, useRef, ChangeEvent, memo } from "react";
@@ -153,7 +153,7 @@ export function ImportSection() {
       </div>
 
       <div className="import-form">
-        {/* File upload */}
+        {/* 檔案上傳 */}
         <div className="import-method">
           <label htmlFor="import-file-input" className="import-label">
             {t.settings.import.uploadFile}
@@ -174,12 +174,12 @@ export function ImportSection() {
           </p>
         </div>
 
-        {/* Or divider */}
+        {/* 或分隔線 */}
         <div className="import-divider" aria-hidden="true">
           <span>{t.settings.import.or}</span>
         </div>
 
-        {/* Text input */}
+        {/* 文字輸入 */}
         <div className="import-method">
           <label htmlFor="import-text-input" className="import-label">
             {t.settings.import.pasteText}
@@ -204,20 +204,20 @@ export function ImportSection() {
           </button>
         </div>
 
-        {/* Error message */}
+        {/* 錯誤訊息 */}
         {parseError && (
           <div className="import-error" role="alert">
             {parseError}
           </div>
         )}
 
-        {/* Preview */}
+        {/* 預覽 */}
         <ImportPreview repos={parsedRepos} />
 
-        {/* Result */}
+        {/* 結果 */}
         {result && <ImportResult result={result} />}
 
-        {/* Actions */}
+        {/* 操作按鈕 */}
         {parsedRepos.length > 0 && !result && (
           <div className="import-actions">
             <button
@@ -234,7 +234,7 @@ export function ImportSection() {
           </div>
         )}
 
-        {/* Reset after complete */}
+        {/* 完成後重設 */}
         {result && (
           <div className="import-actions">
             <button className="btn btn-primary" onClick={handleReset}>

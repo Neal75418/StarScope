@@ -1,8 +1,8 @@
 /**
- * Repo card stats display component.
+ * Repo 卡片統計數據顯示元件。
  */
 
-import { ReactNode } from "react";
+import { memo, ReactNode } from "react";
 import { RepoWithSignals } from "../../api/client";
 import { TrendArrow } from "../TrendArrow";
 import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
@@ -27,7 +27,7 @@ function StatItem({ label, value, className }: StatItemProps) {
   );
 }
 
-export function RepoCardStats({ repo }: RepoCardStatsProps) {
+export const RepoCardStats = memo(function RepoCardStats({ repo }: RepoCardStatsProps) {
   const { t } = useI18n();
 
   return (
@@ -39,4 +39,4 @@ export function RepoCardStats({ repo }: RepoCardStatsProps) {
       <StatItem label={t.repo.trend} value={<TrendArrow trend={repo.trend} />} />
     </div>
   );
-}
+});

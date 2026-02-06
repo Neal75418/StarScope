@@ -1,6 +1,6 @@
 """
-Repository Languages API endpoints.
-Provides programming language breakdown data for repositories.
+Repo 程式語言 API 端點。
+提供 repo 的程式語言分佈資料。
 """
 
 from datetime import datetime
@@ -13,24 +13,22 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import Repo, RepoLanguage
 from routers.dependencies import get_repo_or_404
-from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
+from services.github import get_github_service
 from utils.time import utc_now
-
-ERROR_FETCH_FAILED = "Failed to fetch languages from GitHub"
 
 router = APIRouter(prefix="/languages", tags=["languages"])
 
 
-# Response schemas
+# 回應 schema
 class LanguageBreakdown(BaseModel):
-    """Single language entry."""
+    """單一語言項目。"""
     language: str
     bytes: int
     percentage: float
 
 
 class LanguagesResponse(BaseModel):
-    """Languages response with calculated percentages."""
+    """語言回應，含計算後的百分比。"""
     repo_id: int
     repo_name: str
     languages: List[LanguageBreakdown]
@@ -40,16 +38,16 @@ class LanguagesResponse(BaseModel):
 
 
 class LanguagesSummary(BaseModel):
-    """Brief summary for badges/cards."""
+    """徽章/卡片用的簡短摘要。"""
     repo_id: int
     primary_language: Optional[str]
     language_count: int
     last_updated: Optional[datetime]
 
 
-# Helper functions
+# 輔助函式
 def _build_response(repo: Repo, languages: List[RepoLanguage]) -> LanguagesResponse:
-    """Build LanguagesResponse from repo and language records."""
+    """從 repo 與語言紀錄建立 LanguagesResponse。"""
     sorted_languages = sorted(languages, key=lambda x: x.bytes, reverse=True)
 
     breakdown = [
@@ -81,18 +79,18 @@ def _store_languages(
     github_data: dict[str, int]
 ) -> List[RepoLanguage]:
     """
-    Store languages data from GitHub API response.
+    儲存 GitHub API 回應中的語言資料。
 
-    GitHub returns: {"Python": 123456, "JavaScript": 78901, ...}
+    GitHub 回傳：{"Python": 123456, "JavaScript": 78901, ...}
     """
-    # Delete existing data for this repo (replace strategy)
+    # 刪除此 repo 的既有資料（替換策略）
     db.query(RepoLanguage).filter(RepoLanguage.repo_id == repo_id).delete()
 
     if not github_data:
         db.commit()
         return []
 
-    # Calculate total bytes for percentage
+    # 計算百分比用的總位元組數
     total_bytes = sum(github_data.values())
     now = utc_now()
 
@@ -114,15 +112,15 @@ def _store_languages(
     return languages
 
 
-# Endpoints
+# 端點
 @router.get("/{repo_id}", response_model=LanguagesResponse)
 async def get_languages(
     repo_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Get cached languages for a repository.
-    Returns 404 if not yet fetched.
+    取得 repo 的已快取語言資料。
+    尚未抓取時回傳 404。
     """
     repo = get_repo_or_404(repo_id, db)
 
@@ -145,26 +143,17 @@ async def fetch_languages(
     db: Session = Depends(get_db)
 ):
     """
-    Fetch (or refresh) languages from GitHub.
-    Replaces existing cached data.
+    從 GitHub 抓取（或重新整理）語言資料。
+    取代既有的快取資料。
     """
     repo = get_repo_or_404(repo_id, db)
 
-    try:
-        service = get_github_service()
-        github_data = await service.get_languages(repo.owner, repo.name)
+    # GitHub 例外由 main.py 中的全域例外處理器處理。
+    service = get_github_service()
+    github_data = await service.get_languages(repo.owner, repo.name)
 
-        languages = _store_languages(db, repo_id, github_data)
-        return _build_response(repo, languages)
-
-    except GitHubNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Repository not found on GitHub: {repo.full_name}")
-    except GitHubRateLimitError:
-        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded. Please try again later.")
-    except GitHubAPIError as e:
-        raise HTTPException(status_code=502, detail=f"GitHub API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{ERROR_FETCH_FAILED}: {str(e)}")
+    languages = _store_languages(db, repo_id, github_data)
+    return _build_response(repo, languages)
 
 
 @router.get("/{repo_id}/summary", response_model=LanguagesSummary)
@@ -173,7 +162,7 @@ async def get_languages_summary(
     db: Session = Depends(get_db)
 ):
     """
-    Get brief languages summary (for badges/cards).
+    取得簡短的語言摘要（用於徽章/卡片）。
     """
     get_repo_or_404(repo_id, db)
 

@@ -1,5 +1,5 @@
 /**
- * Loading state for GitHub connection.
+ * GitHub 連線載入中狀態元件。
  */
 
 import { useI18n } from "../../i18n";

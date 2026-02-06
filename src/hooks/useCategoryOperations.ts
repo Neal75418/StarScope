@@ -1,5 +1,5 @@
 /**
- * Hook for managing category-repo operations.
+ * 分類與 Repo 的關聯操作。
  */
 
 import { useCallback, useState } from "react";
@@ -23,7 +23,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         onSuccess?.();
         return true;
       } catch (err) {
-        console.error("Failed to add repo to category:", err);
+        console.error("Repo 加入分類失敗:", err);
         return false;
       } finally {
         setIsLoading(false);
@@ -40,7 +40,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         onSuccess?.();
         return true;
       } catch (err) {
-        console.error("Failed to remove repo from category:", err);
+        console.error("Repo 移出分類失敗:", err);
         return false;
       } finally {
         setIsLoading(false);
@@ -55,7 +55,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         const response = await getRepoCategories(repoId);
         return response.categories;
       } catch (err) {
-        console.error("Failed to get repo categories:", err);
+        console.error("取得 Repo 分類失敗:", err);
         return [];
       }
     },

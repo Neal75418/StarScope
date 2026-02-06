@@ -1,5 +1,5 @@
 /**
- * Search bar component for Discovery page.
+ * Discovery 頁面的搜尋列元件。
  */
 
 import { useState, useCallback, FormEvent } from "react";

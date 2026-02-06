@@ -1,5 +1,5 @@
 /**
- * Results container for Discovery page.
+ * Discovery 頁面的搜尋結果容器。
  */
 
 import { DiscoveryRepo } from "../../api/client";
@@ -34,7 +34,7 @@ export function DiscoveryResults({
 }: DiscoveryResultsProps) {
   const { t } = useI18n();
 
-  // Error state
+  // 錯誤狀態
   if (error) {
     return (
       <div className={styles.emptyState}>
@@ -43,7 +43,7 @@ export function DiscoveryResults({
     );
   }
 
-  // Initial state - no search yet
+  // 初始狀態：尚未搜尋
   if (!hasSearched && repos.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -52,7 +52,7 @@ export function DiscoveryResults({
     );
   }
 
-  // Loading state for initial search
+  // 初次搜尋的載入狀態
   if (loading && repos.length === 0) {
     return (
       <div className={styles.emptyState}>
@@ -61,7 +61,7 @@ export function DiscoveryResults({
     );
   }
 
-  // Empty results after search
+  // 搜尋後無結果
   if (hasSearched && repos.length === 0) {
     return (
       <div className={styles.emptyState}>

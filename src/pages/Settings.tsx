@@ -1,5 +1,5 @@
 /**
- * Settings page - export data and manage alerts.
+ * 設定頁面，匯出資料與管理警示規則。
  */
 
 import { useState } from "react";
@@ -17,7 +17,7 @@ export function Settings() {
   const [showAddAlert, setShowAddAlert] = useState(false);
   const alerts = useAlertRules(toast);
 
-  // Alert form state
+  // 警示表單狀態
   const isAlertFormVisible = showAddAlert || alerts.editingRule !== null;
   const isAlertEditMode = alerts.editingRule !== null;
 

@@ -2,7 +2,7 @@ import { TriggeredAlert } from "../api/client";
 import { Notification } from "../hooks/useNotifications";
 
 /**
- * Convert triggered alerts to notifications.
+ * 將已觸發的警報轉換為通知。
  */
 export function alertsToNotifications(
   alerts: TriggeredAlert[],
@@ -31,7 +31,7 @@ export function alertsToNotifications(
 }
 
 /**
- * Sort notifications by timestamp (newest first).
+ * 依時間戳排序通知（最新的在前）。
  */
 export function sortNotifications(notifications: Notification[]): Notification[] {
   return notifications.sort(
@@ -40,7 +40,7 @@ export function sortNotifications(notifications: Notification[]): Notification[]
 }
 
 /**
- * Merge new notifications with existing ones, preserving local read status.
+ * 合併新通知與現有通知，保留本地已讀狀態。
  */
 export function mergeNotifications(
   newNotifications: Notification[],
@@ -50,7 +50,7 @@ export function mergeNotifications(
 
   return newNotifications.map((notification) => ({
     ...notification,
-    // Preserve local read status if it was marked read locally but not yet on server
+    // 保留本地已讀狀態（本地標為已讀但尚未同步至伺服器）
     read: notification.read || prevReadIds.has(notification.id),
   }));
 }

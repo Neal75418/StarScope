@@ -1,5 +1,5 @@
 /**
- * GitHub connection sub-components.
+ * GitHub 連線子元件匯出。
  */
 
 export { ConnectionLoading } from "./ConnectionLoading";

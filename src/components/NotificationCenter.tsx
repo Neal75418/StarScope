@@ -1,6 +1,5 @@
 /**
- * Notification center dropdown component.
- * Shows in-app notifications with unread badge.
+ * 通知中心下拉選單元件，顯示應用內通知與未讀徽章。
  */
 
 import { useEffect, useRef, memo, useCallback } from "react";
@@ -74,7 +73,7 @@ const NotificationItem = memo(
     };
 
     const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-      // Don't handle if the target is a button (let button handle its own events)
+      // 目標是按鈕時不處理，讓按鈕自行處理事件
       if (isButtonTarget(e.target)) {
         return;
       }
@@ -258,7 +257,7 @@ export function NotificationCenter({ onNavigate }: NotificationCenterProps) {
     clearNotification,
   } = useNotifications();
 
-  // Close on click outside
+  // 點擊外部時關閉
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -275,7 +274,7 @@ export function NotificationCenter({ onNavigate }: NotificationCenterProps) {
     };
   }, [isOpen, close]);
 
-  // Close on Escape
+  // 按 ESC 關閉
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {

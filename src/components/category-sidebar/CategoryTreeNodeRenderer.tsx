@@ -1,5 +1,5 @@
 /**
- * Recursive renderer for category tree nodes.
+ * 分類樹節點的遞迴渲染器。
  */
 
 import { MouseEvent } from "react";

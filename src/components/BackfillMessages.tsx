@@ -1,3 +1,7 @@
+/**
+ * Backfill 狀態訊息元件（離線、錯誤、成功）。
+ */
+
 interface BackfillMessagesProps {
   isOffline: boolean;
   error: string | null;
@@ -9,7 +13,7 @@ interface BackfillMessagesProps {
 export function BackfillMessages({ isOffline, error, successMessage, t }: BackfillMessagesProps) {
   return (
     <>
-      {/* Offline indicator */}
+      {/* 離線狀態指示 */}
       {isOffline && (
         <span
           className="backfill-offline-badge"

@@ -1,6 +1,5 @@
 /**
- * Generic hook for fetching summary data with loading/error states.
- * Used by useCommitActivitySummary and useLanguagesSummary.
+ * 通用摘要資料取得，含 loading / error 狀態管理。
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -65,7 +64,7 @@ async function loadSummary<T>({
       setIfMounted(isMountedRef, setSummary, null);
     } else {
       setIfMounted(isMountedRef, setError, failedToLoadMessage);
-      console.error(`[${logPrefix}] error:`, err);
+      console.error(`[${logPrefix}] 載入錯誤:`, err);
     }
   } finally {
     setIfMounted(isMountedRef, setLoading, false);
@@ -97,7 +96,7 @@ async function fetchSummaryData<T>({
     setIfMounted(isMountedRef, setSummary, summaryData);
   } catch (err) {
     setIfMounted(isMountedRef, setError, failedToLoadMessage);
-    console.error(`[${logPrefix}] fetch error:`, err);
+    console.error(`[${logPrefix}] 取得資料錯誤:`, err);
   } finally {
     setIfMounted(isMountedRef, setFetching, false);
   }
@@ -111,7 +110,7 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
-  // Track fetching state via ref to keep fetchData callback stable
+  // 透過 ref 追蹤 fetching 狀態，保持 fetchData callback 穩定
   const fetchingRef = useRef(false);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 /**
- * Commit activity panel showing weekly commit data visualization.
+ * Commit 活躍度面板，視覺化呈現每週 commit 資料。
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -18,7 +18,7 @@ interface CommitActivityPanelProps {
 }
 
 /**
- * Get activity level based on average commits per week.
+ * 依每週平均 commit 數判斷活躍等級。
  */
 function getActivityLevel(avgCommits: number): "veryHigh" | "high" | "medium" | "low" | "minimal" {
   if (avgCommits >= 20) return "veryHigh";
@@ -29,7 +29,7 @@ function getActivityLevel(avgCommits: number): "veryHigh" | "high" | "medium" | 
 }
 
 /**
- * Get color class based on commit count for heatmap.
+ * 依 commit 數量取得 heatmap 顏色 class。
  */
 function getCommitColor(count: number, maxCount: number): string {
   if (count === 0) return "commit-level-0";
@@ -220,11 +220,11 @@ export function CommitActivityPanel({ repoId, repoName, onClose }: CommitActivit
       const result = await getCommitActivity(repoId);
       setData(result);
     } catch (err) {
-      // 404 means data not fetched yet, that's okay
+      // 404 表示尚未取得資料，屬正常狀態
       if (err instanceof ApiError && err.status === 404) {
         setData(null);
       } else {
-        console.error("Failed to load commit activity:", err);
+        console.error("載入 commit 活躍度失敗:", err);
         setError(t.commitActivity.fetchFailed);
       }
     } finally {
@@ -249,13 +249,13 @@ export function CommitActivityPanel({ repoId, repoName, onClose }: CommitActivit
     void loadData();
   }, [loadData]);
 
-  // Calculate max commit count for color scaling
+  // 計算最大 commit 數以供顏色比例縮放
   const maxCommits = data?.weeks.reduce((max, w) => Math.max(max, w.commit_count), 0) ?? 0;
 
   return (
     <div className="commit-activity-overlay" onClick={onClose}>
       <div className="commit-activity-panel" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+        {/* 標題列 */}
         <div className="commit-activity-header">
           <div>
             <h3>{t.commitActivity.title}</h3>
@@ -266,7 +266,7 @@ export function CommitActivityPanel({ repoId, repoName, onClose }: CommitActivit
           </button>
         </div>
 
-        {/* Content */}
+        {/* 內容區 */}
         <div className="commit-activity-content">
           <CommitActivityContent
             loading={loading}

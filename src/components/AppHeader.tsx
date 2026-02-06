@@ -1,5 +1,5 @@
 /**
- * Application header with navigation, theme toggle, language toggle, and notifications.
+ * 應用程式 header，含導覽列、主題切換、語言切換與通知中心。
  */
 
 import { ReactNode } from "react";
@@ -45,6 +45,16 @@ function buildNavItems(t: TranslationKeys): NavItem[] {
   ];
 }
 
+function buildMobileNavItems(t: TranslationKeys): NavItem[] {
+  return [
+    { id: "dashboard", label: t.nav.dashboard, icon: <HomeIcon size={20} /> },
+    { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={20} /> },
+    { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={20} /> },
+    { id: "trends", label: t.nav.trends, icon: <GraphIcon size={20} /> },
+    { id: "settings", label: t.nav.settings, icon: <GearIcon size={20} /> },
+  ];
+}
+
 export function AppHeader({
   currentPage,
   onPageChange,
@@ -55,6 +65,7 @@ export function AppHeader({
   t,
 }: AppHeaderProps) {
   const navItems = buildNavItems(t);
+  const mobileNavItems = buildMobileNavItems(t);
   const isDark = theme === "dark";
   const isEnglish = language === "en";
 
@@ -64,9 +75,10 @@ export function AppHeader({
   const langTitle = isEnglish ? "切換為繁體中文" : "Switch to English";
 
   return (
+    <>
     <header className="app-header">
       <nav className="nav-container">
-        {/* Left: Logo and Navigation */}
+        {/* 左側：Logo 與導覽 */}
         <div className="nav-left">
           <a
             href="#"
@@ -99,12 +111,12 @@ export function AppHeader({
           </div>
         </div>
 
-        {/* Right: Notifications, Theme, Language, Settings */}
+        {/* 右側：通知、主題、語言、設定 */}
         <div className="nav-right">
-          {/* Notifications */}
+          {/* 通知 */}
           <NotificationCenter onNavigate={onPageChange} />
 
-          {/* Language Toggle */}
+          {/* 語言切換 */}
           <button
             data-testid="lang-toggle"
             className="nav-action-btn"
@@ -116,7 +128,7 @@ export function AppHeader({
             <span className="nav-action-label">{isEnglish ? "EN" : "中"}</span>
           </button>
 
-          {/* Theme Toggle */}
+          {/* 主題切換 */}
           <button
             data-testid="theme-toggle"
             className="nav-action-btn"
@@ -131,7 +143,7 @@ export function AppHeader({
             )}
           </button>
 
-          {/* Settings */}
+          {/* 設定 */}
           <button
             data-testid="nav-settings"
             className={`nav-action-btn ${currentPage === "settings" ? "active" : ""}`}
@@ -145,5 +157,22 @@ export function AppHeader({
         </div>
       </nav>
     </header>
+
+    {/* 手機底部 tab bar，僅在 ≤768px 時透過 CSS 顯示 */}
+    <nav className="mobile-tab-bar" aria-label="Mobile navigation">
+      {mobileNavItems.map((item) => (
+        <button
+          key={item.id}
+          className={`mobile-tab-item ${currentPage === item.id ? "active" : ""}`}
+          onClick={() => onPageChange(item.id)}
+          aria-current={currentPage === item.id ? "page" : undefined}
+          aria-label={item.label}
+        >
+          <span className="mobile-tab-icon" aria-hidden="true">{item.icon}</span>
+          <span className="mobile-tab-label">{item.label}</span>
+        </button>
+      ))}
+    </nav>
+    </>
   );
 }

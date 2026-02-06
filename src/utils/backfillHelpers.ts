@@ -1,6 +1,10 @@
+/**
+ * 回填相關的輔助函式。
+ */
+
 import { ApiError } from "../api/client";
 
-// Check if error is a network error
+// 判斷是否為網路錯誤
 export function isNetworkError(err: unknown): boolean {
   if (err instanceof TypeError && err.message === "Failed to fetch") {
     return true;

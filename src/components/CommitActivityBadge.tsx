@@ -1,5 +1,5 @@
 /**
- * Commit activity badge showing weekly commit average.
+ * Commit 活躍度徽章，顯示每週平均 commit 數。
  */
 
 import { useCommitActivitySummary } from "../hooks/useCommitActivitySummary";
@@ -9,7 +9,7 @@ interface CommitActivityBadgeProps {
   repoId: number;
 }
 
-// Color mapping based on weekly commit average
+// 依每週 commit 數對應顏色
 const ACTIVITY_COLORS: Record<string, { bg: string; text: string }> = {
   high: { bg: "#14532d", text: "#86efac" }, // ≥10/wk - very active
   medium: { bg: "#166534", text: "#86efac" }, // 5-9/wk - active

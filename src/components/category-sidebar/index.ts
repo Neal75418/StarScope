@@ -1,5 +1,5 @@
 /**
- * Category sidebar sub-components.
+ * 分類側邊欄子元件匯出。
  */
 
 export { CategoryAddForm } from "./CategoryAddForm";

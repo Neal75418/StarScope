@@ -1,5 +1,5 @@
 """
-Watchlist API endpoints for managing GitHub repositories.
+追蹤清單 API 端點，管理 GitHub repo。
 """
 
 from __future__ import annotations
@@ -24,12 +24,11 @@ from services.github import (
     GitHubService,
     GitHubAPIError,
     GitHubNotFoundError,
-    GitHubRateLimitError,
 )
 from services.rate_limiter import fetch_repo_with_retry
 from services.queries import build_signal_map, build_snapshot_map
+from services.snapshot import create_or_update_snapshot, update_repo_from_github
 from routers.dependencies import get_repo_or_404
-from utils.time import utc_now, utc_today
 
 import logging
 
@@ -40,10 +39,10 @@ router = APIRouter()
 
 def _validate_github_identifier(owner: str, name: str) -> None:
     """
-    Validate GitHub owner and repo name to prevent SSRF attacks.
-    Raises HTTPException if validation fails.
+    驗證 GitHub owner 與 repo 名稱以防止 SSRF 攻擊。
+    驗證失敗時拋出 HTTPException。
     """
-    # Check lengths
+    # 檢查長度
     if len(owner) > MAX_OWNER_LENGTH:
         raise HTTPException(
             status_code=400,
@@ -55,14 +54,14 @@ def _validate_github_identifier(owner: str, name: str) -> None:
             detail=f"Repository name too long (max {MAX_REPO_NAME_LENGTH} characters)"
         )
 
-    # Validate owner format (GitHub username pattern)
+    # 驗證 owner 格式（GitHub 使用者名稱模式）
     if not re.match(GITHUB_USERNAME_PATTERN, owner):
         raise HTTPException(
             status_code=400,
             detail="Invalid GitHub username format"
         )
 
-    # Validate repo name format
+    # 驗證 repo 名稱格式
     if not re.match(GITHUB_REPO_NAME_PATTERN, name):
         raise HTTPException(
             status_code=400,
@@ -75,7 +74,7 @@ def _build_repo_with_signals(
     snapshot: Optional[RepoSnapshot],
     signals: Dict[str, float | int]
 ) -> RepoWithSignals:
-    """Build a RepoWithSignals response from pre-fetched data."""
+    """從預先抓取的資料建立 RepoWithSignals 回應。"""
     return RepoWithSignals(
         id=repo.id,
         owner=repo.owner,
@@ -99,8 +98,8 @@ def _build_repo_with_signals(
 
 def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
     """
-    Build a RepoWithSignals response from a Repo model.
-    For single repo lookup - uses individual queries.
+    從 Repo model 建立 RepoWithSignals 回應。
+    用於單一 repo 查詢 — 使用個別查詢。
     """
     snapshot_map = build_snapshot_map(db, [repo.id])
     signal_map = build_signal_map(db, [repo.id])
@@ -112,42 +111,10 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
     )
 
 
-def _update_repo_metadata(repo: Repo, github_data: Dict) -> None:
-    """Update repo metadata from GitHub API response."""
-    repo.description = github_data.get("description")
-    repo.language = github_data.get("language")
-    repo.updated_at = utc_now()
-
-
-def _create_or_update_snapshot(repo: Repo, github_data: Dict, db: Session) -> None:
-    """Create or update today's snapshot for a repo."""
-    today = utc_today()
-    existing_snapshot = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
-        .first()
-    )
-
-    if existing_snapshot:
-        existing_snapshot.stars = github_data.get("stargazers_count", 0)
-        existing_snapshot.forks = github_data.get("forks_count", 0)
-        existing_snapshot.watchers = github_data.get("watchers_count", 0)
-        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-        existing_snapshot.fetched_at = utc_now()
-    else:
-        snapshot = RepoSnapshot(
-            repo_id=repo.id,
-            stars=github_data.get("stargazers_count", 0),
-            forks=github_data.get("forks_count", 0),
-            watchers=github_data.get("watchers_count", 0),
-            open_issues=github_data.get("open_issues_count", 0),
-            snapshot_date=today,
-        )
-        db.add(snapshot)
 
 
 def _build_repo_list_response(db: Session) -> RepoListResponse:
-    """Build RepoListResponse with all repos and their signals."""
+    """建立含所有 repo 及其訊號的 RepoListResponse。"""
     repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
     if not repos:
         return RepoListResponse(repos=[], total=0)
@@ -171,8 +138,8 @@ def _build_repo_list_response(db: Session) -> RepoListResponse:
 @router.get("/repos", response_model=RepoListResponse)
 async def list_repos(db: Session = Depends(get_db)) -> RepoListResponse:
     """
-    List all repositories in the watchlist with their latest signals.
-    Uses batch queries to avoid N+1 problem.
+    列出追蹤清單中的所有 repo 及其最新訊號。
+    使用批次查詢避免 N+1 問題。
     """
     return _build_repo_list_response(db)
 
@@ -180,20 +147,20 @@ async def list_repos(db: Session = Depends(get_db)) -> RepoListResponse:
 @router.post("/repos", response_model=RepoWithSignals, status_code=status.HTTP_201_CREATED)
 async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> RepoWithSignals:
     """
-    Add a new repository to the watchlist.
-    Can provide either owner+name or a GitHub URL.
+    將新 repo 加入追蹤清單。
+    可提供 owner+name 或 GitHub URL。
     """
     try:
         owner, name = repo_input.get_owner_name()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Validate input to prevent SSRF
+    # 驗證輸入以防止 SSRF
     _validate_github_identifier(owner, name)
 
     full_name = f"{owner}/{name}"
 
-    # Check if already exists
+    # 檢查是否已存在
     existing = db.query(Repo).filter(Repo.full_name == full_name).first()
     if existing:
         raise HTTPException(
@@ -201,27 +168,12 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
             detail=f"Repository {full_name} is already in your watchlist"
         )
 
-    # Fetch repo info from GitHub
+    # 從 GitHub 抓取 repo 資訊
+    # GitHub 例外由 main.py 中的全域例外處理器處理。
     github = GitHubService()
-    try:
-        github_data = await github.get_repo(owner, name)
-    except GitHubNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Repository {full_name} not found on GitHub"
-        )
-    except GitHubRateLimitError:
-        raise HTTPException(
-            status_code=429,
-            detail="GitHub API rate limit exceeded. Please try again later."
-        )
-    except GitHubAPIError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"GitHub API error: {str(e)}"
-        )
+    github_data = await github.get_repo(owner, name)
 
-    # Create repo record
+    # 建立 repo 紀錄
     repo = Repo(
         owner=owner,
         name=name,
@@ -237,16 +189,8 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
     db.flush()
     db.refresh(repo)
 
-    # Create initial snapshot
-    snapshot = RepoSnapshot(
-        repo_id=repo.id,
-        stars=github_data.get("stargazers_count", 0),
-        forks=github_data.get("forks_count", 0),
-        watchers=github_data.get("watchers_count", 0),
-        open_issues=github_data.get("open_issues_count", 0),
-        snapshot_date=utc_today(),
-    )
-    db.add(snapshot)
+    # 建立初始快照（使用共用服務確保欄位映射一致）
+    create_or_update_snapshot(repo, github_data, db)
     db.commit()
 
     return get_repo_with_signals(repo, db)
@@ -255,7 +199,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
 @router.get("/repos/{repo_id}", response_model=RepoWithSignals)
 async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSignals:
     """
-    Get a single repository by ID with its signals.
+    依 ID 取得單一 repo 及其訊號。
     """
     repo = get_repo_or_404(repo_id, db)
     return get_repo_with_signals(repo, db)
@@ -264,8 +208,8 @@ async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSigna
 @router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
     """
-    Remove a repository from the watchlist.
-    This also deletes all associated snapshots and signals.
+    從追蹤清單移除 repo。
+    同時刪除所有關聯的快照與訊號。
     """
     repo = get_repo_or_404(repo_id, db)
     db.delete(repo)
@@ -276,42 +220,17 @@ async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
 @router.post("/repos/{repo_id}/fetch", response_model=RepoWithSignals)
 async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSignals:
     """
-    Manually fetch the latest data for a repository.
-    Creates a new snapshot and recalculates signals.
+    手動抓取 repo 的最新資料。
+    建立新快照並重新計算訊號。
     """
     repo = get_repo_or_404(repo_id, db)
 
-    # Fetch from GitHub
+    # 從 GitHub 抓取（例外由 main.py 全域處理器處理）
     github = GitHubService()
-    try:
-        github_data = await github.get_repo(repo.owner, repo.name)
-    except GitHubNotFoundError:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Repository {repo.full_name} no longer exists on GitHub"
-        )
-    except GitHubRateLimitError:
-        raise HTTPException(
-            status_code=429,
-            detail="GitHub API rate limit exceeded. Please try again later."
-        )
-    except GitHubAPIError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Failed to fetch from GitHub: {str(e)}"
-        )
+    github_data = await github.get_repo(repo.owner, repo.name)
 
-    # Update repo metadata and create/update snapshot
-    _update_repo_metadata(repo, github_data)
-    _create_or_update_snapshot(repo, github_data, db)
-    # db.commit() - moved to end to include signals
-
-    # Recalculate signals
-    from services.analyzer import calculate_signals
-    calculate_signals(repo.id, db)
-
-    # Commit all changes atomically
-    db.commit()
+    # 原子性更新中繼資料 + 快照 + 訊號
+    update_repo_from_github(repo, github_data, db)
 
     return get_repo_with_signals(repo, db)
 
@@ -319,40 +238,27 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
 @router.post("/repos/fetch-all", response_model=RepoListResponse)
 async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
     """
-    Fetch the latest data for all repositories in the watchlist.
-    Uses exponential backoff with retry for rate limit handling.
+    抓取追蹤清單中所有 repo 的最新資料。
+    使用指數退避重試處理速率限制。
     """
     repos = db.query(Repo).all()
     github = GitHubService()
 
     for repo in repos:
         try:
-            # Use retry wrapper with exponential backoff
+            # 使用帶指數退避的重試包裝器
             github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
 
-            # Update repo metadata and create/update snapshot
-            _update_repo_metadata(repo, github_data)
-            _create_or_update_snapshot(repo, github_data, db)
-
-            # Recalculate signals
-            from services.analyzer import calculate_signals
-            calculate_signals(repo.id, db)
-            
-            # Commit per repo to ensure data consistency and avoid long transactions
-            db.commit()
+            # 原子性更新中繼資料 + 快照 + 訊號（每個 repo 獨立 commit）
+            update_repo_from_github(repo, github_data, db)
 
         except GitHubNotFoundError:
             db.rollback()
-            logger.warning(f"Repository {repo.full_name} not found on GitHub, skipping")
+            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
             continue
         except GitHubAPIError as e:
             db.rollback()
-            # Covers GitHubRateLimitError and other API errors after retries exhausted
-            logger.error(f"GitHub API error for {repo.full_name} after retries: {e}", exc_info=True)
+            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
             continue
 
-    # db.commit() - already committed per repo inside loop
-
-
-    # Return updated list
     return _build_repo_list_response(db)

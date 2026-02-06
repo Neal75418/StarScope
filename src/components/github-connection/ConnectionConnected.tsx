@@ -1,5 +1,5 @@
 /**
- * Connected state for GitHub connection.
+ * GitHub 已連線狀態元件。
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -13,9 +13,7 @@ interface ConnectionConnectedProps {
 }
 
 /**
- * Formats seconds into a human-readable countdown string.
- * @param seconds - Number of seconds remaining
- * @returns Formatted string like "45m 30s" or "1h 23m"
+ * 將秒數格式化為易讀的倒數字串（如 "45m 30s" 或 "1h 23m"）。
  */
 function formatCountdown(seconds: number): string {
   if (seconds <= 0) return "0s";
@@ -38,7 +36,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
   const [countdown, setCountdown] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Calculate and update countdown every second
+  // 每秒計算並更新倒數
   useEffect(() => {
     const resetTime = status.rate_limit_reset;
     if (!resetTime) {
@@ -57,10 +55,10 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
       }
     };
 
-    // Initial update
+    // 初次更新
     updateCountdown();
 
-    // Update every second
+    // 每秒更新
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);

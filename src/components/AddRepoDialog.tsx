@@ -1,9 +1,10 @@
 /**
- * Dialog for adding a new repository to the watchlist.
+ * 新增 repo 到 watchlist 的 dialog。
  */
 
 import { useState, useEffect, FormEvent } from "react";
 import { useI18n } from "../i18n";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface AddRepoDialogProps {
   isOpen: boolean;
@@ -16,8 +17,9 @@ interface AddRepoDialogProps {
 export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddRepoDialogProps) {
   const { t } = useI18n();
   const [input, setInput] = useState("");
+  const focusTrapRef = useFocusTrap(isOpen, false);
 
-  // Handle ESC key to close dialog
+  // 按 ESC 關閉 dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen && !isLoading) {
@@ -47,6 +49,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
   return (
     <div className="dialog-overlay" onClick={handleClose} role="presentation">
       <div
+        ref={focusTrapRef}
         className="dialog"
         onClick={(e) => e.stopPropagation()}
         role="dialog"

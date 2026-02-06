@@ -1,5 +1,5 @@
 /**
- * Generic hook for async data fetching with cleanup and optional caching.
+ * 通用非同步資料取得，含清理與可選快取。
  */
 
 import { useState, useEffect } from "react";
@@ -11,9 +11,9 @@ interface UseAsyncFetchResult<T> {
 }
 
 interface UseAsyncFetchOptions {
-  /** Cache key for request deduplication. If provided, enables caching. */
+  /** 快取 key，用於請求去重。提供此值即啟用快取。 */
   cacheKey?: string;
-  /** Cache TTL in milliseconds (default: 30s) */
+  /** 快取 TTL（毫秒，預設 30 秒） */
   cacheTtlMs?: number;
 }
 
@@ -36,15 +36,15 @@ export function useAsyncFetch<T, R>(
       try {
         let response: R;
         if (options?.cacheKey) {
-          // Use cached request with deduplication
+          // 使用快取請求（含去重）
           response = await cachedRequest(options.cacheKey, fetchFn, options.cacheTtlMs);
         } else {
-          // Direct fetch without caching
+          // 直接請求，不使用快取
           response = await fetchFn();
         }
         if (isMounted) setData(extractData(response));
       } catch (err) {
-        if (isMounted) console.error(`Failed to load ${errorContext}:`, err);
+        if (isMounted) console.error(`${errorContext} 載入失敗:`, err);
       } finally {
         if (isMounted) setLoading(false);
       }

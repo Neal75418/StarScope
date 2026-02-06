@@ -3,15 +3,23 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { ContextBadges } from "../ContextBadges";
 import type { ContextBadge } from "../../api/client";
-import { openUrl } from "@tauri-apps/plugin-opener";
 
 // Mock the openUrl function
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
+
+// Mock getContextSignals for expand tests
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
+  return {
+    ...actual,
+    getContextSignals: vi.fn().mockResolvedValue({ signals: [], total: 0, repo_id: 1 }),
+  };
+});
 
 describe("ContextBadges", () => {
   const mockHnBadge: ContextBadge = {
@@ -44,52 +52,43 @@ describe("ContextBadges", () => {
     // Parsed value from "HN: 500 pts"
     expect(screen.getByText("500")).toBeInTheDocument();
 
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "https://news.ycombinator.com/item?id=123");
+    const button = screen.getByRole("button");
+    expect(button).toBeInTheDocument();
   });
 
   it("renders multiple HN badges", () => {
     render(<ContextBadges badges={[mockHnBadge, mockHnBadgeNonRecent]} />);
 
-    // All links should be present
-    const links = screen.getAllByRole("link");
-    expect(links).toHaveLength(2);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons).toHaveLength(2);
   });
 
   it("applies recent class to recent badges", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
-    const link = screen.getByRole("link");
-    expect(link).toHaveClass("recent");
+    const button = screen.getByRole("button");
+    expect(button).toHaveClass("recent");
   });
 
   it("does not apply recent class to non-recent badges", () => {
     render(<ContextBadges badges={[mockHnBadgeNonRecent]} />);
 
-    const link = screen.getByRole("link");
-    expect(link).not.toHaveClass("recent");
+    const button = screen.getByRole("button");
+    expect(button).not.toHaveClass("recent");
   });
 
-  it("opens links in browser using openUrl", () => {
-    render(<ContextBadges badges={[mockHnBadge]} />);
+  it("shows expand arrow when repoId is provided", () => {
+    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
 
-    const link = screen.getByRole("link");
-    expect(link).toBeInTheDocument();
-
-    // Verify it doesn't have target="_blank" anymore
-    expect(link).not.toHaveAttribute("target");
-
-    // Click the link
-    fireEvent.click(link);
-
-    // Verify openUrl was called with the correct URL
-    expect(openUrl).toHaveBeenCalledWith(mockHnBadge.url);
+    const button = screen.getByRole("button");
+    expect(button).toHaveClass("expandable");
+    expect(screen.getByText("▸")).toBeInTheDocument();
   });
 
   it("applies badge type class for styling", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
 
-    const link = screen.getByRole("link");
-    expect(link).toHaveClass("context-badge-hn");
+    const button = screen.getByRole("button");
+    expect(button).toHaveClass("context-badge-hn");
   });
 });

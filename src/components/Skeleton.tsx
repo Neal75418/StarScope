@@ -1,3 +1,7 @@
+/**
+ * 骨架屏元件，載入中的佔位顯示。
+ */
+
 import React from "react";
 import "./Skeleton.css";
 

@@ -1,3 +1,7 @@
+/**
+ * 淡入動畫元件。
+ */
+
 import { motion } from "framer-motion";
 import type { ReactNode, CSSProperties } from "react";
 

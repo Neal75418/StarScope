@@ -1,6 +1,5 @@
 /**
- * Error Boundary component - catches JavaScript errors in child components.
- * Displays a fallback UI instead of crashing the entire application.
+ * Error Boundary 元件，捕捉子元件的 JavaScript 錯誤並顯示 fallback UI。
  */
 
 import { Component, ErrorInfo, ReactNode } from "react";
@@ -16,7 +15,7 @@ interface State {
   error: Error | null;
 }
 
-// Separate component for error UI to use context
+// 錯誤 UI 獨立為元件以存取 context
 function ErrorFallbackUI({
   error,
   onRetry,
@@ -61,9 +60,9 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console in development
-    console.error("Error caught by ErrorBoundary:", error);
-    console.error("Component stack:", errorInfo.componentStack);
+    // 開發模式下記錄錯誤
+    console.error("ErrorBoundary 捕捉到錯誤:", error);
+    console.error("元件堆疊:", errorInfo.componentStack);
   }
 
   handleRetry = () => {
@@ -80,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <I18nContext.Consumer>
           {(context) => {
             if (!context) {
-              // Fallback if context is not available (shouldn't happen in normal usage)
+              // context 不可用時的 fallback（正常使用不會發生）
               return (
                 <div className="error-boundary">
                   <div className="error-boundary-content">

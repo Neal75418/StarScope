@@ -1,6 +1,6 @@
 """
-Background scheduler service for periodic data fetching.
-Uses APScheduler to run jobs at configured intervals.
+背景排程服務，用於定期資料抓取。
+使用 APScheduler 按設定間隔執行工作。
 """
 
 import asyncio
@@ -16,20 +16,20 @@ from sqlalchemy.orm import Session
 from db.database import SessionLocal
 from db.models import Repo, RepoSnapshot
 from services.github import fetch_repo_data
-from services.analyzer import calculate_signals
+from services.snapshot import update_repo_from_github
 from services.context_fetcher import fetch_all_context_signals
-from utils.time import utc_now, utc_today
+from utils.time import utc_now
 from constants import CONTEXT_FETCH_INTERVAL_MINUTES
 
 logger = logging.getLogger(__name__)
 
-# Global scheduler instance
+# 全域排程器實例
 _scheduler: Optional[AsyncIOScheduler] = None
 _scheduler_lock = threading.Lock()
 
 
 def get_scheduler() -> AsyncIOScheduler:
-    """Get the global scheduler instance."""
+    """取得全域排程器實例。"""
     global _scheduler
     if _scheduler is None:
         with _scheduler_lock:
@@ -40,125 +40,95 @@ def get_scheduler() -> AsyncIOScheduler:
 
 async def fetch_all_repos_job(skip_recent_minutes: int = 30):
     """
-    Background job to fetch all repos in the watchlist.
-    This runs periodically based on the configured interval.
+    背景工作：抓取追蹤清單中所有 repo。
+    根據設定的間隔定期執行。
 
     Args:
-        skip_recent_minutes: Skip repos fetched within this many minutes (default: 30).
-                           This prevents re-fetching after a restart.
+        skip_recent_minutes: 跳過此分鐘數內已抓取的 repo（預設 30）。
+                           避免重啟後重複抓取。
     """
-    logger.info("Starting scheduled fetch for all repos...")
+    logger.info("[排程] 開始排程抓取所有 repo...")
 
     db: Session = SessionLocal()
     try:
-        repos = db.query(Repo).all()
-
-        if not repos:
-            logger.info("No repos in watchlist, skipping fetch")
-            return
-
-        # Get last fetch time for each repo to enable smart skipping
         from sqlalchemy import func
-        # Use naive datetime for comparison with DB values (SQLite stores naive datetimes)
+
+        # 使用 naive datetime 與 DB 值比較（SQLite 儲存 naive datetime）
         recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
 
-        # Query repos with their latest snapshot fetch time
-        latest_fetches = dict(
-            db.query(RepoSnapshot.repo_id, func.max(RepoSnapshot.fetched_at))
+        # 子查詢：近期已抓取的 repo ID（將被跳過）
+        recently_fetched_ids = (
+            db.query(RepoSnapshot.repo_id)
             .group_by(RepoSnapshot.repo_id)
+            .having(func.max(RepoSnapshot.fetched_at) > recent_threshold)
+            .subquery()
+        )
+
+        # 僅載入需要抓取的 repo（在 DB 層篩選）
+        repos = (
+            db.query(Repo)
+            .filter(Repo.id.notin_(db.query(recently_fetched_ids.c.repo_id)))
             .all()
         )
 
+        total_count = db.query(func.count(Repo.id)).scalar() or 0
+        skipped_count = total_count - len(repos)
+
+        if total_count == 0:
+            logger.info("[排程] 監控清單無 repo，跳過抓取")
+            return
+
         success_count = 0
         error_count = 0
-        skipped_count = 0
+
+        if skipped_count > 0:
+            logger.debug(f"[排程] 跳過 {skipped_count} 個近期已抓取的 repo")
 
         for repo in repos:
-            # Skip repos that were recently fetched (prevents redundant fetches after restart)
-            last_fetch = latest_fetches.get(repo.id)
-            if last_fetch and last_fetch > recent_threshold:
-                skipped_count += 1
-                # Use naive datetime for comparison
-                now_naive = utc_now().replace(tzinfo=None)
-                logger.debug(f"Skipping {repo.full_name}: fetched {(now_naive - last_fetch).seconds // 60}min ago")
-                continue
 
             try:
-                # Fetch latest data from GitHub
+                # 從 GitHub 取得最新資料
                 github_data = await fetch_repo_data(repo.owner, repo.name)
 
                 if github_data:
-                    # Upsert snapshot: update if one already exists for today
-                    today = utc_today()
-                    existing_snapshot = db.query(RepoSnapshot).filter(
-                        RepoSnapshot.repo_id == repo.id,
-                        RepoSnapshot.snapshot_date == today,
-                    ).first()
-
-                    if existing_snapshot:
-                        existing_snapshot.stars = github_data.get("stargazers_count", 0)
-                        existing_snapshot.forks = github_data.get("forks_count", 0)
-                        existing_snapshot.watchers = github_data.get("subscribers_count", 0)
-                        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-                        existing_snapshot.fetched_at = utc_now()
-                        snapshot = existing_snapshot
-                    else:
-                        snapshot = RepoSnapshot(
-                            repo_id=repo.id,
-                            stars=github_data.get("stargazers_count", 0),
-                            forks=github_data.get("forks_count", 0),
-                            watchers=github_data.get("subscribers_count", 0),
-                            open_issues=github_data.get("open_issues_count", 0),
-                            snapshot_date=today,
-                            fetched_at=utc_now()
-                        )
-                        db.add(snapshot)
-
-                    # Update repo metadata
-                    repo.description = github_data.get("description")
-                    repo.language = github_data.get("language")
-                    repo.updated_at = utc_now()
-
-                    db.commit()
-
-                    # Calculate signals
-                    calculate_signals(repo.id, db)
+                    # 原子性地更新中繼資料 + 快照 + 訊號
+                    update_repo_from_github(repo, github_data, db)
 
                     success_count += 1
-                    logger.debug(f"Fetched {repo.full_name}: {snapshot.stars} stars")
+                    logger.debug(f"[排程] 已抓取 {repo.full_name}")
                 else:
                     error_count += 1
-                    logger.warning(f"Failed to fetch data for {repo.full_name}")
+                    logger.warning(f"[排程] 抓取 {repo.full_name} 資料失敗")
 
             except Exception as e:
                 error_count += 1
                 db.rollback()
-                logger.error(f"Error fetching {repo.full_name}: {e}", exc_info=True)
+                logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
 
         logger.info(
-            f"Scheduled fetch complete: {success_count} success, "
-            f"{error_count} errors, {skipped_count} skipped (recently fetched)"
+            f"[排程] 排程抓取完成: {success_count} 成功、"
+            f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
         )
 
     except Exception as e:
-        logger.error(f"Scheduler job error: {e}", exc_info=True)
+        logger.error(f"[排程] 排程任務錯誤: {e}", exc_info=True)
     finally:
         db.close()
 
 
 def check_alerts_job():
     """
-    Background job to check alert rules and trigger notifications.
-    This runs after fetching data.
+    背景工作：檢查警報規則並觸發通知。
+    在資料抓取後執行。
     """
-    logger.info("Checking alert rules...")
+    logger.info("[排程] 正在檢查警報規則...")
 
-    # Import here to avoid circular imports
+    # 在此 import 以避免循環引用
     try:
         from services.alerts import check_all_alerts
     except ImportError:
-        # alerts service not yet implemented
-        logger.debug("Alerts service not yet available")
+        # alerts 服務尚未實作
+        logger.debug("[排程] 警報服務尚未可用")
         return
 
     db: Session = SessionLocal()
@@ -166,57 +136,57 @@ def check_alerts_job():
         triggered = check_all_alerts(db)
 
         if triggered:
-            logger.info(f"Triggered {len(triggered)} alerts")
+            logger.info(f"[排程] 已觸發 {len(triggered)} 個警報")
         else:
-            logger.debug("No alerts triggered")
+            logger.debug("[排程] 無警報觸發")
 
     except Exception as e:
-        logger.error(f"Error checking alerts: {e}", exc_info=True)
+        logger.error(f"[排程] 檢查警報失敗: {e}", exc_info=True)
     finally:
         db.close()
 
 
 async def fetch_context_signals_job():
     """
-    Background job to fetch context signals for all repos.
-    Fetches from Hacker News and runs cleanup.
+    背景工作：為所有 repo 抓取情境訊號。
+    從 Hacker News 抓取並執行清理。
     """
-    logger.info("Starting scheduled context signals fetch...")
+    logger.info("[排程] 開始排程抓取上下文訊號...")
 
     db: Session = SessionLocal()
     try:
         result = await fetch_all_context_signals(db)
         logger.info(
-            f"Context signals fetch complete: "
-            f"HN={result['new_hn_signals']}, "
-            f"Errors={result['errors']}"
+            f"[排程] 上下文訊號抓取完成: "
+            f"HN={result['new_hn_signals']}、"
+            f"錯誤={result['errors']}"
         )
 
-        # Run cleanup to prevent unbounded growth
+        # 執行清理以防止無限成長
         from services.context_fetcher import cleanup_old_context_signals
         cleanup_stats = cleanup_old_context_signals(db)
         if cleanup_stats["deleted_by_age"] > 0 or cleanup_stats["deleted_by_limit"] > 0:
-            logger.info(f"Context signal cleanup: {cleanup_stats}")
+            logger.info(f"[排程] 上下文訊號清理: {cleanup_stats}")
     except Exception as e:
-        logger.error(f"Context signals job error: {e}", exc_info=True)
+        logger.error(f"[排程] 上下文訊號任務錯誤: {e}", exc_info=True)
     finally:
         db.close()
 
 
 def start_scheduler(fetch_interval_minutes: int = 60):
     """
-    Start the background scheduler.
+    啟動背景排程器。
 
     Args:
-        fetch_interval_minutes: How often to fetch data (default: 60 minutes)
+        fetch_interval_minutes: 資料抓取頻率（預設 60 分鐘）
     """
     scheduler = get_scheduler()
 
     if scheduler.running:
-        logger.warning("Scheduler already running")
+        logger.warning("[排程] 排程器已在執行中")
         return
 
-    # Add the fetch job
+    # 新增抓取工作
     scheduler.add_job(
         fetch_all_repos_job,
         trigger=IntervalTrigger(minutes=fetch_interval_minutes),
@@ -226,7 +196,7 @@ def start_scheduler(fetch_interval_minutes: int = 60):
         max_instances=1,  # Prevent overlapping runs
     )
 
-    # Add the alerts check job (runs 1 minute after fetch)
+    # 新增警報檢查工作（抓取後 1 分鐘執行）
     scheduler.add_job(
         check_alerts_job,
         trigger=IntervalTrigger(
@@ -239,7 +209,7 @@ def start_scheduler(fetch_interval_minutes: int = 60):
         max_instances=1,
     )
 
-    # Add context signals job (runs every 30 minutes)
+    # 新增情境訊號工作（每 30 分鐘執行）
     scheduler.add_job(
         fetch_context_signals_job,
         trigger=IntervalTrigger(minutes=CONTEXT_FETCH_INTERVAL_MINUTES),
@@ -251,22 +221,22 @@ def start_scheduler(fetch_interval_minutes: int = 60):
 
     scheduler.start()
     logger.info(
-        f"Scheduler started: data fetch every {fetch_interval_minutes}min, "
-        f"context signals every {CONTEXT_FETCH_INTERVAL_MINUTES}min"
+        f"[排程] 排程器已啟動: 資料抓取每 {fetch_interval_minutes} 分鐘、"
+        f"上下文訊號每 {CONTEXT_FETCH_INTERVAL_MINUTES} 分鐘"
     )
 
 
 def stop_scheduler():
-    """Stop the background scheduler."""
+    """停止背景排程器。"""
     scheduler = get_scheduler()
 
     if scheduler.running:
         scheduler.shutdown(wait=False)
-        logger.info("Scheduler stopped")
+        logger.info("[排程] 排程器已停止")
 
 
 def get_scheduler_status() -> dict:
-    """Get the current scheduler status."""
+    """取得目前排程器狀態。"""
     scheduler = get_scheduler()
 
     jobs = []
@@ -284,10 +254,10 @@ def get_scheduler_status() -> dict:
 
 
 async def trigger_fetch_now():
-    """Manually trigger an immediate fetch of all repos and context signals."""
-    logger.info("Manual fetch triggered")
+    """手動觸發立即抓取所有 repo 與情境訊號。"""
+    logger.info("[排程] 手動抓取已觸發")
     await fetch_all_repos_job()
-    # Run sync alert check in a thread to avoid blocking the event loop
+    # 在執行緒中執行同步警報檢查以避免阻塞 event loop
     await asyncio.to_thread(check_alerts_job)
-    # Also fetch HN context signals
+    # 同時抓取 HN 情境訊號
     await fetch_context_signals_job()

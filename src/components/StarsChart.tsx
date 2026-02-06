@@ -1,5 +1,5 @@
 /**
- * Star history chart using Recharts.
+ * Star 歷史圖表，使用 Recharts 繪製。
  */
 
 import {
@@ -100,7 +100,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
 
   if (loading) {
-    return <div className="chart-loading">Loading chart...</div>;
+    return <div className="chart-loading">圖表載入中...</div>;
   }
 
   if (error) {
@@ -110,7 +110,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   if (data.length < 2) {
     return (
       <div className="stars-chart">
-        <div className="chart-empty">Not enough data for chart. Need at least 2 data points.</div>
+        <div className="chart-empty">資料不足，至少需要 2 個資料點才能繪製圖表。</div>
         <StarHistoryBackfill
           repoId={repoId}
           currentStars={currentStars ?? null}

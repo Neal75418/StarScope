@@ -1,32 +1,32 @@
 """
-Star History Backfill API endpoints.
-Provides historical star data backfilling for repositories with < 5000 stars.
+Star 歷史回填 API 端點。
+提供 < 5000 stars 的 repo 歷史 star 資料回填。
 """
 
 from collections import defaultdict
 from datetime import datetime, date
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import RepoSnapshot
 from routers.dependencies import get_repo_or_404
-from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
+from services.github import get_github_service
 from utils.time import utc_now
 
-# Constants
+# 常數
 MAX_STARS_FOR_BACKFILL = 5000
 ERROR_TOO_MANY_STARS = f"Repository has too many stars (>{MAX_STARS_FOR_BACKFILL}). Backfill is not available."
 
 router = APIRouter(prefix="/star-history", tags=["star-history"])
 
 
-# Response schemas
+# 回應 schema
 class BackfillStatus(BaseModel):
-    """Status of backfill operation."""
+    """回填操作的狀態。"""
     repo_id: int
     repo_name: str
     can_backfill: bool
@@ -38,7 +38,7 @@ class BackfillStatus(BaseModel):
 
 
 class BackfillResult(BaseModel):
-    """Result of backfill operation."""
+    """回填操作的結果。"""
     repo_id: int
     repo_name: str
     success: bool
@@ -50,13 +50,13 @@ class BackfillResult(BaseModel):
 
 
 class StarHistoryPoint(BaseModel):
-    """A point in star history."""
+    """Star 歷史中的一個資料點。"""
     date: date
     stars: int
 
 
 class StarHistoryResponse(BaseModel):
-    """Full star history response."""
+    """完整 star 歷史回應。"""
     repo_id: int
     repo_name: str
     history: List[StarHistoryPoint]
@@ -64,9 +64,9 @@ class StarHistoryResponse(BaseModel):
     total_points: int
 
 
-# Helper functions
+# 輔助函式
 def _parse_starred_at(starred_at: str) -> Optional[date]:
-    """Parse ISO datetime string to date."""
+    """將 ISO datetime 字串解析為 date。"""
     if not starred_at:
         return None
     try:
@@ -77,15 +77,15 @@ def _parse_starred_at(starred_at: str) -> Optional[date]:
 
 def _aggregate_stargazers_by_date(stargazers: List[dict]) -> dict[date, int]:
     """
-    Aggregate stargazers by date, returning cumulative star count per day.
+    依日期彙總 stargazer，回傳每日累計 star 數。
 
     Args:
-        stargazers: List of {"starred_at": "...", "user": {...}}
+        stargazers: {"starred_at": "...", "user": {...}} 列表
 
     Returns:
-        Dict mapping date to cumulative star count
+        日期對應累計 star 數的字典
     """
-    # Count stars per day
+    # 計算每日 star 數
     stars_per_day: dict[date, int] = defaultdict(int)
 
     for sg in stargazers:
@@ -97,7 +97,7 @@ def _aggregate_stargazers_by_date(stargazers: List[dict]) -> dict[date, int]:
     if not stars_per_day:
         return {}
 
-    # Sort dates and compute cumulative counts
+    # 排序日期並計算累計數量
     sorted_dates = sorted(stars_per_day.keys())
     cumulative: dict[date, int] = {}
     running_total = 0
@@ -115,29 +115,29 @@ def _create_snapshots_from_history(
     star_history: dict[date, int]
 ) -> int:
     """
-    Create or update RepoSnapshot records from star history.
-    Returns number of snapshots created/updated.
+    從 star 歷史建立或更新 RepoSnapshot 紀錄。
+    回傳建立/更新的快照數量。
     """
     count = 0
     now = utc_now()
 
     try:
         for snapshot_date, stars in star_history.items():
-            # Check if snapshot exists
+            # 檢查快照是否存在
             existing = db.query(RepoSnapshot).filter(
                 RepoSnapshot.repo_id == repo_id,
                 RepoSnapshot.snapshot_date == snapshot_date
             ).first()
 
             if existing:
-                # Update if backfilled data has more accurate star count
-                # (only update if our backfilled count is higher, indicating we have more complete data)
+                # 若回填資料有更準確的 star 數則更新
+                #（僅在回填數量較高時更新，表示我們有更完整的資料）
                 if stars > existing.stars:
                     existing.stars = stars
                     existing.fetched_at = now
                     count += 1
             else:
-                # Create new snapshot
+                # 建立新快照
                 snapshot = RepoSnapshot(
                     repo_id=repo_id,
                     stars=stars,
@@ -157,25 +157,25 @@ def _create_snapshots_from_history(
         raise
 
 
-# Endpoints
+# 端點
 @router.get("/{repo_id}/status", response_model=BackfillStatus)
 async def get_backfill_status(
     repo_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Check if a repository is eligible for star history backfill.
+    檢查 repo 是否符合 star 歷史回填條件。
     """
     repo = get_repo_or_404(repo_id, db)
 
-    # Get current star count from latest snapshot
+    # 從最新快照取得目前 star 數
     latest_snapshot = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id
     ).order_by(RepoSnapshot.snapshot_date.desc()).first()
 
     current_stars = latest_snapshot.stars if latest_snapshot else 0
 
-    # Count existing snapshots
+    # 計算既有快照數量
     snapshot_count = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id
     ).count()
@@ -206,104 +206,95 @@ async def backfill_star_history(
     db: Session = Depends(get_db)
 ):
     """
-    Backfill star history for a repository.
+    回填 repo 的 star 歷史。
 
-    Only available for repositories with < 5000 stars.
-    Fetches all stargazers with timestamps and creates historical snapshots.
+    僅適用於 < 5000 stars 的 repo。
+    抓取所有含時間戳記的 stargazer 並建立歷史快照。
     """
     repo = get_repo_or_404(repo_id, db)
 
-    try:
-        service = get_github_service()
+    # GitHub 例外由 main.py 中的全域例外處理器處理。
+    service = get_github_service()
 
-        # Fetch stargazers with dates (includes star count check)
-        stargazers = await service.get_stargazers_with_dates(
-            repo.owner, repo.name, max_stars=MAX_STARS_FOR_BACKFILL
-        )
+    # 抓取含日期的 stargazer（包含 star 數檢查）
+    stargazers = await service.get_stargazers_with_dates(
+        repo.owner, repo.name, max_stars=MAX_STARS_FOR_BACKFILL
+    )
 
-        if not stargazers:
-            # Either no stars or exceeds limit
-            latest = db.query(RepoSnapshot).filter(
-                RepoSnapshot.repo_id == repo_id
-            ).order_by(RepoSnapshot.snapshot_date.desc()).first()
+    if not stargazers:
+        # 無 star 或超過限制
+        latest = db.query(RepoSnapshot).filter(
+            RepoSnapshot.repo_id == repo_id
+        ).order_by(RepoSnapshot.snapshot_date.desc()).first()
 
-            current_stars = latest.stars if latest else 0
+        current_stars = latest.stars if latest else 0
 
-            if current_stars > MAX_STARS_FOR_BACKFILL:
-                return BackfillResult(
-                    repo_id=repo.id,
-                    repo_name=repo.full_name,
-                    success=False,
-                    total_stargazers=0,
-                    snapshots_created=0,
-                    earliest_date=None,
-                    latest_date=None,
-                    message=ERROR_TOO_MANY_STARS,
-                )
-            else:
-                return BackfillResult(
-                    repo_id=repo.id,
-                    repo_name=repo.full_name,
-                    success=True,
-                    total_stargazers=0,
-                    snapshots_created=0,
-                    earliest_date=None,
-                    latest_date=None,
-                    message="No stargazers found.",
-                )
-
-        # Aggregate by date
-        star_history = _aggregate_stargazers_by_date(stargazers)
-
-        if not star_history:
+        if current_stars > MAX_STARS_FOR_BACKFILL:
+            return BackfillResult(
+                repo_id=repo.id,
+                repo_name=repo.full_name,
+                success=False,
+                total_stargazers=0,
+                snapshots_created=0,
+                earliest_date=None,
+                latest_date=None,
+                message=ERROR_TOO_MANY_STARS,
+            )
+        else:
             return BackfillResult(
                 repo_id=repo.id,
                 repo_name=repo.full_name,
                 success=True,
-                total_stargazers=len(stargazers),
+                total_stargazers=0,
                 snapshots_created=0,
                 earliest_date=None,
                 latest_date=None,
-                message="Stargazers found but no valid dates.",
+                message="No stargazers found.",
             )
 
-        # Create snapshots
-        snapshots_created = _create_snapshots_from_history(db, repo_id, star_history)
+    # 依日期彙總
+    star_history = _aggregate_stargazers_by_date(stargazers)
 
-        sorted_dates = sorted(star_history.keys())
-
-        # Handle case where no new snapshots were created (all existing had higher counts)
-        if snapshots_created == 0:
-            return BackfillResult(
-                repo_id=repo.id,
-                repo_name=repo.full_name,
-                success=True,
-                total_stargazers=len(stargazers),
-                snapshots_created=0,
-                earliest_date=None,
-                latest_date=None,
-                message="No new snapshots created - existing data is up to date.",
-            )
-
+    if not star_history:
         return BackfillResult(
             repo_id=repo.id,
             repo_name=repo.full_name,
             success=True,
             total_stargazers=len(stargazers),
-            snapshots_created=snapshots_created,
-            earliest_date=sorted_dates[0].isoformat(),
-            latest_date=sorted_dates[-1].isoformat(),
-            message=f"Successfully backfilled {snapshots_created} days of star history.",
+            snapshots_created=0,
+            earliest_date=None,
+            latest_date=None,
+            message="Stargazers found but no valid dates.",
         )
 
-    except GitHubNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Repository not found on GitHub: {repo.full_name}")
-    except GitHubRateLimitError:
-        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded. Please try again later.")
-    except GitHubAPIError as e:
-        raise HTTPException(status_code=502, detail=f"GitHub API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to backfill star history: {str(e)}")
+    # 建立快照
+    snapshots_created = _create_snapshots_from_history(db, repo_id, star_history)
+
+    sorted_dates = sorted(star_history.keys())
+
+    # 處理未建立新快照的情況（所有既有快照的數量較高）
+    if snapshots_created == 0:
+        return BackfillResult(
+            repo_id=repo.id,
+            repo_name=repo.full_name,
+            success=True,
+            total_stargazers=len(stargazers),
+            snapshots_created=0,
+            earliest_date=None,
+            latest_date=None,
+            message="No new snapshots created - existing data is up to date.",
+        )
+
+    return BackfillResult(
+        repo_id=repo.id,
+        repo_name=repo.full_name,
+        success=True,
+        total_stargazers=len(stargazers),
+        snapshots_created=snapshots_created,
+        earliest_date=sorted_dates[0].isoformat(),
+        latest_date=sorted_dates[-1].isoformat(),
+        message=f"Successfully backfilled {snapshots_created} days of star history.",
+    )
 
 
 @router.get("/{repo_id}", response_model=StarHistoryResponse)
@@ -312,8 +303,8 @@ async def get_star_history(
     db: Session = Depends(get_db)
 ):
     """
-    Get the full star history for a repository.
-    Returns all available snapshots ordered by date.
+    取得 repo 的完整 star 歷史。
+    回傳依日期排序的所有可用快照。
     """
     repo = get_repo_or_404(repo_id, db)
 
@@ -326,7 +317,7 @@ async def get_star_history(
         for s in snapshots
     ]
 
-    # Determine if data looks backfilled (has data older than 30 days)
+    # 判斷資料是否已回填（有超過 30 天的資料）
     is_backfilled = False
     if history:
         oldest = history[0].date

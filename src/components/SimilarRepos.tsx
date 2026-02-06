@@ -1,6 +1,5 @@
 /**
- * Similar repositories component.
- * Shows repos that are similar to the current one based on topics and language.
+ * 相似 repo 元件，依 topic 與語言顯示相似的 repo。
  */
 
 import { useState } from "react";

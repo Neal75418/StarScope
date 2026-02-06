@@ -1,14 +1,14 @@
 """
-Early Signals API endpoints.
-Provides access to detected anomalies and early signals.
+早期訊號 API 端點。
+提供偵測到的異常與早期訊號存取。
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from db.database import get_db
@@ -19,9 +19,9 @@ from utils.time import utc_now
 router = APIRouter(prefix="/early-signals", tags=["early-signals"])
 
 
-# Response schemas
+# 回應 schema
 class EarlySignalResponse(BaseModel):
-    """Schema for an early signal."""
+    """早期訊號的 schema。"""
     id: int
     repo_id: int
     repo_name: str
@@ -41,13 +41,13 @@ class EarlySignalResponse(BaseModel):
 
 
 class EarlySignalListResponse(BaseModel):
-    """Response for signal list."""
+    """訊號列表的回應。"""
     signals: List[EarlySignalResponse]
     total: int
 
 
 class SignalSummary(BaseModel):
-    """Summary of signals by type and severity."""
+    """依類型與嚴重等級的訊號摘要。"""
     total_active: int
     by_type: dict
     by_severity: dict
@@ -55,15 +55,15 @@ class SignalSummary(BaseModel):
 
 
 class DetectionResultResponse(BaseModel):
-    """Response for detection run."""
+    """偵測執行的回應。"""
     repos_scanned: int
     signals_detected: int
     by_type: dict
 
 
-# Helper functions
+# 輔助函式
 def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
-    """Convert EarlySignal model to response."""
+    """將 EarlySignal model 轉換為回應。"""
     return EarlySignalResponse(
         id=signal.id,
         repo_id=signal.repo_id,
@@ -81,7 +81,7 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
     )
 
 
-# Endpoints
+# 端點
 @router.get("/", response_model=EarlySignalListResponse)
 async def list_early_signals(
     signal_type: Optional[str] = Query(None, description="Filter by signal type"),
@@ -92,10 +92,10 @@ async def list_early_signals(
     db: Session = Depends(get_db)
 ):
     """
-    List all early signals.
-    By default, only shows active, unacknowledged signals.
+    列出所有早期訊號。
+    預設僅顯示活躍且未確認的訊號。
     """
-    query = db.query(EarlySignal)
+    query = db.query(EarlySignal).options(joinedload(EarlySignal.repo))
 
     if signal_type:
         query = query.filter(EarlySignal.signal_type == signal_type)
@@ -130,13 +130,13 @@ async def get_repo_signals(
     db: Session = Depends(get_db)
 ):
     """
-    Get early signals for a specific repository.
+    取得特定 repo 的早期訊號。
     """
     repo = db.query(Repo).filter(Repo.id == repo_id).first()
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    query = db.query(EarlySignal).filter(EarlySignal.repo_id == repo_id)
+    query = db.query(EarlySignal).options(joinedload(EarlySignal.repo)).filter(EarlySignal.repo_id == repo_id)
 
     if not include_acknowledged:
         query = query.filter(EarlySignal.acknowledged == False)
@@ -159,11 +159,11 @@ async def get_signal_summary(
     db: Session = Depends(get_db)
 ):
     """
-    Get summary statistics of active signals.
+    取得活躍訊號的摘要統計。
     """
     now = utc_now()
 
-    # Active signals (not acknowledged, not expired)
+    # 活躍訊號（未確認、未過期）
     active_query = db.query(EarlySignal).filter(
         EarlySignal.acknowledged == False,
         (EarlySignal.expires_at == None) | (EarlySignal.expires_at > now)
@@ -171,7 +171,7 @@ async def get_signal_summary(
 
     total_active = active_query.count()
 
-    # By type
+    # 依類型
     by_type = {}
     type_counts = active_query.with_entities(
         EarlySignal.signal_type,
@@ -180,7 +180,7 @@ async def get_signal_summary(
     for signal_type, count in type_counts:
         by_type[signal_type] = count
 
-    # By severity
+    # 依嚴重等級
     by_severity = {}
     severity_counts = active_query.with_entities(
         EarlySignal.severity,
@@ -189,7 +189,7 @@ async def get_signal_summary(
     for severity, count in severity_counts:
         by_severity[severity] = count
 
-    # Repos with signals
+    # 有訊號的 repo
     repos_with_signals = active_query.with_entities(
         EarlySignal.repo_id
     ).distinct().count()
@@ -208,7 +208,7 @@ async def acknowledge_signal(
     db: Session = Depends(get_db)
 ):
     """
-    Acknowledge an early signal (mark as seen).
+    確認早期訊號（標記為已檢視）。
     """
     signal = db.query(EarlySignal).filter(EarlySignal.id == signal_id).first()
     if not signal:
@@ -227,8 +227,8 @@ async def acknowledge_all_signals(
     db: Session = Depends(get_db)
 ):
     """
-    Acknowledge all active signals.
-    Optionally filter by signal type.
+    確認所有活躍訊號。
+    可選擇依訊號類型篩選。
     """
     query = db.query(EarlySignal).filter(EarlySignal.acknowledged == False)
 
@@ -250,7 +250,7 @@ async def trigger_detection(
     db: Session = Depends(get_db)
 ):
     """
-    Manually trigger anomaly detection for all repos.
+    手動觸發所有 repo 的異常偵測。
     """
     result = run_detection(db)
 
@@ -267,7 +267,7 @@ async def delete_signal(
     db: Session = Depends(get_db)
 ):
     """
-    Delete an early signal.
+    刪除早期訊號。
     """
     signal = db.query(EarlySignal).filter(EarlySignal.id == signal_id).first()
     if not signal:
@@ -277,3 +277,56 @@ async def delete_signal(
     db.commit()
 
     return {"status": "ok", "message": "Signal deleted"}
+
+
+class BatchSignalsRequest(BaseModel):
+    """批次取得訊號的請求。"""
+    repo_ids: List[int]
+
+
+class BatchSignalsResponse(BaseModel):
+    """批次取得訊號的回應，key 為 repo_id 字串。"""
+    results: Dict[str, EarlySignalListResponse]
+
+
+@router.post("/batch", response_model=BatchSignalsResponse)
+async def get_repo_signals_batch(
+    request: BatchSignalsRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    批次取得多個 repo 的早期訊號。
+    用單一查詢取代 N 次個別請求。
+    """
+    repo_ids = request.repo_ids
+    if not repo_ids:
+        return BatchSignalsResponse(results={})
+
+    now = utc_now()
+    signals = db.query(EarlySignal).options(
+        joinedload(EarlySignal.repo)
+    ).filter(
+        EarlySignal.repo_id.in_(repo_ids),
+        EarlySignal.acknowledged == False,
+        (EarlySignal.expires_at == None) | (EarlySignal.expires_at > now)
+    ).order_by(
+        EarlySignal.severity.desc(),
+        EarlySignal.detected_at.desc()
+    ).all()
+
+    # 按 repo_id 分組
+    grouped: Dict[int, List[EarlySignalResponse]] = {}
+    for s in signals:
+        if s.repo_id not in grouped:
+            grouped[s.repo_id] = []
+        grouped[s.repo_id].append(_signal_to_response(s))
+
+    # 組裝結果（含空結果 repo）
+    results: Dict[str, EarlySignalListResponse] = {}
+    for rid in repo_ids:
+        signal_list = grouped.get(rid, [])
+        results[str(rid)] = EarlySignalListResponse(
+            signals=signal_list, total=len(signal_list)
+        )
+
+    return BatchSignalsResponse(results=results)

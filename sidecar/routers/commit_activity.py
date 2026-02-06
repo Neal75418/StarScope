@@ -1,6 +1,6 @@
 """
-Commit Activity API endpoints.
-Provides weekly commit activity data for repositories.
+Commit 活動 API 端點。
+提供 repo 每週 commit 活動資料。
 """
 
 from datetime import datetime, date, timezone
@@ -14,23 +14,21 @@ from sqlalchemy import func
 from db.database import get_db
 from db.models import Repo, CommitActivity
 from routers.dependencies import get_repo_or_404
-from services.github import get_github_service, GitHubNotFoundError, GitHubRateLimitError, GitHubAPIError
+from services.github import get_github_service
 from utils.time import utc_now
-
-ERROR_FETCH_FAILED = "Failed to fetch commit activity from GitHub"
 
 router = APIRouter(prefix="/commit-activity", tags=["commit-activity"])
 
 
-# Response schemas
+# 回應 schema
 class CommitWeekResponse(BaseModel):
-    """Weekly commit data."""
+    """每週 commit 資料。"""
     week_start: date
     commit_count: int
 
 
 class CommitActivityResponse(BaseModel):
-    """Commit activity response with summary statistics."""
+    """Commit 活動回應，含摘要統計。"""
     repo_id: int
     repo_name: str
     weeks: List[CommitWeekResponse]
@@ -40,16 +38,16 @@ class CommitActivityResponse(BaseModel):
 
 
 class CommitActivitySummary(BaseModel):
-    """Brief summary for badges/cards."""
+    """徽章/卡片用的簡短摘要。"""
     repo_id: int
     total_commits_52w: int
     avg_commits_per_week: float
     last_updated: Optional[datetime]
 
 
-# Helper functions
+# 輔助函式
 def _build_response(repo: Repo, activities: List[CommitActivity]) -> CommitActivityResponse:
-    """Build CommitActivityResponse from repo and activity records."""
+    """從 repo 與活動紀錄建立 CommitActivityResponse。"""
     weeks = [
         CommitWeekResponse(week_start=a.week_start, commit_count=a.commit_count)
         for a in sorted(activities, key=lambda x: x.week_start)
@@ -75,23 +73,23 @@ def _store_commit_activity(
     github_data: List[dict]
 ) -> List[CommitActivity]:
     """
-    Store commit activity data from GitHub API response.
+    儲存 GitHub API 回應中的 commit 活動資料。
 
-    GitHub returns: [{week: timestamp, total: int, days: [int x 7]}, ...]
+    GitHub 回傳：[{week: timestamp, total: int, days: [int x 7]}, ...]
     """
-    # Delete existing data for this repo (replace strategy)
+    # 刪除此 repo 的既有資料（替換策略）
     db.query(CommitActivity).filter(CommitActivity.repo_id == repo_id).delete()
 
     activities = []
     now = utc_now()
 
     for week_data in github_data:
-        # GitHub returns Unix timestamp for week start
+        # GitHub 回傳週起始的 Unix 時間戳記
         week_timestamp = week_data.get("week", 0)
         commit_count = week_data.get("total", 0)
 
         if week_timestamp > 0:
-            # Use UTC to ensure consistent date across timezones
+            # 使用 UTC 確保跨時區的日期一致
             week_start = datetime.fromtimestamp(week_timestamp, tz=timezone.utc).date()
             activity = CommitActivity(
                 repo_id=repo_id,
@@ -107,15 +105,15 @@ def _store_commit_activity(
     return activities
 
 
-# Endpoints
+# 端點
 @router.get("/{repo_id}", response_model=CommitActivityResponse)
 async def get_commit_activity(
     repo_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Get cached commit activity for a repository.
-    Returns 404 if not yet fetched.
+    取得 repo 的已快取 commit 活動。
+    尚未抓取時回傳 404。
     """
     repo = get_repo_or_404(repo_id, db)
 
@@ -138,37 +136,29 @@ async def fetch_commit_activity(
     db: Session = Depends(get_db)
 ):
     """
-    Fetch (or refresh) commit activity from GitHub.
-    Replaces existing cached data.
+    從 GitHub 抓取（或重新整理）commit 活動。
+    取代既有的快取資料。
     """
     repo = get_repo_or_404(repo_id, db)
 
-    try:
-        service = get_github_service()
-        github_data = await service.get_commit_activity(repo.owner, repo.name)
+    # GitHub 例外（NotFound、RateLimit、APIError）由
+    # main.py 中註冊的全域例外處理器處理。
+    service = get_github_service()
+    github_data = await service.get_commit_activity(repo.owner, repo.name)
 
-        if not github_data:
-            # GitHub may return empty for new repos
-            return CommitActivityResponse(
-                repo_id=repo.id,
-                repo_name=repo.full_name,
-                weeks=[],
-                total_commits_52w=0,
-                avg_commits_per_week=0.0,
-                last_updated=utc_now(),
-            )
+    if not github_data:
+        # GitHub 對新 repo 可能回傳空資料
+        return CommitActivityResponse(
+            repo_id=repo.id,
+            repo_name=repo.full_name,
+            weeks=[],
+            total_commits_52w=0,
+            avg_commits_per_week=0.0,
+            last_updated=utc_now(),
+        )
 
-        activities = _store_commit_activity(db, repo_id, github_data)
-        return _build_response(repo, activities)
-
-    except GitHubNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Repository not found on GitHub: {repo.full_name}")
-    except GitHubRateLimitError:
-        raise HTTPException(status_code=429, detail="GitHub API rate limit exceeded. Please try again later.")
-    except GitHubAPIError as e:
-        raise HTTPException(status_code=502, detail=f"GitHub API error: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{ERROR_FETCH_FAILED}: {str(e)}")
+    activities = _store_commit_activity(db, repo_id, github_data)
+    return _build_response(repo, activities)
 
 
 @router.get("/{repo_id}/summary", response_model=CommitActivitySummary)
@@ -177,11 +167,11 @@ async def get_commit_activity_summary(
     db: Session = Depends(get_db)
 ):
     """
-    Get brief commit activity summary (for badges/cards).
+    取得簡短的 commit 活動摘要（用於徽章/卡片）。
     """
     get_repo_or_404(repo_id, db)
 
-    # Aggregate in database for efficiency
+    # 在資料庫中彙總以提高效率
     result = db.query(
         func.sum(CommitActivity.commit_count).label("total"),
         func.count(CommitActivity.id).label("weeks"),

@@ -1,10 +1,10 @@
 """
-SQLAlchemy ORM models for StarScope.
+StarScope 的 SQLAlchemy ORM 模型。
 
 Tables:
-- repos: GitHub repositories being watched
-- repo_snapshots: Historical snapshots of repo stats
-- signals: Calculated signals (velocity, delta, etc.)
+- repos: 被追蹤的 GitHub repo
+- repo_snapshots: repo 統計數據的歷史快照
+- signals: 計算後的訊號（velocity、delta 等）
 """
 
 from datetime import datetime, date
@@ -12,10 +12,10 @@ from typing import Optional, List
 from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
-# IDE may show warning - path is resolved at runtime via sys.path in main.py
+# IDE 可能顯示警告 — 路徑在 main.py 中透過 sys.path 於執行時解析
 from utils.time import utc_now  # noqa: F401
 
-# Constants to avoid code duplication warnings
+# 避免程式碼重複警告的常數
 CASCADE_DELETE_ORPHAN = "all, delete-orphan"
 FK_REPOS_ID = "repos.id"
 FK_CATEGORIES_ID = "categories.id"
@@ -23,14 +23,12 @@ FK_ALERT_RULES_ID = "alert_rules.id"
 
 
 class Base(DeclarativeBase):
-    """Base class for all models."""
+    """所有模型的基底類別。"""
     pass
 
 
 class Repo(Base):
-    """
-    A GitHub repository being watched.
-    """
+    """被追蹤的 GitHub repo。"""
     __tablename__ = "repos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -40,25 +38,26 @@ class Repo(Base):
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
 
-    # GitHub metadata
+    # GitHub 中繼資料
     github_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     default_branch: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     language: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # JSON array of GitHub topics
+    topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # GitHub topics 的 JSON 陣列
 
-    # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # GitHub creation date
-    added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)  # Added to watchlist
+    # 時間戳記
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # GitHub 建立日期
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)  # 加入追蹤清單的時間
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
-    # Relationships
+    # 關聯
     snapshots: Mapped[List["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     commit_activities: Mapped[List["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     languages: Mapped[List["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    early_signals: Mapped[List["EarlySignal"]] = relationship("EarlySignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
-    # Indexes
+    # 索引
     __table_args__ = (
         Index("ix_repos_owner_name", "owner", "name"),
     )
@@ -69,28 +68,28 @@ class Repo(Base):
 
 class RepoSnapshot(Base):
     """
-    A point-in-time snapshot of a repository's stats.
-    Used to calculate deltas and velocity.
+    repo 統計數據的時間點快照。
+    用於計算 delta 與 velocity。
     """
     __tablename__ = "repo_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Stats at this point in time
+    # 該時間點的統計
     stars: Mapped[int] = mapped_column(Integer, nullable=False)
     forks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     watchers: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     open_issues: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Timestamps
-    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)  # Date of snapshot (one per day)
+    # 時間戳記
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)  # 快照日期（每日一筆）
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationship
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="snapshots")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         Index("ix_snapshots_repo_date", "repo_id", "snapshot_date"),
         Index("ix_snapshots_date", "snapshot_date"),
@@ -103,25 +102,25 @@ class RepoSnapshot(Base):
 
 class Signal(Base):
     """
-    A calculated signal for a repository.
-    Signals are computed from snapshots and represent metrics like velocity, acceleration, etc.
+    repo 的計算訊號。
+    從快照計算而來，代表 velocity、acceleration 等指標。
     """
     __tablename__ = "signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Signal data
-    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "stars_delta_7d", "velocity"
+    # 訊號資料
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 例如 "stars_delta_7d"、"velocity"
     value: Mapped[float] = mapped_column(Float, nullable=False)
 
-    # Timestamps
+    # 時間戳記
     calculated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationship
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="signals")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         Index("ix_signals_repo_type", "repo_id", "signal_type"),
         UniqueConstraint("repo_id", "signal_type", name="uq_signal_repo_type"),
@@ -133,33 +132,33 @@ class Signal(Base):
 
 class AlertRule(Base):
     """
-    A user-defined alert rule.
-    When conditions are met, an alert is triggered.
+    使用者定義的警報規則。
+    當條件滿足時觸發警報。
     """
     __tablename__ = "alert_rules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    # Rule configuration
+    # 規則設定
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
-    # Target (optional - if null, applies to all repos)
+    # 目標（選填 — 若為 null 則套用於所有 repo）
     repo_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=True)
 
-    # Condition
-    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "stars_delta_7d", "velocity"
-    operator: Mapped[str] = mapped_column(String(10), nullable=False)  # ">", "<", ">=", "<=", "=="
+    # 條件
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 例如 "stars_delta_7d"、"velocity"
+    operator: Mapped[str] = mapped_column(String(10), nullable=False)  # ">"、"<"、">="、"<="、"=="
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
 
-    # Status
-    enabled: Mapped[bool] = mapped_column(Integer, default=True)  # SQLite doesn't have bool, use int
+    # 狀態
+    enabled: Mapped[bool] = mapped_column(Integer, default=True)  # SQLite 無 bool 型別，使用 int
 
-    # Timestamps
+    # 時間戳記
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
-    # Relationships
+    # 關聯
     repo: Mapped[Optional["Repo"]] = relationship("Repo")
     triggered_alerts: Mapped[List["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade=CASCADE_DELETE_ORPHAN)
 
@@ -169,28 +168,26 @@ class AlertRule(Base):
 
 
 class TriggeredAlert(Base):
-    """
-    A record of when an alert rule was triggered.
-    """
+    """警報規則被觸發的紀錄。"""
     __tablename__ = "triggered_alerts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     rule_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_ALERT_RULES_ID, ondelete="CASCADE"), nullable=False)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Trigger details
-    signal_value: Mapped[float] = mapped_column(Float, nullable=False)  # The value that triggered the alert
+    # 觸發詳情
+    signal_value: Mapped[float] = mapped_column(Float, nullable=False)  # 觸發警報的數值
     triggered_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Whether the user has seen/acknowledged this alert
+    # 使用者是否已檢視/確認此警報
     acknowledged: Mapped[bool] = mapped_column(Integer, default=False)
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    # Relationships
+    # 關聯
     rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="triggered_alerts")
     repo: Mapped["Repo"] = relationship("Repo")
 
-    # Indexes
+    # 索引
     __table_args__ = (
         Index("ix_triggered_alerts_rule", "rule_id"),
         Index("ix_triggered_alerts_repo", "repo_id"),
@@ -201,19 +198,19 @@ class TriggeredAlert(Base):
         return f"<TriggeredAlert rule_id={self.rule_id} repo_id={self.repo_id} value={self.signal_value}>"
 
 
-# Signal type constants
+# Signal 類型常數
 class SignalType:
-    """Constants for signal types."""
+    """Signal 類型常數。"""
     STARS_DELTA_7D = "stars_delta_7d"
     STARS_DELTA_30D = "stars_delta_30d"
-    VELOCITY = "velocity"  # stars per day
-    ACCELERATION = "acceleration"  # rate of change of velocity
-    TREND = "trend"  # -1, 0, 1 (down, stable, up)
+    VELOCITY = "velocity"  # 每日 star 數
+    ACCELERATION = "acceleration"  # velocity 的變化率
+    TREND = "trend"  # -1, 0, 1（下降、穩定、上升）
 
 
-# Alert operator constants
+# 警報運算子常數
 class AlertOperator:
-    """Constants for alert operators."""
+    """警報運算子常數。"""
     GT = ">"
     LT = "<"
     GTE = ">="
@@ -221,51 +218,51 @@ class AlertOperator:
     EQ = "=="
 
 
-# Context Signal type constants
+# Context Signal 類型常數
 class ContextSignalType:
-    """Constants for context signal types."""
+    """Context Signal 類型常數。"""
     HACKER_NEWS = "hacker_news"
 
 
 class ContextSignal(Base):
     """
-    External context signals about a repository.
-    Tracks mentions on Hacker News.
+    repo 的外部情境訊號。
+    追蹤 Hacker News 上的提及。
     """
     __tablename__ = "context_signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Signal identification
-    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # hacker_news only
+    # 訊號識別
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 僅 hacker_news
     external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN story ID
 
-    # Content
+    # 內容
     title: Mapped[str] = mapped_column(String(1024), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
 
-    # Optional metadata
-    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN points
+    # 選填中繼資料
+    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN 分數
     comment_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    # Deprecated: kept for DB compatibility, no longer used
+    # 已棄用：保留以維持 DB 相容性，不再使用
     version_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_prerelease: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
 
-    # Timestamps
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When it was published externally
+    # 時間戳記
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 外部發布時間
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationship
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="context_signals")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         Index("ix_context_signals_repo_type", "repo_id", "signal_type"),
         Index("ix_context_signals_published", "published_at"),
-        Index("ix_context_signals_repo_published", "repo_id", "published_at"),  # For queries ordering by published_at
+        Index("ix_context_signals_repo_published", "repo_id", "published_at"),  # 用於按 published_at 排序的查詢
         UniqueConstraint("repo_id", "signal_type", "external_id", name="uq_context_signal_unique"),
     )
 
@@ -275,8 +272,8 @@ class ContextSignal(Base):
 
 class SimilarRepo(Base):
     """
-    Stores similarity relationships between repositories in the watchlist.
-    Used for recommending similar projects.
+    儲存追蹤清單中 repo 之間的相似關係。
+    用於推薦相似專案。
     """
     __tablename__ = "similar_repos"
 
@@ -284,19 +281,19 @@ class SimilarRepo(Base):
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
     similar_repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Similarity metrics
+    # 相似度指標
     similarity_score: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0-1.0
-    shared_topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # JSON array of shared topics
+    shared_topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # 共同 topics 的 JSON 陣列
     same_language: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)  # SQLite bool
 
-    # Timestamps
+    # 時間戳記
     calculated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationships
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", foreign_keys=[repo_id])
     similar: Mapped["Repo"] = relationship("Repo", foreign_keys=[similar_repo_id])
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         UniqueConstraint("repo_id", "similar_repo_id", name="uq_similar_repo_pair"),
         Index("ix_similar_repos_repo", "repo_id"),
@@ -309,8 +306,8 @@ class SimilarRepo(Base):
 
 class Category(Base):
     """
-    User-defined category for organizing repositories.
-    Supports hierarchical structure via parent_id.
+    使用者定義的分類，用於組織 repo。
+    透過 parent_id 支援階層結構。
     """
     __tablename__ = "categories"
 
@@ -318,16 +315,16 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # Emoji
-    color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # Hex color
+    color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # Hex 色碼
     parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="SET NULL"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationships
+    # 關聯
     parent: Mapped[Optional["Category"]] = relationship("Category", remote_side="Category.id", backref="children")
     repo_categories: Mapped[List["RepoCategory"]] = relationship("RepoCategory", back_populates="category", cascade=CASCADE_DELETE_ORPHAN)
 
-    # Indexes
+    # 索引
     __table_args__ = (
         Index("ix_categories_parent", "parent_id"),
         Index("ix_categories_sort", "sort_order"),
@@ -338,9 +335,7 @@ class Category(Base):
 
 
 class RepoCategory(Base):
-    """
-    Many-to-many relationship between repos and categories.
-    """
+    """repo 與分類之間的多對多關聯。"""
     __tablename__ = "repo_categories"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -348,11 +343,11 @@ class RepoCategory(Base):
     category_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="CASCADE"), nullable=False)
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationships
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo")
     category: Mapped["Category"] = relationship("Category", back_populates="repo_categories")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         UniqueConstraint("repo_id", "category_id", name="uq_repo_category"),
         Index("ix_repo_categories_repo", "repo_id"),
@@ -363,18 +358,18 @@ class RepoCategory(Base):
         return f"<RepoCategory repo_id={self.repo_id} category_id={self.category_id}>"
 
 
-# Early Signal type constants
+# Early Signal 類型常數
 class EarlySignalType:
-    """Constants for early signal types."""
-    RISING_STAR = "rising_star"      # High velocity + low star count
-    SUDDEN_SPIKE = "sudden_spike"    # Single-day anomalous growth
-    BREAKOUT = "breakout"            # Acceleration turning positive
-    VIRAL_HN = "viral_hn"            # Hot on Hacker News
-    RELEASE_SURGE = "release_surge"  # Surge after release
+    """Early Signal 類型常數。"""
+    RISING_STAR = "rising_star"      # 高 velocity + 低 star 數
+    SUDDEN_SPIKE = "sudden_spike"    # 單日異常成長
+    BREAKOUT = "breakout"            # 加速度轉正
+    VIRAL_HN = "viral_hn"            # Hacker News 熱門
+    RELEASE_SURGE = "release_surge"  # 發版後暴漲
 
 
 class EarlySignalSeverity:
-    """Severity levels for early signals."""
+    """Early Signal 嚴重等級。"""
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -382,60 +377,60 @@ class EarlySignalSeverity:
 
 class EarlySignal(Base):
     """
-    Detected early signals/anomalies for repositories.
-    Helps identify rising projects and unusual activity.
+    偵測到的 repo 早期訊號/異常。
+    協助辨識新興專案與異常活動。
     """
     __tablename__ = "early_signals"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Signal details
+    # 訊號詳情
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low, medium, high
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low、medium、high
     description: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    # Metrics at detection time
+    # 偵測時的指標
     velocity_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     star_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     percentile_rank: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-100
 
-    # Timestamps
+    # 時間戳記
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    # User interaction
+    # 使用者互動
     acknowledged: Mapped[bool] = mapped_column(Integer, default=False)  # SQLite bool
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
-    # Relationship
-    repo: Mapped["Repo"] = relationship("Repo")
+    # 關聯
+    repo: Mapped["Repo"] = relationship("Repo", back_populates="early_signals")
 
-    # Indexes
+    # 索引
     __table_args__ = (
         Index("ix_early_signals_repo", "repo_id"),
         Index("ix_early_signals_type", "signal_type"),
         Index("ix_early_signals_detected", "detected_at"),
         Index("ix_early_signals_severity", "severity"),
-        Index("ix_early_signals_filter", "repo_id", "signal_type", "acknowledged"),  # For filtered queries
+        Index("ix_early_signals_filter", "repo_id", "signal_type", "acknowledged"),  # 用於篩選查詢
     )
 
     def __repr__(self) -> str:
         return f"<EarlySignal repo_id={self.repo_id} type={self.signal_type} severity={self.severity}>"
 
 
-# ==================== App Settings Models ====================
+# ==================== 應用程式設定模型 ====================
 
 class AppSettingKey:
-    """Constants for app setting keys."""
+    """應用程式設定鍵常數。"""
     GITHUB_TOKEN = "github_token"
     GITHUB_USERNAME = "github_username"
 
 
 class AppSetting(Base):
     """
-    Application settings stored in database.
-    Used for storing user preferences and credentials like GitHub OAuth tokens.
+    儲存於資料庫的應用程式設定。
+    用於存放使用者偏好與憑證（如 GitHub OAuth token）。
     """
     __tablename__ = "app_settings"
 
@@ -453,29 +448,29 @@ class AppSetting(Base):
         return f"<AppSetting key={self.key}>"
 
 
-# ==================== Commit Activity Models ====================
+# ==================== Commit Activity 模型 ====================
 
 class CommitActivity(Base):
     """
-    Weekly commit activity data for a repository.
-    Fetched from GitHub Stats API: /repos/{owner}/{repo}/stats/commit_activity
+    repo 的每週 commit 活動資料。
+    從 GitHub Stats API 取得：/repos/{owner}/{repo}/stats/commit_activity
     """
     __tablename__ = "commit_activities"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Week data
-    week_start: Mapped[date] = mapped_column(Date, nullable=False)  # ISO week start (Sunday)
+    # 週資料
+    week_start: Mapped[date] = mapped_column(Date, nullable=False)  # ISO 週起始日（週日）
     commit_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Timestamps
+    # 時間戳記
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationship
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="commit_activities")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         UniqueConstraint("repo_id", "week_start", name="uq_commit_activity"),
         Index("ix_commit_activity_repo", "repo_id"),
@@ -486,30 +481,30 @@ class CommitActivity(Base):
         return f"<CommitActivity repo_id={self.repo_id} week={self.week_start} commits={self.commit_count}>"
 
 
-# ==================== Repository Languages Models ====================
+# ==================== Repo 程式語言模型 ====================
 
 class RepoLanguage(Base):
     """
-    Programming language breakdown for a repository.
-    Fetched from GitHub API: /repos/{owner}/{repo}/languages
+    repo 的程式語言分佈。
+    從 GitHub API 取得：/repos/{owner}/{repo}/languages
     """
     __tablename__ = "repo_languages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
-    # Language data
+    # 語言資料
     language: Mapped[str] = mapped_column(String(100), nullable=False)
-    bytes: Mapped[int] = mapped_column(Integer, default=0)  # Bytes of code
-    percentage: Mapped[float] = mapped_column(Float, default=0.0)  # Calculated percentage
+    bytes: Mapped[int] = mapped_column(Integer, default=0)  # 程式碼位元組數
+    percentage: Mapped[float] = mapped_column(Float, default=0.0)  # 計算後的百分比
 
-    # Timestamps
+    # 時間戳記
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
-    # Relationship
+    # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="languages")
 
-    # Indexes and constraints
+    # 索引與約束
     __table_args__ = (
         UniqueConstraint("repo_id", "language", name="uq_repo_language"),
         Index("ix_repo_languages_repo", "repo_id"),

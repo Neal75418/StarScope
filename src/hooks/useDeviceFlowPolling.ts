@@ -1,11 +1,16 @@
 /**
- * Hook for OAuth Device Flow polling logic.
+ * OAuth Device Flow 輪詢邏輯。
  */
 
 import { useCallback, useRef } from "react";
 import { pollAuthorization, GitHubConnectionStatus } from "../api/client";
 import { useI18n, interpolate } from "../i18n";
 import { usePollingRefs } from "./usePollingRefs";
+import {
+  DEVICE_FLOW_MIN_POLL_INTERVAL_SEC,
+  DEVICE_FLOW_SLOWDOWN_EXTRA_SEC,
+  DEVICE_FLOW_INITIAL_DELAY_MS,
+} from "../constants/api";
 
 interface UseDeviceFlowPollingOptions {
   onSuccess: (status: GitHubConnectionStatus) => void;
@@ -42,7 +47,7 @@ export function useDeviceFlowPolling({
 
   const handleError = useCallback(
     (error?: string) => {
-      console.error("[GitHubAuth] Authorization failed:", error);
+      console.error("[GitHub 驗證] 授權失敗:", error);
       setPollStatus("");
       stopPolling();
       onError(error || t.githubConnection.errors.failed);
@@ -57,7 +62,7 @@ export function useDeviceFlowPolling({
 
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
-        // Will be set up again in the next tick
+        // 將在下一個 tick 重新設定
       }
     },
     [t, currentIntervalRef, pollIntervalRef, setPollStatus]
@@ -66,7 +71,7 @@ export function useDeviceFlowPolling({
   const startPolling = useCallback(
     (code: string, interval: number, expiresIn: number) => {
       codeRef.current = code;
-      currentIntervalRef.current = Math.max(interval, 10);
+      currentIntervalRef.current = Math.max(interval, DEVICE_FLOW_MIN_POLL_INTERVAL_SEC);
 
       pollTimeoutRef.current = window.setTimeout(() => {
         stopPolling();
@@ -83,7 +88,7 @@ export function useDeviceFlowPolling({
           const result = await pollAuthorization(codeRef.current);
           processResult(result, doPoll);
         } catch (err) {
-          console.error("[GitHubAuth] Poll error:", err);
+          console.error("[GitHub 驗證] 輪詢錯誤:", err);
           setPollStatus(t.githubConnection.status.networkError);
         }
       };
@@ -103,7 +108,7 @@ export function useDeviceFlowPolling({
         } else if (result.status === "expired" || result.status === "error") {
           handleError(result.error);
         } else if (result.status === "pending" && result.slow_down && result.interval) {
-          const newInterval = result.interval + 5;
+          const newInterval = result.interval + DEVICE_FLOW_SLOWDOWN_EXTRA_SEC;
           restartWithNewInterval(newInterval);
           pollIntervalRef.current = window.setInterval(pollFn, newInterval * 1000);
         } else {
@@ -115,7 +120,7 @@ export function useDeviceFlowPolling({
         }
       };
 
-      setTimeout(doPoll, 3000);
+      setTimeout(doPoll, DEVICE_FLOW_INITIAL_DELAY_MS);
       pollIntervalRef.current = window.setInterval(doPoll, currentIntervalRef.current * 1000);
     },
     [

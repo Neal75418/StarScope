@@ -1,5 +1,5 @@
 /**
- * Hook for managing sidecar connection state.
+ * Sidecar 連線狀態管理。
  */
 
 import { useState, useCallback } from "react";

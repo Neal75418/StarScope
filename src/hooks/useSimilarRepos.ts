@@ -1,5 +1,5 @@
 /**
- * Hook for fetching similar repositories.
+ * 相似 Repository 的取得與重新計算。
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -22,7 +22,7 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Prevent duplicate fetches from StrictMode
+  // 避免 StrictMode 重複請求
   const isFetchingRef = useRef(false);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
       })
       .catch((err) => {
         if (isMounted) {
-          console.error("Failed to load similar repos:", err);
+          console.error("相似 Repo 載入失敗:", err);
           setError(t.similarRepos.loadError);
         }
       })
@@ -61,10 +61,10 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
     setIsRecalculating(true);
     try {
       await calculateRepoSimilarities(repoId);
-      // Trigger reload after calculation
+      // 計算完成後觸發重新載入
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
-      console.error("Failed to recalculate similarities:", err);
+      console.error("重新計算相似度失敗:", err);
     } finally {
       setIsRecalculating(false);
     }

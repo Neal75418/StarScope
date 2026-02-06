@@ -1,6 +1,6 @@
 """
-Context signal fetcher service.
-Simplified to only fetch from Hacker News.
+情境訊號抓取服務。
+簡化為僅從 Hacker News 抓取。
 """
 
 import logging
@@ -14,7 +14,7 @@ from db.models import Repo, ContextSignal, ContextSignalType
 from services.hacker_news import fetch_hn_mentions, HNStory
 from utils.time import utc_now
 
-# Cleanup configuration
+# 清理設定
 CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # Remove signals older than this
 CONTEXT_SIGNAL_MAX_PER_REPO = 100  # Keep at most this many signals per repo
 
@@ -28,10 +28,10 @@ def _get_existing_signal_map(
     db: Session
 ) -> Dict[str, "ContextSignal"]:
     """
-    Batch load existing signals to avoid N+1 queries.
+    批次載入既有訊號以避免 N+1 查詢。
 
     Returns:
-        Dict mapping external_id to ContextSignal object
+        external_id 對應 ContextSignal 物件的字典
     """
     if not external_ids:
         return {}
@@ -50,7 +50,7 @@ def _update_existing_signal(
     score: int,
     comment_count: int
 ) -> None:
-    """Update an existing signal with new score and comment count."""
+    """以新的 score 和留言數更新既有訊號。"""
     existing.score = score
     existing.comment_count = comment_count
     existing.fetched_at = utc_now()
@@ -58,20 +58,20 @@ def _update_existing_signal(
 
 def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
     """
-    Store HN stories as context signals.
+    將 HN 文章儲存為情境訊號。
 
     Args:
-        repo_id: Repository ID
-        stories: List of HNStory objects
-        db: Database session
+        repo_id: repo ID
+        stories: HNStory 物件列表
+        db: 資料庫 session
 
     Returns:
-        Count of new signals added
+        新增的訊號數量
     """
     if not stories:
         return 0
 
-    # Batch load existing signals
+    # 批次載入既有訊號
     external_ids = [s.object_id for s in stories]
     existing_map = _get_existing_signal_map(
         repo_id, ContextSignalType.HACKER_NEWS, external_ids, db
@@ -102,20 +102,20 @@ def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
 
 async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     """
-    Fetch HN context signals for a single repository.
+    為單一 repo 抓取 HN 情境訊號。
 
     Args:
-        repo: Repository model object
-        db: Database session
+        repo: Repo model 物件
+        db: 資料庫 session
 
     Returns:
-        Count of new HN signals added
+        新增的 HN 訊號數量
     """
     try:
         hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
         hn_count = _store_hn_signals(repo.id, hn_stories, db) if hn_stories else 0
     except Exception as e:
-        logger.warning(f"HN fetch failed for {repo.full_name}: {e}")
+        logger.warning(f"[上下文] {repo.full_name} HN 抓取失敗: {e}")
         hn_count = 0
 
     db.commit()
@@ -124,13 +124,13 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
 
 async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
     """
-    Fetch context signals for all repos in the watchlist.
+    為追蹤清單中所有 repo 抓取情境訊號。
 
     Args:
-        db: Database session
+        db: 資料庫 session
 
     Returns:
-        Summary statistics dictionary
+        摘要統計字典
     """
     repos = db.query(Repo).all()
 
@@ -141,10 +141,10 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
         try:
             hn = await fetch_context_signals_for_repo(repo, db)
             total_hn += hn
-            logger.debug(f"Context signals for {repo.full_name}: HN={hn}")
+            logger.debug(f"[上下文] {repo.full_name} 上下文訊號: HN={hn}")
         except Exception as e:
             errors += 1
-            logger.error(f"Error fetching context signals for {repo.full_name}: {e}", exc_info=True)
+            logger.error(f"[上下文] 抓取 {repo.full_name} 上下文訊號失敗: {e}", exc_info=True)
 
     return {
         "repos_processed": len(repos),
@@ -159,31 +159,31 @@ def cleanup_old_context_signals(
     max_per_repo: int = CONTEXT_SIGNAL_MAX_PER_REPO
 ) -> Dict[str, int]:
     """
-    Remove old context signals to prevent unbounded database growth.
+    移除舊的情境訊號以防止資料庫無限成長。
 
-    Strategy:
-    1. Remove signals older than max_age_days
-    2. Keep only max_per_repo most recent signals per repo
+    策略：
+    1. 移除超過 max_age_days 的訊號
+    2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
 
     Args:
-        db: Database session
-        max_age_days: Remove signals older than this (default: 90)
-        max_per_repo: Keep at most this many signals per repo (default: 100)
+        db: 資料庫 session
+        max_age_days: 移除超過此天數的訊號（預設 90）
+        max_per_repo: 每個 repo 最多保留的訊號數（預設 100）
 
     Returns:
-        Statistics about cleanup: {deleted_by_age, deleted_by_limit}
+        清理統計：{deleted_by_age, deleted_by_limit}
     """
     stats = {"deleted_by_age": 0, "deleted_by_limit": 0}
 
-    # 1. Delete signals older than max_age_days
+    # 1. 刪除超過 max_age_days 的訊號
     cutoff_date = utc_now() - timedelta(days=max_age_days)
     deleted_by_age = db.query(ContextSignal).filter(
         ContextSignal.fetched_at < cutoff_date
     ).delete(synchronize_session=False)
     stats["deleted_by_age"] = deleted_by_age
 
-    # 2. For each repo, keep only the most recent max_per_repo signals
-    # First, get repo IDs that have more than max_per_repo signals
+    # 2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+    # 先取得超過 max_per_repo 的 repo ID
     repo_counts = (
         db.query(ContextSignal.repo_id, func.count(ContextSignal.id).label("count"))
         .group_by(ContextSignal.repo_id)
@@ -192,7 +192,7 @@ def cleanup_old_context_signals(
     )
 
     for repo_id, _ in repo_counts:
-        # Get the IDs of signals to keep (most recent max_per_repo)
+        # 取得要保留的訊號 ID（最新的 max_per_repo 筆）
         keep_ids = (
             db.query(ContextSignal.id)
             .filter(ContextSignal.repo_id == repo_id)
@@ -201,7 +201,7 @@ def cleanup_old_context_signals(
             .subquery()
         )
 
-        # Delete signals not in the keep list
+        # 刪除不在保留清單中的訊號
         deleted = (
             db.query(ContextSignal)
             .filter(
@@ -216,8 +216,8 @@ def cleanup_old_context_signals(
 
     if stats["deleted_by_age"] > 0 or stats["deleted_by_limit"] > 0:
         logger.info(
-            f"Context signal cleanup: {stats['deleted_by_age']} by age, "
-            f"{stats['deleted_by_limit']} by limit"
+            f"[上下文] 上下文訊號清理: 依時間刪除 {stats['deleted_by_age']} 筆、"
+            f"依上限刪除 {stats['deleted_by_limit']} 筆"
         )
 
     return stats

@@ -1,6 +1,6 @@
 /**
- * StarScope - GitHub Project Intelligence
- * Main application entry point with theme and i18n support.
+ * StarScope — GitHub 專案情報分析。
+ * 應用程式主入口，含主題與 i18n 支援。
  */
 
 import { useState, lazy, Suspense, useMemo } from "react";
@@ -12,7 +12,7 @@ import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import "./App.css";
 
-// Lazy load pages for code splitting
+// 延遲載入頁面以進行 code splitting
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const Discovery = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.Discovery })));
 const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
@@ -21,7 +21,7 @@ const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m
 
 type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
-/** Loading fallback component */
+/** 載入中的 fallback 元件 */
 function PageLoader({ text }: { text?: string }) {
   return (
     <div className="page-loader">
@@ -31,7 +31,7 @@ function PageLoader({ text }: { text?: string }) {
   );
 }
 
-/** Page router component */
+/** 頁面路由元件 */
 function PageContent({ page }: { page: Page }) {
   switch (page) {
     case "dashboard":
@@ -52,7 +52,7 @@ function App() {
   const { theme, setTheme, toggleTheme } = useAppTheme();
   const { language, setLanguage, toggleLanguage, t } = useAppLanguage();
 
-  // Memoize context values to prevent unnecessary re-renders
+  // 記憶化 context 值以避免不必要的重新渲染
   const themeContextValue = useMemo(
     () => ({ theme, setTheme, toggleTheme }),
     [theme, setTheme, toggleTheme]

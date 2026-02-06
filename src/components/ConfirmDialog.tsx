@@ -1,10 +1,10 @@
 /**
- * Reusable confirmation dialog component.
- * Replaces native browser confirm() with a styled modal.
+ * 通用確認 dialog 元件，取代瀏覽器原生 confirm()。
  */
 
 import { useEffect, useId } from "react";
 import { useI18n } from "../i18n";
+import { useFocusTrap } from "../hooks/useFocusTrap";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -32,8 +32,9 @@ export function ConfirmDialog({
   const resolvedCancelText = cancelText ?? t.common.cancel;
   const titleId = useId();
   const descId = useId();
+  const focusTrapRef = useFocusTrap(isOpen);
 
-  // Handle ESC key to close dialog
+  // 按 ESC 關閉 dialog
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
@@ -57,6 +58,7 @@ export function ConfirmDialog({
   return (
     <div className="dialog-overlay" onClick={onCancel} role="presentation">
       <div
+        ref={focusTrapRef}
         className="dialog confirm-dialog"
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"

@@ -8,7 +8,6 @@ import {
   checkHealth,
   getRepos,
   addRepo,
-  getRepo,
   removeRepo,
   fetchRepo,
   fetchAllRepos,
@@ -17,7 +16,6 @@ import {
   getStarsChart,
   getSimilarRepos,
   getRecommendationStats,
-  listCategories,
   getCategoryTree,
   createCategory,
   deleteCategory,
@@ -132,23 +130,6 @@ describe("API Client", () => {
 
       const result = await addRepo({ url: "https://github.com/vuejs/vue" });
       expect(result.full_name).toBe("vuejs/vue");
-    });
-  });
-
-  describe("getRepo", () => {
-    it("returns single repo by id", async () => {
-      const mockResponse = { id: 1, full_name: "facebook/react" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getRepo(1);
-      expect(result.id).toBe(1);
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/repos/1"),
-        expect.any(Object)
-      );
     });
   });
 
@@ -299,19 +280,6 @@ describe("API Client", () => {
   });
 
   // Category API tests
-  describe("listCategories", () => {
-    it("returns all categories", async () => {
-      const mockResponse = { categories: [{ id: 1, name: "Frontend" }], total: 1 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await listCategories();
-      expect(result.categories).toHaveLength(1);
-    });
-  });
-
   describe("getCategoryTree", () => {
     it("returns category tree", async () => {
       const mockResponse = { tree: [], total: 0 };

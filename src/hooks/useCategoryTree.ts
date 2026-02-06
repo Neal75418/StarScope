@@ -1,5 +1,5 @@
 /**
- * Hook for fetching and managing category tree.
+ * 分類樹狀結構的取得與管理。
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -29,7 +29,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Prevent duplicate fetches from StrictMode
+  // 避免 StrictMode 重複請求
   const hasFetchedRef = useRef(false);
 
   const fetchCategories = useCallback(async () => {
@@ -40,7 +40,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
       const response = await getCategoryTree();
       setTree(response.tree);
     } catch (err) {
-      console.error("Failed to load categories:", err);
+      console.error("分類載入失敗:", err);
       setError(t.categories.loadError);
     } finally {
       setLoading(false);
@@ -48,7 +48,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
   }, [t]);
 
   useEffect(() => {
-    // Skip if already fetched (prevents StrictMode double-fetch)
+    // 避免重複請求（防止 StrictMode 雙重觸發）
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
@@ -64,7 +64,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        console.error("Failed to create category:", err);
+        console.error("分類建立失敗:", err);
         return false;
       }
     },
@@ -79,7 +79,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        console.error("Failed to update category:", err);
+        console.error("分類更新失敗:", err);
         return false;
       }
     },
@@ -94,7 +94,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        console.error("Failed to delete category:", err);
+        console.error("分類刪除失敗:", err);
         return false;
       }
     },

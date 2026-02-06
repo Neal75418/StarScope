@@ -1,55 +1,61 @@
 """
-Alerts API endpoints for managing alert rules and viewing triggered alerts.
+警報 API 端點，管理警報規則與檢視已觸發的警報。
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
-from db.models import AlertRule, TriggeredAlert, Repo, SignalType, AlertOperator
+from db.models import AlertRule, TriggeredAlert, Repo, SignalType
+
+# 從 model 常數衍生的 Literal 型別 — Pydantic 自動驗證。
+ValidSignalType = Literal[
+    "stars_delta_7d", "stars_delta_30d", "velocity", "acceleration", "trend"
+]
+ValidOperator = Literal[">", "<", ">=", "<=", "=="]
 from services.alerts import (
     acknowledge_alert,
     acknowledge_all_alerts,
     check_all_alerts,
 )
 
-# Error message constants
+# 錯誤訊息常數
 ERROR_RULE_NOT_FOUND = "Rule not found"
 ERROR_ALERT_NOT_FOUND = "Alert not found"
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
-# --- Schemas ---
+# --- Schema ---
 
 class AlertRuleCreate(BaseModel):
-    """Schema for creating an alert rule."""
+    """建立警報規則的 schema。"""
     name: str
     description: Optional[str] = None
-    repo_id: Optional[int] = None  # None = applies to all repos
-    signal_type: str  # e.g., "stars_delta_7d", "velocity"
-    operator: str  # ">", "<", ">=", "<=", "=="
+    repo_id: Optional[int] = None  # None = 適用於所有 repo
+    signal_type: ValidSignalType
+    operator: ValidOperator
     threshold: float
     enabled: bool = True
 
 
 class AlertRuleUpdate(BaseModel):
-    """Schema for updating an alert rule."""
+    """更新警報規則的 schema。"""
     name: Optional[str] = None
     description: Optional[str] = None
     repo_id: Optional[int] = None
-    signal_type: Optional[str] = None
-    operator: Optional[str] = None
+    signal_type: Optional[ValidSignalType] = None
+    operator: Optional[ValidOperator] = None
     threshold: Optional[float] = None
     enabled: Optional[bool] = None
 
 
 class AlertRuleResponse(BaseModel):
-    """Response schema for an alert rule."""
+    """警報規則的回應 schema。"""
     id: int
     name: str
     description: Optional[str]
@@ -67,7 +73,7 @@ class AlertRuleResponse(BaseModel):
 
 
 class TriggeredAlertResponse(BaseModel):
-    """Response schema for a triggered alert."""
+    """已觸發警報的回應 schema。"""
     id: int
     rule_id: int
     rule_name: str
@@ -86,16 +92,16 @@ class TriggeredAlertResponse(BaseModel):
 
 
 class SignalTypeInfo(BaseModel):
-    """Information about a signal type."""
+    """訊號類型資訊。"""
     type: str
     name: str
     description: str
 
 
-# --- Helper functions ---
+# --- 輔助函式 ---
 
 def _to_alert_rule_response(rule: "AlertRule") -> AlertRuleResponse:
-    """Convert an AlertRule model to AlertRuleResponse."""
+    """將 AlertRule model 轉換為 AlertRuleResponse。"""
     return AlertRuleResponse(
         id=rule.id,
         name=rule.name,
@@ -112,7 +118,7 @@ def _to_alert_rule_response(rule: "AlertRule") -> AlertRuleResponse:
 
 
 def _to_triggered_alert_response(alert: "TriggeredAlert") -> TriggeredAlertResponse:
-    """Convert a TriggeredAlert model to TriggeredAlertResponse."""
+    """將 TriggeredAlert model 轉換為 TriggeredAlertResponse。"""
     return TriggeredAlertResponse(
         id=alert.id,
         rule_id=alert.rule_id,
@@ -129,35 +135,13 @@ def _to_triggered_alert_response(alert: "TriggeredAlert") -> TriggeredAlertRespo
     )
 
 
-def validate_signal_type(signal_type: str) -> bool:
-    """Check if a signal type is valid."""
-    valid_types = [
-        SignalType.STARS_DELTA_7D,
-        SignalType.STARS_DELTA_30D,
-        SignalType.VELOCITY,
-        SignalType.ACCELERATION,
-        SignalType.TREND,
-    ]
-    return signal_type in valid_types
 
 
-def validate_operator(operator: str) -> bool:
-    """Check if an operator is valid."""
-    valid_operators = [
-        AlertOperator.GT,
-        AlertOperator.LT,
-        AlertOperator.GTE,
-        AlertOperator.LTE,
-        AlertOperator.EQ,
-    ]
-    return operator in valid_operators
-
-
-# --- Endpoints ---
+# --- 端點 ---
 
 @router.get("/signal-types", response_model=List[SignalTypeInfo])
 async def list_signal_types():
-    """List available signal types for alert rules."""
+    """列出警報規則可用的訊號類型。"""
     return [
         SignalTypeInfo(
             type=SignalType.STARS_DELTA_7D,
@@ -194,16 +178,16 @@ async def list_rules(
     db: Session = Depends(get_db)
 ):
     """
-    List all alert rules with pagination.
+    列出所有警報規則（含分頁）。
 
     Args:
-        skip: Number of records to skip (default: 0)
-        limit: Maximum number of records to return (default: 100, max: 500)
+        skip: 跳過的紀錄數（預設 0）
+        limit: 回傳的最大紀錄數（預設 100，上限 500）
     """
-    # Cap limit to prevent excessive data retrieval
+    # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
 
-    # Use joinedload to prevent N+1 queries when accessing rule.repo
+    # 使用 joinedload 避免存取 rule.repo 時的 N+1 查詢
     rules = (
         db.query(AlertRule)
         .options(joinedload(AlertRule.repo))
@@ -217,22 +201,16 @@ async def list_rules(
 
 @router.post("/rules", response_model=AlertRuleResponse)
 async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
-    """Create a new alert rule."""
-    # Validate signal type
-    if not validate_signal_type(rule.signal_type):
-        raise HTTPException(status_code=400, detail=f"Invalid signal type: {rule.signal_type}")
-
-    # Validate operator
-    if not validate_operator(rule.operator):
-        raise HTTPException(status_code=400, detail=f"Invalid operator: {rule.operator}")
-
-    # Validate repo if specified
+    """建立新警報規則。
+    signal_type 與 operator 由 Pydantic Literal 型別驗證。
+    """
+    # 驗證指定的 repo 是否存在
     if rule.repo_id:
         repo = db.query(Repo).filter(Repo.id == rule.repo_id).first()
         if not repo:
             raise HTTPException(status_code=404, detail=f"Repo not found: {rule.repo_id}")
 
-    # Create the rule
+    # 建立規則
     db_rule = AlertRule(
         name=rule.name,
         description=rule.description,
@@ -251,7 +229,7 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
 
 @router.get("/rules/{rule_id}", response_model=AlertRuleResponse)
 async def get_rule(rule_id: int, db: Session = Depends(get_db)):
-    """Get a specific alert rule."""
+    """取得特定警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
@@ -261,20 +239,16 @@ async def get_rule(rule_id: int, db: Session = Depends(get_db)):
 
 @router.patch("/rules/{rule_id}", response_model=AlertRuleResponse)
 async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)):
-    """Update an alert rule."""
+    """更新警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
-    # Validate and update fields
+    # signal_type 與 operator 由 Pydantic Literal 型別驗證。
     if update.signal_type is not None:
-        if not validate_signal_type(update.signal_type):
-            raise HTTPException(status_code=400, detail=f"Invalid signal type: {update.signal_type}")
         rule.signal_type = update.signal_type
 
     if update.operator is not None:
-        if not validate_operator(update.operator):
-            raise HTTPException(status_code=400, detail=f"Invalid operator: {update.operator}")
         rule.operator = update.operator
 
     if update.name is not None:
@@ -282,7 +256,7 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
     if update.description is not None:
         rule.description = update.description
     if update.repo_id is not None:
-        # Validate repo exists before updating
+        # 更新前驗證 repo 是否存在
         if update.repo_id:
             repo = db.query(Repo).filter(Repo.id == update.repo_id).first()
             if not repo:
@@ -301,7 +275,7 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
 
 @router.delete("/rules/{rule_id}")
 async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
-    """Delete an alert rule."""
+    """刪除警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
@@ -318,8 +292,8 @@ async def list_triggered_alerts(
     limit: int = 50,
     db: Session = Depends(get_db)
 ):
-    """List triggered alerts."""
-    # Use joinedload to prevent N+1 queries when accessing alert.rule and alert.repo
+    """列出已觸發的警報。"""
+    # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢
     query = (
         db.query(TriggeredAlert)
         .options(
@@ -339,7 +313,7 @@ async def list_triggered_alerts(
 
 @router.post("/triggered/{alert_id}/acknowledge")
 async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)):
-    """Acknowledge a triggered alert."""
+    """確認已觸發的警報。"""
     if acknowledge_alert(db, alert_id):
         return {"status": "acknowledged", "id": alert_id}
     raise HTTPException(status_code=404, detail=ERROR_ALERT_NOT_FOUND)
@@ -347,14 +321,14 @@ async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db))
 
 @router.post("/triggered/acknowledge-all")
 async def acknowledge_all(db: Session = Depends(get_db)):
-    """Acknowledge all unacknowledged alerts."""
+    """確認所有未確認的警報。"""
     count = acknowledge_all_alerts(db)
     return {"status": "acknowledged", "count": count}
 
 
 @router.post("/check")
 async def check_alerts_now(db: Session = Depends(get_db)):
-    """Manually trigger an alert check."""
+    """手動觸發警報檢查。"""
     triggered = check_all_alerts(db)
     return {
         "status": "checked",

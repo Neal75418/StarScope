@@ -1,5 +1,5 @@
 /**
- * Individual similar repo item component.
+ * 單一相似 repo 項目元件，含相似度維度分解條。
  */
 
 import React from "react";
@@ -37,6 +37,44 @@ function TopicsList({ topics }: { topics: string[] }) {
   );
 }
 
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  const pct = Math.round(score * 100);
+  return (
+    <div className="similarity-bar-row">
+      <span className="similarity-bar-label">{label}</span>
+      <div className="similarity-bar-track">
+        <div
+          className="similarity-bar-fill"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="similarity-bar-value">{pct}%</span>
+    </div>
+  );
+}
+
+function SimilarityBreakdown({ repo }: { repo: SimilarRepo }) {
+  const { t } = useI18n();
+
+  if (repo.topic_score == null && repo.language_score == null && repo.magnitude_score == null) {
+    return null;
+  }
+
+  return (
+    <div className="similarity-breakdown">
+      {repo.topic_score != null && (
+        <ScoreBar label={t.similarRepos.breakdown.topics} score={repo.topic_score} />
+      )}
+      {repo.language_score != null && (
+        <ScoreBar label={t.similarRepos.breakdown.language} score={repo.language_score} />
+      )}
+      {repo.magnitude_score != null && (
+        <ScoreBar label={t.similarRepos.breakdown.starScale} score={repo.magnitude_score} />
+      )}
+    </div>
+  );
+}
+
 export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
   const { t } = useI18n();
 
@@ -61,6 +99,7 @@ export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
           <span className="similar-repo-badge same-lang">{t.similarRepos.sameLanguage}</span>
         )}
       </div>
+      <SimilarityBreakdown repo={repo} />
       <TopicsList topics={repo.shared_topics} />
       {repo.description && (
         <p className="similar-repo-desc">{truncateDescription(repo.description)}</p>

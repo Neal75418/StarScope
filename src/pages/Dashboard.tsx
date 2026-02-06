@@ -1,13 +1,28 @@
 /**
- * Dashboard page - overview of tracked repositories and key metrics.
+ * Dashboard 頁面，總覽追蹤中的 repo 與關鍵指標。
  */
 
 import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
+import { EarlySignal, SignalSummary } from "../api/client";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 
-// Stat card component
+// 訊號類型圖示對應
+const SIGNAL_TYPE_CONFIG: Record<string, { icon: string; className: string }> = {
+  rising_star: { icon: "\u{1F31F}", className: "signal-rising-star" },
+  sudden_spike: { icon: "\u26A1", className: "signal-sudden-spike" },
+  breakout: { icon: "\u{1F680}", className: "signal-breakout" },
+  viral_hn: { icon: "\u{1F536}", className: "signal-viral-hn" },
+};
+
+const SEVERITY_CLASS: Record<string, string> = {
+  high: "severity-high",
+  medium: "severity-medium",
+  low: "severity-low",
+};
+
+// 單一統計卡片
 function StatCard({
   label,
   value,
@@ -25,7 +40,7 @@ function StatCard({
   );
 }
 
-// Stats grid component
+// 統計數據網格
 function StatsGrid({ stats }: { stats: DashboardStats }) {
   const { t } = useI18n();
 
@@ -62,7 +77,101 @@ function StatsGrid({ stats }: { stats: DashboardStats }) {
   );
 }
 
-// Velocity distribution chart component
+// Signal Spotlight — 早期訊號焦點
+function SignalSpotlight({
+  signals,
+  summary,
+  onAcknowledge,
+}: {
+  signals: EarlySignal[];
+  summary: SignalSummary | null;
+  onAcknowledge: (id: number) => void;
+}) {
+  const { t } = useI18n();
+
+  if (!summary || summary.total_active === 0) {
+    return null;
+  }
+
+  const signalTypeLabels: Record<string, string> = {
+    rising_star: t.dashboard.signals.types.risingStar,
+    sudden_spike: t.dashboard.signals.types.suddenSpike,
+    breakout: t.dashboard.signals.types.breakout,
+    viral_hn: t.dashboard.signals.types.viralHn,
+  };
+
+  const formatTime = (timestamp: string): string => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffHours < 1) return t.dashboard.activity.justNow;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className="dashboard-section signal-spotlight">
+      <div className="signal-spotlight-header">
+        <h3>{t.dashboard.signals.title}</h3>
+        <span className="signal-spotlight-count">{summary.total_active}</span>
+      </div>
+
+      {/* 訊號類型摘要 */}
+      <div className="signal-type-summary">
+        {Object.entries(summary.by_type).map(([type, count]) => {
+          const config = SIGNAL_TYPE_CONFIG[type] || { icon: "?", className: "" };
+          return (
+            <div key={type} className={`signal-type-chip ${config.className}`}>
+              <span className="signal-type-icon">{config.icon}</span>
+              <span className="signal-type-label">{signalTypeLabels[type] || type}</span>
+              <span className="signal-type-count">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 最新訊號列表 */}
+      {signals.length > 0 && (
+        <div className="signal-list">
+          {signals.map((signal) => {
+            const config = SIGNAL_TYPE_CONFIG[signal.signal_type] || { icon: "?", className: "" };
+            const severityClass = SEVERITY_CLASS[signal.severity] || "";
+            return (
+              <div key={signal.id} className={`signal-item ${config.className}`}>
+                <span className="signal-item-icon">{config.icon}</span>
+                <div className="signal-item-content">
+                  <div className="signal-item-header">
+                    <span className="signal-item-repo">{signal.repo_name}</span>
+                    <span className={`signal-severity-badge ${severityClass}`}>
+                      {signal.severity}
+                    </span>
+                  </div>
+                  <div className="signal-item-desc">{signal.description}</div>
+                </div>
+                <div className="signal-item-actions">
+                  <span className="signal-item-time">{formatTime(signal.detected_at)}</span>
+                  <button
+                    className="btn btn-sm signal-ack-btn"
+                    onClick={() => onAcknowledge(signal.id)}
+                    title={t.dashboard.signals.acknowledge}
+                  >
+                    ✓
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Velocity 分佈圖表
 function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
   const { t } = useI18n();
   const maxCount = Math.max(...data.map((d) => d.count), 1);
@@ -88,7 +197,7 @@ function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
   );
 }
 
-// Recent activity component
+// 近期活動列表
 function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
   const { t } = useI18n();
 
@@ -146,10 +255,20 @@ function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
   );
 }
 
-// Main Dashboard component
+// Dashboard 主元件
 export function Dashboard() {
   const { t } = useI18n();
-  const { stats, recentActivity, velocityDistribution, isLoading, error, refresh } = useDashboard();
+  const {
+    stats,
+    recentActivity,
+    velocityDistribution,
+    earlySignals,
+    signalSummary,
+    acknowledgeSignal,
+    isLoading,
+    error,
+    refresh,
+  } = useDashboard();
 
   if (isLoading) {
     return (
@@ -159,7 +278,7 @@ export function Dashboard() {
           <p className="subtitle">{t.dashboard.subtitle}</p>
         </header>
 
-        {/* Stats Grid Skeleton */}
+        {/* 統計網格骨架屏 */}
         <div className="stats-grid">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="stat-card">
@@ -170,7 +289,7 @@ export function Dashboard() {
         </div>
 
         <div className="dashboard-grid">
-          {/* Velocity Chart Skeleton */}
+          {/* Velocity 圖表骨架屏 */}
           <div className="dashboard-section">
             <Skeleton width={150} height={24} style={{ marginBottom: 16 }} />
             <div className="velocity-chart">
@@ -189,7 +308,7 @@ export function Dashboard() {
             </div>
           </div>
 
-          {/* Activity List Skeleton */}
+          {/* 活動列表骨架屏 */}
           <div className="dashboard-section">
             <Skeleton width={150} height={24} style={{ marginBottom: 16 }} />
             <div className="activity-list">
@@ -237,6 +356,14 @@ export function Dashboard() {
 
       <FadeIn delay={0.1}>
         <StatsGrid stats={stats} />
+      </FadeIn>
+
+      <FadeIn delay={0.15}>
+        <SignalSpotlight
+          signals={earlySignals}
+          summary={signalSummary}
+          onAcknowledge={acknowledgeSignal}
+        />
       </FadeIn>
 
       <FadeIn delay={0.2}>

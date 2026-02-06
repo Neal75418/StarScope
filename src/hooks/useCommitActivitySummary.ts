@@ -1,5 +1,5 @@
 /**
- * Hook for fetching commit activity summary.
+ * Commit 活動摘要的取得。
  */
 
 import { useMemo } from "react";
@@ -16,14 +16,14 @@ export function useCommitActivitySummary(
 ): UseGenericSummaryResult<CommitActivitySummary> {
   const { t } = useI18n();
 
-  // Memoize config to prevent unnecessary re-renders
+  // 記憶化 config 避免不必要的 re-render
   const config = useMemo(
     () => ({
       repoId,
-      failedToLoadMessage: t.commitActivity?.failedToLoad ?? "Failed to load",
+      failedToLoadMessage: t.commitActivity?.failedToLoad ?? "載入失敗",
       getSummary: getCommitActivitySummary,
       triggerFetch: fetchCommitActivity,
-      logPrefix: "Commit activity summary",
+      logPrefix: "Commit 活動摘要",
     }),
     [repoId, t.commitActivity?.failedToLoad]
   );

@@ -1,6 +1,5 @@
 /**
- * GitHub connection component for OAuth Device Flow authentication.
- * Shows connection status and allows users to connect/disconnect GitHub account.
+ * GitHub 連線元件，使用 OAuth Device Flow 驗證，管理帳號連線狀態。
  */
 
 import { useI18n } from "../i18n";

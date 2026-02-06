@@ -1,5 +1,5 @@
 /**
- * Result card for a discovered repository.
+ * 探索結果的 repo 卡片。
  */
 
 import React from "react";
@@ -93,7 +93,7 @@ export function DiscoveryResultCard({
   );
 }
 
-// Language colors (subset of GitHub's language colors)
+// 語言顏色（GitHub 語言顏色子集）
 function getLanguageColor(language: string): string {
   const colors: Record<string, string> = {
     TypeScript: "#3178c6",

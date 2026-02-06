@@ -1,22 +1,22 @@
 /**
- * Internationalization (i18n) system for StarScope
+ * StarScope 國際化（i18n）系統。
  */
 
 import { createContext, useContext } from "react";
 import { translations, Language, TranslationKeys } from "./translations";
 
-// Storage key for persisting language preference
+// 儲存語言偏好的 localStorage key
 const LANGUAGE_STORAGE_KEY = "starscope-language";
 
-// Get initial language from localStorage or browser preference
+// 從 localStorage 或瀏覽器偏好取得初始語言
 export function getInitialLanguage(): Language {
-  // Check localStorage first
+  // 優先檢查 localStorage
   const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   if (stored === "en" || stored === "zh-TW") {
     return stored;
   }
 
-  // Fall back to browser language
+  // 退回使用瀏覽器語言
   const browserLang = navigator.language;
   if (browserLang.startsWith("zh")) {
     return "zh-TW";
@@ -25,12 +25,12 @@ export function getInitialLanguage(): Language {
   return "en";
 }
 
-// Save language preference
+// 儲存語言偏好
 export function saveLanguage(lang: Language): void {
   localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
 }
 
-// Context for language state
+// 語言狀態的 Context
 interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -39,7 +39,7 @@ interface I18nContextType {
 
 export const I18nContext = createContext<I18nContextType | null>(null);
 
-// Hook to use translations
+// 使用翻譯的 Hook
 export function useI18n() {
   const context = useContext(I18nContext);
   if (!context) {
@@ -48,12 +48,12 @@ export function useI18n() {
   return context;
 }
 
-// Get translations for a language
+// 取得指定語言的翻譯
 export function getTranslations(lang: Language): TranslationKeys {
   return translations[lang];
 }
 
-// Helper to interpolate variables in translation strings
+// 在翻譯字串中插入變數的輔助函式
 export function interpolate(str: string, vars: Record<string, string | number>): string {
   return str.replace(/{(\w+)}/g, (_, key) => String(vars[key] ?? `{${key}}`));
 }

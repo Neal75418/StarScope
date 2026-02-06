@@ -1,5 +1,5 @@
 /**
- * Hook for managing expanded state of category tree nodes.
+ * 分類樹節點展開 / 收合狀態管理。
  */
 
 import { useState, useCallback, MouseEvent } from "react";

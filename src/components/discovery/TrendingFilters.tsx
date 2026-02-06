@@ -1,6 +1,5 @@
 /**
- * Trending time range filters - mimics GitHub Trending page.
- * Options: Today, This Week, This Month
+ * 趨勢時間範圍篩選，模擬 GitHub Trending 頁面。
  */
 
 import { useI18n } from "../../i18n";

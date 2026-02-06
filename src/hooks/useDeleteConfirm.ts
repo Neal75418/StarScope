@@ -1,5 +1,5 @@
 /**
- * Hook for managing delete confirmation dialog state.
+ * 刪除確認對話框狀態管理。
  */
 
 import { useState, useCallback } from "react";

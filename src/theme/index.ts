@@ -1,24 +1,24 @@
 /**
- * Theme system for StarScope
- * Supports: Dark and Light themes
+ * StarScope 主題系統。
+ * 支援深色與淺色主題。
  */
 
 import { createContext, useContext } from "react";
 
 export type Theme = "dark" | "light";
 
-// Storage key for persisting theme preference
+// 儲存主題偏好的 localStorage key
 const THEME_STORAGE_KEY = "starscope-theme";
 
-// Get initial theme from localStorage or system preference
+// 從 localStorage 或系統偏好取得初始主題
 export function getInitialTheme(): Theme {
-  // Check localStorage first
+  // 優先檢查 localStorage
   const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored === "dark" || stored === "light") {
     return stored;
   }
 
-  // Fall back to system preference
+  // 退回使用系統偏好
   if (window.matchMedia?.("(prefers-color-scheme: light)").matches) {
     return "light";
   }
@@ -26,17 +26,17 @@ export function getInitialTheme(): Theme {
   return "dark";
 }
 
-// Save theme preference
+// 儲存主題偏好
 export function saveTheme(theme: Theme): void {
   localStorage.setItem(THEME_STORAGE_KEY, theme);
 }
 
-// Apply theme to document
+// 將主題套用至 document
 export function applyTheme(theme: Theme): void {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
-// Context for theme state
+// 主題狀態的 Context
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -45,7 +45,7 @@ interface ThemeContextType {
 
 export const ThemeContext = createContext<ThemeContextType | null>(null);
 
-// Hook to use theme
+// 使用主題的 Hook
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {

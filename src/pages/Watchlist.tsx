@@ -1,8 +1,8 @@
 /**
- * Watchlist page - main view showing all tracked repositories.
+ * Watchlist 頁面，顯示所有追蹤中的 repo。
  */
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -12,9 +12,10 @@ import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
+import { useBatchRepoData } from "../hooks/useBatchRepoData";
 import { RepoWithSignals } from "../api/client";
 
-// Loading state component
+// 載入中狀態元件
 function LoadingState() {
   const { t } = useI18n();
   return (
@@ -24,7 +25,7 @@ function LoadingState() {
   );
 }
 
-// Connection error component
+// 連線錯誤元件
 function ConnectionError({ onRetry }: { onRetry: () => void }) {
   const { t } = useI18n();
   return (
@@ -41,7 +42,7 @@ function ConnectionError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-// Empty state component
+// 空狀態元件
 function EmptyStateView({
   hasRepos,
   hasSearch,
@@ -86,7 +87,7 @@ function EmptyStateView({
       />
     );
   }
-  // Category filter active but no repos match
+  // 分類篩選啟用但無匹配 repo
   return (
     <EmptyState
       title={t.watchlist.empty.noCategory}
@@ -109,14 +110,11 @@ function EmptyStateView({
   );
 }
 
-// Virtualized Repo List
-// Reverted to simple list for stability
-// import * as ReactWindow from "react-window";
-// import { AutoSizer } from "react-virtualized-auto-sizer";
 import { EmptyState } from "../components/EmptyState";
 
-// Fix for react-window v2 exports mismatch (List vs FixedSizeList)
-// const FixedSizeList = (ReactWindow as any).List || (ReactWindow as any).FixedSizeList;
+// 漸進式渲染：先顯示前 INITIAL_RENDER_COUNT 張卡，滾動至底部時載入更多
+const INITIAL_RENDER_COUNT = 15;
+const LOAD_MORE_COUNT = 10;
 
 function RepoList({
   repos,
@@ -125,6 +123,7 @@ function RepoList({
   onRemove,
   selectedCategoryId,
   onRemoveFromCategory,
+  batchData,
 }: {
   repos: RepoWithSignals[];
   loadingRepoId: number | null;
@@ -132,26 +131,62 @@ function RepoList({
   onRemove: (id: number) => void;
   selectedCategoryId?: number | null;
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
+  batchData: ReturnType<typeof useBatchRepoData>["dataMap"];
 }) {
+  const [renderCount, setRenderCount] = useState(INITIAL_RENDER_COUNT);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // 當 repos 列表變更（搜尋/篩選）時重置渲染數量
+  useEffect(() => {
+    setRenderCount(INITIAL_RENDER_COUNT);
+  }, [repos.length]);
+
+  // IntersectionObserver 偵測底部 sentinel 進入可視區，自動載入更多
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || renderCount >= repos.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setRenderCount((prev) => Math.min(prev + LOAD_MORE_COUNT, repos.length));
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [renderCount, repos.length]);
+
+  const visibleRepos = repos.slice(0, renderCount);
+
   return (
     <div className="repo-list-container" style={{ paddingBottom: 40 }}>
-      {repos.map((repo) => (
-        <div key={repo.id} style={{ marginBottom: 16 }}>
-          <RepoCard
-            repo={repo}
-            onFetch={onFetch}
-            onRemove={onRemove}
-            isLoading={loadingRepoId === repo.id}
-            selectedCategoryId={selectedCategoryId}
-            onRemoveFromCategory={onRemoveFromCategory}
-          />
-        </div>
-      ))}
+      {visibleRepos.map((repo) => {
+        const preloaded = batchData[repo.id];
+        return (
+          <div key={repo.id} style={{ marginBottom: 16 }}>
+            <RepoCard
+              repo={repo}
+              onFetch={onFetch}
+              onRemove={onRemove}
+              isLoading={loadingRepoId === repo.id}
+              selectedCategoryId={selectedCategoryId}
+              onRemoveFromCategory={onRemoveFromCategory}
+              preloadedBadges={preloaded?.badges}
+              preloadedSignals={preloaded?.signals}
+            />
+          </div>
+        );
+      })}
+      {renderCount < repos.length && (
+        <div ref={sentinelRef} style={{ height: 1 }} />
+      )}
     </div>
   );
 }
 
-// Error banner component
+// 錯誤橫幅元件
 function ErrorBanner({ error, onClear }: { error: string; onClear: () => void }) {
   return (
     <div className="error-banner">
@@ -161,7 +196,7 @@ function ErrorBanner({ error, onClear }: { error: string; onClear: () => void })
   );
 }
 
-// Toolbar component
+// 工具列元件
 function Toolbar({
   onAddRepo,
   onRefreshAll,
@@ -240,7 +275,7 @@ function Toolbar({
   );
 }
 
-// Main Watchlist component
+// Watchlist 主元件
 export function Watchlist() {
   const { t } = useI18n();
   const {
@@ -274,9 +309,13 @@ export function Watchlist() {
     setSearchQuery,
   } = useWatchlist();
 
-  // Category operations for add/remove repo from category
+  // 批次載入所有 repo 的 badges 與 signals（2 requests 取代 N×2 requests）
+  const repoIds = useMemo(() => repos.map((r) => r.id), [repos]);
+  const { dataMap: batchData } = useBatchRepoData(repoIds);
+
+  // 分類操作：新增 / 移除 repo 至分類
   const categoryOps = useCategoryOperations(() => {
-    // Trigger re-selection to refresh the filtered list
+    // 重新選取以刷新篩選後的列表
     if (selectedCategoryId) {
       const current = selectedCategoryId;
       setSelectedCategoryId(null);
@@ -284,7 +323,7 @@ export function Watchlist() {
     }
   });
 
-  // Memoize handler to prevent unnecessary re-renders
+  // Memoize handler 以避免不必要的 re-render
   const handleRemoveFromCategory = useCallback(
     async (categoryId: number, repoId: number) => {
       const success = await categoryOps.removeFromCategory(categoryId, repoId);
@@ -350,6 +389,7 @@ export function Watchlist() {
                 onFetch={handleFetchRepo}
                 onRemove={handleRemoveRepo}
                 selectedCategoryId={selectedCategoryId}
+                batchData={batchData}
                 onRemoveFromCategory={handleRemoveFromCategory}
               />
             )}

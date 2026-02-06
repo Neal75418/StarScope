@@ -1,5 +1,5 @@
 /**
- * Hook for repository mutation operations (add, delete, refresh).
+ * Repository 變更操作（新增、刪除、重新整理）。
  */
 
 import { useCallback, Dispatch, SetStateAction } from "react";
@@ -20,7 +20,7 @@ function parseRepoInput(input: string): { owner?: string; name?: string; url?: s
   if (input.includes("github.com")) return { url: input };
   if (input.includes("/")) {
     const parts = input.split("/");
-    // Ensure we have exactly 2 parts (owner/name)
+    // 確保恰好有 2 個部分（owner/name）
     if (parts.length !== 2 || !parts[0] || !parts[1]) {
       return null;
     }
