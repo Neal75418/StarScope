@@ -3,7 +3,7 @@
  * Simplified version focusing on core metrics.
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { RepoWithSignals } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
@@ -30,6 +30,17 @@ export function RepoCard({
   const [showChart, setShowChart] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false);
 
+  // Memoize handlers to prevent unnecessary re-renders of memoized children
+  const handleToggleChart = useCallback(() => setShowChart((prev) => !prev), []);
+  const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
+  const handleFetch = useCallback(() => onFetch(repo.id), [onFetch, repo.id]);
+  const handleRemove = useCallback(() => onRemove(repo.id), [onRemove, repo.id]);
+  const handleRemoveFromCategory = useCallback(
+    () => selectedCategoryId && onRemoveFromCategory?.(selectedCategoryId, repo.id),
+    [selectedCategoryId, onRemoveFromCategory, repo.id]
+  );
+  const handleCloseSimilar = useCallback(() => setShowSimilar(false), []);
+
   return (
     <div className="repo-card">
       <RepoCardHeader
@@ -39,15 +50,11 @@ export function RepoCard({
         isLoading={isLoading}
         selectedCategoryId={selectedCategoryId}
         activeSignalCount={activeSignalCount}
-        onToggleChart={() => setShowChart(!showChart)}
-        onToggleSimilar={() => setShowSimilar(!showSimilar)}
-        onFetch={() => onFetch(repo.id)}
-        onRemove={() => onRemove(repo.id)}
-        onRemoveFromCategory={
-          selectedCategoryId && onRemoveFromCategory
-            ? () => onRemoveFromCategory(selectedCategoryId, repo.id)
-            : undefined
-        }
+        onToggleChart={handleToggleChart}
+        onToggleSimilar={handleToggleSimilar}
+        onFetch={handleFetch}
+        onRemove={handleRemove}
+        onRemoveFromCategory={selectedCategoryId && onRemoveFromCategory ? handleRemoveFromCategory : undefined}
       />
 
       <RepoCardContent
@@ -64,7 +71,7 @@ export function RepoCard({
         repoId={repo.id}
         showChart={showChart}
         showSimilar={showSimilar}
-        onCloseSimilar={() => setShowSimilar(false)}
+        onCloseSimilar={handleCloseSimilar}
       />
     </div>
   );

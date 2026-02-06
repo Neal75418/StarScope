@@ -2,6 +2,7 @@
  * Watchlist page - main view showing all tracked repositories.
  */
 
+import { useCallback } from "react";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -283,14 +284,18 @@ export function Watchlist() {
     }
   });
 
-  const handleRemoveFromCategory = async (categoryId: number, repoId: number) => {
-    const success = await categoryOps.removeFromCategory(categoryId, repoId);
-    if (success) {
-      toast.success(t.categories.removedFromCategory);
-    } else {
-      toast.error(t.toast.error);
-    }
-  };
+  // Memoize handler to prevent unnecessary re-renders
+  const handleRemoveFromCategory = useCallback(
+    async (categoryId: number, repoId: number) => {
+      const success = await categoryOps.removeFromCategory(categoryId, repoId);
+      if (success) {
+        toast.success(t.categories.removedFromCategory);
+      } else {
+        toast.error(t.toast.error);
+      }
+    },
+    [categoryOps, toast, t.categories.removedFromCategory, t.toast.error]
+  );
 
   if (isLoading) {
     return <LoadingState />;

@@ -25,7 +25,7 @@ export interface RepoCardHeaderProps {
   onRemoveFromCategory?: () => void;
 }
 
-export function RepoCardHeader({
+export const RepoCardHeader = React.memo(function RepoCardHeader({
   repo,
   showChart,
   showSimilar,
@@ -110,4 +110,4 @@ export function RepoCardHeader({
       </div>
     </div>
   );
-}
+});

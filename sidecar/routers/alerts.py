@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
 from db.models import AlertRule, TriggeredAlert, Repo, SignalType, AlertOperator
@@ -190,7 +190,8 @@ async def list_signal_types():
 @router.get("/rules", response_model=List[AlertRuleResponse])
 async def list_rules(db: Session = Depends(get_db)):
     """List all alert rules."""
-    rules = db.query(AlertRule).all()
+    # Use joinedload to prevent N+1 queries when accessing rule.repo
+    rules = db.query(AlertRule).options(joinedload(AlertRule.repo)).all()
 
     return [_to_alert_rule_response(rule) for rule in rules]
 
@@ -299,7 +300,15 @@ async def list_triggered_alerts(
     db: Session = Depends(get_db)
 ):
     """List triggered alerts."""
-    query = db.query(TriggeredAlert).order_by(TriggeredAlert.triggered_at.desc())
+    # Use joinedload to prevent N+1 queries when accessing alert.rule and alert.repo
+    query = (
+        db.query(TriggeredAlert)
+        .options(
+            joinedload(TriggeredAlert.rule),
+            joinedload(TriggeredAlert.repo)
+        )
+        .order_by(TriggeredAlert.triggered_at.desc())
+    )
 
     if unacknowledged_only:
         query = query.filter(TriggeredAlert.acknowledged.is_(False))

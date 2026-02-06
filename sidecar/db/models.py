@@ -265,6 +265,7 @@ class ContextSignal(Base):
     __table_args__ = (
         Index("ix_context_signals_repo_type", "repo_id", "signal_type"),
         Index("ix_context_signals_published", "published_at"),
+        Index("ix_context_signals_repo_published", "repo_id", "published_at"),  # For queries ordering by published_at
         UniqueConstraint("repo_id", "signal_type", "external_id", name="uq_context_signal_unique"),
     )
 
@@ -416,6 +417,7 @@ class EarlySignal(Base):
         Index("ix_early_signals_type", "signal_type"),
         Index("ix_early_signals_detected", "detected_at"),
         Index("ix_early_signals_severity", "severity"),
+        Index("ix_early_signals_filter", "repo_id", "signal_type", "acknowledged"),  # For filtered queries
     )
 
     def __repr__(self) -> str:
