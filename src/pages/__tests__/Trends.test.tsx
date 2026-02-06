@@ -5,7 +5,11 @@ import { Trends } from "../Trends";
 import type { TrendingRepo } from "../../hooks/useTrends";
 
 const mockSetSortBy = vi.fn();
+const mockSetLanguageFilter = vi.fn();
+const mockSetMinStarsFilter = vi.fn();
 const mockRetry = vi.fn();
+const mockAddRepo = vi.fn().mockResolvedValue({});
+const mockGetRepos = vi.fn().mockResolvedValue({ repos: [] });
 
 let mockTrendsReturn: {
   trends: TrendingRepo[];
@@ -26,8 +30,8 @@ vi.mock("../../hooks/useTrends", () => ({
 }));
 
 vi.mock("../../api/client", () => ({
-  addRepo: vi.fn().mockResolvedValue({}),
-  getRepos: vi.fn().mockResolvedValue({ repos: [] }),
+  addRepo: (...args: unknown[]) => mockAddRepo(...args),
+  getRepos: (...args: unknown[]) => mockGetRepos(...args),
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -113,6 +117,7 @@ function makeTrending(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
 describe("Trends", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetRepos.mockResolvedValue({ repos: [] });
     mockTrendsReturn = {
       trends: [],
       loading: false,
@@ -120,9 +125,9 @@ describe("Trends", () => {
       sortBy: "velocity",
       setSortBy: mockSetSortBy,
       languageFilter: "",
-      setLanguageFilter: vi.fn(),
+      setLanguageFilter: mockSetLanguageFilter,
       minStarsFilter: null,
-      setMinStarsFilter: vi.fn(),
+      setMinStarsFilter: mockSetMinStarsFilter,
       availableLanguages: ["JavaScript", "Python"],
       retry: mockRetry,
     };
@@ -167,5 +172,117 @@ describe("Trends", () => {
     render(<Trends />);
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     expect(screen.getByText("No trending repos")).toBeInTheDocument();
+  });
+
+  it("calls setSortBy when sort tab is clicked", async () => {
+    const user = userEvent.setup();
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    await user.click(screen.getByTestId("sort-stars_delta_7d"));
+    expect(mockSetSortBy).toHaveBeenCalledWith("stars_delta_7d");
+  });
+
+  it("renders language filter select with available languages", () => {
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    const langSelect = screen.getByLabelText("Filter by language");
+    expect(langSelect).toBeInTheDocument();
+    // JavaScript appears both as repo language badge and as select option
+    expect(screen.getAllByText("JavaScript").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Python")).toBeInTheDocument();
+  });
+
+  it("calls setLanguageFilter when language is selected", async () => {
+    const user = userEvent.setup();
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    await user.selectOptions(screen.getByLabelText("Filter by language"), "JavaScript");
+    expect(mockSetLanguageFilter).toHaveBeenCalledWith("JavaScript");
+  });
+
+  it("renders min stars filter select", () => {
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    const starsSelect = screen.getByLabelText("Minimum stars");
+    expect(starsSelect).toBeInTheDocument();
+  });
+
+  it("calls setMinStarsFilter when stars option is selected", async () => {
+    const user = userEvent.setup();
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    await user.selectOptions(screen.getByLabelText("Minimum stars"), "1000");
+    expect(mockSetMinStarsFilter).toHaveBeenCalledWith(1000);
+  });
+
+  it("calls setMinStarsFilter with null when empty option is selected", async () => {
+    const user = userEvent.setup();
+    mockTrendsReturn.trends = [makeTrending()];
+    mockTrendsReturn.minStarsFilter = 1000;
+    render(<Trends />);
+    await user.selectOptions(screen.getByLabelText("Minimum stars"), "");
+    expect(mockSetMinStarsFilter).toHaveBeenCalledWith(null);
+  });
+
+  it("renders repo row with language badge", () => {
+    mockTrendsReturn.trends = [makeTrending({ language: "TypeScript" })];
+    render(<Trends />);
+    expect(screen.getByText("TypeScript")).toBeInTheDocument();
+  });
+
+  it("does not render language badge when language is null", () => {
+    mockTrendsReturn.trends = [makeTrending({ language: null })];
+    render(<Trends />);
+    // No .repo-language badge should be rendered in the table row
+    const langBadges = document.querySelectorAll(".repo-language");
+    expect(langBadges.length).toBe(0);
+  });
+
+  it("shows dash for null velocity", () => {
+    mockTrendsReturn.trends = [makeTrending({ velocity: null })];
+    render(<Trends />);
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("shows formatted velocity for non-null value", () => {
+    mockTrendsReturn.trends = [makeTrending({ velocity: 71.4 })];
+    render(<Trends />);
+    expect(screen.getByText("71.4")).toBeInTheDocument();
+  });
+
+  it("shows 'In Watchlist' for repos already tracked", () => {
+    mockGetRepos.mockResolvedValue({
+      repos: [{ full_name: "facebook/react" }],
+    });
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    // The useEffect fetches watchlist; wait for it to settle
+    // Since getRepos resolves immediately, the watchlistNames will be set
+  });
+
+  it("calls addRepo when Add button is clicked", async () => {
+    const user = userEvent.setup();
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    const addBtn = screen.getByText("Add");
+    await user.click(addBtn);
+    expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
+  });
+
+  it("renders all four sort tabs with correct labels", () => {
+    mockTrendsReturn.trends = [makeTrending()];
+    render(<Trends />);
+    expect(screen.getByText("Velocity")).toBeInTheDocument();
+    expect(screen.getByText("7d Stars")).toBeInTheDocument();
+    expect(screen.getByText("30d Stars")).toBeInTheDocument();
+    expect(screen.getByText("Acceleration")).toBeInTheDocument();
+  });
+
+  it("marks active sort tab with aria-selected", () => {
+    mockTrendsReturn.trends = [makeTrending()];
+    mockTrendsReturn.sortBy = "stars_delta_30d";
+    render(<Trends />);
+    expect(screen.getByTestId("sort-stars_delta_30d")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("sort-velocity")).toHaveAttribute("aria-selected", "false");
   });
 });

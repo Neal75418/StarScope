@@ -30,6 +30,10 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
 const mockHandleRetry = vi.fn();
 const mockOpenAddDialog = vi.fn();
 const mockHandleRefreshAll = vi.fn();
+const mockHandleRecalculateAll = vi.fn();
+const mockClearError = vi.fn();
+const mockSetSearchQuery = vi.fn();
+const mockSetSelectedCategoryId = vi.fn();
 
 let mockWatchlistReturn: Record<string, unknown>;
 
@@ -147,7 +151,21 @@ vi.mock("../../components/Toast", () => ({
 }));
 
 vi.mock("../../components/EmptyState", () => ({
-  EmptyState: ({ title }: { title: string }) => <div data-testid="empty-state">{title}</div>,
+  EmptyState: ({
+    title,
+    description,
+  }: {
+    title: string;
+    description?: string;
+    icon?: React.ReactNode;
+    actionLabel?: string;
+    onAction?: () => void;
+  }) => (
+    <div data-testid="empty-inner">
+      <span>{title}</span>
+      {description && <span>{description}</span>}
+    </div>
+  ),
 }));
 
 describe("Watchlist", () => {
@@ -175,13 +193,13 @@ describe("Watchlist", () => {
       cancelRemoveRepo: vi.fn(),
       handleFetchRepo: vi.fn(),
       handleRefreshAll: mockHandleRefreshAll,
-      handleRecalculateAll: vi.fn(),
+      handleRecalculateAll: mockHandleRecalculateAll,
       handleRetry: mockHandleRetry,
       openAddDialog: mockOpenAddDialog,
       closeAddDialog: vi.fn(),
-      clearError: vi.fn(),
-      setSelectedCategoryId: vi.fn(),
-      setSearchQuery: vi.fn(),
+      clearError: mockClearError,
+      setSelectedCategoryId: mockSetSelectedCategoryId,
+      setSearchQuery: mockSetSearchQuery,
     };
   });
 
@@ -196,14 +214,15 @@ describe("Watchlist", () => {
     mockWatchlistReturn.isConnected = false;
     render(<Watchlist />);
     expect(screen.getByText("Connection Error")).toBeInTheDocument();
+    expect(screen.getByText("Auto-retrying...")).toBeInTheDocument();
     await user.click(screen.getByText("Retry"));
     expect(mockHandleRetry).toHaveBeenCalled();
   });
 
   it("shows empty state when no repos", () => {
     render(<Watchlist />);
-    expect(screen.getAllByTestId("empty-state").length).toBeGreaterThan(0);
     expect(screen.getByText("No repos yet")).toBeInTheDocument();
+    expect(screen.getByText("Add a repo to get started")).toBeInTheDocument();
   });
 
   it("renders repo cards when repos exist", () => {
@@ -219,5 +238,85 @@ describe("Watchlist", () => {
     render(<Watchlist />);
     expect(screen.getByLabelText("Add Repo")).toBeInTheDocument();
     expect(screen.getByLabelText("Refresh All")).toBeInTheDocument();
+  });
+
+  it("shows error banner and clears it on click", async () => {
+    const user = userEvent.setup();
+    mockWatchlistReturn.error = "Something went wrong";
+    render(<Watchlist />);
+    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    await user.click(screen.getByText("x"));
+    expect(mockClearError).toHaveBeenCalled();
+  });
+
+  it("shows 'no results' empty state when search has no matches", () => {
+    mockWatchlistReturn.repos = [makeRepo()];
+    mockWatchlistReturn.displayedRepos = [];
+    mockWatchlistReturn.searchQuery = "nonexistent";
+    render(<Watchlist />);
+    expect(screen.getByText("No results found")).toBeInTheDocument();
+  });
+
+  it("shows 'no category' empty state when category filter has no matches", () => {
+    mockWatchlistReturn.repos = [makeRepo()];
+    mockWatchlistReturn.displayedRepos = [];
+    mockWatchlistReturn.selectedCategoryId = 5;
+    mockWatchlistReturn.searchQuery = "";
+    render(<Watchlist />);
+    expect(screen.getByText("No repos in category")).toBeInTheDocument();
+  });
+
+  it("shows filter indicator when category is selected", () => {
+    const repos = [makeRepo()];
+    mockWatchlistReturn.repos = repos;
+    mockWatchlistReturn.displayedRepos = repos;
+    mockWatchlistReturn.selectedCategoryId = 3;
+    render(<Watchlist />);
+    expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
+  });
+
+  it("shows filter indicator when search query is active", () => {
+    const repos = [makeRepo()];
+    mockWatchlistReturn.repos = repos;
+    mockWatchlistReturn.displayedRepos = repos;
+    mockWatchlistReturn.searchQuery = "react";
+    render(<Watchlist />);
+    expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
+  });
+
+  it("calls openAddDialog when Add Repo button is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Watchlist />);
+    await user.click(screen.getByTestId("add-repo-btn"));
+    expect(mockOpenAddDialog).toHaveBeenCalled();
+  });
+
+  it("calls handleRefreshAll when Refresh All button is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Watchlist />);
+    await user.click(screen.getByTestId("refresh-all-btn"));
+    expect(mockHandleRefreshAll).toHaveBeenCalled();
+  });
+
+  it("shows 'Refreshing...' when isRefreshing is true", () => {
+    mockWatchlistReturn.isRefreshing = true;
+    render(<Watchlist />);
+    expect(screen.getByText("Refreshing...")).toBeInTheDocument();
+  });
+
+  it("shows 'Calculating...' when isRecalculating is true", () => {
+    mockWatchlistReturn.isRecalculatingSimilarities = true;
+    render(<Watchlist />);
+    expect(screen.getByText("Calculating...")).toBeInTheDocument();
+  });
+
+  it("renders search input", () => {
+    render(<Watchlist />);
+    expect(screen.getByTestId("watchlist-search")).toBeInTheDocument();
+  });
+
+  it("renders category sidebar", () => {
+    render(<Watchlist />);
+    expect(screen.getByTestId("category-sidebar")).toBeInTheDocument();
   });
 });
