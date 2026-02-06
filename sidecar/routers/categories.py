@@ -213,17 +213,35 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 # Endpoints
 @router.get("/", response_model=CategoryListResponse)
 async def list_categories(
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
     """
-    List all categories (flat list).
+    List all categories (flat list) with pagination.
+
+    Args:
+        skip: Number of records to skip (default: 0)
+        limit: Maximum number of records to return (default: 100, max: 500)
     """
-    categories = db.query(Category).order_by(Category.sort_order, Category.name).all()
+    # Cap limit to prevent excessive data retrieval
+    limit = min(limit, 500)
+
+    # Get total count
+    total = db.query(Category).count()
+
+    categories = (
+        db.query(Category)
+        .order_by(Category.sort_order, Category.name)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
     repo_count_map = _build_repo_count_map(db)
 
     return CategoryListResponse(
         categories=[_category_to_response(c, repo_count_map) for c in categories],
-        total=len(categories),
+        total=total,
     )
 
 
@@ -336,16 +354,35 @@ async def delete_category(
 @router.get("/{category_id}/repos", response_model=CategoryReposResponse)
 async def get_category_repos(
     category_id: int,
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
     """
-    Get all repositories in a category.
+    Get all repositories in a category with pagination.
+
+    Args:
+        category_id: The category ID
+        skip: Number of records to skip (default: 0)
+        limit: Maximum number of records to return (default: 100, max: 500)
     """
+    # Cap limit to prevent excessive data retrieval
+    limit = min(limit, 500)
+
     category = _get_category_or_404(category_id, db)
 
-    repo_categories = db.query(RepoCategory).filter(
+    # Get total count
+    total = db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id
-    ).all()
+    ).count()
+
+    repo_categories = (
+        db.query(RepoCategory)
+        .filter(RepoCategory.category_id == category_id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
     repos = [_repo_category_to_response(rc) for rc in repo_categories]
 
@@ -353,7 +390,7 @@ async def get_category_repos(
         category_id=category_id,
         category_name=category.name,
         repos=repos,
-        total=len(repos),
+        total=total,
     )
 
 

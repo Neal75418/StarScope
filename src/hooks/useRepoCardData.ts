@@ -33,7 +33,8 @@ export function useRepoCardData(repoId: number): UseRepoCardDataResult {
     (response) => response.badges,
     [] as ContextBadge[],
     [repoId, refreshKey],
-    "badges"
+    "badges",
+    { cacheKey: `badges:${repoId}:${refreshKey}` }
   );
 
   const { data: signals, loading: signalsLoading } = useAsyncFetch(
@@ -41,7 +42,8 @@ export function useRepoCardData(repoId: number): UseRepoCardDataResult {
     (response) => response.signals,
     [] as EarlySignal[],
     [repoId],
-    "signals"
+    "signals",
+    { cacheKey: `signals:${repoId}` }
   );
 
   // Count active (unacknowledged) signals

@@ -188,10 +188,29 @@ async def list_signal_types():
 
 
 @router.get("/rules", response_model=List[AlertRuleResponse])
-async def list_rules(db: Session = Depends(get_db)):
-    """List all alert rules."""
+async def list_rules(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """
+    List all alert rules with pagination.
+
+    Args:
+        skip: Number of records to skip (default: 0)
+        limit: Maximum number of records to return (default: 100, max: 500)
+    """
+    # Cap limit to prevent excessive data retrieval
+    limit = min(limit, 500)
+
     # Use joinedload to prevent N+1 queries when accessing rule.repo
-    rules = db.query(AlertRule).options(joinedload(AlertRule.repo)).all()
+    rules = (
+        db.query(AlertRule)
+        .options(joinedload(AlertRule.repo))
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
     return [_to_alert_rule_response(rule) for rule in rules]
 

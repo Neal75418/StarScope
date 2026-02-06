@@ -54,7 +54,9 @@ export function RepoCard({
         onToggleSimilar={handleToggleSimilar}
         onFetch={handleFetch}
         onRemove={handleRemove}
-        onRemoveFromCategory={selectedCategoryId && onRemoveFromCategory ? handleRemoveFromCategory : undefined}
+        onRemoveFromCategory={
+          selectedCategoryId && onRemoveFromCategory ? handleRemoveFromCategory : undefined
+        }
       />
 
       <RepoCardContent

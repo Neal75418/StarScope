@@ -38,10 +38,14 @@ def get_scheduler() -> AsyncIOScheduler:
     return _scheduler
 
 
-async def fetch_all_repos_job():
+async def fetch_all_repos_job(skip_recent_minutes: int = 30):
     """
     Background job to fetch all repos in the watchlist.
     This runs periodically based on the configured interval.
+
+    Args:
+        skip_recent_minutes: Skip repos fetched within this many minutes (default: 30).
+                           This prevents re-fetching after a restart.
     """
     logger.info("Starting scheduled fetch for all repos...")
 
@@ -53,10 +57,29 @@ async def fetch_all_repos_job():
             logger.info("No repos in watchlist, skipping fetch")
             return
 
+        # Get last fetch time for each repo to enable smart skipping
+        from sqlalchemy import func
+        recent_threshold = utc_now() - timedelta(minutes=skip_recent_minutes)
+
+        # Query repos with their latest snapshot fetch time
+        latest_fetches = dict(
+            db.query(RepoSnapshot.repo_id, func.max(RepoSnapshot.fetched_at))
+            .group_by(RepoSnapshot.repo_id)
+            .all()
+        )
+
         success_count = 0
         error_count = 0
+        skipped_count = 0
 
         for repo in repos:
+            # Skip repos that were recently fetched (prevents redundant fetches after restart)
+            last_fetch = latest_fetches.get(repo.id)
+            if last_fetch and last_fetch > recent_threshold:
+                skipped_count += 1
+                logger.debug(f"Skipping {repo.full_name}: fetched {(utc_now() - last_fetch).seconds // 60}min ago")
+                continue
+
             try:
                 # Fetch latest data from GitHub
                 github_data = await fetch_repo_data(repo.owner, repo.name)
@@ -109,7 +132,10 @@ async def fetch_all_repos_job():
                 db.rollback()
                 logger.error(f"Error fetching {repo.full_name}: {e}", exc_info=True)
 
-        logger.info(f"Scheduled fetch complete: {success_count} success, {error_count} errors")
+        logger.info(
+            f"Scheduled fetch complete: {success_count} success, "
+            f"{error_count} errors, {skipped_count} skipped (recently fetched)"
+        )
 
     except Exception as e:
         logger.error(f"Scheduler job error: {e}", exc_info=True)
