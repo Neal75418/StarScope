@@ -179,9 +179,7 @@ function RepoList({
           </div>
         );
       })}
-      {renderCount < repos.length && (
-        <div ref={sentinelRef} style={{ height: 1 }} />
-      )}
+      {renderCount < repos.length && <div ref={sentinelRef} style={{ height: 1 }} />}
     </div>
   );
 }

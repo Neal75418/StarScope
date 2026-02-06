@@ -7,7 +7,10 @@ import { useEffect, useRef, RefObject } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function useFocusTrap(isActive: boolean, autoFocus = true): RefObject<HTMLDivElement | null> {
+export function useFocusTrap(
+  isActive: boolean,
+  autoFocus = true
+): RefObject<HTMLDivElement | null> {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
@@ -19,7 +22,8 @@ export function useFocusTrap(isActive: boolean, autoFocus = true): RefObject<HTM
 
     // 聚焦容器內第一個可聚焦元素（呼叫端自行管理焦點時跳過）
     if (autoFocus) {
-      const focusableElements = containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+      const focusableElements =
+        containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
       if (focusableElements.length > 0) {
         focusableElements[0].focus();
       }
@@ -54,7 +58,7 @@ export function useFocusTrap(isActive: boolean, autoFocus = true): RefObject<HTM
       // 還原先前的焦點元素
       previousFocusRef.current?.focus();
     };
-  }, [isActive]);
+  }, [isActive, autoFocus]);
 
   return containerRef;
 }

@@ -33,20 +33,21 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([
-      getContextBadgesBatch(repoIds),
-      getRepoSignalsBatch(repoIds),
-    ]).then(([badges, signals]) => {
-      if (!cancelled) {
-        setBadgesMap(badges);
-        setSignalsMap(signals);
-        setLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+    Promise.all([getContextBadgesBatch(repoIds), getRepoSignalsBatch(repoIds)])
+      .then(([badges, signals]) => {
+        if (!cancelled) {
+          setBadgesMap(badges);
+          setSignalsMap(signals);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 

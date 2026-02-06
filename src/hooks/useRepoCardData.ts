@@ -27,10 +27,7 @@ interface PreloadedData {
   signals?: EarlySignal[];
 }
 
-export function useRepoCardData(
-  repoId: number,
-  preloaded?: PreloadedData
-): UseRepoCardDataResult {
+export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseRepoCardDataResult {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
 
@@ -60,8 +57,8 @@ export function useRepoCardData(
   );
 
   // 優先使用預載資料，手動刷新後改用 fetch 結果
-  const badges = skipBadgesFetch ? preloaded.badges! : fetchedBadges;
-  const signals = skipSignalsFetch ? preloaded.signals! : fetchedSignals;
+  const badges = skipBadgesFetch ? (preloaded.badges ?? []) : fetchedBadges;
+  const signals = skipSignalsFetch ? (preloaded.signals ?? []) : fetchedSignals;
 
   // 計算未確認的活躍 signals 數量
   const activeSignalCount = signals.filter((s) => !s.acknowledged).length;

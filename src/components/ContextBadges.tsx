@@ -43,13 +43,7 @@ function formatTimeAgo(dateStr: string): string {
   return `${Math.floor(diffDays / 365)}y ago`;
 }
 
-function HnDiscussionPanel({
-  signals,
-  loading,
-}: {
-  signals: ContextSignal[];
-  loading: boolean;
-}) {
+function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loading: boolean }) {
   const { t } = useI18n();
 
   const handleOpenUrl = async (e: React.MouseEvent, url: string) => {
@@ -86,15 +80,11 @@ function HnDiscussionPanel({
             {signal.title || "Untitled"}
           </a>
           <div className="hn-discussion-meta">
-            {signal.score != null && (
-              <span className="hn-meta-item">▲ {signal.score}</span>
-            )}
+            {signal.score != null && <span className="hn-meta-item">▲ {signal.score}</span>}
             {signal.comment_count != null && (
               <span className="hn-meta-item">💬 {signal.comment_count}</span>
             )}
-            {signal.author && (
-              <span className="hn-meta-item hn-meta-author">{signal.author}</span>
-            )}
+            {signal.author && <span className="hn-meta-item hn-meta-author">{signal.author}</span>}
             {signal.published_at && (
               <span className="hn-meta-item">{formatTimeAgo(signal.published_at)}</span>
             )}
@@ -161,9 +151,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
         })}
       </div>
 
-      {expanded && (
-        <HnDiscussionPanel signals={signals} loading={signalsLoading} />
-      )}
+      {expanded && <HnDiscussionPanel signals={signals} loading={signalsLoading} />}
     </div>
   );
 }

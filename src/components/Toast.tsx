@@ -35,7 +35,10 @@ export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
   };
 
   return (
-    <div className={`toast toast-${toast.type}`} role={toast.type === "error" ? "alert" : undefined}>
+    <div
+      className={`toast toast-${toast.type}`}
+      role={toast.type === "error" ? "alert" : undefined}
+    >
       <span className="toast-icon">{icons[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
       <button className="toast-dismiss" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">

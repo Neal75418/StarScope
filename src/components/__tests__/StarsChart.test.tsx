@@ -125,9 +125,7 @@ describe("StarsChart", () => {
     render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/資料不足，至少需要 2 個資料點才能繪製圖表/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/資料不足，至少需要 2 個資料點才能繪製圖表/)).toBeInTheDocument();
     });
   });
 

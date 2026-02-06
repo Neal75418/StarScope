@@ -30,9 +30,10 @@ export const RepoCard = memo(function RepoCard({
   preloadedBadges,
   preloadedSignals,
 }: RepoCardProps) {
-  const preloaded = preloadedBadges || preloadedSignals
-    ? { badges: preloadedBadges, signals: preloadedSignals }
-    : undefined;
+  const preloaded =
+    preloadedBadges || preloadedSignals
+      ? { badges: preloadedBadges, signals: preloadedSignals }
+      : undefined;
   const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
     useRepoCardData(repo.id, preloaded);
   const [showChart, setShowChart] = useState(false);

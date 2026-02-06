@@ -146,20 +146,36 @@ export function Trends() {
                 <th className="delta-col">{t.trends.columns.delta30d}</th>
                 <th className="velocity-col">{t.trends.columns.velocity}</th>
                 <th className="trend-col">{t.repo.trend}</th>
-                <th className="action-col"></th>
+                <th className="action-col" />
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: 10 }).map((_, i) => (
                 <tr key={i}>
-                  <td className="rank-col"><Skeleton width={24} height={24} variant="circular" /></td>
-                  <td className="repo-col"><Skeleton width="70%" height={16} /></td>
-                  <td className="stars-col"><Skeleton width={40} height={16} /></td>
-                  <td className="delta-col"><Skeleton width={40} height={16} /></td>
-                  <td className="delta-col"><Skeleton width={40} height={16} /></td>
-                  <td className="velocity-col"><Skeleton width={30} height={16} /></td>
-                  <td className="trend-col"><Skeleton width={20} height={16} /></td>
-                  <td className="action-col"><Skeleton width={60} height={24} variant="rounded" /></td>
+                  <td className="rank-col">
+                    <Skeleton width={24} height={24} variant="circular" />
+                  </td>
+                  <td className="repo-col">
+                    <Skeleton width="70%" height={16} />
+                  </td>
+                  <td className="stars-col">
+                    <Skeleton width={40} height={16} />
+                  </td>
+                  <td className="delta-col">
+                    <Skeleton width={40} height={16} />
+                  </td>
+                  <td className="delta-col">
+                    <Skeleton width={40} height={16} />
+                  </td>
+                  <td className="velocity-col">
+                    <Skeleton width={30} height={16} />
+                  </td>
+                  <td className="trend-col">
+                    <Skeleton width={20} height={16} />
+                  </td>
+                  <td className="action-col">
+                    <Skeleton width={60} height={24} variant="rounded" />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -220,7 +236,9 @@ export function Trends() {
           >
             <option value="">{t.trends.filters.allLanguages}</option>
             {availableLanguages.map((lang) => (
-              <option key={lang} value={lang}>{lang}</option>
+              <option key={lang} value={lang}>
+                {lang}
+              </option>
             ))}
           </select>
 
@@ -232,7 +250,9 @@ export function Trends() {
           >
             <option value="">{t.trends.filters.minStars}</option>
             {MIN_STARS_OPTIONS.map((n) => (
-              <option key={n} value={n}>≥ {formatNumber(n)}</option>
+              <option key={n} value={n}>
+                ≥ {formatNumber(n)}
+              </option>
             ))}
           </select>
         </div>
@@ -254,7 +274,7 @@ export function Trends() {
                 <th className="delta-col">{t.trends.columns.delta30d}</th>
                 <th className="velocity-col">{t.trends.columns.velocity}</th>
                 <th className="trend-col">{t.repo.trend}</th>
-                <th className="action-col"></th>
+                <th className="action-col" />
               </tr>
             </thead>
             <tbody>

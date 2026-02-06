@@ -43,10 +43,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
     <div className="similarity-bar-row">
       <span className="similarity-bar-label">{label}</span>
       <div className="similarity-bar-track">
-        <div
-          className="similarity-bar-fill"
-          style={{ width: `${pct}%` }}
-        />
+        <div className="similarity-bar-fill" style={{ width: `${pct}%` }} />
       </div>
       <span className="similarity-bar-value">{pct}%</span>
     </div>
