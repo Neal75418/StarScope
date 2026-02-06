@@ -176,7 +176,7 @@ def check_alerts_job():
 async def fetch_context_signals_job():
     """
     Background job to fetch context signals for all repos.
-    Fetches from Hacker News.
+    Fetches from Hacker News and runs cleanup.
     """
     logger.info("Starting scheduled context signals fetch...")
 
@@ -188,6 +188,12 @@ async def fetch_context_signals_job():
             f"HN={result['new_hn_signals']}, "
             f"Errors={result['errors']}"
         )
+
+        # Run cleanup to prevent unbounded growth
+        from services.context_fetcher import cleanup_old_context_signals
+        cleanup_stats = cleanup_old_context_signals(db)
+        if cleanup_stats["deleted_by_age"] > 0 or cleanup_stats["deleted_by_limit"] > 0:
+            logger.info(f"Context signal cleanup: {cleanup_stats}")
     except Exception as e:
         logger.error(f"Context signals job error: {e}", exc_info=True)
     finally:

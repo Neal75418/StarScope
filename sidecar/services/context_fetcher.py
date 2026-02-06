@@ -4,13 +4,19 @@ Simplified to only fetch from Hacker News.
 """
 
 import logging
+from datetime import timedelta
 from typing import List, Dict, Any
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.models import Repo, ContextSignal, ContextSignalType
 from services.hacker_news import fetch_hn_mentions, HNStory
 from utils.time import utc_now
+
+# Cleanup configuration
+CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # Remove signals older than this
+CONTEXT_SIGNAL_MAX_PER_REPO = 100  # Keep at most this many signals per repo
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +151,73 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
         "new_hn_signals": total_hn,
         "errors": errors,
     }
+
+
+def cleanup_old_context_signals(
+    db: Session,
+    max_age_days: int = CONTEXT_SIGNAL_MAX_AGE_DAYS,
+    max_per_repo: int = CONTEXT_SIGNAL_MAX_PER_REPO
+) -> Dict[str, int]:
+    """
+    Remove old context signals to prevent unbounded database growth.
+
+    Strategy:
+    1. Remove signals older than max_age_days
+    2. Keep only max_per_repo most recent signals per repo
+
+    Args:
+        db: Database session
+        max_age_days: Remove signals older than this (default: 90)
+        max_per_repo: Keep at most this many signals per repo (default: 100)
+
+    Returns:
+        Statistics about cleanup: {deleted_by_age, deleted_by_limit}
+    """
+    stats = {"deleted_by_age": 0, "deleted_by_limit": 0}
+
+    # 1. Delete signals older than max_age_days
+    cutoff_date = utc_now() - timedelta(days=max_age_days)
+    deleted_by_age = db.query(ContextSignal).filter(
+        ContextSignal.fetched_at < cutoff_date
+    ).delete(synchronize_session=False)
+    stats["deleted_by_age"] = deleted_by_age
+
+    # 2. For each repo, keep only the most recent max_per_repo signals
+    # First, get repo IDs that have more than max_per_repo signals
+    repo_counts = (
+        db.query(ContextSignal.repo_id, func.count(ContextSignal.id).label("count"))
+        .group_by(ContextSignal.repo_id)
+        .having(func.count(ContextSignal.id) > max_per_repo)
+        .all()
+    )
+
+    for repo_id, _ in repo_counts:
+        # Get the IDs of signals to keep (most recent max_per_repo)
+        keep_ids = (
+            db.query(ContextSignal.id)
+            .filter(ContextSignal.repo_id == repo_id)
+            .order_by(ContextSignal.fetched_at.desc())
+            .limit(max_per_repo)
+            .subquery()
+        )
+
+        # Delete signals not in the keep list
+        deleted = (
+            db.query(ContextSignal)
+            .filter(
+                ContextSignal.repo_id == repo_id,
+                ~ContextSignal.id.in_(keep_ids)
+            )
+            .delete(synchronize_session=False)
+        )
+        stats["deleted_by_limit"] += deleted
+
+    db.commit()
+
+    if stats["deleted_by_age"] > 0 or stats["deleted_by_limit"] > 0:
+        logger.info(
+            f"Context signal cleanup: {stats['deleted_by_age']} by age, "
+            f"{stats['deleted_by_limit']} by limit"
+        )
+
+    return stats

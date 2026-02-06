@@ -1012,6 +1012,9 @@ body {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  /* Performance: skip rendering for off-screen cards */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 180px;
 }
 
 .repo-card::before {
