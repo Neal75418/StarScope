@@ -59,7 +59,8 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
 
         # Get last fetch time for each repo to enable smart skipping
         from sqlalchemy import func
-        recent_threshold = utc_now() - timedelta(minutes=skip_recent_minutes)
+        # Use naive datetime for comparison with DB values (SQLite stores naive datetimes)
+        recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
 
         # Query repos with their latest snapshot fetch time
         latest_fetches = dict(
@@ -77,7 +78,9 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
             last_fetch = latest_fetches.get(repo.id)
             if last_fetch and last_fetch > recent_threshold:
                 skipped_count += 1
-                logger.debug(f"Skipping {repo.full_name}: fetched {(utc_now() - last_fetch).seconds // 60}min ago")
+                # Use naive datetime for comparison
+                now_naive = utc_now().replace(tzinfo=None)
+                logger.debug(f"Skipping {repo.full_name}: fetched {(now_naive - last_fetch).seconds // 60}min ago")
                 continue
 
             try:
