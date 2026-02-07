@@ -79,8 +79,9 @@ export function AlertRuleForm({
     <form className="alert-rule-form" onSubmit={handleSubmit}>
       <div className="form-row">
         <div className="form-group">
-          <label>{t.settings.alerts.form.name}</label>
+          <label htmlFor="alert-rule-name">{t.settings.alerts.form.name}</label>
           <input
+            id="alert-rule-name"
             type="text"
             value={rule.name}
             onChange={(e) => setRule({ ...rule, name: e.target.value })}
@@ -92,8 +93,9 @@ export function AlertRuleForm({
 
       <div className="form-row">
         <div className="form-group">
-          <label>{t.settings.alerts.form.condition}</label>
+          <label htmlFor="alert-rule-signal">{t.settings.alerts.form.condition}</label>
           <select
+            id="alert-rule-signal"
             value={rule.signal_type}
             onChange={(e) => setRule({ ...rule, signal_type: e.target.value })}
           >
@@ -104,9 +106,9 @@ export function AlertRuleForm({
             ))}
           </select>
         </div>
-        <div className="form-group form-group-small">
-          <label>&nbsp;</label>
+        <div className="form-group form-group-small form-group-no-label">
           <select
+            aria-label={t.settings.alerts.form.operator}
             value={rule.operator}
             onChange={(e) => setRule({ ...rule, operator: e.target.value as AlertOperator })}
           >
@@ -118,8 +120,9 @@ export function AlertRuleForm({
           </select>
         </div>
         <div className="form-group form-group-small">
-          <label>{t.settings.alerts.form.threshold}</label>
+          <label htmlFor="alert-rule-threshold">{t.settings.alerts.form.threshold}</label>
           <input
+            id="alert-rule-threshold"
             type="number"
             value={rule.threshold}
             onChange={(e) => setRule({ ...rule, threshold: parseFloat(e.target.value) || 0 })}

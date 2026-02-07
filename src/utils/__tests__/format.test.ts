@@ -16,11 +16,17 @@ describe("formatNumber", () => {
     expect(formatNumber(999)).toBe("999");
   });
 
-  it("formats numbers >= 1000 with k suffix", () => {
-    expect(formatNumber(1000)).toBe("1.0k");
-    expect(formatNumber(1500)).toBe("1.5k");
-    expect(formatNumber(2345)).toBe("2.3k");
-    expect(formatNumber(220000)).toBe("220.0k");
+  it("formats numbers >= 1000 with K suffix", () => {
+    expect(formatNumber(1000)).toBe("1.0K");
+    expect(formatNumber(1500)).toBe("1.5K");
+    expect(formatNumber(2345)).toBe("2.3K");
+    expect(formatNumber(220000)).toBe("220.0K");
+  });
+
+  it("formats numbers >= 1000000 with M suffix", () => {
+    expect(formatNumber(1000000)).toBe("1.0M");
+    expect(formatNumber(1500000)).toBe("1.5M");
+    expect(formatNumber(2345678)).toBe("2.3M");
   });
 
   it("formats decimal numbers correctly", () => {
@@ -50,14 +56,19 @@ describe("formatDelta", () => {
     expect(formatDelta(-999)).toBe("-999");
   });
 
-  it("formats large positive numbers with k suffix and plus sign", () => {
-    expect(formatDelta(1000)).toBe("+1.0k");
-    expect(formatDelta(2500)).toBe("+2.5k");
+  it("formats large positive numbers with K suffix and plus sign", () => {
+    expect(formatDelta(1000)).toBe("+1.0K");
+    expect(formatDelta(2500)).toBe("+2.5K");
   });
 
-  it("formats large negative numbers with k suffix", () => {
-    expect(formatDelta(-1000)).toBe("-1.0k");
-    expect(formatDelta(-2500)).toBe("-2.5k");
+  it("formats large negative numbers with K suffix", () => {
+    expect(formatDelta(-1000)).toBe("-1.0K");
+    expect(formatDelta(-2500)).toBe("-2.5K");
+  });
+
+  it("formats million-scale numbers with M suffix", () => {
+    expect(formatDelta(1000000)).toBe("+1.0M");
+    expect(formatDelta(-1500000)).toBe("-1.5M");
   });
 });
 

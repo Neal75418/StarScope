@@ -26,6 +26,7 @@ vi.mock("../../api/client", () => {
 
 // Import after mock setup
 import { searchRepos, ApiError } from "../../api/client";
+import { TranslationKeys } from "../../i18n/translations";
 const mockSearchRepos = vi.mocked(searchRepos);
 
 const mockT = {
@@ -35,7 +36,7 @@ const mockT = {
       rateLimit: "Rate limit exceeded",
     },
   },
-};
+} as unknown as TranslationKeys;
 
 describe("searchHelpers", () => {
   describe("buildCombinedQuery", () => {

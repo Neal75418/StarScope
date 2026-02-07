@@ -2,6 +2,8 @@
  * Backfill 操作按鈕元件。
  */
 
+import { TranslationKeys } from "../i18n/translations";
+
 interface BackfillControlsProps {
   handleBackfill: () => void;
   loadStatus: () => void;
@@ -9,8 +11,7 @@ interface BackfillControlsProps {
   isOffline: boolean;
   loading: boolean;
   maxStars: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: TranslationKeys;
 }
 
 export function BackfillControls({
@@ -30,7 +31,7 @@ export function BackfillControls({
         disabled={backfilling || isOffline}
         title={
           isOffline
-            ? (t.starHistory.offlineNoBackfill ?? "Cannot backfill while offline")
+            ? t.starHistory.offlineNoBackfill
             : t.starHistory.maxStars.replace("{count}", String(maxStars))
         }
       >
@@ -43,7 +44,7 @@ export function BackfillControls({
           className="btn btn-ghost btn-sm backfill-retry-btn"
           onClick={() => void loadStatus()}
           disabled={loading}
-          title={t.common?.retry ?? "Retry"}
+          title={t.common.retry}
         >
           {loading ? "..." : "↻"}
         </button>

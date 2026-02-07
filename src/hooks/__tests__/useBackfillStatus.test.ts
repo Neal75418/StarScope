@@ -11,16 +11,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      starHistory: {
-        offline: "Offline - showing cached data",
-        backfillFailed: "Failed to load backfill status",
-      },
-    },
-  }),
-}));
 
 describe("useBackfillStatus", () => {
   const mockStatus: apiClient.BackfillStatus = {
@@ -117,7 +107,7 @@ describe("useBackfillStatus", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBe("Failed to load backfill status");
+    expect(result.current.error).toBe("Backfill failed");
   });
 
   it("exposes loadStatus function", async () => {

@@ -84,7 +84,13 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
         </div>
         {status.rate_limit_remaining !== undefined && (
           <div className="status-rate-limit">
-            <span className="rate-limit-numbers">
+            <span
+              className={`rate-limit-numbers${
+                (status.rate_limit_remaining ?? 0) / (status.rate_limit_total || 1) < 0.2
+                  ? " rate-limit-warning"
+                  : ""
+              }`}
+            >
               API: {status.rate_limit_remaining?.toLocaleString()} /{" "}
               {status.rate_limit_total?.toLocaleString()} {t.githubConnection.remaining}
             </span>

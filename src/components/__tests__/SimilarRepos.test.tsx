@@ -22,27 +22,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-// Mock i18n
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        similarRepos: {
-          title: "Similar Repositories",
-          loading: "Loading...",
-          loadError: "Failed to load",
-          empty: "No similar repos found",
-          similarityScore: "Similarity Score",
-          sameLanguage: "Same language",
-          showSimilar: "Show similar",
-          similar: "Similar",
-        },
-      },
-    }),
-  };
-});
 
 describe("SimilarRepos", () => {
   const mockSimilarRepos = {
@@ -101,7 +80,7 @@ describe("SimilarRepos", () => {
     render(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Failed to load")).toBeInTheDocument();
+      expect(screen.getByText("Failed to load recommendations")).toBeInTheDocument();
     });
   });
 
@@ -111,7 +90,7 @@ describe("SimilarRepos", () => {
     render(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("No similar repos found")).toBeInTheDocument();
+      expect(screen.getByText("No similar repos found in your watchlist.")).toBeInTheDocument();
     });
   });
 
@@ -132,7 +111,7 @@ describe("SimilarRepos", () => {
     render(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Same language")).toBeInTheDocument();
+      expect(screen.getByText("Same Language")).toBeInTheDocument();
     });
   });
 
@@ -208,14 +187,14 @@ describe("SimilarReposButton", () => {
     await user.click(screen.getByText("Similar"));
 
     await waitFor(() => {
-      expect(screen.getByText("Similar Repositories")).toBeInTheDocument();
+      expect(screen.getByText("Similar Repos")).toBeInTheDocument();
     });
 
     // Click again to hide
     await user.click(screen.getByText("Similar"));
 
     await waitFor(() => {
-      expect(screen.queryByText("Similar Repositories")).not.toBeInTheDocument();
+      expect(screen.queryByText("Similar Repos")).not.toBeInTheDocument();
     });
   });
 

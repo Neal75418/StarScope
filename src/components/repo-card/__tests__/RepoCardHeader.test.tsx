@@ -16,24 +16,6 @@ vi.mock("../../LanguagesBadge", () => ({
   LanguagesBadge: () => <span data-testid="languages-badge" />,
 }));
 
-vi.mock("../../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        repo: {
-          chart: "Chart",
-          hide: "Hide",
-          similar: "Similar",
-          refresh: "Refresh",
-          remove: "Remove",
-          removeFromCategory: "Remove from category",
-        },
-      },
-    }),
-  };
-});
 
 function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
   return {
@@ -128,6 +110,6 @@ describe("RepoCardHeader", () => {
         onRemoveFromCategory={onRemoveFromCategory}
       />
     );
-    expect(screen.getByTitle("Remove from category")).toBeInTheDocument();
+    expect(screen.getByTitle("Remove from Category")).toBeInTheDocument();
   });
 });

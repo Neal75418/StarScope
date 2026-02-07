@@ -7,6 +7,7 @@ import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashbo
 import { EarlySignal, SignalSummary } from "../api/client";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
+import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 
 // 訊號類型圖示對應
 const SIGNAL_TYPE_CONFIG: Record<string, { icon: string; className: string }> = {
@@ -43,21 +44,6 @@ function StatCard({
 // 統計數據網格
 function StatsGrid({ stats }: { stats: DashboardStats }) {
   const { t } = useI18n();
-
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1)}M`;
-    }
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}K`;
-    }
-    return num.toLocaleString();
-  };
-
-  const formatDelta = (num: number): string => {
-    if (num > 0) return `+${formatNumber(num)}`;
-    return formatNumber(num);
-  };
 
   return (
     <div className="stats-grid">
@@ -100,19 +86,6 @@ function SignalSpotlight({
     viral_hn: t.dashboard.signals.types.viralHn,
   };
 
-  const formatTime = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffHours < 1) return t.dashboard.activity.justNow;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString();
-  };
-
   return (
     <div className="dashboard-section signal-spotlight">
       <div className="signal-spotlight-header">
@@ -153,7 +126,7 @@ function SignalSpotlight({
                   <div className="signal-item-desc">{signal.description}</div>
                 </div>
                 <div className="signal-item-actions">
-                  <span className="signal-item-time">{formatTime(signal.detected_at)}</span>
+                  <span className="signal-item-time">{formatCompactRelativeTime(signal.detected_at, t.dashboard.activity.justNow)}</span>
                   <button
                     className="btn btn-sm signal-ack-btn"
                     onClick={() => onAcknowledge(signal.id)}
@@ -201,19 +174,6 @@ function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
 function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
   const { t } = useI18n();
 
-  const formatTime = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffHours < 1) return t.dashboard.activity.justNow;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString();
-  };
-
   const getActivityIcon = (type: RecentActivity["type"]): string => {
     switch (type) {
       case "repo_added":
@@ -247,7 +207,7 @@ function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
                 <div className="activity-description">{activity.description}</div>
               )}
             </div>
-            <div className="activity-time">{formatTime(activity.timestamp)}</div>
+            <div className="activity-time">{formatCompactRelativeTime(activity.timestamp, t.dashboard.activity.justNow)}</div>
           </div>
         ))}
       </div>

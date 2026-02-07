@@ -9,6 +9,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from db.database import get_db
@@ -152,7 +153,7 @@ def _create_snapshots_from_history(
 
         db.commit()
         return count
-    except Exception:
+    except SQLAlchemyError:
         db.rollback()
         raise
 

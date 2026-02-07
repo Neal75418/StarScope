@@ -7,6 +7,8 @@ import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { formatNumber } from "../../utils/format";
+import { getLanguageColor } from "../../constants/languageColors";
 import styles from "./Discovery.module.css";
 
 interface DiscoveryResultCardProps {
@@ -14,16 +16,6 @@ interface DiscoveryResultCardProps {
   isInWatchlist: boolean;
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   isAdding?: boolean;
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}M`;
-  }
-  if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}K`;
-  }
-  return num.toString();
 }
 
 export function DiscoveryResultCard({
@@ -91,27 +83,4 @@ export function DiscoveryResultCard({
       )}
     </div>
   );
-}
-
-// 語言顏色（GitHub 語言顏色子集）
-function getLanguageColor(language: string): string {
-  const colors: Record<string, string> = {
-    TypeScript: "#3178c6",
-    JavaScript: "#f1e05a",
-    Python: "#3572A5",
-    Rust: "#dea584",
-    Go: "#00ADD8",
-    Java: "#b07219",
-    "C++": "#f34b7d",
-    "C#": "#178600",
-    Swift: "#F05138",
-    Kotlin: "#A97BFF",
-    Ruby: "#701516",
-    PHP: "#4F5D95",
-    Vue: "#41b883",
-    HTML: "#e34c26",
-    CSS: "#563d7c",
-    Shell: "#89e051",
-  };
-  return colors[language] || "#8b949e";
 }

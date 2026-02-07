@@ -7,21 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { ConfirmDialog } from "../ConfirmDialog";
 
-// Mock i18n
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: {
-          confirm: "Confirm",
-          cancel: "Cancel",
-        },
-      },
-    }),
-  };
-});
 
 describe("ConfirmDialog", () => {
   const mockOnConfirm = vi.fn();

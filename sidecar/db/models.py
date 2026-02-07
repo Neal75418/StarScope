@@ -365,7 +365,6 @@ class EarlySignalType:
     SUDDEN_SPIKE = "sudden_spike"    # 單日異常成長
     BREAKOUT = "breakout"            # 加速度轉正
     VIRAL_HN = "viral_hn"            # Hacker News 熱門
-    RELEASE_SURGE = "release_surge"  # 發版後暴漲
 
 
 class EarlySignalSeverity:

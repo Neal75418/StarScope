@@ -182,7 +182,7 @@ class GitHubService:
                 data = handle_github_response(
                     response, raise_on_error=True, context=f"{owner}/{repo}/stats/commit_activity"
                 )
-                return data if data else []
+                return list(data) if data else []
 
         return []
 

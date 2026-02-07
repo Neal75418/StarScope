@@ -13,19 +13,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      commitActivity: {
-        clickToFetch: "Click to fetch commit activity",
-        perWeek: "{count}/wk",
-        failedToLoad: "Failed to load",
-      },
-    },
-  }),
-  interpolate: (template: string, values: Record<string, unknown>) =>
-    template.replace("{count}", String(values.count)),
-}));
 
 describe("CommitActivityBadge", () => {
   beforeEach(() => {

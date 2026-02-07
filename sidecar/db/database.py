@@ -2,6 +2,7 @@
 
 import logging
 import os
+from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
@@ -57,6 +58,7 @@ def set_sqlite_pragma(dbapi_connection, _connection_record):
     """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
 
@@ -68,6 +70,19 @@ def get_db():
     """
     FastAPI 路由的依賴注入。
     產出資料庫 session 並確保使用後關閉。
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@contextmanager
+def get_db_session():
+    """
+    背景任務用的 context manager。
+    FastAPI 路由請用 get_db() 依賴注入。
     """
     db = SessionLocal()
     try:

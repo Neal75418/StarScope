@@ -29,29 +29,6 @@ vi.mock("../../hooks/useNotifications", () => ({
   useNotifications: () => mockReturnValue,
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { loading: "Loading..." },
-        notifications: {
-          title: "Notifications",
-          clear: "Clear",
-          markAllRead: "Mark all as read",
-          empty: "No notifications",
-          viewAll: "View all",
-          unread: "unread",
-          justNow: "Just now",
-          minutesAgo: "{n}m ago",
-          hoursAgo: "{n}h ago",
-          daysAgo: "{n}d ago",
-        },
-      },
-    }),
-  };
-});
 
 function makeNotification(overrides: Partial<Notification> = {}): Notification {
   return {
@@ -176,13 +153,13 @@ describe("NotificationCenter", () => {
     mockReturnValue.notifications = [makeNotification()];
     mockReturnValue.unreadCount = 1;
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.getByText("View all")).toBeInTheDocument();
+    expect(screen.getByText("View all notifications")).toBeInTheDocument();
   });
 
   it("does not show view all footer when list is empty", () => {
     mockReturnValue.isOpen = true;
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.queryByText("View all")).not.toBeInTheDocument();
+    expect(screen.queryByText("View all notifications")).not.toBeInTheDocument();
   });
 
   it("does not show mark all as read when unreadCount is 0", () => {
@@ -292,7 +269,7 @@ describe("NotificationCenter", () => {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     mockReturnValue.notifications = [makeNotification({ timestamp: fiveMinAgo })];
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.getByText("5m ago")).toBeInTheDocument();
+    expect(screen.getByText("5 min ago")).toBeInTheDocument();
   });
 
   it("formats time as hours for older notifications", () => {
@@ -300,7 +277,7 @@ describe("NotificationCenter", () => {
     const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
     mockReturnValue.notifications = [makeNotification({ timestamp: threeHoursAgo })];
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.getByText("3h ago")).toBeInTheDocument();
+    expect(screen.getByText("3 hr ago")).toBeInTheDocument();
   });
 
   it("formats time as days for notifications older than 24h", () => {
@@ -308,7 +285,7 @@ describe("NotificationCenter", () => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
     mockReturnValue.notifications = [makeNotification({ timestamp: twoDaysAgo })];
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.getByText("2d ago")).toBeInTheDocument();
+    expect(screen.getByText("2 days ago")).toBeInTheDocument();
   });
 
   it("closes on click outside", () => {
@@ -335,7 +312,7 @@ describe("NotificationCenter", () => {
     mockReturnValue.isOpen = true;
     mockReturnValue.notifications = [makeNotification()];
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    await user.click(screen.getByText("View all"));
+    await user.click(screen.getByText("View all notifications"));
     expect(mockClose).toHaveBeenCalled();
     expect(mockOnNavigate).toHaveBeenCalledWith("dashboard");
   });

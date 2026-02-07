@@ -10,6 +10,9 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # 從 .env 檔載入環境變數
 load_dotenv()
@@ -24,10 +27,12 @@ ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
 from routers import health, repos, scheduler, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history
 from db import init_db
+from db.database import get_app_data_dir
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
-# 最優先設定 logging
-setup_logging(level="INFO")
+# 最優先設定 logging（非開發 debug 模式時寫入檔案）
+_log_dir = str(get_app_data_dir()) if not DEBUG else None
+setup_logging(level="INFO", log_dir=_log_dir)
 
 
 from typing import AsyncGenerator
@@ -79,12 +84,23 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("[啟動] StarScope Engine 已停止")
 
 
+limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+
 app = FastAPI(
     title="StarScope Engine",
     description="GitHub Project Intelligence API",
     version="0.1.0",
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+async def _handle_rate_limit(_request: "Request", exc: RateLimitExceeded):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=429,
+        content={"detail": f"Rate limit exceeded: {exc.detail}"},
+    )
+
+app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
 
 # GitHub API 錯誤的全域例外處理器。
 # 避免在各 router 中重複 try/except。

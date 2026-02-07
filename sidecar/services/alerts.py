@@ -4,6 +4,7 @@ import logging
 import operator as op
 from typing import List, Optional, Callable
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from constants import ALERT_COOLDOWN_SECONDS
@@ -164,7 +165,7 @@ def _check_rule_alerts(db: Session, rule: "AlertRule") -> List["TriggeredAlert"]
             triggered = check_rule_for_repo(db, rule, repo)
             if triggered:
                 alerts.append(triggered)
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
 
     return alerts

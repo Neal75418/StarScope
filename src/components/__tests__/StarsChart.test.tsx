@@ -18,33 +18,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-// Mock i18n (required by StarHistoryBackfill)
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        starHistory: {
-          checking: "Checking...",
-          backfill: "Backfill",
-          backfilling: "Backfilling...",
-          refresh: "Refresh",
-          maxStars: "Max {count} stars",
-          offlineNoBackfill: "Cannot backfill while offline",
-        },
-        relativeTime: {
-          justNow: "Just now",
-        },
-        common: {
-          offline: "Offline",
-          error: "Error",
-          retry: "Retry",
-        },
-      },
-    }),
-  };
-});
 
 // Mock format utils
 vi.mock("../../utils/format", () => ({

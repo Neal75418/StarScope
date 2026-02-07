@@ -64,43 +64,6 @@ vi.mock("../../hooks/useDashboard", () => ({
   useDashboard: () => mockDashboard,
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { error: "Error", retry: "Retry", loading: "Loading..." },
-        dashboard: {
-          title: "Dashboard",
-          subtitle: "Overview of your repos",
-          stats: {
-            totalRepos: "Total Repos",
-            totalStars: "Total Stars",
-            weeklyStars: "Weekly Stars",
-            activeAlerts: "Active Alerts",
-          },
-          velocityDistribution: "Velocity Distribution",
-          recentActivity: "Recent Activity",
-          activity: {
-            justNow: "Just now",
-            empty: "No recent activity",
-          },
-          signals: {
-            title: "Early Signals",
-            acknowledge: "Acknowledge",
-            types: {
-              risingStar: "Rising Star",
-              suddenSpike: "Sudden Spike",
-              breakout: "Breakout",
-              viralHn: "Viral HN",
-            },
-          },
-        },
-      },
-    }),
-  };
-});
 
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -150,7 +113,7 @@ describe("Dashboard", () => {
 
   it("renders stats grid", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Total Repos")).toBeInTheDocument();
+    expect(screen.getByText("Tracked Repos")).toBeInTheDocument();
     expect(screen.getByText("10")).toBeInTheDocument();
     expect(screen.getByText("Total Stars")).toBeInTheDocument();
     expect(screen.getByText("50.0K")).toBeInTheDocument();
@@ -176,10 +139,10 @@ describe("Dashboard", () => {
     expect(screen.getByText("+1.2K")).toBeInTheDocument();
   });
 
-  it("formats weekly stars without plus sign for zero", () => {
+  it("formats weekly stars with plus sign for zero", () => {
     mockDashboard.stats.weeklyStars = 0;
     render(<Dashboard />);
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("+0")).toBeInTheDocument();
   });
 
   it("formats large numbers with M suffix", () => {
@@ -222,7 +185,7 @@ describe("Dashboard", () => {
     mockDashboard.signalSummary = makeSummary();
     mockDashboard.earlySignals = [makeSignal()];
     render(<Dashboard />);
-    expect(screen.getByText("Early Signals")).toBeInTheDocument();
+    expect(screen.getByText("Signal Spotlight")).toBeInTheDocument();
     // "3" appears in both velocity chart and signal spotlight, use getAllByText
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Rising Star")).toBeInTheDocument();
@@ -236,13 +199,13 @@ describe("Dashboard", () => {
   it("does not render signal spotlight when summary is null", () => {
     mockDashboard.signalSummary = null;
     render(<Dashboard />);
-    expect(screen.queryByText("Early Signals")).not.toBeInTheDocument();
+    expect(screen.queryByText("Signal Spotlight")).not.toBeInTheDocument();
   });
 
   it("does not render signal spotlight when total_active is 0", () => {
     mockDashboard.signalSummary = makeSummary({ total_active: 0, by_type: {} });
     render(<Dashboard />);
-    expect(screen.queryByText("Early Signals")).not.toBeInTheDocument();
+    expect(screen.queryByText("Signal Spotlight")).not.toBeInTheDocument();
   });
 
   it("formats time as 'Just now' for recent activities", () => {

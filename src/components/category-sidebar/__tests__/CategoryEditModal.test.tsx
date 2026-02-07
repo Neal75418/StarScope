@@ -8,30 +8,6 @@ import { userEvent } from "@testing-library/user-event";
 import { CategoryEditModal } from "../CategoryEditModal";
 import type { CategoryTreeNode } from "../../../api/client";
 
-// Mock i18n
-vi.mock("../../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      categories: {
-        editCategory: "Edit Category",
-        namePlaceholder: "Category name",
-        saving: "Saving...",
-        save: "Save",
-        form: {
-          name: "Name",
-          description: "Description",
-          descriptionPlaceholder: "Optional description",
-          icon: "Icon",
-          iconPlaceholder: "Emoji",
-          color: "Color",
-        },
-      },
-      common: {
-        cancel: "Cancel",
-      },
-    },
-  }),
-}));
 
 describe("CategoryEditModal", () => {
   const mockCategory: CategoryTreeNode = {
@@ -55,7 +31,7 @@ describe("CategoryEditModal", () => {
   it("renders with category data", () => {
     render(<CategoryEditModal {...defaultProps} />);
 
-    expect(screen.getByText("Edit Category")).toBeInTheDocument();
+    expect(screen.getByText("Edit category")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Test Category")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Test description")).toBeInTheDocument();
     expect(screen.getByDisplayValue("📁")).toBeInTheDocument();

@@ -12,15 +12,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      similarRepos: {
-        loadError: "Failed to load similar repos",
-      },
-    },
-  }),
-}));
 
 describe("useSimilarRepos", () => {
   const mockSimilarRepos: apiClient.SimilarRepo[] = [
@@ -80,7 +71,7 @@ describe("useSimilarRepos", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBe("Failed to load similar repos");
+    expect(result.current.error).toBe("Failed to load recommendations");
     expect(result.current.similar).toEqual([]);
   });
 

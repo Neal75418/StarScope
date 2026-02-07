@@ -3,21 +3,6 @@ import { render, screen } from "@testing-library/react";
 import { RepoCardStats } from "../RepoCardStats";
 import type { RepoWithSignals } from "../../../api/client";
 
-vi.mock("../../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        repo: {
-          stars: "Stars",
-          velocity: "Velocity",
-          trend: "Trend",
-        },
-      },
-    }),
-  };
-});
 
 vi.mock("../../TrendArrow", () => ({
   TrendArrow: ({ trend }: { trend: number | null }) => (
@@ -53,13 +38,13 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
 describe("RepoCardStats", () => {
   it("renders star count", () => {
     render(<RepoCardStats repo={makeRepo()} />);
-    expect(screen.getByText("200.0k")).toBeInTheDocument();
+    expect(screen.getByText("200.0K")).toBeInTheDocument();
   });
 
   it("renders 7d and 30d deltas", () => {
     render(<RepoCardStats repo={makeRepo()} />);
     expect(screen.getByText("+500")).toBeInTheDocument();
-    expect(screen.getByText("+2.0k")).toBeInTheDocument();
+    expect(screen.getByText("+2.0K")).toBeInTheDocument();
   });
 
   it("renders velocity", () => {

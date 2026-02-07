@@ -23,18 +23,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        repo: { loadingBadges: "Loading badges..." },
-        contextBadges: { noDiscussions: "No discussions found" },
-      },
-    }),
-  };
-});
 
 const mockGetContextSignals = vi.mocked(getContextSignals);
 

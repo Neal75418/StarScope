@@ -93,8 +93,10 @@ export const translations = {
         noRepos: "No repositories in your watchlist yet.",
         addPrompt: 'Click "Add Repository" to start tracking GitHub projects.',
         noCategory: "No repositories in this category.",
+        noCategoryDesc: "Try selecting a different category or add new repositories.",
         noFilter: "No repositories match the current filter.",
         noSearch: "No repositories match your search.",
+        noSearchDesc: "Try adjusting your search terms.",
       },
       connection: {
         title: "Connecting...",
@@ -195,6 +197,7 @@ export const translations = {
           name: "Alert Name",
           namePlaceholder: "e.g., Star Spike Alert",
           condition: "Condition",
+          operator: "Operator",
           threshold: "Threshold",
           repos: "Repositories",
           allRepos: "All Repositories",
@@ -320,6 +323,8 @@ export const translations = {
       yes: "Yes",
       no: "No",
       retry: "Retry",
+      skipToContent: "Skip to content",
+      offline: "Offline",
     },
     // 對話框
     dialog: {
@@ -600,8 +605,10 @@ export const translations = {
         noRepos: "追蹤清單中還沒有儲存庫。",
         addPrompt: "點擊「新增儲存庫」開始追蹤 GitHub 專案。",
         noCategory: "此分類中沒有儲存庫。",
+        noCategoryDesc: "試試選擇其他分類，或新增儲存庫。",
         noFilter: "沒有符合篩選條件的儲存庫。",
         noSearch: "沒有符合搜尋條件的儲存庫。",
+        noSearchDesc: "試試調整搜尋關鍵字。",
       },
       connection: {
         title: "連線中...",
@@ -702,6 +709,7 @@ export const translations = {
           name: "警報名稱",
           namePlaceholder: "例：星星飆升警報",
           condition: "條件",
+          operator: "運算子",
           threshold: "閾值",
           repos: "儲存庫",
           allRepos: "全部儲存庫",
@@ -826,6 +834,8 @@ export const translations = {
       yes: "是",
       no: "否",
       retry: "重試",
+      skipToContent: "跳至主要內容",
+      offline: "離線",
     },
     // 對話框
     dialog: {

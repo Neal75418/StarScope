@@ -105,11 +105,13 @@ class TestStarMagnitudeSimilarity:
         assert recommender_module._star_magnitude_similarity(1000, 0) == pytest.approx(0.0)
 
 
-class TestGetLatestStars:
-    """Tests for _get_latest_stars function."""
+class TestBuildStarsMap:
+    """Tests for build_stars_map (shared query from queries.py)."""
 
     def test_returns_latest_stars(self, test_db, mock_repo):
         """Test returns stars from latest snapshot."""
+        from services.queries import build_stars_map
+
         # Clear and add new snapshots
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
 
@@ -126,16 +128,18 @@ class TestGetLatestStars:
         test_db.add_all([old_snapshot, new_snapshot])
         test_db.commit()
 
-        result = recommender_module._get_latest_stars(mock_repo.id, test_db)
-        assert result == 1000
+        result = build_stars_map(test_db, [mock_repo.id])
+        assert result[mock_repo.id] == 1000
 
-    def test_returns_none_without_snapshot(self, test_db, mock_repo):
-        """Test returns None when no snapshot exists."""
+    def test_returns_empty_without_snapshot(self, test_db, mock_repo):
+        """Test returns empty dict when no snapshot exists."""
+        from services.queries import build_stars_map
+
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
         test_db.commit()
 
-        result = recommender_module._get_latest_stars(mock_repo.id, test_db)
-        assert result is None
+        result = build_stars_map(test_db, [mock_repo.id])
+        assert mock_repo.id not in result
 
 
 class TestRecommenderServiceCalculateSimilarity:

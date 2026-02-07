@@ -3,6 +3,7 @@
  */
 
 import { ApiError } from "../api/client";
+import { MS_PER_MINUTE } from "./format";
 
 // 判斷是否為網路錯誤
 export function isNetworkError(err: unknown): boolean {
@@ -17,7 +18,7 @@ export function formatRelativeTime(date: Date | null, justNowText: string): stri
   if (!date) return "";
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
 
   if (diffMins < 1) return justNowText;
   if (diffMins < 60) return `${diffMins}m ago`;

@@ -19,35 +19,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-// Mock i18n
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: {
-          confirm: "Confirm",
-          cancel: "Cancel",
-          close: "Close",
-        },
-        categories: {
-          title: "Categories",
-          loading: "Loading...",
-          loadError: "Failed to load categories",
-          addCategory: "Add Category",
-          deleteCategory: "Delete Category",
-          deleteConfirm: "Are you sure?",
-          namePlaceholder: "Category name",
-          add: "Add",
-          cancel: "Cancel",
-          allRepos: "All Repositories",
-          empty: "No categories yet",
-        },
-      },
-    }),
-  };
-});
 
 // Mock window.confirm
 global.confirm = vi.fn(() => true);
@@ -176,7 +147,7 @@ describe("CategorySidebar", () => {
       expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByTitle("Add Category"));
+    await user.click(screen.getByTitle("Add category"));
 
     expect(screen.getByPlaceholderText("Category name")).toBeInTheDocument();
   });
@@ -204,9 +175,9 @@ describe("CategorySidebar", () => {
       />
     );
 
-    await waitFor(() => screen.getByTitle("Add Category"));
+    await waitFor(() => screen.getByTitle("Add category"));
 
-    await user.click(screen.getByTitle("Add Category"));
+    await user.click(screen.getByTitle("Add category"));
 
     const input = screen.getByPlaceholderText("Category name");
     await user.type(input, "New Category");

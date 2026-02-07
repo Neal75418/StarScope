@@ -68,7 +68,7 @@ function EmptyStateView({
     return (
       <EmptyState
         title={t.watchlist.empty.noSearch}
-        description="Try adjusting your search terms"
+        description={t.watchlist.empty.noSearchDesc}
         icon={
           <svg
             width="64"
@@ -91,7 +91,7 @@ function EmptyStateView({
   return (
     <EmptyState
       title={t.watchlist.empty.noCategory}
-      description="No repositories in this category"
+      description={t.watchlist.empty.noCategoryDesc}
       icon={
         <svg
           width="64"
@@ -254,12 +254,10 @@ function Toolbar({
         onClick={onRecalculateAll}
         disabled={isRecalculating}
         className="btn"
-        title={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
-        aria-label={t.watchlist.recalculateAll ?? "Recalculate Similarities"}
+        title={t.watchlist.recalculateAll}
+        aria-label={t.watchlist.recalculateAll}
       >
-        {isRecalculating
-          ? (t.watchlist.recalculating ?? "Calculating...")
-          : (t.watchlist.recalculateAll ?? "Recalculate")}
+        {isRecalculating ? t.watchlist.recalculating : t.watchlist.recalculateAll}
       </button>
       {(selectedCategoryId || searchQuery) && (
         <span className="filter-indicator">

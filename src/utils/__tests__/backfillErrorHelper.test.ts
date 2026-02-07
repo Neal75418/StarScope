@@ -5,6 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { getBackfillErrorMessage } from "../backfillErrorHelper";
 import { ApiError } from "../../api/client";
+import { TranslationKeys } from "../../i18n/translations";
 
 const mockT = {
   starHistory: {
@@ -12,7 +13,7 @@ const mockT = {
     rateLimited: "Rate limit exceeded. Please try again later.",
     backfillFailed: "Failed to backfill star history",
   },
-};
+} as unknown as TranslationKeys;
 
 describe("getBackfillErrorMessage", () => {
   it("returns offline message for network error (TypeError)", () => {
@@ -56,17 +57,4 @@ describe("getBackfillErrorMessage", () => {
     expect(getBackfillErrorMessage("string error", mockT)).toBe("Failed to backfill star history");
   });
 
-  it("uses fallback message when t.starHistory.offlineNoBackfill is undefined", () => {
-    const error = new TypeError("Failed to fetch");
-    const tWithoutOffline = { starHistory: {} };
-    expect(getBackfillErrorMessage(error, tWithoutOffline)).toBe("Cannot backfill while offline");
-  });
-
-  it("uses fallback message when t.starHistory.rateLimited is undefined", () => {
-    const error = new ApiError(429, "Too many requests");
-    const tWithoutRateLimited = { starHistory: {} };
-    expect(getBackfillErrorMessage(error, tWithoutRateLimited)).toBe(
-      "Rate limit exceeded. Please try again later."
-    );
-  });
 });

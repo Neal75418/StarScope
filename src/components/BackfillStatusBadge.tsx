@@ -2,6 +2,8 @@
  * Backfill 狀態徽章，顯示是否已有回填資料。
  */
 
+import { TranslationKeys } from "../i18n/translations";
+
 interface BackfillStatusBadgeProps {
   status: {
     has_backfilled_data: boolean;
@@ -10,8 +12,7 @@ interface BackfillStatusBadgeProps {
   };
   lastUpdated: Date | null;
   lastUpdatedText: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: TranslationKeys;
 }
 
 export function BackfillStatusBadge({

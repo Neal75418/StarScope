@@ -97,32 +97,6 @@ vi.mock("../../components/motion", () => ({
   ),
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { loading: "Loading...", delete: "Delete" },
-        settings: {
-          title: "Settings",
-          subtitle: "Manage your preferences",
-          loading: "Loading settings...",
-          alerts: {
-            title: "Alert Rules",
-            noAlerts: "No alert rules configured",
-            create: "Create Rule",
-            checkNow: "Check Now",
-            confirm: {
-              deleteTitle: "Delete Rule",
-              deleteMessage: "Are you sure?",
-            },
-          },
-        },
-      },
-    }),
-  };
-});
 
 describe("Settings", () => {
   beforeEach(() => {
@@ -152,7 +126,7 @@ describe("Settings", () => {
   it("shows loading state", () => {
     mockAlertsReturn.isLoading = true;
     render(<Settings />);
-    expect(screen.getByText("Loading settings...")).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
   it("renders all sections when loaded", () => {
@@ -167,18 +141,18 @@ describe("Settings", () => {
   it("renders alert rules section with create button", () => {
     render(<Settings />);
     expect(screen.getByText("Alert Rules")).toBeInTheDocument();
-    expect(screen.getByText("Create Rule")).toBeInTheDocument();
+    expect(screen.getByText("Create Alert")).toBeInTheDocument();
   });
 
   it("shows 'no alerts' message when rules list is empty", () => {
     render(<Settings />);
-    expect(screen.getByText("No alert rules configured")).toBeInTheDocument();
+    expect(screen.getByText("No alert rules configured.")).toBeInTheDocument();
   });
 
   it("does not show 'no alerts' message when rules exist", () => {
     mockAlertsReturn.rules = [{ id: 1 }];
     render(<Settings />);
-    expect(screen.queryByText("No alert rules configured")).not.toBeInTheDocument();
+    expect(screen.queryByText("No alert rules configured.")).not.toBeInTheDocument();
   });
 
   it("shows Check Now button when form is not visible", () => {
@@ -196,7 +170,7 @@ describe("Settings", () => {
   it("shows alert form in create mode when Create Rule is clicked", async () => {
     const user = userEvent.setup();
     render(<Settings />);
-    await user.click(screen.getByText("Create Rule"));
+    await user.click(screen.getByText("Create Alert"));
     expect(screen.getByTestId("alert-form")).toBeInTheDocument();
     expect(screen.getByTestId("form-mode")).toHaveTextContent("create");
   });
@@ -204,8 +178,8 @@ describe("Settings", () => {
   it("hides Create Rule and Check Now buttons when form is visible", async () => {
     const user = userEvent.setup();
     render(<Settings />);
-    await user.click(screen.getByText("Create Rule"));
-    expect(screen.queryByText("Create Rule")).not.toBeInTheDocument();
+    await user.click(screen.getByText("Create Alert"));
+    expect(screen.queryByText("Create Alert")).not.toBeInTheDocument();
     expect(screen.queryByText("Check Now")).not.toBeInTheDocument();
   });
 
@@ -229,7 +203,7 @@ describe("Settings", () => {
   it("calls handleCreate on submit when in create mode", async () => {
     const user = userEvent.setup();
     render(<Settings />);
-    await user.click(screen.getByText("Create Rule"));
+    await user.click(screen.getByText("Create Alert"));
     await user.click(screen.getByTestId("form-submit"));
     expect(mockAlertsReturn.handleCreate).toHaveBeenCalled();
   });
@@ -237,7 +211,7 @@ describe("Settings", () => {
   it("cancels alert form and resets state", async () => {
     const user = userEvent.setup();
     render(<Settings />);
-    await user.click(screen.getByText("Create Rule"));
+    await user.click(screen.getByText("Create Alert"));
     expect(screen.getByTestId("alert-form")).toBeInTheDocument();
     await user.click(screen.getByTestId("form-cancel"));
     expect(screen.queryByTestId("alert-form")).not.toBeInTheDocument();

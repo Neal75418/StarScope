@@ -7,32 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { AddRepoDialog } from "../AddRepoDialog";
 
-// Mock i18n
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: {
-          close: "Close",
-          cancel: "Cancel",
-          loading: "Loading...",
-        },
-        dialog: {
-          addRepo: {
-            title: "Add Repository",
-            hint: "Enter repository info",
-            exampleFormat: "owner/repo",
-            exampleUrl: "https://github.com/owner/repo",
-            placeholder: "e.g., facebook/react",
-            add: "Add",
-          },
-        },
-      },
-    }),
-  };
-});
 
 describe("AddRepoDialog", () => {
   const mockOnClose = vi.fn();
@@ -59,14 +33,14 @@ describe("AddRepoDialog", () => {
   it("shows hint and examples", () => {
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    expect(screen.getByText("Enter repository info")).toBeInTheDocument();
-    expect(screen.getByText("owner/repo")).toBeInTheDocument();
+    expect(screen.getByText("Enter a repository in owner/repo format or paste a GitHub URL")).toBeInTheDocument();
+    expect(screen.getByText("owner/repo (e.g., facebook/react)")).toBeInTheDocument();
   });
 
   it("has input field with placeholder", () => {
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    const input = screen.getByPlaceholderText("e.g., facebook/react");
+    const input = screen.getByPlaceholderText("owner/repo or GitHub URL");
     expect(input).toBeInTheDocument();
   });
 
@@ -94,7 +68,7 @@ describe("AddRepoDialog", () => {
 
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    const input = screen.getByPlaceholderText("e.g., facebook/react");
+    const input = screen.getByPlaceholderText("owner/repo or GitHub URL");
     await user.type(input, "facebook/react");
     await user.click(screen.getByText("Add"));
 
@@ -112,7 +86,7 @@ describe("AddRepoDialog", () => {
     const user = userEvent.setup();
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    const input = screen.getByPlaceholderText("e.g., facebook/react");
+    const input = screen.getByPlaceholderText("owner/repo or GitHub URL");
     await user.type(input, "test");
 
     const submitBtn = screen.getByText("Add");
@@ -125,7 +99,7 @@ describe("AddRepoDialog", () => {
     );
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("e.g., facebook/react")).toBeDisabled();
+    expect(screen.getByPlaceholderText("owner/repo or GitHub URL")).toBeDisabled();
   });
 
   it("displays error message when provided", () => {
@@ -147,7 +121,7 @@ describe("AddRepoDialog", () => {
 
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    const input = screen.getByPlaceholderText("e.g., facebook/react") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("owner/repo or GitHub URL") as HTMLInputElement;
     await user.type(input, "test/repo");
     await user.click(screen.getByText("Add"));
 

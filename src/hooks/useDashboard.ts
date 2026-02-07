@@ -77,8 +77,9 @@ export function useDashboard() {
       setSignalSummary((prev) =>
         prev ? { ...prev, total_active: Math.max(0, prev.total_active - 1) } : prev
       );
-    } catch {
-      // 確認失敗不影響主要功能
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn("[useDashboard] Failed to acknowledge signal:", err);
     }
   }, []);
 

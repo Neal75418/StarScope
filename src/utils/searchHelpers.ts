@@ -4,6 +4,7 @@
 
 import { TrendingPeriod } from "../components/discovery";
 import { searchRepos, SearchFilters, DiscoveryRepo, ApiError } from "../api/client";
+import { TranslationKeys } from "../i18n/translations";
 
 export interface SearchResult {
   repos: DiscoveryRepo[];
@@ -16,8 +17,7 @@ export async function fetchSearchResults(
   query: string,
   filters: SearchFilters,
   page: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any,
+  t: TranslationKeys,
   signal?: AbortSignal
 ): Promise<SearchResult> {
   try {

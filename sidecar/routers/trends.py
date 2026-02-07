@@ -12,7 +12,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session, aliased
 
 from db.database import get_db
-from db.models import Repo, Signal, SignalType
+from db.models import Repo, RepoSnapshot, Signal, SignalType
 from services.queries import build_signal_map, build_stars_map
 
 router = APIRouter(prefix="/api/trends", tags=["trends"])
@@ -103,14 +103,15 @@ async def get_trends(
     if language:
         query = query.filter(func.lower(Repo.language) == language.lower())
 
-    # 最低 star 數篩選（透過 stars 訊號）
+    # 最低 star 數篩選（透過最新快照的 stars 欄位）
     if min_stars is not None:
-        stars_signal = aliased(Signal)
-        query = query.outerjoin(
-            stars_signal,
-            (Repo.id == stars_signal.repo_id) &
-            (stars_signal.signal_type == SignalType.STARS)
-        ).filter(func.coalesce(stars_signal.value, 0) >= min_stars)
+        query = query.filter(
+            db.query(RepoSnapshot.id)
+            .filter(
+                RepoSnapshot.repo_id == Repo.id,
+                RepoSnapshot.stars >= min_stars
+            ).exists()
+        )
 
     results = (
         query

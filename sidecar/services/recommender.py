@@ -6,11 +6,13 @@
 import json
 import logging
 import math
+import threading
 from typing import Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.orm import Session
 
-from db.models import Repo, SimilarRepo, RepoSnapshot
+from db.models import Repo, SimilarRepo
+from services.queries import build_stars_map
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -73,34 +75,6 @@ def _star_magnitude_similarity(stars1: Optional[int], stars2: Optional[int]) -> 
         return 0.0
 
     return 1.0 - (diff / 3.0)
-
-
-def _get_latest_stars(repo_id: int, db: Session) -> Optional[int]:
-    """從快照取得 repo 最新的 star 數。"""
-    snapshot = db.query(RepoSnapshot).filter(
-        RepoSnapshot.repo_id == repo_id
-    ).order_by(RepoSnapshot.snapshot_date.desc()).first()
-    return snapshot.stars if snapshot else None
-
-
-def _batch_load_latest_stars(repo_ids: List[int], db: Session) -> Dict[int, int]:
-    """批次載入多個 repo 的最新 star 數，避免 N+1 查詢。"""
-    if not repo_ids:
-        return {}
-    from sqlalchemy import func
-    latest_dates = db.query(
-        RepoSnapshot.repo_id,
-        func.max(RepoSnapshot.snapshot_date).label("max_date")
-    ).filter(
-        RepoSnapshot.repo_id.in_(repo_ids)
-    ).group_by(RepoSnapshot.repo_id).subquery()
-
-    snapshots = db.query(RepoSnapshot.repo_id, RepoSnapshot.stars).join(
-        latest_dates,
-        (RepoSnapshot.repo_id == latest_dates.c.repo_id) &
-        (RepoSnapshot.snapshot_date == latest_dates.c.max_date)
-    ).all()
-    return {s.repo_id: s.stars for s in snapshots}
 
 
 def _upsert_similar_repo(
@@ -205,7 +179,7 @@ class RecommenderService:
 
         # 批次載入所有需要的 star 數（1 次查詢取代 N+1）
         all_repo_ids = [repo_id] + [int(e.similar.id) for e in similar_entries]
-        stars_map = _batch_load_latest_stars(all_repo_ids, db)
+        stars_map = build_stars_map(db, all_repo_ids)
         source_stars = stars_map.get(repo_id)
 
         results = []
@@ -266,7 +240,7 @@ class RecommenderService:
 
         # 批次載入所有 repo 的 star 數（1 次查詢取代 N+1）
         all_ids = [repo_id] + [int(o.id) for o in other_repos]
-        stars_map = _batch_load_latest_stars(all_ids, db)
+        stars_map = build_stars_map(db, all_ids)
         repo_stars = stars_map.get(repo_id)
 
         count = 0
@@ -315,14 +289,17 @@ class RecommenderService:
 
 # 模組層級 singleton
 _recommender: Optional[RecommenderService] = None
+_recommender_lock = threading.Lock()
 
 
 def get_recommender_service() -> RecommenderService:
-    """取得預設的推薦服務實例。"""
+    """取得預設的推薦服務實例（使用 double-checked locking）。"""
     global _recommender
     if _recommender is None:
-        _recommender = RecommenderService()
-        logger.info("[推薦] 推薦服務已初始化")
+        with _recommender_lock:
+            if _recommender is None:
+                _recommender = RecommenderService()
+                logger.info("[推薦] 推薦服務已初始化")
     return _recommender
 
 

@@ -4,18 +4,6 @@ import { useDiscoverySearch } from "../useDiscoverySearch";
 import { DiscoveryRepo } from "../../api/client";
 import * as searchHelpers from "../../utils/searchHelpers";
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      discovery: {
-        error: {
-          generic: "Search error",
-          rateLimit: "Rate limited",
-        },
-      },
-    },
-  }),
-}));
 
 vi.mock("../../utils/searchHelpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/searchHelpers")>();
@@ -139,7 +127,7 @@ describe("useDiscoverySearch", () => {
       await result.current.executeSearch("test", undefined, {}, 1);
     });
 
-    expect(result.current.error).toBe("Search error");
+    expect(result.current.error).toBe("Failed to search repositories");
     expect(result.current.loading).toBe(false);
   });
 

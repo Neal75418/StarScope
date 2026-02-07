@@ -38,45 +38,6 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { loading: "Loading..." },
-        trends: {
-          title: "Trends",
-          subtitle: "Trending repositories",
-          loadingError: "Failed to load",
-          retry: "Retry",
-          empty: "No trending repos",
-          sortOptions: {
-            velocity: "Velocity",
-            stars_delta_7d: "7d Stars",
-            stars_delta_30d: "30d Stars",
-            acceleration: "Acceleration",
-          },
-          columns: {
-            rank: "#",
-            repo: "Repository",
-            stars: "Stars",
-            delta7d: "7d",
-            delta30d: "30d",
-            velocity: "Vel",
-          },
-          filters: {
-            allLanguages: "All Languages",
-            minStars: "Min Stars",
-            addToWatchlist: "Add",
-            inWatchlist: "In Watchlist",
-          },
-        },
-        repo: { trend: "Trend" },
-      },
-    }),
-  };
-});
 
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -171,7 +132,7 @@ describe("Trends", () => {
   it("shows empty state when no trends", () => {
     render(<Trends />);
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-    expect(screen.getByText("No trending repos")).toBeInTheDocument();
+    expect(screen.getByText("No trending repositories found.")).toBeInTheDocument();
   });
 
   it("calls setSortBy when sort tab is clicked", async () => {
@@ -264,7 +225,7 @@ describe("Trends", () => {
     const user = userEvent.setup();
     mockTrendsReturn.trends = [makeTrending()];
     render(<Trends />);
-    const addBtn = screen.getByText("Add");
+    const addBtn = screen.getByText("+ Watchlist");
     await user.click(addBtn);
     expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
   });
@@ -272,9 +233,11 @@ describe("Trends", () => {
   it("renders all four sort tabs with correct labels", () => {
     mockTrendsReturn.trends = [makeTrending()];
     render(<Trends />);
-    expect(screen.getByText("Velocity")).toBeInTheDocument();
-    expect(screen.getByText("7d Stars")).toBeInTheDocument();
-    expect(screen.getByText("30d Stars")).toBeInTheDocument();
+    // "Stars/Day" appears both in sort tab and column header, so use getAllByText
+    expect(screen.getAllByText("Stars/Day").length).toBeGreaterThanOrEqual(1);
+    // "7d Delta" and "30d Delta" appear in both sort tabs and column headers
+    expect(screen.getAllByText("7d Delta").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("30d Delta").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Acceleration")).toBeInTheDocument();
   });
 

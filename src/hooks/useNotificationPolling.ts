@@ -10,8 +10,9 @@ import {
   mergeNotifications,
 } from "../utils/notificationHelpers";
 import { Notification } from "./useNotifications";
+import { MS_PER_MINUTE } from "../utils/format";
 
-const POLL_INTERVAL = 60000; // 1 分鐘
+const POLL_INTERVAL = MS_PER_MINUTE;
 
 async function fetchAndMergeNotifications(
   setNotifications: Dispatch<SetStateAction<Notification[]>>,

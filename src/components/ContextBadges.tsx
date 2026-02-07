@@ -7,6 +7,7 @@ import React, { useState, useCallback } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ContextBadge, ContextSignal, getContextSignals } from "../api/client";
 import { useI18n } from "../i18n";
+import { MS_PER_DAY } from "../utils/format";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
@@ -34,7 +35,7 @@ function formatTimeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(diffMs / MS_PER_DAY);
 
   if (diffDays === 0) return "today";
   if (diffDays === 1) return "1d ago";
@@ -109,7 +110,9 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
       try {
         const res = await getContextSignals(repoId, "hn");
         setSignals(res.signals);
-      } catch {
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[ContextBadges] Failed to fetch context signals:", err);
         setSignals([]);
       } finally {
         setSignalsLoading(false);

@@ -1,13 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BackfillStatusBadge } from "../BackfillStatusBadge";
+import { TranslationKeys } from "../../i18n/translations";
 
 const mockT = {
   starHistory: {
     alreadyBackfilled: "Backfilled {days} days of history",
     eligible: "Eligible for backfill",
   },
-};
+} as unknown as TranslationKeys;
 
 describe("BackfillStatusBadge", () => {
   it("shows eligible message when has_backfilled_data is false", () => {

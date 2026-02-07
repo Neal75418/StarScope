@@ -23,11 +23,14 @@ alembic>=1.14.0
 # Background scheduler
 apscheduler>=3.10.0
 
+# API rate limiting
+slowapi>=0.1.9
+
 # For future PyInstaller packaging
 pyinstaller>=6.0.0
 
 # Testing
-pytest>=9.0.0  # CVE-2025-71176: wait for 9.1.0 release
+pytest>=9.0.0  # CVE-2025-71176: update to >=9.1.0 when released (latest: 9.0.2)
 pytest-asyncio>=0.24.0
 pytest-cov>=6.0.0
 httpx[http2]>=0.28.0

@@ -6,7 +6,7 @@ import { useState, useCallback, useRef } from "react";
 import { SearchFilters, DiscoveryRepo } from "../api/client";
 import { buildCombinedQuery, fetchSearchResults, SearchResult } from "../utils/searchHelpers";
 import { TrendingPeriod } from "../components/discovery";
-import { useI18n } from "../i18n";
+import { useI18n, TranslationKeys } from "../i18n";
 
 export interface DiscoverySearchState {
   repos: DiscoveryRepo[];
@@ -32,8 +32,7 @@ async function runSearch(
   query: string,
   filters: SearchFilters,
   page: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any,
+  t: TranslationKeys,
   signal: AbortSignal
 ): Promise<SearchResult | null> {
   try {

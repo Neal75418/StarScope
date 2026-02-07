@@ -51,75 +51,6 @@ vi.mock("../../hooks/useCategoryOperations", () => ({
   }),
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { loading: "Loading...", error: "Error", delete: "Delete" },
-        watchlist: {
-          title: "Watchlist",
-          subtitle: "Track your repositories",
-          addRepo: "Add Repo",
-          refreshAll: "Refresh All",
-          refreshing: "Refreshing...",
-          recalculateAll: "Recalculate",
-          recalculating: "Calculating...",
-          searchPlaceholder: "Search repos...",
-          showing: "Showing {count} of {total}",
-          connection: {
-            title: "Connection Error",
-            message: "Cannot connect to backend",
-            autoRetry: "Auto-retrying...",
-            retry: "Retry",
-          },
-          empty: {
-            noRepos: "No repos yet",
-            addPrompt: "Add a repo to get started",
-            noSearch: "No results found",
-            noCategory: "No repos in category",
-          },
-        },
-        dialog: {
-          addRepo: {
-            title: "Add Repo",
-            hint: "Enter repo",
-            exampleFormat: "owner/repo",
-            exampleUrl: "https://github.com/owner/repo",
-            placeholder: "e.g., facebook/react",
-            add: "Add",
-          },
-          removeRepo: {
-            title: "Remove Repo",
-            message: "Remove {name}?",
-            confirm: "Remove",
-          },
-        },
-        categories: { removedFromCategory: "Removed from category" },
-        toast: { error: "Error", repoAdded: "Repo added" },
-        repo: {
-          chart: "Chart",
-          hide: "Hide",
-          similar: "Similar",
-          refresh: "Refresh",
-          remove: "Remove",
-          removeFromCategory: "Remove from category",
-          stars: "Stars",
-          velocity: "Velocity",
-          trend: "Trend",
-        },
-      },
-    }),
-    interpolate: (template: string, vars: Record<string, unknown>) => {
-      let result = template;
-      for (const [key, val] of Object.entries(vars)) {
-        result = result.replace(`{${key}}`, String(val));
-      }
-      return result;
-    },
-  };
-});
 
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -213,16 +144,16 @@ describe("Watchlist", () => {
     const user = userEvent.setup();
     mockWatchlistReturn.isConnected = false;
     render(<Watchlist />);
-    expect(screen.getByText("Connection Error")).toBeInTheDocument();
-    expect(screen.getByText("Auto-retrying...")).toBeInTheDocument();
-    await user.click(screen.getByText("Retry"));
+    expect(screen.getByText("Connecting...")).toBeInTheDocument();
+    expect(screen.getByText("The app will automatically retry the connection.")).toBeInTheDocument();
+    await user.click(screen.getByText("Retry Now"));
     expect(mockHandleRetry).toHaveBeenCalled();
   });
 
   it("shows empty state when no repos", () => {
     render(<Watchlist />);
-    expect(screen.getByText("No repos yet")).toBeInTheDocument();
-    expect(screen.getByText("Add a repo to get started")).toBeInTheDocument();
+    expect(screen.getByText("No repositories in your watchlist yet.")).toBeInTheDocument();
+    expect(screen.getByText('Click "Add Repository" to start tracking GitHub projects.')).toBeInTheDocument();
   });
 
   it("renders repo cards when repos exist", () => {
@@ -236,7 +167,7 @@ describe("Watchlist", () => {
 
   it("renders toolbar with add and refresh buttons", () => {
     render(<Watchlist />);
-    expect(screen.getByLabelText("Add Repo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Add Repository")).toBeInTheDocument();
     expect(screen.getByLabelText("Refresh All")).toBeInTheDocument();
   });
 
@@ -254,7 +185,7 @@ describe("Watchlist", () => {
     mockWatchlistReturn.displayedRepos = [];
     mockWatchlistReturn.searchQuery = "nonexistent";
     render(<Watchlist />);
-    expect(screen.getByText("No results found")).toBeInTheDocument();
+    expect(screen.getByText("No repositories match your search.")).toBeInTheDocument();
   });
 
   it("shows 'no category' empty state when category filter has no matches", () => {
@@ -263,7 +194,7 @@ describe("Watchlist", () => {
     mockWatchlistReturn.selectedCategoryId = 5;
     mockWatchlistReturn.searchQuery = "";
     render(<Watchlist />);
-    expect(screen.getByText("No repos in category")).toBeInTheDocument();
+    expect(screen.getByText("No repositories in this category.")).toBeInTheDocument();
   });
 
   it("shows filter indicator when category is selected", () => {
@@ -272,7 +203,7 @@ describe("Watchlist", () => {
     mockWatchlistReturn.displayedRepos = repos;
     mockWatchlistReturn.selectedCategoryId = 3;
     render(<Watchlist />);
-    expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1 of 1 repos")).toBeInTheDocument();
   });
 
   it("shows filter indicator when search query is active", () => {
@@ -281,7 +212,7 @@ describe("Watchlist", () => {
     mockWatchlistReturn.displayedRepos = repos;
     mockWatchlistReturn.searchQuery = "react";
     render(<Watchlist />);
-    expect(screen.getByText("Showing 1 of 1")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1 of 1 repos")).toBeInTheDocument();
   });
 
   it("calls openAddDialog when Add Repo button is clicked", async () => {

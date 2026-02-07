@@ -17,6 +17,7 @@ import {
 import { NotificationCenter } from "./NotificationCenter";
 import { Theme } from "../theme";
 import { Language, TranslationKeys } from "../i18n";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
@@ -68,6 +69,7 @@ export function AppHeader({
   const mobileNavItems = buildMobileNavItems(t);
   const isDark = theme === "dark";
   const isEnglish = language === "en";
+  const isOnline = useOnlineStatus();
 
   const themeTitle = isDark
     ? t.settings.appearance.switchToLight
@@ -76,6 +78,9 @@ export function AppHeader({
 
   return (
     <>
+      <a className="skip-to-content" href="#main-content">
+        {t.common.skipToContent}
+      </a>
       <header className="app-header">
         <nav className="nav-container">
           {/* 左側：Logo 與導覽 */}
@@ -113,6 +118,13 @@ export function AppHeader({
 
           {/* 右側：通知、主題、語言、設定 */}
           <div className="nav-right">
+            {/* 離線指示器 */}
+            {!isOnline && (
+              <span className="offline-indicator" role="status">
+                ⚠ {t.common.offline}
+              </span>
+            )}
+
             {/* 通知 */}
             <NotificationCenter onNavigate={onPageChange} />
 

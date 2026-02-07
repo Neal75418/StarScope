@@ -2,9 +2,21 @@
 Tests for services/scheduler.py - Background scheduler service.
 """
 
+from contextlib import contextmanager
+
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
+
+def _mock_db_ctx(db):
+    """Create a context manager that yields the given db session."""
+    @contextmanager
+    def _ctx():
+        yield db
+    return _ctx()
+
+
+from services.github import GitHubAPIError
 from services.scheduler import (
     get_scheduler,
     fetch_all_repos_job,
@@ -58,14 +70,14 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_empty_watchlist(self, test_db):
         """Test with empty watchlist."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db):
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)):
             # Should complete without error
             await fetch_all_repos_job()
 
     @pytest.mark.asyncio
     async def test_fetches_repos(self, test_db, mock_repo):
         """Test fetches repos from watchlist."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
              patch('services.scheduler.update_repo_from_github') as mock_update:
 
@@ -86,7 +98,7 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):
         """Test handles errors during fetch."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.return_value = None  # Simulate fetch failure
@@ -95,14 +107,25 @@ class TestFetchAllReposJob:
             await fetch_all_repos_job()
 
     @pytest.mark.asyncio
-    async def test_handles_exception(self, test_db, mock_repo):
-        """Test handles exceptions gracefully."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+    async def test_handles_github_exception(self, test_db, mock_repo):
+        """Test handles GitHub API exceptions gracefully (per-repo)."""
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
-            mock_fetch.side_effect = Exception("API Error")
+            mock_fetch.side_effect = GitHubAPIError("API Error")
 
-            # Should not raise, just log
+            # Should not raise, just log and continue to next repo
+            await fetch_all_repos_job()
+
+    @pytest.mark.asyncio
+    async def test_handles_unexpected_exception(self, test_db, mock_repo):
+        """Test handles unexpected exceptions gracefully (per-repo)."""
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
+
+            mock_fetch.side_effect = ValueError("Unexpected error")
+
+            # Should not raise, just log and continue to next repo
             await fetch_all_repos_job()
 
 
@@ -111,7 +134,7 @@ class TestCheckAlertsJob:
 
     def test_checks_alerts(self, test_db):
         """Test calls check_all_alerts."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.return_value = []
@@ -121,7 +144,7 @@ class TestCheckAlertsJob:
 
     def test_handles_triggered_alerts(self, test_db):
         """Test handles triggered alerts."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.return_value = [MagicMock(), MagicMock()]
@@ -131,7 +154,7 @@ class TestCheckAlertsJob:
 
     def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.side_effect = Exception("DB Error")
@@ -144,7 +167,7 @@ class TestFetchContextSignalsJob:
     @pytest.mark.asyncio
     async def test_fetches_context_signals(self, test_db):
         """Test fetches context signals."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.return_value = {
@@ -159,7 +182,7 @@ class TestFetchContextSignalsJob:
     @pytest.mark.asyncio
     async def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
-        with patch('services.scheduler.SessionLocal', return_value=test_db), \
+        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = Exception("Network Error")

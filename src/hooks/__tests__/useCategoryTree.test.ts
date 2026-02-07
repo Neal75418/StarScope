@@ -14,15 +14,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      categories: {
-        loadError: "Failed to load categories",
-      },
-    },
-  }),
-}));
 
 describe("useCategoryTree", () => {
   const mockTree: apiClient.CategoryTreeNode[] = [

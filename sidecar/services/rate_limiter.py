@@ -123,8 +123,9 @@ async def batch_fetch_with_retry(
         except RetryError as e:
             # 所有重試已耗盡
             results[full_name] = None
-            if on_failure:
-                await on_failure(owner, name, e.last_attempt.exception())
+            last_exc = e.last_attempt.exception()
+            if on_failure and isinstance(last_exc, Exception):
+                await on_failure(owner, name, last_exc)
             logger.error(f"[速率限制] 所有重試後仍無法抓取 {full_name}: {e}", exc_info=True)
         except Exception as e:
             # 不可重試的錯誤（例如 GitHubNotFoundError）

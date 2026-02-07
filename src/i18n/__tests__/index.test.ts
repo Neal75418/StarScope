@@ -2,7 +2,11 @@
  * Unit tests for i18n utilities
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// Use the real module, not the global mock from setup.ts
+vi.unmock("../index");
+
 import { getInitialLanguage, saveLanguage, interpolate, getTranslations } from "../index";
 
 describe("i18n utilities", () => {

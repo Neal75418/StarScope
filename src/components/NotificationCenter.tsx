@@ -7,6 +7,7 @@ import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent
 import { BellIcon, CheckIcon, XIcon } from "./Icons";
 import { useI18n } from "../i18n";
 import { Notification, useNotifications } from "../hooks/useNotifications";
+import { MS_PER_MINUTE, MS_PER_HOUR, MS_PER_DAY } from "../utils/format";
 
 type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
@@ -120,9 +121,9 @@ function formatTimeAgo(timestamp: string, t: ReturnType<typeof useI18n>["t"]): s
   const now = new Date();
   const date = new Date(timestamp);
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
+  const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
+  const diffHours = Math.floor(diffMs / MS_PER_HOUR);
+  const diffDays = Math.floor(diffMs / MS_PER_DAY);
 
   if (diffMins < 1) {
     return t.notifications.justNow;

@@ -147,27 +147,6 @@ vi.mock("../../components/discovery", () => ({
   SavedFilters: () => <div data-testid="saved-filters" />,
 }));
 
-vi.mock("../../i18n", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../i18n")>();
-  return {
-    ...actual,
-    useI18n: () => ({
-      t: {
-        common: { loading: "Loading..." },
-        discovery: {
-          title: "Discovery",
-          subtitle: "Explore GitHub repositories",
-          trending: {
-            today: "Today",
-            thisWeek: "This Week",
-            thisMonth: "This Month",
-          },
-        },
-        toast: { error: "Error", repoAdded: "Repo added" },
-      },
-    }),
-  };
-});
 
 describe("Discovery", () => {
   beforeEach(() => {
@@ -197,7 +176,7 @@ describe("Discovery", () => {
 
   it("renders page title and search bar", () => {
     render(<Discovery />);
-    expect(screen.getByText("Discovery")).toBeInTheDocument();
+    expect(screen.getByText("Discover")).toBeInTheDocument();
     expect(screen.getByTestId("search-bar")).toBeInTheDocument();
   });
 
@@ -233,13 +212,13 @@ describe("Discovery", () => {
   it("passes 'This Week' label for weekly period", () => {
     mockDiscoveryReturn.period = "weekly";
     render(<Discovery />);
-    expect(screen.getByTestId("active-period-label")).toHaveTextContent("This Week");
+    expect(screen.getByTestId("active-period-label")).toHaveTextContent("This week");
   });
 
   it("passes 'This Month' label for monthly period", () => {
     mockDiscoveryReturn.period = "monthly";
     render(<Discovery />);
-    expect(screen.getByTestId("active-period-label")).toHaveTextContent("This Month");
+    expect(screen.getByTestId("active-period-label")).toHaveTextContent("This month");
   });
 
   it("does not show period label when period is null", () => {
@@ -275,7 +254,7 @@ describe("Discovery", () => {
     render(<Discovery />);
     await user.click(screen.getByTestId("add-btn-1"));
     expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
-    expect(mockSuccess).toHaveBeenCalledWith("Repo added");
+    expect(mockSuccess).toHaveBeenCalledWith("Repository added to watchlist");
   });
 
   it("shows error toast when add to watchlist fails", async () => {
@@ -287,7 +266,7 @@ describe("Discovery", () => {
     ];
     render(<Discovery />);
     await user.click(screen.getByTestId("add-btn-1"));
-    expect(mockError).toHaveBeenCalledWith("Error");
+    expect(mockError).toHaveBeenCalledWith("An error occurred");
   });
 
   it("shows in-watchlist state for repos already in watchlist", () => {

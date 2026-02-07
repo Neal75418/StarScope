@@ -48,7 +48,16 @@ function PageContent({ page }: { page: Page }) {
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
+  const [currentPage, setCurrentPage] = useState<Page>(() => {
+    const saved = localStorage.getItem("starscope-page");
+    const validPages: Page[] = ["dashboard", "discovery", "watchlist", "trends", "settings"];
+    return saved && validPages.includes(saved as Page) ? (saved as Page) : "dashboard";
+  });
+
+  const handlePageChange = (page: Page) => {
+    setCurrentPage(page);
+    localStorage.setItem("starscope-page", page);
+  };
   const { theme, setTheme, toggleTheme } = useAppTheme();
   const { language, setLanguage, toggleLanguage, t } = useAppLanguage();
 
@@ -69,7 +78,7 @@ function App() {
         <div className="app">
           <AppHeader
             currentPage={currentPage}
-            onPageChange={setCurrentPage}
+            onPageChange={handlePageChange}
             theme={theme}
             onThemeToggle={toggleTheme}
             language={language}
@@ -77,7 +86,7 @@ function App() {
             t={t}
           />
 
-          <main className="app-main">
+          <main className="app-main" id="main-content">
             <ErrorBoundary>
               <Suspense fallback={<PageLoader text={t.common.loading} />}>
                 <PageContent page={currentPage} />

@@ -41,7 +41,9 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.warn("[useBatchRepoData] Failed to fetch batch data:", err);
         if (!cancelled) setLoading(false);
       });
 

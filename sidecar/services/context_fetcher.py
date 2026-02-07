@@ -206,7 +206,7 @@ def cleanup_old_context_signals(
             db.query(ContextSignal)
             .filter(
                 ContextSignal.repo_id == repo_id,
-                ~ContextSignal.id.in_(keep_ids)
+                ~ContextSignal.id.in_(keep_ids)  # type: ignore[arg-type]
             )
             .delete(synchronize_session=False)
         )

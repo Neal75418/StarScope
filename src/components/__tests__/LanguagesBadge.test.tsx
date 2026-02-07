@@ -13,16 +13,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      languages: {
-        clickToFetch: "Click to fetch languages",
-        failedToLoad: "Failed to load",
-      },
-    },
-  }),
-}));
 
 describe("LanguagesBadge", () => {
   beforeEach(() => {

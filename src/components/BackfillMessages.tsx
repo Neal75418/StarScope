@@ -2,12 +2,13 @@
  * Backfill 狀態訊息元件（離線、錯誤、成功）。
  */
 
+import { TranslationKeys } from "../i18n/translations";
+
 interface BackfillMessagesProps {
   isOffline: boolean;
   error: string | null;
   successMessage: string | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  t: any;
+  t: TranslationKeys;
 }
 
 export function BackfillMessages({ isOffline, error, successMessage, t }: BackfillMessagesProps) {
@@ -17,9 +18,9 @@ export function BackfillMessages({ isOffline, error, successMessage, t }: Backfi
       {isOffline && (
         <span
           className="backfill-offline-badge"
-          title={t.starHistory.offlineHint ?? "Data may be outdated"}
+          title={t.starHistory.offlineHint}
         >
-          ⚠️ {t.starHistory.offlineLabel ?? "Offline"}
+          ⚠️ {t.starHistory.offlineLabel}
         </span>
       )}
 

@@ -3,17 +3,17 @@
  */
 
 import { ApiError } from "../api/client";
+import { TranslationKeys } from "../i18n/translations";
 import { isNetworkError } from "./backfillHelpers";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getBackfillErrorMessage(err: unknown, t: any): string {
+export function getBackfillErrorMessage(err: unknown, t: TranslationKeys): string {
   if (isNetworkError(err)) {
-    return t.starHistory.offlineNoBackfill ?? "Cannot backfill while offline";
+    return t.starHistory.offlineNoBackfill;
   }
 
   if (err instanceof ApiError) {
     if (err.status === 429) {
-      return t.starHistory.rateLimited ?? "Rate limit exceeded. Please try again later.";
+      return t.starHistory.rateLimited;
     }
     return err.detail || t.starHistory.backfillFailed;
   }

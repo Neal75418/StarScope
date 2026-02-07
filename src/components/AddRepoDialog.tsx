@@ -71,7 +71,11 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
               <li>{t.dialog.addRepo.exampleUrl}</li>
             </ul>
 
+            <label htmlFor="add-repo-input" className="sr-only">
+              {t.dialog.addRepo.placeholder}
+            </label>
             <input
+              id="add-repo-input"
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -79,9 +83,14 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
               className="input"
               autoFocus
               disabled={isLoading}
+              aria-describedby={error ? "add-repo-error" : undefined}
             />
 
-            {error && <p className="error-message">{error}</p>}
+            {error && (
+              <p id="add-repo-error" className="error-message" role="alert">
+                {error}
+              </p>
+            )}
           </div>
 
           <div className="dialog-footer">

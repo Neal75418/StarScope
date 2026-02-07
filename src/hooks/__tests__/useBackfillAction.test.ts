@@ -11,17 +11,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      starHistory: {
-        offlineNoBackfill: "Cannot backfill while offline",
-        backfillComplete: "Backfill complete! Created {count} snapshots.",
-        backfillFailed: "Failed to backfill",
-      },
-    },
-  }),
-}));
 
 describe("useBackfillAction", () => {
   const mockOnSuccess = vi.fn().mockResolvedValue(undefined);
@@ -81,7 +70,7 @@ describe("useBackfillAction", () => {
       expect(result.current.backfilling).toBe(false);
     });
 
-    expect(result.current.successMessage).toBe("Backfill complete! Created 5 snapshots.");
+    expect(result.current.successMessage).toBe("Backfill complete! Created 5 data points.");
     expect(mockOnSuccess).toHaveBeenCalled();
     expect(mockOnComplete).toHaveBeenCalled();
   });

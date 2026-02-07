@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BackfillMessages } from "../BackfillMessages";
+import { TranslationKeys } from "../../i18n/translations";
 
 describe("BackfillMessages", () => {
   const defaultT = {
@@ -8,7 +9,7 @@ describe("BackfillMessages", () => {
       offlineHint: "Data may be outdated",
       offlineLabel: "Offline",
     },
-  };
+  } as unknown as TranslationKeys;
 
   it("renders nothing when all flags are false/null", () => {
     const { container } = render(
@@ -22,13 +23,6 @@ describe("BackfillMessages", () => {
 
     expect(screen.getByText(/Offline/)).toBeInTheDocument();
     expect(screen.getByText(/Offline/).closest("span")).toHaveClass("backfill-offline-badge");
-  });
-
-  it("uses default text when translations are missing", () => {
-    const emptyT = { starHistory: {} };
-    render(<BackfillMessages isOffline={true} error={null} successMessage={null} t={emptyT} />);
-
-    expect(screen.getByText(/Offline/)).toBeInTheDocument();
   });
 
   it("shows error message when error is provided", () => {

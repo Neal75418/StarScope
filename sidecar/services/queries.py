@@ -77,7 +77,7 @@ def _build_latest_snapshot_subquery(
 def build_snapshot_map(
     db: Session,
     repo_ids: list[int] | None = None
-) -> dict[int, type[RepoSnapshot]] | dict[Any, Any]:
+) -> dict[int, RepoSnapshot]:
     """
     Pre-fetch latest snapshots for repos in a single query.
 

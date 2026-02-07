@@ -11,17 +11,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-vi.mock("../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      watchlist: {
-        connection: {
-          message: "Cannot connect to server",
-        },
-      },
-    },
-  }),
-}));
 
 describe("useConnection", () => {
   beforeEach(() => {
@@ -66,7 +55,7 @@ describe("useConnection", () => {
 
     expect(connected).toBe(false);
     expect(result.current.isConnected).toBe(false);
-    expect(result.current.connectionError).toBe("Cannot connect to server");
+    expect(result.current.connectionError).toBe("Connecting to StarScope engine. Please wait...");
   });
 
   it("clears error after successful reconnection", async () => {
@@ -77,7 +66,7 @@ describe("useConnection", () => {
     await act(async () => {
       await result.current.checkConnection();
     });
-    expect(result.current.connectionError).toBe("Cannot connect to server");
+    expect(result.current.connectionError).toBe("Connecting to StarScope engine. Please wait...");
 
     vi.mocked(apiClient.checkHealth).mockResolvedValue({
       status: "ok",
