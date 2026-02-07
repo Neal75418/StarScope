@@ -40,7 +40,9 @@ def test_engine():
 @pytest.fixture(scope="function")
 def test_db(test_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
-    testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    testing_session_local = sessionmaker(
+        autocommit=False, autoflush=False, expire_on_commit=False, bind=test_engine
+    )
     db = testing_session_local()
     try:
         yield db
@@ -51,7 +53,7 @@ def test_db(test_engine) -> Generator[Session, None, None]:
 @pytest.fixture(scope="function")
 def test_session_local(test_engine):
     """Create a session factory bound to the test engine."""
-    return sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    return sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=test_engine)
 
 
 @pytest.fixture(scope="function")
@@ -61,10 +63,13 @@ def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
     Mocks the scheduler to prevent background tasks during tests.
     Also patches SessionLocal to use the test database for services that bypass DI.
     """
-    # Mock scheduler to prevent it from running during tests
-    # Also patch SessionLocal so services like settings.py use test DB
+    # Mock scheduler, init_db, and trigger_fetch_now to prevent lifespan
+    # from interfering with the test session's SQLite connection.
+    # Also patch SessionLocal so services like settings.py use test DB.
     with patch("services.scheduler.start_scheduler") as mock_start, \
          patch("services.scheduler.stop_scheduler") as mock_stop, \
+         patch("services.scheduler.trigger_fetch_now", return_value=None), \
+         patch("main.init_db"), \
          patch("db.database.SessionLocal", test_session_local), \
          patch("services.settings.SessionLocal", test_session_local):
         mock_start.return_value = None
@@ -121,7 +126,6 @@ def mock_repo(test_db):
     )
     test_db.add(repo)
     test_db.commit()
-    test_db.refresh(repo)
     return repo
 
 
@@ -150,9 +154,6 @@ def mock_repo_with_snapshots(test_db, mock_repo):
         snapshots.append(snapshot)
 
     test_db.commit()
-    for s in snapshots:
-        test_db.refresh(s)
-
     return mock_repo, snapshots
 
 
@@ -170,8 +171,6 @@ def mock_repo_with_signals(test_db, mock_repo):
     )
     test_db.add(signal)
     test_db.commit()
-    test_db.refresh(signal)
-
     return mock_repo, signal
 
 
@@ -206,9 +205,6 @@ def mock_multiple_repos(test_db):
         repos.append(repo)
 
     test_db.commit()
-    for r in repos:
-        test_db.refresh(r)
-
     return repos
 
 
@@ -225,7 +221,6 @@ def mock_category(test_db):
     )
     test_db.add(category)
     test_db.commit()
-    test_db.refresh(category)
     return category
 
 
@@ -247,7 +242,6 @@ def mock_early_signal(test_db, mock_repo):
     )
     test_db.add(signal)
     test_db.commit()
-    test_db.refresh(signal)
     return mock_repo, signal
 
 
