@@ -4,7 +4,6 @@ import { useDiscoverySearch } from "../useDiscoverySearch";
 import { DiscoveryRepo } from "../../api/client";
 import * as searchHelpers from "../../utils/searchHelpers";
 
-
 vi.mock("../../utils/searchHelpers", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../utils/searchHelpers")>();
   return {

@@ -97,7 +97,6 @@ vi.mock("../../components/motion", () => ({
   ),
 }));
 
-
 describe("Settings", () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -51,7 +51,6 @@ vi.mock("../../hooks/useCategoryOperations", () => ({
   }),
 }));
 
-
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
@@ -145,7 +144,9 @@ describe("Watchlist", () => {
     mockWatchlistReturn.isConnected = false;
     render(<Watchlist />);
     expect(screen.getByText("Connecting...")).toBeInTheDocument();
-    expect(screen.getByText("The app will automatically retry the connection.")).toBeInTheDocument();
+    expect(
+      screen.getByText("The app will automatically retry the connection.")
+    ).toBeInTheDocument();
     await user.click(screen.getByText("Retry Now"));
     expect(mockHandleRetry).toHaveBeenCalled();
   });
@@ -153,7 +154,9 @@ describe("Watchlist", () => {
   it("shows empty state when no repos", () => {
     render(<Watchlist />);
     expect(screen.getByText("No repositories in your watchlist yet.")).toBeInTheDocument();
-    expect(screen.getByText('Click "Add Repository" to start tracking GitHub projects.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Click "Add Repository" to start tracking GitHub projects.')
+    ).toBeInTheDocument();
   });
 
   it("renders repo cards when repos exist", () => {

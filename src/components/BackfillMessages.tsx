@@ -16,10 +16,7 @@ export function BackfillMessages({ isOffline, error, successMessage, t }: Backfi
     <>
       {/* 離線狀態指示 */}
       {isOffline && (
-        <span
-          className="backfill-offline-badge"
-          title={t.starHistory.offlineHint}
-        >
+        <span className="backfill-offline-badge" title={t.starHistory.offlineHint}>
           ⚠️ {t.starHistory.offlineLabel}
         </span>
       )}

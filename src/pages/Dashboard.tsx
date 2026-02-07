@@ -126,7 +126,9 @@ function SignalSpotlight({
                   <div className="signal-item-desc">{signal.description}</div>
                 </div>
                 <div className="signal-item-actions">
-                  <span className="signal-item-time">{formatCompactRelativeTime(signal.detected_at, t.dashboard.activity.justNow)}</span>
+                  <span className="signal-item-time">
+                    {formatCompactRelativeTime(signal.detected_at, t.dashboard.activity.justNow)}
+                  </span>
                   <button
                     className="btn btn-sm signal-ack-btn"
                     onClick={() => onAcknowledge(signal.id)}
@@ -207,7 +209,9 @@ function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
                 <div className="activity-description">{activity.description}</div>
               )}
             </div>
-            <div className="activity-time">{formatCompactRelativeTime(activity.timestamp, t.dashboard.activity.justNow)}</div>
+            <div className="activity-time">
+              {formatCompactRelativeTime(activity.timestamp, t.dashboard.activity.justNow)}
+            </div>
           </div>
         ))}
       </div>

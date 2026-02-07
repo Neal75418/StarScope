@@ -18,7 +18,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 // Mock format utils
 vi.mock("../../utils/format", () => ({
   formatNumber: vi.fn((num: number) => {

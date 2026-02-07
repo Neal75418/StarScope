@@ -15,8 +15,7 @@ export function createI18nMock(setLanguageFn: () => void = () => {}) {
     }),
     interpolate: (str: string, vars: Record<string, string | number>) =>
       str.replace(/{(\w+)}/g, (_, key: string) => String(vars[key] ?? `{${key}}`)),
-    getTranslations: (lang: string) =>
-      translations[lang as keyof typeof translations],
+    getTranslations: (lang: string) => translations[lang as keyof typeof translations],
     getInitialLanguage: () => "en" as const,
     saveLanguage: () => {},
     translations,

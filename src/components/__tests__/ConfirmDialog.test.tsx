@@ -7,7 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { ConfirmDialog } from "../ConfirmDialog";
 
-
 describe("ConfirmDialog", () => {
   const mockOnConfirm = vi.fn();
   const mockOnCancel = vi.fn();

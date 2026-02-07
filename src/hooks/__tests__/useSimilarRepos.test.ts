@@ -12,7 +12,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("useSimilarRepos", () => {
   const mockSimilarRepos: apiClient.SimilarRepo[] = [
     {

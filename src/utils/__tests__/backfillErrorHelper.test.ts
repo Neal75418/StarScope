@@ -56,5 +56,4 @@ describe("getBackfillErrorMessage", () => {
   it("returns backfillFailed for unknown error type", () => {
     expect(getBackfillErrorMessage("string error", mockT)).toBe("Failed to backfill star history");
   });
-
 });

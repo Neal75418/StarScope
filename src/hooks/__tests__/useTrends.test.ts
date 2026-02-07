@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useTrends, TrendingRepo } from "../useTrends";
 
-
 vi.mock("../../config", () => ({
   API_ENDPOINT: "http://localhost:8008/api",
 }));

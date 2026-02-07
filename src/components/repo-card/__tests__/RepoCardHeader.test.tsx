@@ -16,7 +16,6 @@ vi.mock("../../LanguagesBadge", () => ({
   LanguagesBadge: () => <span data-testid="languages-badge" />,
 }));
 
-
 function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
   return {
     id: 1,

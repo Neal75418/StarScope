@@ -7,7 +7,6 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { AddRepoDialog } from "../AddRepoDialog";
 
-
 describe("AddRepoDialog", () => {
   const mockOnClose = vi.fn();
   const mockOnAdd = vi.fn();
@@ -33,7 +32,9 @@ describe("AddRepoDialog", () => {
   it("shows hint and examples", () => {
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
 
-    expect(screen.getByText("Enter a repository in owner/repo format or paste a GitHub URL")).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter a repository in owner/repo format or paste a GitHub URL")
+    ).toBeInTheDocument();
     expect(screen.getByText("owner/repo (e.g., facebook/react)")).toBeInTheDocument();
   });
 

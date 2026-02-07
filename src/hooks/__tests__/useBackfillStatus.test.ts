@@ -11,7 +11,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("useBackfillStatus", () => {
   const mockStatus: apiClient.BackfillStatus = {
     repo_id: 1,

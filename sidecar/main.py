@@ -93,11 +93,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-async def _handle_rate_limit(_request: "Request", exc: RateLimitExceeded):
+async def _handle_rate_limit(_request: "Request", exc: Exception):
     from fastapi.responses import JSONResponse
+    detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(
         status_code=429,
-        content={"detail": f"Rate limit exceeded: {exc.detail}"},
+        content={"detail": f"Rate limit exceeded: {detail}"},
     )
 
 app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)

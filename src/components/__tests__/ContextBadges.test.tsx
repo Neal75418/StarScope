@@ -23,7 +23,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 const mockGetContextSignals = vi.mocked(getContextSignals);
 
 describe("ContextBadges", () => {

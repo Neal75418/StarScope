@@ -14,7 +14,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("useCategoryTree", () => {
   const mockTree: apiClient.CategoryTreeNode[] = [
     {

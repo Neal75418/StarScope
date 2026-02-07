@@ -3,7 +3,6 @@ import { render, screen } from "@testing-library/react";
 import { RepoCardStats } from "../RepoCardStats";
 import type { RepoWithSignals } from "../../../api/client";
 
-
 vi.mock("../../TrendArrow", () => ({
   TrendArrow: ({ trend }: { trend: number | null }) => (
     <span data-testid="trend-arrow">

@@ -13,7 +13,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("CommitActivityBadge", () => {
   beforeEach(() => {
     vi.clearAllMocks();

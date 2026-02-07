@@ -19,7 +19,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 // Mock window.confirm
 global.confirm = vi.fn(() => true);
 

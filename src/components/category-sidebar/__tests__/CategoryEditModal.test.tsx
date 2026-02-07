@@ -8,7 +8,6 @@ import { userEvent } from "@testing-library/user-event";
 import { CategoryEditModal } from "../CategoryEditModal";
 import type { CategoryTreeNode } from "../../../api/client";
 
-
 describe("CategoryEditModal", () => {
   const mockCategory: CategoryTreeNode = {
     id: 1,

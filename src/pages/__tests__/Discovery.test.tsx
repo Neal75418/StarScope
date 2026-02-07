@@ -147,7 +147,6 @@ vi.mock("../../components/discovery", () => ({
   SavedFilters: () => <div data-testid="saved-filters" />,
 }));
 
-
 describe("Discovery", () => {
   beforeEach(() => {
     vi.clearAllMocks();

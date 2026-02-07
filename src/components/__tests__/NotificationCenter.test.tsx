@@ -29,7 +29,6 @@ vi.mock("../../hooks/useNotifications", () => ({
   useNotifications: () => mockReturnValue,
 }));
 
-
 function makeNotification(overrides: Partial<Notification> = {}): Notification {
   return {
     id: "n-1",

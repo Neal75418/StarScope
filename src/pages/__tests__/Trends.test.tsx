@@ -38,7 +38,6 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
-
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div className={className}>{children}</div>

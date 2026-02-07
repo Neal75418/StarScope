@@ -22,7 +22,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("SimilarRepos", () => {
   const mockSimilarRepos = {
     repo_id: 1,

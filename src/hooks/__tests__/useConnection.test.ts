@@ -11,7 +11,6 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
-
 describe("useConnection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
