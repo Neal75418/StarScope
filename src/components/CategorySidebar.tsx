@@ -17,6 +17,7 @@ import {
   CategorySidebarLoading,
   CategorySidebarError,
 } from "./category-sidebar";
+import { logger } from "../utils/logger";
 
 interface CategorySidebarProps {
   selectedCategoryId: number | null;
@@ -55,7 +56,7 @@ export function CategorySidebar({
       });
     } catch (err) {
       // 取得失敗時使用樹節點快取資料
-      console.error("分類載入失敗，使用快取資料:", err);
+      logger.error("分類載入失敗，使用快取資料:", err);
       setEditingCategory(node);
     }
   }, []);

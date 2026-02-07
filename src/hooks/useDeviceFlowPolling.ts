@@ -11,6 +11,7 @@ import {
   DEVICE_FLOW_SLOWDOWN_EXTRA_SEC,
   DEVICE_FLOW_INITIAL_DELAY_MS,
 } from "../constants/api";
+import { logger } from "../utils/logger";
 
 interface UseDeviceFlowPollingOptions {
   onSuccess: (status: GitHubConnectionStatus) => void;
@@ -47,7 +48,7 @@ export function useDeviceFlowPolling({
 
   const handleError = useCallback(
     (error?: string) => {
-      console.error("[GitHub 驗證] 授權失敗:", error);
+      logger.error("[GitHub 驗證] 授權失敗:", error);
       setPollStatus("");
       stopPolling();
       onError(error || t.githubConnection.errors.failed);
@@ -88,7 +89,7 @@ export function useDeviceFlowPolling({
           const result = await pollAuthorization(codeRef.current);
           processResult(result, doPoll);
         } catch (err) {
-          console.error("[GitHub 驗證] 輪詢錯誤:", err);
+          logger.error("[GitHub 驗證] 輪詢錯誤:", err);
           setPollStatus(t.githubConnection.status.networkError);
         }
       };

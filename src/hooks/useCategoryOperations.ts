@@ -4,6 +4,7 @@
 
 import { useCallback, useState } from "react";
 import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
+import { logger } from "../utils/logger";
 
 interface CategoryOperationsResult {
   isLoading: boolean;
@@ -23,7 +24,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         onSuccess?.();
         return true;
       } catch (err) {
-        console.error("Repo 加入分類失敗:", err);
+        logger.error("Repo 加入分類失敗:", err);
         return false;
       } finally {
         setIsLoading(false);
@@ -40,7 +41,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         onSuccess?.();
         return true;
       } catch (err) {
-        console.error("Repo 移出分類失敗:", err);
+        logger.error("Repo 移出分類失敗:", err);
         return false;
       } finally {
         setIsLoading(false);
@@ -55,7 +56,7 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         const response = await getRepoCategories(repoId);
         return response.categories;
       } catch (err) {
-        console.error("取得 Repo 分類失敗:", err);
+        logger.error("取得 Repo 分類失敗:", err);
         return [];
       }
     },

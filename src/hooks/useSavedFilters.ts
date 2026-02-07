@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SearchFilters } from "../api/client";
+import { logger } from "../utils/logger";
 
 export interface SavedFilter {
   id: string;
@@ -38,7 +39,7 @@ function loadSavedFilters(): SavedFilter[] {
       }
     }
   } catch (err) {
-    console.warn("載入已儲存篩選條件失敗:", err);
+    logger.warn("載入已儲存篩選條件失敗:", err);
   }
   return [];
 }
@@ -50,7 +51,7 @@ function saveSavedFilters(filters: SavedFilter[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
   } catch (err) {
-    console.warn("篩選條件儲存失敗:", err);
+    logger.warn("篩選條件儲存失敗:", err);
   }
 }
 

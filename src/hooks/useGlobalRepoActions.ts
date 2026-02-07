@@ -5,6 +5,7 @@
 import { useState, useCallback } from "react";
 import { recalculateAllSimilarities } from "../api/client";
 import { useI18n } from "../i18n";
+import { logger } from "../utils/logger";
 
 interface Toast {
   success: (msg: string) => void;
@@ -28,7 +29,7 @@ export function useGlobalRepoActions(toast: Toast) {
           : `已處理 ${result.processed} 個 Repo，找到 ${result.similarities_found} 筆相似度`
       );
     } catch (err) {
-      console.error("重新計算相似度失敗:", err);
+      logger.error("重新計算相似度失敗:", err);
       toast.error(t.toast.error);
     } finally {
       setIsRecalculatingSimilarities(false);

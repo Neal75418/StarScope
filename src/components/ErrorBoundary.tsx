@@ -4,6 +4,7 @@
 
 import { Component, ErrorInfo, ReactNode } from "react";
 import { I18nContext, TranslationKeys } from "../i18n";
+import { logger } from "../utils/logger";
 
 interface Props {
   children: ReactNode;
@@ -61,8 +62,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 開發模式下記錄錯誤
-    console.error("ErrorBoundary 捕捉到錯誤:", error);
-    console.error("元件堆疊:", errorInfo.componentStack);
+    logger.error("ErrorBoundary 捕捉到錯誤:", error);
+    logger.error("元件堆疊:", errorInfo.componentStack);
   }
 
   handleRetry = () => {

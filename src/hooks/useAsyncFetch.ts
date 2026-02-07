@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { cachedRequest } from "../utils/requestCache";
+import { logger } from "../utils/logger";
 
 interface UseAsyncFetchResult<T> {
   data: T;
@@ -44,7 +45,7 @@ export function useAsyncFetch<T, R>(
         }
         if (isMounted) setData(extractData(response));
       } catch (err) {
-        if (isMounted) console.error(`${errorContext} 載入失敗:`, err);
+        if (isMounted) logger.error(`${errorContext} 載入失敗:`, err);
       } finally {
         if (isMounted) setLoading(false);
       }

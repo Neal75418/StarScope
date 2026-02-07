@@ -5,6 +5,7 @@
 import { useCallback, Dispatch, SetStateAction } from "react";
 import { acknowledgeTriggeredAlert } from "../api/client";
 import { Notification } from "./useNotifications";
+import { logger } from "../utils/logger";
 
 interface StorageActions {
   markIdAsRead: (id: string) => void;
@@ -22,7 +23,7 @@ export function useNotificationActions(
     try {
       await acknowledgeTriggeredAlert(alertId);
     } catch (err) {
-      console.warn(`警報確認失敗 (ID: ${alertId}):`, err);
+      logger.warn(`警報確認失敗 (ID: ${alertId}):`, err);
     }
   };
 

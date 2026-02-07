@@ -10,6 +10,7 @@ import {
   ApiError,
 } from "../api/client";
 import { useI18n } from "../i18n";
+import { logger } from "../utils/logger";
 
 interface CommitActivityPanelProps {
   repoId: number;
@@ -224,7 +225,7 @@ export function CommitActivityPanel({ repoId, repoName, onClose }: CommitActivit
       if (err instanceof ApiError && err.status === 404) {
         setData(null);
       } else {
-        console.error("載入 commit 活躍度失敗:", err);
+        logger.error("載入 commit 活躍度失敗:", err);
         setError(t.commitActivity.fetchFailed);
       }
     } finally {

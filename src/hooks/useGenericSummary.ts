@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { logger } from "../utils/logger";
 
 export interface UseGenericSummaryResult<T> {
   summary: T | null;
@@ -64,7 +65,7 @@ async function loadSummary<T>({
       setIfMounted(isMountedRef, setSummary, null);
     } else {
       setIfMounted(isMountedRef, setError, failedToLoadMessage);
-      console.error(`[${logPrefix}] 載入錯誤:`, err);
+      logger.error(`[${logPrefix}] 載入錯誤:`, err);
     }
   } finally {
     setIfMounted(isMountedRef, setLoading, false);
@@ -96,7 +97,7 @@ async function fetchSummaryData<T>({
     setIfMounted(isMountedRef, setSummary, summaryData);
   } catch (err) {
     setIfMounted(isMountedRef, setError, failedToLoadMessage);
-    console.error(`[${logPrefix}] 取得資料錯誤:`, err);
+    logger.error(`[${logPrefix}] 取得資料錯誤:`, err);
   } finally {
     setIfMounted(isMountedRef, setFetching, false);
   }

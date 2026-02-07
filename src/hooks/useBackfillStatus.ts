@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { BackfillStatus, getBackfillStatus, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
 import { isNetworkError } from "../utils/backfillHelpers";
+import { logger } from "../utils/logger";
 
 export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
   const { t } = useI18n();
@@ -35,14 +36,14 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
         lastStatusRef.current = null;
       } else if (isNetworkError(err)) {
         // 網路錯誤 — 顯示離線狀態但保留上次資料
-        console.warn("回填狀態載入時網路錯誤:", err);
+        logger.warn("回填狀態載入時網路錯誤:", err);
         setIsOffline(true);
         if (lastStatusRef.current) {
           setStatus(lastStatusRef.current);
         }
         setError(t.starHistory.offline ?? "離線中 — 顯示快取資料");
       } else {
-        console.error("回填狀態載入失敗:", err);
+        logger.error("回填狀態載入失敗:", err);
         setError(t.starHistory.backfillFailed);
       }
     } finally {

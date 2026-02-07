@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { LanguagesResponse, getLanguages, fetchLanguages, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
 import { getLanguageColor } from "../constants/languageColors";
+import { logger } from "../utils/logger";
 
 interface LanguagesPanelProps {
   repoId: number;
@@ -200,7 +201,7 @@ export function LanguagesPanel({ repoId, repoName, onClose }: LanguagesPanelProp
       if (err instanceof ApiError && err.status === 404) {
         setData(null);
       } else {
-        console.error("載入程式語言資料失敗:", err);
+        logger.error("載入程式語言資料失敗:", err);
         setError(t.languages.fetchFailed);
       }
     } finally {

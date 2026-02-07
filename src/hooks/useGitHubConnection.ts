@@ -10,6 +10,7 @@ import { useI18n } from "../i18n";
 import { useConnectionStatus } from "./useConnectionStatus";
 import { useUserCodeActions } from "./useUserCodeActions";
 import { useDeviceFlowPolling } from "./useDeviceFlowPolling";
+import { logger } from "../utils/logger";
 
 export type ConnectionState =
   | "loading"
@@ -89,7 +90,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
       try {
         await openUrl(result.verification_uri);
       } catch (openErr) {
-        console.warn("自動開啟瀏覽器失敗:", openErr);
+        logger.warn("自動開啟瀏覽器失敗:", openErr);
       }
 
       startPolling(result.device_code, result.interval, result.expires_in);

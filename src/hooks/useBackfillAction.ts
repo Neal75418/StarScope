@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { backfillStarHistory } from "../api/client";
 import { useI18n } from "../i18n";
 import { getBackfillErrorMessage } from "../utils/backfillErrorHelper";
+import { logger } from "../utils/logger";
 
 interface UseBackfillActionProps {
   repoId: number;
@@ -49,7 +50,7 @@ export function useBackfillAction({
         setError(result.message);
       }
     } catch (err) {
-      console.error("回填失敗:", err);
+      logger.error("回填失敗:", err);
       const errorMessage = getBackfillErrorMessage(err, t);
       setError(errorMessage);
     } finally {

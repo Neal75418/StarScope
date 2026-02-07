@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { RepoWithSignals, getCategoryRepos } from "../api/client";
+import { logger } from "../utils/logger";
 
 /**
  * 檢查 repo 是否符合搜尋關鍵字（搜尋範圍：full_name、description、language）。
@@ -50,7 +51,7 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
       .catch((err) => {
         // 僅在分類未於請求期間切換時更新狀態
         if (requestedCategoryId === selectedCategoryId) {
-          console.error("分類 Repo 載入失敗:", err);
+          logger.error("分類 Repo 載入失敗:", err);
           setFilteredRepoIds(null);
         }
       });
