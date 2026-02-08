@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import case, func
 
 from db.database import get_db
 from db.models import EarlySignal, Repo
@@ -17,6 +17,14 @@ from services.anomaly_detector import run_detection
 from utils.time import utc_now
 
 router = APIRouter(prefix="/early-signals", tags=["early-signals"])
+
+# severity 欄位是字串，字母序 ≠ 語意順序，需用 CASE 映射
+_SEVERITY_ORDER = case(
+    (EarlySignal.severity == "high", 0),
+    (EarlySignal.severity == "medium", 1),
+    (EarlySignal.severity == "low", 2),
+    else_=3,
+)
 
 
 # 回應 schema
@@ -106,7 +114,7 @@ async def list_early_signals(
         )
 
     signals = query.order_by(
-        EarlySignal.severity.desc(),  # High severity first
+        _SEVERITY_ORDER,  # High severity first
         EarlySignal.detected_at.desc()
     ).limit(limit).all()
 
@@ -304,7 +312,7 @@ async def get_repo_signals_batch(
         EarlySignal.acknowledged == False,
         (EarlySignal.expires_at == None) | (EarlySignal.expires_at > now)
     ).order_by(
-        EarlySignal.severity.desc(),
+        _SEVERITY_ORDER,
         EarlySignal.detected_at.desc()
     ).all()
 

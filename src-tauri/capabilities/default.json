@@ -6,7 +6,15 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "shell:allow-spawn",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "starscope-sidecar",
+          "sidecar": true
+        }
+      ]
+    },
     "shell:allow-kill"
   ]
 }

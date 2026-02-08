@@ -123,12 +123,15 @@ def _create_snapshots_from_history(
     now = utc_now()
 
     try:
+        # 一次查出該 repo 所有既有 snapshot，避免迴圈內逐一查詢（N+1）
+        existing_snapshots = db.query(RepoSnapshot).filter(
+            RepoSnapshot.repo_id == repo_id,
+            RepoSnapshot.snapshot_date.in_(list(star_history.keys()))
+        ).all()
+        existing_map = {s.snapshot_date: s for s in existing_snapshots}
+
         for snapshot_date, stars in star_history.items():
-            # 檢查快照是否存在
-            existing = db.query(RepoSnapshot).filter(
-                RepoSnapshot.repo_id == repo_id,
-                RepoSnapshot.snapshot_date == snapshot_date
-            ).first()
+            existing = existing_map.get(snapshot_date)
 
             if existing:
                 # 若回填資料有更準確的 star 數則更新

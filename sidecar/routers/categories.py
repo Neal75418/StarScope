@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
 from db.models import Category, RepoCategory
@@ -388,6 +388,7 @@ async def get_category_repos(
 
     repo_categories = (
         db.query(RepoCategory)
+        .options(joinedload(RepoCategory.repo))
         .filter(RepoCategory.category_id == category_id)
         .offset(skip)
         .limit(limit)
@@ -471,7 +472,9 @@ async def get_repo_categories(
     """
     get_repo_or_404(repo_id, db)
 
-    repo_categories = db.query(RepoCategory).filter(
+    repo_categories = db.query(RepoCategory).options(
+        joinedload(RepoCategory.category)
+    ).filter(
         RepoCategory.repo_id == repo_id
     ).all()
 
