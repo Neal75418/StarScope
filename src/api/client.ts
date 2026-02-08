@@ -3,6 +3,7 @@
  */
 
 import { API_ENDPOINT } from "../config";
+import { GITHUB_SEARCH_PAGE_SIZE } from "../constants/api";
 
 // 型別定義
 export interface RepoWithSignals {
@@ -1173,7 +1174,7 @@ export async function searchRepos(
   page: number = 1,
   signal?: AbortSignal
 ): Promise<SearchResponse> {
-  const params = new URLSearchParams({ q: query, page: String(page) });
+  const params = new URLSearchParams({ q: query, page: String(page), per_page: String(GITHUB_SEARCH_PAGE_SIZE) });
   if (filters.language) params.set("language", filters.language);
   if (filters.minStars) params.set("min_stars", String(filters.minStars));
   if (filters.topic) params.set("topic", filters.topic);

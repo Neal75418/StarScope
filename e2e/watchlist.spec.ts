@@ -35,22 +35,10 @@ test.describe("Watchlist Page", () => {
     await expect(page).toHaveURL(/trends/);
   });
 
-  test("should navigate to signals page", async ({ page }) => {
-    const signalsNav = page.getByTestId("nav-signals");
-    await signalsNav.click();
-    await expect(page).toHaveURL(/signals/);
-  });
-
-  test("should navigate to compare page", async ({ page }) => {
-    const compareNav = page.getByTestId("nav-compare");
-    await compareNav.click();
-    await expect(page).toHaveURL(/compare/);
-  });
-
-  test("should navigate to settings page", async ({ page }) => {
-    const settingsNav = page.getByTestId("nav-settings");
-    await settingsNav.click();
-    await expect(page).toHaveURL(/settings/);
+  test("should navigate to discovery page", async ({ page }) => {
+    const discoveryNav = page.getByTestId("nav-discovery");
+    await discoveryNav.click();
+    await expect(page).toHaveURL(/discovery/);
   });
 
   test("should toggle theme", async ({ page }) => {

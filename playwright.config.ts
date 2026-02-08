@@ -38,7 +38,7 @@ export default defineConfig({
     ? undefined // Skip webServer in CI - servers are started manually or tests are skipped
     : [
         {
-          command: "cd sidecar && python3 main.py",
+          command: "cd sidecar && .venv/bin/python main.py",
           url: "http://127.0.0.1:8008/api/health",
           reuseExistingServer: true,
           timeout: 60000,

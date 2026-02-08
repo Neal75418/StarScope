@@ -85,7 +85,7 @@ describe("API Client", () => {
         json: async () => ({ detail: "Service unavailable" }),
       });
 
-      expect(checkHealth()).rejects.toThrow(ApiError);
+      await expect(checkHealth()).rejects.toThrow(ApiError);
     });
   });
 
@@ -223,7 +223,7 @@ describe("API Client", () => {
     it("handles network errors", async () => {
       mockFetch.mockRejectedValueOnce(new Error("Network failure"));
 
-      expect(checkHealth()).rejects.toThrow();
+      await expect(checkHealth()).rejects.toThrow();
     });
 
     it("handles JSON parse errors", async () => {
@@ -234,7 +234,7 @@ describe("API Client", () => {
         },
       });
 
-      expect(checkHealth()).rejects.toThrow();
+      await expect(checkHealth()).rejects.toThrow();
     });
 
     it("handles non-ok response with JSON parse failure", async () => {

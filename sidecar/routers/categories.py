@@ -19,7 +19,7 @@ from utils.time import utc_now
 # 錯誤訊息常數
 ERROR_CATEGORY_NOT_FOUND = "Category not found"
 ERROR_PARENT_CATEGORY_NOT_FOUND = "Parent category not found"
-ERROR_CIRCULAR_REFERENCE = "Category cannot be its own parent"
+ERROR_CIRCULAR_REFERENCE = "Circular reference detected in category hierarchy"
 ERROR_REPO_NOT_IN_CATEGORY = "Repository is not in this category"
 
 router = APIRouter(prefix="/categories", tags=["categories"])
@@ -184,12 +184,23 @@ def _get_category_or_404(category_id: int, db: Session) -> Category:
 
 
 def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Session) -> None:
-    """驗證父分類是否存在且無循環參考。"""
+    """驗證父分類是否存在且無循環參考（含間接循環）。"""
     parent = db.query(Category).filter(Category.id == parent_id).first()
     if not parent:
         raise HTTPException(status_code=404, detail=ERROR_PARENT_CATEGORY_NOT_FOUND)
-    if category_id and parent_id == category_id:
-        raise HTTPException(status_code=400, detail=ERROR_CIRCULAR_REFERENCE)
+    if not category_id:
+        return
+    # 走訪祖先鏈，檢查直接與間接循環
+    visited = {category_id}
+    current_id: Optional[int] = parent_id
+    while current_id is not None:
+        if current_id in visited:
+            raise HTTPException(status_code=400, detail=ERROR_CIRCULAR_REFERENCE)
+        visited.add(current_id)
+        ancestor = db.query(Category).filter(Category.id == current_id).first()
+        if not ancestor:
+            break
+        current_id = ancestor.parent_id
 
 
 def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:
@@ -201,13 +212,12 @@ def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional
 
 
 def _apply_category_updates(category: Category, request: CategoryUpdate) -> None:
-    """將非 None 的更新欄位套用至分類。"""
+    """將請求中明確提供的欄位套用至分類（使用 model_fields_set 區分「未送」與「送 null」）。"""
     for field in ("name", "description", "icon", "color", "sort_order"):
-        value = getattr(request, field)
-        if value is not None:
-            setattr(category, field, value)
-    if request.parent_id is not None:
-        category.parent_id = request.parent_id if request.parent_id else None
+        if field in request.model_fields_set:
+            setattr(category, field, getattr(request, field))
+    if "parent_id" in request.model_fields_set:
+        category.parent_id = request.parent_id
 
 
 # 端點
@@ -320,8 +330,8 @@ async def update_category(
     category = _get_category_or_404(category_id, db)
 
     # 變更父分類時進行驗證
-    if request.parent_id is not None and request.parent_id != category.parent_id:
-        if request.parent_id:
+    if "parent_id" in request.model_fields_set and request.parent_id != category.parent_id:
+        if request.parent_id is not None:
             _validate_parent_category(request.parent_id, category_id, db)
 
     # 使用映射更新欄位以簡化程式碼

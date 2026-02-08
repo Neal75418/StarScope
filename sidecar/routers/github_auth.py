@@ -37,6 +37,7 @@ class PollResponseModel(BaseModel):
     username: Optional[str] = None
     error: Optional[str] = None
     slow_down: Optional[bool] = None
+    interval: Optional[int] = None
 
 
 class ConnectionStatusModel(BaseModel):
@@ -103,6 +104,7 @@ async def poll_authorization(request: PollRequestModel):
         username=result.get("username"),
         error=result.get("error"),
         slow_down=result.get("slow_down"),
+        interval=result.get("interval"),
     )
 
 

@@ -202,24 +202,31 @@ async def get_context_badges_batch(
             published_at = published_at.replace(tzinfo=timezone.utc)
         return published_at > recent_threshold
 
-    # 一次查詢所有 repo 的最高分 HN 文章（含 min(id) 作為同分 tiebreaker）
+    # 一次查詢所有 repo 的最高分 HN 文章（同分時取最小 id 作為 tiebreaker）
     from sqlalchemy import and_
-    top_hn_subquery = db.query(
+
+    # 第一步：每個 repo 的最高分
+    max_score_subq = db.query(
         ContextSignal.repo_id,
         func.max(ContextSignal.score).label("max_score"),
-        func.min(ContextSignal.id).label("min_id")
     ).filter(
         ContextSignal.repo_id.in_(repo_ids),
         ContextSignal.signal_type == ContextSignalType.HACKER_NEWS
     ).group_by(ContextSignal.repo_id).subquery()
 
-    top_signals = db.query(ContextSignal).join(
-        top_hn_subquery,
+    # 第二步：在最高分的 rows 中，取最小 id 作為 tiebreaker
+    top_id_subq = db.query(
+        func.min(ContextSignal.id).label("top_id"),
+    ).join(
+        max_score_subq,
         and_(
-            ContextSignal.repo_id == top_hn_subquery.c.repo_id,
-            ContextSignal.score == top_hn_subquery.c.max_score,
-            ContextSignal.id == top_hn_subquery.c.min_id
+            ContextSignal.repo_id == max_score_subq.c.repo_id,
+            ContextSignal.score == max_score_subq.c.max_score,
         )
+    ).group_by(ContextSignal.repo_id).subquery()
+
+    top_signals = db.query(ContextSignal).filter(
+        ContextSignal.id.in_(db.query(top_id_subq.c.top_id))
     ).all()
 
     # 組裝結果
