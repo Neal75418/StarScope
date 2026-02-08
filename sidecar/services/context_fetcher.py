@@ -10,7 +10,8 @@ from typing import List, Dict, Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from db.models import Repo, ContextSignal, ContextSignalType
+from constants import ContextSignalType
+from db.models import Repo, ContextSignal
 from services.hacker_news import fetch_hn_mentions, HNStory
 from utils.time import utc_now
 

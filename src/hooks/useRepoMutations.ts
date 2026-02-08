@@ -3,31 +3,9 @@
  */
 
 import { useCallback, Dispatch, SetStateAction } from "react";
-import {
-  RepoWithSignals,
-  addRepo,
-  removeRepo,
-  fetchRepo,
-  fetchAllRepos,
-  ApiError,
-} from "../api/client";
-
-function getErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.detail : fallback;
-}
-
-function parseRepoInput(input: string): { owner?: string; name?: string; url?: string } | null {
-  if (input.includes("github.com")) return { url: input };
-  if (input.includes("/")) {
-    const parts = input.split("/");
-    // 確保恰好有 2 個部分（owner/name）
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      return null;
-    }
-    return { owner: parts[0], name: parts[1] };
-  }
-  return null;
-}
+import { RepoWithSignals, addRepo, removeRepo, fetchRepo, fetchAllRepos } from "../api/client";
+import { getErrorMessage } from "../utils/error";
+import { parseRepoString } from "../utils/importHelpers";
 
 interface MutationDeps {
   setRepos: Dispatch<SetStateAction<RepoWithSignals[]>>;
@@ -41,12 +19,12 @@ interface MutationDeps {
 export function useRepoMutations(deps: MutationDeps) {
   const addNewRepo = useCallback(
     async (input: string): Promise<{ success: boolean; error?: string }> => {
-      const repoInput = parseRepoInput(input);
-      if (!repoInput) {
+      const parsed = parseRepoString(input);
+      if (!parsed) {
         return { success: false, error: deps.invalidFormatMsg };
       }
       try {
-        const newRepo = await addRepo(repoInput);
+        const newRepo = await addRepo({ owner: parsed.owner, name: parsed.name });
         deps.setRepos((prev) => [newRepo, ...prev]);
         return { success: true };
       } catch (err) {

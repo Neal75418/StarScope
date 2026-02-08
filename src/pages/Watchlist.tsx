@@ -274,44 +274,14 @@ function Toolbar({
 // Watchlist 主元件
 export function Watchlist() {
   const { t } = useI18n();
-  const {
-    repos,
-    displayedRepos,
-    isLoading,
-    isRefreshing,
-    isRecalculatingSimilarities,
-    loadingRepoId,
-    error,
-    isConnected,
-    isDialogOpen,
-    dialogError,
-    isAddingRepo,
-    selectedCategoryId,
-    searchQuery,
-    removeConfirm,
-    toast,
-    handleAddRepo,
-    handleRemoveRepo,
-    confirmRemoveRepo,
-    cancelRemoveRepo,
-    handleFetchRepo,
-    handleRefreshAll,
-    handleRecalculateAll,
-    handleRetry,
-    openAddDialog,
-    closeAddDialog,
-    clearError,
-    setSelectedCategoryId,
-    setSearchQuery,
-    refreshCategory,
-  } = useWatchlist();
+  const { state, dialog, category, actions, removeConfirm, toast } = useWatchlist();
 
   // 批次載入所有 repo 的 badges 與 signals（2 requests 取代 N×2 requests）
-  const repoIds = useMemo(() => repos.map((r) => r.id), [repos]);
+  const repoIds = useMemo(() => state.repos.map((r) => r.id), [state.repos]);
   const { dataMap: batchData } = useBatchRepoData(repoIds);
 
   // 分類操作：新增 / 移除 repo 至分類
-  const categoryOps = useCategoryOperations(refreshCategory);
+  const categoryOps = useCategoryOperations(category.refresh, (msg) => toast.error(msg));
 
   // Memoize handler 以避免不必要的 re-render
   const handleRemoveFromCategory = useCallback(
@@ -319,19 +289,17 @@ export function Watchlist() {
       const success = await categoryOps.removeFromCategory(categoryId, repoId);
       if (success) {
         toast.success(t.categories.removedFromCategory);
-      } else {
-        toast.error(t.toast.error);
       }
     },
-    [categoryOps, toast, t.categories.removedFromCategory, t.toast.error]
+    [categoryOps, toast, t.categories.removedFromCategory]
   );
 
-  if (isLoading) {
+  if (state.isLoading) {
     return <LoadingState />;
   }
 
-  if (!isConnected) {
-    return <ConnectionError onRetry={handleRetry} />;
+  if (!state.isConnected) {
+    return <ConnectionError onRetry={actions.retry} />;
   }
 
   return (
@@ -343,42 +311,42 @@ export function Watchlist() {
 
       <div className="watchlist-with-sidebar">
         <CategorySidebar
-          selectedCategoryId={selectedCategoryId}
-          onSelectCategory={setSelectedCategoryId}
+          selectedCategoryId={category.selectedId}
+          onSelectCategory={category.setSelectedId}
         />
 
         <div className="watchlist-main">
           <Toolbar
-            onAddRepo={openAddDialog}
-            onRefreshAll={handleRefreshAll}
-            onRecalculateAll={handleRecalculateAll}
-            isRefreshing={isRefreshing}
-            isRecalculating={isRecalculatingSimilarities}
-            selectedCategoryId={selectedCategoryId}
-            displayedCount={displayedRepos.length}
-            totalCount={repos.length}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            onAddRepo={dialog.open}
+            onRefreshAll={actions.refreshAll}
+            onRecalculateAll={actions.recalculateAll}
+            isRefreshing={state.isRefreshing}
+            isRecalculating={state.isRecalculatingSimilarities}
+            selectedCategoryId={category.selectedId}
+            displayedCount={state.displayedRepos.length}
+            totalCount={state.repos.length}
+            searchQuery={category.searchQuery}
+            onSearchChange={category.setSearchQuery}
           />
 
-          {error && <ErrorBanner error={error} onClear={clearError} />}
+          {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
 
           <div className="repo-list" data-testid="repo-list">
-            {displayedRepos.length === 0 ? (
+            {state.displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
                 <EmptyStateView
-                  hasRepos={repos.length > 0}
-                  hasSearch={searchQuery.trim().length > 0}
-                  onAddRepo={openAddDialog}
+                  hasRepos={state.repos.length > 0}
+                  hasSearch={category.searchQuery.trim().length > 0}
+                  onAddRepo={dialog.open}
                 />
               </div>
             ) : (
               <RepoList
-                repos={displayedRepos}
-                loadingRepoId={loadingRepoId}
-                onFetch={handleFetchRepo}
-                onRemove={handleRemoveRepo}
-                selectedCategoryId={selectedCategoryId}
+                repos={state.displayedRepos}
+                loadingRepoId={state.loadingRepoId}
+                onFetch={actions.fetchRepo}
+                onRemove={actions.remove}
+                selectedCategoryId={category.selectedId}
                 batchData={batchData}
                 onRemoveFromCategory={handleRemoveFromCategory}
               />
@@ -388,11 +356,11 @@ export function Watchlist() {
       </div>
 
       <AddRepoDialog
-        isOpen={isDialogOpen}
-        onClose={closeAddDialog}
-        onAdd={handleAddRepo}
-        isLoading={isAddingRepo}
-        error={dialogError}
+        isOpen={dialog.isOpen}
+        onClose={dialog.close}
+        onAdd={dialog.submit}
+        isLoading={dialog.isAdding}
+        error={dialog.error}
       />
 
       <ConfirmDialog
@@ -403,8 +371,8 @@ export function Watchlist() {
         })}
         confirmText={t.dialog.removeRepo.confirm}
         variant="danger"
-        onConfirm={confirmRemoveRepo}
-        onCancel={cancelRemoveRepo}
+        onConfirm={actions.confirmRemove}
+        onCancel={actions.cancelRemove}
       />
 
       <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />

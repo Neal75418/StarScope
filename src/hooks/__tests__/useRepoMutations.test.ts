@@ -79,7 +79,8 @@ describe("useRepoMutations", () => {
 
       expect(res.success).toBe(true);
       expect(apiClient.addRepo).toHaveBeenCalledWith({
-        url: "https://github.com/facebook/react",
+        owner: "facebook",
+        name: "react",
       });
     });
 
@@ -137,7 +138,7 @@ describe("useRepoMutations", () => {
       expect(res.error).toBe("Repository already exists");
     });
 
-    it("returns fallback error for non-ApiError", async () => {
+    it("returns error message for non-ApiError", async () => {
       vi.mocked(apiClient.addRepo).mockRejectedValue(new Error("Network error"));
       const { result } = renderHook(() => useRepoMutations(deps));
 
@@ -147,7 +148,7 @@ describe("useRepoMutations", () => {
       });
 
       expect(res.success).toBe(false);
-      expect(res.error).toBe("操作失敗");
+      expect(res.error).toBe("Network error");
     });
   });
 
@@ -208,7 +209,7 @@ describe("useRepoMutations", () => {
         await result.current.refreshRepo(1);
       });
 
-      expect(deps.setError).toHaveBeenCalledWith("操作失敗");
+      expect(deps.setError).toHaveBeenCalledWith("timeout");
     });
   });
 
@@ -238,7 +239,7 @@ describe("useRepoMutations", () => {
         await result.current.refreshAllRepos();
       });
 
-      expect(deps.setError).toHaveBeenCalledWith("操作失敗");
+      expect(deps.setError).toHaveBeenCalledWith("fail");
       expect(deps.setIsRefreshing).toHaveBeenCalledWith(false);
     });
   });

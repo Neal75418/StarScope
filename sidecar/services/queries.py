@@ -5,7 +5,7 @@ Centralizes common query patterns to avoid code duplication.
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any, Dict, Optional, cast
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, Query
@@ -142,3 +142,45 @@ def build_stars_map(
     )
 
     return {int(cast(int, repo_id)): int(cast(int, stars)) for repo_id, stars in results}
+
+
+def get_snapshot_for_repo(
+    repo_id: int,
+    db: Session,
+    snapshot_map: Optional[Dict[int, RepoSnapshot]] = None,
+) -> Optional[RepoSnapshot]:
+    """
+    取得指定 repo 的最新快照。
+    優先使用預載的 snapshot_map，未命中時查詢資料庫。
+    """
+    if snapshot_map is not None:
+        snapshot = snapshot_map.get(repo_id)
+        if snapshot is not None:
+            return snapshot
+    return (
+        db.query(RepoSnapshot)
+        .filter(RepoSnapshot.repo_id == repo_id)
+        .order_by(RepoSnapshot.snapshot_date.desc())
+        .first()
+    )
+
+
+def get_signal_value(
+    repo_id: int,
+    signal_type: str,
+    db: Session,
+    signal_map: Optional[Dict[int, Dict[str, float]]] = None,
+) -> Optional[float]:
+    """
+    取得指定 repo 的特定 signal 值。
+    優先使用預載的 signal_map，未命中時查詢資料庫。
+    """
+    if signal_map is not None:
+        val = signal_map.get(repo_id, {}).get(signal_type)
+        if val is not None:
+            return val
+    signal = db.query(Signal).filter(
+        Signal.repo_id == repo_id,
+        Signal.signal_type == signal_type,
+    ).first()
+    return signal.value if signal else None

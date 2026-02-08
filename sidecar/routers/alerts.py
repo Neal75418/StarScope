@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
-from db.models import AlertRule, TriggeredAlert, Repo, SignalType
+from constants import SignalType
+from db.models import AlertRule, TriggeredAlert, Repo
 
 # 從 model 常數衍生的 Literal 型別 — Pydantic 自動驗證。
 ValidSignalType = Literal[

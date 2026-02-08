@@ -13,9 +13,9 @@ from sqlalchemy import desc
 
 from db import get_db, Repo, RepoSnapshot
 from middleware.rate_limit import limiter
-from db.models import SignalType
 from schemas import RepoCreate, RepoWithSignals, RepoListResponse
 from constants import (
+    SignalType,
     GITHUB_USERNAME_PATTERN,
     GITHUB_REPO_NAME_PATTERN,
     MAX_OWNER_LENGTH,

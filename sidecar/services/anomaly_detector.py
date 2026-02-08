@@ -12,12 +12,15 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from constants import SignalType, EarlySignalType, EarlySignalSeverity, ContextSignalType
 from db.models import (
-    Repo, RepoSnapshot, Signal, SignalType,
-    EarlySignal, EarlySignalType, EarlySignalSeverity,
-    ContextSignal, ContextSignalType,
+    Repo, RepoSnapshot, Signal,
+    EarlySignal, ContextSignal,
 )
-from services.queries import build_snapshot_map, build_signal_map
+from services.queries import (
+    build_snapshot_map, build_signal_map,
+    get_snapshot_for_repo, get_signal_value,
+)
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -33,6 +36,39 @@ SUDDEN_SPIKE_MIN_ABSOLUTE = 100  # Minimum absolute growth
 BREAKOUT_VELOCITY_THRESHOLD = 2  # Current week velocity must be > 2
 
 VIRAL_HN_MIN_SCORE = 100  # Minimum HN score to trigger
+
+# 嚴重度門檻（各偵測器）
+RISING_STAR_SEVERITY_HIGH = 50
+RISING_STAR_SEVERITY_MEDIUM = 20
+SUDDEN_SPIKE_SEVERITY_HIGH = 1000
+SUDDEN_SPIKE_SEVERITY_MEDIUM = 500
+BREAKOUT_SEVERITY_HIGH = 10
+BREAKOUT_SEVERITY_MEDIUM = 5
+VIRAL_HN_SEVERITY_HIGH = 500
+VIRAL_HN_SEVERITY_MEDIUM = 200
+
+
+def _determine_severity(
+    value: float,
+    high_threshold: float,
+    medium_threshold: float,
+) -> str:
+    """根據值與門檻判斷嚴重等級。"""
+    if value >= high_threshold:
+        return EarlySignalSeverity.HIGH
+    if value >= medium_threshold:
+        return EarlySignalSeverity.MEDIUM
+    return EarlySignalSeverity.LOW
+
+
+def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
+    """檢查是否已存在未過期、未確認的同類型 signal。"""
+    return db.query(EarlySignal).filter(
+        EarlySignal.repo_id == repo_id,
+        EarlySignal.signal_type == signal_type,
+        EarlySignal.expires_at > utc_now(),
+        EarlySignal.acknowledged == False  # noqa: E712
+    ).first() is not None
 
 
 class AnomalyDetector:
@@ -56,13 +92,7 @@ class AnomalyDetector:
         """
         repo_id = int(repo.id)
 
-        # 取得最新快照（優先使用預載資料）
-        snapshot = snapshot_map.get(repo_id) if snapshot_map else None
-        if snapshot is None:
-            snapshot = db.query(RepoSnapshot).filter(
-                RepoSnapshot.repo_id == repo.id
-            ).order_by(RepoSnapshot.snapshot_date.desc()).first()
-
+        snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
         if not snapshot or snapshot.stars is None:
             return None
 
@@ -72,20 +102,9 @@ class AnomalyDetector:
         if stars >= RISING_STAR_MAX_STARS:
             return None
 
-        # 取得 velocity 訊號（優先使用預載資料）
-        velocity: Optional[float] = None
-        if signal_map:
-            repo_signals = signal_map.get(repo_id, {})
-            velocity = repo_signals.get(SignalType.VELOCITY)
-
+        velocity = get_signal_value(repo_id, SignalType.VELOCITY, db, signal_map)
         if velocity is None:
-            velocity_signal = db.query(Signal).filter(
-                Signal.repo_id == repo.id,
-                Signal.signal_type == SignalType.VELOCITY
-            ).first()
-            if not velocity_signal:
-                return None
-            velocity = velocity_signal.value
+            return None
 
         # 檢查條件
         velocity_ratio = velocity / stars if stars > 0 else 0
@@ -94,10 +113,10 @@ class AnomalyDetector:
         if not is_rising:
             return None
 
-        # 決定嚴重等級
-        if velocity >= 50 or velocity_ratio >= 0.05:
+        # 決定嚴重等級（rising_star 額外考慮 velocity_ratio）
+        if velocity >= RISING_STAR_SEVERITY_HIGH or velocity_ratio >= 0.05:
             severity = EarlySignalSeverity.HIGH
-        elif velocity >= 20 or velocity_ratio >= 0.02:
+        elif velocity >= RISING_STAR_SEVERITY_MEDIUM or velocity_ratio >= 0.02:
             severity = EarlySignalSeverity.MEDIUM
         else:
             severity = EarlySignalSeverity.LOW
@@ -172,13 +191,9 @@ class AnomalyDetector:
         if not is_spike:
             return None
 
-        # Determine severity
-        if latest_delta >= 1000:
-            severity = EarlySignalSeverity.HIGH
-        elif latest_delta >= 500:
-            severity = EarlySignalSeverity.MEDIUM
-        else:
-            severity = EarlySignalSeverity.LOW
+        severity = _determine_severity(
+            latest_delta, SUDDEN_SPIKE_SEVERITY_HIGH, SUDDEN_SPIKE_SEVERITY_MEDIUM
+        )
 
         return EarlySignal(
             repo_id=repo.id,
@@ -204,28 +219,8 @@ class AnomalyDetector:
         """
         repo_id = int(repo.id)
 
-        # 取得每週 velocity 資料（優先使用預載資料）
-        delta_7d_val: Optional[float] = None
-        delta_30d_val: Optional[float] = None
-
-        if signal_map:
-            repo_signals = signal_map.get(repo_id, {})
-            delta_7d_val = repo_signals.get(SignalType.STARS_DELTA_7D)
-            delta_30d_val = repo_signals.get(SignalType.STARS_DELTA_30D)
-
-        if delta_7d_val is None:
-            delta_7d = db.query(Signal).filter(
-                Signal.repo_id == repo.id,
-                Signal.signal_type == SignalType.STARS_DELTA_7D
-            ).first()
-            delta_7d_val = delta_7d.value if delta_7d else None
-
-        if delta_30d_val is None:
-            delta_30d = db.query(Signal).filter(
-                Signal.repo_id == repo.id,
-                Signal.signal_type == SignalType.STARS_DELTA_30D
-            ).first()
-            delta_30d_val = delta_30d.value if delta_30d else None
+        delta_7d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_7D, db, signal_map)
+        delta_30d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_30D, db, signal_map)
 
         if delta_7d_val is None or delta_30d_val is None:
             return None
@@ -244,20 +239,11 @@ class AnomalyDetector:
         if not is_breakout:
             return None
 
-        # 取得 star 數（優先使用預載資料）
-        snapshot = snapshot_map.get(repo_id) if snapshot_map else None
-        if snapshot is None:
-            snapshot = db.query(RepoSnapshot).filter(
-                RepoSnapshot.repo_id == repo.id
-            ).order_by(RepoSnapshot.snapshot_date.desc()).first()
+        snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
 
-        # Determine severity
-        if current_weekly_velocity >= 10:
-            severity = EarlySignalSeverity.HIGH
-        elif current_weekly_velocity >= 5:
-            severity = EarlySignalSeverity.MEDIUM
-        else:
-            severity = EarlySignalSeverity.LOW
+        severity = _determine_severity(
+            current_weekly_velocity, BREAKOUT_SEVERITY_HIGH, BREAKOUT_SEVERITY_MEDIUM
+        )
 
         return EarlySignal(
             repo_id=repo.id,
@@ -293,21 +279,12 @@ class AnomalyDetector:
         if not hn_signal:
             return None
 
-        # Determine severity
-        if hn_signal.score >= 500:
-            severity = EarlySignalSeverity.HIGH
-        elif hn_signal.score >= 200:
-            severity = EarlySignalSeverity.MEDIUM
-        else:
-            severity = EarlySignalSeverity.LOW
+        severity = _determine_severity(
+            hn_signal.score, VIRAL_HN_SEVERITY_HIGH, VIRAL_HN_SEVERITY_MEDIUM
+        )
 
-        # Get star count（優先使用預載資料）
         repo_id = int(repo.id)
-        snapshot = snapshot_map.get(repo_id) if snapshot_map else None
-        if snapshot is None:
-            snapshot = db.query(RepoSnapshot).filter(
-                RepoSnapshot.repo_id == repo.id
-            ).order_by(RepoSnapshot.snapshot_date.desc()).first()
+        snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
 
         return EarlySignal(
             repo_id=repo.id,
@@ -341,15 +318,8 @@ class AnomalyDetector:
                 signal_map=signal_map,
                 velocity_values=velocity_values,
             )
-            if signal:
-                existing = db.query(EarlySignal).filter(
-                    EarlySignal.repo_id == repo.id,
-                    EarlySignal.signal_type == signal.signal_type,
-                    EarlySignal.expires_at > utc_now(),
-                    EarlySignal.acknowledged == False
-                ).first()
-                if not existing:
-                    signals.append(signal)
+            if signal and not _signal_already_active(int(repo.id), signal.signal_type, db):
+                signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
 
@@ -363,15 +333,8 @@ class AnomalyDetector:
         for detector in other_detectors:
             try:
                 signal = detector(repo, db, snapshot_map=snapshot_map, signal_map=signal_map)
-                if signal:
-                    existing = db.query(EarlySignal).filter(
-                        EarlySignal.repo_id == repo.id,
-                        EarlySignal.signal_type == signal.signal_type,
-                        EarlySignal.expires_at > utc_now(),
-                        EarlySignal.acknowledged == False
-                    ).first()
-                    if not existing:
-                        signals.append(signal)
+                if signal and not _signal_already_active(int(repo.id), signal.signal_type, db):
+                    signals.append(signal)
             except SQLAlchemyError as e:
                 logger.error(f"[異常偵測] {repo.full_name} 偵測器錯誤: {e}", exc_info=True)
 
@@ -379,8 +342,29 @@ class AnomalyDetector:
 
     def run_detection(self, db: Session) -> Dict[str, Any]:
         """
-        對所有 repo 執行異常偵測。
+        對所有 repo 執行異常偵測並儲存結果。
         回傳偵測到的訊號摘要。
+        """
+        all_signals = self.detect_all(db)
+        saved = save_detected_signals(all_signals, db)
+
+        signals_by_type: Dict[str, int] = {}
+        for s in all_signals:
+            signals_by_type[s.signal_type] = signals_by_type.get(s.signal_type, 0) + 1
+
+        logger.info(f"[異常偵測] 異常偵測完成: 偵測到 {saved} 個訊號")
+
+        repos_count = db.query(Repo).count()
+        return {
+            "repos_scanned": repos_count,
+            "signals_detected": saved,
+            "by_type": signals_by_type,
+        }
+
+    def detect_all(self, db: Session) -> List["EarlySignal"]:
+        """
+        對所有 repo 執行異常偵測，回傳偵測到的訊號列表。
+        不寫入 DB。
         """
         repos = db.query(Repo).all()
 
@@ -400,8 +384,7 @@ class AnomalyDetector:
             for v in [v[0]]
         )
 
-        total_signals = 0
-        signals_by_type: Dict[str, int] = {}
+        all_signals: List["EarlySignal"] = []
 
         for repo in repos:
             try:
@@ -411,22 +394,19 @@ class AnomalyDetector:
                     signal_map=signal_map,
                     velocity_values=velocity_values,
                 )
-                for signal in signals:
-                    db.add(signal)
-                    total_signals += 1
-                    signals_by_type[signal.signal_type] = signals_by_type.get(signal.signal_type, 0) + 1
+                all_signals.extend(signals)
             except Exception as e:
                 logger.error(f"[異常偵測] {repo.full_name} 訊號偵測失敗: {e}", exc_info=True)
 
-        db.commit()
+        return all_signals
 
-        logger.info(f"[異常偵測] 異常偵測完成: 偵測到 {total_signals} 個訊號")
 
-        return {
-            "repos_scanned": len(repos),
-            "signals_detected": total_signals,
-            "by_type": signals_by_type,
-        }
+def save_detected_signals(signals: List["EarlySignal"], db: Session) -> int:
+    """將偵測到的 signals 寫入 DB。"""
+    for s in signals:
+        db.add(s)
+    db.commit()
+    return len(signals)
 
 
 # 模組層級 singleton

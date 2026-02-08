@@ -64,39 +64,47 @@ export function useWatchlist() {
   }, [connection, repoOps]);
 
   return {
-    // 狀態
-    repos: repoOps.repos,
-    displayedRepos: categoryFilter.displayedRepos,
-    isLoading: repoOps.isLoading,
-    isRefreshing: repoOps.isRefreshing,
-    loadingRepoId: repoOps.loadingRepoId,
-    error: repoOps.error || connection.connectionError,
-    isConnected: connection.isConnected,
-    isDialogOpen: addDialog.isDialogOpen,
-    dialogError: addDialog.dialogError,
-    isAddingRepo: addDialog.isAddingRepo,
-    selectedCategoryId: categoryFilter.selectedCategoryId,
-    searchQuery: categoryFilter.searchQuery,
+    // 核心狀態
+    state: {
+      repos: repoOps.repos,
+      displayedRepos: categoryFilter.displayedRepos,
+      isLoading: repoOps.isLoading,
+      isRefreshing: repoOps.isRefreshing,
+      loadingRepoId: repoOps.loadingRepoId,
+      error: repoOps.error || connection.connectionError,
+      isConnected: connection.isConnected,
+      isRecalculatingSimilarities: globalActions.isRecalculatingSimilarities,
+    },
+    // 新增 Repo 對話框
+    dialog: {
+      isOpen: addDialog.isDialogOpen,
+      error: addDialog.dialogError,
+      isAdding: addDialog.isAddingRepo,
+      open: addDialog.openAddDialog,
+      close: addDialog.closeAddDialog,
+      submit: addDialog.handleAddRepo,
+    },
+    // 分類篩選
+    category: {
+      selectedId: categoryFilter.selectedCategoryId,
+      searchQuery: categoryFilter.searchQuery,
+      setSelectedId: categoryFilter.setSelectedCategoryId,
+      setSearchQuery: categoryFilter.setSearchQuery,
+      refresh: categoryFilter.refreshCategory,
+    },
+    // 操作
+    actions: {
+      remove: removeDialog.openRemoveConfirm,
+      confirmRemove: removeDialog.confirmRemoveRepo,
+      cancelRemove: removeDialog.closeRemoveConfirm,
+      fetchRepo: repoOps.refreshRepo,
+      refreshAll: repoOps.refreshAllRepos,
+      recalculateAll: globalActions.handleRecalculateAll,
+      retry: handleRetry,
+      clearError: useCallback(() => repoOps.setError(null), [repoOps]),
+    },
+    // 其它
     removeConfirm: removeDialog.removeConfirm,
     toast,
-
-    // 全域操作狀態
-    isRecalculatingSimilarities: globalActions.isRecalculatingSimilarities,
-
-    // 操作
-    handleAddRepo: addDialog.handleAddRepo,
-    handleRemoveRepo: removeDialog.openRemoveConfirm,
-    confirmRemoveRepo: removeDialog.confirmRemoveRepo,
-    cancelRemoveRepo: removeDialog.closeRemoveConfirm,
-    handleFetchRepo: repoOps.refreshRepo,
-    handleRefreshAll: repoOps.refreshAllRepos,
-    handleRecalculateAll: globalActions.handleRecalculateAll,
-    handleRetry,
-    openAddDialog: addDialog.openAddDialog,
-    closeAddDialog: addDialog.closeAddDialog,
-    clearError: useCallback(() => repoOps.setError(null), [repoOps]),
-    setSelectedCategoryId: categoryFilter.setSelectedCategoryId,
-    setSearchQuery: categoryFilter.setSearchQuery,
-    refreshCategory: categoryFilter.refreshCategory,
   };
 }

@@ -42,3 +42,43 @@ TREND_VELOCITY_UPWARD_THRESHOLD = 0.5       # 上升趨勢的最低 velocity
 TREND_VELOCITY_DOWNWARD_THRESHOLD = -0.5    # 低於此值視為下降趨勢
 TREND_ACCELERATION_DECLINE_THRESHOLD = -0.1 # 上升趨勢的加速度門檻
 TREND_STRONG_DECLINE_THRESHOLD = -0.3       # 低於此值視為強烈衰退
+
+
+# ==================== 類型常量 ====================
+
+class SignalType:
+    """Signal 類型常數。"""
+    STARS_DELTA_7D = "stars_delta_7d"
+    STARS_DELTA_30D = "stars_delta_30d"
+    VELOCITY = "velocity"  # 每日 star 數
+    ACCELERATION = "acceleration"  # velocity 的變化率
+    TREND = "trend"  # -1, 0, 1（下降、穩定、上升）
+
+
+class AlertOperator:
+    """警報運算子常數。"""
+    GT = ">"
+    LT = "<"
+    GTE = ">="
+    LTE = "<="
+    EQ = "=="
+
+
+class ContextSignalType:
+    """Context Signal 類型常數。"""
+    HACKER_NEWS = "hacker_news"
+
+
+class EarlySignalType:
+    """Early Signal 類型常數。"""
+    RISING_STAR = "rising_star"      # 高 velocity + 低 star 數
+    SUDDEN_SPIKE = "sudden_spike"    # 單日異常成長
+    BREAKOUT = "breakout"            # 加速度轉正
+    VIRAL_HN = "viral_hn"            # Hacker News 熱門
+
+
+class EarlySignalSeverity:
+    """Early Signal 嚴重等級。"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"

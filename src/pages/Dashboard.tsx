@@ -152,7 +152,8 @@ function VelocityChart({ data }: { data: { key: string; count: number }[] }) {
         {data.map((item) => (
           <div key={item.key} className="velocity-bar-container">
             <div className="velocity-label">
-              {t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ?? item.key}
+              {t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ??
+                item.key}
             </div>
             <div className="velocity-bar-wrapper">
               <div

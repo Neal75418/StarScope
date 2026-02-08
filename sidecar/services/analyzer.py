@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from db.models import RepoSnapshot, Signal, SignalType
+from constants import SignalType
+from db.models import RepoSnapshot, Signal
 from utils.time import utc_now, utc_today
 from constants import (
     TREND_VELOCITY_UPWARD_THRESHOLD,

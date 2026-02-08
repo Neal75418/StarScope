@@ -15,7 +15,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.database import get_db
-from db.models import Repo, RepoSnapshot, Signal, SignalType
+from constants import SignalType
+from db.models import Repo, RepoSnapshot, Signal
 from utils.time import utc_now
 
 router = APIRouter(prefix="/export", tags=["export"])

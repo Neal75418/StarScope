@@ -7,8 +7,8 @@ from typing import List, Optional, Callable
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from constants import ALERT_COOLDOWN_SECONDS
-from db.models import AlertRule, TriggeredAlert, Signal, Repo, AlertOperator
+from constants import ALERT_COOLDOWN_SECONDS, AlertOperator
+from db.models import AlertRule, TriggeredAlert, Signal, Repo
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)

@@ -82,17 +82,25 @@ export class ErrorBoundary extends Component<Props, State> {
             if (!context) {
               // context 不可用時的 fallback（正常使用不會發生）
               const fallbacks = {
-                en: { title: "Something went wrong", message: "An unexpected error occurred", tryAgain: "Try Again", reloadApp: "Reload App" },
-                zh: { title: "發生錯誤", message: "發生了非預期的錯誤", tryAgain: "重試", reloadApp: "重新載入應用" },
+                en: {
+                  title: "Something went wrong",
+                  message: "An unexpected error occurred",
+                  tryAgain: "Try Again",
+                  reloadApp: "Reload App",
+                },
+                zh: {
+                  title: "發生錯誤",
+                  message: "發生了非預期的錯誤",
+                  tryAgain: "重試",
+                  reloadApp: "重新載入應用",
+                },
               };
               const fb = navigator.language.startsWith("zh") ? fallbacks.zh : fallbacks.en;
               return (
                 <div className="error-boundary">
                   <div className="error-boundary-content">
                     <h2>{fb.title}</h2>
-                    <p className="error-message">
-                      {this.state.error?.message || fb.message}
-                    </p>
+                    <p className="error-message">{this.state.error?.message || fb.message}</p>
                     <div className="error-boundary-actions">
                       <button onClick={this.handleRetry} className="btn btn-primary">
                         {fb.tryAgain}

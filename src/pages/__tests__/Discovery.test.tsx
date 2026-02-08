@@ -17,8 +17,8 @@ vi.mock("../../hooks/useDiscovery", () => ({
 
 vi.mock("../../hooks/useWatchlist", () => ({
   useWatchlist: () => ({
-    repos: mockWatchlistRepos,
-    handleRefreshAll: mockHandleRefreshAll,
+    state: { repos: mockWatchlistRepos },
+    actions: { refreshAll: mockHandleRefreshAll },
   }),
 }));
 

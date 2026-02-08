@@ -3,14 +3,11 @@
  */
 
 import { useCallback, useMemo } from "react";
-import { getRepos, ApiError } from "../api/client";
+import { getRepos } from "../api/client";
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/error";
 import { useRepoState } from "./useRepoState";
 import { useRepoMutations } from "./useRepoMutations";
-
-function getErrorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.detail : fallback;
-}
 
 export function useRepoOperations() {
   const { t } = useI18n();

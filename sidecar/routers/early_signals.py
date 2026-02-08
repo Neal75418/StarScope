@@ -63,21 +63,15 @@ class DetectionResultResponse(BaseModel):
 
 # 輔助函式
 def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
-    """將 EarlySignal model 轉換為回應。"""
+    """將 EarlySignal model 轉換為回應。自動映射同名欄位。"""
     return EarlySignalResponse(
-        id=signal.id,
-        repo_id=signal.repo_id,
+        **{
+            field: getattr(signal, field)
+            for field in EarlySignalResponse.model_fields
+            if field not in ("repo_name", "acknowledged")
+        },
         repo_name=signal.repo.full_name,
-        signal_type=signal.signal_type,
-        severity=signal.severity,
-        description=signal.description,
-        velocity_value=signal.velocity_value,
-        star_count=signal.star_count,
-        percentile_rank=signal.percentile_rank,
-        detected_at=signal.detected_at,
-        expires_at=signal.expires_at,
         acknowledged=bool(signal.acknowledged),
-        acknowledged_at=signal.acknowledged_at,
     )
 
 

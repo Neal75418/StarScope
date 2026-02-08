@@ -3,7 +3,8 @@ Tests for services/alerts.py - Alert checking service.
 """
 
 import pytest
-from db.models import AlertRule, AlertOperator, TriggeredAlert, Signal
+from constants import AlertOperator
+from db.models import AlertRule, TriggeredAlert, Signal
 from services.alerts import (
     evaluate_condition,
     check_rule_for_repo,

@@ -35,7 +35,8 @@ const mockClearError = vi.fn();
 const mockSetSearchQuery = vi.fn();
 const mockSetSelectedCategoryId = vi.fn();
 
-let mockWatchlistReturn: Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockWatchlistReturn: Record<string, any>;
 
 vi.mock("../../hooks/useWatchlist", () => ({
   useWatchlist: () => mockWatchlistReturn,
@@ -102,46 +103,55 @@ describe("Watchlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockWatchlistReturn = {
-      repos: [],
-      displayedRepos: [],
-      isLoading: false,
-      isRefreshing: false,
-      isRecalculatingSimilarities: false,
-      loadingRepoId: null,
-      error: null,
-      isConnected: true,
-      isDialogOpen: false,
-      dialogError: null,
-      isAddingRepo: false,
-      selectedCategoryId: null,
-      searchQuery: "",
+      state: {
+        repos: [],
+        displayedRepos: [],
+        isLoading: false,
+        isRefreshing: false,
+        loadingRepoId: null,
+        error: null,
+        isConnected: true,
+        isRecalculatingSimilarities: false,
+      },
+      dialog: {
+        isOpen: false,
+        error: null,
+        isAdding: false,
+        open: mockOpenAddDialog,
+        close: vi.fn(),
+        submit: vi.fn(),
+      },
+      category: {
+        selectedId: null,
+        searchQuery: "",
+        setSelectedId: mockSetSelectedCategoryId,
+        setSearchQuery: mockSetSearchQuery,
+        refresh: vi.fn(),
+      },
+      actions: {
+        remove: vi.fn(),
+        confirmRemove: vi.fn(),
+        cancelRemove: vi.fn(),
+        fetchRepo: vi.fn(),
+        refreshAll: mockHandleRefreshAll,
+        recalculateAll: mockHandleRecalculateAll,
+        retry: mockHandleRetry,
+        clearError: mockClearError,
+      },
       removeConfirm: { isOpen: false, repoName: "" },
       toast: { toasts: [], dismissToast: vi.fn(), success: vi.fn(), error: vi.fn() },
-      handleAddRepo: vi.fn(),
-      handleRemoveRepo: vi.fn(),
-      confirmRemoveRepo: vi.fn(),
-      cancelRemoveRepo: vi.fn(),
-      handleFetchRepo: vi.fn(),
-      handleRefreshAll: mockHandleRefreshAll,
-      handleRecalculateAll: mockHandleRecalculateAll,
-      handleRetry: mockHandleRetry,
-      openAddDialog: mockOpenAddDialog,
-      closeAddDialog: vi.fn(),
-      clearError: mockClearError,
-      setSelectedCategoryId: mockSetSelectedCategoryId,
-      setSearchQuery: mockSetSearchQuery,
     };
   });
 
   it("shows loading state", () => {
-    mockWatchlistReturn.isLoading = true;
+    Object.assign(mockWatchlistReturn.state, { isLoading: true });
     render(<Watchlist />);
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
   it("shows connection error with retry button", async () => {
     const user = userEvent.setup();
-    mockWatchlistReturn.isConnected = false;
+    Object.assign(mockWatchlistReturn.state, { isConnected: false });
     render(<Watchlist />);
     expect(screen.getByText("Connecting...")).toBeInTheDocument();
     expect(
@@ -161,8 +171,7 @@ describe("Watchlist", () => {
 
   it("renders repo cards when repos exist", () => {
     const repos = [makeRepo({ id: 1 }), makeRepo({ id: 2, full_name: "vuejs/vue" })];
-    mockWatchlistReturn.repos = repos;
-    mockWatchlistReturn.displayedRepos = repos;
+    Object.assign(mockWatchlistReturn.state, { repos, displayedRepos: repos });
     render(<Watchlist />);
     expect(screen.getByText("facebook/react")).toBeInTheDocument();
     expect(screen.getByText("vuejs/vue")).toBeInTheDocument();
@@ -176,7 +185,7 @@ describe("Watchlist", () => {
 
   it("shows error banner and clears it on click", async () => {
     const user = userEvent.setup();
-    mockWatchlistReturn.error = "Something went wrong";
+    Object.assign(mockWatchlistReturn.state, { error: "Something went wrong" });
     render(<Watchlist />);
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
     await user.click(screen.getByText("x"));
@@ -184,36 +193,31 @@ describe("Watchlist", () => {
   });
 
   it("shows 'no results' empty state when search has no matches", () => {
-    mockWatchlistReturn.repos = [makeRepo()];
-    mockWatchlistReturn.displayedRepos = [];
-    mockWatchlistReturn.searchQuery = "nonexistent";
+    Object.assign(mockWatchlistReturn.state, { repos: [makeRepo()], displayedRepos: [] });
+    Object.assign(mockWatchlistReturn.category, { searchQuery: "nonexistent" });
     render(<Watchlist />);
     expect(screen.getByText("No repositories match your search.")).toBeInTheDocument();
   });
 
   it("shows 'no category' empty state when category filter has no matches", () => {
-    mockWatchlistReturn.repos = [makeRepo()];
-    mockWatchlistReturn.displayedRepos = [];
-    mockWatchlistReturn.selectedCategoryId = 5;
-    mockWatchlistReturn.searchQuery = "";
+    Object.assign(mockWatchlistReturn.state, { repos: [makeRepo()], displayedRepos: [] });
+    Object.assign(mockWatchlistReturn.category, { selectedId: 5, searchQuery: "" });
     render(<Watchlist />);
     expect(screen.getByText("No repositories in this category.")).toBeInTheDocument();
   });
 
   it("shows filter indicator when category is selected", () => {
     const repos = [makeRepo()];
-    mockWatchlistReturn.repos = repos;
-    mockWatchlistReturn.displayedRepos = repos;
-    mockWatchlistReturn.selectedCategoryId = 3;
+    Object.assign(mockWatchlistReturn.state, { repos, displayedRepos: repos });
+    Object.assign(mockWatchlistReturn.category, { selectedId: 3 });
     render(<Watchlist />);
     expect(screen.getByText("Showing 1 of 1 repos")).toBeInTheDocument();
   });
 
   it("shows filter indicator when search query is active", () => {
     const repos = [makeRepo()];
-    mockWatchlistReturn.repos = repos;
-    mockWatchlistReturn.displayedRepos = repos;
-    mockWatchlistReturn.searchQuery = "react";
+    Object.assign(mockWatchlistReturn.state, { repos, displayedRepos: repos });
+    Object.assign(mockWatchlistReturn.category, { searchQuery: "react" });
     render(<Watchlist />);
     expect(screen.getByText("Showing 1 of 1 repos")).toBeInTheDocument();
   });
@@ -233,13 +237,13 @@ describe("Watchlist", () => {
   });
 
   it("shows 'Refreshing...' when isRefreshing is true", () => {
-    mockWatchlistReturn.isRefreshing = true;
+    Object.assign(mockWatchlistReturn.state, { isRefreshing: true });
     render(<Watchlist />);
     expect(screen.getByText("Refreshing...")).toBeInTheDocument();
   });
 
   it("shows 'Calculating...' when isRecalculating is true", () => {
-    mockWatchlistReturn.isRecalculatingSimilarities = true;
+    Object.assign(mockWatchlistReturn.state, { isRecalculatingSimilarities: true });
     render(<Watchlist />);
     expect(screen.getByText("Calculating...")).toBeInTheDocument();
   });

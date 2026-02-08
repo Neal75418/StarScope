@@ -4,6 +4,7 @@
 
 import { useCallback, useState } from "react";
 import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
+import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
 
 interface CategoryOperationsResult {
@@ -13,7 +14,10 @@ interface CategoryOperationsResult {
   getCategories: (repoId: number) => Promise<{ id: number; name: string }[]>;
 }
 
-export function useCategoryOperations(onSuccess?: () => void): CategoryOperationsResult {
+export function useCategoryOperations(
+  onSuccess?: () => void,
+  onError?: (msg: string) => void
+): CategoryOperationsResult {
   const [isLoading, setIsLoading] = useState(false);
 
   const addToCategory = useCallback(
@@ -25,12 +29,13 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         return true;
       } catch (err) {
         logger.error("Repo 加入分類失敗:", err);
+        onError?.(getErrorMessage(err, "Failed to add repo to category"));
         return false;
       } finally {
         setIsLoading(false);
       }
     },
-    [onSuccess]
+    [onSuccess, onError]
   );
 
   const removeFromCategory = useCallback(
@@ -42,12 +47,13 @@ export function useCategoryOperations(onSuccess?: () => void): CategoryOperation
         return true;
       } catch (err) {
         logger.error("Repo 移出分類失敗:", err);
+        onError?.(getErrorMessage(err, "Failed to remove repo from category"));
         return false;
       } finally {
         setIsLoading(false);
       }
     },
-    [onSuccess]
+    [onSuccess, onError]
   );
 
   const getCategories = useCallback(

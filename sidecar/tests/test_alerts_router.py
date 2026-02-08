@@ -4,7 +4,8 @@ Tests for alerts endpoints.
 
 from unittest.mock import patch
 
-from db.models import AlertRule, TriggeredAlert, SignalType
+from constants import SignalType
+from db.models import AlertRule, TriggeredAlert
 from utils.time import utc_now
 
 

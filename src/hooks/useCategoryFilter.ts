@@ -39,23 +39,22 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
       return;
     }
 
-    // 記錄請求時的分類 ID，防止 race condition
-    const requestedCategoryId = selectedCategoryId;
+    const controller = new AbortController();
 
     getCategoryRepos(selectedCategoryId)
       .then((response) => {
-        // 僅在分類未於請求期間切換時更新狀態
-        if (requestedCategoryId === selectedCategoryId) {
+        if (!controller.signal.aborted) {
           setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
         }
       })
       .catch((err) => {
-        // 僅在分類未於請求期間切換時更新狀態
-        if (requestedCategoryId === selectedCategoryId) {
+        if (!controller.signal.aborted) {
           logger.error("分類 Repo 載入失敗:", err);
           setFilteredRepoIds(null);
         }
       });
+
+    return () => controller.abort();
   }, [selectedCategoryId, categoryRefreshKey]);
 
   const refreshCategory = useCallback(() => {

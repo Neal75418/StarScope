@@ -177,9 +177,7 @@ describe("useTrends", () => {
       expect(apiClient.getTrends).toHaveBeenCalled();
     });
 
-    expect(apiClient.getTrends).toHaveBeenCalledWith(
-      expect.objectContaining({ minStars: 1000 })
-    );
+    expect(apiClient.getTrends).toHaveBeenCalledWith(expect.objectContaining({ minStars: 1000 }));
   });
 
   it("computes availableLanguages from current results", async () => {

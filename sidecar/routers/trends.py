@@ -12,7 +12,8 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session, aliased
 
 from db.database import get_db
-from db.models import Repo, RepoSnapshot, Signal, SignalType
+from constants import SignalType
+from db.models import Repo, RepoSnapshot, Signal
 from services.queries import build_signal_map, build_stars_map
 
 router = APIRouter(prefix="/api/trends", tags=["trends"])

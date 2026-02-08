@@ -14,6 +14,10 @@ from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
 # IDE 可能顯示警告 — 路徑在 main.py 中透過 sys.path 於執行時解析
 from utils.time import utc_now  # noqa: F401
+from constants import (  # noqa: F401
+    SignalType, AlertOperator, ContextSignalType,
+    EarlySignalType, EarlySignalSeverity,
+)
 
 # 避免程式碼重複警告的常數
 CASCADE_DELETE_ORPHAN = "all, delete-orphan"
@@ -198,31 +202,6 @@ class TriggeredAlert(Base):
         return f"<TriggeredAlert rule_id={self.rule_id} repo_id={self.repo_id} value={self.signal_value}>"
 
 
-# Signal 類型常數
-class SignalType:
-    """Signal 類型常數。"""
-    STARS_DELTA_7D = "stars_delta_7d"
-    STARS_DELTA_30D = "stars_delta_30d"
-    VELOCITY = "velocity"  # 每日 star 數
-    ACCELERATION = "acceleration"  # velocity 的變化率
-    TREND = "trend"  # -1, 0, 1（下降、穩定、上升）
-
-
-# 警報運算子常數
-class AlertOperator:
-    """警報運算子常數。"""
-    GT = ">"
-    LT = "<"
-    GTE = ">="
-    LTE = "<="
-    EQ = "=="
-
-
-# Context Signal 類型常數
-class ContextSignalType:
-    """Context Signal 類型常數。"""
-    HACKER_NEWS = "hacker_news"
-
 
 class ContextSignal(Base):
     """
@@ -246,10 +225,6 @@ class ContextSignal(Base):
     score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN 分數
     comment_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-
-    # 已棄用：保留以維持 DB 相容性，不再使用
-    version_tag: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    is_prerelease: Mapped[Optional[bool]] = mapped_column(Integer, nullable=True)
 
     # 時間戳記
     published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 外部發布時間
@@ -357,21 +332,6 @@ class RepoCategory(Base):
     def __repr__(self) -> str:
         return f"<RepoCategory repo_id={self.repo_id} category_id={self.category_id}>"
 
-
-# Early Signal 類型常數
-class EarlySignalType:
-    """Early Signal 類型常數。"""
-    RISING_STAR = "rising_star"      # 高 velocity + 低 star 數
-    SUDDEN_SPIKE = "sudden_spike"    # 單日異常成長
-    BREAKOUT = "breakout"            # 加速度轉正
-    VIRAL_HN = "viral_hn"            # Hacker News 熱門
-
-
-class EarlySignalSeverity:
-    """Early Signal 嚴重等級。"""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
 
 
 class EarlySignal(Base):

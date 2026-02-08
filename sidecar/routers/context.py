@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
 from db.database import get_db
-from db.models import ContextSignal, ContextSignalType
+from constants import ContextSignalType
+from db.models import ContextSignal
 from routers.dependencies import get_repo_or_404
 from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
@@ -32,8 +33,6 @@ class ContextSignalResponse(BaseModel):
     score: Optional[int]
     comment_count: Optional[int]
     author: Optional[str]
-    version_tag: Optional[str]
-    is_prerelease: Optional[bool]
     published_at: Optional[datetime]
     fetched_at: datetime
 
