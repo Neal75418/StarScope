@@ -35,7 +35,7 @@ def _parse_topics_json(topics_json: Optional[str]) -> Set[str]:
         if isinstance(parsed, list):
             return {t.lower() for t in parsed if isinstance(t, str)}
     except json.JSONDecodeError:
-        pass
+        logger.warning("[推薦] topics JSON 解析失敗: %s", repr(topics_json)[:200])
     return set()
 
 
@@ -263,26 +263,91 @@ class RecommenderService:
     def recalculate_all(self, db: Session) -> dict:
         """
         重新計算所有 repo 的相似度。
+        使用批量預載 + 上三角矩陣避免重複計算，大幅降低 DB 查詢次數。
         回傳摘要統計。
         """
         repos = db.query(Repo).all()
         total = len(repos)
-        processed = 0
-        similarities_found = 0
 
-        for repo in repos:
-            try:
-                count = self.calculate_and_store_similarities(repo, db, recalculate=True)
-                similarities_found += count
-                processed += 1
-            except Exception as e:
-                logger.error(f"[推薦] 計算 {repo.full_name} 相似度失敗: {e}", exc_info=True)
+        if total < 2:
+            return {"total_repos": total, "processed": total, "similarities_found": 0}
 
-        logger.info(f"[推薦] 相似度重新計算完成: {processed}/{total} 個 repo、找到 {similarities_found} 組配對")
+        # 1. 一次性載入所有 topics 與 stars（3 個查詢取代 3N 個）
+        all_ids = [int(r.id) for r in repos]
+        stars_map = build_stars_map(db, all_ids)
+        topics_map: Dict[int, Set[str]] = {
+            int(r.id): _get_repo_topics(r) for r in repos
+        }
+
+        # 整體操作為原子性：DELETE + 重算 + COMMIT，任何錯誤都 rollback 以保留舊資料
+        try:
+            # 2. 清除所有既有相似度紀錄（1 次 DELETE 取代 N 次）
+            db.query(SimilarRepo).delete(synchronize_session=False)
+
+            # 3. 上三角矩陣：只計算 (i, j) 其中 i < j，產生雙向紀錄
+            now = utc_now()
+            similarities_found = 0
+            batch: List[SimilarRepo] = []
+            FLUSH_SIZE = 500
+
+            for i in range(total):
+                repo_a = repos[i]
+                id_a = int(repo_a.id)
+                topics_a = topics_map[id_a]
+                stars_a = stars_map.get(id_a)
+
+                for j in range(i + 1, total):
+                    repo_b = repos[j]
+                    id_b = int(repo_b.id)
+                    topics_b = topics_map[id_b]
+                    stars_b = stars_map.get(id_b)
+
+                    score, shared, same_lang = self.calculate_similarity(
+                        repo_a, repo_b, topics_a, topics_b, stars_a, stars_b
+                    )
+
+                    if score < MIN_SIMILARITY_THRESHOLD:
+                        continue
+
+                    shared_json = json.dumps(shared) if shared else None
+
+                    # 雙向寫入 A→B 和 B→A
+                    batch.append(SimilarRepo(
+                        repo_id=id_a, similar_repo_id=id_b,
+                        similarity_score=score, shared_topics=shared_json,
+                        same_language=same_lang, calculated_at=now,
+                    ))
+                    batch.append(SimilarRepo(
+                        repo_id=id_b, similar_repo_id=id_a,
+                        similarity_score=score, shared_topics=shared_json,
+                        same_language=same_lang, calculated_at=now,
+                    ))
+                    similarities_found += 1
+
+                    # 4. 每 FLUSH_SIZE 筆批量寫入
+                    if len(batch) >= FLUSH_SIZE:
+                        db.bulk_save_objects(batch)
+                        batch.clear()
+
+            # 寫入剩餘紀錄
+            if batch:
+                db.bulk_save_objects(batch)
+                batch.clear()
+
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"[推薦] 相似度重新計算失敗，已回滾: {e}", exc_info=True)
+            raise
+
+        logger.info(
+            f"[推薦] 相似度重新計算完成: {total} 個 repo、"
+            f"找到 {similarities_found} 組配對"
+        )
 
         return {
             "total_repos": total,
-            "processed": processed,
+            "processed": total,
             "similarities_found": similarities_found,
         }
 

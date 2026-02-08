@@ -15,6 +15,16 @@ export interface BatchRepoData {
   signals: EarlySignal[];
 }
 
+const MAX_BATCH_SIZE = 50;
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface UseBatchRepoDataResult {
   dataMap: Record<number, BatchRepoData>;
   loading: boolean;
@@ -33,11 +43,18 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
     let cancelled = false;
     setLoading(true);
 
-    Promise.all([getContextBadgesBatch(repoIds), getRepoSignalsBatch(repoIds)])
-      .then(([badges, signals]) => {
+    const chunks = chunkArray(repoIds, MAX_BATCH_SIZE);
+
+    Promise.all([
+      Promise.all(chunks.map((c) => getContextBadgesBatch(c))),
+      Promise.all(chunks.map((c) => getRepoSignalsBatch(c))),
+    ])
+      .then(([badgesResults, signalsResults]) => {
         if (!cancelled) {
-          setBadgesMap(badges);
-          setSignalsMap(signals);
+          const mergedBadges = Object.assign({}, ...badgesResults);
+          const mergedSignals = Object.assign({}, ...signalsResults);
+          setBadgesMap(mergedBadges);
+          setSignalsMap(mergedSignals);
           setLoading(false);
         }
       })

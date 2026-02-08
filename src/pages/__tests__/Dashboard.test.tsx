@@ -51,7 +51,7 @@ function makeActivity(overrides: Partial<RecentActivity> = {}): RecentActivity {
 let mockDashboard: {
   stats: DashboardStats;
   recentActivity: RecentActivity[];
-  velocityDistribution: { label: string; count: number }[];
+  velocityDistribution: { key: string; count: number }[];
   earlySignals: EarlySignal[];
   signalSummary: SignalSummary | null;
   acknowledgeSignal: (id: number) => void;
@@ -82,8 +82,8 @@ describe("Dashboard", () => {
       stats: { totalRepos: 10, totalStars: 50000, weeklyStars: 1200, activeAlerts: 2 },
       recentActivity: [],
       velocityDistribution: [
-        { label: "0-1", count: 3 },
-        { label: "1-5", count: 5 },
+        { key: "low", count: 3 },
+        { key: "medium", count: 5 },
       ],
       earlySignals: [],
       signalSummary: null,
@@ -121,8 +121,8 @@ describe("Dashboard", () => {
   it("renders velocity distribution chart", () => {
     render(<Dashboard />);
     expect(screen.getByText("Velocity Distribution")).toBeInTheDocument();
-    expect(screen.getByText("0-1")).toBeInTheDocument();
-    expect(screen.getByText("1-5")).toBeInTheDocument();
+    expect(screen.getByText("0-10")).toBeInTheDocument();
+    expect(screen.getByText("10-50")).toBeInTheDocument();
   });
 
   it("renders recent activity section", () => {

@@ -1,10 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useTrends, TrendingRepo } from "../useTrends";
+import * as apiClient from "../../api/client";
 
-vi.mock("../../config", () => ({
-  API_ENDPOINT: "http://localhost:8008/api",
-}));
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
+  return {
+    ...actual,
+    getTrends: vi.fn(),
+  };
+});
 
 vi.mock("../../constants/api", () => ({
   TRENDS_DEFAULT_LIMIT: 50,
@@ -37,22 +42,12 @@ const defaultResponse = {
 };
 
 describe("useTrends", () => {
-  const originalFetch = global.fetch;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    global.fetch = vi.fn();
-  });
-
-  afterEach(() => {
-    global.fetch = originalFetch;
   });
 
   it("starts in loading state and fetches on mount", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     const { result } = renderHook(() => useTrends());
 
@@ -68,28 +63,24 @@ describe("useTrends", () => {
   });
 
   it("fetches with correct default params", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     renderHook(() => useTrends());
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(apiClient.getTrends).toHaveBeenCalled();
     });
 
-    const calledUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
-    expect(calledUrl).toContain("sort_by=velocity");
-    expect(calledUrl).toContain("limit=50");
+    expect(apiClient.getTrends).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sortBy: "velocity",
+        limit: 50,
+      })
+    );
   });
 
-  it("sets error on HTTP error response", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: () => Promise.resolve({}),
-    } as Response);
+  it("sets error on API error", async () => {
+    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("HTTP 500"));
 
     const { result } = renderHook(() => useTrends());
 
@@ -102,7 +93,7 @@ describe("useTrends", () => {
   });
 
   it("sets error on network error", async () => {
-    vi.mocked(global.fetch).mockRejectedValue(new Error("Network failure"));
+    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("Network failure"));
 
     const { result } = renderHook(() => useTrends());
 
@@ -114,10 +105,7 @@ describe("useTrends", () => {
   });
 
   it("re-fetches when setSortBy is called", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     const { result } = renderHook(() => useTrends());
 
@@ -125,29 +113,27 @@ describe("useTrends", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    vi.mocked(global.fetch).mockClear();
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ...defaultResponse, sort_by: "stars_delta_7d" }),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockClear();
+    vi.mocked(apiClient.getTrends).mockResolvedValue({
+      ...defaultResponse,
+      sort_by: "stars_delta_7d",
+    });
 
     act(() => {
       result.current.setSortBy("stars_delta_7d");
     });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(apiClient.getTrends).toHaveBeenCalled();
     });
 
-    const calledUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
-    expect(calledUrl).toContain("sort_by=stars_delta_7d");
+    expect(apiClient.getTrends).toHaveBeenCalledWith(
+      expect.objectContaining({ sortBy: "stars_delta_7d" })
+    );
   });
 
   it("includes language filter in request params", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     const { result } = renderHook(() => useTrends());
 
@@ -155,29 +141,24 @@ describe("useTrends", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    vi.mocked(global.fetch).mockClear();
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockClear();
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     act(() => {
       result.current.setLanguageFilter("TypeScript");
     });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(apiClient.getTrends).toHaveBeenCalled();
     });
 
-    const calledUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
-    expect(calledUrl).toContain("language=TypeScript");
+    expect(apiClient.getTrends).toHaveBeenCalledWith(
+      expect.objectContaining({ language: "TypeScript" })
+    );
   });
 
   it("includes min_stars filter in request params", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     const { result } = renderHook(() => useTrends());
 
@@ -185,39 +166,33 @@ describe("useTrends", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    vi.mocked(global.fetch).mockClear();
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockClear();
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     act(() => {
       result.current.setMinStarsFilter(1000);
     });
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalled();
+      expect(apiClient.getTrends).toHaveBeenCalled();
     });
 
-    const calledUrl = vi.mocked(global.fetch).mock.calls[0][0] as string;
-    expect(calledUrl).toContain("min_stars=1000");
+    expect(apiClient.getTrends).toHaveBeenCalledWith(
+      expect.objectContaining({ minStars: 1000 })
+    );
   });
 
   it("computes availableLanguages from current results", async () => {
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          repos: [
-            makeTrendingRepo({ id: 1, language: "TypeScript" }),
-            makeTrendingRepo({ id: 2, language: "JavaScript" }),
-            makeTrendingRepo({ id: 3, language: "TypeScript" }),
-            makeTrendingRepo({ id: 4, language: null }),
-          ],
-          total: 4,
-          sort_by: "velocity",
-        }),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockResolvedValue({
+      repos: [
+        makeTrendingRepo({ id: 1, language: "TypeScript" }),
+        makeTrendingRepo({ id: 2, language: "JavaScript" }),
+        makeTrendingRepo({ id: 3, language: "TypeScript" }),
+        makeTrendingRepo({ id: 4, language: null }),
+      ],
+      total: 4,
+      sort_by: "velocity",
+    });
 
     const { result } = renderHook(() => useTrends());
 
@@ -230,7 +205,7 @@ describe("useTrends", () => {
   });
 
   it("retry triggers a new fetch", async () => {
-    vi.mocked(global.fetch).mockRejectedValue(new Error("Network failure"));
+    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("Network failure"));
 
     const { result } = renderHook(() => useTrends());
 
@@ -240,11 +215,8 @@ describe("useTrends", () => {
 
     expect(result.current.error).toBe("Network failure");
 
-    vi.mocked(global.fetch).mockClear();
-    vi.mocked(global.fetch).mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(defaultResponse),
-    } as Response);
+    vi.mocked(apiClient.getTrends).mockClear();
+    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
 
     act(() => {
       result.current.retry();

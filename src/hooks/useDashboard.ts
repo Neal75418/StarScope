@@ -42,26 +42,35 @@ export function useDashboard() {
   const hasFetchedRef = useRef(false);
 
   const loadData = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      const [reposResponse, alertsResponse, signalsResponse, summaryResponse] = await Promise.all([
-        getRepos(),
-        listTriggeredAlerts(false),
-        listEarlySignals({ limit: 5 }),
-        getSignalSummary(),
-      ]);
+    const results = await Promise.allSettled([
+      getRepos(),
+      listTriggeredAlerts(false),
+      listEarlySignals({ limit: 5 }),
+      getSignalSummary(),
+    ]);
 
-      setRepos(reposResponse.repos);
-      setAlerts(alertsResponse);
-      setEarlySignals(signalsResponse.signals);
-      setSignalSummary(summaryResponse);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Dashboard 資料載入失敗");
-    } finally {
-      setIsLoading(false);
+    const [reposResult, alertsResult, signalsResult, summaryResult] = results;
+
+    if (reposResult.status === "fulfilled") setRepos(reposResult.value.repos);
+    if (alertsResult.status === "fulfilled") setAlerts(alertsResult.value);
+    if (signalsResult.status === "fulfilled") setEarlySignals(signalsResult.value.signals);
+    if (summaryResult.status === "fulfilled") setSignalSummary(summaryResult.value);
+
+    const failures = results.filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected"
+    );
+    if (failures.length > 0) {
+      setError(
+        failures
+          .map((f) => (f.reason instanceof Error ? f.reason.message : String(f.reason)))
+          .join("; ")
+      );
     }
+
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -133,15 +142,15 @@ export function useDashboard() {
   // 計算 velocity 分佈供圖表使用
   const velocityDistribution = useMemo(() => {
     const ranges = [
-      { label: "< 0", min: -Infinity, max: 0, inclusive: false },
-      { label: "0-10", min: 0, max: 10, inclusive: false },
-      { label: "10-50", min: 10, max: 50, inclusive: false },
-      { label: "50-100", min: 50, max: 100, inclusive: false },
-      { label: "100+", min: 100, max: Infinity, inclusive: true },
+      { key: "negative" as const, min: -Infinity, max: 0, inclusive: false },
+      { key: "low" as const, min: 0, max: 10, inclusive: false },
+      { key: "medium" as const, min: 10, max: 50, inclusive: false },
+      { key: "high" as const, min: 50, max: 100, inclusive: false },
+      { key: "veryHigh" as const, min: 100, max: Infinity, inclusive: true },
     ];
 
     return ranges.map((range) => ({
-      label: range.label,
+      key: range.key,
       count: repos.filter((r) => {
         const v = r.velocity ?? 0;
         // 最後一個區間使用包含上界

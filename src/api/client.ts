@@ -188,15 +188,19 @@ export class ApiError extends Error {
 // 預設請求逾時時間（毫秒）
 const DEFAULT_TIMEOUT_MS = 30_000;
 
-// API 呼叫輔助函式
-async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_ENDPOINT}${endpoint}`;
+// 重試設定
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 500;
 
-  // 透過 AbortController 設定逾時，同時尊重呼叫端提供的 signal
+// 單次 API 請求（無重試）
+async function doFetch<T>(
+  url: string,
+  options: RequestInit,
+  callerSignal?: AbortSignal | null
+): Promise<T> {
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), DEFAULT_TIMEOUT_MS);
 
-  const callerSignal = options.signal;
   if (callerSignal) {
     callerSignal.addEventListener("abort", () => timeoutController.abort(), { once: true });
   }
@@ -234,6 +238,30 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   return response.json();
+}
+
+// API 呼叫輔助函式（含重試）
+async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_ENDPOINT}${endpoint}`;
+  const callerSignal = options.signal ?? null;
+  let lastError: ApiError | undefined;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await doFetch<T>(url, options, callerSignal);
+    } catch (error) {
+      const apiError = error instanceof ApiError ? error : new ApiError(0, String(error));
+      // 4xx 錯誤不重試（客戶端錯誤）
+      if (apiError.status > 0 && apiError.status < 500) throw apiError;
+      // 使用者取消不重試
+      if (callerSignal?.aborted) throw apiError;
+      lastError = apiError;
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * Math.pow(2, attempt)));
+      }
+    }
+  }
+  throw lastError ?? new ApiError(0, "Request failed after retries");
 }
 
 // API 函式
@@ -813,6 +841,49 @@ export async function deleteSignal(signalId: number): Promise<{ status: string; 
   return apiCall(`/early-signals/${signalId}`, {
     method: "DELETE",
   });
+}
+
+// ==================== 趨勢 API ====================
+
+export interface TrendingRepo {
+  id: number;
+  owner: string;
+  name: string;
+  full_name: string;
+  url: string;
+  description: string | null;
+  language: string | null;
+  stars: number | null;
+  stars_delta_7d: number | null;
+  stars_delta_30d: number | null;
+  velocity: number | null;
+  acceleration: number | null;
+  trend: number | null;
+  rank: number;
+}
+
+export interface TrendsResponse {
+  repos: TrendingRepo[];
+  total: number;
+  sort_by: string;
+}
+
+/**
+ * 取得趨勢儲存庫排行。
+ */
+export async function getTrends(params: {
+  sortBy: string;
+  limit: number;
+  language?: string;
+  minStars?: number | null;
+}): Promise<TrendsResponse> {
+  const query = new URLSearchParams({
+    sort_by: params.sortBy,
+    limit: String(params.limit),
+  });
+  if (params.language) query.set("language", params.language);
+  if (params.minStars != null) query.set("min_stars", String(params.minStars));
+  return apiCall<TrendsResponse>(`/trends/?${query}`);
 }
 
 // ==================== 匯出 API ====================

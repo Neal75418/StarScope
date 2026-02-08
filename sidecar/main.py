@@ -10,8 +10,6 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 # 從 .env 檔載入環境變數
@@ -84,7 +82,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("[啟動] StarScope Engine 已停止")
 
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+from middleware.rate_limit import limiter
 
 app = FastAPI(
     title="StarScope Engine",

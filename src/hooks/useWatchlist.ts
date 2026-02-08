@@ -97,5 +97,6 @@ export function useWatchlist() {
     clearError: useCallback(() => repoOps.setError(null), [repoOps]),
     setSelectedCategoryId: categoryFilter.setSelectedCategoryId,
     setSearchQuery: categoryFilter.setSearchQuery,
+    refreshCategory: categoryFilter.refreshCategory,
   };
 }

@@ -27,6 +27,13 @@ export const translations = {
         activeAlerts: "Active Alerts",
       },
       velocityDistribution: "Velocity Distribution",
+      velocityRanges: {
+        negative: "< 0",
+        low: "0-10",
+        medium: "10-50",
+        high: "50-100",
+        veryHigh: "100+",
+      },
       recentActivity: "Recent Activity",
       activity: {
         justNow: "Just now",
@@ -40,6 +47,7 @@ export const translations = {
           suddenSpike: "Sudden Spike",
           breakout: "Breakout",
           viralHn: "Viral on HN",
+          releaseSurge: "Release Surge",
         },
       },
     },
@@ -503,6 +511,18 @@ export const translations = {
     contextBadges: {
       noDiscussions: "No discussions found",
     },
+    // 圖表
+    chart: {
+      loading: "Loading chart...",
+      insufficientData:
+        "Insufficient data. At least 2 data points are required to render the chart.",
+      timeRange: {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        all: "All",
+      },
+    },
     // 錯誤邊界
     errorBoundary: {
       title: "Something went wrong",
@@ -539,6 +559,13 @@ export const translations = {
         activeAlerts: "活躍警報",
       },
       velocityDistribution: "增長速度分佈",
+      velocityRanges: {
+        negative: "< 0",
+        low: "0-10",
+        medium: "10-50",
+        high: "50-100",
+        veryHigh: "100+",
+      },
       recentActivity: "最近活動",
       activity: {
         justNow: "剛剛",
@@ -552,6 +579,7 @@ export const translations = {
           suddenSpike: "突然飆升",
           breakout: "爆發突破",
           viralHn: "HN 熱門",
+          releaseSurge: "版本釋出潮",
         },
       },
     },
@@ -1013,6 +1041,17 @@ export const translations = {
     // HN 討論面板
     contextBadges: {
       noDiscussions: "找不到相關討論",
+    },
+    // 圖表
+    chart: {
+      loading: "圖表載入中...",
+      insufficientData: "資料不足，至少需要 2 個資料點才能繪製圖表。",
+      timeRange: {
+        "7d": "7天",
+        "30d": "30天",
+        "90d": "90天",
+        all: "全部",
+      },
     },
     // 錯誤邊界
     errorBoundary: {

@@ -238,7 +238,8 @@ describe("API Client", () => {
     });
 
     it("handles non-ok response with JSON parse failure", async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Must mock all retry attempts (MAX_RETRIES + 1 = 3) since 500 errors trigger retries
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
         json: async () => {
@@ -288,7 +289,8 @@ describe("API Client", () => {
 
     it("handles DOMException AbortError as timeout when no caller signal", async () => {
       const abortError = new DOMException("Aborted", "AbortError");
-      mockFetch.mockRejectedValueOnce(abortError);
+      // Must mock all retry attempts since timeout errors (status 0) trigger retries
+      mockFetch.mockRejectedValue(abortError);
 
       try {
         await checkHealth();
@@ -313,7 +315,8 @@ describe("API Client", () => {
     });
 
     it("handles non-Error thrown by fetch", async () => {
-      mockFetch.mockRejectedValueOnce("string error");
+      // Must mock all retry attempts since network errors (status 0) trigger retries
+      mockFetch.mockRejectedValue("string error");
 
       try {
         await checkHealth();

@@ -303,6 +303,7 @@ export function Watchlist() {
     clearError,
     setSelectedCategoryId,
     setSearchQuery,
+    refreshCategory,
   } = useWatchlist();
 
   // 批次載入所有 repo 的 badges 與 signals（2 requests 取代 N×2 requests）
@@ -310,14 +311,7 @@ export function Watchlist() {
   const { dataMap: batchData } = useBatchRepoData(repoIds);
 
   // 分類操作：新增 / 移除 repo 至分類
-  const categoryOps = useCategoryOperations(() => {
-    // 重新選取以刷新篩選後的列表
-    if (selectedCategoryId) {
-      const current = selectedCategoryId;
-      setSelectedCategoryId(null);
-      setTimeout(() => setSelectedCategoryId(current), 0);
-    }
-  });
+  const categoryOps = useCategoryOperations(refreshCategory);
 
   // Memoize handler 以避免不必要的 re-render
   const handleRemoveFromCategory = useCallback(

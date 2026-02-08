@@ -5,9 +5,11 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from middleware.rate_limit import limiter
 
 from db.database import get_db
 from db.models import Repo, SimilarRepo
@@ -102,8 +104,10 @@ async def calculate_similarities_for_repo(
 
 
 @router.post("/recalculate", response_model=RecalculateAllResponse)
+@limiter.limit("2/minute")
 async def recalculate_all(
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
 ):
     """
     重新計算追蹤清單中所有 repo 的相似度分數。

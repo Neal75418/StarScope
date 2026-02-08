@@ -2,7 +2,7 @@
  * 分類篩選與搜尋管理。
  */
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { RepoWithSignals, getCategoryRepos } from "../api/client";
 import { logger } from "../utils/logger";
 
@@ -23,6 +23,7 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
   const [filteredRepoIds, setFilteredRepoIds] = useState<Set<number> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [categoryRefreshKey, setCategoryRefreshKey] = useState(0);
 
   // 搜尋防抖，避免每次按鍵都觸發篩選
   useEffect(() => {
@@ -55,7 +56,11 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
           setFilteredRepoIds(null);
         }
       });
-  }, [selectedCategoryId]);
+  }, [selectedCategoryId, categoryRefreshKey]);
+
+  const refreshCategory = useCallback(() => {
+    setCategoryRefreshKey((k) => k + 1);
+  }, []);
 
   const displayedRepos = useMemo(() => {
     let result = repos;
@@ -80,5 +85,6 @@ export function useCategoryFilter(repos: RepoWithSignals[]) {
     searchQuery,
     setSearchQuery,
     displayedRepos,
+    refreshCategory,
   };
 }

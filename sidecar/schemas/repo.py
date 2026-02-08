@@ -146,3 +146,6 @@ class RepoListResponse(BaseModel):
     """Schema for listing repos."""
     repos: List[RepoWithSignals]
     total: int
+    page: Optional[int] = None
+    per_page: Optional[int] = None
+    total_pages: Optional[int] = None

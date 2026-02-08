@@ -5,8 +5,9 @@
 from typing import Optional
 import logging
 
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
 
+from middleware.rate_limit import limiter
 from services.github import (
     get_github_service,
     GitHubAPIError,
@@ -20,7 +21,9 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 
 @router.get("/search", response_model=SearchResponse)
+@limiter.limit("30/minute")
 async def search_repos(
+    request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
     language: Optional[str] = Query(None, description="Filter by language"),
     min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),

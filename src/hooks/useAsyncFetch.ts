@@ -9,6 +9,7 @@ import { logger } from "../utils/logger";
 interface UseAsyncFetchResult<T> {
   data: T;
   loading: boolean;
+  error: string | null;
 }
 
 interface UseAsyncFetchOptions {
@@ -28,10 +29,12 @@ export function useAsyncFetch<T, R>(
 ): UseAsyncFetchResult<T> {
   const [data, setData] = useState<T>(initialData);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
+    setError(null);
 
     const doFetch = async () => {
       try {
@@ -45,7 +48,11 @@ export function useAsyncFetch<T, R>(
         }
         if (isMounted) setData(extractData(response));
       } catch (err) {
-        if (isMounted) logger.error(`${errorContext} 載入失敗:`, err);
+        if (isMounted) {
+          const msg = err instanceof Error ? err.message : `${errorContext} failed`;
+          setError(msg);
+          logger.error(`${errorContext} 載入失敗:`, err);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -59,5 +66,5 @@ export function useAsyncFetch<T, R>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  return { data, loading };
+  return { data, loading, error };
 }

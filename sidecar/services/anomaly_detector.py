@@ -3,6 +3,7 @@
 偵測 rising star、突然暴漲、breakout 及其他異常。
 """
 
+import bisect
 import logging
 import threading
 from datetime import timedelta
@@ -43,10 +44,15 @@ class AnomalyDetector:
         db: Session,
         snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
         signal_map: Optional[Dict[int, Dict[str, float]]] = None,
+        velocity_values: Optional[List[float]] = None,
     ) -> Optional["EarlySignal"]:
         """
         偵測 rising star 模式。
         條件：stars < 5000 且（velocity > 10 或 velocity/stars > 0.01）
+
+        Args:
+            velocity_values: 預排序的 velocity 值列表，用於 O(log n) 百分位計算。
+                             未提供時回退為 SQL COUNT 查詢。
         """
         repo_id = int(repo.id)
 
@@ -96,16 +102,23 @@ class AnomalyDetector:
         else:
             severity = EarlySignalSeverity.LOW
 
-        # 用 SQL COUNT 計算百分位數，避免全表載入
-        from sqlalchemy import func as sa_func
-        total = db.query(sa_func.count(Signal.id)).filter(
-            Signal.signal_type == SignalType.VELOCITY
-        ).scalar() or 0
-        below = db.query(sa_func.count(Signal.id)).filter(
-            Signal.signal_type == SignalType.VELOCITY,
-            Signal.value < velocity
-        ).scalar() or 0
-        percentile = (below / total * 100) if total > 0 else 0
+        # 計算百分位數
+        if velocity_values is not None:
+            # O(log n) 使用預排序的列表
+            total = len(velocity_values)
+            below = bisect.bisect_left(velocity_values, velocity)
+            percentile = (below / total * 100) if total > 0 else 0
+        else:
+            # 回退：SQL COUNT 查詢
+            from sqlalchemy import func as sa_func
+            total = db.query(sa_func.count(Signal.id)).filter(
+                Signal.signal_type == SignalType.VELOCITY
+            ).scalar() or 0
+            below = db.query(sa_func.count(Signal.id)).filter(
+                Signal.signal_type == SignalType.VELOCITY,
+                Signal.value < velocity
+            ).scalar() or 0
+            percentile = (below / total * 100) if total > 0 else 0
 
         return EarlySignal(
             repo_id=repo.id,
@@ -312,6 +325,7 @@ class AnomalyDetector:
         db: Session,
         snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
         signal_map: Optional[Dict[int, Dict[str, float]]] = None,
+        velocity_values: Optional[List[float]] = None,
     ) -> List["EarlySignal"]:
         """
         對單一 repo 執行所有偵測演算法。
@@ -319,26 +333,43 @@ class AnomalyDetector:
         """
         signals: List["EarlySignal"] = []
 
-        # 執行各偵測器（static methods）
-        detectors = [
-            AnomalyDetector.detect_rising_star,
+        # rising_star 需要 velocity_values 做百分位計算
+        try:
+            signal = AnomalyDetector.detect_rising_star(
+                repo, db,
+                snapshot_map=snapshot_map,
+                signal_map=signal_map,
+                velocity_values=velocity_values,
+            )
+            if signal:
+                existing = db.query(EarlySignal).filter(
+                    EarlySignal.repo_id == repo.id,
+                    EarlySignal.signal_type == signal.signal_type,
+                    EarlySignal.expires_at > utc_now(),
+                    EarlySignal.acknowledged == False
+                ).first()
+                if not existing:
+                    signals.append(signal)
+        except SQLAlchemyError as e:
+            logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
+
+        # 其餘偵測器不需要 velocity_values
+        other_detectors = [
             AnomalyDetector.detect_sudden_spike,
             AnomalyDetector.detect_breakout,
             AnomalyDetector.detect_viral_hn,
         ]
 
-        for detector in detectors:
+        for detector in other_detectors:
             try:
                 signal = detector(repo, db, snapshot_map=snapshot_map, signal_map=signal_map)
                 if signal:
-                    # 檢查是否已存在相似訊號
                     existing = db.query(EarlySignal).filter(
                         EarlySignal.repo_id == repo.id,
                         EarlySignal.signal_type == signal.signal_type,
                         EarlySignal.expires_at > utc_now(),
                         EarlySignal.acknowledged == False
                     ).first()
-
                     if not existing:
                         signals.append(signal)
             except SQLAlchemyError as e:
@@ -358,13 +389,27 @@ class AnomalyDetector:
         snapshot_map = build_snapshot_map(db, repo_ids)
         signal_map = build_signal_map(db, repo_ids)
 
+        # 預載並排序所有 velocity 值，供 rising_star 百分位計算（1 次查詢取代 2N 次）
+        velocity_values = sorted(
+            v
+            for v in (
+                db.query(Signal.value)
+                .filter(Signal.signal_type == SignalType.VELOCITY)
+                .all()
+            )
+            for v in [v[0]]
+        )
+
         total_signals = 0
         signals_by_type: Dict[str, int] = {}
 
         for repo in repos:
             try:
                 signals = self.detect_all_for_repo(
-                    repo, db, snapshot_map=snapshot_map, signal_map=signal_map
+                    repo, db,
+                    snapshot_map=snapshot_map,
+                    signal_map=signal_map,
+                    velocity_values=velocity_values,
                 )
                 for signal in signals:
                     db.add(signal)

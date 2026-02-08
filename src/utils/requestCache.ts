@@ -15,6 +15,9 @@ interface PendingRequest<T> {
 // 預設 TTL 為 30 秒
 const DEFAULT_TTL_MS = 30 * 1000;
 
+// Cache 最大條目數，超過時淘汰最舊的條目
+const MAX_CACHE_SIZE = 200;
+
 // 記憶體內的回應 cache
 const cache = new Map<string, CacheEntry<unknown>>();
 
@@ -51,6 +54,11 @@ export async function cachedRequest<T>(
     .then((data) => {
       // 快取回應
       cache.set(key, { data, timestamp: Date.now() });
+      // 淘汰最舊的條目以控制記憶體用量
+      if (cache.size > MAX_CACHE_SIZE) {
+        const firstKey = cache.keys().next().value;
+        if (firstKey !== undefined) cache.delete(firstKey);
+      }
       return data;
     })
     .finally(() => {

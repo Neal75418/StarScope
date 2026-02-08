@@ -15,6 +15,7 @@ import { ChartDataPoint } from "../api/client";
 import { formatNumber, formatChartDate } from "../utils/format";
 import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
 import { StarHistoryBackfill } from "./StarHistoryBackfill";
+import { useI18n } from "../i18n";
 
 interface StarsChartProps {
   repoId: number;
@@ -23,25 +24,19 @@ interface StarsChartProps {
 
 const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d", "all"];
 
-const TIME_RANGE_LABELS: Record<TimeRange, string> = {
-  "7d": "7d",
-  "30d": "30d",
-  "90d": "90d",
-  all: "All",
-};
-
 const TOOLTIP_STYLE = {
-  backgroundColor: "#1a1a1a",
-  border: "1px solid #333",
+  backgroundColor: "var(--bg-default, #1a1a1a)",
+  border: "1px solid var(--border-default, #333)",
   borderRadius: "4px",
 };
 
 interface TimeRangeSelectorProps {
   current: TimeRange;
   onChange: (range: TimeRange) => void;
+  labels: Record<TimeRange, string>;
 }
 
-function TimeRangeSelector({ current, onChange }: TimeRangeSelectorProps) {
+function TimeRangeSelector({ current, onChange, labels }: TimeRangeSelectorProps) {
   return (
     <div className="chart-controls">
       {TIME_RANGES.map((range) => (
@@ -50,7 +45,7 @@ function TimeRangeSelector({ current, onChange }: TimeRangeSelectorProps) {
           className={`chart-range-btn ${current === range ? "active" : ""}`}
           onClick={() => onChange(range)}
         >
-          {TIME_RANGE_LABELS[range]}
+          {labels[range]}
         </button>
       ))}
     </div>
@@ -98,9 +93,17 @@ function ChartContent({ data }: ChartContentProps) {
 
 export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
+  const { t } = useI18n();
+
+  const timeRangeLabels: Record<TimeRange, string> = {
+    "7d": t.chart.timeRange["7d"],
+    "30d": t.chart.timeRange["30d"],
+    "90d": t.chart.timeRange["90d"],
+    all: t.chart.timeRange.all,
+  };
 
   if (loading) {
-    return <div className="chart-loading">圖表載入中...</div>;
+    return <div className="chart-loading">{t.chart.loading}</div>;
   }
 
   if (error) {
@@ -110,7 +113,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   if (data.length < 2) {
     return (
       <div className="stars-chart">
-        <div className="chart-empty">資料不足，至少需要 2 個資料點才能繪製圖表。</div>
+        <div className="chart-empty">{t.chart.insufficientData}</div>
         <StarHistoryBackfill
           repoId={repoId}
           currentStars={currentStars ?? null}
@@ -122,7 +125,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
 
   return (
     <div className="stars-chart">
-      <TimeRangeSelector current={timeRange} onChange={setTimeRange} />
+      <TimeRangeSelector current={timeRange} onChange={setTimeRange} labels={timeRangeLabels} />
       <ChartContent data={data} />
       <StarHistoryBackfill
         repoId={repoId}

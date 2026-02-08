@@ -8,14 +8,7 @@ import { EarlySignal, SignalSummary } from "../api/client";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
-
-// 訊號類型圖示對應
-const SIGNAL_TYPE_CONFIG: Record<string, { icon: string; className: string }> = {
-  rising_star: { icon: "\u{1F31F}", className: "signal-rising-star" },
-  sudden_spike: { icon: "\u26A1", className: "signal-sudden-spike" },
-  breakout: { icon: "\u{1F680}", className: "signal-breakout" },
-  viral_hn: { icon: "\u{1F536}", className: "signal-viral-hn" },
-};
+import { getSignalTypeConfig } from "../constants/signalTypes";
 
 const SEVERITY_CLASS: Record<string, string> = {
   high: "severity-high",
@@ -84,6 +77,7 @@ function SignalSpotlight({
     sudden_spike: t.dashboard.signals.types.suddenSpike,
     breakout: t.dashboard.signals.types.breakout,
     viral_hn: t.dashboard.signals.types.viralHn,
+    release_surge: t.dashboard.signals.types.releaseSurge,
   };
 
   return (
@@ -96,7 +90,7 @@ function SignalSpotlight({
       {/* 訊號類型摘要 */}
       <div className="signal-type-summary">
         {Object.entries(summary.by_type).map(([type, count]) => {
-          const config = SIGNAL_TYPE_CONFIG[type] || { icon: "?", className: "" };
+          const config = getSignalTypeConfig(type);
           return (
             <div key={type} className={`signal-type-chip ${config.className}`}>
               <span className="signal-type-icon">{config.icon}</span>
@@ -111,7 +105,7 @@ function SignalSpotlight({
       {signals.length > 0 && (
         <div className="signal-list">
           {signals.map((signal) => {
-            const config = SIGNAL_TYPE_CONFIG[signal.signal_type] || { icon: "?", className: "" };
+            const config = getSignalTypeConfig(signal.signal_type);
             const severityClass = SEVERITY_CLASS[signal.severity] || "";
             return (
               <div key={signal.id} className={`signal-item ${config.className}`}>
@@ -147,7 +141,7 @@ function SignalSpotlight({
 }
 
 // Velocity 分佈圖表
-function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
+function VelocityChart({ data }: { data: { key: string; count: number }[] }) {
   const { t } = useI18n();
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 
@@ -156,8 +150,10 @@ function VelocityChart({ data }: { data: { label: string; count: number }[] }) {
       <h3>{t.dashboard.velocityDistribution}</h3>
       <div className="velocity-chart">
         {data.map((item) => (
-          <div key={item.label} className="velocity-bar-container">
-            <div className="velocity-label">{item.label}</div>
+          <div key={item.key} className="velocity-bar-container">
+            <div className="velocity-label">
+              {t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ?? item.key}
+            </div>
             <div className="velocity-bar-wrapper">
               <div
                 className="velocity-bar"

@@ -57,8 +57,8 @@ describe("StarsChart", () => {
 
     render(<StarsChart repoId={1} />);
 
-    expect(screen.getByText("圖表載入中...")).toBeInTheDocument();
-    expect(screen.getByText("圖表載入中...")).toHaveClass("chart-loading");
+    expect(screen.getByText("Loading chart...")).toBeInTheDocument();
+    expect(screen.getByText("Loading chart...")).toHaveClass("chart-loading");
   });
 
   it("displays chart when data is loaded", async () => {
@@ -67,7 +67,7 @@ describe("StarsChart", () => {
     render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.queryByText("圖表載入中...")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
     });
 
     // Chart controls should be visible
@@ -97,7 +97,7 @@ describe("StarsChart", () => {
     render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText(/資料不足，至少需要 2 個資料點才能繪製圖表/)).toBeInTheDocument();
+      expect(screen.getByText(/Insufficient data/)).toBeInTheDocument();
     });
   });
 
@@ -159,7 +159,7 @@ describe("StarsChart", () => {
     const { container } = render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.queryByText("圖表載入中...")).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
     });
 
     // Check if ResponsiveContainer is rendered (it has a specific data attribute)

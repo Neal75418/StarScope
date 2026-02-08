@@ -22,7 +22,7 @@ from services.github import fetch_repo_data, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.context_fetcher import fetch_all_context_signals
 from utils.time import utc_now
-from constants import CONTEXT_FETCH_INTERVAL_MINUTES
+from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +74,15 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
                 .subquery()
             )
 
-            # 僅載入需要抓取的 repo（在 DB 層篩選）
-            repos = (
+            # 計算需抓取的 repo 數量
+            need_fetch_query = (
                 db.query(Repo)
                 .filter(Repo.id.notin_(db.query(recently_fetched_ids.c.repo_id)))
-                .all()
             )
 
             total_count = db.query(func.count(Repo.id)).scalar() or 0
-            skipped_count = total_count - len(repos)
+            need_fetch_count = need_fetch_query.count()
+            skipped_count = total_count - need_fetch_count
 
             if total_count == 0:
                 logger.info("[排程] 監控清單無 repo，跳過抓取")
@@ -94,30 +94,40 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
             if skipped_count > 0:
                 logger.debug(f"[排程] 跳過 {skipped_count} 個近期已抓取的 repo")
 
-            for repo in repos:
+            # 預先收集需抓取的 repo ID，避免分批查詢時因結果集變動而跳過 repo
+            all_need_fetch_ids = [r.id for r in need_fetch_query.all()]
 
-                try:
-                    # 從 GitHub 取得最新資料
-                    github_data = await fetch_repo_data(repo.owner, repo.name)
+            # 分批處理，避免大型監控清單一次佔用過多記憶體
+            for batch_start in range(0, len(all_need_fetch_ids), SCHEDULER_BATCH_SIZE):
+                batch_ids = all_need_fetch_ids[batch_start:batch_start + SCHEDULER_BATCH_SIZE]
+                repos = db.query(Repo).filter(Repo.id.in_(batch_ids)).all()
 
-                    if github_data:
-                        # 原子性地更新中繼資料 + 快照 + 訊號
-                        update_repo_from_github(repo, github_data, db)
+                for repo in repos:
+                    try:
+                        # 從 GitHub 取得最新資料
+                        github_data = await fetch_repo_data(repo.owner, repo.name)
 
-                        success_count += 1
-                        logger.debug(f"[排程] 已抓取 {repo.full_name}")
-                    else:
+                        if github_data:
+                            # 原子性地更新中繼資料 + 快照 + 訊號
+                            update_repo_from_github(repo, github_data, db)
+
+                            success_count += 1
+                            logger.debug(f"[排程] 已抓取 {repo.full_name}")
+                        else:
+                            error_count += 1
+                            logger.warning(f"[排程] 抓取 {repo.full_name} 資料失敗")
+
+                    except (GitHubAPIError, SQLAlchemyError) as e:
                         error_count += 1
-                        logger.warning(f"[排程] 抓取 {repo.full_name} 資料失敗")
+                        db.rollback()
+                        logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+                    except Exception as e:
+                        error_count += 1
+                        db.rollback()
+                        logger.error(f"[排程] 抓取 {repo.full_name} 非預期錯誤: {e}", exc_info=True)
 
-                except (GitHubAPIError, SQLAlchemyError) as e:
-                    error_count += 1
-                    db.rollback()
-                    logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
-                except Exception as e:
-                    error_count += 1
-                    db.rollback()
-                    logger.error(f"[排程] 抓取 {repo.full_name} 非預期錯誤: {e}", exc_info=True)
+                # 批次結束後釋放 ORM 追蹤的物件，降低記憶體用量
+                db.expire_all()
 
             logger.info(
                 f"[排程] 排程抓取完成: {success_count} 成功、"

@@ -7,11 +7,12 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import List, Optional, Dict
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from db import get_db, Repo, RepoSnapshot
+from middleware.rate_limit import limiter
 from db.models import SignalType
 from schemas import RepoCreate, RepoWithSignals, RepoListResponse
 from constants import (
@@ -19,6 +20,7 @@ from constants import (
     GITHUB_REPO_NAME_PATTERN,
     MAX_OWNER_LENGTH,
     MAX_REPO_NAME_LENGTH,
+    MAX_REPOS_PER_PAGE,
 )
 from services.github import (
     GitHubService,
@@ -113,11 +115,26 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
 
 
 
-def _build_repo_list_response(db: Session) -> RepoListResponse:
-    """建立含所有 repo 及其訊號的 RepoListResponse。"""
-    repos = db.query(Repo).order_by(desc(Repo.added_at)).all()
-    if not repos:
+def _build_repo_list_response(
+    db: Session,
+    page: Optional[int] = None,
+    per_page: Optional[int] = None,
+) -> RepoListResponse:
+    """建立含所有 repo 及其訊號的 RepoListResponse。支援可選分頁。"""
+    query = db.query(Repo).order_by(desc(Repo.added_at))
+    total = query.count()
+
+    if total == 0:
         return RepoListResponse(repos=[], total=0)
+
+    # 套用分頁（未提供時返回全部，與舊行為一致）
+    if page is not None and per_page is not None:
+        offset = (page - 1) * per_page
+        repos = query.offset(offset).limit(per_page).all()
+        total_pages = (total + per_page - 1) // per_page
+    else:
+        repos = query.all()
+        total_pages = None
 
     repo_ids: List[int] = [r.id for r in repos]
     snapshot_map = build_snapshot_map(db, repo_ids)
@@ -132,16 +149,32 @@ def _build_repo_list_response(db: Session) -> RepoListResponse:
         for repo in repos
     ]
 
-    return RepoListResponse(repos=repos_with_signals, total=len(repos))
+    return RepoListResponse(
+        repos=repos_with_signals,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+    )
 
 
 @router.get("/repos", response_model=RepoListResponse)
-async def list_repos(db: Session = Depends(get_db)) -> RepoListResponse:
+async def list_repos(
+    page: Optional[int] = Query(None, ge=1, description="Page number (omit for all results)"),
+    per_page: Optional[int] = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
+    db: Session = Depends(get_db),
+) -> RepoListResponse:
     """
     列出追蹤清單中的所有 repo 及其最新訊號。
     使用批次查詢避免 N+1 問題。
+    可選分頁：提供 page + per_page 啟用。
     """
-    return _build_repo_list_response(db)
+    if (page is None) != (per_page is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Both 'page' and 'per_page' must be provided together for pagination",
+        )
+    return _build_repo_list_response(db, page=page, per_page=per_page)
 
 
 @router.post("/repos", response_model=RepoWithSignals, status_code=status.HTTP_201_CREATED)
@@ -236,7 +269,8 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
 
 
 @router.post("/repos/fetch-all", response_model=RepoListResponse)
-async def fetch_all_repos(db: Session = Depends(get_db)) -> RepoListResponse:
+@limiter.limit("5/minute")
+async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> RepoListResponse:
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。

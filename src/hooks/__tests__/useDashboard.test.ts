@@ -229,11 +229,11 @@ describe("useDashboard", () => {
 
     const dist = result.current.velocityDistribution;
     expect(dist).toHaveLength(5);
-    expect(dist[0]).toEqual({ label: "< 0", count: 1 });
-    expect(dist[1]).toEqual({ label: "0-10", count: 3 }); // 0, 5, null→0
-    expect(dist[2]).toEqual({ label: "10-50", count: 1 });
-    expect(dist[3]).toEqual({ label: "50-100", count: 1 });
-    expect(dist[4]).toEqual({ label: "100+", count: 1 });
+    expect(dist[0]).toEqual({ key: "negative", count: 1 });
+    expect(dist[1]).toEqual({ key: "low", count: 3 }); // 0, 5, null→0
+    expect(dist[2]).toEqual({ key: "medium", count: 1 });
+    expect(dist[3]).toEqual({ key: "high", count: 1 });
+    expect(dist[4]).toEqual({ key: "veryHigh", count: 1 });
   });
 
   it("acknowledgeSignal removes signal and updates summary", async () => {
