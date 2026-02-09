@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+---
+
+## [0.3.0] — 2026-02-09
+
 ### 新增功能
 
 - **ContextBadges 元件強化** — 改善徽章樣式與互動體驗
@@ -26,6 +30,8 @@
 - 以 Tauri `openUrl` 取代失效的外部連結
 - 修正警報排程邏輯，避免記錄敏感資料
 - P0 程式碼審查修正與排程器改進
+- 修正 early_signals severity 字串排序錯誤（改用 CASE expression）
+- 收窄 Tauri shell:allow-spawn 為 sidecar-only scope
 
 ### 效能優化
 
@@ -33,6 +39,7 @@
 - 新增 API 回應快取、排程器 checkpoint、分頁載入
 - CSS 渲染優化與 context signal 清理
 - 全面效能調校與程式碼品質提升
+- 修正 categories、star_history 的 N+1 / 批次查詢問題
 
 ### 測試
 
@@ -90,6 +97,7 @@
 
 ---
 
-[Unreleased]: https://github.com/Neal75418/StarScope/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Neal75418/StarScope/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/Neal75418/StarScope/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/Neal75418/StarScope/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Neal75418/StarScope/releases/tag/v0.1.0
