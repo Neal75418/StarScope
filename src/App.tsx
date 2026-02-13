@@ -10,6 +10,7 @@ import { I18nContext } from "./i18n";
 import { ThemeContext } from "./theme";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
+import { WatchlistProvider } from "./contexts/WatchlistContext";
 import "./App.css";
 
 // 延遲載入頁面以進行 code splitting
@@ -75,25 +76,27 @@ function App() {
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <I18nContext.Provider value={i18nContextValue}>
-        <div className="app">
-          <AppHeader
-            currentPage={currentPage}
-            onPageChange={handlePageChange}
-            theme={theme}
-            onThemeToggle={toggleTheme}
-            language={language}
-            onLanguageToggle={toggleLanguage}
-            t={t}
-          />
+        <WatchlistProvider>
+          <div className="app">
+            <AppHeader
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              theme={theme}
+              onThemeToggle={toggleTheme}
+              language={language}
+              onLanguageToggle={toggleLanguage}
+              t={t}
+            />
 
-          <main className="app-main" id="main-content">
-            <ErrorBoundary>
-              <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                <PageContent page={currentPage} />
-              </Suspense>
-            </ErrorBoundary>
-          </main>
-        </div>
+            <main className="app-main" id="main-content">
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader text={t.common.loading} />}>
+                  <PageContent page={currentPage} />
+                </Suspense>
+              </ErrorBoundary>
+            </main>
+          </div>
+        </WatchlistProvider>
       </I18nContext.Provider>
     </ThemeContext.Provider>
   );

@@ -5,7 +5,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
-import { useWatchlist } from "../hooks/useWatchlist";
+import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { addRepo, DiscoveryRepo } from "../api/client";
@@ -23,10 +23,8 @@ export function Discovery() {
   const { t } = useI18n();
   const toast = useToast();
   const discovery = useDiscovery();
-  const {
-    state: { repos: watchlist },
-    actions: { refreshAll: handleRefreshAll },
-  } = useWatchlist();
+  const { repos: watchlist } = useWatchlistState();
+  const { refreshAll: handleRefreshAll } = useWatchlistActions();
 
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
   // 追蹤本地新增的 repo 以即時反映 UI

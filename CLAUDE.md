@@ -182,6 +182,12 @@ PORT=8008
 | E2E 測試 | Playwright     | `e2e/`                       |
 | CI     | GitHub Actions | `.github/workflows/test.yml` |
 
+### 注意事項
+
+- 重構 hooks 時需同步更新測試 mocks（例：`useWatchlist` → `useWatchlistState` + `useWatchlistActions`）
+- 測試單一檔案 - `npm run test -- path/to/file.test.tsx`
+- Context Provider 包裹順序 - `WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部
+
 ---
 
 ## API 端點
@@ -209,3 +215,30 @@ SQLite 位於 `sidecar/starscope.db`：
 | `alerts`       | 使用者定義的警報規則      |
 | `webhooks`     | Webhook 設定      |
 | `app_settings` | OAuth token 及設定 |
+
+---
+
+## 前端架構模式
+
+### Watchlist Context + useReducer 架構（2024-02 重構）
+
+- `WatchlistContext.tsx` - 14 個 useState → 單一 useReducer，三層 Context 分離
+- State Machine Pattern - `LoadingState` 使用 Discriminated Unions 消除不可能狀態
+- Context 分層（優化 re-render）:
+  - `WatchlistStateContext` - 只讀狀態
+  - `WatchlistDispatchContext` - Dispatch 函數（穩定引用）
+  - `WatchlistActionsContext` - 業務邏輯（useCallback 包裝）
+- Selector hooks（精準訂閱）:
+  - `useFilteredRepos()` - 套用分類 + 搜尋篩選
+  - `useLoadingRepo()` - 當前載入的 repo ID
+  - `useIsRefreshing()` - 是否正在刷新
+  - `useIsRecalculating()` - 是否正在重算相似度
+  - `useRepoById(id)` - 單一 repo 變更時才 re-render
+- 測試策略 - Mock 三個 Context hooks：`useWatchlistState`, `useWatchlistDispatch`, `useWatchlistActions`；全域檢查已刪除的 `useWatchlist` 依賴
+
+### React-Window (虛擬滾動)
+
+- **版本** - `react-window@2.2.5`（v2 API）
+- **核心組件** - `List` 需 3 個必要 props：`height`, `itemCount`, `itemSize`；`children` 為 render prop 函數
+- **RowComponent 型別** - `RowComponentProps<T = unknown>` from `react-window`
+- **常見陷阱** - 避免 `renderRow` 命名（v1 API），改用 `children` render prop；避免直接傳 `itemData={data}` 到 `List` 的 render function 參數

@@ -15,10 +15,41 @@ vi.mock("../../hooks/useDiscovery", () => ({
   useDiscovery: () => mockDiscoveryReturn,
 }));
 
-vi.mock("../../hooks/useWatchlist", () => ({
-  useWatchlist: () => ({
-    state: { repos: mockWatchlistRepos },
-    actions: { refreshAll: mockHandleRefreshAll },
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistState: () => ({
+    repos: mockWatchlistRepos,
+    loadingState: { type: "idle" },
+    error: null,
+    isConnected: true,
+    ui: {
+      dialog: { isOpen: false, error: null },
+      removeConfirm: { isOpen: false, repoId: null, repoName: "" },
+    },
+    filters: { selectedCategoryId: null, searchQuery: "" },
+    toasts: [],
+  }),
+  useWatchlistActions: () => ({
+    refreshAll: mockHandleRefreshAll,
+    success: mockSuccess,
+    error: mockError,
+    addRepo: mockAddRepo,
+    removeRepo: vi.fn(),
+    fetchRepo: vi.fn(),
+    recalculateAll: vi.fn(),
+    openDialog: vi.fn(),
+    closeDialog: vi.fn(),
+    openRemoveConfirm: vi.fn(),
+    closeRemoveConfirm: vi.fn(),
+    confirmRemove: vi.fn(),
+    cancelRemove: vi.fn(),
+    setCategory: vi.fn(),
+    setSearchQuery: vi.fn(),
+    showToast: vi.fn(),
+    dismissToast: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+    clearError: vi.fn(),
+    retry: vi.fn(),
   }),
 }));
 

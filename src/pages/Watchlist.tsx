@@ -12,7 +12,14 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
-import { useWatchlist } from "../hooks/useWatchlist";
+import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
+import {
+  useFilteredRepos,
+  useLoadingRepo,
+  useIsRefreshing,
+  useIsRecalculating,
+  useIsInitializing,
+} from "../hooks/selectors/useWatchlistSelectors";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
 import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
 import { RepoWithSignals } from "../api/client";
@@ -278,7 +285,17 @@ function Toolbar({
 // Watchlist 主元件
 export function Watchlist() {
   const { t } = useI18n();
-  const { state, dialog, category, actions, removeConfirm, toast } = useWatchlist();
+
+  // 新的 Context hooks
+  const state = useWatchlistState();
+  const actions = useWatchlistActions();
+
+  // Selector hooks - 精準訂閱，減少 re-render
+  const displayedRepos = useFilteredRepos();
+  const loadingRepoId = useLoadingRepo();
+  const isRefreshing = useIsRefreshing();
+  const isRecalculating = useIsRecalculating();
+  const isInitializing = useIsInitializing();
 
   // 視窗化批次載入：僅載入可見範圍的 repo 資料
   const repoIds = useMemo(() => state.repos.map((r) => r.id), [state.repos]);
@@ -287,20 +304,35 @@ export function Watchlist() {
   });
 
   // 分類操作：新增 / 移除 repo 至分類
-  const categoryOps = useCategoryOperations(category.refresh, (msg) => toast.error(msg));
+  // 注意：categoryOps 需要一個 refresh 函數，但目前我們沒有等效的 refresh 函數
+  // 暫時傳入空函數，後續在 Phase 3 整合分類篩選時處理
+  const categoryOps = useCategoryOperations(
+    () => {},
+    (msg) => actions.error(msg)
+  );
 
-  // Memoize handler 以避免不必要的 re-render
+  // Memoize handlers 以避免不必要的 re-render
+  const handleRemove = useCallback(
+    (repoId: number) => {
+      const repo = state.repos.find((r) => r.id === repoId);
+      if (repo) {
+        actions.openRemoveConfirm(repoId, repo.full_name);
+      }
+    },
+    [state.repos, actions]
+  );
+
   const handleRemoveFromCategory = useCallback(
     async (categoryId: number, repoId: number) => {
       const success = await categoryOps.removeFromCategory(categoryId, repoId);
       if (success) {
-        toast.success(t.categories.removedFromCategory);
+        actions.success(t.categories.removedFromCategory);
       }
     },
-    [categoryOps, toast, t.categories.removedFromCategory]
+    [categoryOps, actions, t.categories.removedFromCategory]
   );
 
-  if (state.isLoading) {
+  if (isInitializing) {
     return <LoadingState />;
   }
 
@@ -317,42 +349,42 @@ export function Watchlist() {
 
       <div className="watchlist-with-sidebar">
         <CategorySidebar
-          selectedCategoryId={category.selectedId}
-          onSelectCategory={category.setSelectedId}
+          selectedCategoryId={state.filters.selectedCategoryId}
+          onSelectCategory={actions.setCategory}
         />
 
         <div className="watchlist-main">
           <Toolbar
-            onAddRepo={dialog.open}
+            onAddRepo={actions.openDialog}
             onRefreshAll={actions.refreshAll}
             onRecalculateAll={actions.recalculateAll}
-            isRefreshing={state.isRefreshing}
-            isRecalculating={state.isRecalculatingSimilarities}
-            selectedCategoryId={category.selectedId}
-            displayedCount={state.displayedRepos.length}
+            isRefreshing={isRefreshing}
+            isRecalculating={isRecalculating}
+            selectedCategoryId={state.filters.selectedCategoryId}
+            displayedCount={displayedRepos.length}
             totalCount={state.repos.length}
-            searchQuery={category.searchQuery}
-            onSearchChange={category.setSearchQuery}
+            searchQuery={state.filters.searchQuery}
+            onSearchChange={actions.setSearchQuery}
           />
 
           {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
 
           <div className="repo-list" data-testid="repo-list">
-            {state.displayedRepos.length === 0 ? (
+            {displayedRepos.length === 0 ? (
               <div className="empty-state" data-testid="empty-state">
                 <EmptyStateView
                   hasRepos={state.repos.length > 0}
-                  hasSearch={category.searchQuery.trim().length > 0}
-                  onAddRepo={dialog.open}
+                  hasSearch={state.filters.searchQuery.trim().length > 0}
+                  onAddRepo={actions.openDialog}
                 />
               </div>
             ) : (
               <RepoList
-                repos={state.displayedRepos}
-                loadingRepoId={state.loadingRepoId}
+                repos={displayedRepos}
+                loadingRepoId={loadingRepoId}
                 onFetch={actions.fetchRepo}
-                onRemove={actions.remove}
-                selectedCategoryId={category.selectedId}
+                onRemove={handleRemove}
+                selectedCategoryId={state.filters.selectedCategoryId}
                 batchData={batchData}
                 onRemoveFromCategory={handleRemoveFromCategory}
                 onVisibleRangeChange={setVisibleRange}
@@ -363,18 +395,23 @@ export function Watchlist() {
       </div>
 
       <AddRepoDialog
-        isOpen={dialog.isOpen}
-        onClose={dialog.close}
-        onAdd={dialog.submit}
-        isLoading={dialog.isAdding}
-        error={dialog.error}
+        isOpen={state.ui.dialog.isOpen}
+        onClose={actions.closeDialog}
+        onAdd={async (input: string) => {
+          const result = await actions.addRepo(input);
+          if (result.success) {
+            actions.success(t.toast.repoAdded);
+          }
+        }}
+        isLoading={state.loadingState.type === "adding"}
+        error={state.ui.dialog.error}
       />
 
       <ConfirmDialog
-        isOpen={removeConfirm.isOpen}
+        isOpen={state.ui.removeConfirm.isOpen}
         title={t.dialog.removeRepo.title}
         message={interpolate(t.dialog.removeRepo.message, {
-          name: removeConfirm.repoName,
+          name: state.ui.removeConfirm.repoName,
         })}
         confirmText={t.dialog.removeRepo.confirm}
         variant="danger"
@@ -382,7 +419,7 @@ export function Watchlist() {
         onCancel={actions.cancelRemove}
       />
 
-      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
+      <ToastContainer toasts={state.toasts} onDismiss={actions.dismissToast} />
     </AnimatedPage>
   );
 }
