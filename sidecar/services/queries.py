@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, cast
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, Query
+from sqlalchemy.sql.selectable import Subquery
 
 from db.models import Signal, RepoSnapshot
 
@@ -49,7 +50,7 @@ def build_signal_map(
 def _build_latest_snapshot_subquery(
     db: Session,
     repo_ids: list[int] | None = None
-) -> Any:
+) -> Optional[Subquery]:
     """
     Build subquery to get max snapshot_date per repo.
     Shared helper to avoid code duplication.

@@ -2,11 +2,13 @@
  * 通知中心下拉選單元件，顯示應用內通知與未讀徽章。
  */
 
-import { useEffect, useRef, memo, useCallback } from "react";
+import { useRef, memo, useCallback } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { BellIcon, CheckIcon, XIcon } from "./Icons";
 import { useI18n } from "../i18n";
 import { Notification, useNotifications } from "../hooks/useNotifications";
+import { useClickOutside } from "../hooks/useClickOutside";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { MS_PER_MINUTE, MS_PER_HOUR, MS_PER_DAY } from "../utils/format";
 
 type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
@@ -259,33 +261,10 @@ export function NotificationCenter({ onNavigate }: NotificationCenterProps) {
   } = useNotifications();
 
   // 點擊外部時關閉
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        close();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen, close]);
+  useClickOutside(dropdownRef, close, isOpen);
 
   // 按 ESC 關閉
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        close();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, close]);
+  useEscapeKey(close, isOpen);
 
   const handleNavigate = useCallback(
     (page: Page) => {

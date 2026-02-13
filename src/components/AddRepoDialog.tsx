@@ -2,9 +2,10 @@
  * 新增 repo 到 watchlist 的 dialog。
  */
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 
 interface AddRepoDialogProps {
   isOpen: boolean;
@@ -20,17 +21,10 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
   const focusTrapRef = useFocusTrap(isOpen, false);
 
   // 按 ESC 關閉 dialog
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !isLoading) {
-        setInput("");
-        onClose();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isLoading, onClose]);
+  useEscapeKey(() => {
+    setInput("");
+    onClose();
+  }, isOpen && !isLoading);
 
   if (!isOpen) return null;
 

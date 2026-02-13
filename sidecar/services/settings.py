@@ -46,17 +46,22 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
         # 遷移邏輯：若在 DB 找到 token 但 Keyring 中沒有，則遷移！
         if value and _is_token_key(key):
             try:
-                logger.info("[設定] 正在將 GitHub token 從資料庫遷移至 Keyring...")
+                logger.debug("[設定] 遷移敏感設定至安全儲存")
                 keyring.set_password(SERVICE_NAME, key, value)
+
                 # 刪除前先驗證是否已儲存
-                if keyring.get_password(SERVICE_NAME, key) == value:
-                    db.delete(setting)
-                    db.commit()
-                    logger.info("[設定] Token 遷移成功: 已從資料庫中移除")
-                else:
-                    logger.error("[設定] Token 遷移失敗: Keyring 驗證不一致", exc_info=True)
+                stored_value = keyring.get_password(SERVICE_NAME, key)
+                if stored_value != value:
+                    db.rollback()
+                    raise ValueError("Keyring 驗證失敗：儲存的值與原始值不一致")
+
+                db.delete(setting)
+                db.commit()
+                logger.info(f"[設定] Token {key} 成功遷移至 Keyring")
             except Exception as e:
+                db.rollback()
                 logger.error(f"[設定] Token 遷移失敗: {e}", exc_info=True)
+                raise RuntimeError(f"Token 遷移失敗: {e}") from e
 
         return value
     finally:
@@ -73,9 +78,15 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
     if _is_token_key(key):
         try:
             keyring.set_password(SERVICE_NAME, key, value)
+
+            # 驗證儲存成功
+            stored_value = keyring.get_password(SERVICE_NAME, key)
+            if stored_value != value:
+                raise ValueError("Keyring 驗證失敗：儲存的值與原始值不一致")
+
             # 確保刪除 DB 中的舊值
             delete_setting_from_db(key, db)
-            logger.info(f"[設定] 設定 '{key}' 已成功儲存至 Keyring")
+            logger.debug(f"[設定] 敏感設定 '{key}' 已成功儲存至安全儲存")
             return
         except Exception as e:
             logger.error(f"[設定] 儲存 {key} 至 keyring 失敗: {e}", exc_info=True)

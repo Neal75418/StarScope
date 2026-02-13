@@ -94,15 +94,9 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
             if skipped_count > 0:
                 logger.debug(f"[排程] 跳過 {skipped_count} 個近期已抓取的 repo")
 
-            # 預先收集需抓取的 repo ID，避免分批查詢時因結果集變動而跳過 repo
-            all_need_fetch_ids = [r.id for r in need_fetch_query.all()]
-
-            # 分批處理，避免大型監控清單一次佔用過多記憶體
-            for batch_start in range(0, len(all_need_fetch_ids), SCHEDULER_BATCH_SIZE):
-                batch_ids = all_need_fetch_ids[batch_start:batch_start + SCHEDULER_BATCH_SIZE]
-                repos = db.query(Repo).filter(Repo.id.in_(batch_ids)).all()
-
-                for repo in repos:
+            # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
+            # 避免一次性載入所有 repo 到記憶體
+            for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
                     try:
                         # 從 GitHub 取得最新資料
                         github_data = await fetch_repo_data(repo.owner, repo.name)
@@ -126,16 +120,21 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
                         db.rollback()
                         logger.error(f"[排程] 抓取 {repo.full_name} 非預期錯誤: {e}", exc_info=True)
 
-                # 批次結束後釋放 ORM 追蹤的物件，降低記憶體用量
-                db.expire_all()
-
             logger.info(
                 f"[排程] 排程抓取完成: {success_count} 成功、"
                 f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
             )
 
+        except (GitHubAPIError, SQLAlchemyError) as e:
+            logger.error(f"[排程] 資料庫/API 錯誤: {e}", exc_info=True)
+            # 可恢復的錯誤，不中斷排程
+        except KeyboardInterrupt:
+            logger.info("[排程] 收到中斷信號")
+            raise
         except Exception as e:
-            logger.error(f"[排程] 排程任務錯誤: {e}", exc_info=True)
+            logger.critical(f"[排程] 未預期的嚴重錯誤: {e}", exc_info=True)
+            # 嚴重錯誤，記錄並重新拋出
+            raise
 
 
 def check_alerts_job():

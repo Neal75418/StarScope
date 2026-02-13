@@ -28,12 +28,14 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 interface UseBatchRepoDataResult {
   dataMap: Record<number, BatchRepoData>;
   loading: boolean;
+  error: Error | null;
 }
 
 export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
   const [badgesMap, setBadgesMap] = useState<Record<string, { badges: ContextBadge[] }>>({});
   const [signalsMap, setSignalsMap] = useState<Record<string, { signals: EarlySignal[] }>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   // 穩定化 repoIds 參考，避免每次 render 觸發重新載入
   const idsKey = repoIds.join(",");
@@ -42,6 +44,7 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
     if (repoIds.length === 0) return;
     let cancelled = false;
     setLoading(true);
+    setError(null); // 重置錯誤狀態
 
     const chunks = chunkArray(repoIds, MAX_BATCH_SIZE);
 
@@ -59,9 +62,15 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
         }
       })
       .catch((err) => {
+        // 使用結構化錯誤記錄而非 console.warn
+        const errorObj = err instanceof Error ? err : new Error(String(err));
         // eslint-disable-next-line no-console
-        console.warn("[useBatchRepoData] Failed to fetch batch data:", err);
-        if (!cancelled) setLoading(false);
+        console.error("[useBatchRepoData] Failed to fetch batch data:", errorObj);
+
+        if (!cancelled) {
+          setError(errorObj);
+          setLoading(false);
+        }
       });
 
     return () => {
@@ -83,5 +92,5 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, badgesMap, signalsMap]);
 
-  return { dataMap, loading };
+  return { dataMap, loading, error };
 }

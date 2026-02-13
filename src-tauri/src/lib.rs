@@ -21,10 +21,19 @@ use objc2_app_kit::{NSWindow, NSWindowButton, NSWindowCollectionBehavior};
 /// See: https://github.com/tauri-apps/tauri/issues/11336
 #[cfg(target_os = "macos")]
 fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
-    let _ = window.with_webview(|webview| {
-        #[allow(clippy::undocumented_unsafe_blocks)]
+    if let Err(e) = window.with_webview(|webview| {
+        // SAFETY: ns_window_ptr is guaranteed to be valid within the with_webview callback scope.
+        // The webview object remains alive throughout the closure execution, ensuring the pointer
+        // reference is valid. We verify the pointer is non-null before dereferencing.
         unsafe {
             let ns_window_ptr = webview.ns_window();
+
+            // Verify pointer is non-null before dereferencing
+            if ns_window_ptr.is_null() {
+                warn!("Failed to get NSWindow pointer - pointer is null");
+                return;
+            }
+
             let ns_window: &NSWindow = &*(ns_window_ptr as *const NSWindow);
 
             let mut behavior = ns_window.collectionBehavior();
@@ -36,7 +45,9 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
                 zoom_button.setEnabled(false);
             }
         }
-    });
+    }) {
+        warn!("Failed to disable fullscreen button: {e}");
+    }
 }
 
 /// 啟動 Python sidecar，失敗時優雅降級。
@@ -93,7 +104,9 @@ fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         "show" => show_main_window(app),
         "refresh" => {
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.emit("refresh-all", ());
+                if let Err(e) = window.emit("refresh-all", ()) {
+                    warn!("Failed to emit refresh-all event: {e}");
+                }
             }
         }
         "quit" => app.exit(0),
@@ -116,8 +129,12 @@ fn handle_tray_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
 /// 顯示並聚焦主視窗。
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
-        let _ = window.set_focus();
+        if let Err(e) = window.show() {
+            warn!("Failed to show main window: {e}");
+        }
+        if let Err(e) = window.set_focus() {
+            warn!("Failed to focus main window: {e}");
+        }
     }
 }
 
@@ -126,7 +143,11 @@ fn cleanup_sidecar(app: &AppHandle) {
     if let Some(state) = app.try_state::<SidecarState>() {
         if let Ok(mut child_guard) = state.child.lock() {
             if let Some(child) = child_guard.take() {
-                let _ = child.kill();
+                if let Err(e) = child.kill() {
+                    warn!("Failed to kill sidecar process: {e}");
+                } else {
+                    info!("Sidecar process terminated successfully");
+                }
             }
         }
     }

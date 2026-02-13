@@ -128,7 +128,18 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         if self.log_headers:
             headers = dict(request.headers)
             # 遮蔽敏感 headers
-            for key in ["authorization", "cookie", "x-api-key"]:
+            sensitive_headers = [
+                "authorization",
+                "cookie",
+                "x-api-key",
+                "x-github-token",
+                "x-token",
+                "x-auth-token",
+                "api-key",
+                "apikey",
+                "bearer",
+            ]
+            for key in sensitive_headers:
                 if key in headers:
                     headers[key] = "***"
             log_data["headers"] = headers

@@ -6,6 +6,7 @@
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
+  lastAccessed: number; // For LRU eviction
 }
 
 interface PendingRequest<T> {
@@ -15,8 +16,10 @@ interface PendingRequest<T> {
 // 預設 TTL 為 30 秒
 const DEFAULT_TTL_MS = 30 * 1000;
 
-// Cache 最大條目數，超過時淘汰最舊的條目
+// Cache 最大條目數，超過時淘汰最久未使用的條目 (LRU)
 const MAX_CACHE_SIZE = 200;
+const EVICTION_THRESHOLD = Math.floor(MAX_CACHE_SIZE * 1.2); // 240
+const TARGET_SIZE_AFTER_EVICTION = Math.floor(MAX_CACHE_SIZE * 0.8); // 160
 
 // 記憶體內的回應 cache
 const cache = new Map<string, CacheEntry<unknown>>();
@@ -37,9 +40,13 @@ export async function cachedRequest<T>(
   fetchFn: () => Promise<T>,
   ttlMs: number = DEFAULT_TTL_MS
 ): Promise<T> {
+  const now = Date.now();
+
   // 先檢查 cache
   const cached = cache.get(key) as CacheEntry<T> | undefined;
-  if (cached && Date.now() - cached.timestamp < ttlMs) {
+  if (cached && now - cached.timestamp < ttlMs) {
+    // Update last accessed time for LRU
+    cached.lastAccessed = now;
     return cached.data;
   }
 
@@ -52,13 +59,15 @@ export async function cachedRequest<T>(
   // 建立新請求
   const promise = fetchFn()
     .then((data) => {
+      const timestamp = Date.now();
       // 快取回應
-      cache.set(key, { data, timestamp: Date.now() });
-      // 淘汰最舊的條目以控制記憶體用量
-      if (cache.size > MAX_CACHE_SIZE) {
-        const firstKey = cache.keys().next().value;
-        if (firstKey !== undefined) cache.delete(firstKey);
+      cache.set(key, { data, timestamp, lastAccessed: timestamp });
+
+      // LRU 淘汰策略：當超過閾值時，批量清理到目標大小
+      if (cache.size > EVICTION_THRESHOLD) {
+        evictLRU();
       }
+
       return data;
     })
     .finally(() => {
@@ -70,6 +79,25 @@ export async function cachedRequest<T>(
   pendingRequests.set(key, { promise });
 
   return promise;
+}
+
+/**
+ * LRU 淘汰：移除最久未使用的條目直到達到目標大小。
+ */
+function evictLRU(): void {
+  const entries = Array.from(cache.entries()).map(([key, entry]) => ({
+    key,
+    lastAccessed: entry.lastAccessed,
+  }));
+
+  // 按最後存取時間排序（最舊的在前）
+  entries.sort((a, b) => a.lastAccessed - b.lastAccessed);
+
+  // 刪除最久未使用的條目
+  const toDelete = entries.length - TARGET_SIZE_AFTER_EVICTION;
+  for (let i = 0; i < toDelete; i++) {
+    cache.delete(entries[i].key);
+  }
 }
 
 /**
