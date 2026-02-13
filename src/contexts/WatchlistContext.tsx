@@ -508,7 +508,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       try {
         // 檢查連線
         const healthResponse = await checkHealth();
-        const isConnected = healthResponse.status === "healthy";
+        const isConnected = healthResponse.status === "ok";
         dispatch({ type: "SET_CONNECTION_STATUS", payload: { isConnected } });
 
         if (isConnected) {

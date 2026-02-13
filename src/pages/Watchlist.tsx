@@ -125,6 +125,8 @@ import { EmptyState } from "../components/EmptyState";
 const REPO_CARD_HEIGHT = 180;
 const REPO_CARD_GAP = 16;
 const ITEM_SIZE = REPO_CARD_HEIGHT + REPO_CARD_GAP;
+// 穩定的空物件引用，避免觸發不必要的重新渲染
+const EMPTY_ROW_PROPS = {};
 
 function RepoList({
   repos,
@@ -145,6 +147,17 @@ function RepoList({
   batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
   onVisibleRangeChange: (range: { start: number; stop: number }) => void;
 }) {
+  // 穩定化 onRowsRendered 回調，避免每次渲染都創建新函數
+  const handleRowsRendered = useCallback(
+    (range: { startIndex: number; stopIndex: number }) => {
+      onVisibleRangeChange({
+        start: range.startIndex,
+        stop: range.stopIndex,
+      });
+    },
+    [onVisibleRangeChange]
+  );
+
   // Row 渲染組件，由 List 調用
   const RowComponent = useCallback(
     ({ index, style }: RowComponentProps) => {
@@ -179,14 +192,9 @@ function RepoList({
               rowComponent={RowComponent}
               rowCount={repos.length}
               rowHeight={ITEM_SIZE}
-              rowProps={{}}
+              rowProps={EMPTY_ROW_PROPS}
               overscanCount={3}
-              onRowsRendered={(range) => {
-                onVisibleRangeChange({
-                  start: range.startIndex,
-                  stop: range.stopIndex,
-                });
-              }}
+              onRowsRendered={handleRowsRendered}
             />
           ) : null
         }

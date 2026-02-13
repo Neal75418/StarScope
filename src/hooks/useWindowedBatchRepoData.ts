@@ -3,7 +3,7 @@
  * 減少初始載入時間與記憶體使用。
  */
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   ContextBadge,
   EarlySignal,
@@ -17,6 +17,8 @@ export interface BatchRepoData {
 }
 
 const MAX_BATCH_SIZE = 50;
+const EMPTY_BADGES: ContextBadge[] = [];
+const EMPTY_SIGNALS: EarlySignal[] = [];
 
 function chunkArray<T>(arr: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -66,6 +68,7 @@ export function useWindowedBatchRepoData(
   const [signalsMap, setSignalsMap] = useState<Record<string, { signals: EarlySignal[] }>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const loadingIdsRef = useRef<Set<number>>(new Set());
 
   // Debounce visibleRange 更新，避免快速滾動時過多請求
   useEffect(() => {
@@ -83,11 +86,13 @@ export function useWindowedBatchRepoData(
     return allRepoIds.slice(start, stop);
   }, [allRepoIds, debouncedVisibleRange, bufferSize]);
 
-  // 過濾出尚未載入的 IDs
+  // 過濾出尚未載入且未在載入中的 IDs
   const missingIds = useMemo(() => {
     return targetIds.filter((id) => {
       const key = String(id);
-      return !badgesMap[key] && !signalsMap[key];
+      const isLoaded = badgesMap[key] && signalsMap[key];
+      const isLoading = loadingIdsRef.current.has(id);
+      return !isLoaded && !isLoading;
     });
   }, [targetIds, badgesMap, signalsMap]);
 
@@ -99,6 +104,10 @@ export function useWindowedBatchRepoData(
     if (missingIds.length === 0) return;
 
     let cancelled = false;
+
+    // 標記這些 IDs 為正在載入
+    missingIds.forEach((id) => loadingIdsRef.current.add(id));
+
     setLoading(true);
     setError(null);
 
@@ -117,6 +126,9 @@ export function useWindowedBatchRepoData(
           setBadgesMap((prev) => ({ ...prev, ...newBadges }));
           setSignalsMap((prev) => ({ ...prev, ...newSignals }));
           setLoading(false);
+
+          // 清除載入標記
+          missingIds.forEach((id) => loadingIdsRef.current.delete(id));
         }
       })
       .catch((err) => {
@@ -127,11 +139,16 @@ export function useWindowedBatchRepoData(
         if (!cancelled) {
           setError(errorObj);
           setLoading(false);
+
+          // 清除載入標記（即使失敗也要清除，否則會永遠不再重試）
+          missingIds.forEach((id) => loadingIdsRef.current.delete(id));
         }
       });
 
     return () => {
       cancelled = true;
+      // cleanup 時也清除載入標記
+      missingIds.forEach((id) => loadingIdsRef.current.delete(id));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
@@ -142,8 +159,8 @@ export function useWindowedBatchRepoData(
     for (const id of allRepoIds) {
       const key = String(id);
       result[id] = {
-        badges: badgesMap[key]?.badges ?? [],
-        signals: signalsMap[key]?.signals ?? [],
+        badges: badgesMap[key]?.badges ?? EMPTY_BADGES,
+        signals: signalsMap[key]?.signals ?? EMPTY_SIGNALS,
       };
     }
     return result;

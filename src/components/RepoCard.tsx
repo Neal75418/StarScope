@@ -2,7 +2,7 @@
  * Repo 卡片元件，顯示 repo 資訊、訊號與情境徽章。
  */
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, memo, useMemo } from "react";
 import { ContextBadge, EarlySignal, RepoWithSignals } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
@@ -30,10 +30,13 @@ export const RepoCard = memo(function RepoCard({
   preloadedBadges,
   preloadedSignals,
 }: RepoCardProps) {
-  const preloaded =
-    preloadedBadges || preloadedSignals
-      ? { badges: preloadedBadges, signals: preloadedSignals }
-      : undefined;
+  const preloaded = useMemo(
+    () =>
+      preloadedBadges || preloadedSignals
+        ? { badges: preloadedBadges, signals: preloadedSignals }
+        : undefined,
+    [preloadedBadges, preloadedSignals]
+  );
   const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
     useRepoCardData(repo.id, preloaded);
   const [showChart, setShowChart] = useState(false);

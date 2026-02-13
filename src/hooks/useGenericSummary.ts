@@ -131,7 +131,10 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
     return () => {
       isMountedRef.current = false;
     };
-  }, [repoId, failedToLoadMessage, getSummary, triggerFetch, logPrefix]);
+    // 只監聽 repoId - 其他參數不應觸發重新請求
+    // failedToLoadMessage, getSummary, triggerFetch, logPrefix 是配置參數，不影響數據載入邏輯
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoId]);
 
   const fetchData = useCallback(async () => {
     if (fetchingRef.current) return;
@@ -152,7 +155,9 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
     } finally {
       fetchingRef.current = false;
     }
-  }, [repoId, failedToLoadMessage, getSummary, triggerFetch, logPrefix]);
+    // 只監聽 repoId - 其他參數是穩定的配置，不需要重新創建 callback
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repoId]);
 
   return { summary, loading, fetching, error, fetchData };
 }
