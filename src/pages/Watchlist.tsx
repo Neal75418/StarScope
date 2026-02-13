@@ -2,7 +2,9 @@
  * Watchlist 頁面，顯示所有追蹤中的 repo。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { List, RowComponentProps } from "react-window";
+import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../components/RepoCard";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -12,7 +14,7 @@ import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlist } from "../hooks/useWatchlist";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
-import { useBatchRepoData } from "../hooks/useBatchRepoData";
+import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
 import { RepoWithSignals } from "../api/client";
 
 // 載入中狀態元件
@@ -112,9 +114,10 @@ function EmptyStateView({
 
 import { EmptyState } from "../components/EmptyState";
 
-// 漸進式渲染：先顯示前 INITIAL_RENDER_COUNT 張卡，滾動至底部時載入更多
-const INITIAL_RENDER_COUNT = 15;
-const LOAD_MORE_COUNT = 10;
+// 虛擬滾動常數：RepoCard 高度 180px + 間距 16px = 196px
+const REPO_CARD_HEIGHT = 180;
+const REPO_CARD_GAP = 16;
+const ITEM_SIZE = REPO_CARD_HEIGHT + REPO_CARD_GAP;
 
 function RepoList({
   repos,
@@ -124,6 +127,7 @@ function RepoList({
   selectedCategoryId,
   onRemoveFromCategory,
   batchData,
+  onVisibleRangeChange,
 }: {
   repos: RepoWithSignals[];
   loadingRepoId: number | null;
@@ -131,55 +135,55 @@ function RepoList({
   onRemove: (id: number) => void;
   selectedCategoryId?: number | null;
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
-  batchData: ReturnType<typeof useBatchRepoData>["dataMap"];
+  batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
+  onVisibleRangeChange: (range: { start: number; stop: number }) => void;
 }) {
-  const [renderCount, setRenderCount] = useState(INITIAL_RENDER_COUNT);
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // Row 渲染組件，由 List 調用
+  const RowComponent = useCallback(
+    ({ index, style }: RowComponentProps) => {
+      const repo = repos[index];
+      const preloaded = batchData[repo.id];
 
-  // 當 repos 列表變更（搜尋/篩選）時重置渲染數量
-  useEffect(() => {
-    setRenderCount(INITIAL_RENDER_COUNT);
-  }, [repos.length]);
-
-  // IntersectionObserver 偵測底部 sentinel 進入可視區，自動載入更多
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || renderCount >= repos.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setRenderCount((prev) => Math.min(prev + LOAD_MORE_COUNT, repos.length));
-        }
-      },
-      { rootMargin: "200px" }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [renderCount, repos.length]);
-
-  const visibleRepos = repos.slice(0, renderCount);
+      return (
+        <div style={style} className="virtual-repo-item">
+          <RepoCard
+            repo={repo}
+            onFetch={onFetch}
+            onRemove={onRemove}
+            isLoading={loadingRepoId === repo.id}
+            selectedCategoryId={selectedCategoryId}
+            onRemoveFromCategory={onRemoveFromCategory}
+            preloadedBadges={preloaded?.badges}
+            preloadedSignals={preloaded?.signals}
+          />
+        </div>
+      );
+    },
+    [repos, batchData, loadingRepoId, onFetch, onRemove, selectedCategoryId, onRemoveFromCategory]
+  );
 
   return (
-    <div className="repo-list-container" style={{ paddingBottom: 40 }}>
-      {visibleRepos.map((repo) => {
-        const preloaded = batchData[repo.id];
-        return (
-          <div key={repo.id} style={{ marginBottom: 16 }}>
-            <RepoCard
-              repo={repo}
-              onFetch={onFetch}
-              onRemove={onRemove}
-              isLoading={loadingRepoId === repo.id}
-              selectedCategoryId={selectedCategoryId}
-              onRemoveFromCategory={onRemoveFromCategory}
-              preloadedBadges={preloaded?.badges}
-              preloadedSignals={preloaded?.signals}
+    <div className="virtual-repo-list" style={{ height: "calc(100vh - 200px)" }}>
+      <AutoSizer
+        renderProp={({ height, width }) =>
+          height && width ? (
+            <List
+              style={{ height, width }}
+              rowComponent={RowComponent}
+              rowCount={repos.length}
+              rowHeight={ITEM_SIZE}
+              rowProps={{}}
+              overscanCount={3}
+              onRowsRendered={(range) => {
+                onVisibleRangeChange({
+                  start: range.startIndex,
+                  stop: range.stopIndex,
+                });
+              }}
             />
-          </div>
-        );
-      })}
-      {renderCount < repos.length && <div ref={sentinelRef} style={{ height: 1 }} />}
+          ) : null
+        }
+      />
     </div>
   );
 }
@@ -276,9 +280,11 @@ export function Watchlist() {
   const { t } = useI18n();
   const { state, dialog, category, actions, removeConfirm, toast } = useWatchlist();
 
-  // 批次載入所有 repo 的 badges 與 signals（2 requests 取代 N×2 requests）
+  // 視窗化批次載入：僅載入可見範圍的 repo 資料
   const repoIds = useMemo(() => state.repos.map((r) => r.id), [state.repos]);
-  const { dataMap: batchData } = useBatchRepoData(repoIds);
+  const { dataMap: batchData, setVisibleRange } = useWindowedBatchRepoData(repoIds, {
+    bufferSize: 10,
+  });
 
   // 分類操作：新增 / 移除 repo 至分類
   const categoryOps = useCategoryOperations(category.refresh, (msg) => toast.error(msg));
@@ -349,6 +355,7 @@ export function Watchlist() {
                 selectedCategoryId={category.selectedId}
                 batchData={batchData}
                 onRemoveFromCategory={handleRemoveFromCategory}
+                onVisibleRangeChange={setVisibleRange}
               />
             )}
           </div>

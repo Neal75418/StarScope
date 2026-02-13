@@ -3360,6 +3360,16 @@ body {
   gap: 16px;
 }
 
+/* Virtual Scrolling Containers */
+.virtual-repo-list {
+  width: 100%;
+  overflow: hidden;
+}
+
+.virtual-repo-item {
+  padding-bottom: 16px;
+}
+
 .repo-card {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -3371,8 +3381,6 @@ body {
     box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
-  content-visibility: auto;
-  contain-intrinsic-size: 0 180px;
 }
 
 .repo-card:hover {
