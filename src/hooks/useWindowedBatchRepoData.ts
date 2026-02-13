@@ -104,9 +104,11 @@ export function useWindowedBatchRepoData(
     if (missingIds.length === 0) return;
 
     let cancelled = false;
+    // 在 effect 開始時捕獲 Set 引用，避免 cleanup 中的 ref 訪問警告
+    const loadingSet = loadingIdsRef.current;
 
     // 標記這些 IDs 為正在載入
-    missingIds.forEach((id) => loadingIdsRef.current.add(id));
+    missingIds.forEach((id) => loadingSet.add(id));
 
     setLoading(true);
     setError(null);
@@ -128,7 +130,7 @@ export function useWindowedBatchRepoData(
           setLoading(false);
 
           // 清除載入標記
-          missingIds.forEach((id) => loadingIdsRef.current.delete(id));
+          missingIds.forEach((id) => loadingSet.delete(id));
         }
       })
       .catch((err) => {
@@ -141,14 +143,14 @@ export function useWindowedBatchRepoData(
           setLoading(false);
 
           // 清除載入標記（即使失敗也要清除，否則會永遠不再重試）
-          missingIds.forEach((id) => loadingIdsRef.current.delete(id));
+          missingIds.forEach((id) => loadingSet.delete(id));
         }
       });
 
     return () => {
       cancelled = true;
-      // cleanup 時也清除載入標記
-      missingIds.forEach((id) => loadingIdsRef.current.delete(id));
+      // cleanup 時也清除載入標記（使用捕獲的 Set 引用）
+      missingIds.forEach((id) => loadingSet.delete(id));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
