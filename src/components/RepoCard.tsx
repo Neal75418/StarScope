@@ -52,6 +52,10 @@ export const RepoCard = memo(function RepoCard({
     [selectedCategoryId, onRemoveFromCategory, repo.id]
   );
   const handleCloseSimilar = useCallback(() => setShowSimilar(false), []);
+  const stableOnRemoveFromCategory = useMemo(
+    () => (selectedCategoryId && onRemoveFromCategory ? handleRemoveFromCategory : undefined),
+    [selectedCategoryId, onRemoveFromCategory, handleRemoveFromCategory]
+  );
 
   return (
     <div className="repo-card">
@@ -66,9 +70,7 @@ export const RepoCard = memo(function RepoCard({
         onToggleSimilar={handleToggleSimilar}
         onFetch={handleFetch}
         onRemove={handleRemove}
-        onRemoveFromCategory={
-          selectedCategoryId && onRemoveFromCategory ? handleRemoveFromCategory : undefined
-        }
+        onRemoveFromCategory={stableOnRemoveFromCategory}
       />
 
       <RepoCardContent

@@ -5,6 +5,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SearchFilters } from "../api/client";
 import { logger } from "../utils/logger";
+import { generateId } from "../utils/id";
 
 export interface SavedFilter {
   id: string;
@@ -17,13 +18,6 @@ export interface SavedFilter {
 
 const STORAGE_KEY = "starscope_saved_filters";
 const MAX_SAVED_FILTERS = 20;
-
-/**
- * 產生唯一的篩選條件 ID。
- */
-function generateId(): string {
-  return `filter-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
 
 /**
  * 從 localStorage 載入已儲存篩選條件。
@@ -91,7 +85,7 @@ export function useSavedFilters() {
       filters: SearchFilters
     ): SavedFilter => {
       // 在 setter 外產生 ID 與時間戳以便回傳
-      const id = generateId();
+      const id = generateId("filter");
       const createdAt = new Date().toISOString();
       const trimmedName = name.trim();
 

@@ -54,6 +54,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
     hasFetchedRef.current = true;
 
     void fetchCategories();
+    // fetchCategories 不需加入 deps：只需掛載時執行一次，hasFetchedRef 防止重複
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../../utils/url";
 import { RepoWithSignals } from "../../api/client";
 import { CommitActivityBadge } from "../CommitActivityBadge";
 import { LanguagesBadge } from "../LanguagesBadge";
@@ -41,7 +41,7 @@ export const RepoCardHeader = React.memo(function RepoCardHeader({
 
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    await openUrl(repo.url);
+    await safeOpenUrl(repo.url);
   };
 
   return (

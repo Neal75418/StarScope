@@ -10,6 +10,7 @@ import {
   getContextBadgesBatch,
   getRepoSignalsBatch,
 } from "../api/client";
+import { logger } from "../utils/logger";
 
 export interface BatchRepoData {
   badges: ContextBadge[];
@@ -135,8 +136,7 @@ export function useWindowedBatchRepoData(
       })
       .catch((err) => {
         const errorObj = err instanceof Error ? err : new Error(String(err));
-        // eslint-disable-next-line no-console
-        console.error("[useWindowedBatchRepoData] Failed to fetch batch data:", errorObj);
+        logger.error("[useWindowedBatchRepoData] Failed to fetch batch data:", errorObj);
 
         if (!cancelled) {
           setError(errorObj);
@@ -152,6 +152,7 @@ export function useWindowedBatchRepoData(
       // cleanup 時也清除載入標記（使用捕獲的 Set 引用）
       missingIds.forEach((id) => loadingSet.delete(id));
     };
+    // 用 missingIdsKey（JSON 字串）代替 missingIds 陣列，避免引用變化觸發重複請求
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
 

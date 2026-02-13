@@ -14,6 +14,7 @@ import {
   EarlySignal,
   SignalSummary,
 } from "../api/client";
+import { logger } from "../utils/logger";
 
 export interface DashboardStats {
   totalRepos: number;
@@ -85,8 +86,7 @@ export function useDashboard() {
         prev ? { ...prev, total_active: Math.max(0, prev.total_active - 1) } : prev
       );
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn("[useDashboard] Failed to acknowledge signal:", err);
+      logger.warn("[useDashboard] Failed to acknowledge signal:", err);
     }
   }, []);
 

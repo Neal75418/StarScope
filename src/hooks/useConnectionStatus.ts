@@ -61,6 +61,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     }
     hasFetchedRef.current = true;
     void fetchStatus();
+    // fetchStatus 不需加入 deps：只需掛載時執行一次，hasFetchedRef 防止重複
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

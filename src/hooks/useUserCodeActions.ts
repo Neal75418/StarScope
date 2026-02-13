@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../utils/url";
 import { DeviceCodeResponse } from "../api/client";
 import { CLIPBOARD_FEEDBACK_MS } from "../constants/api";
 
@@ -43,7 +43,7 @@ export function useUserCodeActions(
   const openGitHubManually = useCallback(async () => {
     if (deviceCode?.verification_uri) {
       try {
-        await openUrl(deviceCode.verification_uri);
+        await safeOpenUrl(deviceCode.verification_uri);
       } catch {
         window.open(deviceCode.verification_uri, "_blank");
       }

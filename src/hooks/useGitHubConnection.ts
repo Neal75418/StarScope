@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../utils/url";
 import { initiateDeviceFlow, disconnectGitHub, DeviceCodeResponse } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { useI18n } from "../i18n";
@@ -88,7 +88,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
       setState("awaiting_auth");
 
       try {
-        await openUrl(result.verification_uri);
+        await safeOpenUrl(result.verification_uri);
       } catch (openErr) {
         logger.warn("自動開啟瀏覽器失敗:", openErr);
       }

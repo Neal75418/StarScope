@@ -2,7 +2,8 @@
  * Toast 通知元件，顯示暫時性的成功、錯誤或資訊訊息。
  */
 
-import { useEffect } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { generateId } from "../utils/id";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -66,13 +67,11 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
 }
 
 // 管理 toast 的 hook
-import { useState, useCallback, useMemo } from "react";
-
 export function useToast() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = useCallback((type: ToastType, message: string) => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const id = generateId();
     setToasts((prev) => [...prev, { id, type, message }]);
     return id;
   }, []);

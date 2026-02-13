@@ -9,6 +9,7 @@ import {
   getContextBadgesBatch,
   getRepoSignalsBatch,
 } from "../api/client";
+import { logger } from "../utils/logger";
 
 export interface BatchRepoData {
   badges: ContextBadge[];
@@ -62,10 +63,8 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
         }
       })
       .catch((err) => {
-        // 使用結構化錯誤記錄而非 console.warn
         const errorObj = err instanceof Error ? err : new Error(String(err));
-        // eslint-disable-next-line no-console
-        console.error("[useBatchRepoData] Failed to fetch batch data:", errorObj);
+        logger.error("[useBatchRepoData] Failed to fetch batch data:", errorObj);
 
         if (!cancelled) {
           setError(errorObj);
@@ -76,6 +75,7 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
     return () => {
       cancelled = true;
     };
+    // 用 idsKey（JSON 字串）代替 repoIds 陣列作為 dep，避免陣列引用變化觸發重新請求
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
 
@@ -89,6 +89,7 @@ export function useBatchRepoData(repoIds: number[]): UseBatchRepoDataResult {
       };
     }
     return result;
+    // 用 idsKey 代替 repoIds 陣列引用，避免不必要的重建
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, badgesMap, signalsMap]);
 

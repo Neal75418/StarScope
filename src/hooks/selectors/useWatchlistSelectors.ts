@@ -7,6 +7,7 @@ import { useWatchlistState } from "../../contexts/WatchlistContext";
 import { RepoWithSignals } from "../../api/client";
 import { getCategoryRepos } from "../../api/client";
 import { useEffect, useState } from "react";
+import { logger } from "../../utils/logger";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
@@ -35,8 +36,7 @@ export function useFilteredRepos(): RepoWithSignals[] {
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          // eslint-disable-next-line no-console
-          console.error("分類 Repo 載入失敗:", err);
+          logger.error("分類 Repo 載入失敗:", err);
           setFilteredRepoIds(null);
         }
       });

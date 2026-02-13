@@ -3,7 +3,7 @@
  */
 
 import { Component, ErrorInfo, ReactNode } from "react";
-import { I18nContext, TranslationKeys } from "../i18n";
+import { I18nContext, TranslationKeys, getInitialLanguage } from "../i18n";
 import { logger } from "../utils/logger";
 
 interface Props {
@@ -95,7 +95,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   reloadApp: "重新載入應用",
                 },
               };
-              const fb = navigator.language.startsWith("zh") ? fallbacks.zh : fallbacks.en;
+              const fb = getInitialLanguage().startsWith("zh") ? fallbacks.zh : fallbacks.en;
               return (
                 <div className="error-boundary">
                   <div className="error-boundary-content">

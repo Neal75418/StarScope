@@ -2,7 +2,7 @@
  * Watchlist 頁面，顯示所有追蹤中的 repo。
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useRef, useEffect } from "react";
 import { List, RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../components/RepoCard";
@@ -238,6 +238,25 @@ function Toolbar({
   onSearchChange: (query: string) => void;
 }) {
   const { t } = useI18n();
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // 同步外部 searchQuery 變更（例如清除篩選時）
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setLocalQuery(value);
+      clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => onSearchChange(value), 300);
+    },
+    [onSearchChange]
+  );
+
+  // 清理 debounce timer
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   return (
     <div className="toolbar">
@@ -245,8 +264,8 @@ function Toolbar({
         <input
           type="text"
           placeholder={t.watchlist.searchPlaceholder}
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
+          value={localQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
           className="search-input"
           data-testid="watchlist-search"
           aria-label={t.watchlist.searchPlaceholder}
@@ -311,13 +330,8 @@ export function Watchlist() {
     bufferSize: 10,
   });
 
-  // 分類操作：新增 / 移除 repo 至分類
-  // 注意：categoryOps 需要一個 refresh 函數，但目前我們沒有等效的 refresh 函數
-  // 暫時傳入空函數，後續在 Phase 3 整合分類篩選時處理
-  const categoryOps = useCategoryOperations(
-    () => {},
-    (msg) => actions.error(msg)
-  );
+  // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
+  const categoryOps = useCategoryOperations(actions.refreshAll, actions.error);
 
   // Memoize handlers 以避免不必要的 re-render
   const handleRemove = useCallback(

@@ -4,10 +4,11 @@
  */
 
 import React, { useState, useCallback } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../utils/url";
 import { ContextBadge, ContextSignal, getContextSignals } from "../api/client";
 import { useI18n } from "../i18n";
 import { MS_PER_DAY } from "../utils/format";
+import { logger } from "../utils/logger";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
@@ -50,7 +51,7 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
   const handleOpenUrl = async (e: React.MouseEvent, url: string) => {
     e.preventDefault();
     e.stopPropagation();
-    await openUrl(url);
+    await safeOpenUrl(url);
   };
 
   if (loading) {
@@ -111,8 +112,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
         const res = await getContextSignals(repoId, "hn");
         setSignals(res.signals);
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn("[ContextBadges] Failed to fetch context signals:", err);
+        logger.warn("[ContextBadges] Failed to fetch context signals:", err);
         setSignals([]);
       } finally {
         setSignalsLoading(false);

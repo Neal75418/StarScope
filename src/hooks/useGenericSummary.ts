@@ -35,71 +35,47 @@ interface GenericSummaryConfig<T> {
   logPrefix: string;
 }
 
-async function loadSummary<T>({
-  repoId,
-  failedToLoadMessage,
-  getSummary,
-  logPrefix,
-  isMountedRef,
-  setSummary,
-  setLoading,
-  setError,
-}: GenericSummaryConfig<T> & {
+interface SummaryOperationArgs<T> {
   isMountedRef: BooleanRef;
-  setSummary: SetState<T | null>;
-  setLoading: SetState<boolean>;
+  setActive: SetState<boolean>;
   setError: SetState<string | null>;
-}): Promise<void> {
-  setIfMounted(isMountedRef, setLoading, true);
+  setSummary: SetState<T | null>;
+  failedToLoadMessage: string;
+  logPrefix: string;
+  logAction: string;
+  operation: () => Promise<T>;
+  /** 若為 true，404 錯誤會將 summary 設為 null 而非顯示錯誤 */
+  handleNotFound?: boolean;
+}
+
+async function executeSummaryOp<T>({
+  isMountedRef,
+  setActive,
+  setError,
+  setSummary,
+  failedToLoadMessage,
+  logPrefix,
+  logAction,
+  operation,
+  handleNotFound,
+}: SummaryOperationArgs<T>): Promise<void> {
+  setIfMounted(isMountedRef, setActive, true);
   setIfMounted(isMountedRef, setError, null);
 
   try {
-    const data = await getSummary(repoId);
+    const data = await operation();
     setIfMounted(isMountedRef, setSummary, data);
   } catch (err) {
-    if (!isMountedRef.current) {
-      return;
-    }
+    if (!isMountedRef.current) return;
 
-    if (isNotFoundError(err)) {
+    if (handleNotFound && isNotFoundError(err)) {
       setIfMounted(isMountedRef, setSummary, null);
     } else {
       setIfMounted(isMountedRef, setError, failedToLoadMessage);
-      logger.error(`[${logPrefix}] 載入錯誤:`, err);
+      logger.error(`[${logPrefix}] ${logAction}:`, err);
     }
   } finally {
-    setIfMounted(isMountedRef, setLoading, false);
-  }
-}
-
-async function fetchSummaryData<T>({
-  repoId,
-  failedToLoadMessage,
-  getSummary,
-  triggerFetch,
-  logPrefix,
-  isMountedRef,
-  setSummary,
-  setFetching,
-  setError,
-}: GenericSummaryConfig<T> & {
-  isMountedRef: BooleanRef;
-  setSummary: SetState<T | null>;
-  setFetching: SetState<boolean>;
-  setError: SetState<string | null>;
-}): Promise<void> {
-  setIfMounted(isMountedRef, setFetching, true);
-  setIfMounted(isMountedRef, setError, null);
-
-  try {
-    await triggerFetch(repoId);
-    const summaryData = await getSummary(repoId);
-    setIfMounted(isMountedRef, setSummary, summaryData);
-  } catch (err) {
-    setIfMounted(isMountedRef, setError, failedToLoadMessage);
-    logger.error(`[${logPrefix}] 取得資料錯誤:`, err);
-  } finally {
-    setIfMounted(isMountedRef, setFetching, false);
+    setIfMounted(isMountedRef, setActive, false);
   }
 }
 
@@ -116,16 +92,16 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
 
   useEffect(() => {
     isMountedRef.current = true;
-    void loadSummary({
-      repoId,
-      failedToLoadMessage,
-      getSummary,
-      triggerFetch,
-      logPrefix,
+    void executeSummaryOp({
       isMountedRef,
-      setSummary,
-      setLoading,
+      setActive: setLoading,
       setError,
+      setSummary,
+      failedToLoadMessage,
+      logPrefix,
+      logAction: "載入錯誤",
+      operation: () => getSummary(repoId),
+      handleNotFound: true,
     });
 
     return () => {
@@ -141,16 +117,18 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
     fetchingRef.current = true;
     setFetching(true);
     try {
-      await fetchSummaryData({
-        repoId,
-        failedToLoadMessage,
-        getSummary,
-        triggerFetch,
-        logPrefix,
+      await executeSummaryOp({
         isMountedRef,
-        setSummary,
-        setFetching,
+        setActive: setFetching,
         setError,
+        setSummary,
+        failedToLoadMessage,
+        logPrefix,
+        logAction: "取得資料錯誤",
+        operation: async () => {
+          await triggerFetch(repoId);
+          return getSummary(repoId);
+        },
       });
     } finally {
       fetchingRef.current = false;

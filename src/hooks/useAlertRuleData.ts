@@ -25,39 +25,40 @@ export function useAlertRuleData(toast: Toast) {
   const [repos, setRepos] = useState<RepoWithSignals[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const hasFetchedRef = useRef(false);
+  // 用 ref 持有最新的 toast 和 t，讓 useCallback 穩定
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const loadRules = useCallback(async () => {
     try {
       const data = await listAlertRules();
       setRules(data);
     } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
+      toastRef.current.error(getErrorMessage(err, tRef.current.common.error));
     }
-  }, [toast, t]);
+  }, []);
 
   const loadSignalTypes = useCallback(async () => {
     try {
       const data = await listSignalTypes();
       setSignalTypes(data);
     } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
+      toastRef.current.error(getErrorMessage(err, tRef.current.common.error));
     }
-  }, [toast, t]);
+  }, []);
 
   const loadRepos = useCallback(async () => {
     try {
       const response = await getRepos();
       setRepos(response.repos);
     } catch (err) {
-      toast.error(getErrorMessage(err, t.common.error));
+      toastRef.current.error(getErrorMessage(err, tRef.current.common.error));
     }
-  }, [toast, t]);
+  }, []);
 
   useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-
     setIsLoading(true);
     Promise.all([loadRules(), loadSignalTypes(), loadRepos()]).finally(() => setIsLoading(false));
   }, [loadRules, loadSignalTypes, loadRepos]);

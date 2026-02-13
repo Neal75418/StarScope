@@ -3,7 +3,7 @@
  */
 
 import React from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../../utils/url";
 import { SimilarRepo } from "../../api/client";
 import { useI18n } from "../../i18n";
 
@@ -77,7 +77,7 @@ export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
 
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    await openUrl(repo.url);
+    await safeOpenUrl(repo.url);
   };
 
   return (

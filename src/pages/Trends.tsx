@@ -8,15 +8,15 @@ import { AnimatedPage } from "../components/motion";
 import { formatNumber, formatDelta } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
-import { addRepo } from "../api/client";
-import { getRepos } from "../api/client";
+import { addRepo, getRepos } from "../api/client";
+import { logger } from "../utils/logger";
 
 const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../utils/url";
 
 const TrendRow = React.memo(function TrendRow({
   repo,
@@ -33,7 +33,7 @@ const TrendRow = React.memo(function TrendRow({
 }) {
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    await openUrl(repo.url);
+    await safeOpenUrl(repo.url);
   };
 
   return (
@@ -91,6 +91,7 @@ export function Trends() {
   const [watchlistNames, setWatchlistNames] = useState<Set<string>>(new Set());
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
     getRepos()
@@ -98,7 +99,9 @@ export function Trends() {
         const names = new Set(res.repos.map((r) => r.full_name.toLowerCase()));
         setWatchlistNames(names);
       })
-      .catch(() => {});
+      .catch((err) => {
+        logger.warn("[Trends] 無法載入追蹤清單:", err);
+      });
   }, []);
 
   const allWatchlistNames = useMemo(() => {
@@ -109,11 +112,13 @@ export function Trends() {
 
   const handleAddToWatchlist = useCallback(async (repo: TrendingRepo) => {
     setAddingRepoId(repo.id);
+    setAddError(null);
     try {
       await addRepo({ owner: repo.owner, name: repo.name });
       setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
-    } catch {
-      // 靜默處理
+    } catch (err) {
+      logger.error("[Trends] 加入追蹤失敗:", err);
+      setAddError(`Failed to add ${repo.full_name}`);
     } finally {
       setAddingRepoId(null);
     }
@@ -257,6 +262,15 @@ export function Trends() {
           </select>
         </div>
       </div>
+
+      {addError && (
+        <div className="error-banner" role="alert">
+          {addError}
+          <button className="btn btn-sm" onClick={() => setAddError(null)}>
+            ✕
+          </button>
+        </div>
+      )}
 
       {trends.length === 0 ? (
         <div className="empty-state" data-testid="empty-state">

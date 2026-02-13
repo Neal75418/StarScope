@@ -10,6 +10,7 @@ import {
   useMemo,
   useEffect,
   useRef,
+  useCallback,
   Dispatch,
   ReactNode,
 } from "react";
@@ -27,6 +28,7 @@ import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
 import { useI18n } from "../i18n";
 import { checkHealth } from "../api/client";
+import { generateId } from "../utils/id";
 
 // ============================================================================
 // Types
@@ -537,10 +539,25 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     };
 
     void init();
+    // init 只需掛載時執行一次，內部使用的 dispatch/t 透過閉包取得
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Actions - 使用 useMemo 確保穩定引用
+  // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // 用 ref 持有 showToast，讓 toast 便利方法不依賴自身
+  const showToastFn = useCallback((type: ToastMessage["type"], message: string) => {
+    const id = generateId();
+    dispatch({
+      type: "SHOW_TOAST",
+      payload: { id, type, message },
+    });
+  }, []);
+
+  // Actions - 使用 ref 讀取 state，確保 actions 引用穩定
+  // deps 只依賴 t（語言切換時才需要更新）
   const actions = useMemo<WatchlistActions>(
     () => ({
       // Repo 操作
@@ -604,7 +621,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       },
 
       refreshAll: async () => {
-        const repoIds = state.repos.map((r) => r.id);
+        const repoIds = stateRef.current.repos.map((r) => r.id);
         dispatch({ type: "REFRESH_ALL_START", payload: { repoIds } });
 
         try {
@@ -644,14 +661,16 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       closeRemoveConfirm: () => dispatch({ type: "CLOSE_REMOVE_CONFIRM" }),
 
       confirmRemove: async () => {
-        const { repoId } = state.ui.removeConfirm;
+        const { repoId } = stateRef.current.ui.removeConfirm;
         if (repoId === null) return;
 
         try {
-          await actions.removeRepo(repoId);
-          actions.success(t.toast.repoRemoved);
-        } catch {
-          // Error already handled in removeRepo
+          await removeRepo(repoId);
+          dispatch({ type: "REMOVE_REPO_SUCCESS", payload: { repoId } });
+          showToastFn("success", t.toast.repoRemoved);
+        } catch (err) {
+          const error = getErrorMessage(err, t.common.error);
+          dispatch({ type: "REMOVE_REPO_FAILURE", payload: { error } });
         }
       },
 
@@ -664,20 +683,14 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       setSearchQuery: (query: string) => dispatch({ type: "SET_SEARCH_QUERY", payload: { query } }),
 
       // Toast 操作
-      showToast: (type: ToastMessage["type"], message: string) => {
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        dispatch({
-          type: "SHOW_TOAST",
-          payload: { id, type, message },
-        });
-      },
+      showToast: showToastFn,
 
       dismissToast: (id: string) => dispatch({ type: "DISMISS_TOAST", payload: { id } }),
 
-      success: (message: string) => actions.showToast("success", message),
-      error: (message: string) => actions.showToast("error", message),
-      info: (message: string) => actions.showToast("info", message),
-      warning: (message: string) => actions.showToast("warning", message),
+      success: (message: string) => showToastFn("success", message),
+      error: (message: string) => showToastFn("error", message),
+      info: (message: string) => showToastFn("info", message),
+      warning: (message: string) => showToastFn("warning", message),
 
       // 錯誤處理
       clearError: () => dispatch({ type: "CLEAR_ERROR" }),
@@ -689,7 +702,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
         try {
           const healthResponse = await checkHealth();
-          const isConnected = healthResponse.status === "healthy";
+          const isConnected = healthResponse.status === "ok";
           dispatch({
             type: "SET_CONNECTION_STATUS",
             payload: { isConnected },
@@ -719,7 +732,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         }
       },
     }),
-    [state.repos, state.ui.removeConfirm, t]
+    // 只依賴 t（語言切換）和 showToastFn（穩定引用）
+    // state 透過 stateRef 讀取，不觸發 actions 重建
+    [t, showToastFn]
   );
 
   return (

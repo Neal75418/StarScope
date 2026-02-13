@@ -6,7 +6,7 @@ import React from "react";
 import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../../utils/url";
 import { formatNumber } from "../../utils/format";
 import { getLanguageColor } from "../../constants/languageColors";
 import styles from "./Discovery.module.css";
@@ -28,7 +28,7 @@ export function DiscoveryResultCard({
 
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    await openUrl(repo.url);
+    await safeOpenUrl(repo.url);
   };
 
   return (

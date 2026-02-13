@@ -63,6 +63,7 @@ export function useAsyncFetch<T, R>(
     return () => {
       isMounted = false;
     };
+    // deps 由呼叫端動態傳入，ESLint 無法靜態分析
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
