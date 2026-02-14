@@ -41,7 +41,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
       const response = await getCategoryTree();
       setTree(response.tree);
     } catch (err) {
-      logger.error("分類載入失敗:", err);
+      logger.error("[CategoryTree] 分類載入失敗:", err);
       setError(t.categories.loadError);
     } finally {
       setLoading(false);
@@ -66,7 +66,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        logger.error("分類建立失敗:", err);
+        logger.error("[CategoryTree] 分類建立失敗:", err);
         return false;
       }
     },
@@ -81,7 +81,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        logger.error("分類更新失敗:", err);
+        logger.error("[CategoryTree] 分類更新失敗:", err);
         return false;
       }
     },
@@ -96,7 +96,7 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
         onCategoriesChange?.();
         return true;
       } catch (err) {
-        logger.error("分類刪除失敗:", err);
+        logger.error("[CategoryTree] 分類刪除失敗:", err);
         return false;
       }
     },

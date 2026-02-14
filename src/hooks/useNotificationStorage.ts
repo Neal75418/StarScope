@@ -18,7 +18,7 @@ function loadReadIds(): Set<string> {
       return new Set(parsed);
     }
   } catch (err) {
-    logger.warn("載入已讀通知 ID 失敗:", err);
+    logger.warn("[NotificationStorage] 載入已讀通知 ID 失敗:", err);
   }
   return new Set();
 }
@@ -30,7 +30,7 @@ function saveReadIds(ids: Set<string>): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch (err) {
-    logger.warn("儲存已讀通知 ID 失敗:", err);
+    logger.warn("[NotificationStorage] 儲存已讀通知 ID 失敗:", err);
   }
 }
 

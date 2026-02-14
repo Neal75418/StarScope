@@ -33,7 +33,7 @@ function loadSavedFilters(): SavedFilter[] {
       }
     }
   } catch (err) {
-    logger.warn("載入已儲存篩選條件失敗:", err);
+    logger.warn("[SavedFilters] 載入已儲存篩選條件失敗:", err);
   }
   return [];
 }
@@ -45,7 +45,7 @@ function saveSavedFilters(filters: SavedFilter[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
   } catch (err) {
-    logger.warn("篩選條件儲存失敗:", err);
+    logger.warn("[SavedFilters] 篩選條件儲存失敗:", err);
   }
 }
 

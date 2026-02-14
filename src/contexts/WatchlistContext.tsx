@@ -43,17 +43,13 @@ export type {
   WatchlistActions,
 } from "./watchlistReducer";
 
-// ============================================================================
-// Contexts
-// ============================================================================
+// ==================== Contexts ====================
 
 const WatchlistStateContext = createContext<WatchlistState | undefined>(undefined);
 
 const WatchlistActionsContext = createContext<WatchlistActions | undefined>(undefined);
 
-// ============================================================================
-// Provider
-// ============================================================================
+// ==================== Provider ====================
 
 interface WatchlistProviderProps {
   children: ReactNode;
@@ -259,7 +255,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
             });
           }
         } catch (err) {
-          logger.error("Failed to load category repos:", err);
+          logger.error("[Watchlist] 分類 Repo 載入失敗:", err);
           if (stateRef.current.filters.selectedCategoryId === categoryId) {
             dispatch({ type: "SET_CATEGORY_REPOS", payload: { repoIds: null } });
           }
@@ -332,9 +328,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   );
 }
 
-// ============================================================================
-// Hooks
-// ============================================================================
+// ==================== Hooks ====================
 
 export function useWatchlistState(): WatchlistState {
   const context = useContext(WatchlistStateContext);

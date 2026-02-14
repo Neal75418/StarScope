@@ -28,7 +28,7 @@ export function useCategoryOperations(
         onSuccess?.();
         return true;
       } catch (err) {
-        logger.error("Repo 加入分類失敗:", err);
+        logger.error("[CategoryOps] Repo 加入分類失敗:", err);
         onError?.(getErrorMessage(err, "Failed to add repo to category"));
         return false;
       } finally {
@@ -46,7 +46,7 @@ export function useCategoryOperations(
         onSuccess?.();
         return true;
       } catch (err) {
-        logger.error("Repo 移出分類失敗:", err);
+        logger.error("[CategoryOps] Repo 移出分類失敗:", err);
         onError?.(getErrorMessage(err, "Failed to remove repo from category"));
         return false;
       } finally {
@@ -62,7 +62,7 @@ export function useCategoryOperations(
         const response = await getRepoCategories(repoId);
         return response.categories;
       } catch (err) {
-        logger.error("取得 Repo 分類失敗:", err);
+        logger.error("[CategoryOps] 取得 Repo 分類失敗:", err);
         return [];
       }
     },

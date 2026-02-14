@@ -56,7 +56,7 @@ export const CategorySidebar = memo(function CategorySidebar({
       });
     } catch (err) {
       // 取得失敗時使用樹節點快取資料
-      logger.error("分類載入失敗，使用快取資料:", err);
+      logger.error("[CategorySidebar] 分類載入失敗，使用快取資料:", err);
       setEditingCategory(node);
     }
   }, []);

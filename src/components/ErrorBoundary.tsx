@@ -62,8 +62,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // 開發模式下記錄錯誤
-    logger.error("ErrorBoundary 捕捉到錯誤:", error);
-    logger.error("元件堆疊:", errorInfo.componentStack);
+    logger.error("[ErrorBoundary] 捕捉到錯誤:", error);
+    logger.error("[ErrorBoundary] 元件堆疊:", errorInfo.componentStack);
   }
 
   handleRetry = () => {

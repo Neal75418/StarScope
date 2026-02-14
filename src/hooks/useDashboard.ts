@@ -86,7 +86,7 @@ export function useDashboard() {
         prev ? { ...prev, total_active: Math.max(0, prev.total_active - 1) } : prev
       );
     } catch (err) {
-      logger.warn("[useDashboard] Failed to acknowledge signal:", err);
+      logger.warn("[useDashboard] 訊號確認失敗:", err);
     }
   }, []);
 

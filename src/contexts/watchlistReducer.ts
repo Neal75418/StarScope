@@ -5,9 +5,7 @@
 import type { RepoWithSignals } from "../api/client";
 import type { ToastMessage } from "../components/Toast";
 
-// ============================================================================
-// Types
-// ============================================================================
+// ==================== Types ====================
 
 /**
  * State Machine Pattern - 使用 Discriminated Unions 消除不可能狀態
@@ -147,9 +145,7 @@ export interface WatchlistActions {
   retry: () => Promise<void>;
 }
 
-// ============================================================================
-// Initial State & Reducer
-// ============================================================================
+// ==================== Initial State & Reducer ====================
 
 export const initialState: WatchlistState = {
   repos: [],

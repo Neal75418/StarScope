@@ -23,7 +23,7 @@ export function useNotificationActions(
     try {
       await acknowledgeTriggeredAlert(alertId);
     } catch (err) {
-      logger.warn(`警報確認失敗 (ID: ${alertId}):`, err);
+      logger.warn(`[NotificationActions] 警報確認失敗 (ID: ${alertId}):`, err);
     }
   };
 

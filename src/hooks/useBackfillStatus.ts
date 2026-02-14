@@ -36,14 +36,14 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
         lastStatusRef.current = null;
       } else if (isNetworkError(err)) {
         // 網路錯誤 — 顯示離線狀態但保留上次資料
-        logger.warn("回填狀態載入時網路錯誤:", err);
+        logger.warn("[BackfillStatus] 回填狀態載入時網路錯誤:", err);
         setIsOffline(true);
         if (lastStatusRef.current) {
           setStatus(lastStatusRef.current);
         }
         setError(t.starHistory.offline ?? "離線中 — 顯示快取資料");
       } else {
-        logger.error("回填狀態載入失敗:", err);
+        logger.error("[BackfillStatus] 回填狀態載入失敗:", err);
         setError(t.starHistory.backfillFailed);
       }
     } finally {

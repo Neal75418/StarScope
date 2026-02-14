@@ -42,7 +42,7 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
       })
       .catch((err) => {
         if (isMounted) {
-          logger.error("相似 Repo 載入失敗:", err);
+          logger.error("[SimilarRepos] 相似 Repo 載入失敗:", err);
           setError(t.similarRepos.loadError);
         }
       })
@@ -65,7 +65,7 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
       // 計算完成後觸發重新載入
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
-      logger.error("重新計算相似度失敗:", err);
+      logger.error("[SimilarRepos] 重新計算相似度失敗:", err);
     } finally {
       setIsRecalculating(false);
     }

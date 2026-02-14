@@ -90,7 +90,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
       try {
         await safeOpenUrl(result.verification_uri);
       } catch (openErr) {
-        logger.warn("自動開啟瀏覽器失敗:", openErr);
+        logger.warn("[GitHubConnection] 自動開啟瀏覽器失敗:", openErr);
       }
 
       startPolling(result.device_code, result.interval, result.expires_in);

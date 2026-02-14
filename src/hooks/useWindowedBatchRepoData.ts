@@ -136,7 +136,7 @@ export function useWindowedBatchRepoData(
       })
       .catch((err) => {
         const errorObj = err instanceof Error ? err : new Error(String(err));
-        logger.error("[useWindowedBatchRepoData] Failed to fetch batch data:", errorObj);
+        logger.error("[useWindowedBatchRepoData] 批次資料抓取失敗:", errorObj);
 
         if (!cancelled) {
           setError(errorObj);

@@ -112,7 +112,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
         const res = await getContextSignals(repoId, "hn");
         setSignals(res.signals);
       } catch (err) {
-        logger.warn("[ContextBadges] Failed to fetch context signals:", err);
+        logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
         setSignals([]);
       } finally {
         setSignalsLoading(false);

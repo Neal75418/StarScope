@@ -71,7 +71,7 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
       // context 取得後觸發 badges 重新載入（強制個別 fetch）
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
-      logger.error("Context 重新整理失敗:", err);
+      logger.error("[RepoCardData] Context 重新整理失敗:", err);
     } finally {
       setIsRefreshingContext(false);
     }
