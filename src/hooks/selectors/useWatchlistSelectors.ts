@@ -4,52 +4,23 @@
 
 import { useMemo } from "react";
 import { useWatchlistState } from "../../contexts/WatchlistContext";
-import { RepoWithSignals } from "../../api/client";
-import { getCategoryRepos } from "../../api/client";
-import { useEffect, useState } from "react";
-import { logger } from "../../utils/logger";
+import type { RepoWithSignals } from "../../api/client";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
+ * 純 selector — 從 state 讀取 categoryRepoIds，無副作用。
  */
 export function useFilteredRepos(): RepoWithSignals[] {
   const state = useWatchlistState();
-  const { selectedCategoryId, searchQuery } = state.filters;
-
-  // 分類篩選的 repo IDs
-  const [filteredRepoIds, setFilteredRepoIds] = useState<Set<number> | null>(null);
-
-  // 載入分類的 repos
-  useEffect(() => {
-    if (selectedCategoryId === null) {
-      setFilteredRepoIds(null);
-      return;
-    }
-
-    const controller = new AbortController();
-
-    getCategoryRepos(selectedCategoryId)
-      .then((response) => {
-        if (!controller.signal.aborted) {
-          setFilteredRepoIds(new Set(response.repos.map((r) => r.id)));
-        }
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          logger.error("分類 Repo 載入失敗:", err);
-          setFilteredRepoIds(null);
-        }
-      });
-
-    return () => controller.abort();
-  }, [selectedCategoryId]);
+  const { searchQuery, categoryRepoIds } = state.filters;
 
   return useMemo(() => {
     let result = state.repos;
 
     // 套用分類篩選
-    if (filteredRepoIds) {
-      result = result.filter((r) => filteredRepoIds.has(r.id));
+    if (categoryRepoIds !== null) {
+      const idSet = new Set(categoryRepoIds);
+      result = result.filter((r) => idSet.has(r.id));
     }
 
     // 套用搜尋篩選
@@ -65,7 +36,7 @@ export function useFilteredRepos(): RepoWithSignals[] {
     }
 
     return result;
-  }, [state.repos, filteredRepoIds, searchQuery]);
+  }, [state.repos, categoryRepoIds, searchQuery]);
 }
 
 /**

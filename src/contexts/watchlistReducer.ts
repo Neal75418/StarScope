@@ -49,6 +49,7 @@ export interface WatchlistState {
   filters: {
     selectedCategoryId: number | null;
     searchQuery: string;
+    categoryRepoIds: number[] | null;
   };
 
   // 通知狀態
@@ -96,6 +97,7 @@ export type WatchlistAction =
 
   // 篩選操作
   | { type: "SET_CATEGORY"; payload: { categoryId: number | null } }
+  | { type: "SET_CATEGORY_REPOS"; payload: { repoIds: number[] | null } }
   | { type: "SET_SEARCH_QUERY"; payload: { query: string } }
 
   // Toast 操作
@@ -127,7 +129,7 @@ export interface WatchlistActions {
   cancelRemove: () => void;
 
   // 篩選操作
-  setCategory: (categoryId: number | null) => void;
+  setCategory: (categoryId: number | null) => Promise<void>;
   setSearchQuery: (query: string) => void;
 
   // Toast 操作
@@ -168,6 +170,7 @@ export const initialState: WatchlistState = {
   filters: {
     selectedCategoryId: null,
     searchQuery: "",
+    categoryRepoIds: null,
   },
   toasts: [],
 };
@@ -412,6 +415,17 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
         filters: {
           ...state.filters,
           selectedCategoryId: action.payload.categoryId,
+          categoryRepoIds:
+            action.payload.categoryId === null ? null : state.filters.categoryRepoIds,
+        },
+      };
+
+    case "SET_CATEGORY_REPOS":
+      return {
+        ...state,
+        filters: {
+          ...state.filters,
+          categoryRepoIds: action.payload.repoIds,
         },
       };
 

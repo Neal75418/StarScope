@@ -121,8 +121,8 @@ function EmptyStateView({
 
 import { EmptyState } from "../components/EmptyState";
 
-// 虛擬滾動常數：RepoCard 高度 180px + 間距 16px = 196px
-const REPO_CARD_HEIGHT = 180;
+// 虛擬滾動常數：RepoCard 實測高度 221-256px，取 280px 含緩衝 + 間距 16px = 296px
+const REPO_CARD_HEIGHT = 280;
 const REPO_CARD_GAP = 16;
 const ITEM_SIZE = REPO_CARD_HEIGHT + REPO_CARD_GAP;
 // 穩定的空物件引用，避免觸發不必要的重新渲染

@@ -11,6 +11,7 @@ import { ThemeContext } from "./theme";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
+import type { Page } from "./types/navigation";
 import "./App.css";
 
 // 延遲載入頁面以進行 code splitting
@@ -19,8 +20,6 @@ const Discovery = lazy(() => import("./pages/Discovery").then((m) => ({ default:
 const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
 const Trends = lazy(() => import("./pages/Trends").then((m) => ({ default: m.Trends })));
 const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
-
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
 
 /** 載入中的 fallback 元件 */
 function PageLoader({ text }: { text?: string }) {

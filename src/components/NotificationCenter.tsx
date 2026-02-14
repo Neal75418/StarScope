@@ -10,8 +10,7 @@ import { Notification, useNotifications } from "../hooks/useNotifications";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { MS_PER_MINUTE, MS_PER_HOUR, MS_PER_DAY } from "../utils/format";
-
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
+import type { Page } from "../types/navigation";
 
 interface NotificationCenterProps {
   onNavigate: (page: Page) => void;

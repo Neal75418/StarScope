@@ -25,7 +25,7 @@ vi.mock("../../contexts/WatchlistContext", () => ({
       dialog: { isOpen: false, error: null },
       removeConfirm: { isOpen: false, repoId: null, repoName: "" },
     },
-    filters: { selectedCategoryId: null, searchQuery: "" },
+    filters: { selectedCategoryId: null, searchQuery: "", categoryRepoIds: null },
     toasts: [],
   }),
   useWatchlistActions: () => ({

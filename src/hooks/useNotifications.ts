@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
+import type { Page } from "../types/navigation";
 
 export type NotificationType = "alert" | "signal" | "system";
 
@@ -17,7 +18,7 @@ export interface Notification {
   timestamp: string;
   read: boolean;
   link?: {
-    page: "watchlist" | "dashboard" | "settings";
+    page: Page;
     params?: Record<string, string>;
   };
   metadata?: {

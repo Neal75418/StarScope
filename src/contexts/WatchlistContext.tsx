@@ -21,12 +21,14 @@ import {
   fetchAllRepos,
   recalculateAllSimilarities,
   checkHealth,
+  getCategoryRepos,
 } from "../api/client";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
 import { useI18n } from "../i18n";
 import { generateId } from "../utils/id";
+import { logger } from "../utils/logger";
 import {
   watchlistReducer,
   initialState,
@@ -242,8 +244,27 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       cancelRemove: () => dispatch({ type: "CLOSE_REMOVE_CONFIRM" }),
 
       // 篩選操作
-      setCategory: (categoryId: number | null) =>
-        dispatch({ type: "SET_CATEGORY", payload: { categoryId } }),
+      setCategory: async (categoryId: number | null) => {
+        dispatch({ type: "SET_CATEGORY", payload: { categoryId } });
+
+        if (categoryId === null) return;
+
+        try {
+          const response = await getCategoryRepos(categoryId);
+          // 防競態：確認 selectedCategoryId 仍為當前值
+          if (stateRef.current.filters.selectedCategoryId === categoryId) {
+            dispatch({
+              type: "SET_CATEGORY_REPOS",
+              payload: { repoIds: response.repos.map((r) => r.id) },
+            });
+          }
+        } catch (err) {
+          logger.error("Failed to load category repos:", err);
+          if (stateRef.current.filters.selectedCategoryId === categoryId) {
+            dispatch({ type: "SET_CATEGORY_REPOS", payload: { repoIds: null } });
+          }
+        }
+      },
 
       setSearchQuery: (query: string) => dispatch({ type: "SET_SEARCH_QUERY", payload: { query } }),
 

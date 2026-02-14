@@ -18,8 +18,7 @@ import { NotificationCenter } from "./NotificationCenter";
 import { Theme } from "../theme";
 import { Language, TranslationKeys } from "../i18n";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-
-type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
+import type { Page } from "../types/navigation";
 
 interface NavItem {
   id: Page;

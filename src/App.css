@@ -991,12 +991,7 @@ body {
   margin-bottom: 8px;
 }
 
-/* Repo List */
-.repo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+/* Repo List — 定義見下方 Repository Cards 區塊 */
 
 .repo-card::before {
   content: "";
@@ -3368,6 +3363,7 @@ body {
 
 .virtual-repo-item {
   padding-bottom: 16px;
+  overflow: hidden;
 }
 
 .repo-card {

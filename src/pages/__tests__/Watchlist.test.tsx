@@ -149,6 +149,7 @@ describe("Watchlist", () => {
       filters: {
         selectedCategoryId: null,
         searchQuery: "",
+        categoryRepoIds: null,
       },
       toasts: [],
     };
