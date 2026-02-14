@@ -7,6 +7,7 @@ import { AlertRule, AlertRuleCreate } from "../api/client";
 import { useDeleteConfirm } from "./useDeleteConfirm";
 import { useAlertRuleData } from "./useAlertRuleData";
 import { useAlertRuleOperations } from "./useAlertRuleOperations";
+import type { Toast } from "./types";
 
 const initialAlertRule: AlertRuleCreate = {
   name: "",
@@ -15,11 +16,6 @@ const initialAlertRule: AlertRuleCreate = {
   threshold: 10,
   enabled: true,
 };
-
-interface Toast {
-  success: (msg: string) => void;
-  error: (msg: string) => void;
-}
 
 export function useAlertRules(toast: Toast) {
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);

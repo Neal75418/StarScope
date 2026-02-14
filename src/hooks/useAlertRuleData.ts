@@ -13,10 +13,7 @@ import {
 } from "../api/client";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";
-
-interface Toast {
-  error: (msg: string) => void;
-}
+import type { Toast } from "./types";
 
 export function useAlertRuleData(toast: Toast) {
   const { t } = useI18n();

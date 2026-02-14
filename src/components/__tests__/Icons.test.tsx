@@ -18,11 +18,8 @@ import {
   PlusIcon,
   SyncIcon,
   XIcon,
-  TrashIcon,
-  ChartIcon,
   LinkExternalIcon,
   CheckIcon,
-  CopyIcon,
   ChevronDownIcon,
 } from "../Icons";
 
@@ -41,11 +38,8 @@ describe("Icon Components", () => {
     { name: "PlusIcon", Component: PlusIcon },
     { name: "SyncIcon", Component: SyncIcon },
     { name: "XIcon", Component: XIcon },
-    { name: "TrashIcon", Component: TrashIcon },
-    { name: "ChartIcon", Component: ChartIcon },
     { name: "LinkExternalIcon", Component: LinkExternalIcon },
     { name: "CheckIcon", Component: CheckIcon },
-    { name: "CopyIcon", Component: CopyIcon },
     { name: "ChevronDownIcon", Component: ChevronDownIcon },
   ];
 

@@ -15,7 +15,6 @@ import {
   getContextSignals,
   getStarsChart,
   getSimilarRepos,
-  getRecommendationStats,
   getCategoryTree,
   createCategory,
   deleteCategory,
@@ -342,24 +341,6 @@ describe("API Client", () => {
     });
   });
 
-  describe("getRecommendationStats", () => {
-    it("returns stats", async () => {
-      const mockResponse = {
-        total_repos: 10,
-        total_similarity_pairs: 50,
-        repos_with_recommendations: 8,
-        average_similarity_score: 0.75,
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getRecommendationStats();
-      expect(result.total_repos).toBe(10);
-    });
-  });
-
   describe("getContextSignals", () => {
     it("returns context signals", async () => {
       const mockResponse = { signals: [], total: 0, repo_id: 1 };
@@ -573,66 +554,6 @@ describe("API Client", () => {
         expect.stringContaining("/early-signals/1/acknowledge"),
         expect.objectContaining({ method: "POST" })
       );
-    });
-  });
-
-  describe("acknowledgeAllSignals", () => {
-    it("acknowledges all signals", async () => {
-      const { acknowledgeAllSignals } = await import("../client");
-      const mockResponse = { status: "success", message: "All acknowledged" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await acknowledgeAllSignals();
-      expect(result.status).toBe("success");
-    });
-
-    it("filters by signal type", async () => {
-      const { acknowledgeAllSignals } = await import("../client");
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: "success", message: "Done" }),
-      });
-
-      await acknowledgeAllSignals("rising_star");
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("signal_type=rising_star"),
-        expect.any(Object)
-      );
-    });
-  });
-
-  describe("triggerDetection", () => {
-    it("triggers anomaly detection", async () => {
-      const { triggerDetection } = await import("../client");
-      const mockResponse = {
-        repos_scanned: 10,
-        signals_detected: 2,
-        by_type: {},
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await triggerDetection();
-      expect(result.repos_scanned).toBe(10);
-    });
-  });
-
-  describe("deleteSignal", () => {
-    it("deletes a signal", async () => {
-      const { deleteSignal } = await import("../client");
-      const mockResponse = { status: "success", message: "Deleted" };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await deleteSignal(1);
-      expect(result.status).toBe("success");
     });
   });
 

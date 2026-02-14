@@ -5,11 +5,7 @@
 import { useState, useCallback } from "react";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";
-
-interface Toast {
-  success: (msg: string) => void;
-  error: (msg: string) => void;
-}
+import type { Toast } from "./types";
 
 export function useAsyncOperation(toast: Toast) {
   const { t } = useI18n();

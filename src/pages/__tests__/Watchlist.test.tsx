@@ -64,8 +64,13 @@ vi.mock("../../hooks/selectors/useWatchlistSelectors", () => ({
   useIsInitializing: () => mockSelectors.isInitializing,
 }));
 
-vi.mock("../../hooks/useBatchRepoData", () => ({
-  useBatchRepoData: () => ({ dataMap: {} }),
+vi.mock("../../hooks/useWindowedBatchRepoData", () => ({
+  useWindowedBatchRepoData: () => ({
+    dataMap: {},
+    loading: false,
+    error: null,
+    setVisibleRange: vi.fn(),
+  }),
 }));
 
 vi.mock("../../hooks/useCategoryOperations", () => ({

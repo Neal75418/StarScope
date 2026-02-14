@@ -16,11 +16,7 @@ import {
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";
 import { useAsyncOperation } from "./useAsyncOperation";
-
-interface Toast {
-  success: (msg: string) => void;
-  error: (msg: string) => void;
-}
+import type { Toast } from "./types";
 
 interface UseAlertRuleOperationsProps {
   rules: AlertRule[];

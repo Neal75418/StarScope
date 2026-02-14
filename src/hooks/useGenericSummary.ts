@@ -17,11 +17,11 @@ export interface UseGenericSummaryResult<T> {
 type SetState<T> = Dispatch<SetStateAction<T>>;
 type BooleanRef = { current: boolean };
 
-export function isNotFoundError(err: unknown): boolean {
+function isNotFoundError(err: unknown): boolean {
   return (err as { status?: number })?.status === 404;
 }
 
-export function setIfMounted<T>(isMountedRef: BooleanRef, setter: SetState<T>, value: T): void {
+function setIfMounted<T>(isMountedRef: BooleanRef, setter: SetState<T>, value: T): void {
   if (isMountedRef.current) {
     setter(value);
   }
