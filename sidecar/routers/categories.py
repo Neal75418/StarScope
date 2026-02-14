@@ -390,6 +390,7 @@ async def get_category_repos(
         db.query(RepoCategory)
         .options(joinedload(RepoCategory.repo))
         .filter(RepoCategory.category_id == category_id)
+        .order_by(RepoCategory.id)
         .offset(skip)
         .limit(limit)
         .all()

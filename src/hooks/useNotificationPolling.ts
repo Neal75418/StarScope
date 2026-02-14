@@ -45,27 +45,49 @@ export function useNotificationPolling(
   fetchRef.current = () =>
     fetchAndMergeNotifications(setNotifications, readIdsRef.current, setError, setIsLoading);
 
-  // 建立穩定的輪詢 interval，不會重新建立
+  // 建立穩定的輪詢，不可見時暫停，恢復可見時立即補抓一次。
+  // 使用遞迴 setTimeout 避免請求重疊。
   useEffect(() => {
     let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
+    const scheduleNext = () => {
+      timerId = setTimeout(() => {
+        void poll();
+      }, POLL_INTERVAL);
+    };
 
     const poll = async () => {
-      if (!cancelled) {
-        await fetchRef.current();
+      if (cancelled || document.hidden) return;
+      await fetchRef.current();
+      if (!cancelled) scheduleNext();
+    };
+
+    const handleVisibilityChange = () => {
+      if (cancelled) return;
+      if (document.hidden) {
+        // 頁面不可見時清除排程
+        if (timerId !== null) {
+          clearTimeout(timerId);
+          timerId = null;
+        }
+      } else {
+        // 恢復可見時立即補抓一次並重新排程
+        void poll();
       }
     };
 
-    void poll();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    const intervalId = window.setInterval(() => {
-      void poll();
-    }, POLL_INTERVAL);
+    // 初始載入
+    void poll();
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      if (timerId !== null) clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []); // 空依賴 — interval 僅建立一次，透過 ref 取得最新邏輯
+  }, []); // 空依賴 — 僅建立一次，透過 ref 取得最新邏輯
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
