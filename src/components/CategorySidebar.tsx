@@ -2,7 +2,7 @@
  * 分類側邊欄元件，以樹狀結構組織 repo 並支援新增 / 編輯。
  */
 
-import { useState, useCallback, MouseEvent } from "react";
+import { useState, useCallback, memo, MouseEvent } from "react";
 import { CategoryTreeNode, getCategory } from "../api/client";
 import { useI18n } from "../i18n";
 import { useCategoryTree } from "../hooks/useCategoryTree";
@@ -25,7 +25,7 @@ interface CategorySidebarProps {
   onCategoriesChange?: () => void;
 }
 
-export function CategorySidebar({
+export const CategorySidebar = memo(function CategorySidebar({
   selectedCategoryId,
   onSelectCategory,
   onCategoriesChange,
@@ -155,4 +155,4 @@ export function CategorySidebar({
       />
     </div>
   );
-}
+});

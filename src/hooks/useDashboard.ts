@@ -105,36 +105,40 @@ export function useDashboard() {
     };
   }, [repos, alerts]);
 
-  // 從 repos 與 alerts 產生近期活動
+  // 從 repos 與 alerts 產生近期活動（只建立 top 10 的完整物件）
   const recentActivity: RecentActivity[] = useMemo(() => {
-    const activities: RecentActivity[] = [];
+    const sources: Array<{ ts: string; build: () => RecentActivity }> = [];
 
-    // 將所有 repos 加為活動項目
     for (const repo of repos) {
-      activities.push({
-        id: `repo-${repo.id}`,
-        type: "repo_added",
-        title: repo.full_name,
-        description: repo.description ?? "",
-        timestamp: repo.added_at,
+      sources.push({
+        ts: repo.added_at,
+        build: () => ({
+          id: `repo-${repo.id}`,
+          type: "repo_added",
+          title: repo.full_name,
+          description: repo.description ?? "",
+          timestamp: repo.added_at,
+        }),
       });
     }
 
-    // 將所有 alerts 加為活動項目
     for (const alert of alerts) {
-      activities.push({
-        id: `alert-${alert.id}`,
-        type: "alert_triggered",
-        title: alert.rule_name,
-        description: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold}`,
-        timestamp: alert.triggered_at,
+      sources.push({
+        ts: alert.triggered_at,
+        build: () => ({
+          id: `alert-${alert.id}`,
+          type: "alert_triggered",
+          title: alert.rule_name,
+          description: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold}`,
+          timestamp: alert.triggered_at,
+        }),
       });
     }
 
-    // 依時間排序並回傳前 10 筆
-    return activities
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10);
+    return sources
+      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      .slice(0, 10)
+      .map((s) => s.build());
   }, [repos, alerts]);
 
   // 計算 velocity 分佈供圖表使用

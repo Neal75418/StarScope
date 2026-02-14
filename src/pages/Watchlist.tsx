@@ -193,7 +193,7 @@ function RepoList({
               rowCount={repos.length}
               rowHeight={ITEM_SIZE}
               rowProps={EMPTY_ROW_PROPS}
-              overscanCount={3}
+              overscanCount={5}
               onRowsRendered={handleRowsRendered}
             />
           ) : null

@@ -9,7 +9,7 @@ const mockSetLanguageFilter = vi.fn();
 const mockSetMinStarsFilter = vi.fn();
 const mockRetry = vi.fn();
 const mockAddRepo = vi.fn().mockResolvedValue({});
-const mockGetRepos = vi.fn().mockResolvedValue({ repos: [] });
+let mockWatchlistRepos: Array<{ full_name: string }> = [];
 
 let mockTrendsReturn: {
   trends: TrendingRepo[];
@@ -31,7 +31,10 @@ vi.mock("../../hooks/useTrends", () => ({
 
 vi.mock("../../api/client", () => ({
   addRepo: (...args: unknown[]) => mockAddRepo(...args),
-  getRepos: (...args: unknown[]) => mockGetRepos(...args),
+}));
+
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistState: () => ({ repos: mockWatchlistRepos }),
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -77,7 +80,7 @@ function makeTrending(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
 describe("Trends", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetRepos.mockResolvedValue({ repos: [] });
+    mockWatchlistRepos = [];
     mockTrendsReturn = {
       trends: [],
       loading: false,
@@ -211,13 +214,10 @@ describe("Trends", () => {
   });
 
   it("shows 'In Watchlist' for repos already tracked", () => {
-    mockGetRepos.mockResolvedValue({
-      repos: [{ full_name: "facebook/react" }],
-    });
+    mockWatchlistRepos = [{ full_name: "facebook/react" }];
     mockTrendsReturn.trends = [makeTrending()];
     render(<Trends />);
-    // The useEffect fetches watchlist; wait for it to settle
-    // Since getRepos resolves immediately, the watchlistNames will be set
+    expect(screen.getByText("In Watchlist")).toBeInTheDocument();
   });
 
   it("calls addRepo when Add button is clicked", async () => {

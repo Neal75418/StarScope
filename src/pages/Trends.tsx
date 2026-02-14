@@ -2,21 +2,21 @@
  * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
  */
 
+import React, { useState, useMemo, useCallback } from "react";
 import { TrendArrow } from "../components/TrendArrow";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
 import { formatNumber, formatDelta } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
-import { addRepo, getRepos } from "../api/client";
+import { addRepo } from "../api/client";
+import { useWatchlistState } from "../contexts/WatchlistContext";
 import { logger } from "../utils/logger";
+import { safeOpenUrl } from "../utils/url";
 
 const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
-
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { safeOpenUrl } from "../utils/url";
 
 const TrendRow = React.memo(function TrendRow({
   repo,
@@ -87,28 +87,17 @@ export function Trends() {
     retry,
   } = useTrends();
 
-  // Watchlist 狀態
-  const [watchlistNames, setWatchlistNames] = useState<Set<string>>(new Set());
+  // Watchlist 狀態 — 從 Context 讀取，避免重複 API 請求
+  const watchlistState = useWatchlistState();
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getRepos()
-      .then((res) => {
-        const names = new Set(res.repos.map((r) => r.full_name.toLowerCase()));
-        setWatchlistNames(names);
-      })
-      .catch((err) => {
-        logger.warn("[Trends] 無法載入追蹤清單:", err);
-      });
-  }, []);
-
   const allWatchlistNames = useMemo(() => {
-    const merged = new Set(watchlistNames);
-    locallyAdded.forEach((n) => merged.add(n));
-    return merged;
-  }, [watchlistNames, locallyAdded]);
+    const names = new Set(watchlistState.repos.map((r) => r.full_name.toLowerCase()));
+    locallyAdded.forEach((n) => names.add(n));
+    return names;
+  }, [watchlistState.repos, locallyAdded]);
 
   const handleAddToWatchlist = useCallback(async (repo: TrendingRepo) => {
     setAddingRepoId(repo.id);
