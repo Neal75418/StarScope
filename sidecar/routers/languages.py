@@ -16,7 +16,7 @@ from routers.dependencies import get_repo_or_404
 from services.github import get_github_service
 from utils.time import utc_now
 
-router = APIRouter(prefix="/languages", tags=["languages"])
+router = APIRouter(prefix="/api/languages", tags=["languages"])
 
 
 # 回應 schema

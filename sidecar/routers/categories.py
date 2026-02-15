@@ -22,7 +22,7 @@ ERROR_PARENT_CATEGORY_NOT_FOUND = "Parent category not found"
 ERROR_CIRCULAR_REFERENCE = "Circular reference detected in category hierarchy"
 ERROR_REPO_NOT_IN_CATEGORY = "Repository is not in this category"
 
-router = APIRouter(prefix="/categories", tags=["categories"])
+router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
 # 請求/回應 schema

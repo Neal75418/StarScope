@@ -113,10 +113,13 @@ describe("useDashboard", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(apiClient.getRepos).toHaveBeenCalled();
-    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false);
-    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 5 });
-    expect(apiClient.getSignalSummary).toHaveBeenCalled();
+    expect(apiClient.getRepos).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50, expect.any(AbortSignal));
+    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({
+      limit: 5,
+      signal: expect.any(AbortSignal),
+    });
+    expect(apiClient.getSignalSummary).toHaveBeenCalledWith(expect.any(AbortSignal));
 
     expect(result.current.error).toBeNull();
     expect(result.current.earlySignals).toHaveLength(1);

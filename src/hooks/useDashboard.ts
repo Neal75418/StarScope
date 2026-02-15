@@ -2,7 +2,8 @@
  * Dashboard 狀態管理與統計資料運算。
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
+import { useOnceEffect } from "./useOnceEffect";
 import {
   getRepos,
   listTriggeredAlerts,
@@ -39,19 +40,25 @@ export function useDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 避免 StrictMode 重複請求
-  const hasFetchedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const loadData = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setIsLoading(true);
     setError(null);
 
+    const { signal } = controller;
     const results = await Promise.allSettled([
-      getRepos(),
-      listTriggeredAlerts(false),
-      listEarlySignals({ limit: 5 }),
-      getSignalSummary(),
+      getRepos(signal),
+      listTriggeredAlerts(false, 50, signal),
+      listEarlySignals({ limit: 5, signal }),
+      getSignalSummary(signal),
     ]);
+
+    if (controller.signal.aborted) return;
 
     const [reposResult, alertsResult, signalsResult, summaryResult] = results;
 
@@ -60,7 +67,9 @@ export function useDashboard() {
     if (signalsResult.status === "fulfilled") setEarlySignals(signalsResult.value.signals);
     if (summaryResult.status === "fulfilled") setSignalSummary(summaryResult.value);
 
-    const failures = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    const failures = results.filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected" && !controller.signal.aborted
+    );
     if (failures.length > 0) {
       setError(
         failures
@@ -72,11 +81,10 @@ export function useDashboard() {
     setIsLoading(false);
   }, []);
 
-  useEffect(() => {
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
+  useOnceEffect(() => {
     void loadData();
-  }, [loadData]);
+    return () => abortRef.current?.abort();
+  });
 
   const handleAcknowledgeSignal = useCallback(async (signalId: number) => {
     try {

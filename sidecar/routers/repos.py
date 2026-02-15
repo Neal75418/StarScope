@@ -36,7 +36,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["repos"])
 
 
 def _validate_github_identifier(owner: str, name: str) -> None:

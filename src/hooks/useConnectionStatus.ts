@@ -2,7 +2,8 @@
  * GitHub 連線狀態查詢，含 StrictMode 防重複請求。
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
+import { useOnceEffect } from "./useOnceEffect";
 import { getGitHubConnectionStatus, GitHubConnectionStatus } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { useI18n } from "../i18n";
@@ -24,9 +25,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
   const [state, setState] = useState<ConnectionState>("loading");
   const [error, setError] = useState<string | null>(null);
 
-  // 避免 StrictMode 重複請求
   const isFetchingRef = useRef(false);
-  const hasFetchedRef = useRef(false);
 
   // 僅取用特定錯誤訊息，避免依賴整個 t 物件
   const genericErrorMessage = t.githubConnection.errors.generic;
@@ -53,17 +52,9 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     }
   }, [genericErrorMessage]);
 
-  // 僅在掛載時請求，含 StrictMode 去重
-  useEffect(() => {
-    // 已在首次掛載時請求過（StrictMode 會執行兩次）
-    if (hasFetchedRef.current) {
-      return;
-    }
-    hasFetchedRef.current = true;
+  useOnceEffect(() => {
     void fetchStatus();
-    // fetchStatus 不需加入 deps：只需掛載時執行一次，hasFetchedRef 防止重複
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   return { status, setStatus, state, setState, error, setError, fetchStatus };
 }

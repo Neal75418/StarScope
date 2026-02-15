@@ -16,7 +16,7 @@ from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from utils.time import utc_today
 
-router = APIRouter(prefix="/charts", tags=["charts"])
+router = APIRouter(prefix="/api/charts", tags=["charts"])
 
 
 class TimeRange(str, Enum):

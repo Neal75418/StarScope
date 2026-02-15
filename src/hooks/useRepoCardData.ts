@@ -35,7 +35,7 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
   // 若有預載資料且尚未手動刷新，跳過個別 API 呼叫
   // deps=[] 表示永不 fetch；手動 refresh 後 refreshKey>0，切到正常 deps 觸發 fetch
   const skipBadgesFetch = preloaded?.badges !== undefined && refreshKey === 0;
-  const skipSignalsFetch = preloaded?.signals !== undefined;
+  const skipSignalsFetch = preloaded?.signals !== undefined && refreshKey === 0;
 
   const badgesDeps = skipBadgesFetch ? [] : [repoId, refreshKey];
   const { data: fetchedBadges, loading: badgesLoading } = useAsyncFetch(
@@ -47,14 +47,14 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
     { cacheKey: skipBadgesFetch ? undefined : `badges:${repoId}:${refreshKey}` }
   );
 
-  const signalsDeps = skipSignalsFetch ? [] : [repoId];
+  const signalsDeps = skipSignalsFetch ? [] : [repoId, refreshKey];
   const { data: fetchedSignals, loading: signalsLoading } = useAsyncFetch(
     () => getRepoSignals(repoId),
     (response) => response.signals,
     [] as EarlySignal[],
     signalsDeps,
     "signals",
-    { cacheKey: skipSignalsFetch ? undefined : `signals:${repoId}` }
+    { cacheKey: skipSignalsFetch ? undefined : `signals:${repoId}:${refreshKey}` }
   );
 
   // 優先使用預載資料，手動刷新後改用 fetch 結果
@@ -68,7 +68,7 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
     setIsRefreshingContext(true);
     try {
       await fetchRepoContext(repoId);
-      // context 取得後觸發 badges 重新載入（強制個別 fetch）
+      // context 取得後觸發 badges + signals 重新載入（強制個別 fetch）
       setRefreshKey((prev) => prev + 1);
     } catch (err) {
       logger.error("[RepoCardData] Context 重新整理失敗:", err);

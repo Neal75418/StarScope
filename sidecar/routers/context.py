@@ -19,7 +19,7 @@ from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
 from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 
-router = APIRouter(prefix="/context", tags=["context"])
+router = APIRouter(prefix="/api/context", tags=["context"])
 
 
 # 回應 schema

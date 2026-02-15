@@ -56,7 +56,7 @@ def _create_triggered_alert(
         triggered_at=utc_now(),
     )
     db.add(triggered)
-    db.commit()
+    db.flush()
 
     logger.info(
         f"[警報] 已觸發: {rule.name} (repo: {repo.full_name}, "
@@ -151,6 +151,9 @@ def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
 
     for rule in rules:
         triggered_alerts.extend(_check_rule_alerts(db, rule))
+
+    if triggered_alerts:
+        db.commit()
 
     return triggered_alerts
 

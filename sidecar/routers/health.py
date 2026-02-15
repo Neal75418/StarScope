@@ -6,7 +6,7 @@ from fastapi import APIRouter
 
 from utils.time import utc_now
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["health"])
 
 
 @router.get("/health")

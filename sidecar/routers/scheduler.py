@@ -2,6 +2,8 @@
 排程器 API 端點，管理背景工作。
 """
 
+from typing import List, Optional
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -20,10 +22,17 @@ class SchedulerConfig(BaseModel):
     fetch_interval_minutes: int = 60
 
 
+class ScheduledJob(BaseModel):
+    """排程工作資訊。"""
+    id: str
+    name: str
+    next_run: Optional[str] = None
+
+
 class SchedulerStatus(BaseModel):
     """排程器狀態回應。"""
     running: bool
-    jobs: list
+    jobs: List[ScheduledJob]
 
 
 @router.get("/status", response_model=SchedulerStatus)

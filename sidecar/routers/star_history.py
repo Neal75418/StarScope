@@ -22,7 +22,7 @@ from utils.time import utc_now
 MAX_STARS_FOR_BACKFILL = 5000
 ERROR_TOO_MANY_STARS = f"Repository has too many stars (>{MAX_STARS_FOR_BACKFILL}). Backfill is not available."
 
-router = APIRouter(prefix="/star-history", tags=["star-history"])
+router = APIRouter(prefix="/api/star-history", tags=["star-history"])
 
 
 # 回應 schema

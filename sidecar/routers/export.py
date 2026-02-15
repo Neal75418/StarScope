@@ -11,54 +11,15 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from constants import SignalType
-from db.models import Repo, RepoSnapshot, Signal
+from db.models import Repo, RepoSnapshot
+from services.queries import build_snapshot_map, build_signal_map
 from utils.time import utc_now
 
-router = APIRouter(prefix="/export", tags=["export"])
-
-
-def _batch_load_latest_snapshots(repo_ids: List[int], db: Session) -> Dict[int, "RepoSnapshot"]:
-    """批次載入多個 repo 的最新快照以避免 N+1 查詢。"""
-    if not repo_ids:
-        return {}
-
-    # 子查詢取得每個 repo 的最新快照日期
-    latest_dates = db.query(
-        RepoSnapshot.repo_id,
-        func.max(RepoSnapshot.snapshot_date).label("max_date")
-    ).filter(
-        RepoSnapshot.repo_id.in_(repo_ids)
-    ).group_by(RepoSnapshot.repo_id).subquery()
-
-    # Join 取得實際快照
-    snapshots = db.query(RepoSnapshot).join(
-        latest_dates,
-        (RepoSnapshot.repo_id == latest_dates.c.repo_id) &
-        (RepoSnapshot.snapshot_date == latest_dates.c.max_date)
-    ).all()
-
-    return {s.repo_id: s for s in snapshots}
-
-
-def _batch_load_signals(repo_ids: List[int], db: Session) -> Dict[int, Dict[str, float]]:
-    """批次載入多個 repo 的所有訊號以避免 N+1 查詢。"""
-    if not repo_ids:
-        return {}
-
-    signals = db.query(Signal).filter(Signal.repo_id.in_(repo_ids)).all()
-
-    result: Dict[int, Dict[str, float]] = {}
-    for s in signals:
-        if s.repo_id not in result:
-            result[s.repo_id] = {}
-        result[s.repo_id][s.signal_type] = s.value
-
-    return result
+router = APIRouter(prefix="/api/export", tags=["export"])
 
 
 def _build_repo_dict(
@@ -96,8 +57,8 @@ def _get_repos_with_signals(repos: List["Repo"], db: Session) -> List[dict]:
     repo_ids = [r.id for r in repos]
 
     # 以 2 次查詢批次載入所有資料，取代 2N 次查詢
-    snapshots_map = _batch_load_latest_snapshots(repo_ids, db)
-    signals_map = _batch_load_signals(repo_ids, db)
+    snapshots_map = build_snapshot_map(db, repo_ids)
+    signals_map = build_signal_map(db, repo_ids)
 
     return [
         _build_repo_dict(

@@ -16,7 +16,7 @@ from db.models import EarlySignal, Repo
 from services.anomaly_detector import run_detection
 from utils.time import utc_now
 
-router = APIRouter(prefix="/early-signals", tags=["early-signals"])
+router = APIRouter(prefix="/api/early-signals", tags=["early-signals"])
 
 # severity 欄位是字串，字母序 ≠ 語意順序，需用 CASE 映射
 _SEVERITY_ORDER = case(

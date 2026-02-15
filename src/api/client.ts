@@ -140,8 +140,8 @@ export async function checkHealth(): Promise<HealthResponse> {
 /**
  * 取得追蹤清單中所有儲存庫。
  */
-export async function getRepos(): Promise<RepoListResponse> {
-  return apiCall<RepoListResponse>("/repos");
+export async function getRepos(signal?: AbortSignal): Promise<RepoListResponse> {
+  return apiCall<RepoListResponse>("/repos", { signal });
 }
 
 /**
@@ -433,6 +433,7 @@ export async function listEarlySignals(options?: {
   include_acknowledged?: boolean;
   include_expired?: boolean;
   limit?: number;
+  signal?: AbortSignal;
 }): Promise<EarlySignalListResponse> {
   const params = new URLSearchParams();
   if (options?.signal_type) params.append("signal_type", options.signal_type);
@@ -442,7 +443,10 @@ export async function listEarlySignals(options?: {
   if (options?.limit) params.append("limit", String(options.limit));
 
   const queryString = params.toString();
-  return apiCall<EarlySignalListResponse>(`/early-signals/${queryString ? `?${queryString}` : ""}`);
+  return apiCall<EarlySignalListResponse>(
+    `/early-signals/${queryString ? `?${queryString}` : ""}`,
+    { signal: options?.signal }
+  );
 }
 
 /**
@@ -485,8 +489,8 @@ export async function getRepoSignalsBatch(
 /**
  * 取得信號摘要統計。
  */
-export async function getSignalSummary(): Promise<SignalSummary> {
-  return apiCall<SignalSummary>(`/early-signals/summary`);
+export async function getSignalSummary(signal?: AbortSignal): Promise<SignalSummary> {
+  return apiCall<SignalSummary>(`/early-signals/summary`, { signal });
 }
 
 /**
@@ -628,12 +632,13 @@ export async function deleteAlertRule(ruleId: number): Promise<{ status: string;
  */
 export async function listTriggeredAlerts(
   unacknowledgedOnly: boolean = false,
-  limit: number = 50
+  limit: number = 50,
+  signal?: AbortSignal
 ): Promise<TriggeredAlert[]> {
   const params = new URLSearchParams();
   if (unacknowledgedOnly) params.append("unacknowledged_only", "true");
   params.append("limit", String(limit));
-  return apiCall<TriggeredAlert[]>(`/alerts/triggered?${params}`);
+  return apiCall<TriggeredAlert[]>(`/alerts/triggered?${params}`, { signal });
 }
 
 /**

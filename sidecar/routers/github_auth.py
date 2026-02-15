@@ -12,7 +12,7 @@ from services.github_auth import (
     GitHubAuthError,
 )
 
-router = APIRouter(prefix="/github-auth", tags=["github-auth"])
+router = APIRouter(prefix="/api/github-auth", tags=["github-auth"])
 
 
 # ==================== 回應 Model ====================

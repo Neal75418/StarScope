@@ -2,7 +2,8 @@
  * 分類樹狀結構的取得與管理。
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
+import { useOnceEffect } from "./useOnceEffect";
 import {
   CategoryTreeNode,
   CategoryUpdate,
@@ -30,9 +31,6 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 避免 StrictMode 重複請求
-  const hasFetchedRef = useRef(false);
-
   const fetchCategories = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -48,15 +46,9 @@ export function useCategoryTree(onCategoriesChange?: () => void): UseCategoryTre
     }
   }, [t]);
 
-  useEffect(() => {
-    // 避免重複請求（防止 StrictMode 雙重觸發）
-    if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
-
+  useOnceEffect(() => {
     void fetchCategories();
-    // fetchCategories 不需加入 deps：只需掛載時執行一次，hasFetchedRef 防止重複
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   const handleCreateCategory = useCallback(
     async (name: string): Promise<boolean> => {

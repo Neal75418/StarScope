@@ -2,6 +2,7 @@
 探索 API 端點，用於搜尋 GitHub repo。
 """
 
+from enum import Enum
 from typing import Optional
 import logging
 
@@ -17,7 +18,14 @@ from schemas.discovery import DiscoveryRepo, SearchResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/discovery", tags=["discovery"])
+class SortField(str, Enum):
+    """搜尋結果排序欄位。"""
+    STARS = "stars"
+    FORKS = "forks"
+    UPDATED = "updated"
+
+
+router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
 @router.get("/search", response_model=SearchResponse)
@@ -28,7 +36,7 @@ async def search_repos(
     language: Optional[str] = Query(None, description="Filter by language"),
     min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),
     topic: Optional[str] = Query(None, description="Filter by topic"),
-    sort: str = Query("stars", pattern="^(stars|forks|updated)$", description="Sort field"),
+    sort: SortField = Query(SortField.STARS, description="Sort field"),
     page: int = Query(1, ge=1, le=100, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> SearchResponse:

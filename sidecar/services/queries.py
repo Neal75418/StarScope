@@ -5,7 +5,7 @@ Centralizes common query patterns to avoid code duplication.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, Query
@@ -39,7 +39,7 @@ def build_signal_map(
     signal_map: dict[int, dict[str, float]] = {}
 
     for signal in all_signals:
-        rid = int(cast(int, cast(object, signal.repo_id)))
+        rid: int = signal.repo_id  # type: ignore[assignment]
         if rid not in signal_map:
             signal_map[rid] = {}
         signal_map[rid][str(signal.signal_type)] = float(signal.value)
@@ -107,7 +107,7 @@ def build_snapshot_map(
         .all()
     )
 
-    return {int(cast(int, cast(object, s.repo_id))): s for s in snapshots}
+    return {s.repo_id: s for s in snapshots}  # type: ignore[misc]
 
 
 def build_stars_map(
@@ -142,7 +142,7 @@ def build_stars_map(
         .all()
     )
 
-    return {int(cast(int, repo_id)): int(cast(int, stars)) for repo_id, stars in results}
+    return {repo_id: stars for repo_id, stars in results}  # type: ignore[misc]
 
 
 def get_snapshot_for_repo(

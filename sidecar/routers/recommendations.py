@@ -19,7 +19,7 @@ from services.recommender import (
     recalculate_all_similarities,
 )
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
 
 # 回應 schema
