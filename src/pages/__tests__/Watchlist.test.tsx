@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -56,6 +57,7 @@ vi.mock("../../contexts/WatchlistContext", () => ({
   useWatchlistActions: () => mockActions,
 }));
 
+// noinspection JSUnusedGlobalSymbols — mock exports consumed by Watchlist component
 vi.mock("../../hooks/selectors/useWatchlistSelectors", () => ({
   useFilteredRepos: () => mockSelectors.displayedRepos,
   useLoadingRepo: () => mockSelectors.loadingRepoId,
@@ -73,6 +75,7 @@ vi.mock("../../hooks/useWindowedBatchRepoData", () => ({
   }),
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../hooks/useCategoryOperations", () => ({
   useCategoryOperations: () => ({
     removeFromCategory: vi.fn().mockResolvedValue(true),
@@ -80,7 +83,7 @@ vi.mock("../../hooks/useCategoryOperations", () => ({
 }));
 
 vi.mock("../../components/motion", () => ({
-  AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }));
@@ -89,6 +92,7 @@ vi.mock("../../components/CategorySidebar", () => ({
   CategorySidebar: () => <div data-testid="category-sidebar" />,
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/RepoCard", () => ({
   RepoCard: ({ repo }: { repo: RepoWithSignals }) => (
     <div data-testid={`repo-card-${repo.id}`}>{repo.full_name}</div>
@@ -108,6 +112,7 @@ vi.mock("../../components/Toast", () => ({
   useToast: () => ({ toasts: [], dismissToast: vi.fn(), success: vi.fn(), error: vi.fn() }),
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/EmptyState", () => ({
   EmptyState: ({
     title,
@@ -115,7 +120,7 @@ vi.mock("../../components/EmptyState", () => ({
   }: {
     title: string;
     description?: string;
-    icon?: React.ReactNode;
+    icon?: ReactNode;
     actionLabel?: string;
     onAction?: () => void;
   }) => (

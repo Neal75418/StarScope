@@ -40,6 +40,7 @@ class SchedulerStatus(BaseModel):
 @limiter.limit("30/minute")
 async def get_status(request: Request):
     """取得目前排程器狀態。"""
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     return get_scheduler_status()
 
 
@@ -47,6 +48,7 @@ async def get_status(request: Request):
 @limiter.limit("5/minute")
 async def start(request: Request, config: SchedulerConfig = SchedulerConfig()):
     """以指定設定啟動排程器。"""
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     try:
         start_scheduler(fetch_interval_minutes=config.fetch_interval_minutes)
         return {
@@ -61,6 +63,7 @@ async def start(request: Request, config: SchedulerConfig = SchedulerConfig()):
 @limiter.limit("5/minute")
 async def stop(request: Request):
     """停止排程器。"""
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     try:
         stop_scheduler()
         return {"status": "stopped"}
@@ -72,6 +75,7 @@ async def stop(request: Request):
 @limiter.limit("5/minute")
 async def fetch_now(request: Request):
     """觸發立即抓取所有 repo。"""
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     try:
         await trigger_fetch_now()
         return {"status": "fetch_triggered"}

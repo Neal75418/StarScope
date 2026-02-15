@@ -41,7 +41,8 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
 
     try:
         setting = db.query(AppSetting).filter(AppSetting.key == key).first()
-        value = setting.value if setting else None
+        # noinspection PyTypeChecker
+        value: Optional[str] = setting.value if setting else None
 
         # 遷移邏輯：若在 DB 找到 token 但 Keyring 中沒有，則遷移！
         if value and _is_token_key(key):

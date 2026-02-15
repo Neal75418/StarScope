@@ -2,7 +2,7 @@
 Tests for alerts endpoints.
 """
 
-from unittest.mock import patch
+import pytest
 
 from constants import SignalType
 from db.models import AlertRule, TriggeredAlert
@@ -97,7 +97,7 @@ class TestAlertRules:
         assert data["repo_name"] == mock_repo.full_name
         assert data["signal_type"] == "stars_delta_7d"
         assert data["operator"] == ">"
-        assert data["threshold"] == 50.0
+        assert data["threshold"] == pytest.approx(50.0)
         assert data["enabled"] is True
         assert "id" in data
         assert "created_at" in data
@@ -151,7 +151,7 @@ class TestAlertRules:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Updated Rule Name"
-        assert data["threshold"] == 200.0
+        assert data["threshold"] == pytest.approx(200.0)
         assert data["enabled"] is False
         # Other fields should remain unchanged
         assert data["signal_type"] == rule.signal_type
@@ -261,7 +261,7 @@ class TestAlertCheck:
         test_db.add(signal)
         test_db.commit()
 
-        rule = _create_rule(test_db, mock_repo, threshold=100.0, operator=">")
+        _create_rule(test_db, mock_repo, threshold=100.0, operator=">")
 
         response = client.post("/api/alerts/check")
         assert response.status_code == 200

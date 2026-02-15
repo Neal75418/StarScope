@@ -2,7 +2,7 @@
 Tests for star history endpoints.
 """
 
-from datetime import timedelta, date
+from datetime import timedelta
 from unittest.mock import patch, AsyncMock
 
 from db.models import RepoSnapshot

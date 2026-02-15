@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Trends } from "../Trends";
-import type { TrendingRepo } from "../../hooks/useTrends";
+import type { ReactNode } from "react";
+import type { TrendingRepo } from "../../api/client";
 
 const mockSetSortBy = vi.fn();
 const mockSetLanguageFilter = vi.fn();
@@ -42,7 +43,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
 }));
 
 vi.mock("../../components/motion", () => ({
-  AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }));

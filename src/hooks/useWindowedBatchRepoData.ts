@@ -50,6 +50,7 @@ interface UseWindowedBatchRepoDataResult {
  * 視窗化批次載入 hook
  *
  * @param allRepoIds - 所有 repo IDs（完整列表）
+ * @param options - 配置選項
  * @param options.bufferSize - 視窗上下額外載入的項目數（預設 10）
  * @param options.debounceMs - 資料載入 debounce 延遲（毫秒，預設 150）
  * @returns dataMap, loading, error, setVisibleRange

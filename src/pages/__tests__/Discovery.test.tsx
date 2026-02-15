@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -11,6 +12,7 @@ const mockHandleRefreshAll = vi.fn();
 let mockDiscoveryReturn: Record<string, unknown>;
 let mockWatchlistRepos: { full_name: string }[];
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../hooks/useDiscovery", () => ({
   useDiscovery: () => mockDiscoveryReturn,
 }));
@@ -62,11 +64,12 @@ vi.mock("../../components/Toast", () => ({
 }));
 
 vi.mock("../../components/motion", () => ({
-  AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/discovery", () => ({
   DiscoverySearchBar: ({ onSearch }: { onSearch: (q: string) => void }) => (
     <input

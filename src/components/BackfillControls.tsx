@@ -2,7 +2,7 @@
  * Backfill 操作按鈕元件。
  */
 
-import { TranslationKeys } from "../i18n/translations";
+import { TranslationKeys } from "../i18n";
 
 interface BackfillControlsProps {
   handleBackfill: () => void;

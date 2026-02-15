@@ -96,15 +96,13 @@ export function useAlertRuleOperations({
 
   const handleCheckNow = useCallback(async () => {
     return execute(async () => {
-      const result = await checkAlerts();
-      return result;
+      return checkAlerts();
     }, t.settings.alerts.toast.checkComplete);
   }, [execute, t]);
 
   const handleAcknowledgeAll = useCallback(async () => {
     return execute(async () => {
-      const result = await acknowledgeAllTriggeredAlerts();
-      return result;
+      return acknowledgeAllTriggeredAlerts();
     }, t.settings.alerts.toast.acknowledgedAll);
   }, [execute, t]);
 

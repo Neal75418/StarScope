@@ -30,6 +30,24 @@ function makeDiscoveryRepo(overrides: Partial<DiscoveryRepo> = {}): DiscoveryRep
   };
 }
 
+const mockFetchResults = vi.mocked(searchHelpers.fetchSearchResults);
+
+const defaultSearchResult = {
+  repos: [makeDiscoveryRepo()],
+  totalCount: 1,
+  hasMore: false,
+};
+
+/** Render hook, execute a search, and wait for results. */
+async function renderAndSearch(query = "react", mockResult = defaultSearchResult) {
+  mockFetchResults.mockResolvedValueOnce(mockResult);
+  const utils = renderHook(() => useDiscoverySearch());
+  await act(async () => {
+    await utils.result.current.executeSearch(query, undefined, {}, 1);
+  });
+  return utils;
+}
+
 describe("useDiscoverySearch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,17 +64,7 @@ describe("useDiscoverySearch", () => {
   });
 
   it("executes search and returns results", async () => {
-    vi.mocked(searchHelpers.fetchSearchResults).mockResolvedValue({
-      repos: [makeDiscoveryRepo()],
-      totalCount: 1,
-      hasMore: false,
-    });
-
-    const { result } = renderHook(() => useDiscoverySearch());
-
-    await act(async () => {
-      await result.current.executeSearch("react", undefined, {}, 1);
-    });
+    const { result } = await renderAndSearch();
 
     expect(result.current.repos).toHaveLength(1);
     expect(result.current.totalCount).toBe(1);
@@ -67,21 +75,15 @@ describe("useDiscoverySearch", () => {
     const repo1 = makeDiscoveryRepo({ id: 1, full_name: "a/b" });
     const repo2 = makeDiscoveryRepo({ id: 2, full_name: "c/d" });
 
-    vi.mocked(searchHelpers.fetchSearchResults).mockResolvedValueOnce({
+    const { result } = await renderAndSearch("test", {
       repos: [repo1],
       totalCount: 2,
       hasMore: true,
     });
 
-    const { result } = renderHook(() => useDiscoverySearch());
-
-    await act(async () => {
-      await result.current.executeSearch("test", undefined, {}, 1);
-    });
-
     expect(result.current.repos).toHaveLength(1);
 
-    vi.mocked(searchHelpers.fetchSearchResults).mockResolvedValueOnce({
+    mockFetchResults.mockResolvedValueOnce({
       repos: [repo2],
       totalCount: 2,
       hasMore: false,
@@ -95,17 +97,7 @@ describe("useDiscoverySearch", () => {
   });
 
   it("resets state for empty query", async () => {
-    vi.mocked(searchHelpers.fetchSearchResults).mockResolvedValueOnce({
-      repos: [makeDiscoveryRepo()],
-      totalCount: 1,
-      hasMore: false,
-    });
-
-    const { result } = renderHook(() => useDiscoverySearch());
-
-    await act(async () => {
-      await result.current.executeSearch("react", undefined, {}, 1);
-    });
+    const { result } = await renderAndSearch();
     expect(result.current.repos).toHaveLength(1);
 
     await act(async () => {
@@ -114,11 +106,11 @@ describe("useDiscoverySearch", () => {
 
     expect(result.current.repos).toEqual([]);
     expect(result.current.totalCount).toBe(0);
-    expect(searchHelpers.fetchSearchResults).toHaveBeenCalledTimes(1);
+    expect(mockFetchResults).toHaveBeenCalledTimes(1);
   });
 
   it("handles search error gracefully", async () => {
-    vi.mocked(searchHelpers.fetchSearchResults).mockRejectedValue(new Error("Network fail"));
+    mockFetchResults.mockRejectedValue(new Error("Network fail"));
 
     const { result } = renderHook(() => useDiscoverySearch());
 
@@ -131,17 +123,7 @@ describe("useDiscoverySearch", () => {
   });
 
   it("resetSearch clears all state", async () => {
-    vi.mocked(searchHelpers.fetchSearchResults).mockResolvedValueOnce({
-      repos: [makeDiscoveryRepo()],
-      totalCount: 1,
-      hasMore: false,
-    });
-
-    const { result } = renderHook(() => useDiscoverySearch());
-
-    await act(async () => {
-      await result.current.executeSearch("react", undefined, {}, 1);
-    });
+    const { result } = await renderAndSearch();
     expect(result.current.repos).toHaveLength(1);
 
     act(() => {

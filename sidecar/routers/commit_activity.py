@@ -117,7 +117,8 @@ async def get_commit_activity(
     """
     repo = get_repo_or_404(repo_id, db)
 
-    activities = db.query(CommitActivity).filter(
+    # noinspection PyTypeChecker
+    activities: List[CommitActivity] = db.query(CommitActivity).filter(
         CommitActivity.repo_id == repo_id
     ).all()
 

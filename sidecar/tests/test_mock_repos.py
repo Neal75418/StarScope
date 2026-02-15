@@ -3,8 +3,6 @@ Comprehensive tests with mock repository data.
 Tests real database operations with properly structured mock data.
 """
 
-import pytest
-
 
 class TestRepoWithMockData:
     """Test repository operations with mock data."""

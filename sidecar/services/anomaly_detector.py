@@ -71,6 +71,36 @@ def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
     ).first() is not None
 
 
+def _determine_rising_star_severity(velocity: float, velocity_ratio: float) -> str:
+    """根據 velocity 與 velocity/stars 比例判斷 rising star 嚴重等級。"""
+    if velocity >= RISING_STAR_SEVERITY_HIGH or velocity_ratio >= 0.05:
+        return EarlySignalSeverity.HIGH
+    if velocity >= RISING_STAR_SEVERITY_MEDIUM or velocity_ratio >= 0.02:
+        return EarlySignalSeverity.MEDIUM
+    return EarlySignalSeverity.LOW
+
+
+def _calculate_velocity_percentile(
+    velocity: float,
+    velocity_values: Optional[List[float]],
+    db: Session,
+) -> float:
+    """計算 velocity 的百分位排名。"""
+    if velocity_values is not None:
+        total = len(velocity_values)
+        below = bisect.bisect_left(velocity_values, velocity)
+    else:
+        from sqlalchemy import func as sa_func
+        total = db.query(sa_func.count(Signal.id)).filter(
+            Signal.signal_type == SignalType.VELOCITY
+        ).scalar() or 0
+        below = db.query(sa_func.count(Signal.id)).filter(
+            Signal.signal_type == SignalType.VELOCITY,
+            Signal.value < velocity
+        ).scalar() or 0
+    return (below / total * 100) if total > 0 else 0
+
+
 class AnomalyDetector:
     """偵測早期訊號與異常的服務。"""
 
@@ -85,12 +115,9 @@ class AnomalyDetector:
         """
         偵測 rising star 模式。
         條件：stars < 5000 且（velocity > 10 或 velocity/stars > 0.01）
-
-        Args:
-            velocity_values: 預排序的 velocity 值列表，用於 O(log n) 百分位計算。
-                             未提供時回退為 SQL COUNT 查詢。
         """
-        repo_id = int(repo.id)
+        # noinspection PyTypeChecker
+        repo_id: int = repo.id  # type: ignore[assignment]
 
         snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
         if not snapshot or snapshot.stars is None:
@@ -113,31 +140,8 @@ class AnomalyDetector:
         if not is_rising:
             return None
 
-        # 決定嚴重等級（rising_star 額外考慮 velocity_ratio）
-        if velocity >= RISING_STAR_SEVERITY_HIGH or velocity_ratio >= 0.05:
-            severity = EarlySignalSeverity.HIGH
-        elif velocity >= RISING_STAR_SEVERITY_MEDIUM or velocity_ratio >= 0.02:
-            severity = EarlySignalSeverity.MEDIUM
-        else:
-            severity = EarlySignalSeverity.LOW
-
-        # 計算百分位數
-        if velocity_values is not None:
-            # O(log n) 使用預排序的列表
-            total = len(velocity_values)
-            below = bisect.bisect_left(velocity_values, velocity)
-            percentile = (below / total * 100) if total > 0 else 0
-        else:
-            # 回退：SQL COUNT 查詢
-            from sqlalchemy import func as sa_func
-            total = db.query(sa_func.count(Signal.id)).filter(
-                Signal.signal_type == SignalType.VELOCITY
-            ).scalar() or 0
-            below = db.query(sa_func.count(Signal.id)).filter(
-                Signal.signal_type == SignalType.VELOCITY,
-                Signal.value < velocity
-            ).scalar() or 0
-            percentile = (below / total * 100) if total > 0 else 0
+        severity = _determine_rising_star_severity(velocity, velocity_ratio)
+        percentile = _calculate_velocity_percentile(velocity, velocity_values, db)
 
         return EarlySignal(
             repo_id=repo.id,
@@ -145,10 +149,11 @@ class AnomalyDetector:
             severity=severity,
             description=f"Rising star: {stars:,} stars with {velocity:.1f} stars/day velocity",
             velocity_value=float(velocity),
+            # noinspection PyTypeChecker
             star_count=int(stars),
             percentile_rank=float(percentile),
             detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=7),  # Signal valid for 7 days
+            expires_at=utc_now() + timedelta(days=7),
         )
 
     @staticmethod
@@ -162,6 +167,8 @@ class AnomalyDetector:
         偵測突然暴漲模式。
         條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
         """
+        _ = snapshot_map  # 由呼叫端傳入，本偵測器直接查詢快照
+        _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
         # 取得近期快照
         snapshots = db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == repo.id
@@ -195,13 +202,16 @@ class AnomalyDetector:
             latest_delta, SUDDEN_SPIKE_SEVERITY_HIGH, SUDDEN_SPIKE_SEVERITY_MEDIUM
         )
 
+        # noinspection PyTypeChecker
+        latest_stars: int = snapshots[0].stars
+
         return EarlySignal(
             repo_id=repo.id,
             signal_type=EarlySignalType.SUDDEN_SPIKE,
             severity=severity,
             description=f"Sudden spike: +{latest_delta:,} stars today (vs avg {avg_delta:.0f}/day)",
             velocity_value=float(latest_delta),
-            star_count=int(snapshots[0].stars) if snapshots[0].stars else None,
+            star_count=latest_stars if latest_stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=3),  # Short-lived signal
         )
@@ -217,7 +227,8 @@ class AnomalyDetector:
         偵測 breakout 模式。
         條件：上週 velocity <= 0 且本週 velocity > 2
         """
-        repo_id = int(repo.id)
+        # noinspection PyTypeChecker
+        repo_id: int = repo.id  # type: ignore[assignment]
 
         delta_7d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_7D, db, signal_map)
         delta_30d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_30D, db, signal_map)
@@ -267,6 +278,7 @@ class AnomalyDetector:
         偵測 Hacker News 爆紅訊號。
         條件：48 小時內 HN 貼文分數 >= 100
         """
+        _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
         cutoff = utc_now() - timedelta(hours=48)
 
         hn_signal = db.query(ContextSignal).filter(
@@ -279,11 +291,13 @@ class AnomalyDetector:
         if not hn_signal:
             return None
 
+        # noinspection PyTypeChecker
         severity = _determine_severity(
             hn_signal.score, VIRAL_HN_SEVERITY_HIGH, VIRAL_HN_SEVERITY_MEDIUM
         )
 
-        repo_id = int(repo.id)
+        # noinspection PyTypeChecker
+        repo_id: int = repo.id  # type: ignore[assignment]
         snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
 
         return EarlySignal(
@@ -291,6 +305,7 @@ class AnomalyDetector:
             signal_type=EarlySignalType.VIRAL_HN,
             severity=severity,
             description=f"Viral on HN: \"{hn_signal.title[:50]}...\" ({hn_signal.score} points)",
+            # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=3),
@@ -366,23 +381,21 @@ class AnomalyDetector:
         對所有 repo 執行異常偵測，回傳偵測到的訊號列表。
         不寫入 DB。
         """
-        repos = db.query(Repo).all()
+        # noinspection PyTypeChecker
+        repos: List[Repo] = db.query(Repo).all()
 
         # 預載快照與訊號資料，避免 N+1 查詢
-        repo_ids = [int(r.id) for r in repos]
+        # noinspection PyTypeChecker
+        repo_ids: List[int] = [r.id for r in repos]
         snapshot_map = build_snapshot_map(db, repo_ids)
         signal_map = build_signal_map(db, repo_ids)
 
         # 預載並排序所有 velocity 值，供 rising_star 百分位計算（1 次查詢取代 2N 次）
-        velocity_values = sorted(
-            v
-            for v in (
-                db.query(Signal.value)
-                .filter(Signal.signal_type == SignalType.VELOCITY)
-                .all()
-            )
-            for v in [v[0]]
-        )
+        rows = db.query(Signal.value).filter(
+            Signal.signal_type == SignalType.VELOCITY
+        ).all()
+        # noinspection PyTypeChecker
+        velocity_values: List[float] = sorted(row[0] for row in rows)
 
         all_signals: List["EarlySignal"] = []
 

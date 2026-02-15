@@ -3,7 +3,7 @@
  */
 
 import { ApiError } from "../api/client";
-import { TranslationKeys } from "../i18n/translations";
+import { TranslationKeys } from "../i18n";
 import { isNetworkError } from "./backfillHelpers";
 
 export function getBackfillErrorMessage(err: unknown, t: TranslationKeys): string {

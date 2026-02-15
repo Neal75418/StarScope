@@ -77,7 +77,8 @@ async def export_watchlist_json(
     """
     將整個追蹤清單匯出為 JSON。
     """
-    repos = db.query(Repo).order_by(Repo.added_at.desc()).all()
+    # noinspection PyTypeChecker
+    repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
     data = {
         "exported_at": utc_now().isoformat(),
         "total": len(repos),
@@ -107,7 +108,8 @@ async def export_watchlist_csv(
     """
     將整個追蹤清單匯出為 CSV。
     """
-    repos = db.query(Repo).order_by(Repo.added_at.desc()).all()
+    # noinspection PyTypeChecker
+    repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
     repo_dicts = _get_repos_with_signals(repos, db)
 
     output = io.StringIO()

@@ -2,6 +2,7 @@
 Tests for languages endpoints.
 """
 
+import pytest
 from unittest.mock import patch, AsyncMock
 
 from db.models import RepoLanguage
@@ -58,7 +59,7 @@ class TestGetLanguages:
         first_lang = data["languages"][0]
         assert first_lang["language"] == "Python"
         assert first_lang["bytes"] == 50000
-        assert first_lang["percentage"] == 62.5
+        assert first_lang["percentage"] == pytest.approx(62.5)
 
     def test_get_languages_empty(self, client, mock_repo):
         """Test getting languages when not fetched yet returns 404."""

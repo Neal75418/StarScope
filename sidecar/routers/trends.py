@@ -91,6 +91,7 @@ async def get_trends(
 
     # 在 SQL 中查詢 repo 並排序、限制
     # 避免將所有 repo 載入記憶體
+    # noinspection PyTypeChecker
     query = (
         db.query(Repo, sort_value)
         .outerjoin(

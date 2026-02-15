@@ -333,7 +333,7 @@ describe("ContextBadges", () => {
 
   it("renders '1d ago' for signal from yesterday", async () => {
     const user = userEvent.setup();
-    const yesterday = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     mockGetContextSignals.mockResolvedValueOnce({
       signals: [
         {

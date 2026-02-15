@@ -35,11 +35,39 @@ function makeTrendingRepo(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
   };
 }
 
+const mockGetTrends = vi.mocked(apiClient.getTrends);
+
 const defaultResponse = {
   repos: [makeTrendingRepo()],
   total: 1,
   sort_by: "velocity",
 };
+
+/** Render hook and wait for initial loading to complete. */
+async function renderAndWaitForLoad(mockResponse = defaultResponse) {
+  mockGetTrends.mockResolvedValue(mockResponse);
+  const utils = renderHook(() => useTrends());
+  await waitFor(() => {
+    expect(utils.result.current.loading).toBe(false);
+  });
+  return utils;
+}
+
+/** Render hook with a rejected mock and wait for loading to complete. */
+async function renderAndWaitForError(error: Error) {
+  mockGetTrends.mockRejectedValue(error);
+  const utils = renderHook(() => useTrends());
+  await waitFor(() => {
+    expect(utils.result.current.loading).toBe(false);
+  });
+  return utils;
+}
+
+/** Clear previous mock calls and set a new resolved response for the next fetch. */
+function resetMockResponse(response = defaultResponse) {
+  mockGetTrends.mockClear();
+  mockGetTrends.mockResolvedValue(response);
+}
 
 describe("useTrends", () => {
   beforeEach(() => {
@@ -47,7 +75,7 @@ describe("useTrends", () => {
   });
 
   it("starts in loading state and fetches on mount", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    mockGetTrends.mockResolvedValue(defaultResponse);
 
     const { result } = renderHook(() => useTrends());
 
@@ -63,7 +91,7 @@ describe("useTrends", () => {
   });
 
   it("fetches with correct default params", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    mockGetTrends.mockResolvedValue(defaultResponse);
 
     renderHook(() => useTrends());
 
@@ -80,44 +108,22 @@ describe("useTrends", () => {
   });
 
   it("sets error on API error", async () => {
-    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("HTTP 500"));
-
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    const { result } = await renderAndWaitForError(new Error("HTTP 500"));
 
     expect(result.current.error).toBe("HTTP 500");
     expect(result.current.trends).toHaveLength(0);
   });
 
   it("sets error on network error", async () => {
-    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("Network failure"));
-
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    const { result } = await renderAndWaitForError(new Error("Network failure"));
 
     expect(result.current.error).toBe("Network failure");
   });
 
   it("re-fetches when setSortBy is called", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    const { result } = await renderAndWaitForLoad();
 
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    vi.mocked(apiClient.getTrends).mockClear();
-    vi.mocked(apiClient.getTrends).mockResolvedValue({
-      ...defaultResponse,
-      sort_by: "stars_delta_7d",
-    });
+    resetMockResponse({ ...defaultResponse, sort_by: "stars_delta_7d" });
 
     act(() => {
       result.current.setSortBy("stars_delta_7d");
@@ -133,16 +139,9 @@ describe("useTrends", () => {
   });
 
   it("includes language filter in request params", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    const { result } = await renderAndWaitForLoad();
 
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    vi.mocked(apiClient.getTrends).mockClear();
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    resetMockResponse();
 
     act(() => {
       result.current.setLanguageFilter("TypeScript");
@@ -158,16 +157,9 @@ describe("useTrends", () => {
   });
 
   it("includes min_stars filter in request params", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    const { result } = await renderAndWaitForLoad();
 
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    vi.mocked(apiClient.getTrends).mockClear();
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    resetMockResponse();
 
     act(() => {
       result.current.setMinStarsFilter(1000);
@@ -181,7 +173,7 @@ describe("useTrends", () => {
   });
 
   it("computes availableLanguages from current results", async () => {
-    vi.mocked(apiClient.getTrends).mockResolvedValue({
+    const { result } = await renderAndWaitForLoad({
       repos: [
         makeTrendingRepo({ id: 1, language: "TypeScript" }),
         makeTrendingRepo({ id: 2, language: "JavaScript" }),
@@ -192,29 +184,16 @@ describe("useTrends", () => {
       sort_by: "velocity",
     });
 
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
     // Should be deduplicated and sorted
     expect(result.current.availableLanguages).toEqual(["JavaScript", "TypeScript"]);
   });
 
   it("retry triggers a new fetch", async () => {
-    vi.mocked(apiClient.getTrends).mockRejectedValue(new Error("Network failure"));
-
-    const { result } = renderHook(() => useTrends());
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
+    const { result } = await renderAndWaitForError(new Error("Network failure"));
 
     expect(result.current.error).toBe("Network failure");
 
-    vi.mocked(apiClient.getTrends).mockClear();
-    vi.mocked(apiClient.getTrends).mockResolvedValue(defaultResponse);
+    resetMockResponse();
 
     act(() => {
       result.current.retry();

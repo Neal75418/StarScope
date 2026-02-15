@@ -114,6 +114,7 @@ def check_rule_for_repo(
         logger.debug(f"[警報] repo {repo.full_name} 無 {rule.signal_type} 訊號")
         return None
 
+    # noinspection PyTypeChecker
     signal_value = float(signal.value)
     threshold = float(rule.threshold)
 
@@ -143,7 +144,8 @@ def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
     triggered_alerts: List["TriggeredAlert"] = []
 
     # 取得所有啟用的規則
-    rules = db.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
+    # noinspection PyTypeChecker
+    rules: List[AlertRule] = db.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
 
     if not rules:
         logger.debug("[警報] 無啟用的警報規則")
@@ -181,7 +183,9 @@ def _get_repos_for_rule(db: Session, rule: "AlertRule") -> List["Repo"]:
         repo = db.query(Repo).filter(Repo.id == rule.repo_id).first()
         return [repo] if repo else []
     # 針對所有 repo 的規則
-    return db.query(Repo).all()
+    # noinspection PyTypeChecker
+    all_repos: List[Repo] = db.query(Repo).all()
+    return all_repos
 
 
 def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:
@@ -194,12 +198,14 @@ def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:
     Returns:
         未確認警報的列表
     """
-    return (
+    # noinspection PyTypeChecker
+    alerts: List[TriggeredAlert] = (
         db.query(TriggeredAlert)
         .filter(TriggeredAlert.acknowledged.is_(False))
         .order_by(TriggeredAlert.triggered_at.desc())
         .all()
     )
+    return alerts
 
 
 def acknowledge_alert(db: Session, alert_id: int) -> bool:

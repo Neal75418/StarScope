@@ -64,38 +64,6 @@ export function useIsRecalculating(): boolean {
 }
 
 /**
- * 根據 ID 取得單一 repo（只在該 repo 變更時才 re-render）
- */
-export function useRepoById(repoId: number): RepoWithSignals | undefined {
-  const state = useWatchlistState();
-  return useMemo(() => state.repos.find((r) => r.id === repoId), [state.repos, repoId]);
-}
-
-/**
- * 取得 dialog 狀態
- */
-export function useDialogState() {
-  const state = useWatchlistState();
-  return state.ui.dialog;
-}
-
-/**
- * 取得 removeConfirm 狀態
- */
-export function useRemoveConfirmState() {
-  const state = useWatchlistState();
-  return state.ui.removeConfirm;
-}
-
-/**
- * 取得 toasts
- */
-export function useToasts() {
-  const state = useWatchlistState();
-  return state.toasts;
-}
-
-/**
  * 是否正在初始化
  */
 export function useIsInitializing(): boolean {

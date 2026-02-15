@@ -42,6 +42,7 @@ def build_signal_map(
         rid: int = signal.repo_id  # type: ignore[assignment]
         if rid not in signal_map:
             signal_map[rid] = {}
+        # noinspection PyTypeChecker
         signal_map[rid][str(signal.signal_type)] = float(signal.value)
 
     return signal_map
@@ -142,7 +143,7 @@ def build_stars_map(
         .all()
     )
 
-    return {repo_id: stars for repo_id, stars in results}  # type: ignore[misc]
+    return dict(results)  # type: ignore[misc]
 
 
 def get_snapshot_for_repo(

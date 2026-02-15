@@ -176,7 +176,8 @@ def _repo_category_to_response(rc: RepoCategory) -> RepoCategoryResponse:
 
 def _get_category_or_404(category_id: int, db: Session) -> Category:
     """依 ID 取得分類，不存在則拋出 404。"""
-    category = db.query(Category).filter(Category.id == category_id).first()
+    # noinspection PyTypeChecker
+    category: Optional[Category] = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail=ERROR_CATEGORY_NOT_FOUND)
     return category
@@ -200,7 +201,7 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
         ancestor = db.query(Category).filter(Category.id == current_id).first()
         if not ancestor:
             break
-        current_id = ancestor.parent_id
+        current_id = ancestor.parent_id  # type: ignore[assignment]  # InstrumentedAttribute → int
 
 
 def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:
@@ -233,6 +234,7 @@ async def list_categories(
     Args:
         skip: 跳過的紀錄數（預設 0）
         limit: 回傳的最大紀錄數（預設 100，上限 500）
+        db: 資料庫 session
     """
     # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
@@ -240,7 +242,8 @@ async def list_categories(
     # 取得總數
     total = db.query(Category).count()
 
-    categories = (
+    # noinspection PyTypeChecker
+    categories: List[Category] = (
         db.query(Category)
         .order_by(Category.sort_order, Category.name)
         .offset(skip)
@@ -262,7 +265,8 @@ async def get_category_tree(
     """
     以階層樹狀結構取得分類。
     """
-    categories = db.query(Category).all()
+    # noinspection PyTypeChecker
+    categories: List[Category] = db.query(Category).all()
     repo_count_map = _build_repo_count_map(db)
     tree = _build_tree(categories, None, repo_count_map)
 
@@ -375,6 +379,7 @@ async def get_category_repos(
         category_id: 分類 ID
         skip: 跳過的紀錄數（預設 0）
         limit: 回傳的最大紀錄數（預設 100，上限 500）
+        db: 資料庫 session
     """
     # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
@@ -386,7 +391,8 @@ async def get_category_repos(
         RepoCategory.category_id == category_id
     ).count()
 
-    repo_categories = (
+    # noinspection PyTypeChecker
+    repo_categories: List[RepoCategory] = (
         db.query(RepoCategory)
         .options(joinedload(RepoCategory.repo))
         .filter(RepoCategory.category_id == category_id)

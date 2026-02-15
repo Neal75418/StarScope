@@ -77,6 +77,7 @@ export function AppHeader({
 
   return (
     <>
+      {/* noinspection HtmlUnknownAnchorTarget — target is defined in App.tsx */}
       <a className="skip-to-content" href="#main-content">
         {t.common.skipToContent}
       </a>

@@ -131,7 +131,7 @@ def calculate_acceleration(
             return 1.0  # 從接近零的基準線強勁成長
         elif this_week_velocity < -0.001:
             return -1.0  # 從接近零的基準線強烈衰退
-        return 0.0  # 兩者都接近零 = 穩定
+        return 0.0
 
     return (this_week_velocity - last_week_velocity) / abs(last_week_velocity)
 

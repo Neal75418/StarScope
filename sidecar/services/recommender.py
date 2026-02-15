@@ -41,6 +41,7 @@ def _parse_topics_json(topics_json: Optional[str]) -> Set[str]:
 
 def _get_repo_topics(repo: Repo) -> Set[str]:
     """從 repo 的 topics 欄位取得所有 topic。"""
+    # noinspection PyTypeChecker
     return _parse_topics_json(repo.topics)
 
 
@@ -174,17 +175,21 @@ class RecommenderService:
             return []
 
         # 取得來源 repo 以重新計算子分數
-        source_repo = db.query(Repo).filter(Repo.id == repo_id).first()
+        # noinspection PyTypeChecker
+        source_repo: Optional[Repo] = db.query(Repo).filter(Repo.id == repo_id).first()
         source_topics = _get_repo_topics(source_repo) if source_repo else set()
 
         # 批次載入所有需要的 star 數（1 次查詢取代 N+1）
+        # noinspection PyTypeChecker
         all_repo_ids = [repo_id] + [int(e.similar.id) for e in similar_entries]
         stars_map = build_stars_map(db, all_repo_ids)
         source_stars = stars_map.get(repo_id)
 
         results = []
         for entry in similar_entries:
-            similar_repo = entry.similar
+            # noinspection PyTypeChecker
+            similar_repo: Repo = entry.similar
+            # noinspection PyTypeChecker
             similar_id = int(similar_repo.id)
 
             # 重新計算各維度分數（開銷低，僅對 limit 筆結果）
@@ -198,6 +203,9 @@ class RecommenderService:
             target_stars = stars_map.get(similar_id)
             magnitude_score = _star_magnitude_similarity(source_stars, target_stars)
 
+            # noinspection PyTypeChecker
+            shared_topics_list = _parse_shared_topics(entry.shared_topics)
+
             results.append({
                 "repo_id": similar_repo.id,
                 "full_name": similar_repo.full_name,
@@ -205,7 +213,7 @@ class RecommenderService:
                 "language": similar_repo.language,
                 "url": similar_repo.url,
                 "similarity_score": entry.similarity_score,
-                "shared_topics": _parse_shared_topics(entry.shared_topics),
+                "shared_topics": shared_topics_list,
                 "same_language": bool(entry.same_language),
                 "topic_score": round(topic_score, 3),
                 "language_score": round(language_score, 3),
@@ -224,6 +232,7 @@ class RecommenderService:
         計算單一 repo 與所有其他 repo 的相似度。
         回傳找到的相似 repo 數量。
         """
+        # noinspection PyTypeChecker
         repo_id = int(repo.id)
 
         # 重新計算時清除既有資料
@@ -231,7 +240,8 @@ class RecommenderService:
             db.query(SimilarRepo).filter(SimilarRepo.repo_id == repo_id).delete()
 
         # 取得所有其他 repo
-        other_repos = db.query(Repo).filter(Repo.id != repo_id).all()
+        # noinspection PyTypeChecker
+        other_repos: List[Repo] = db.query(Repo).filter(Repo.id != repo_id).all()
         if not other_repos:
             return 0
 
@@ -239,12 +249,14 @@ class RecommenderService:
         repo_topics = _get_repo_topics(repo)
 
         # 批次載入所有 repo 的 star 數（1 次查詢取代 N+1）
+        # noinspection PyTypeChecker
         all_ids = [repo_id] + [int(o.id) for o in other_repos]
         stars_map = build_stars_map(db, all_ids)
         repo_stars = stars_map.get(repo_id)
 
         count = 0
         for other in other_repos:
+            # noinspection PyTypeChecker
             other_id = int(other.id)
             other_topics = _get_repo_topics(other)
             other_stars = stars_map.get(other_id)
@@ -266,15 +278,18 @@ class RecommenderService:
         使用批量預載 + 上三角矩陣避免重複計算，大幅降低 DB 查詢次數。
         回傳摘要統計。
         """
-        repos = db.query(Repo).all()
+        # noinspection PyTypeChecker
+        repos: List[Repo] = db.query(Repo).all()
         total = len(repos)
 
         if total < 2:
             return {"total_repos": total, "processed": total, "similarities_found": 0}
 
         # 1. 一次性載入所有 topics 與 stars（3 個查詢取代 3N 個）
+        # noinspection PyTypeChecker
         all_ids = [int(r.id) for r in repos]
         stars_map = build_stars_map(db, all_ids)
+        # noinspection PyTypeChecker
         topics_map: Dict[int, Set[str]] = {
             int(r.id): _get_repo_topics(r) for r in repos
         }
@@ -288,16 +303,18 @@ class RecommenderService:
             now = utc_now()
             similarities_found = 0
             batch: List[SimilarRepo] = []
-            FLUSH_SIZE = 500
+            flush_size = 500
 
             for i in range(total):
                 repo_a = repos[i]
+                # noinspection PyTypeChecker
                 id_a = int(repo_a.id)
                 topics_a = topics_map[id_a]
                 stars_a = stars_map.get(id_a)
 
                 for j in range(i + 1, total):
                     repo_b = repos[j]
+                    # noinspection PyTypeChecker
                     id_b = int(repo_b.id)
                     topics_b = topics_map[id_b]
                     stars_b = stars_map.get(id_b)
@@ -325,7 +342,7 @@ class RecommenderService:
                     similarities_found += 1
 
                     # 4. 每 FLUSH_SIZE 筆批量寫入
-                    if len(batch) >= FLUSH_SIZE:
+                    if len(batch) >= flush_size:
                         db.bulk_save_objects(batch)
                         batch.clear()
 
@@ -375,7 +392,8 @@ def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> List[dict]
 
 def calculate_repo_similarities(repo_id: int, db: Session) -> int:
     """計算 repo 相似度的便利函式。"""
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
+    # noinspection PyTypeChecker
+    repo: Optional[Repo] = db.query(Repo).filter(Repo.id == repo_id).first()
     if not repo:
         logger.warning(f"[推薦] 找不到 repo: {repo_id}")
         return 0

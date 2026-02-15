@@ -26,7 +26,7 @@ vi.mock("../../api/client", () => {
 
 // Import after mock setup
 import { searchRepos, ApiError } from "../../api/client";
-import { TranslationKeys } from "../../i18n/translations";
+import { TranslationKeys } from "../../i18n";
 const mockSearchRepos = vi.mocked(searchRepos);
 
 const mockT = {
@@ -151,7 +151,12 @@ describe("searchHelpers", () => {
       const abortError = new DOMException("Aborted", "AbortError");
       mockSearchRepos.mockRejectedValueOnce(abortError);
 
-      await expect(fetchSearchResults("react", {}, 1, mockT)).rejects.toThrow("Aborted");
+      try {
+        await fetchSearchResults("react", {}, 1, mockT);
+        expect.unreachable("Should have thrown");
+      } catch (err) {
+        expect((err as Error).message).toBe("Aborted");
+      }
     });
 
     it("returns rate limit error for 429 ApiError", async () => {

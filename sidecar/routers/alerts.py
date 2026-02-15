@@ -101,7 +101,7 @@ class SignalTypeInfo(BaseModel):
 
 # --- 輔助函式 ---
 
-def _to_alert_rule_response(rule: "AlertRule") -> AlertRuleResponse:
+def _to_alert_rule_response(rule: AlertRule) -> AlertRuleResponse:
     """將 AlertRule model 轉換為 AlertRuleResponse。"""
     return AlertRuleResponse(
         id=rule.id,
@@ -118,7 +118,7 @@ def _to_alert_rule_response(rule: "AlertRule") -> AlertRuleResponse:
     )
 
 
-def _to_triggered_alert_response(alert: "TriggeredAlert") -> TriggeredAlertResponse:
+def _to_triggered_alert_response(alert: TriggeredAlert) -> TriggeredAlertResponse:
     """將 TriggeredAlert model 轉換為 TriggeredAlertResponse。"""
     return TriggeredAlertResponse(
         id=alert.id,
@@ -184,12 +184,14 @@ async def list_rules(
     Args:
         skip: 跳過的紀錄數（預設 0）
         limit: 回傳的最大紀錄數（預設 100，上限 500）
+        db: 資料庫 session
     """
     # 限制上限以防止過量資料擷取
     limit = min(limit, 500)
 
     # 使用 joinedload 避免存取 rule.repo 時的 N+1 查詢
-    rules = (
+    # noinspection PyTypeChecker
+    rules: List[AlertRule] = (
         db.query(AlertRule)
         .options(joinedload(AlertRule.repo))
         .offset(skip)
@@ -231,7 +233,7 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
 @router.get("/rules/{rule_id}", response_model=AlertRuleResponse)
 async def get_rule(rule_id: int, db: Session = Depends(get_db)):
     """取得特定警報規則。"""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
@@ -241,7 +243,7 @@ async def get_rule(rule_id: int, db: Session = Depends(get_db)):
 @router.patch("/rules/{rule_id}", response_model=AlertRuleResponse)
 async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)):
     """更新警報規則。"""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
@@ -307,7 +309,8 @@ async def list_triggered_alerts(
     if unacknowledged_only:
         query = query.filter(TriggeredAlert.acknowledged.is_(False))
 
-    alerts = query.limit(limit).all()
+    # noinspection PyTypeChecker
+    alerts: List[TriggeredAlert] = query.limit(limit).all()
 
     return [_to_triggered_alert_response(alert) for alert in alerts]
 

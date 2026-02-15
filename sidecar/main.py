@@ -71,8 +71,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)
 
     # 啟動後立即抓取資料（不等第一個排程週期）
+    # 保留 task 參照以防止 GC 回收
     import asyncio
-    asyncio.ensure_future(trigger_fetch_now())
+    _startup_task = asyncio.create_task(trigger_fetch_now())
 
     logger.info(f"[啟動] StarScope Engine 已啟動 (ENV={ENV}, DEBUG={DEBUG})")
 
@@ -92,7 +93,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-async def _handle_rate_limit(_request: "Request", exc: Exception):
+def _handle_rate_limit(_request: "Request", exc: Exception):
     from fastapi.responses import JSONResponse
     detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(
@@ -165,22 +166,12 @@ app.add_middleware(
 )
 
 # 註冊 routers（prefix 與 tags 均定義在各 router 內部）
-app.include_router(health.router)
-app.include_router(repos.router)
-app.include_router(scheduler.router)
-app.include_router(alerts.router)
-app.include_router(trends.router)
-app.include_router(context.router)
-app.include_router(charts.router)
-app.include_router(recommendations.router)
-app.include_router(categories.router)
-app.include_router(early_signals.router)
-app.include_router(export.router)
-app.include_router(github_auth.router)
-app.include_router(discovery.router)
-app.include_router(commit_activity.router)
-app.include_router(languages.router)
-app.include_router(star_history.router)
+for _module in [
+    health, repos, scheduler, alerts, trends, context, charts,
+    recommendations, categories, early_signals, export, github_auth,
+    discovery, commit_activity, languages, star_history,
+]:
+    app.include_router(_module.router)
 
 
 @app.get("/")

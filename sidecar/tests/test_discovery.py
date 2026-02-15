@@ -2,7 +2,7 @@
 Tests for discovery (GitHub search) endpoints.
 """
 
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 
 from services.github import GitHubRateLimitError, GitHubAPIError
 
@@ -107,7 +107,7 @@ class TestDiscoverySearch:
         data = response.json()
         assert data["page"] == 3
         assert data["per_page"] == 5
-        assert data["has_more"] is True  # 3 * 5 = 15 < 100
+        assert data["has_more"] is True
 
     def test_search_rate_limit_returns_429(self, client):
         """Test that GitHub rate limit error returns 429."""

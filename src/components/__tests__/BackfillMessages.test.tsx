@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BackfillMessages } from "../BackfillMessages";
-import { TranslationKeys } from "../../i18n/translations";
+import { TranslationKeys } from "../../i18n";
 
 describe("BackfillMessages", () => {
   const defaultT = {

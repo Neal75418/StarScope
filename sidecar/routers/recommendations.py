@@ -113,6 +113,7 @@ async def recalculate_all(
     重新計算追蹤清單中所有 repo 的相似度分數。
     對於大型追蹤清單，此操作可能較慢。
     """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     result = recalculate_all_similarities(db)
 
     return RecalculateAllResponse(

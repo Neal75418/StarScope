@@ -128,9 +128,11 @@ def _create_snapshots_from_history(
             RepoSnapshot.repo_id == repo_id,
             RepoSnapshot.snapshot_date.in_(list(star_history.keys()))
         ).all()
+        # noinspection PyTypeChecker
         existing_map = {s.snapshot_date: s for s in existing_snapshots}
 
         for snapshot_date, stars in star_history.items():
+            # noinspection PyTypeChecker
             existing = existing_map.get(snapshot_date)
 
             if existing:
@@ -316,6 +318,7 @@ async def get_star_history(
         RepoSnapshot.repo_id == repo_id
     ).order_by(RepoSnapshot.snapshot_date.asc()).all()
 
+    # noinspection PyTypeChecker
     history = [
         StarHistoryPoint(date=s.snapshot_date, stars=s.stars)
         for s in snapshots

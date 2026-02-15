@@ -4,7 +4,7 @@
 
 import { TrendingPeriod } from "../components/discovery";
 import { searchRepos, SearchFilters, DiscoveryRepo, ApiError } from "../api/client";
-import { TranslationKeys } from "../i18n/translations";
+import { TranslationKeys } from "../i18n";
 
 export interface SearchResult {
   repos: DiscoveryRepo[];

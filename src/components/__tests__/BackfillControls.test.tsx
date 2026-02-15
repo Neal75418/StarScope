@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { BackfillControls } from "../BackfillControls";
-import { TranslationKeys } from "../../i18n/translations";
+import { TranslationKeys } from "../../i18n";
 
 const mockT = {
   starHistory: {

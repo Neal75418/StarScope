@@ -130,21 +130,25 @@ def _build_repo_list_response(
     # 套用分頁（未提供時返回全部，與舊行為一致）
     if page is not None and per_page is not None:
         offset = (page - 1) * per_page
-        repos = query.offset(offset).limit(per_page).all()
+        # noinspection PyTypeChecker
+        repos: List[Repo] = query.offset(offset).limit(per_page).all()
         total_pages = (total + per_page - 1) // per_page
     else:
-        repos = query.all()
+        # noinspection PyTypeChecker
+        repos: List[Repo] = query.all()
         total_pages = None
 
+    # noinspection PyTypeChecker
     repo_ids: List[int] = [r.id for r in repos]
     snapshot_map = build_snapshot_map(db, repo_ids)
     signal_map = build_signal_map(db, repo_ids)
 
+    # noinspection PyTypeChecker
     repos_with_signals = [
         _build_repo_with_signals(
             repo,
-            snapshot_map.get(int(repo.id)),
-            signal_map.get(int(repo.id), {})
+            snapshot_map.get(repo.id),
+            signal_map.get(repo.id, {})
         )
         for repo in repos
     ]
@@ -275,7 +279,9 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> Re
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
     """
-    repos = db.query(Repo).all()
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    # noinspection PyTypeChecker
+    repos: List[Repo] = db.query(Repo).all()
     github = GitHubService()
 
     for repo in repos:
@@ -288,11 +294,13 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> Re
 
         except GitHubNotFoundError:
             db.rollback()
-            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
+            full_name = repo.full_name  # type: ignore[assignment]
+            logger.warning(f"[Repo] {full_name} 在 GitHub 上找不到，跳過")
             continue
         except GitHubAPIError as e:
             db.rollback()
-            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+            full_name = repo.full_name  # type: ignore[assignment]
+            logger.error(f"[Repo] {full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
             continue
 
     return _build_repo_list_response(db)

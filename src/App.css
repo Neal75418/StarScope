@@ -3694,8 +3694,7 @@ a:focus-visible {
     z-index: 100;
     background-color: var(--bg-default);
     border-top: 1px solid var(--border-default);
-    padding: 4px 0;
-    padding-bottom: env(safe-area-inset-bottom, 4px);
+    padding: 4px 0 env(safe-area-inset-bottom, 4px);
   }
 
   .mobile-tab-item {

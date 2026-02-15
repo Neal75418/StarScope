@@ -43,6 +43,7 @@ def _get_existing_signal_map(
         ContextSignal.external_id.in_(external_ids)
     ).all()
 
+    # noinspection PyTypeChecker
     return {str(s.external_id): s for s in existing}
 
 
@@ -133,7 +134,8 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
     Returns:
         摘要統計字典
     """
-    repos = db.query(Repo).all()
+    # noinspection PyTypeChecker
+    repos: List[Repo] = db.query(Repo).all()
 
     total_hn = 0
     errors = 0

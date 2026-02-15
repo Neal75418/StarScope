@@ -124,7 +124,8 @@ async def get_languages(
     """
     repo = get_repo_or_404(repo_id, db)
 
-    languages = db.query(RepoLanguage).filter(
+    # noinspection PyTypeChecker
+    languages: List[RepoLanguage] = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id
     ).all()
 
@@ -166,7 +167,8 @@ async def get_languages_summary(
     """
     get_repo_or_404(repo_id, db)
 
-    languages = db.query(RepoLanguage).filter(
+    # noinspection PyTypeChecker
+    languages: List[RepoLanguage] = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id
     ).order_by(RepoLanguage.bytes.desc()).all()
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -5,6 +6,7 @@ import { Settings } from "../Settings";
 
 let mockAlertsReturn: Record<string, unknown>;
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../hooks/useAlertRules", () => ({
   useAlertRules: () => mockAlertsReturn,
 }));
@@ -36,10 +38,12 @@ vi.mock("../../components/ConfirmDialog", () => ({
     ) : null,
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/GitHubConnection", () => ({
   GitHubConnection: () => <div data-testid="github-connection">GitHub Connection</div>,
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/settings", () => ({
   ExportSection: () => <div data-testid="export-section">Export</div>,
   ImportSection: () => <div data-testid="import-section">Import</div>,
@@ -92,7 +96,7 @@ vi.mock("../../components/settings", () => ({
 }));
 
 vi.mock("../../components/motion", () => ({
-  AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
 }));

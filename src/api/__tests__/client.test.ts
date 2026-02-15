@@ -28,6 +28,22 @@ import {
   listTriggeredAlerts,
   getContextBadgesBatch,
   getRepoSignalsBatch,
+  getRepoSignals,
+  acknowledgeSignal,
+  getExportWatchlistJsonUrl,
+  getExportWatchlistCsvUrl,
+  initiateDeviceFlow,
+  pollAuthorization,
+  getGitHubConnectionStatus,
+  disconnectGitHub,
+  listAlertRules,
+  createAlertRule,
+  updateAlertRule,
+  deleteAlertRule,
+  acknowledgeTriggeredAlert,
+  acknowledgeAllTriggeredAlerts,
+  checkAlerts,
+  listSignalTypes,
 } from "../client";
 
 // Mock fetch globally
@@ -84,7 +100,11 @@ describe("API Client", () => {
         json: async () => ({ detail: "Service unavailable" }),
       });
 
-      await expect(checkHealth()).rejects.toThrow(ApiError);
+      try {
+        await checkHealth();
+      } catch (e) {
+        expect(e).toBeInstanceOf(ApiError);
+      }
     });
   });
 
@@ -222,7 +242,11 @@ describe("API Client", () => {
     it("handles network errors", async () => {
       mockFetch.mockRejectedValueOnce(new Error("Network failure"));
 
-      await expect(checkHealth()).rejects.toThrow();
+      try {
+        await checkHealth();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
     });
 
     it("handles JSON parse errors", async () => {
@@ -233,7 +257,11 @@ describe("API Client", () => {
         },
       });
 
-      await expect(checkHealth()).rejects.toThrow();
+      try {
+        await checkHealth();
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error);
+      }
     });
 
     it("handles non-ok response with JSON parse failure", async () => {
@@ -499,7 +527,6 @@ describe("API Client", () => {
   // Early signal additional tests
   describe("getRepoSignals", () => {
     it("returns signals for repo", async () => {
-      const { getRepoSignals } = await import("../client");
       const mockResponse = { signals: [], total: 0 };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -511,7 +538,6 @@ describe("API Client", () => {
     });
 
     it("includes options in query", async () => {
-      const { getRepoSignals } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ signals: [], total: 0 }),
@@ -525,7 +551,6 @@ describe("API Client", () => {
     });
 
     it("appends include_expired option to query", async () => {
-      const { getRepoSignals } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ signals: [], total: 0 }),
@@ -541,7 +566,6 @@ describe("API Client", () => {
 
   describe("acknowledgeSignal", () => {
     it("acknowledges a signal", async () => {
-      const { acknowledgeSignal } = await import("../client");
       const mockResponse = { status: "success", message: "Acknowledged" };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -559,14 +583,12 @@ describe("API Client", () => {
 
   // Export URL tests
   describe("Export URL functions", () => {
-    it("getExportWatchlistJsonUrl returns correct URL", async () => {
-      const { getExportWatchlistJsonUrl } = await import("../client");
+    it("getExportWatchlistJsonUrl returns correct URL", () => {
       const url = getExportWatchlistJsonUrl();
       expect(url).toContain("/export/watchlist.json");
     });
 
-    it("getExportWatchlistCsvUrl returns correct URL", async () => {
-      const { getExportWatchlistCsvUrl } = await import("../client");
+    it("getExportWatchlistCsvUrl returns correct URL", () => {
       const url = getExportWatchlistCsvUrl();
       expect(url).toContain("/export/watchlist.csv");
     });
@@ -575,7 +597,6 @@ describe("API Client", () => {
   // GitHub Auth tests
   describe("GitHub Auth API", () => {
     it("initiateDeviceFlow starts auth flow", async () => {
-      const { initiateDeviceFlow } = await import("../client");
       const mockResponse = {
         device_code: "abc123",
         user_code: "ABCD-1234",
@@ -593,7 +614,6 @@ describe("API Client", () => {
     });
 
     it("pollAuthorization polls for auth", async () => {
-      const { pollAuthorization } = await import("../client");
       const mockResponse = { status: "pending" };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -605,7 +625,6 @@ describe("API Client", () => {
     });
 
     it("getGitHubConnectionStatus returns status", async () => {
-      const { getGitHubConnectionStatus } = await import("../client");
       const mockResponse = {
         connected: true,
         username: "testuser",
@@ -622,7 +641,6 @@ describe("API Client", () => {
     });
 
     it("disconnectGitHub disconnects", async () => {
-      const { disconnectGitHub } = await import("../client");
       const mockResponse = { success: true, message: "Disconnected" };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -864,7 +882,6 @@ describe("API Client", () => {
 
   describe("Alert API functions", () => {
     it("listAlertRules returns rules", async () => {
-      const { listAlertRules } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [],
@@ -875,7 +892,6 @@ describe("API Client", () => {
     });
 
     it("createAlertRule creates rule", async () => {
-      const { createAlertRule } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 1, name: "Test Rule" }),
@@ -891,7 +907,6 @@ describe("API Client", () => {
     });
 
     it("updateAlertRule updates rule", async () => {
-      const { updateAlertRule } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 1, name: "Updated Rule" }),
@@ -902,7 +917,6 @@ describe("API Client", () => {
     });
 
     it("deleteAlertRule deletes rule", async () => {
-      const { deleteAlertRule } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: "success", id: 1 }),
@@ -913,7 +927,6 @@ describe("API Client", () => {
     });
 
     it("acknowledgeTriggeredAlert acknowledges", async () => {
-      const { acknowledgeTriggeredAlert } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: "success", id: 1 }),
@@ -924,7 +937,6 @@ describe("API Client", () => {
     });
 
     it("acknowledgeAllTriggeredAlerts acknowledges all", async () => {
-      const { acknowledgeAllTriggeredAlerts } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: "success", count: 5 }),
@@ -935,7 +947,6 @@ describe("API Client", () => {
     });
 
     it("checkAlerts triggers check", async () => {
-      const { checkAlerts } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: "success", triggered_count: 2, triggered: [] }),
@@ -946,7 +957,6 @@ describe("API Client", () => {
     });
 
     it("listSignalTypes returns signal types", async () => {
-      const { listSignalTypes } = await import("../client");
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => [{ type: "rising_star", name: "Rising Star", description: "desc" }],

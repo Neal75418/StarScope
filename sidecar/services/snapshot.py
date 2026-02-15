@@ -5,7 +5,7 @@
 以防止時序耦合問題。
 """
 
-from typing import Dict
+from typing import Dict, Optional
 
 from sqlalchemy.orm import Session
 
@@ -27,7 +27,8 @@ def create_or_update_snapshot(repo: Repo, github_data: Dict, db: Session) -> Rep
     （GitHub API 中訂閱通知者的正確欄位）。
     """
     today = utc_today()
-    existing_snapshot = (
+    # noinspection PyTypeChecker
+    existing_snapshot: Optional[RepoSnapshot] = (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
         .first()

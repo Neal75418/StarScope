@@ -2,7 +2,7 @@
  * Backfill 狀態徽章，顯示是否已有回填資料。
  */
 
-import { TranslationKeys } from "../i18n/translations";
+import { TranslationKeys } from "../i18n";
 
 interface BackfillStatusBadgeProps {
   status: {

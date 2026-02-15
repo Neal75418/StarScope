@@ -77,6 +77,7 @@ async def get_stars_chart(
         .all()
     )
 
+    # noinspection PyTypeChecker
     data_points = [
         ChartDataPoint(
             date=s.snapshot_date,
@@ -95,6 +96,7 @@ async def get_stars_chart(
         min_stars = 0
         max_stars = 0
 
+    # noinspection PyTypeChecker
     return StarsChartResponse(
         repo_id=repo_id,
         repo_name=repo.full_name,

@@ -148,6 +148,7 @@ async def get_context_badges(
         .first()
     )
     if top_hn and top_hn.score and top_hn.score >= MIN_HN_SCORE_FOR_BADGE:
+        # noinspection PyTypeChecker
         badges.append(ContextBadge(
             type="hn",
             label=f"HN: {top_hn.score} pts",
@@ -233,6 +234,7 @@ async def get_context_badges_batch(
     results: Dict[str, ContextBadgesResponse] = {}
     for signal in top_signals:
         if signal.score and signal.score >= MIN_HN_SCORE_FOR_BADGE:
+            # noinspection PyTypeChecker
             badge = ContextBadge(
                 type="hn",
                 label=f"HN: {signal.score} pts",
@@ -240,6 +242,7 @@ async def get_context_badges_batch(
                 score=signal.score,
                 is_recent=_is_recent(signal.published_at),
             )
+            # noinspection PyTypeChecker
             results[str(signal.repo_id)] = ContextBadgesResponse(
                 badges=[badge], repo_id=signal.repo_id
             )

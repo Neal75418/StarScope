@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -64,11 +65,12 @@ vi.mock("../../hooks/useDashboard", () => ({
   useDashboard: () => mockDashboard,
 }));
 
+// noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/motion", () => ({
-  AnimatedPage: ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (
     <div className={className}>{children}</div>
   ),
-  FadeIn: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  FadeIn: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("../../components/Skeleton", () => ({

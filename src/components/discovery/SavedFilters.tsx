@@ -2,6 +2,7 @@
  * 已儲存篩選條件的下拉選單，快速套用篩選預設。
  */
 
+import type React from "react";
 import { useState, useCallback, useRef, useEffect, memo } from "react";
 import { useI18n } from "../../i18n";
 import { useSavedFilters, SavedFilter } from "../../hooks/useSavedFilters";

@@ -21,6 +21,14 @@ function pressTab(shiftKey = false) {
   document.dispatchEvent(event);
 }
 
+function renderTrap(container: HTMLDivElement, isActive: boolean, autoFocus?: boolean) {
+  return renderHook(() => {
+    const ref = useFocusTrap(isActive, autoFocus);
+    (ref as { current: HTMLDivElement | null }).current = container;
+    return ref;
+  });
+}
+
 describe("useFocusTrap", () => {
   afterEach(() => {
     // Clean up DOM by removing all children
@@ -39,11 +47,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "input", "button");
     const firstBtn = container.querySelectorAll("button")[0];
 
-    renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true);
 
     expect(document.activeElement).toBe(firstBtn);
   });
@@ -52,11 +56,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "input");
     document.body.focus();
 
-    renderHook(() => {
-      const ref = useFocusTrap(true, false);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true, false);
 
     expect(document.activeElement).not.toBe(container.querySelector("button"));
   });
@@ -65,11 +65,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "button");
     const buttons = container.querySelectorAll("button");
 
-    renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true);
 
     act(() => {
       buttons[1].focus();
@@ -86,11 +82,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "button");
     const buttons = container.querySelectorAll("button");
 
-    renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true);
 
     act(() => {
       buttons[0].focus();
@@ -106,11 +98,7 @@ describe("useFocusTrap", () => {
   it("does nothing when not active", () => {
     const container = createContainer("button", "button");
 
-    renderHook(() => {
-      const ref = useFocusTrap(false);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, false);
 
     expect(document.activeElement).toBe(document.body);
   });
@@ -119,11 +107,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "button");
     const buttons = container.querySelectorAll("button");
 
-    renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true);
 
     act(() => {
       buttons[1].focus();
@@ -144,11 +128,7 @@ describe("useFocusTrap", () => {
     container.appendChild(span);
     document.body.appendChild(container);
 
-    renderHook(() => {
-      const ref = useFocusTrap(true, false);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true, false);
 
     // Should not throw
     act(() => {
@@ -167,11 +147,7 @@ describe("useFocusTrap", () => {
     });
     expect(document.activeElement).toBe(externalBtn);
 
-    const { unmount } = renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    const { unmount } = renderTrap(container, true);
 
     expect(document.activeElement).toBe(container.querySelector("button"));
 
@@ -185,11 +161,7 @@ describe("useFocusTrap", () => {
     const container = createContainer("button", "input", "button");
     const input = container.querySelector("input");
 
-    renderHook(() => {
-      const ref = useFocusTrap(true);
-      (ref as { current: HTMLDivElement | null }).current = container;
-      return ref;
-    });
+    renderTrap(container, true);
 
     act(() => {
       input?.focus();

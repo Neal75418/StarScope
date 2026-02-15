@@ -50,6 +50,7 @@ async def search_repos(
     - 未認證：10 次/分鐘
     - 已認證：30 次/分鐘
     """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     github = get_github_service()
 
     try:

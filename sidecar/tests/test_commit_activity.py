@@ -2,8 +2,10 @@
 Tests for commit activity endpoints.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date
 from unittest.mock import patch, AsyncMock
+
+import pytest
 
 from db.models import CommitActivity
 from utils.time import utc_now
@@ -128,7 +130,7 @@ class TestFetchCommitActivity:
         assert data["repo_id"] == mock_repo.id
         assert data["weeks"] == []
         assert data["total_commits_52w"] == 0
-        assert data["avg_commits_per_week"] == 0.0
+        assert data["avg_commits_per_week"] == pytest.approx(0.0)
 
     def test_fetch_repo_not_found(self, client):
         """Test fetching commit activity for nonexistent repo returns 404."""

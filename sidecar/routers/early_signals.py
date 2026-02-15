@@ -72,6 +72,7 @@ class DetectionResultResponse(BaseModel):
 # 輔助函式
 def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
     """將 EarlySignal model 轉換為回應。自動映射同名欄位。"""
+    # noinspection PyTypeChecker
     return EarlySignalResponse(
         **{
             field: getattr(signal, field)
@@ -113,7 +114,8 @@ async def list_early_signals(
             (EarlySignal.expires_at == None) | (EarlySignal.expires_at > utc_now())
         )
 
-    signals = query.order_by(
+    # noinspection PyTypeChecker
+    signals: List[EarlySignal] = query.order_by(
         _SEVERITY_ORDER,  # High severity first
         EarlySignal.detected_at.desc()
     ).limit(limit).all()
@@ -148,7 +150,8 @@ async def get_repo_signals(
             (EarlySignal.expires_at == None) | (EarlySignal.expires_at > utc_now())
         )
 
-    signals = query.order_by(EarlySignal.detected_at.desc()).all()
+    # noinspection PyTypeChecker
+    signals: List[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
 
     return EarlySignalListResponse(
         signals=[_signal_to_response(s) for s in signals],
@@ -305,7 +308,8 @@ async def get_repo_signals_batch(
         return BatchSignalsResponse(results={})
 
     now = utc_now()
-    signals = db.query(EarlySignal).options(
+    # noinspection PyTypeChecker
+    signals: List[EarlySignal] = db.query(EarlySignal).options(
         joinedload(EarlySignal.repo)
     ).filter(
         EarlySignal.repo_id.in_(repo_ids),
@@ -319,9 +323,10 @@ async def get_repo_signals_batch(
     # 按 repo_id 分組
     grouped: Dict[int, List[EarlySignalResponse]] = {}
     for s in signals:
-        if s.repo_id not in grouped:
-            grouped[s.repo_id] = []
-        grouped[s.repo_id].append(_signal_to_response(s))
+        rid: int = s.repo_id  # type: ignore[assignment]  # InstrumentedAttribute → int
+        if rid not in grouped:
+            grouped[rid] = []
+        grouped[rid].append(_signal_to_response(s))
 
     # 組裝結果（含空結果 repo）
     results: Dict[str, EarlySignalListResponse] = {}

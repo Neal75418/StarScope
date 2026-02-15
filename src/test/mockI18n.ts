@@ -4,7 +4,7 @@
  * Individual tests can override with vi.mock if needed.
  */
 
-import { translations } from "../i18n/translations";
+import { translations } from "../i18n";
 
 export function createI18nMock(setLanguageFn: () => void = () => {}) {
   return {

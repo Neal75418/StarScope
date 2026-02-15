@@ -14,15 +14,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
+from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
 from db.database import DATABASE_URL, get_db_session
 from db.models import Repo, RepoSnapshot
+from services.context_fetcher import fetch_all_context_signals
 from services.github import fetch_repo_data, GitHubAPIError
 from services.snapshot import update_repo_from_github
-from services.context_fetcher import fetch_all_context_signals
 from utils.time import utc_now
-from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
 
 logger = logging.getLogger(__name__)
 
