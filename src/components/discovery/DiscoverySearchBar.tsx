@@ -2,7 +2,7 @@
  * Discovery 頁面的搜尋列元件。
  */
 
-import { useState, useCallback, FormEvent } from "react";
+import { useState, useCallback, useEffect, FormEvent } from "react";
 import { SearchIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
@@ -20,6 +20,11 @@ export function DiscoverySearchBar({
 }: DiscoverySearchBarProps) {
   const { t } = useI18n();
   const [query, setQuery] = useState(initialQuery);
+
+  // 當父層重置 keyword 時同步內部狀態（例如 "Clear All"）
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const handleSubmit = useCallback(
     (e: FormEvent) => {

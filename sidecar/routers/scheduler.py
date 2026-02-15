@@ -4,9 +4,10 @@
 
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from middleware.rate_limit import limiter
 from services.scheduler import (
     get_scheduler_status,
     start_scheduler,
@@ -36,13 +37,15 @@ class SchedulerStatus(BaseModel):
 
 
 @router.get("/status", response_model=SchedulerStatus)
-async def get_status():
+@limiter.limit("30/minute")
+async def get_status(request: Request):
     """取得目前排程器狀態。"""
     return get_scheduler_status()
 
 
 @router.post("/start")
-async def start(config: SchedulerConfig = SchedulerConfig()):
+@limiter.limit("5/minute")
+async def start(request: Request, config: SchedulerConfig = SchedulerConfig()):
     """以指定設定啟動排程器。"""
     try:
         start_scheduler(fetch_interval_minutes=config.fetch_interval_minutes)
@@ -55,7 +58,8 @@ async def start(config: SchedulerConfig = SchedulerConfig()):
 
 
 @router.post("/stop")
-async def stop():
+@limiter.limit("5/minute")
+async def stop(request: Request):
     """停止排程器。"""
     try:
         stop_scheduler()
@@ -65,7 +69,8 @@ async def stop():
 
 
 @router.post("/fetch-now")
-async def fetch_now():
+@limiter.limit("5/minute")
+async def fetch_now(request: Request):
     """觸發立即抓取所有 repo。"""
     try:
         await trigger_fetch_now()
