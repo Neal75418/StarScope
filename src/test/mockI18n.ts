@@ -4,7 +4,10 @@
  * Individual tests can override with vi.mock if needed.
  */
 
-import { translations } from "../i18n";
+// Import directly from translations module, NOT the barrel (../i18n).
+// The barrel is globally mocked by setup.ts — importing it here would
+// create a circular dependency that deadlocks vitest.
+import { translations } from "../i18n/translations";
 
 export function createI18nMock(setLanguageFn: () => void = () => {}) {
   return {
