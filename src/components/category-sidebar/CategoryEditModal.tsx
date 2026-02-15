@@ -43,8 +43,19 @@ export function CategoryEditModal({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal category-edit-modal" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+      role="presentation"
+    >
+      <div
+        className="modal category-edit-modal"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="modal-header">
           <h3>{t.categories.editCategory}</h3>
           <button className="modal-close" onClick={onClose}>

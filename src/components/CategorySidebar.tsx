@@ -113,6 +113,14 @@ export const CategorySidebar = memo(function CategorySidebar({
         <div
           className={`category-item all-repos ${selectedCategoryId === null ? "selected" : ""}`}
           onClick={() => onSelectCategory(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onSelectCategory(null);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           <span className="category-expand-spacer" />
           <span className="category-name">{t.categories.allRepos}</span>

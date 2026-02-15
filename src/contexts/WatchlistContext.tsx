@@ -110,6 +110,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // 分類切換用 AbortController，防止快速切換時競態
+  const categoryAbortRef = useRef<AbortController | null>(null);
+
   // 用 ref 持有 showToast，讓 toast 便利方法不依賴自身
   const showToastFn = useCallback((type: ToastMessage["type"], message: string) => {
     const id = generateId();
@@ -241,24 +244,29 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
       // 篩選操作
       setCategory: async (categoryId: number | null) => {
+        // 取消前一個分類請求，防止快速切換時競態
+        categoryAbortRef.current?.abort();
+        categoryAbortRef.current = null;
+
         dispatch({ type: "SET_CATEGORY", payload: { categoryId } });
 
         if (categoryId === null) return;
 
+        const controller = new AbortController();
+        categoryAbortRef.current = controller;
+
         try {
-          const response = await getCategoryRepos(categoryId);
-          // 防競態：確認 selectedCategoryId 仍為當前值
-          if (stateRef.current.filters.selectedCategoryId === categoryId) {
+          const response = await getCategoryRepos(categoryId, controller.signal);
+          if (!controller.signal.aborted) {
             dispatch({
               type: "SET_CATEGORY_REPOS",
               payload: { repoIds: response.repos.map((r) => r.id) },
             });
           }
         } catch (err) {
+          if (controller.signal.aborted) return;
           logger.error("[Watchlist] 分類 Repo 載入失敗:", err);
-          if (stateRef.current.filters.selectedCategoryId === categoryId) {
-            dispatch({ type: "SET_CATEGORY_REPOS", payload: { repoIds: null } });
-          }
+          dispatch({ type: "SET_CATEGORY_REPOS", payload: { repoIds: null } });
         }
       },
 

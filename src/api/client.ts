@@ -384,8 +384,11 @@ export async function deleteCategory(
 /**
  * 取得分類中的儲存庫。
  */
-export async function getCategoryRepos(categoryId: number): Promise<CategoryReposResponse> {
-  return apiCall<CategoryReposResponse>(`/categories/${categoryId}/repos`);
+export async function getCategoryRepos(
+  categoryId: number,
+  signal?: AbortSignal
+): Promise<CategoryReposResponse> {
+  return apiCall<CategoryReposResponse>(`/categories/${categoryId}/repos`, { signal });
 }
 
 /**

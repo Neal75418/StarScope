@@ -2,7 +2,7 @@
  * OAuth Device Flow 輪詢邏輯。
  */
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { pollAuthorization, GitHubConnectionStatus } from "../api/client";
 import { useI18n, interpolate } from "../i18n";
 import { usePollingRefs } from "./usePollingRefs";
@@ -36,6 +36,7 @@ export function useDeviceFlowPolling({
   const { pollIntervalRef, pollTimeoutRef, currentIntervalRef, stopPolling, resetInterval } =
     usePollingRefs();
   const codeRef = useRef<string>("");
+  const initialDelayRef = useRef<number | null>(null);
 
   const handleSuccess = useCallback(
     (username?: string) => {
@@ -121,7 +122,7 @@ export function useDeviceFlowPolling({
         }
       };
 
-      setTimeout(doPoll, DEVICE_FLOW_INITIAL_DELAY_MS);
+      initialDelayRef.current = window.setTimeout(doPoll, DEVICE_FLOW_INITIAL_DELAY_MS);
       pollIntervalRef.current = window.setInterval(doPoll, currentIntervalRef.current * 1000);
     },
     [
@@ -137,6 +138,15 @@ export function useDeviceFlowPolling({
       restartWithNewInterval,
     ]
   );
+
+  // 元件卸載時清理 initialDelay timeout
+  useEffect(() => {
+    return () => {
+      if (initialDelayRef.current !== null) {
+        clearTimeout(initialDelayRef.current);
+      }
+    };
+  }, []);
 
   return { startPolling, stopPolling, resetInterval };
 }

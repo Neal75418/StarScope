@@ -2,6 +2,7 @@
  * Dashboard 頁面，總覽追蹤中的 repo 與關鍵指標。
  */
 
+import { memo, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { EarlySignal, SignalSummary } from "../api/client";
@@ -35,7 +36,7 @@ function StatCard({
 }
 
 // 統計數據網格
-function StatsGrid({ stats }: { stats: DashboardStats }) {
+const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) {
   const { t } = useI18n();
 
   return (
@@ -54,10 +55,10 @@ function StatsGrid({ stats }: { stats: DashboardStats }) {
       />
     </div>
   );
-}
+});
 
 // Signal Spotlight — 早期訊號焦點
-function SignalSpotlight({
+const SignalSpotlight = memo(function SignalSpotlight({
   signals,
   summary,
   onAcknowledge,
@@ -68,17 +69,20 @@ function SignalSpotlight({
 }) {
   const { t } = useI18n();
 
+  const signalTypeLabels = useMemo<Record<string, string>>(
+    () => ({
+      rising_star: t.dashboard.signals.types.risingStar,
+      sudden_spike: t.dashboard.signals.types.suddenSpike,
+      breakout: t.dashboard.signals.types.breakout,
+      viral_hn: t.dashboard.signals.types.viralHn,
+      release_surge: t.dashboard.signals.types.releaseSurge,
+    }),
+    [t]
+  );
+
   if (!summary || summary.total_active === 0) {
     return null;
   }
-
-  const signalTypeLabels: Record<string, string> = {
-    rising_star: t.dashboard.signals.types.risingStar,
-    sudden_spike: t.dashboard.signals.types.suddenSpike,
-    breakout: t.dashboard.signals.types.breakout,
-    viral_hn: t.dashboard.signals.types.viralHn,
-    release_surge: t.dashboard.signals.types.releaseSurge,
-  };
 
   return (
     <div className="dashboard-section signal-spotlight">
@@ -138,10 +142,14 @@ function SignalSpotlight({
       )}
     </div>
   );
-}
+});
 
 // Velocity 分佈圖表
-function VelocityChart({ data }: { data: { key: string; count: number }[] }) {
+const VelocityChart = memo(function VelocityChart({
+  data,
+}: {
+  data: { key: string; count: number }[];
+}) {
   const { t } = useI18n();
   const maxCount = Math.max(...data.map((d) => d.count), 1);
 
@@ -167,10 +175,14 @@ function VelocityChart({ data }: { data: { key: string; count: number }[] }) {
       </div>
     </div>
   );
-}
+});
 
 // 近期活動列表
-function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
+const RecentActivityList = memo(function RecentActivityList({
+  activities,
+}: {
+  activities: RecentActivity[];
+}) {
   const { t } = useI18n();
 
   const getActivityIcon = (type: RecentActivity["type"]): string => {
@@ -214,7 +226,7 @@ function RecentActivityList({ activities }: { activities: RecentActivity[] }) {
       </div>
     </div>
   );
-}
+});
 
 // Dashboard 主元件
 export function Dashboard() {

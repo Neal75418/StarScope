@@ -27,7 +27,9 @@ class GitHubAPIError(Exception):
 
 class GitHubRateLimitError(GitHubAPIError):
     """GitHub API 速率限制超過時拋出。"""
-    pass
+    def __init__(self, message: str, status_code: Optional[int] = None, reset_at: Optional[int] = None):
+        super().__init__(message, status_code)
+        self.reset_at = reset_at  # Unix timestamp of rate limit reset
 
 
 class GitHubNotFoundError(GitHubAPIError):
@@ -78,10 +80,13 @@ def handle_github_response(
 
     if response.status_code == 403:
         remaining = response.headers.get("X-RateLimit-Remaining", "unknown")
+        reset_at_raw = response.headers.get("X-RateLimit-Reset")
+        reset_at = int(reset_at_raw) if reset_at_raw else None
         if raise_on_error:
             raise GitHubRateLimitError(
                 f"GitHub API rate limit exceeded (remaining: {remaining})",
-                status_code=403
+                status_code=403,
+                reset_at=reset_at,
             )
         logger.warning(f"[GitHub API] 速率限制或禁止存取: {context}")
         return None

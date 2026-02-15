@@ -2,6 +2,7 @@
  * Star 歷史圖表，使用 Recharts 繪製。
  */
 
+import { useMemo } from "react";
 import {
   LineChart,
   Line,
@@ -95,12 +96,15 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
   const { t } = useI18n();
 
-  const timeRangeLabels: Record<TimeRange, string> = {
-    "7d": t.chart.timeRange["7d"],
-    "30d": t.chart.timeRange["30d"],
-    "90d": t.chart.timeRange["90d"],
-    all: t.chart.timeRange.all,
-  };
+  const timeRangeLabels = useMemo<Record<TimeRange, string>>(
+    () => ({
+      "7d": t.chart.timeRange["7d"],
+      "30d": t.chart.timeRange["30d"],
+      "90d": t.chart.timeRange["90d"],
+      all: t.chart.timeRange.all,
+    }),
+    [t]
+  );
 
   if (loading) {
     return <div className="chart-loading">{t.chart.loading}</div>;

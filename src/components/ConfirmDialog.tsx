@@ -61,6 +61,7 @@ export function ConfirmDialog({
         ref={focusTrapRef}
         className="dialog confirm-dialog"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}

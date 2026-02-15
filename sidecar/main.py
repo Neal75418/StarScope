@@ -5,6 +5,7 @@ StarScope Python Sidecar。
 
 import os
 import logging
+import time
 import uvicorn
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -113,10 +114,15 @@ async def github_not_found_handler(_request: Request, exc: GitHubNotFoundError):
 
 
 @app.exception_handler(GitHubRateLimitError)
-async def github_rate_limit_handler(_request: Request, _exc: GitHubRateLimitError):
+async def github_rate_limit_handler(_request: Request, exc: GitHubRateLimitError):
+    headers = {}
+    if exc.reset_at:
+        retry_after = max(0, exc.reset_at - int(time.time()))
+        headers["Retry-After"] = str(retry_after)
     return JSONResponse(
         status_code=429,
         content={"detail": "GitHub API rate limit exceeded. Please try again later."},
+        headers=headers,
     )
 
 

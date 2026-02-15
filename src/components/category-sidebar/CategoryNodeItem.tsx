@@ -36,6 +36,14 @@ export function CategoryNodeItem({
       className={`category-item ${isSelected ? "selected" : ""}`}
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
       onClick={() => onSelect(node.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(node.id);
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       {hasChildren ? (
         <button

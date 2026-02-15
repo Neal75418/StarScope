@@ -46,6 +46,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
         ref={focusTrapRef}
         className="dialog"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="add-repo-dialog-title"

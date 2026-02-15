@@ -59,14 +59,13 @@ export async function cachedRequest<T>(
   // 建立新請求
   const promise = fetchFn()
     .then((data) => {
-      const timestamp = Date.now();
-      // 快取回應
-      cache.set(key, { data, timestamp, lastAccessed: timestamp });
-
-      // LRU 淘汰策略：當超過閾值時，批量清理到目標大小
-      if (cache.size > EVICTION_THRESHOLD) {
+      // LRU 淘汰策略：插入前檢查，避免暫時超出上限
+      if (cache.size >= EVICTION_THRESHOLD) {
         evictLRU();
       }
+
+      const timestamp = Date.now();
+      cache.set(key, { data, timestamp, lastAccessed: timestamp });
 
       return data;
     })

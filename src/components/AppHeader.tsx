@@ -73,7 +73,7 @@ export function AppHeader({
   const themeTitle = isDark
     ? t.settings.appearance.switchToLight
     : t.settings.appearance.switchToDark;
-  const langTitle = isEnglish ? "切換為繁體中文" : "Switch to English";
+  const langTitle = t.settings.appearance.switchLanguage;
 
   return (
     <>
@@ -84,17 +84,10 @@ export function AppHeader({
         <nav className="nav-container">
           {/* 左側：Logo 與導覽 */}
           <div className="nav-left">
-            <a
-              href="#"
-              className="nav-logo"
-              onClick={(e) => {
-                e.preventDefault();
-                onPageChange("dashboard");
-              }}
-            >
+            <button className="nav-logo" onClick={() => onPageChange("dashboard")}>
               <StarIcon size={32} className="logo-icon" />
               <span className="logo-text">StarScope</span>
-            </a>
+            </button>
 
             <div className="nav-items" role="navigation" aria-label="Main navigation">
               {navItems.map((item) => (
