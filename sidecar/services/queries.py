@@ -143,7 +143,7 @@ def build_stars_map(
         .all()
     )
 
-    return dict(results)  # type: ignore[misc]
+    return dict(results)  # type: ignore[arg-type]
 
 
 def get_snapshot_for_repo(

@@ -135,7 +135,7 @@ def _build_repo_list_response(
         total_pages = (total + per_page - 1) // per_page
     else:
         # noinspection PyTypeChecker
-        repos: List[Repo] = query.all()
+        repos = query.all()
         total_pages = None
 
     # noinspection PyTypeChecker
