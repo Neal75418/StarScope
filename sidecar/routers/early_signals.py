@@ -15,6 +15,7 @@ from db.database import get_db
 from db.models import EarlySignal, Repo
 from services.anomaly_detector import run_detection
 from utils.time import utc_now
+from schemas.response import ApiResponse, success_response, StatusResponse
 
 router = APIRouter(prefix="/api/early-signals", tags=["early-signals"])
 
@@ -85,7 +86,7 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
 
 
 # 端點
-@router.get("/", response_model=EarlySignalListResponse)
+@router.get("/", response_model=ApiResponse[List[EarlySignalResponse]])
 async def list_early_signals(
     signal_type: Optional[str] = Query(None, description="Filter by signal type"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
@@ -93,7 +94,7 @@ async def list_early_signals(
     include_expired: bool = Query(False, description="Include expired signals"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     列出所有早期訊號。
     預設僅顯示活躍且未確認的訊號。
@@ -120,19 +121,20 @@ async def list_early_signals(
         EarlySignal.detected_at.desc()
     ).limit(limit).all()
 
-    return EarlySignalListResponse(
-        signals=[_signal_to_response(s) for s in signals],
-        total=len(signals),
+    signal_responses = [_signal_to_response(s) for s in signals]
+    return success_response(
+        data=signal_responses,
+        message=f"Found {len(signal_responses)} early signals"
     )
 
 
-@router.get("/repo/{repo_id}", response_model=EarlySignalListResponse)
+@router.get("/repo/{repo_id}", response_model=ApiResponse[List[EarlySignalResponse]])
 async def get_repo_signals(
     repo_id: int,
     include_acknowledged: bool = Query(False),
     include_expired: bool = Query(False),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得特定 repo 的早期訊號。
     """
@@ -153,16 +155,17 @@ async def get_repo_signals(
     # noinspection PyTypeChecker
     signals: List[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
 
-    return EarlySignalListResponse(
-        signals=[_signal_to_response(s) for s in signals],
-        total=len(signals),
+    signal_responses = [_signal_to_response(s) for s in signals]
+    return success_response(
+        data=signal_responses,
+        message=f"Found {len(signal_responses)} signals for repository {repo.full_name}"
     )
 
 
-@router.get("/summary", response_model=SignalSummary)
+@router.get("/summary", response_model=ApiResponse[SignalSummary])
 async def get_signal_summary(
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得活躍訊號的摘要統計。
     """
@@ -199,19 +202,23 @@ async def get_signal_summary(
         EarlySignal.repo_id
     ).distinct().count()
 
-    return SignalSummary(
+    summary = SignalSummary(
         total_active=total_active,
         by_type=by_type,
         by_severity=by_severity,
         repos_with_signals=repos_with_signals,
     )
+    return success_response(
+        data=summary,
+        message=f"{total_active} active signals across {repos_with_signals} repositories"
+    )
 
 
-@router.post("/{signal_id}/acknowledge")
+@router.post("/{signal_id}/acknowledge", response_model=ApiResponse[StatusResponse])
 async def acknowledge_signal(
     signal_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     確認早期訊號（標記為已檢視）。
     """
@@ -223,14 +230,17 @@ async def acknowledge_signal(
     signal.acknowledged_at = utc_now()
     db.commit()
 
-    return {"status": "ok", "message": "Signal acknowledged"}
+    return success_response(
+        data=StatusResponse(status="ok", id=signal_id),
+        message="Signal acknowledged"
+    )
 
 
-@router.post("/acknowledge-all")
+@router.post("/acknowledge-all", response_model=ApiResponse[StatusResponse])
 async def acknowledge_all_signals(
     signal_type: Optional[str] = Query(None),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     確認所有活躍訊號。
     可選擇依訊號類型篩選。
@@ -247,30 +257,37 @@ async def acknowledge_all_signals(
     })
     db.commit()
 
-    return {"status": "ok", "message": f"{count} signals acknowledged"}
+    return success_response(
+        data=StatusResponse(status="ok", count=count),
+        message=f"{count} signals acknowledged"
+    )
 
 
-@router.post("/detect", response_model=DetectionResultResponse)
+@router.post("/detect", response_model=ApiResponse[DetectionResultResponse])
 async def trigger_detection(
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     手動觸發所有 repo 的異常偵測。
     """
     result = run_detection(db)
 
-    return DetectionResultResponse(
+    detection_result = DetectionResultResponse(
         repos_scanned=result["repos_scanned"],
         signals_detected=result["signals_detected"],
         by_type=result["by_type"],
     )
+    return success_response(
+        data=detection_result,
+        message=f"Scanned {result['repos_scanned']} repositories, detected {result['signals_detected']} signals"
+    )
 
 
-@router.delete("/{signal_id}")
+@router.delete("/{signal_id}", response_model=ApiResponse[StatusResponse])
 async def delete_signal(
     signal_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     刪除早期訊號。
     """
@@ -281,7 +298,10 @@ async def delete_signal(
     db.delete(signal)
     db.commit()
 
-    return {"status": "ok", "message": "Signal deleted"}
+    return success_response(
+        data=StatusResponse(status="ok", id=signal_id),
+        message="Signal deleted"
+    )
 
 
 class BatchSignalsRequest(BaseModel):
@@ -294,18 +314,18 @@ class BatchSignalsResponse(BaseModel):
     results: Dict[str, EarlySignalListResponse]
 
 
-@router.post("/batch", response_model=BatchSignalsResponse)
+@router.post("/batch", response_model=ApiResponse[Dict[str, List[EarlySignalResponse]]])
 async def get_repo_signals_batch(
     request: BatchSignalsRequest,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     批次取得多個 repo 的早期訊號。
     用單一查詢取代 N 次個別請求。
     """
     repo_ids = request.repo_ids
     if not repo_ids:
-        return BatchSignalsResponse(results={})
+        return success_response(data={}, message="No repositories requested")
 
     now = utc_now()
     # noinspection PyTypeChecker
@@ -329,11 +349,13 @@ async def get_repo_signals_batch(
         grouped[rid].append(_signal_to_response(s))
 
     # 組裝結果（含空結果 repo）
-    results: Dict[str, EarlySignalListResponse] = {}
+    results: Dict[str, List[EarlySignalResponse]] = {}
     for rid in repo_ids:
         signal_list = grouped.get(rid, [])
-        results[str(rid)] = EarlySignalListResponse(
-            signals=signal_list, total=len(signal_list)
-        )
+        results[str(rid)] = signal_list
 
-    return BatchSignalsResponse(results=results)
+    total_signals = sum(len(signals) for signals in results.values())
+    return success_response(
+        data=results,
+        message=f"Retrieved signals for {len(repo_ids)} repositories ({total_signals} total signals)"
+    )
