@@ -15,6 +15,7 @@ from db.database import get_db
 from db.models import Category, RepoCategory
 from routers.dependencies import get_repo_or_404
 from utils.time import utc_now
+from schemas.response import ApiResponse, success_response, StatusResponse
 
 # 錯誤訊息常數
 ERROR_CATEGORY_NOT_FOUND = "Category not found"
@@ -102,6 +103,22 @@ class CategoryReposResponse(BaseModel):
     category_id: int
     category_name: str
     repos: List[RepoCategoryResponse]
+    total: int
+
+
+class RepoCategoryItem(BaseModel):
+    """repo 的分類項目。"""
+    id: int
+    name: str
+    icon: Optional[str]
+    color: Optional[str]
+    added_at: Optional[str]
+
+
+class RepoCategoriesResponse(BaseModel):
+    """repo 所屬分類的回應。"""
+    repo_id: int
+    categories: List[RepoCategoryItem]
     total: int
 
 
@@ -222,12 +239,12 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 
 
 # 端點
-@router.get("/", response_model=CategoryListResponse)
+@router.get("/", response_model=ApiResponse[CategoryListResponse])
 async def list_categories(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     列出所有分類（扁平列表），含分頁。
 
@@ -252,16 +269,21 @@ async def list_categories(
     )
     repo_count_map = _build_repo_count_map(db)
 
-    return CategoryListResponse(
+    category_list = CategoryListResponse(
         categories=[_category_to_response(c, repo_count_map) for c in categories],
         total=total,
     )
 
+    return success_response(
+        data=category_list,
+        message=f"Found {total} categories"
+    )
 
-@router.get("/tree", response_model=CategoryTreeResponse)
+
+@router.get("/tree", response_model=ApiResponse[CategoryTreeResponse])
 async def get_category_tree(
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     以階層樹狀結構取得分類。
     """
@@ -270,30 +292,40 @@ async def get_category_tree(
     repo_count_map = _build_repo_count_map(db)
     tree = _build_tree(categories, None, repo_count_map)
 
-    return CategoryTreeResponse(
+    category_tree = CategoryTreeResponse(
         tree=tree,
         total=len(categories),
     )
 
+    return success_response(
+        data=category_tree,
+        message=f"Retrieved category tree with {len(categories)} categories"
+    )
 
-@router.get("/{category_id}", response_model=CategoryResponse)
+
+@router.get("/{category_id}", response_model=ApiResponse[CategoryResponse])
 async def get_category(
     category_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     依 ID 取得特定分類。
     """
     category = _get_category_or_404(category_id, db)
     count = _get_repo_count(category_id, db)
-    return _category_to_response(category, {category_id: count})
+    category_response = _category_to_response(category, {category_id: count})
+
+    return success_response(
+        data=category_response,
+        message=f"Retrieved category '{category.name}'"
+    )
 
 
-@router.post("/", response_model=CategoryResponse)
+@router.post("/", response_model=ApiResponse[CategoryResponse])
 async def create_category(
     request: CategoryCreate,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     建立新分類。
     """
@@ -319,15 +351,20 @@ async def create_category(
     db.refresh(category)
 
     # 新建立的分類有 0 個 repo
-    return _category_to_response(category, {})
+    category_response = _category_to_response(category, {})
+
+    return success_response(
+        data=category_response,
+        message=f"Category '{category.name}' created successfully"
+    )
 
 
-@router.put("/{category_id}", response_model=CategoryResponse)
+@router.put("/{category_id}", response_model=ApiResponse[CategoryResponse])
 async def update_category(
     category_id: int,
     request: CategoryUpdate,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     更新分類。
     """
@@ -345,14 +382,19 @@ async def update_category(
     db.refresh(category)
 
     count = _get_repo_count(category_id, db)
-    return _category_to_response(category, {category_id: count})
+    category_response = _category_to_response(category, {category_id: count})
+
+    return success_response(
+        data=category_response,
+        message=f"Category '{category.name}' updated successfully"
+    )
 
 
-@router.delete("/{category_id}")
+@router.delete("/{category_id}", response_model=ApiResponse[StatusResponse])
 async def delete_category(
     category_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     刪除分類。
     子分類的 parent_id 將被設為 null。
@@ -362,16 +404,19 @@ async def delete_category(
     db.delete(category)
     db.commit()
 
-    return {"status": "ok", "message": f"Category '{category_name}' deleted"}
+    return success_response(
+        data=StatusResponse(status="ok"),
+        message=f"Category '{category_name}' deleted successfully"
+    )
 
 
-@router.get("/{category_id}/repos", response_model=CategoryReposResponse)
+@router.get("/{category_id}/repos", response_model=ApiResponse[CategoryReposResponse])
 async def get_category_repos(
     category_id: int,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得分類中的所有 repo（含分頁）。
 
@@ -404,20 +449,25 @@ async def get_category_repos(
 
     repos = [_repo_category_to_response(rc) for rc in repo_categories]
 
-    return CategoryReposResponse(
+    repos_response = CategoryReposResponse(
         category_id=category_id,
         category_name=category.name,
         repos=repos,
         total=total,
     )
 
+    return success_response(
+        data=repos_response,
+        message=f"Found {total} repositories in category '{category.name}'"
+    )
 
-@router.post("/{category_id}/repos/{repo_id}")
+
+@router.post("/{category_id}/repos/{repo_id}", response_model=ApiResponse[StatusResponse])
 async def add_repo_to_category(
     category_id: int,
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     將 repo 加入分類。
     """
@@ -438,18 +488,18 @@ async def add_repo_to_category(
     db.add(repo_category)
     db.commit()
 
-    return {
-        "status": "ok",
-        "message": f"Repository '{repo.full_name}' added to category '{category.name}'"
-    }
+    return success_response(
+        data=StatusResponse(status="ok"),
+        message=f"Repository '{repo.full_name}' added to category '{category.name}'"
+    )
 
 
-@router.delete("/{category_id}/repos/{repo_id}")
+@router.delete("/{category_id}/repos/{repo_id}", response_model=ApiResponse[StatusResponse])
 async def remove_repo_from_category(
     category_id: int,
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     從分類中移除 repo。
     """
@@ -463,17 +513,17 @@ async def remove_repo_from_category(
     db.delete(repo_category)
     db.commit()
 
-    return {
-        "status": "ok",
-        "message": f"Repository '{repo.full_name}' removed from category '{category.name}'"
-    }
+    return success_response(
+        data=StatusResponse(status="ok"),
+        message=f"Repository '{repo.full_name}' removed from category '{category.name}'"
+    )
 
 
-@router.get("/repo/{repo_id}/categories")
+@router.get("/repo/{repo_id}/categories", response_model=ApiResponse[RepoCategoriesResponse])
 async def get_repo_categories(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得 repo 所屬的所有分類。
     """
@@ -486,18 +536,23 @@ async def get_repo_categories(
     ).all()
 
     categories = [
-        {
-            "id": rc.category.id,
-            "name": rc.category.name,
-            "icon": rc.category.icon,
-            "color": rc.category.color,
-            "added_at": rc.added_at.isoformat() if rc.added_at else None,
-        }
+        RepoCategoryItem(
+            id=rc.category.id,
+            name=rc.category.name,
+            icon=rc.category.icon,
+            color=rc.category.color,
+            added_at=rc.added_at.isoformat() if rc.added_at else None,
+        )
         for rc in repo_categories
     ]
 
-    return {
-        "repo_id": repo_id,
-        "categories": categories,
-        "total": len(categories),
-    }
+    repo_categories_response = RepoCategoriesResponse(
+        repo_id=repo_id,
+        categories=categories,
+        total=len(categories),
+    )
+
+    return success_response(
+        data=repo_categories_response,
+        message=f"Repository belongs to {len(categories)} categories"
+    )

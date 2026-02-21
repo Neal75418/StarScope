@@ -15,6 +15,7 @@ from services.github import (
     GitHubRateLimitError,
 )
 from schemas.discovery import DiscoveryRepo, SearchResponse
+from schemas.response import ApiResponse, success_response
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class SortField(str, Enum):
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
-@router.get("/search", response_model=SearchResponse)
+@router.get("/search", response_model=ApiResponse[SearchResponse])
 @limiter.limit("30/minute")
 async def search_repos(
     request: Request,
@@ -39,7 +40,7 @@ async def search_repos(
     sort: SortField = Query(SortField.STARS, description="Sort field"),
     page: int = Query(1, ge=1, le=100, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Results per page"),
-) -> SearchResponse:
+) -> dict:
     """
     使用 GitHub Search API 搜尋 repo。
 
@@ -96,10 +97,15 @@ async def search_repos(
 
     total_count = result.get("total_count", 0)
 
-    return SearchResponse(
+    search_response = SearchResponse(
         repos=repos,
         total_count=total_count,
         page=page,
         per_page=per_page,
         has_more=page * per_page < total_count,
+    )
+
+    return success_response(
+        data=search_response,
+        message=f"Found {total_count} repositories matching your search"
     )

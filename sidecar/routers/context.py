@@ -18,6 +18,7 @@ from routers.dependencies import get_repo_or_404
 from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
 from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
+from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/context", tags=["context"])
 
@@ -79,13 +80,13 @@ class FetchContextResponse(BaseModel):
 
 
 # 端點
-@router.get("/{repo_id}/signals", response_model=ContextSignalsResponse)
+@router.get("/{repo_id}/signals", response_model=ApiResponse[ContextSignalsResponse])
 async def get_context_signals(
     repo_id: int,
     signal_type: Optional[str] = Query(None, description="Filter by signal type (hacker_news only)"),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得 repo 的所有情境訊號。
     僅支援 Hacker News 訊號。
@@ -106,18 +107,23 @@ async def get_context_signals(
 
     signals = query.order_by(desc(ContextSignal.published_at)).limit(limit).all()
 
-    return ContextSignalsResponse(
+    context_response = ContextSignalsResponse(
         signals=[ContextSignalResponse.model_validate(s) for s in signals],
         total=len(signals),
         repo_id=repo_id,
     )
 
+    return success_response(
+        data=context_response,
+        message=f"Found {len(signals)} context signals for repository {repo_id}"
+    )
 
-@router.get("/{repo_id}/badges", response_model=ContextBadgesResponse)
+
+@router.get("/{repo_id}/badges", response_model=ApiResponse[ContextBadgesResponse])
 async def get_context_badges(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得 repo 的情境徽章。
     回傳顯示在 repo 卡片上的 HN 徽章。
@@ -157,14 +163,19 @@ async def get_context_badges(
             is_recent=_is_recent(top_hn.published_at),
         ))
 
-    return ContextBadgesResponse(badges=badges, repo_id=repo_id)
+    badges_response = ContextBadgesResponse(badges=badges, repo_id=repo_id)
+
+    return success_response(
+        data=badges_response,
+        message=f"Found {len(badges)} context badges for repository {repo_id}"
+    )
 
 
-@router.post("/{repo_id}/fetch", response_model=FetchContextResponse)
+@router.post("/{repo_id}/fetch", response_model=ApiResponse[FetchContextResponse])
 async def fetch_repo_context(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     手動觸發 repo 的情境訊號抓取。
     從 Hacker News 抓取。
@@ -173,26 +184,34 @@ async def fetch_repo_context(
 
     hn_count = await fetch_context_signals_for_repo(repo, db)
 
-    return FetchContextResponse(
+    fetch_response = FetchContextResponse(
         repo_id=repo_id,
         new_signals={
             "hacker_news": hn_count,
         }
     )
 
+    return success_response(
+        data=fetch_response,
+        message=f"Fetched {hn_count} new Hacker News signals for repository {repo_id}"
+    )
 
-@router.post("/badges/batch", response_model=BatchBadgesResponse)
+
+@router.post("/badges/batch", response_model=ApiResponse[BatchBadgesResponse])
 async def get_context_badges_batch(
     request: BatchBadgesRequest,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     批次取得多個 repo 的情境徽章。
     用單一查詢取代 N 次個別請求。
     """
     repo_ids = request.repo_ids
     if not repo_ids:
-        return BatchBadgesResponse(results={})
+        return success_response(
+            data=BatchBadgesResponse(results={}),
+            message="No repository IDs provided"
+        )
 
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
@@ -252,4 +271,9 @@ async def get_context_badges_batch(
         if str(rid) not in results:
             results[str(rid)] = ContextBadgesResponse(badges=[], repo_id=rid)
 
-    return BatchBadgesResponse(results=results)
+    batch_response = BatchBadgesResponse(results=results)
+
+    return success_response(
+        data=batch_response,
+        message=f"Retrieved context badges for {len(repo_ids)} repositories"
+    )

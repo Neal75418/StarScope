@@ -45,7 +45,13 @@ class TestDiscoverySearch:
             response = client.get("/api/discovery/search?q=python")
 
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        # 驗證統一的 API 響應格式
+        assert response_data["success"] is True
+        assert "data" in response_data
+        assert response_data["error"] is None
+
+        data = response_data["data"]
         assert data["total_count"] == 2
         assert len(data["repos"]) == 2
         assert data["page"] == 1
@@ -80,6 +86,10 @@ class TestDiscoverySearch:
             )
 
         assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is True
+        assert "data" in response_data
+
         # Verify filters were passed to the service
         mock_service.search_repos.assert_called_once_with(
             query="web",
@@ -104,7 +114,11 @@ class TestDiscoverySearch:
             )
 
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        assert response_data["success"] is True
+        assert "data" in response_data
+
+        data = response_data["data"]
         assert data["page"] == 3
         assert data["per_page"] == 5
         assert data["has_more"] is True

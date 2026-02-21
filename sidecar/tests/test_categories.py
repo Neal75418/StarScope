@@ -10,7 +10,11 @@ class TestCategoryEndpoints:
         """Test listing categories when none exist."""
         response = client.get("/api/categories")
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        # 驗證統一的 API 響應格式
+        assert response_data["success"] is True
+        assert "data" in response_data
+        data = response_data["data"]
         assert data["total"] == 0
         assert data["categories"] == []
 
@@ -18,7 +22,11 @@ class TestCategoryEndpoints:
         """Test getting category tree when empty."""
         response = client.get("/api/categories/tree")
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        # 驗證統一的 API 響應格式
+        assert response_data["success"] is True
+        assert "data" in response_data
+        data = response_data["data"]
         assert data["total"] == 0
         assert data["tree"] == []
 
@@ -31,7 +39,11 @@ class TestCategoryEndpoints:
             "color": "#ff0000"
         })
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        # 驗證統一的 API 響應格式
+        assert response_data["success"] is True
+        assert "data" in response_data
+        data = response_data["data"]
         assert data["name"] == "Test Category"
         assert data["description"] == "A test category"
         assert "id" in data
@@ -42,7 +54,11 @@ class TestCategoryEndpoints:
             "name": "Minimal Category"
         })
         assert response.status_code == 200
-        data = response.json()
+        response_data = response.json()
+        # 驗證統一的 API 響應格式
+        assert response_data["success"] is True
+        assert "data" in response_data
+        data = response_data["data"]
         assert data["name"] == "Minimal Category"
 
     def test_create_category_missing_name(self, client):
@@ -81,7 +97,7 @@ class TestCategoryEndpoints:
             "name": "Parent Category"
         })
         assert parent_response.status_code == 200
-        parent_id = parent_response.json()["id"]
+        parent_id = parent_response.json()["data"]["id"]
 
         # Create child category
         child_response = client.post("/api/categories", json={
@@ -89,7 +105,7 @@ class TestCategoryEndpoints:
             "parent_id": parent_id
         })
         assert child_response.status_code == 200
-        child_data = child_response.json()
+        child_data = child_response.json()["data"]
         assert child_data["parent_id"] == parent_id
 
     def test_category_tree_structure(self, client):
@@ -98,7 +114,7 @@ class TestCategoryEndpoints:
         parent_response = client.post("/api/categories", json={
             "name": "Tree Parent"
         })
-        parent_id = parent_response.json()["id"]
+        parent_id = parent_response.json()["data"]["id"]
 
         # Create child
         client.post("/api/categories", json={
@@ -109,7 +125,8 @@ class TestCategoryEndpoints:
         # Get tree
         tree_response = client.get("/api/categories/tree")
         assert tree_response.status_code == 200
-        tree = tree_response.json()["tree"]
+        tree_data = tree_response.json()["data"]
+        tree = tree_data["tree"]
 
         # Find parent in tree
         parent_node = next((n for n in tree if n["name"] == "Tree Parent"), None)

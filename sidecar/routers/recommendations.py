@@ -18,6 +18,7 @@ from services.recommender import (
     calculate_repo_similarities,
     recalculate_all_similarities,
 )
+from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
@@ -58,13 +59,21 @@ class RecalculateAllResponse(BaseModel):
     similarities_found: int
 
 
+class RecommendationStatsResponse(BaseModel):
+    """推薦系統統計資訊的回應。"""
+    total_repos: int
+    total_similarity_pairs: int
+    repos_with_recommendations: int
+    average_similarity_score: float
+
+
 # 端點
-@router.get("/similar/{repo_id}", response_model=SimilarReposResponse)
+@router.get("/similar/{repo_id}", response_model=ApiResponse[SimilarReposResponse])
 async def get_similar_repos(
     repo_id: int,
     limit: int = Query(10, ge=1, le=50, description="Maximum number of similar repos to return"),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得指定 repo 的相似 repo。
     回傳追蹤清單中基於 topics 與語言最相似的 repo。
@@ -75,18 +84,23 @@ async def get_similar_repos(
 
     similar = find_similar_repos(repo_id, db, limit)
 
-    return SimilarReposResponse(
+    similar_response = SimilarReposResponse(
         repo_id=repo_id,
         similar=[SimilarRepoResponse(**s) for s in similar],
         total=len(similar),
     )
 
+    return success_response(
+        data=similar_response,
+        message=f"Found {len(similar)} similar repositories"
+    )
 
-@router.post("/repo/{repo_id}/calculate", response_model=CalculateSimilaritiesResponse)
+
+@router.post("/repo/{repo_id}/calculate", response_model=ApiResponse[CalculateSimilaritiesResponse])
 async def calculate_similarities_for_repo(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     計算（或重新計算）特定 repo 的相似度分數。
     與追蹤清單中的所有其他 repo 比較。
@@ -97,18 +111,23 @@ async def calculate_similarities_for_repo(
 
     count = calculate_repo_similarities(repo_id, db)
 
-    return CalculateSimilaritiesResponse(
+    calc_response = CalculateSimilaritiesResponse(
         repo_id=repo_id,
         similarities_found=count,
     )
 
+    return success_response(
+        data=calc_response,
+        message=f"Calculated {count} similarity pairs for repository {repo_id}"
+    )
 
-@router.post("/recalculate", response_model=RecalculateAllResponse)
+
+@router.post("/recalculate", response_model=ApiResponse[RecalculateAllResponse])
 @limiter.limit("2/minute")
 async def recalculate_all(
     request: Request,
     db: Session = Depends(get_db),
-):
+) -> dict:
     """
     重新計算追蹤清單中所有 repo 的相似度分數。
     對於大型追蹤清單，此操作可能較慢。
@@ -116,17 +135,22 @@ async def recalculate_all(
     _ = request  # 由 @limiter.limit decorator 隱式使用
     result = recalculate_all_similarities(db)
 
-    return RecalculateAllResponse(
+    recalc_response = RecalculateAllResponse(
         total_repos=result["total_repos"],
         processed=result["processed"],
         similarities_found=result["similarities_found"],
     )
 
+    return success_response(
+        data=recalc_response,
+        message=f"Recalculated similarities for {result['processed']} repositories"
+    )
 
-@router.get("/stats")
+
+@router.get("/stats", response_model=ApiResponse[RecommendationStatsResponse])
 async def get_recommendation_stats(
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得推薦系統的統計資訊。
     """
@@ -140,9 +164,14 @@ async def get_recommendation_stats(
     # 至少有一個相似 repo 的 repo
     repos_with_similar = db.query(SimilarRepo.repo_id).distinct().count()
 
-    return {
-        "total_repos": total_repos,
-        "total_similarity_pairs": total_similarities,
-        "repos_with_recommendations": repos_with_similar,
-        "average_similarity_score": round(avg_score, 3),
-    }
+    stats_response = RecommendationStatsResponse(
+        total_repos=total_repos,
+        total_similarity_pairs=total_similarities,
+        repos_with_recommendations=repos_with_similar,
+        average_similarity_score=round(avg_score, 3),
+    )
+
+    return success_response(
+        data=stats_response,
+        message="Retrieved recommendation system statistics"
+    )
