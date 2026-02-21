@@ -43,7 +43,9 @@ class TestGetLanguages:
 
         response = client.get(f"/api/languages/{mock_repo.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["repo_name"] == mock_repo.full_name
         assert len(data["languages"]) == 3
@@ -83,7 +85,9 @@ class TestGetLanguagesSummary:
 
         response = client.get(f"/api/languages/{mock_repo.id}/summary")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["primary_language"] == "Python"
         assert data["language_count"] == 3
@@ -113,7 +117,9 @@ class TestFetchLanguages:
             response = client.post(f"/api/languages/{mock_repo.id}/fetch")
 
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["repo_name"] == mock_repo.full_name
         assert len(data["languages"]) == 3
@@ -138,7 +144,9 @@ class TestFetchLanguages:
             response = client.post(f"/api/languages/{mock_repo.id}/fetch")
 
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["languages"] == []
         assert data["total_bytes"] == 0

@@ -14,6 +14,7 @@ from sqlalchemy import func
 from db.database import get_db
 from db.models import Repo, CommitActivity
 from routers.dependencies import get_repo_or_404
+from schemas.response import ApiResponse, success_response
 from services.github import get_github_service
 from utils.time import utc_now
 
@@ -106,7 +107,7 @@ def _store_commit_activity(
 
 
 # 端點
-@router.get("/{repo_id}", response_model=CommitActivityResponse)
+@router.get("/{repo_id}", response_model=ApiResponse[CommitActivityResponse])
 async def get_commit_activity(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -128,10 +129,10 @@ async def get_commit_activity(
             detail="Commit activity not fetched yet. Use POST /fetch to retrieve from GitHub."
         )
 
-    return _build_response(repo, activities)
+    return success_response(data=_build_response(repo, activities))
 
 
-@router.post("/{repo_id}/fetch", response_model=CommitActivityResponse)
+@router.post("/{repo_id}/fetch", response_model=ApiResponse[CommitActivityResponse])
 async def fetch_commit_activity(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -149,7 +150,7 @@ async def fetch_commit_activity(
 
     if not github_data:
         # GitHub 對新 repo 可能回傳空資料
-        return CommitActivityResponse(
+        empty_response = CommitActivityResponse(
             repo_id=repo.id,
             repo_name=repo.full_name,
             weeks=[],
@@ -157,12 +158,13 @@ async def fetch_commit_activity(
             avg_commits_per_week=0.0,
             last_updated=utc_now(),
         )
+        return success_response(data=empty_response)
 
     activities = _store_commit_activity(db, repo_id, github_data)
-    return _build_response(repo, activities)
+    return success_response(data=_build_response(repo, activities))
 
 
-@router.get("/{repo_id}/summary", response_model=CommitActivitySummary)
+@router.get("/{repo_id}/summary", response_model=ApiResponse[CommitActivitySummary])
 async def get_commit_activity_summary(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -189,9 +191,10 @@ async def get_commit_activity_summary(
     weeks = result.weeks or 1
     avg = total / weeks if weeks > 0 else 0.0
 
-    return CommitActivitySummary(
+    summary = CommitActivitySummary(
         repo_id=repo_id,
         total_commits_52w=total,
         avg_commits_per_week=round(avg, 2),
         last_updated=result.last_updated,
     )
+    return success_response(data=summary)

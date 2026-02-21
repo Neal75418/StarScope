@@ -17,7 +17,9 @@ class TestStarHistoryStatus:
         repo, snapshots = mock_repo_with_snapshots
         response = client.get(f"/api/star-history/{repo.id}/status")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == repo.id
         assert data["repo_name"] == repo.full_name
         assert data["max_stars_allowed"] == 5000
@@ -47,7 +49,9 @@ class TestStarHistoryStatus:
 
         response = client.get(f"/api/star-history/{mock_repo.id}/status")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["can_backfill"] is True
         assert data["current_stars"] == 100
         assert "eligible" in data["message"].lower()
@@ -68,7 +72,9 @@ class TestStarHistoryStatus:
 
         response = client.get(f"/api/star-history/{mock_repo.id}/status")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["can_backfill"] is False
         assert data["current_stars"] == 6000
 
@@ -91,7 +97,9 @@ class TestStarHistoryBackfill:
             response = client.post(f"/api/star-history/{mock_repo.id}/backfill")
 
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["success"] is True
         assert data["total_stargazers"] == 3
@@ -126,8 +134,10 @@ class TestStarHistoryBackfill:
             response = client.post(f"/api/star-history/{mock_repo.id}/backfill")
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is False
+        resp = response.json()
+        assert resp["success"] is True  # API call succeeded
+        data = resp["data"]
+        assert data["success"] is False  # Backfill operation failed
         assert "too many stars" in data["message"].lower()
 
 
@@ -139,7 +149,9 @@ class TestStarHistoryGet:
         repo, snapshots = mock_repo_with_snapshots
         response = client.get(f"/api/star-history/{repo.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == repo.id
         assert data["repo_name"] == repo.full_name
         assert data["total_points"] == len(snapshots)
@@ -152,7 +164,9 @@ class TestStarHistoryGet:
         """Test getting star history for a repo with no snapshots."""
         response = client.get(f"/api/star-history/{mock_repo.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["history"] == []
         assert data["total_points"] == 0
@@ -177,8 +191,9 @@ class TestStarHistoryGet:
 
         response = client.get(f"/api/star-history/{mock_repo.id}")
         assert response.status_code == 200
-        data = response.json()
-        assert data["is_backfilled"] is True
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"]["is_backfilled"] is True
 
     def test_get_history_repo_not_found(self, client):
         """Test getting star history for a nonexistent repo returns 404."""

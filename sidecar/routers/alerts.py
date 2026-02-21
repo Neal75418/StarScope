@@ -12,17 +12,18 @@ from sqlalchemy.orm import Session, joinedload
 from db.database import get_db
 from constants import SignalType
 from db.models import AlertRule, TriggeredAlert, Repo
+from schemas.response import ApiResponse, StatusResponse, success_response
+from services.alerts import (
+    acknowledge_alert,
+    acknowledge_all_alerts,
+    check_all_alerts,
+)
 
 # 從 model 常數衍生的 Literal 型別 — Pydantic 自動驗證。
 ValidSignalType = Literal[
     "stars_delta_7d", "stars_delta_30d", "velocity", "acceleration", "trend"
 ]
 ValidOperator = Literal[">", "<", ">=", "<=", "=="]
-from services.alerts import (
-    acknowledge_alert,
-    acknowledge_all_alerts,
-    check_all_alerts,
-)
 
 # 錯誤訊息常數
 ERROR_RULE_NOT_FOUND = "Rule not found"
@@ -99,6 +100,21 @@ class SignalTypeInfo(BaseModel):
     description: str
 
 
+class TriggeredAlertBrief(BaseModel):
+    """警報檢查中觸發的警報簡要資訊。"""
+    id: int
+    rule_id: int
+    repo_id: int
+    signal_value: float
+
+
+class CheckAlertsResponse(BaseModel):
+    """警報檢查結果。"""
+    status: str
+    triggered_count: int
+    triggered: List[TriggeredAlertBrief]
+
+
 # --- 輔助函式 ---
 
 def _to_alert_rule_response(rule: AlertRule) -> AlertRuleResponse:
@@ -140,10 +156,10 @@ def _to_triggered_alert_response(alert: TriggeredAlert) -> TriggeredAlertRespons
 
 # --- 端點 ---
 
-@router.get("/signal-types", response_model=List[SignalTypeInfo])
+@router.get("/signal-types", response_model=ApiResponse[List[SignalTypeInfo]])
 async def list_signal_types():
     """列出警報規則可用的訊號類型。"""
-    return [
+    signal_types = [
         SignalTypeInfo(
             type=SignalType.STARS_DELTA_7D,
             name="7-Day Star Delta",
@@ -170,9 +186,10 @@ async def list_signal_types():
             description="Overall trend direction (-1=down, 0=stable, 1=up)"
         ),
     ]
+    return success_response(data=signal_types)
 
 
-@router.get("/rules", response_model=List[AlertRuleResponse])
+@router.get("/rules", response_model=ApiResponse[List[AlertRuleResponse]])
 async def list_rules(
     skip: int = 0,
     limit: int = 100,
@@ -199,10 +216,10 @@ async def list_rules(
         .all()
     )
 
-    return [_to_alert_rule_response(rule) for rule in rules]
+    return success_response(data=[_to_alert_rule_response(rule) for rule in rules])
 
 
-@router.post("/rules", response_model=AlertRuleResponse)
+@router.post("/rules", response_model=ApiResponse[AlertRuleResponse])
 async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
     """建立新警報規則。
     signal_type 與 operator 由 Pydantic Literal 型別驗證。
@@ -227,20 +244,20 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_rule)
 
-    return _to_alert_rule_response(db_rule)
+    return success_response(data=_to_alert_rule_response(db_rule))
 
 
-@router.get("/rules/{rule_id}", response_model=AlertRuleResponse)
+@router.get("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 async def get_rule(rule_id: int, db: Session = Depends(get_db)):
     """取得特定警報規則。"""
     rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
-    return _to_alert_rule_response(rule)
+    return success_response(data=_to_alert_rule_response(rule))
 
 
-@router.patch("/rules/{rule_id}", response_model=AlertRuleResponse)
+@router.patch("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)):
     """更新警報規則。"""
     rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
@@ -273,10 +290,10 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
     db.commit()
     db.refresh(rule)
 
-    return _to_alert_rule_response(rule)
+    return success_response(data=_to_alert_rule_response(rule))
 
 
-@router.delete("/rules/{rule_id}")
+@router.delete("/rules/{rule_id}", response_model=ApiResponse[StatusResponse])
 async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     """刪除警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
@@ -286,10 +303,10 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     db.delete(rule)
     db.commit()
 
-    return {"status": "deleted", "id": rule_id}
+    return success_response(data=StatusResponse(status="deleted", id=rule_id))
 
 
-@router.get("/triggered", response_model=List[TriggeredAlertResponse])
+@router.get("/triggered", response_model=ApiResponse[List[TriggeredAlertResponse]])
 async def list_triggered_alerts(
     unacknowledged_only: bool = False,
     limit: int = 50,
@@ -312,38 +329,39 @@ async def list_triggered_alerts(
     # noinspection PyTypeChecker
     alerts: List[TriggeredAlert] = query.limit(limit).all()
 
-    return [_to_triggered_alert_response(alert) for alert in alerts]
+    return success_response(data=[_to_triggered_alert_response(alert) for alert in alerts])
 
 
-@router.post("/triggered/{alert_id}/acknowledge")
+@router.post("/triggered/{alert_id}/acknowledge", response_model=ApiResponse[StatusResponse])
 async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)):
     """確認已觸發的警報。"""
     if acknowledge_alert(db, alert_id):
-        return {"status": "acknowledged", "id": alert_id}
+        return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
     raise HTTPException(status_code=404, detail=ERROR_ALERT_NOT_FOUND)
 
 
-@router.post("/triggered/acknowledge-all")
+@router.post("/triggered/acknowledge-all", response_model=ApiResponse[StatusResponse])
 async def acknowledge_all(db: Session = Depends(get_db)):
     """確認所有未確認的警報。"""
     count = acknowledge_all_alerts(db)
-    return {"status": "acknowledged", "count": count}
+    return success_response(data=StatusResponse(status="acknowledged", count=count))
 
 
-@router.post("/check")
+@router.post("/check", response_model=ApiResponse[CheckAlertsResponse])
 async def check_alerts_now(db: Session = Depends(get_db)):
     """手動觸發警報檢查。"""
     triggered = check_all_alerts(db)
-    return {
-        "status": "checked",
-        "triggered_count": len(triggered),
-        "triggered": [
-            {
-                "id": alert.id,
-                "rule_id": alert.rule_id,
-                "repo_id": alert.repo_id,
-                "signal_value": alert.signal_value,
-            }
+    check_result = CheckAlertsResponse(
+        status="checked",
+        triggered_count=len(triggered),
+        triggered=[
+            TriggeredAlertBrief(
+                id=alert.id,
+                rule_id=alert.rule_id,
+                repo_id=alert.repo_id,
+                signal_value=alert.signal_value,
+            )
             for alert in triggered
-        ]
-    }
+        ],
+    )
+    return success_response(data=check_result)

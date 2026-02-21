@@ -14,6 +14,7 @@ from sqlalchemy import asc
 
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
+from schemas.response import ApiResponse, success_response
 from utils.time import utc_today
 
 router = APIRouter(prefix="/api/charts", tags=["charts"])
@@ -43,7 +44,7 @@ class StarsChartResponse(BaseModel):
     max_stars: int
 
 
-@router.get("/{repo_id}/stars", response_model=StarsChartResponse)
+@router.get("/{repo_id}/stars", response_model=ApiResponse[StarsChartResponse])
 async def get_stars_chart(
     repo_id: int,
     time_range: TimeRange = Query(TimeRange.MONTH, description="Time range for chart data"),
@@ -97,7 +98,7 @@ async def get_stars_chart(
         max_stars = 0
 
     # noinspection PyTypeChecker
-    return StarsChartResponse(
+    chart_data = StarsChartResponse(
         repo_id=repo_id,
         repo_name=repo.full_name,
         time_range=time_range.value,
@@ -105,3 +106,4 @@ async def get_stars_chart(
         min_stars=min_stars,
         max_stars=max_stars,
     )
+    return success_response(data=chart_data)

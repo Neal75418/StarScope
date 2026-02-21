@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import RepoSnapshot
 from routers.dependencies import get_repo_or_404
+from schemas.response import ApiResponse, success_response
 from services.github import get_github_service
 from utils.time import utc_now
 
@@ -164,7 +165,7 @@ def _create_snapshots_from_history(
 
 
 # 端點
-@router.get("/{repo_id}/status", response_model=BackfillStatus)
+@router.get("/{repo_id}/status", response_model=ApiResponse[BackfillStatus])
 async def get_backfill_status(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -194,7 +195,7 @@ async def get_backfill_status(
     else:
         message = f"Repository has {current_stars} stars, exceeding the {MAX_STARS_FOR_BACKFILL} limit."
 
-    return BackfillStatus(
+    status_data = BackfillStatus(
         repo_id=repo.id,
         repo_name=repo.full_name,
         can_backfill=can_backfill,
@@ -204,9 +205,10 @@ async def get_backfill_status(
         backfilled_days=snapshot_count,
         message=message,
     )
+    return success_response(data=status_data)
 
 
-@router.post("/{repo_id}/backfill", response_model=BackfillResult)
+@router.post("/{repo_id}/backfill", response_model=ApiResponse[BackfillResult])
 async def backfill_star_history(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -236,7 +238,7 @@ async def backfill_star_history(
         current_stars = latest.stars if latest else 0
 
         if current_stars > MAX_STARS_FOR_BACKFILL:
-            return BackfillResult(
+            return success_response(data=BackfillResult(
                 repo_id=repo.id,
                 repo_name=repo.full_name,
                 success=False,
@@ -245,9 +247,9 @@ async def backfill_star_history(
                 earliest_date=None,
                 latest_date=None,
                 message=ERROR_TOO_MANY_STARS,
-            )
+            ))
         else:
-            return BackfillResult(
+            return success_response(data=BackfillResult(
                 repo_id=repo.id,
                 repo_name=repo.full_name,
                 success=True,
@@ -256,13 +258,13 @@ async def backfill_star_history(
                 earliest_date=None,
                 latest_date=None,
                 message="No stargazers found.",
-            )
+            ))
 
     # 依日期彙總
     star_history = _aggregate_stargazers_by_date(stargazers)
 
     if not star_history:
-        return BackfillResult(
+        return success_response(data=BackfillResult(
             repo_id=repo.id,
             repo_name=repo.full_name,
             success=True,
@@ -271,7 +273,7 @@ async def backfill_star_history(
             earliest_date=None,
             latest_date=None,
             message="Stargazers found but no valid dates.",
-        )
+        ))
 
     # 建立快照
     snapshots_created = _create_snapshots_from_history(db, repo_id, star_history)
@@ -280,7 +282,7 @@ async def backfill_star_history(
 
     # 處理未建立新快照的情況（所有既有快照的數量較高）
     if snapshots_created == 0:
-        return BackfillResult(
+        return success_response(data=BackfillResult(
             repo_id=repo.id,
             repo_name=repo.full_name,
             success=True,
@@ -289,9 +291,9 @@ async def backfill_star_history(
             earliest_date=None,
             latest_date=None,
             message="No new snapshots created - existing data is up to date.",
-        )
+        ))
 
-    return BackfillResult(
+    return success_response(data=BackfillResult(
         repo_id=repo.id,
         repo_name=repo.full_name,
         success=True,
@@ -300,10 +302,10 @@ async def backfill_star_history(
         earliest_date=sorted_dates[0].isoformat(),
         latest_date=sorted_dates[-1].isoformat(),
         message=f"Successfully backfilled {snapshots_created} days of star history.",
-    )
+    ))
 
 
-@router.get("/{repo_id}", response_model=StarHistoryResponse)
+@router.get("/{repo_id}", response_model=ApiResponse[StarHistoryResponse])
 async def get_star_history(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -331,10 +333,11 @@ async def get_star_history(
         today = date.today()
         is_backfilled = (today - oldest).days > 30
 
-    return StarHistoryResponse(
+    history_data = StarHistoryResponse(
         repo_id=repo.id,
         repo_name=repo.full_name,
         history=history,
         is_backfilled=is_backfilled,
         total_points=len(history),
     )
+    return success_response(data=history_data)

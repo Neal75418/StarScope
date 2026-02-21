@@ -52,7 +52,9 @@ class TestSnapshotsWithMockData:
         repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars?time_range=90d")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert len(data["data_points"]) == 30
 
     def test_snapshot_star_growth(self, client, mock_repo_with_snapshots):
@@ -60,10 +62,11 @@ class TestSnapshotsWithMockData:
         repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars?time_range=90d")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
 
         # Verify stars are growing (data points are sorted by date ascending)
-        data_points = data["data_points"]
+        data_points = resp["data"]["data_points"]
         for i in range(1, len(data_points)):
             assert data_points[i]["stars"] >= data_points[i - 1]["stars"]
 
@@ -144,8 +147,9 @@ class TestChartsWithMockData:
         repo, _ = mock_repo_with_snapshots
         response = client.get(f"/api/charts/{repo.id}/stars")
         assert response.status_code == 200
-        data = response.json()
-        assert len(data["data_points"]) > 0
+        resp = response.json()
+        assert resp["success"] is True
+        assert len(resp["data"]["data_points"]) > 0
 
     def test_get_stars_chart_time_ranges(self, client, mock_repo_with_snapshots):
         """Test star chart with different time ranges."""

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
+from schemas.response import ApiResponse, success_response
 from services.github_auth import (
     get_github_auth_service,
     GitHubAuthError,
@@ -58,7 +59,7 @@ class DisconnectResponseModel(BaseModel):
 
 # ==================== 端點 ====================
 
-@router.post("/device-code", response_model=DeviceCodeResponseModel)
+@router.post("/device-code", response_model=ApiResponse[DeviceCodeResponseModel])
 async def initiate_device_flow():
     """
     啟動 GitHub Device Flow 驗證。
@@ -71,18 +72,19 @@ async def initiate_device_flow():
     try:
         auth_service = get_github_auth_service()
         result = await auth_service.initiate_device_flow()
-        return DeviceCodeResponseModel(
+        device_code_data = DeviceCodeResponseModel(
             device_code=result.device_code,
             user_code=result.user_code,
             verification_uri=result.verification_uri,
             expires_in=result.expires_in,
             interval=result.interval,
         )
+        return success_response(data=device_code_data)
     except GitHubAuthError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/poll", response_model=PollResponseModel)
+@router.post("/poll", response_model=ApiResponse[PollResponseModel])
 async def poll_authorization(request: PollRequestModel):
     """
     輪詢授權狀態。
@@ -99,16 +101,17 @@ async def poll_authorization(request: PollRequestModel):
     auth_service = get_github_auth_service()
     result = await auth_service.poll_for_token(request.device_code)
 
-    return PollResponseModel(
+    poll_data = PollResponseModel(
         status=result["status"],
         username=result.get("username"),
         error=result.get("error"),
         slow_down=result.get("slow_down"),
         interval=result.get("interval"),
     )
+    return success_response(data=poll_data)
 
 
-@router.get("/status", response_model=ConnectionStatusModel)
+@router.get("/status", response_model=ApiResponse[ConnectionStatusModel])
 async def get_connection_status():
     """
     取得目前的 GitHub 連線狀態。
@@ -118,7 +121,7 @@ async def get_connection_status():
     auth_service = get_github_auth_service()
     status = await auth_service.get_connection_status()
 
-    return ConnectionStatusModel(
+    status_data = ConnectionStatusModel(
         connected=status.connected,
         username=status.username,
         rate_limit_remaining=status.rate_limit_remaining,
@@ -126,9 +129,10 @@ async def get_connection_status():
         rate_limit_reset=status.rate_limit_reset,
         error=status.error,
     )
+    return success_response(data=status_data)
 
 
-@router.post("/disconnect", response_model=DisconnectResponseModel)
+@router.post("/disconnect", response_model=ApiResponse[DisconnectResponseModel])
 async def disconnect():
     """
     移除已儲存的憑證以斷開 GitHub 連結。
@@ -140,12 +144,13 @@ async def disconnect():
     was_connected = auth_service.disconnect()
 
     if was_connected:
-        return DisconnectResponseModel(
+        disconnect_data = DisconnectResponseModel(
             success=True,
             message="Successfully disconnected from GitHub"
         )
     else:
-        return DisconnectResponseModel(
+        disconnect_data = DisconnectResponseModel(
             success=True,
             message="No GitHub connection to disconnect"
         )
+    return success_response(data=disconnect_data)

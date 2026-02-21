@@ -41,7 +41,9 @@ class TestGetCommitActivity:
 
         response = client.get(f"/api/commit-activity/{mock_repo.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["repo_name"] == mock_repo.full_name
         assert len(data["weeks"]) == 4
@@ -76,7 +78,9 @@ class TestGetCommitActivitySummary:
 
         response = client.get(f"/api/commit-activity/{mock_repo.id}/summary")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["total_commits_52w"] == total
         assert data["avg_commits_per_week"] == round(total / 4, 2)
@@ -111,7 +115,9 @@ class TestFetchCommitActivity:
             response = client.post(f"/api/commit-activity/{mock_repo.id}/fetch")
 
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["repo_name"] == mock_repo.full_name
         assert len(data["weeks"]) == 2
@@ -126,7 +132,9 @@ class TestFetchCommitActivity:
             response = client.post(f"/api/commit-activity/{mock_repo.id}/fetch")
 
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["repo_id"] == mock_repo.id
         assert data["weeks"] == []
         assert data["total_commits_52w"] == 0

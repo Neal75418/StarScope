@@ -50,7 +50,9 @@ class TestSignalTypes:
         """Test listing all available signal types."""
         response = client.get("/api/alerts/signal-types")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert isinstance(data, list)
         assert len(data) == 5
 
@@ -75,8 +77,9 @@ class TestAlertRules:
         """Test listing rules when none exist."""
         response = client.get("/api/alerts/rules")
         assert response.status_code == 200
-        data = response.json()
-        assert data == []
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"] == []
 
     def test_create_rule(self, client, mock_repo):
         """Test creating a new alert rule."""
@@ -91,7 +94,9 @@ class TestAlertRules:
         }
         response = client.post("/api/alerts/rules", json=payload)
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["name"] == "Star Spike Alert"
         assert data["repo_id"] == mock_repo.id
         assert data["repo_name"] == mock_repo.full_name
@@ -129,7 +134,9 @@ class TestAlertRules:
         rule = _create_rule(test_db, mock_repo)
         response = client.get(f"/api/alerts/rules/{rule.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["id"] == rule.id
         assert data["name"] == rule.name
         assert data["signal_type"] == rule.signal_type
@@ -149,7 +156,9 @@ class TestAlertRules:
         }
         response = client.patch(f"/api/alerts/rules/{rule.id}", json=update_payload)
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["name"] == "Updated Rule Name"
         assert data["threshold"] == pytest.approx(200.0)
         assert data["enabled"] is False
@@ -167,7 +176,9 @@ class TestAlertRules:
         rule = _create_rule(test_db, mock_repo)
         response = client.delete(f"/api/alerts/rules/{rule.id}")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["status"] == "deleted"
         assert data["id"] == rule.id
 
@@ -188,8 +199,9 @@ class TestTriggeredAlerts:
         """Test listing triggered alerts when none exist."""
         response = client.get("/api/alerts/triggered")
         assert response.status_code == 200
-        data = response.json()
-        assert data == []
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"] == []
 
     def test_list_triggered_with_alerts(self, client, test_db, mock_repo):
         """Test listing triggered alerts."""
@@ -198,7 +210,9 @@ class TestTriggeredAlerts:
 
         response = client.get("/api/alerts/triggered")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert len(data) == 1
         assert data[0]["id"] == alert.id
         assert data[0]["rule_id"] == rule.id
@@ -214,7 +228,9 @@ class TestTriggeredAlerts:
 
         response = client.post(f"/api/alerts/triggered/{alert.id}/acknowledge")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["status"] == "acknowledged"
         assert data["id"] == alert.id
 
@@ -231,7 +247,9 @@ class TestTriggeredAlerts:
 
         response = client.post("/api/alerts/triggered/acknowledge-all")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["status"] == "acknowledged"
         assert data["count"] == 2
 
@@ -243,7 +261,9 @@ class TestAlertCheck:
         """Test manual alert check with no rules returns empty."""
         response = client.post("/api/alerts/check")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["status"] == "checked"
         assert data["triggered_count"] == 0
         assert data["triggered"] == []
@@ -265,7 +285,9 @@ class TestAlertCheck:
 
         response = client.post("/api/alerts/check")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert data["status"] == "checked"
         assert data["triggered_count"] >= 1
         # Verify triggered alert structure

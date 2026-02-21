@@ -14,7 +14,9 @@ class TestSchedulerEndpoints:
         """Test GET /api/scheduler/status returns scheduler state."""
         response = client.get("/api/scheduler/status")
         assert response.status_code == 200
-        data = response.json()
+        resp = response.json()
+        assert resp["success"] is True
+        data = resp["data"]
         assert "running" in data
         assert "jobs" in data
 
@@ -23,8 +25,9 @@ class TestSchedulerEndpoints:
         with patch("routers.scheduler.start_scheduler") as mock_start:
             response = client.post("/api/scheduler/start")
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "started"
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"]["status"] == "started"
         mock_start.assert_called_once()
 
     def test_post_start_with_custom_interval(self, client):
@@ -35,7 +38,9 @@ class TestSchedulerEndpoints:
                 json={"fetch_interval_minutes": 30},
             )
         assert response.status_code == 200
-        assert response.json()["interval_minutes"] == 30
+        resp = response.json()
+        assert resp["success"] is True
+        assert "30min" in resp["message"]
         mock_start.assert_called_once_with(fetch_interval_minutes=30)
 
     def test_post_stop(self, client):
@@ -43,7 +48,9 @@ class TestSchedulerEndpoints:
         with patch("routers.scheduler.stop_scheduler") as mock_stop:
             response = client.post("/api/scheduler/stop")
         assert response.status_code == 200
-        assert response.json()["status"] == "stopped"
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"]["status"] == "stopped"
         mock_stop.assert_called_once()
 
     def test_post_fetch_now(self, client):
@@ -51,7 +58,9 @@ class TestSchedulerEndpoints:
         with patch("routers.scheduler.trigger_fetch_now", new_callable=AsyncMock):
             response = client.post("/api/scheduler/fetch-now")
         assert response.status_code == 200
-        assert response.json()["status"] == "fetch_triggered"
+        resp = response.json()
+        assert resp["success"] is True
+        assert resp["data"]["status"] == "fetch_triggered"
 
     def test_start_error_returns_500(self, client):
         """Test POST /api/scheduler/start returns 500 on error."""

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from db.models import Repo, RepoLanguage
 from routers.dependencies import get_repo_or_404
+from schemas.response import ApiResponse, success_response
 from services.github import get_github_service
 from utils.time import utc_now
 
@@ -113,7 +114,7 @@ def _store_languages(
 
 
 # 端點
-@router.get("/{repo_id}", response_model=LanguagesResponse)
+@router.get("/{repo_id}", response_model=ApiResponse[LanguagesResponse])
 async def get_languages(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -135,10 +136,10 @@ async def get_languages(
             detail="Languages not fetched yet. Use POST /fetch to retrieve from GitHub."
         )
 
-    return _build_response(repo, languages)
+    return success_response(data=_build_response(repo, languages))
 
 
-@router.post("/{repo_id}/fetch", response_model=LanguagesResponse)
+@router.post("/{repo_id}/fetch", response_model=ApiResponse[LanguagesResponse])
 async def fetch_languages(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -154,10 +155,10 @@ async def fetch_languages(
     github_data = await service.get_languages(repo.owner, repo.name)
 
     languages = _store_languages(db, repo_id, github_data)
-    return _build_response(repo, languages)
+    return success_response(data=_build_response(repo, languages))
 
 
-@router.get("/{repo_id}/summary", response_model=LanguagesSummary)
+@router.get("/{repo_id}/summary", response_model=ApiResponse[LanguagesSummary])
 async def get_languages_summary(
     repo_id: int,
     db: Session = Depends(get_db)
@@ -178,9 +179,10 @@ async def get_languages_summary(
             detail="Languages not fetched yet"
         )
 
-    return LanguagesSummary(
+    summary = LanguagesSummary(
         repo_id=repo_id,
         primary_language=languages[0].language if languages else None,
         language_count=len(languages),
         last_updated=max((lang.updated_at for lang in languages), default=None),
     )
+    return success_response(data=summary)
