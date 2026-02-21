@@ -123,14 +123,16 @@ class TestCategoryWithMockData:
         response = client.get(f"/api/categories/{mock_category.id}")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "Frontend Frameworks"
+        assert data["success"] is True
+        assert data["data"]["name"] == "Frontend Frameworks"
 
     def test_list_categories(self, client, mock_category):
         """Test listing categories."""
         response = client.get("/api/categories")
         assert response.status_code == 200
         data = response.json()
-        assert len(data) >= 1
+        assert data["success"] is True
+        assert len(data["data"]["categories"]) >= 1
 
 
 class TestChartsWithMockData:

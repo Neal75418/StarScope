@@ -237,6 +237,29 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
             return 0
 
 
+def backup_job():
+    """資料庫備份工作（模組層級，供 APScheduler 序列化引用）。"""
+    try:
+        # 取得資料庫檔案路徑（移除 sqlite:/// 前綴）
+        db_file = DATABASE_URL.replace("sqlite:///", "")
+
+        # 如果是記憶體資料庫或測試環境則跳過
+        if db_file == ":memory:" or os.getenv("ENV") == "test":
+            logger.debug("[排程] 跳過備份（記憶體資料庫或測試環境）")
+            return
+
+        logger.info(f"[排程] 開始資料庫備份: {db_file}")
+        backup_path = backup_database(db_file, retention_days=7)
+
+        if backup_path:
+            logger.info(f"[排程] 資料庫備份成功: {backup_path}")
+        else:
+            logger.error("[排程] 資料庫備份失敗")
+
+    except Exception as e:
+        logger.error(f"[排程] 資料庫備份錯誤: {e}", exc_info=True)
+
+
 def start_scheduler(fetch_interval_minutes: int = 60):
     """
     啟動背景排程器。
@@ -295,28 +318,6 @@ def start_scheduler(fetch_interval_minutes: int = 60):
 
     # 每日資料庫備份（凌晨 2 點，保留 7 天）
     from apscheduler.triggers.cron import CronTrigger
-
-    def backup_job():
-        """資料庫備份工作"""
-        try:
-            # 取得資料庫檔案路徑（移除 sqlite:/// 前綴）
-            db_file = DATABASE_URL.replace("sqlite:///", "")
-
-            # 如果是記憶體資料庫或測試環境則跳過
-            if db_file == ":memory:" or os.getenv("ENV") == "test":
-                logger.debug("[排程] 跳過備份（記憶體資料庫或測試環境）")
-                return
-
-            logger.info(f"[排程] 開始資料庫備份: {db_file}")
-            backup_path = backup_database(db_file, retention_days=7)
-
-            if backup_path:
-                logger.info(f"[排程] 資料庫備份成功: {backup_path}")
-            else:
-                logger.error("[排程] 資料庫備份失敗")
-
-        except Exception as e:
-            logger.error(f"[排程] 資料庫備份錯誤: {e}", exc_info=True)
 
     scheduler.add_job(
         backup_job,
