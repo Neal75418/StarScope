@@ -13,7 +13,8 @@ class TestEarlySignalsEndpoints:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        assert data["data"] == []
+        assert data["data"]["signals"] == []
+        assert data["data"]["total"] == 0
 
     def test_list_signals_with_filters(self, client):
         """Test listing signals with filter parameters."""
@@ -22,7 +23,8 @@ class TestEarlySignalsEndpoints:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        assert "data" in data
+        assert "signals" in data["data"]
+        assert "total" in data["data"]
 
     def test_get_signal_summary(self, client):
         """Test getting signal summary statistics."""

@@ -13,7 +13,9 @@ class TestTrendsEndpoints:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        assert data["data"] == []
+        assert data["data"]["repos"] == []
+        assert data["data"]["total"] == 0
+        assert data["data"]["sort_by"] == "velocity"
         assert "velocity" in data["message"]  # message 包含 sort_by 資訊
 
     def test_get_trends_with_sort(self, client):

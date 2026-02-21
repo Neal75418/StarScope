@@ -26,8 +26,9 @@ class TestRepoWithMockData:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        repos = data["data"]
+        repos = data["data"]["repos"]
         assert len(repos) == 3
+        assert data["data"]["total"] == 3
         owners = [r["owner"] for r in repos]
         assert "facebook" in owners
         assert "vuejs" in owners
@@ -78,7 +79,7 @@ class TestSignalsWithMockData:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        repos = data["data"]
+        repos = data["data"]["repos"]
         # Find the repo in the list
         repo_data = next((r for r in repos if r["id"] == repo.id), None)
         assert repo_data is not None
@@ -97,7 +98,7 @@ class TestEarlySignalsWithMockData:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        signals = data["data"]
+        signals = data["data"]["signals"]
         assert len(signals) >= 1
         assert any(s["signal_type"] == "rising_star" for s in signals)
 
@@ -109,7 +110,7 @@ class TestEarlySignalsWithMockData:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        signals = data["data"]
+        signals = data["data"]["signals"]
         if len(signals) > 0:
             assert signals[0]["severity"] == "high"
             assert signals[0]["signal_type"] == "rising_star"

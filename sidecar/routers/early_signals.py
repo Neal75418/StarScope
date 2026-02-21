@@ -86,7 +86,7 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
 
 
 # 端點
-@router.get("/", response_model=ApiResponse[List[EarlySignalResponse]])
+@router.get("/", response_model=ApiResponse[EarlySignalListResponse])
 async def list_early_signals(
     signal_type: Optional[str] = Query(None, description="Filter by signal type"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
@@ -122,13 +122,17 @@ async def list_early_signals(
     ).limit(limit).all()
 
     signal_responses = [_signal_to_response(s) for s in signals]
+    list_response = EarlySignalListResponse(
+        signals=signal_responses,
+        total=len(signal_responses),
+    )
     return success_response(
-        data=signal_responses,
+        data=list_response,
         message=f"Found {len(signal_responses)} early signals"
     )
 
 
-@router.get("/repo/{repo_id}", response_model=ApiResponse[List[EarlySignalResponse]])
+@router.get("/repo/{repo_id}", response_model=ApiResponse[EarlySignalListResponse])
 async def get_repo_signals(
     repo_id: int,
     include_acknowledged: bool = Query(False),
@@ -156,8 +160,12 @@ async def get_repo_signals(
     signals: List[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
 
     signal_responses = [_signal_to_response(s) for s in signals]
+    list_response = EarlySignalListResponse(
+        signals=signal_responses,
+        total=len(signal_responses),
+    )
     return success_response(
-        data=signal_responses,
+        data=list_response,
         message=f"Found {len(signal_responses)} signals for repository {repo.full_name}"
     )
 
@@ -314,7 +322,7 @@ class BatchSignalsResponse(BaseModel):
     results: Dict[str, EarlySignalListResponse]
 
 
-@router.post("/batch", response_model=ApiResponse[Dict[str, List[EarlySignalResponse]]])
+@router.post("/batch", response_model=ApiResponse[BatchSignalsResponse])
 async def get_repo_signals_batch(
     request: BatchSignalsRequest,
     db: Session = Depends(get_db)
@@ -325,7 +333,10 @@ async def get_repo_signals_batch(
     """
     repo_ids = request.repo_ids
     if not repo_ids:
-        return success_response(data={}, message="No repositories requested")
+        return success_response(
+            data=BatchSignalsResponse(results={}),
+            message="No repositories requested"
+        )
 
     now = utc_now()
     # noinspection PyTypeChecker
@@ -348,14 +359,18 @@ async def get_repo_signals_batch(
             grouped[rid] = []
         grouped[rid].append(_signal_to_response(s))
 
-    # 組裝結果（含空結果 repo）
-    results: Dict[str, List[EarlySignalResponse]] = {}
+    # 組裝結果（含空結果 repo），每個 repo 用 EarlySignalListResponse 包裝
+    results: Dict[str, EarlySignalListResponse] = {}
     for rid in repo_ids:
         signal_list = grouped.get(rid, [])
-        results[str(rid)] = signal_list
+        results[str(rid)] = EarlySignalListResponse(
+            signals=signal_list,
+            total=len(signal_list),
+        )
 
-    total_signals = sum(len(signals) for signals in results.values())
+    batch_response = BatchSignalsResponse(results=results)
+    total_signals = sum(r.total for r in results.values())
     return success_response(
-        data=results,
+        data=batch_response,
         message=f"Retrieved signals for {len(repo_ids)} repositories ({total_signals} total signals)"
     )

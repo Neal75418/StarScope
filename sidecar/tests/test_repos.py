@@ -12,7 +12,8 @@ class TestReposEndpoints:
         data = response.json()
         # 驗證統一的 API 響應格式
         assert data["success"] is True
-        assert data["data"] == []
+        assert data["data"]["repos"] == []
+        assert data["data"]["total"] == 0
         assert data["error"] is None
 
     def test_add_repo_invalid_format(self, client):

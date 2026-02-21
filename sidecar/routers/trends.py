@@ -66,7 +66,7 @@ def _get_signal_type_for_sort(sort_by: SortBy) -> str:
     }[sort_by]
 
 
-@router.get("/", response_model=ApiResponse[List[TrendingRepo]])
+@router.get("/", response_model=ApiResponse[TrendsResponse])
 async def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
@@ -124,8 +124,9 @@ async def get_trends(
     )
 
     if not results:
+        empty_response = TrendsResponse(repos=[], total=0, sort_by=sort_by.value)
         return success_response(
-            data=[],
+            data=empty_response,
             message=f"No trending repositories found (sorted by {sort_by.value})"
         )
 
@@ -159,13 +160,18 @@ async def get_trends(
             rank=rank,
         ))
 
+    trends_response = TrendsResponse(
+        repos=trending_repos,
+        total=len(trending_repos),
+        sort_by=sort_by.value,
+    )
     return success_response(
-        data=trending_repos,
+        data=trends_response,
         message=f"Found {len(trending_repos)} trending repositories (sorted by {sort_by.value})"
     )
 
 
-@router.get("/top-velocity", response_model=ApiResponse[List[TrendingRepo]])
+@router.get("/top-velocity", response_model=ApiResponse[TrendsResponse])
 async def get_top_velocity(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
@@ -174,7 +180,7 @@ async def get_top_velocity(
     return await get_trends(sort_by=SortBy.VELOCITY, limit=limit, db=db)
 
 
-@router.get("/top-delta-7d", response_model=ApiResponse[List[TrendingRepo]])
+@router.get("/top-delta-7d", response_model=ApiResponse[TrendsResponse])
 async def get_top_delta_7d(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
@@ -183,7 +189,7 @@ async def get_top_delta_7d(
     return await get_trends(sort_by=SortBy.STARS_DELTA_7D, limit=limit, db=db)
 
 
-@router.get("/top-acceleration", response_model=ApiResponse[List[TrendingRepo]])
+@router.get("/top-acceleration", response_model=ApiResponse[TrendsResponse])
 async def get_top_acceleration(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)

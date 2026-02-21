@@ -101,7 +101,18 @@ async function doFetch<T>(
     return null as T;
   }
 
-  return response.json();
+  const json = await response.json();
+
+  // 自動解包統一 API 響應格式 (ApiResponse[T])
+  // 已遷移的端點回傳 {success, data, message, error} 結構
+  if (json && typeof json === "object" && "success" in json && "data" in json) {
+    if (!json.success) {
+      throw new ApiError(response.status, json.error || json.message || "API request failed");
+    }
+    return json.data as T;
+  }
+
+  return json;
 }
 
 // API 呼叫輔助函式（含重試）

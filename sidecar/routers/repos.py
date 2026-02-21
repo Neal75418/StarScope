@@ -14,7 +14,7 @@ from sqlalchemy import desc
 from db import get_db, Repo, RepoSnapshot
 from middleware.rate_limit import limiter
 from schemas import RepoCreate, RepoWithSignals, RepoListResponse
-from schemas.response import ApiResponse, success_response, paginated_response, PaginationInfo
+from schemas.response import ApiResponse, success_response
 from constants import (
     SignalType,
     GITHUB_USERNAME_PATTERN,
@@ -163,7 +163,7 @@ def _build_repo_list_response(
     )
 
 
-@router.get("/repos", response_model=ApiResponse[List[RepoWithSignals]])
+@router.get("/repos", response_model=ApiResponse[RepoListResponse])
 async def list_repos(
     page: Optional[int] = Query(None, ge=1, description="Page number (omit for all results)"),
     per_page: Optional[int] = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
@@ -182,21 +182,10 @@ async def list_repos(
 
     repo_list = _build_repo_list_response(db, page=page, per_page=per_page)
 
-    # 如果有分頁參數，使用 paginated_response
-    if page is not None and per_page is not None:
-        return paginated_response(
-            items=repo_list.repos,
-            total=repo_list.total,
-            page=page,
-            per_page=per_page,
-            message=None
-        )
-    else:
-        # 無分頁時使用 success_response
-        return success_response(
-            data=repo_list.repos,
-            message=None
-        )
+    return success_response(
+        data=repo_list,
+        message=None
+    )
 
 
 @router.post("/repos", response_model=ApiResponse[RepoWithSignals], status_code=status.HTTP_201_CREATED)
@@ -299,7 +288,7 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     )
 
 
-@router.post("/repos/fetch-all", response_model=ApiResponse[List[RepoWithSignals]])
+@router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
 @limiter.limit("5/minute")
 async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
     """
@@ -338,6 +327,6 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
 
     repo_list = _build_repo_list_response(db)
     return success_response(
-        data=repo_list.repos,
+        data=repo_list,
         message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
     )
