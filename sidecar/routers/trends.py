@@ -15,6 +15,7 @@ from db.database import get_db
 from constants import SignalType
 from db.models import Repo, RepoSnapshot, Signal
 from services.queries import build_signal_map, build_stars_map
+from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/trends", tags=["trends"])
 
@@ -65,14 +66,14 @@ def _get_signal_type_for_sort(sort_by: SortBy) -> str:
     }[sort_by]
 
 
-@router.get("/", response_model=TrendsResponse)
+@router.get("/", response_model=ApiResponse[List[TrendingRepo]])
 async def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     language: Optional[str] = Query(None, description="Filter by programming language"),
     min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     依趨勢指標排序取得 repo。
 
@@ -123,7 +124,10 @@ async def get_trends(
     )
 
     if not results:
-        return TrendsResponse(repos=[], total=0, sort_by=sort_by.value)
+        return success_response(
+            data=[],
+            message=f"No trending repositories found (sorted by {sort_by.value})"
+        )
 
     # 取得 repo ID 以批次抓取剩餘資料
     repo_ids = [repo.id for repo, _ in results]
@@ -155,38 +159,34 @@ async def get_trends(
             rank=rank,
         ))
 
-    return TrendsResponse(
-        repos=trending_repos,
-        total=len(trending_repos),
-        sort_by=sort_by.value,
+    return success_response(
+        data=trending_repos,
+        message=f"Found {len(trending_repos)} trending repositories (sorted by {sort_by.value})"
     )
 
 
-@router.get("/top-velocity", response_model=List[TrendingRepo])
+@router.get("/top-velocity", response_model=ApiResponse[List[TrendingRepo]])
 async def get_top_velocity(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """依 velocity（每日 star 數）取得排名前列的 repo。"""
-    response = await get_trends(sort_by=SortBy.VELOCITY, limit=limit, db=db)
-    return response.repos
+    return await get_trends(sort_by=SortBy.VELOCITY, limit=limit, db=db)
 
 
-@router.get("/top-delta-7d", response_model=List[TrendingRepo])
+@router.get("/top-delta-7d", response_model=ApiResponse[List[TrendingRepo]])
 async def get_top_delta_7d(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """依 7 天 star 增量取得排名前列的 repo。"""
-    response = await get_trends(sort_by=SortBy.STARS_DELTA_7D, limit=limit, db=db)
-    return response.repos
+    return await get_trends(sort_by=SortBy.STARS_DELTA_7D, limit=limit, db=db)
 
 
-@router.get("/top-acceleration", response_model=List[TrendingRepo])
+@router.get("/top-acceleration", response_model=ApiResponse[List[TrendingRepo]])
 async def get_top_acceleration(
     limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """依 acceleration（動量變化）取得排名前列的 repo。"""
-    response = await get_trends(sort_by=SortBy.ACCELERATION, limit=limit, db=db)
-    return response.repos
+    return await get_trends(sort_by=SortBy.ACCELERATION, limit=limit, db=db)
