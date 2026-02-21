@@ -95,8 +95,11 @@ class TestEarlySignalsWithMockData:
         response = client.get("/api/early-signals")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] >= 1
-        assert any(s["signal_type"] == "rising_star" for s in data["signals"])
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        signals = data["data"]
+        assert len(signals) >= 1
+        assert any(s["signal_type"] == "rising_star" for s in signals)
 
     def test_early_signal_severity(self, client, mock_early_signal):
         """Test early signal severity value."""
@@ -104,9 +107,12 @@ class TestEarlySignalsWithMockData:
         response = client.get(f"/api/early-signals/repo/{repo.id}")
         assert response.status_code == 200
         data = response.json()
-        if data["total"] > 0:
-            assert data["signals"][0]["severity"] == "high"
-            assert data["signals"][0]["signal_type"] == "rising_star"
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        signals = data["data"]
+        if len(signals) > 0:
+            assert signals[0]["severity"] == "high"
+            assert signals[0]["signal_type"] == "rising_star"
 
 
 class TestCategoryWithMockData:
