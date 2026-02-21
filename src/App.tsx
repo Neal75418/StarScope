@@ -4,6 +4,7 @@
  */
 
 import { useState, lazy, Suspense, useMemo } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppHeader } from "./components/AppHeader";
 import { I18nContext } from "./i18n";
@@ -11,6 +12,7 @@ import { ThemeContext } from "./theme";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
+import { queryClient } from "./lib/react-query";
 import type { Page } from "./types/navigation";
 import "./App.css";
 
@@ -73,31 +75,33 @@ function App() {
   );
 
   return (
-    <ThemeContext.Provider value={themeContextValue}>
-      <I18nContext.Provider value={i18nContextValue}>
-        <WatchlistProvider>
-          <div className="app">
-            <AppHeader
-              currentPage={currentPage}
-              onPageChange={handlePageChange}
-              theme={theme}
-              onThemeToggle={toggleTheme}
-              language={language}
-              onLanguageToggle={toggleLanguage}
-              t={t}
-            />
+    <QueryClientProvider client={queryClient}>
+      <ThemeContext.Provider value={themeContextValue}>
+        <I18nContext.Provider value={i18nContextValue}>
+          <WatchlistProvider>
+            <div className="app">
+              <AppHeader
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+                theme={theme}
+                onThemeToggle={toggleTheme}
+                language={language}
+                onLanguageToggle={toggleLanguage}
+                t={t}
+              />
 
-            <main className="app-main" id="main-content">
-              <ErrorBoundary>
-                <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                  <PageContent page={currentPage} />
-                </Suspense>
-              </ErrorBoundary>
-            </main>
-          </div>
-        </WatchlistProvider>
-      </I18nContext.Provider>
-    </ThemeContext.Provider>
+              <main className="app-main" id="main-content">
+                <ErrorBoundary>
+                  <Suspense fallback={<PageLoader text={t.common.loading} />}>
+                    <PageContent page={currentPage} />
+                  </Suspense>
+                </ErrorBoundary>
+              </main>
+            </div>
+          </WatchlistProvider>
+        </I18nContext.Provider>
+      </ThemeContext.Provider>
+    </QueryClientProvider>
   );
 }
 

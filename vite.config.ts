@@ -1,11 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Bundle 分析器（僅在 build 時生成）
+    process.env.ANALYZE && visualizer({
+      filename: "dist/stats.html",
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+      template: "treemap", // sunburst, treemap, network
+    }),
+  ].filter(Boolean),
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

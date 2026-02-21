@@ -87,10 +87,96 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 from middleware.rate_limit import limiter
 
 app = FastAPI(
-    title="StarScope Engine",
-    description="GitHub Project Intelligence API",
-    version="0.1.0",
+    title="StarScope API",
+    description="""
+    ## GitHub 專案追蹤與趨勢分析 API
+
+    StarScope 提供強大的 GitHub 專案情報分析能力，幫助工程師識別專案動能和早期訊號。
+
+    ### 核心功能
+
+    - **追蹤清單管理**: 管理追蹤的 GitHub 專案
+    - **速度分析**: 計算 star 增長速度和加速度
+    - **早期訊號偵測**: 識別異常增長模式
+    - **趨勢分析**: 7/30 天趨勢追蹤
+    - **相似專案推薦**: 基於 topics 和語言的智慧推薦
+    - **Hacker News 整合**: 追蹤專案在 HN 的討論
+
+    ### 認證
+
+    支援兩種認證方式：
+    1. **OAuth Device Flow** (推薦) - 透過 `/api/github-auth/device-code` 啟動
+    2. **Personal Access Token** - 透過環境變數 `GITHUB_TOKEN`
+
+    ### 速率限制
+
+    - 預設: 120 requests/minute
+    - GitHub API: 遵循官方限制（5000/hour 已認證, 60/hour 未認證）
+
+    ### 資料更新
+
+    - 背景排程器每小時自動更新所有追蹤專案
+    - 支援手動觸發更新 (`POST /api/repos/{id}/fetch`)
+    """,
+    version="0.3.0",
     lifespan=lifespan,
+    # OpenAPI 配置
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    # 聯絡資訊
+    contact={
+        "name": "StarScope Team",
+        "url": "https://github.com/Neal75418/StarScope",
+        "email": "support@starscope.example.com"
+    },
+    # 授權資訊
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    # 伺服器資訊
+    servers=[
+        {
+            "url": "http://localhost:8008",
+            "description": "開發環境"
+        },
+        {
+            "url": "http://127.0.0.1:8008",
+            "description": "本地環境"
+        }
+    ],
+    # 標籤元數據
+    openapi_tags=[
+        {
+            "name": "health",
+            "description": "健康檢查和服務狀態"
+        },
+        {
+            "name": "repos",
+            "description": "專案追蹤清單管理（CRUD 操作）"
+        },
+        {
+            "name": "early-signals",
+            "description": "早期訊號偵測與管理"
+        },
+        {
+            "name": "trends",
+            "description": "趨勢分析與速度計算"
+        },
+        {
+            "name": "discovery",
+            "description": "專案發現與推薦"
+        },
+        {
+            "name": "github-auth",
+            "description": "GitHub OAuth 認證流程"
+        },
+        {
+            "name": "export",
+            "description": "資料匯出"
+        },
+    ],
 )
 app.state.limiter = limiter
 def _handle_rate_limit(_request: "Request", exc: Exception):

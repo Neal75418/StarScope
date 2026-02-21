@@ -99,3 +99,13 @@ def init_db():
     from .models import Base
     Base.metadata.create_all(bind=engine)
     logger.info(f"[資料庫] 初始化完成: {DATABASE_PATH}")
+
+    # 啟用查詢效能監控（慢查詢日誌）
+    # 在開發環境或設定 DEBUG=true 時啟用
+    enable_query_logging = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
+    if enable_query_logging or os.getenv("ENABLE_QUERY_LOGGING", "false").lower() in ("true", "1", "yes"):
+        try:
+            from .query_logger import setup_query_logging
+            setup_query_logging(engine, enable=True)
+        except ImportError:
+            logger.warning("Query logger not available, skipping query logging setup")

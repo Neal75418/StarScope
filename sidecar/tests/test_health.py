@@ -8,8 +8,11 @@ def test_health_check(client):
     response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ok"
-    assert "timestamp" in data
+    # 驗證統一的 API 響應格式
+    assert data["success"] is True
+    assert data["data"]["status"] == "ok"
+    assert "timestamp" in data["data"]
+    assert data["message"] == "Service is healthy"
 
 
 def test_root_endpoint(client):

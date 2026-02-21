@@ -21,7 +21,9 @@ from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
 from services.github import fetch_repo_data, GitHubAPIError
 from services.snapshot import update_repo_from_github
+from services.backup import backup_database
 from utils.time import utc_now
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -291,10 +293,45 @@ def start_scheduler(fetch_interval_minutes: int = 60):
         max_instances=1,
     )
 
+    # 每日資料庫備份（凌晨 2 點，保留 7 天）
+    from apscheduler.triggers.cron import CronTrigger
+
+    def backup_job():
+        """資料庫備份工作"""
+        try:
+            # 取得資料庫檔案路徑（移除 sqlite:/// 前綴）
+            db_file = DATABASE_URL.replace("sqlite:///", "")
+
+            # 如果是記憶體資料庫或測試環境則跳過
+            if db_file == ":memory:" or os.getenv("ENV") == "test":
+                logger.debug("[排程] 跳過備份（記憶體資料庫或測試環境）")
+                return
+
+            logger.info(f"[排程] 開始資料庫備份: {db_file}")
+            backup_path = backup_database(db_file, retention_days=7)
+
+            if backup_path:
+                logger.info(f"[排程] 資料庫備份成功: {backup_path}")
+            else:
+                logger.error("[排程] 資料庫備份失敗")
+
+        except Exception as e:
+            logger.error(f"[排程] 資料庫備份錯誤: {e}", exc_info=True)
+
+    scheduler.add_job(
+        backup_job,
+        trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨 2 點
+        id="database_backup",
+        name="Daily database backup (7d retention)",
+        replace_existing=True,
+        max_instances=1,
+    )
+
     scheduler.start()
     logger.info(
         f"[排程] 排程器已啟動: 資料抓取每 {fetch_interval_minutes} 分鐘、"
-        f"上下文訊號每 {CONTEXT_FETCH_INTERVAL_MINUTES} 分鐘、快照清理每 24 小時"
+        f"上下文訊號每 {CONTEXT_FETCH_INTERVAL_MINUTES} 分鐘、"
+        f"快照清理每 24 小時、資料庫備份每日 02:00"
     )
 
 
