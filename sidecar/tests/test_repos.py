@@ -10,8 +10,10 @@ class TestReposEndpoints:
         response = client.get("/api/repos")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 0
-        assert data["repos"] == []
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        assert data["data"] == []
+        assert data["error"] is None
 
     def test_add_repo_invalid_format(self, client):
         """Test adding repo with invalid format (only name, no owner)."""

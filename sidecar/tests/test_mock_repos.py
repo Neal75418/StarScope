@@ -12,17 +12,23 @@ class TestRepoWithMockData:
         response = client.get(f"/api/repos/{mock_repo.id}")
         assert response.status_code == 200
         data = response.json()
-        assert data["owner"] == "testowner"
-        assert data["name"] == "testrepo"
-        assert data["full_name"] == "testowner/testrepo"
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        repo = data["data"]
+        assert repo["owner"] == "testowner"
+        assert repo["name"] == "testrepo"
+        assert repo["full_name"] == "testowner/testrepo"
 
     def test_get_repo_list_with_mock_data(self, client, mock_multiple_repos):
         """Test listing repos when data exists."""
         response = client.get("/api/repos")
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 3
-        owners = [r["owner"] for r in data["repos"]]
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        repos = data["data"]
+        assert len(repos) == 3
+        owners = [r["owner"] for r in repos]
         assert "facebook" in owners
         assert "vuejs" in owners
         assert "angular" in owners
@@ -70,11 +76,14 @@ class TestSignalsWithMockData:
         response = client.get("/api/repos")
         assert response.status_code == 200
         data = response.json()
+        # 驗證統一的 API 響應格式
+        assert data["success"] is True
+        repos = data["data"]
         # Find the repo in the list
-        repo_data = next((r for r in data["repos"] if r["id"] == repo.id), None)
+        repo_data = next((r for r in repos if r["id"] == repo.id), None)
         assert repo_data is not None
         # Velocity signal should be reflected in the repo response
-        assert repo_data.get("velocity") is not None or data["total"] >= 1
+        assert repo_data.get("velocity") is not None or len(repos) >= 1
 
 
 class TestEarlySignalsWithMockData:

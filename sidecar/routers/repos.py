@@ -14,6 +14,7 @@ from sqlalchemy import desc
 from db import get_db, Repo, RepoSnapshot
 from middleware.rate_limit import limiter
 from schemas import RepoCreate, RepoWithSignals, RepoListResponse
+from schemas.response import ApiResponse, success_response, paginated_response, PaginationInfo
 from constants import (
     SignalType,
     GITHUB_USERNAME_PATTERN,
@@ -162,12 +163,12 @@ def _build_repo_list_response(
     )
 
 
-@router.get("/repos", response_model=RepoListResponse)
+@router.get("/repos", response_model=ApiResponse[List[RepoWithSignals]])
 async def list_repos(
     page: Optional[int] = Query(None, ge=1, description="Page number (omit for all results)"),
     per_page: Optional[int] = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
     db: Session = Depends(get_db),
-) -> RepoListResponse:
+) -> dict:
     """
     列出追蹤清單中的所有 repo 及其最新訊號。
     使用批次查詢避免 N+1 問題。
@@ -178,11 +179,28 @@ async def list_repos(
             status_code=400,
             detail="Both 'page' and 'per_page' must be provided together for pagination",
         )
-    return _build_repo_list_response(db, page=page, per_page=per_page)
+
+    repo_list = _build_repo_list_response(db, page=page, per_page=per_page)
+
+    # 如果有分頁參數，使用 paginated_response
+    if page is not None and per_page is not None:
+        return paginated_response(
+            items=repo_list.repos,
+            total=repo_list.total,
+            page=page,
+            per_page=per_page,
+            message=None
+        )
+    else:
+        # 無分頁時使用 success_response
+        return success_response(
+            data=repo_list.repos,
+            message=None
+        )
 
 
-@router.post("/repos", response_model=RepoWithSignals, status_code=status.HTTP_201_CREATED)
-async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> RepoWithSignals:
+@router.post("/repos", response_model=ApiResponse[RepoWithSignals], status_code=status.HTTP_201_CREATED)
+async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dict:
     """
     將新 repo 加入追蹤清單。
     可提供 owner+name 或 GitHub URL。
@@ -230,16 +248,21 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> Rep
     create_or_update_snapshot(repo, github_data, db)
     db.commit()
 
-    return get_repo_with_signals(repo, db)
+    repo_with_signals = get_repo_with_signals(repo, db)
+    return success_response(
+        data=repo_with_signals,
+        message=f"Repository {repo.full_name} added to watchlist"
+    )
 
 
-@router.get("/repos/{repo_id}", response_model=RepoWithSignals)
-async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSignals:
+@router.get("/repos/{repo_id}", response_model=ApiResponse[RepoWithSignals])
+async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """
     依 ID 取得單一 repo 及其訊號。
     """
     repo = get_repo_or_404(repo_id, db)
-    return get_repo_with_signals(repo, db)
+    repo_with_signals = get_repo_with_signals(repo, db)
+    return success_response(data=repo_with_signals)
 
 
 @router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -254,8 +277,8 @@ async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
     return None
 
 
-@router.post("/repos/{repo_id}/fetch", response_model=RepoWithSignals)
-async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSignals:
+@router.post("/repos/{repo_id}/fetch", response_model=ApiResponse[RepoWithSignals])
+async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """
     手動抓取 repo 的最新資料。
     建立新快照並重新計算訊號。
@@ -269,12 +292,16 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> RepoWithSig
     # 原子性更新中繼資料 + 快照 + 訊號
     update_repo_from_github(repo, github_data, db)
 
-    return get_repo_with_signals(repo, db)
+    repo_with_signals = get_repo_with_signals(repo, db)
+    return success_response(
+        data=repo_with_signals,
+        message=f"Repository {repo.full_name} data refreshed"
+    )
 
 
-@router.post("/repos/fetch-all", response_model=RepoListResponse)
+@router.post("/repos/fetch-all", response_model=ApiResponse[List[RepoWithSignals]])
 @limiter.limit("5/minute")
-async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> RepoListResponse:
+async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
@@ -284,6 +311,9 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> Re
     repos: List[Repo] = db.query(Repo).all()
     github = GitHubService()
 
+    success_count = 0
+    failed_count = 0
+
     for repo in repos:
         try:
             # 使用帶指數退避的重試包裝器
@@ -291,16 +321,23 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> Re
 
             # 原子性更新中繼資料 + 快照 + 訊號（每個 repo 獨立 commit）
             update_repo_from_github(repo, github_data, db)
+            success_count += 1
 
         except GitHubNotFoundError:
             db.rollback()
             full_name = repo.full_name  # type: ignore[assignment]
             logger.warning(f"[Repo] {full_name} 在 GitHub 上找不到，跳過")
+            failed_count += 1
             continue
         except GitHubAPIError as e:
             db.rollback()
             full_name = repo.full_name  # type: ignore[assignment]
             logger.error(f"[Repo] {full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+            failed_count += 1
             continue
 
-    return _build_repo_list_response(db)
+    repo_list = _build_repo_list_response(db)
+    return success_response(
+        data=repo_list.repos,
+        message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
+    )
