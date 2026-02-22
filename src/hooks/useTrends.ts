@@ -10,7 +10,10 @@ import { getTrends } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 
 export type { TrendingRepo } from "../api/client";
+import type { TrendingRepo } from "../api/client";
 export type SortOption = "velocity" | "stars_delta_7d" | "stars_delta_30d" | "acceleration";
+
+const EMPTY_TRENDS: TrendingRepo[] = [];
 
 export function useTrends() {
   const [sortBy, setSortBy] = useState<SortOption>("velocity");
@@ -32,7 +35,7 @@ export function useTrends() {
       }),
   });
 
-  const trends = data?.repos ?? [];
+  const trends = data?.repos ?? EMPTY_TRENDS;
 
   // 從目前結果動態提取語言選項
   const availableLanguages = useMemo(() => {

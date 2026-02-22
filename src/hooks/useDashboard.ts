@@ -14,8 +14,13 @@ import {
   RepoWithSignals,
   TriggeredAlert,
 } from "../api/client";
+import type { EarlySignal } from "../api/types";
 import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
+
+const EMPTY_REPOS: RepoWithSignals[] = [];
+const EMPTY_ALERTS: TriggeredAlert[] = [];
+const EMPTY_SIGNALS: EarlySignal[] = [];
 
 export interface DashboardStats {
   totalRepos: number;
@@ -57,9 +62,9 @@ export function useDashboard() {
     queryFn: () => getSignalSummary(),
   });
 
-  const repos = reposQuery.data ?? [];
-  const alerts = alertsQuery.data ?? [];
-  const earlySignals = signalsQuery.data ?? [];
+  const repos = reposQuery.data ?? EMPTY_REPOS;
+  const alerts = alertsQuery.data ?? EMPTY_ALERTS;
+  const earlySignals = signalsQuery.data ?? EMPTY_SIGNALS;
   const signalSummary = summaryQuery.data ?? null;
   const isLoading =
     reposQuery.isLoading ||
