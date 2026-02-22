@@ -40,10 +40,12 @@ export interface RecentActivity {
 export function useDashboard() {
   const qc = useQueryClient();
 
-  const reposQuery = useQuery({
+  const reposQuery = useQuery<RepoWithSignals[], Error>({
     queryKey: queryKeys.repos.lists(),
-    queryFn: () => getRepos(),
-    select: (data) => data.repos,
+    queryFn: async () => {
+      const response = await getRepos();
+      return response.repos;
+    },
   });
 
   const alertsQuery = useQuery({
@@ -51,10 +53,12 @@ export function useDashboard() {
     queryFn: () => listTriggeredAlerts(false, 50),
   });
 
-  const signalsQuery = useQuery({
+  const signalsQuery = useQuery<EarlySignal[], Error>({
     queryKey: queryKeys.signals.dashboard(),
-    queryFn: () => listEarlySignals({ limit: 5 }),
-    select: (data) => data.signals,
+    queryFn: async () => {
+      const response = await listEarlySignals({ limit: 5 });
+      return response.signals;
+    },
   });
 
   const summaryQuery = useQuery({
