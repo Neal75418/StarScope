@@ -18,6 +18,10 @@ interface RepoCardProps {
   preloadedBadges?: ContextBadge[];
   /** 由父層批次預載的 signals，避免每張卡個別請求 */
   preloadedSignals?: EarlySignal[];
+  /** 外部控制圖表展開狀態（用於虛擬滾動動態行高） */
+  chartExpanded?: boolean;
+  /** 外部控制圖表切換回調 */
+  onChartToggle?: () => void;
 }
 
 export const RepoCard = memo(function RepoCard({
@@ -29,6 +33,8 @@ export const RepoCard = memo(function RepoCard({
   onRemoveFromCategory,
   preloadedBadges,
   preloadedSignals,
+  chartExpanded,
+  onChartToggle,
 }: RepoCardProps) {
   const preloaded = useMemo(
     () =>
@@ -39,11 +45,19 @@ export const RepoCard = memo(function RepoCard({
   );
   const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
     useRepoCardData(repo.id, preloaded);
-  const [showChart, setShowChart] = useState(false);
+  // 圖表狀態：外部控制優先（虛擬滾動場景），否則使用內部狀態
+  const [internalShowChart, setInternalShowChart] = useState(false);
+  const showChart = chartExpanded ?? internalShowChart;
   const [showSimilar, setShowSimilar] = useState(false);
 
   // Memoize handler 以避免 memoized 子元件不必要的 re-render
-  const handleToggleChart = useCallback(() => setShowChart((prev) => !prev), []);
+  const handleToggleChart = useCallback(() => {
+    if (onChartToggle) {
+      onChartToggle();
+    } else {
+      setInternalShowChart((prev) => !prev);
+    }
+  }, [onChartToggle]);
   const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
   const handleFetch = useCallback(() => onFetch(repo.id), [onFetch, repo.id]);
   const handleRemove = useCallback(() => onRemove(repo.id), [onRemove, repo.id]);

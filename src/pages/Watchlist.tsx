@@ -121,10 +121,11 @@ function EmptyStateView({
 
 import { EmptyState } from "../components/EmptyState";
 
-// 虛擬滾動常數：RepoCard 實測高度 221-256px，取 280px 含緩衝 + 間距 16px = 296px
-const REPO_CARD_HEIGHT = 280;
+// 虛擬滾動常數
 const REPO_CARD_GAP = 16;
-const ITEM_SIZE = REPO_CARD_HEIGHT + REPO_CARD_GAP;
+const COLLAPSED_ITEM_SIZE = 280 + REPO_CARD_GAP; // 收合狀態：卡片 280px + 間距
+const CHART_EXTRA_HEIGHT = 300; // 圖表展開額外高度（chart 180px + controls + padding + backfill）
+const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
 // 穩定的空物件引用，避免觸發不必要的重新渲染
 const EMPTY_ROW_PROPS = {};
 
@@ -147,6 +148,30 @@ function RepoList({
   batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
   onVisibleRangeChange: (range: { start: number; stop: number }) => void;
 }) {
+  // 追蹤哪些 repo 的圖表已展開（提升到此層以控制虛擬滾動行高）
+  const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
+
+  const handleChartToggle = useCallback((repoId: number) => {
+    setExpandedCharts((prev) => {
+      const next = new Set(prev);
+      if (next.has(repoId)) {
+        next.delete(repoId);
+      } else {
+        next.add(repoId);
+      }
+      return next;
+    });
+  }, []);
+
+  // 動態行高：根據圖表展開狀態返回不同高度
+  const getRowHeight = useCallback(
+    (index: number) => {
+      const repo = repos[index];
+      return expandedCharts.has(repo?.id) ? EXPANDED_ITEM_SIZE : COLLAPSED_ITEM_SIZE;
+    },
+    [repos, expandedCharts]
+  );
+
   // 穩定化 onRowsRendered 回調，避免每次渲染都創建新函數
   const handleRowsRendered = useCallback(
     (range: { startIndex: number; stopIndex: number }) => {
@@ -175,11 +200,23 @@ function RepoList({
             onRemoveFromCategory={onRemoveFromCategory}
             preloadedBadges={preloaded?.badges}
             preloadedSignals={preloaded?.signals}
+            chartExpanded={expandedCharts.has(repo.id)}
+            onChartToggle={() => handleChartToggle(repo.id)}
           />
         </div>
       );
     },
-    [repos, batchData, loadingRepoId, onFetch, onRemove, selectedCategoryId, onRemoveFromCategory]
+    [
+      repos,
+      batchData,
+      loadingRepoId,
+      onFetch,
+      onRemove,
+      selectedCategoryId,
+      onRemoveFromCategory,
+      expandedCharts,
+      handleChartToggle,
+    ]
   );
 
   return (
@@ -191,7 +228,7 @@ function RepoList({
               style={{ height, width }}
               rowComponent={RowComponent}
               rowCount={repos.length}
-              rowHeight={ITEM_SIZE}
+              rowHeight={getRowHeight}
               rowProps={EMPTY_ROW_PROPS}
               overscanCount={5}
               onRowsRendered={handleRowsRendered}
