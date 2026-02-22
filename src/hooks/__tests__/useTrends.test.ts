@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useTrends, TrendingRepo } from "../useTrends";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -43,10 +46,16 @@ const defaultResponse = {
   sort_by: "velocity",
 };
 
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
+
 /** Render hook and wait for initial loading to complete. */
 async function renderAndWaitForLoad(mockResponse = defaultResponse) {
   mockGetTrends.mockResolvedValue(mockResponse);
-  const utils = renderHook(() => useTrends());
+  const utils = renderHook(() => useTrends(), { wrapper: createWrapper() });
   await waitFor(() => {
     expect(utils.result.current.loading).toBe(false);
   });
@@ -56,7 +65,7 @@ async function renderAndWaitForLoad(mockResponse = defaultResponse) {
 /** Render hook with a rejected mock and wait for loading to complete. */
 async function renderAndWaitForError(error: Error) {
   mockGetTrends.mockRejectedValue(error);
-  const utils = renderHook(() => useTrends());
+  const utils = renderHook(() => useTrends(), { wrapper: createWrapper() });
   await waitFor(() => {
     expect(utils.result.current.loading).toBe(false);
   });
@@ -77,7 +86,7 @@ describe("useTrends", () => {
   it("starts in loading state and fetches on mount", async () => {
     mockGetTrends.mockResolvedValue(defaultResponse);
 
-    const { result } = renderHook(() => useTrends());
+    const { result } = renderHook(() => useTrends(), { wrapper: createWrapper() });
 
     // Should start loading
     expect(result.current.loading).toBe(true);
@@ -93,7 +102,7 @@ describe("useTrends", () => {
   it("fetches with correct default params", async () => {
     mockGetTrends.mockResolvedValue(defaultResponse);
 
-    renderHook(() => useTrends());
+    renderHook(() => useTrends(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(apiClient.getTrends).toHaveBeenCalled();
@@ -200,10 +209,9 @@ describe("useTrends", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBeNull();
     });
 
-    expect(result.current.error).toBeNull();
     expect(result.current.trends).toHaveLength(1);
   });
 });

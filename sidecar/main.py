@@ -52,8 +52,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         from services.settings import get_setting
         from db.models import AppSettingKey
         has_oauth_token = get_setting(AppSettingKey.GITHUB_TOKEN) is not None
-    except (ImportError, AttributeError, OSError):
-        pass  # DB 尚未初始化或模組不可用，稍後再檢查
+    except (ImportError, AttributeError, OSError) as e:
+        logger.debug(f"[啟動] OAuth token 檢查跳過（DB 尚未初始化或模組不可用）: {e}")
 
     if not github_token and not has_oauth_token:
         logger.warning(

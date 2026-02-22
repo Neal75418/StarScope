@@ -59,6 +59,8 @@ export const queryKeys = {
     lists: () => [...queryKeys.signals.all, "list"] as const,
     list: (filters: { repoId?: number } = {}) => [...queryKeys.signals.lists(), filters] as const,
     batch: (repoIds: number[]) => [...queryKeys.signals.all, "batch", repoIds] as const,
+    dashboard: () => [...queryKeys.signals.all, "dashboard"] as const,
+    summary: () => [...queryKeys.signals.all, "summary"] as const,
   },
 
   // Context Badges
@@ -80,9 +82,48 @@ export const queryKeys = {
     rateLimit: ["githubAuth", "rateLimit"] as const,
   },
 
+  // Trends
+  trends: {
+    all: ["trends"] as const,
+    list: (filters: { sortBy?: string; language?: string; minStars?: number | null } = {}) =>
+      [...queryKeys.trends.all, "list", filters] as const,
+  },
+
   // Dashboard
   dashboard: {
+    all: ["dashboard"] as const,
     stats: ["dashboard", "stats"] as const,
     health: ["dashboard", "health"] as const,
   },
+
+  // Alerts
+  alerts: {
+    all: ["alerts"] as const,
+    rules: () => [...queryKeys.alerts.all, "rules"] as const,
+    triggered: () => [...queryKeys.alerts.all, "triggered"] as const,
+    signalTypes: () => [...queryKeys.alerts.all, "signalTypes"] as const,
+  },
+
+  // Notifications
+  notifications: {
+    all: ["notifications"] as const,
+  },
 } as const;
+
+/**
+ * 建立測試用的 QueryClient（不重試、不快取）。
+ */
+export function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        staleTime: 0,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+}

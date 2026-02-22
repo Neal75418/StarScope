@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 _scheduler: Optional[AsyncIOScheduler] = None
 _scheduler_lock = threading.Lock()
 
+# Repo 連續失敗計數器（in-memory，重啟後歸零）
+_repo_failure_counts: dict[int, int] = {}
+FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
+
 
 def get_scheduler() -> AsyncIOScheduler:
     """取得全域排程器實例（使用 SQLAlchemy jobstore 持久化）。"""
@@ -47,6 +51,23 @@ def get_scheduler() -> AsyncIOScheduler:
                 }
                 _scheduler = AsyncIOScheduler(jobstores=jobstores)
     return _scheduler
+
+
+def _track_repo_failure(repo_id: int, full_name: str, reason: str) -> None:
+    """追蹤 repo 連續失敗次數，超過閾值時記錄 WARNING。"""
+    count = _repo_failure_counts.get(repo_id, 0) + 1
+    _repo_failure_counts[repo_id] = count
+
+    if count == FAILURE_ALERT_THRESHOLD:
+        logger.warning(
+            f"[排程] {full_name} 已連續失敗 {count} 次，"
+            f"最近原因: {reason[:200]}"
+        )
+    elif count > FAILURE_ALERT_THRESHOLD and count % FAILURE_ALERT_THRESHOLD == 0:
+        logger.warning(
+            f"[排程] {full_name} 持續失敗中（共 {count} 次），"
+            f"最近原因: {reason[:200]}"
+        )
 
 
 async def fetch_all_repos_job(skip_recent_minutes: int = 30):
@@ -98,6 +119,7 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
             # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
             # 避免一次性載入所有 repo 到記憶體
             for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
+                    repo_id = int(repo.id)
                     try:
                         # 從 GitHub 取得最新資料
                         github_data = await fetch_repo_data(repo.owner, repo.name)
@@ -107,18 +129,22 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
                             update_repo_from_github(repo, github_data, db)
 
                             success_count += 1
+                            # 成功時重置失敗計數
+                            _repo_failure_counts.pop(repo_id, None)
                             logger.debug(f"[排程] 已抓取 {repo.full_name}")
                         else:
                             error_count += 1
-                            logger.warning(f"[排程] 抓取 {repo.full_name} 資料失敗")
+                            _track_repo_failure(repo_id, repo.full_name, "資料為空")
 
                     except (GitHubAPIError, SQLAlchemyError) as e:
                         error_count += 1
                         db.rollback()
+                        _track_repo_failure(repo_id, repo.full_name, str(e))
                         logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
                     except Exception as e:
                         error_count += 1
                         db.rollback()
+                        _track_repo_failure(repo_id, repo.full_name, str(e))
                         logger.error(f"[排程] 抓取 {repo.full_name} 非預期錯誤: {e}", exc_info=True)
 
             logger.info(

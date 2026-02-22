@@ -7,7 +7,7 @@ import bisect
 import logging
 import threading
 from datetime import timedelta
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set, Tuple
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -62,13 +62,24 @@ def _determine_severity(
 
 
 def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
-    """檢查是否已存在未過期、未確認的同類型 signal。"""
+    """檢查是否已存在未過期、未確認的同類型 signal（單次查詢 fallback）。"""
     return db.query(EarlySignal).filter(
         EarlySignal.repo_id == repo_id,
         EarlySignal.signal_type == signal_type,
         EarlySignal.expires_at > utc_now(),
         EarlySignal.acknowledged == False  # noqa: E712
     ).first() is not None
+
+
+def _build_active_signals_set(db: Session) -> Set[Tuple[int, str]]:
+    """一次性預載所有 active early signals，回傳 {(repo_id, signal_type)} set。"""
+    rows = db.query(
+        EarlySignal.repo_id, EarlySignal.signal_type
+    ).filter(
+        EarlySignal.expires_at > utc_now(),
+        EarlySignal.acknowledged == False  # noqa: E712
+    ).all()
+    return {(int(row[0]), row[1]) for row in rows}
 
 
 def _determine_rising_star_severity(velocity: float, velocity_ratio: float) -> str:
@@ -318,12 +329,23 @@ class AnomalyDetector:
         snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
         signal_map: Optional[Dict[int, Dict[str, float]]] = None,
         velocity_values: Optional[List[float]] = None,
+        active_signals: Optional[Set[Tuple[int, str]]] = None,
     ) -> List["EarlySignal"]:
         """
         對單一 repo 執行所有偵測演算法。
         回傳偵測到的訊號列表（尚未儲存）。
+
+        Args:
+            active_signals: 預載的 active signals set，避免 N+1 查詢。
+                            若為 None 則 fallback 至逐次 DB 查詢。
         """
         signals: List["EarlySignal"] = []
+        repo_id = int(repo.id)
+
+        def _is_active(sig_type: str) -> bool:
+            if active_signals is not None:
+                return (repo_id, sig_type) in active_signals
+            return _signal_already_active(repo_id, sig_type, db)
 
         # rising_star 需要 velocity_values 做百分位計算
         try:
@@ -333,7 +355,7 @@ class AnomalyDetector:
                 signal_map=signal_map,
                 velocity_values=velocity_values,
             )
-            if signal and not _signal_already_active(int(repo.id), signal.signal_type, db):
+            if signal and not _is_active(signal.signal_type):
                 signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
@@ -348,7 +370,7 @@ class AnomalyDetector:
         for detector in other_detectors:
             try:
                 signal = detector(repo, db, snapshot_map=snapshot_map, signal_map=signal_map)
-                if signal and not _signal_already_active(int(repo.id), signal.signal_type, db):
+                if signal and not _is_active(signal.signal_type):
                     signals.append(signal)
             except SQLAlchemyError as e:
                 logger.error(f"[異常偵測] {repo.full_name} 偵測器錯誤: {e}", exc_info=True)
@@ -397,6 +419,9 @@ class AnomalyDetector:
         # noinspection PyTypeChecker
         velocity_values: List[float] = sorted(row[0] for row in rows)
 
+        # 預載所有 active early signals，避免 detect_all_for_repo 中的 N+1 查詢
+        active_signals = _build_active_signals_set(db)
+
         all_signals: List["EarlySignal"] = []
 
         for repo in repos:
@@ -406,6 +431,7 @@ class AnomalyDetector:
                     snapshot_map=snapshot_map,
                     signal_map=signal_map,
                     velocity_values=velocity_values,
+                    active_signals=active_signals,
                 )
                 all_signals.extend(signals)
             except Exception as e:

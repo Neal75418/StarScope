@@ -58,26 +58,26 @@ export interface WatchlistState {
  * Reducer Actions - 使用語意化的 action types
  */
 export type WatchlistAction =
-  // 初始化
+  // 初始化（由 React Query 驅動，reducer 只管 loadingState）
   | { type: "INITIALIZE_START" }
-  | { type: "INITIALIZE_SUCCESS"; payload: { repos: RepoWithSignals[] } }
+  | { type: "INITIALIZE_SUCCESS" }
   | { type: "INITIALIZE_FAILURE"; payload: { error: string } }
   | { type: "SET_CONNECTION_STATUS"; payload: { isConnected: boolean } }
 
-  // Repo 操作
+  // Repo 操作（repos 資料由 React Query 管理，reducer 只追蹤 loadingState/UI）
   | { type: "ADD_REPO_START"; payload: { fullName: string } }
-  | { type: "ADD_REPO_SUCCESS"; payload: { repo: RepoWithSignals } }
+  | { type: "ADD_REPO_SUCCESS" }
   | { type: "ADD_REPO_FAILURE"; payload: { error: string } }
   | { type: "REMOVE_REPO_START"; payload: { repoId: number } }
-  | { type: "REMOVE_REPO_SUCCESS"; payload: { repoId: number } }
+  | { type: "REMOVE_REPO_SUCCESS" }
   | { type: "REMOVE_REPO_FAILURE"; payload: { error: string } }
   | { type: "FETCH_REPO_START"; payload: { repoId: number } }
-  | { type: "FETCH_REPO_SUCCESS"; payload: { repo: RepoWithSignals } }
+  | { type: "FETCH_REPO_SUCCESS" }
   | { type: "FETCH_REPO_FAILURE"; payload: { repoId: number; error: string } }
 
   // 批次操作
   | { type: "REFRESH_ALL_START"; payload: { repoIds: number[] } }
-  | { type: "REFRESH_ALL_SUCCESS"; payload: { repos: RepoWithSignals[] } }
+  | { type: "REFRESH_ALL_SUCCESS" }
   | { type: "REFRESH_ALL_FAILURE"; payload: { error: string } }
   | { type: "RECALCULATE_START" }
   | { type: "RECALCULATE_SUCCESS" }
@@ -187,7 +187,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "INITIALIZE_SUCCESS":
       return {
         ...state,
-        repos: action.payload.repos,
         loadingState: { type: "idle" },
         error: null,
       };
@@ -222,9 +221,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "ADD_REPO_SUCCESS":
       return {
         ...state,
-        repos: [action.payload.repo, ...state.repos].sort((a, b) =>
-          a.full_name.localeCompare(b.full_name)
-        ),
         loadingState: { type: "idle" },
         ui: {
           ...state.ui,
@@ -258,7 +254,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "REMOVE_REPO_SUCCESS":
       return {
         ...state,
-        repos: state.repos.filter((r) => r.id !== action.payload.repoId),
         loadingState: { type: "idle" },
         ui: {
           ...state.ui,
@@ -288,7 +283,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "FETCH_REPO_SUCCESS":
       return {
         ...state,
-        repos: state.repos.map((r) => (r.id === action.payload.repo.id ? action.payload.repo : r)),
         loadingState: { type: "idle" },
       };
 
@@ -310,7 +304,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "REFRESH_ALL_SUCCESS":
       return {
         ...state,
-        repos: action.payload.repos,
         loadingState: { type: "idle" },
       };
 

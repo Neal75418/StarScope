@@ -47,14 +47,9 @@ describe("watchlistReducer", () => {
       expect(next.error).toBeNull();
     });
 
-    it("INITIALIZE_SUCCESS sets repos and returns to idle", () => {
-      const repos = [makeRepo()];
+    it("INITIALIZE_SUCCESS returns to idle and clears error", () => {
       const state = { ...initialState, loadingState: { type: "initializing" as const } };
-      const next = watchlistReducer(state, {
-        type: "INITIALIZE_SUCCESS",
-        payload: { repos },
-      });
-      expect(next.repos).toEqual(repos);
+      const next = watchlistReducer(state, { type: "INITIALIZE_SUCCESS" });
       expect(next.loadingState).toEqual({ type: "idle" });
       expect(next.error).toBeNull();
     });
@@ -90,21 +85,19 @@ describe("watchlistReducer", () => {
       expect(next.ui.dialog.error).toBeNull();
     });
 
-    it("ADD_REPO_SUCCESS inserts repo sorted by full_name and closes dialog", () => {
-      const existingRepo = makeRepo({ id: 2, full_name: "vercel/next.js" });
-      const state = { ...initialState, repos: [existingRepo] };
+    it("ADD_REPO_SUCCESS resets loading and closes dialog", () => {
+      const state = {
+        ...initialState,
+        repos: [makeRepo()],
+        ui: { ...initialState.ui, dialog: { isOpen: true, error: null } },
+      };
 
-      const newRepo = makeRepo({ id: 1, full_name: "facebook/react" });
-      const next = watchlistReducer(state, {
-        type: "ADD_REPO_SUCCESS",
-        payload: { repo: newRepo },
-      });
+      const next = watchlistReducer(state, { type: "ADD_REPO_SUCCESS" });
 
-      expect(next.repos).toHaveLength(2);
-      expect(next.repos[0].full_name).toBe("facebook/react");
-      expect(next.repos[1].full_name).toBe("vercel/next.js");
       expect(next.loadingState).toEqual({ type: "idle" });
       expect(next.ui.dialog.isOpen).toBe(false);
+      // repos 不再由 reducer 管理（由 React Query cache invalidation 更新）
+      expect(next.repos).toEqual(state.repos);
     });
 
     it("ADD_REPO_FAILURE sets dialog error without closing", () => {
@@ -123,24 +116,20 @@ describe("watchlistReducer", () => {
   });
 
   describe("remove repo", () => {
-    it("REMOVE_REPO_SUCCESS filters out repo and resets remove confirm", () => {
-      const repos = [makeRepo({ id: 1 }), makeRepo({ id: 2, full_name: "vercel/next.js" })];
+    it("REMOVE_REPO_SUCCESS resets loading and closes confirm dialog", () => {
       const state = {
         ...initialState,
-        repos,
+        repos: [makeRepo({ id: 1 }), makeRepo({ id: 2, full_name: "vercel/next.js" })],
         ui: {
           ...initialState.ui,
           removeConfirm: { isOpen: true, repoId: 1, repoName: "facebook/react" },
         },
       };
 
-      const next = watchlistReducer(state, {
-        type: "REMOVE_REPO_SUCCESS",
-        payload: { repoId: 1 },
-      });
+      const next = watchlistReducer(state, { type: "REMOVE_REPO_SUCCESS" });
 
-      expect(next.repos).toHaveLength(1);
-      expect(next.repos[0].id).toBe(2);
+      // repos 不再由 reducer 過濾（由 React Query cache invalidation 更新）
+      expect(next.repos).toEqual(state.repos);
       expect(next.ui.removeConfirm.isOpen).toBe(false);
       expect(next.ui.removeConfirm.repoId).toBeNull();
     });
@@ -155,18 +144,17 @@ describe("watchlistReducer", () => {
   });
 
   describe("fetch repo", () => {
-    it("FETCH_REPO_SUCCESS updates existing repo in place", () => {
-      const repos = [makeRepo({ id: 1, stars: 100 })];
-      const state = { ...initialState, repos };
+    it("FETCH_REPO_SUCCESS resets loading to idle", () => {
+      const state = {
+        ...initialState,
+        repos: [makeRepo({ id: 1, stars: 100 })],
+        loadingState: { type: "fetching" as const, repoId: 1 },
+      };
 
-      const updated = makeRepo({ id: 1, stars: 200 });
-      const next = watchlistReducer(state, {
-        type: "FETCH_REPO_SUCCESS",
-        payload: { repo: updated },
-      });
+      const next = watchlistReducer(state, { type: "FETCH_REPO_SUCCESS" });
 
-      expect(next.repos[0].stars).toBe(200);
       expect(next.loadingState).toEqual({ type: "idle" });
+      // repos 不再由 reducer 更新（由 React Query cache invalidation 更新）
     });
 
     it("FETCH_REPO_FAILURE sets error", () => {
@@ -190,17 +178,17 @@ describe("watchlistReducer", () => {
       expect(next.error).toBeNull();
     });
 
-    it("REFRESH_ALL_SUCCESS replaces all repos", () => {
-      const state = { ...initialState, repos: [makeRepo({ id: 1 })] };
-      const newRepos = [makeRepo({ id: 1, stars: 999 }), makeRepo({ id: 2 })];
+    it("REFRESH_ALL_SUCCESS resets loading to idle", () => {
+      const state = {
+        ...initialState,
+        repos: [makeRepo({ id: 1 })],
+        loadingState: { type: "refreshing" as const, repoIds: [1] },
+      };
 
-      const next = watchlistReducer(state, {
-        type: "REFRESH_ALL_SUCCESS",
-        payload: { repos: newRepos },
-      });
+      const next = watchlistReducer(state, { type: "REFRESH_ALL_SUCCESS" });
 
-      expect(next.repos).toHaveLength(2);
-      expect(next.repos[0].stars).toBe(999);
+      expect(next.loadingState).toEqual({ type: "idle" });
+      // repos 不再由 reducer 替換（由 React Query cache invalidation 更新）
     });
 
     it("RECALCULATE_START/SUCCESS cycle", () => {
@@ -354,11 +342,11 @@ describe("watchlistReducer", () => {
       const result = reduce(
         initialState,
         { type: "SET_CONNECTION_STATUS", payload: { isConnected: true } },
-        { type: "INITIALIZE_SUCCESS", payload: { repos: [makeRepo()] } },
+        { type: "INITIALIZE_SUCCESS" },
         { type: "SET_SEARCH_QUERY", payload: { query: "react" } }
       );
       expect(result.isConnected).toBe(true);
-      expect(result.repos).toHaveLength(1);
+      expect(result.loadingState).toEqual({ type: "idle" });
       expect(result.filters.searchQuery).toBe("react");
     });
   });

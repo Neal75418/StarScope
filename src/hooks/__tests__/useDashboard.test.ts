@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useDashboard } from "../useDashboard";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -95,6 +98,12 @@ function setupDefaultMocks() {
   vi.mocked(apiClient.getSignalSummary).mockResolvedValue(defaultSummary);
 }
 
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
+
 describe("useDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -102,24 +111,21 @@ describe("useDashboard", () => {
   });
 
   it("starts in loading state", () => {
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
     expect(result.current.isLoading).toBe(true);
   });
 
   it("loads all 4 APIs in parallel and sets data", async () => {
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(apiClient.getRepos).toHaveBeenCalledWith(expect.any(AbortSignal));
-    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50, expect.any(AbortSignal));
-    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({
-      limit: 5,
-      signal: expect.any(AbortSignal),
-    });
-    expect(apiClient.getSignalSummary).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(apiClient.getRepos).toHaveBeenCalled();
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50);
+    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 5 });
+    expect(apiClient.getSignalSummary).toHaveBeenCalled();
 
     expect(result.current.error).toBeNull();
     expect(result.current.earlySignals).toHaveLength(1);
@@ -129,7 +135,7 @@ describe("useDashboard", () => {
   it("sets error when API fails", async () => {
     vi.mocked(apiClient.getRepos).mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -149,7 +155,7 @@ describe("useDashboard", () => {
       makeAlert({ id: 2, acknowledged: true }),
     ]);
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -158,7 +164,7 @@ describe("useDashboard", () => {
     expect(result.current.stats.totalRepos).toBe(2);
     expect(result.current.stats.totalStars).toBe(300000);
     expect(result.current.stats.weeklyStars).toBe(200);
-    expect(result.current.stats.activeAlerts).toBe(1); // only unacknowledged
+    expect(result.current.stats.activeAlerts).toBe(1);
   });
 
   it("handles null values in stats computation", async () => {
@@ -167,7 +173,7 @@ describe("useDashboard", () => {
       total: 1,
     });
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -195,15 +201,13 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: 8 });
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue(alerts);
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // 8 repos + 5 alerts = 13 total, but limited to 10
     expect(result.current.recentActivity).toHaveLength(10);
-    // Should be sorted newest first
     const timestamps = result.current.recentActivity.map((a) => a.timestamp);
     for (let i = 1; i < timestamps.length; i++) {
       expect(new Date(timestamps[i - 1]).getTime()).toBeGreaterThanOrEqual(
@@ -214,17 +218,17 @@ describe("useDashboard", () => {
 
   it("computes velocityDistribution buckets correctly", async () => {
     const repos = [
-      makeRepo({ id: 1, velocity: -5 }), // < 0
-      makeRepo({ id: 2, velocity: 0 }), // 0-10
-      makeRepo({ id: 3, velocity: 5 }), // 0-10
-      makeRepo({ id: 4, velocity: 25 }), // 10-50
-      makeRepo({ id: 5, velocity: 75 }), // 50-100
-      makeRepo({ id: 6, velocity: 150 }), // 100+
-      makeRepo({ id: 7, velocity: null }), // null → 0 → 0-10
+      makeRepo({ id: 1, velocity: -5 }),
+      makeRepo({ id: 2, velocity: 0 }),
+      makeRepo({ id: 3, velocity: 5 }),
+      makeRepo({ id: 4, velocity: 25 }),
+      makeRepo({ id: 5, velocity: 75 }),
+      makeRepo({ id: 6, velocity: 150 }),
+      makeRepo({ id: 7, velocity: null }),
     ];
     vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: 7 });
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -233,19 +237,19 @@ describe("useDashboard", () => {
     const dist = result.current.velocityDistribution;
     expect(dist).toHaveLength(5);
     expect(dist[0]).toEqual({ key: "negative", count: 1 });
-    expect(dist[1]).toEqual({ key: "low", count: 3 }); // 0, 5, null→0
+    expect(dist[1]).toEqual({ key: "low", count: 3 });
     expect(dist[2]).toEqual({ key: "medium", count: 1 });
     expect(dist[3]).toEqual({ key: "high", count: 1 });
     expect(dist[4]).toEqual({ key: "veryHigh", count: 1 });
   });
 
-  it("acknowledgeSignal removes signal and updates summary", async () => {
+  it("acknowledgeSignal calls API and invalidates cache", async () => {
     vi.mocked(apiClient.acknowledgeSignal).mockResolvedValue({
       status: "ok",
       message: "acknowledged",
     });
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -258,44 +262,43 @@ describe("useDashboard", () => {
     });
 
     expect(apiClient.acknowledgeSignal).toHaveBeenCalledWith(1);
-    expect(result.current.earlySignals).toHaveLength(0);
-    expect(result.current.signalSummary?.total_active).toBe(1); // 2 - 1
   });
 
   it("acknowledgeSignal silently handles errors", async () => {
     vi.mocked(apiClient.acknowledgeSignal).mockRejectedValue(new Error("fail"));
 
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Should not throw
     await act(async () => {
       await result.current.acknowledgeSignal(1);
     });
 
-    // Signals should not be removed on error
+    // Should not throw — signals remain since invalidation refetch uses same mock
     expect(result.current.earlySignals).toHaveLength(1);
   });
 
-  it("refresh reloads all data", async () => {
-    const { result } = renderHook(() => useDashboard());
+  it("refresh invalidates all queries", async () => {
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    // Clear mock call counts
     vi.clearAllMocks();
     setupDefaultMocks();
 
-    await act(async () => {
-      await result.current.refresh();
+    act(() => {
+      result.current.refresh();
     });
 
-    expect(apiClient.getRepos).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(apiClient.getRepos).toHaveBeenCalled();
+    });
+
     expect(apiClient.listTriggeredAlerts).toHaveBeenCalled();
     expect(apiClient.listEarlySignals).toHaveBeenCalled();
     expect(apiClient.getSignalSummary).toHaveBeenCalled();

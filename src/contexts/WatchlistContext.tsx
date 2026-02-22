@@ -1,6 +1,8 @@
 /**
- * Watchlist Context：集中化的狀態管理，使用 Context + useReducer 架構。
- * 取代原本分散的 14 個 useState，改用 State Machine Pattern 管理載入狀態。
+ * Watchlist Context：集中化的狀態管理。
+ *
+ * 資料層由 React Query 管理（repos 快取、請求去重、自動重試），
+ * Context + useReducer 只負責 UI 狀態（dialog、filters、toasts、loadingState）。
  */
 
 import {
@@ -8,13 +10,12 @@ import {
   useContext,
   useReducer,
   useMemo,
-  useEffect,
   useRef,
   useCallback,
   ReactNode,
 } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  getRepos,
   addRepo,
   removeRepo,
   fetchRepo,
@@ -23,6 +24,8 @@ import {
   checkHealth,
   getCategoryRepos,
 } from "../api/client";
+import { useReposQuery } from "../hooks/useReposQuery";
+import { queryKeys } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
@@ -57,54 +60,53 @@ interface WatchlistProviderProps {
 
 export function WatchlistProvider({ children }: WatchlistProviderProps) {
   const { t } = useI18n();
-  const [state, dispatch] = useReducer(watchlistReducer, initialState);
+  const qc = useQueryClient();
+  const [reducerState, dispatch] = useReducer(watchlistReducer, initialState);
 
-  // 避免 StrictMode 重複請求
-  const hasInitializedRef = useRef(false);
+  // ── React Query：連線檢查 ──
+  const healthQuery = useQuery({
+    queryKey: queryKeys.dashboard.health,
+    queryFn: checkHealth,
+    retry: 1,
+    staleTime: 1000 * 60,
+  });
+  const isConnected = healthQuery.data?.status === "ok";
 
-  // 初始載入
-  useEffect(() => {
-    if (hasInitializedRef.current) return;
-    hasInitializedRef.current = true;
+  // ── React Query：repos 資料（連線成功後才啟用）──
+  const reposQuery = useReposQuery({ enabled: isConnected });
 
-    const init = async () => {
-      dispatch({ type: "INITIALIZE_START" });
+  // ── 合併 React Query 資料與 reducer UI 狀態 ──
+  // 保持 WatchlistState 介面不變，消費端無須修改
+  const state: WatchlistState = useMemo(() => {
+    // 判斷載入狀態：React Query 載入中且 reducer 空閒時視為初始化
+    const isInitializing =
+      (healthQuery.isLoading || (isConnected && reposQuery.isLoading)) &&
+      reducerState.loadingState.type === "idle";
 
-      try {
-        // 檢查連線
-        const healthResponse = await checkHealth();
-        const isConnected = healthResponse.status === "ok";
-        dispatch({ type: "SET_CONNECTION_STATUS", payload: { isConnected } });
+    // 合併錯誤來源
+    const queryError = healthQuery.error ?? reposQuery.error;
+    const mergedError =
+      reducerState.error ??
+      (!isConnected && !healthQuery.isLoading ? t.watchlist.connection.message : null) ??
+      (queryError instanceof Error ? queryError.message : null);
 
-        if (isConnected) {
-          // 載入 repos
-          const response = await getRepos();
-          dispatch({
-            type: "INITIALIZE_SUCCESS",
-            payload: { repos: response.repos },
-          });
-        } else {
-          dispatch({
-            type: "INITIALIZE_FAILURE",
-            payload: { error: t.watchlist.connection.message },
-          });
-        }
-      } catch (err) {
-        dispatch({
-          type: "SET_CONNECTION_STATUS",
-          payload: { isConnected: false },
-        });
-        dispatch({
-          type: "INITIALIZE_FAILURE",
-          payload: { error: getErrorMessage(err, t.common.error) },
-        });
-      }
+    return {
+      ...reducerState,
+      repos: reposQuery.data ?? reducerState.repos,
+      isConnected,
+      loadingState: isInitializing ? { type: "initializing" as const } : reducerState.loadingState,
+      error: mergedError,
     };
-
-    void init();
-    // init 只需掛載時執行一次，內部使用的 dispatch/t 透過閉包取得
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    reducerState,
+    reposQuery.data,
+    reposQuery.isLoading,
+    reposQuery.error,
+    healthQuery.isLoading,
+    healthQuery.error,
+    isConnected,
+    t,
+  ]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
   const stateRef = useRef(state);
@@ -122,11 +124,15 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     });
   }, []);
 
+  // invalidate repos cache 的便利函式
+  const invalidateRepos = useCallback(() => {
+    void qc.invalidateQueries({ queryKey: queryKeys.repos.all });
+  }, [qc]);
+
   // Actions - 使用 ref 讀取 state，確保 actions 引用穩定
-  // deps 只依賴 t（語言切換時才需要更新）
   const actions = useMemo<WatchlistActions>(
     () => ({
-      // Repo 操作
+      // Repo 操作 — 呼叫 API 後 invalidate React Query cache
       addRepo: async (input: string) => {
         const parsed = parseRepoString(input);
         if (!parsed) {
@@ -142,11 +148,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         });
 
         try {
-          const newRepo = await addRepo({
-            owner: parsed.owner,
-            name: parsed.name,
-          });
-          dispatch({ type: "ADD_REPO_SUCCESS", payload: { repo: newRepo } });
+          await addRepo({ owner: parsed.owner, name: parsed.name });
+          dispatch({ type: "ADD_REPO_SUCCESS" });
+          invalidateRepos();
           return { success: true };
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
@@ -160,7 +164,8 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
         try {
           await removeRepo(repoId);
-          dispatch({ type: "REMOVE_REPO_SUCCESS", payload: { repoId } });
+          dispatch({ type: "REMOVE_REPO_SUCCESS" });
+          invalidateRepos();
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
           dispatch({ type: "REMOVE_REPO_FAILURE", payload: { error } });
@@ -172,11 +177,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         dispatch({ type: "FETCH_REPO_START", payload: { repoId } });
 
         try {
-          const updatedRepo = await fetchRepo(repoId);
-          dispatch({
-            type: "FETCH_REPO_SUCCESS",
-            payload: { repo: updatedRepo },
-          });
+          await fetchRepo(repoId);
+          dispatch({ type: "FETCH_REPO_SUCCESS" });
+          invalidateRepos();
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
           dispatch({
@@ -191,11 +194,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         dispatch({ type: "REFRESH_ALL_START", payload: { repoIds } });
 
         try {
-          const response = await fetchAllRepos();
-          dispatch({
-            type: "REFRESH_ALL_SUCCESS",
-            payload: { repos: response.repos },
-          });
+          await fetchAllRepos();
+          dispatch({ type: "REFRESH_ALL_SUCCESS" });
+          invalidateRepos();
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
           dispatch({ type: "REFRESH_ALL_FAILURE", payload: { error } });
@@ -232,7 +233,8 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
         try {
           await removeRepo(repoId);
-          dispatch({ type: "REMOVE_REPO_SUCCESS", payload: { repoId } });
+          dispatch({ type: "REMOVE_REPO_SUCCESS" });
+          invalidateRepos();
           showToastFn("success", t.toast.repoRemoved);
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
@@ -244,7 +246,6 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
       // 篩選操作
       setCategory: async (categoryId: number | null) => {
-        // 取消前一個分類請求，防止快速切換時競態
         categoryAbortRef.current?.abort();
         categoryAbortRef.current = null;
 
@@ -285,46 +286,14 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       // 錯誤處理
       clearError: () => dispatch({ type: "CLEAR_ERROR" }),
 
-      // 連線重試
+      // 連線重試 — invalidate React Query cache 觸發重新取得
       retry: async () => {
-        dispatch({ type: "INITIALIZE_START" });
         dispatch({ type: "CLEAR_ERROR" });
-
-        try {
-          const healthResponse = await checkHealth();
-          const isConnected = healthResponse.status === "ok";
-          dispatch({
-            type: "SET_CONNECTION_STATUS",
-            payload: { isConnected },
-          });
-
-          if (isConnected) {
-            const response = await getRepos();
-            dispatch({
-              type: "INITIALIZE_SUCCESS",
-              payload: { repos: response.repos },
-            });
-          } else {
-            dispatch({
-              type: "INITIALIZE_FAILURE",
-              payload: { error: t.watchlist.connection.message },
-            });
-          }
-        } catch (err) {
-          dispatch({
-            type: "SET_CONNECTION_STATUS",
-            payload: { isConnected: false },
-          });
-          dispatch({
-            type: "INITIALIZE_FAILURE",
-            payload: { error: getErrorMessage(err, t.common.error) },
-          });
-        }
+        void qc.invalidateQueries({ queryKey: queryKeys.dashboard.health });
+        invalidateRepos();
       },
     }),
-    // 只依賴 t（語言切換）和 showToastFn（穩定引用）
-    // state 透過 stateRef 讀取，不觸發 actions 重建
-    [t, showToastFn]
+    [t, showToastFn, invalidateRepos, qc]
   );
 
   return (

@@ -1,61 +1,38 @@
 /**
  * 趨勢 Repo 資料的取得與排序。
+ * 使用 React Query 管理資料快取與請求去重。
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useI18n } from "../i18n";
+import { useState, useMemo, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TRENDS_DEFAULT_LIMIT } from "../constants/api";
-import { getTrends, TrendingRepo } from "../api/client";
+import { getTrends } from "../api/client";
+import { queryKeys } from "../lib/react-query";
 
 export type { TrendingRepo } from "../api/client";
 export type SortOption = "velocity" | "stars_delta_7d" | "stars_delta_30d" | "acceleration";
 
 export function useTrends() {
-  const { t } = useI18n();
-  const [trends, setTrends] = useState<TrendingRepo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>("velocity");
   const [languageFilter, setLanguageFilter] = useState<string>("");
   const [minStarsFilter, setMinStarsFilter] = useState<number | null>(null);
 
-  // 避免 StrictMode 重複請求
-  const isFetchingRef = useRef(false);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.trends.list({
+      sortBy,
+      language: languageFilter || undefined,
+      minStars: minStarsFilter,
+    }),
+    queryFn: () =>
+      getTrends({
+        sortBy,
+        limit: TRENDS_DEFAULT_LIMIT,
+        language: languageFilter || undefined,
+        minStars: minStarsFilter ?? undefined,
+      }),
+  });
 
-  const fetchTrends = useCallback(
-    async (sort: SortOption, language: string, minStars: number | null) => {
-      // 避免重複請求（防止 StrictMode 雙重觸發）
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const data = await getTrends({
-          sortBy: sort,
-          limit: TRENDS_DEFAULT_LIMIT,
-          language: language || undefined,
-          minStars: minStars ?? undefined,
-        });
-        setTrends(data.repos);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t.trends.loadingError);
-      } finally {
-        setLoading(false);
-        isFetchingRef.current = false;
-      }
-    },
-    [t.trends.loadingError]
-  );
-
-  useEffect(() => {
-    void fetchTrends(sortBy, languageFilter, minStarsFilter);
-  }, [sortBy, languageFilter, minStarsFilter, fetchTrends]);
-
-  const retry = useCallback(() => {
-    void fetchTrends(sortBy, languageFilter, minStarsFilter);
-  }, [fetchTrends, sortBy, languageFilter, minStarsFilter]);
+  const trends = data?.repos ?? [];
 
   // 從目前結果動態提取語言選項
   const availableLanguages = useMemo(() => {
@@ -68,8 +45,8 @@ export function useTrends() {
 
   return {
     trends,
-    loading,
-    error,
+    loading: isLoading,
+    error: error instanceof Error ? error.message : error ? String(error) : null,
     sortBy,
     setSortBy,
     languageFilter,
@@ -77,6 +54,6 @@ export function useTrends() {
     minStarsFilter,
     setMinStarsFilter,
     availableLanguages,
-    retry,
+    retry: useCallback(() => void refetch(), [refetch]),
   };
 }

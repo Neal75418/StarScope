@@ -94,7 +94,7 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：86%+ 分支覆蓋率（672 個測試案例）
+> **測試覆蓋率**：86%+ 分支覆蓋率（前端 665 + 後端 373 = 1038 個測試案例）
 
 ### E2E 測試
 
@@ -122,10 +122,11 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|----------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Settings      |
 | `components/`   | RepoCard、StarsChart、HealthBadge、GitHubConnection 等 |
-| `hooks/`        | 自訂 Hooks（API 呼叫、狀態管理、副作用）                          |
+| `hooks/`        | 自訂 Hooks（React Query 查詢/Mutation、狀態管理）            |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                              |
+| `lib/`          | React Query 設定（queryKeys、QueryClient）              |
 | `utils/`        | 工具函式（logger、error handling 等）                      |
-| `**/__tests__/` | Vitest 單元測試（672 個測試案例）                             |
+| `**/__tests__/` | Vitest 單元測試（665 個測試案例）                             |
 
 ### Sidecar `sidecar/`
 
@@ -153,7 +154,9 @@ npm run tauri dev               # 終端機 2 — Tauri
 | `github_auth.py`     | OAuth Device Flow 驗證          |
 | `analyzer.py`        | Star 速度與信號計算                  |
 | `health_scorer.py`   | 7 維度專案健康度評分                   |
-| `scheduler.py`       | APScheduler 背景排程              |
+| `scheduler.py`       | APScheduler 背景排程（含失敗追蹤機制）     |
+| `anomaly_detector.py`| 異常偵測（批次預載 active signals）     |
+| `backup.py`          | SQLite 資料庫備份與還原               |
 | `context_fetcher.py` | HackerNews 上下文資訊彙整            |
 
 ---
@@ -192,12 +195,18 @@ PORT=8008
 
 ## API 端點
 
+所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
+前端 `client.ts` 的 `doFetch` 自動 unwrap `data` 欄位。
+
 | 端點                                  | 說明                   |
 |-------------------------------------|----------------------|
 | `GET /api/repos`                    | 列出追蹤中的儲存庫            |
 | `POST /api/repos`                   | 新增儲存庫                |
+| `DELETE /api/repos/{id}`            | 移除儲存庫                |
+| `POST /api/repos/{id}/fetch`        | 手動更新單一 repo          |
 | `GET /api/trends`                   | 趨勢儲存庫                |
 | `GET /api/early-signals`            | 早期信號偵測               |
+| `GET /api/alerts/rules`             | 警報規則管理               |
 | `POST /api/github-auth/device-code` | 啟動 OAuth Device Flow |
 | `GET /api/github-auth/status`       | GitHub 連線狀態          |
 
@@ -220,21 +229,33 @@ SQLite 位於 `sidecar/starscope.db`：
 
 ## 前端架構模式
 
-### Watchlist Context + useReducer 架構（2024-02 重構）
+### React Query 資料層
 
-- `WatchlistContext.tsx` - 14 個 useState → 單一 useReducer，三層 Context 分離
-- State Machine Pattern - `LoadingState` 使用 Discriminated Unions 消除不可能狀態
+- **QueryClient 設定** (`lib/react-query.ts`) — staleTime 5min、gcTime 30min、retry 1
+- **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
+- **Query hooks**:
+  - `useReposQuery` — repos 列表查詢（WatchlistContext 內部使用）
+  - `useTrends` — Trends 頁面主資料（含 filter 狀態）
+  - `useDashboard` — 4 個平行 useQuery（repos、alerts、signals、summary）
+- **Mutation hooks** (`hooks/mutations/useRepoMutations.ts`):
+  - `useAddRepoMutation` / `useRemoveRepoMutation` / `useFetchRepoMutation` / `useRefreshAllMutation`
+  - 成功後自動 invalidate repos cache
+- **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
+
+### Watchlist Context + useReducer 架構
+
+- `WatchlistContext.tsx` — 資料層由 React Query 管理，Context 只負責 UI 狀態
+- 資料來源 — `useReposQuery()` + `useQuery(health)` → 合併進 state context
+- State Machine Pattern — `LoadingState` 使用 Discriminated Unions 消除不可能狀態
 - Context 分層（優化 re-render）:
-  - `WatchlistStateContext` - 只讀狀態
-  - `WatchlistDispatchContext` - Dispatch 函數（穩定引用）
-  - `WatchlistActionsContext` - 業務邏輯（useCallback 包裝）
+  - `WatchlistStateContext` — 只讀狀態（repos 來自 React Query、UI 來自 reducer）
+  - `WatchlistActionsContext` — 業務邏輯（mutation + cache invalidation）
 - Selector hooks（精準訂閱）:
-  - `useFilteredRepos()` - 套用分類 + 搜尋篩選
-  - `useLoadingRepo()` - 當前載入的 repo ID
-  - `useIsRefreshing()` - 是否正在刷新
-  - `useIsRecalculating()` - 是否正在重算相似度
-  - `useRepoById(id)` - 單一 repo 變更時才 re-render
-- 測試策略 - Mock 三個 Context hooks：`useWatchlistState`, `useWatchlistDispatch`, `useWatchlistActions`；全域檢查已刪除的 `useWatchlist` 依賴
+  - `useFilteredRepos()` — 套用分類 + 搜尋篩選
+  - `useLoadingRepo()` — 當前載入的 repo ID
+  - `useIsRefreshing()` — 是否正在刷新
+  - `useIsRecalculating()` — 是否正在重算相似度
+- 測試策略 — Mock Context hooks：`useWatchlistState`, `useWatchlistActions`
 
 ### React-Window (虛擬滾動)
 
