@@ -201,7 +201,7 @@ function RepoList({
             preloadedBadges={preloaded?.badges}
             preloadedSignals={preloaded?.signals}
             chartExpanded={expandedCharts.has(repo.id)}
-            onChartToggle={() => handleChartToggle(repo.id)}
+            onChartToggle={handleChartToggle}
           />
         </div>
       );

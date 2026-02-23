@@ -20,8 +20,8 @@ interface RepoCardProps {
   preloadedSignals?: EarlySignal[];
   /** 外部控制圖表展開狀態（用於虛擬滾動動態行高） */
   chartExpanded?: boolean;
-  /** 外部控制圖表切換回調 */
-  onChartToggle?: () => void;
+  /** 外部控制圖表切換回調（接受 repoId 以避免 inline arrow 破壞 memo） */
+  onChartToggle?: (repoId: number) => void;
 }
 
 export const RepoCard = memo(function RepoCard({
@@ -53,11 +53,11 @@ export const RepoCard = memo(function RepoCard({
   // Memoize handler 以避免 memoized 子元件不必要的 re-render
   const handleToggleChart = useCallback(() => {
     if (onChartToggle) {
-      onChartToggle();
+      onChartToggle(repo.id);
     } else {
       setInternalShowChart((prev) => !prev);
     }
-  }, [onChartToggle]);
+  }, [onChartToggle, repo.id]);
   const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
   const handleFetch = useCallback(() => onFetch(repo.id), [onFetch, repo.id]);
   const handleRemove = useCallback(() => onRemove(repo.id), [onRemove, repo.id]);
