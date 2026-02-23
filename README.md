@@ -166,17 +166,26 @@ StarScope/
 
 ## API 端點
 
-| 端點                                  | 方法     | 說明           |
-|-------------------------------------|--------|--------------|
-| `/api/repos`                        | GET    | 列出追蹤中的專案     |
-| `/api/repos`                        | POST   | 新增專案         |
-| `/api/repos/{id}`                   | DELETE | 移除專案         |
-| `/api/repos/{id}/fetch`             | POST   | 手動更新專案資料     |
-| `/api/categories`                   | GET    | 分類列表         |
-| `/api/recommendations/similar/{id}` | GET    | 相似專案推薦       |
-| `/api/early-signals`                | GET    | 早期訊號列表       |
-| `/api/early-signals/trigger`        | POST   | 觸發異常偵測       |
-| `/api/export/watchlist.json`        | GET    | 匯出 Watchlist |
+所有端點使用統一 `ApiResponse[T]` 格式回傳。共 16 個路由模組、57 個端點：
+
+| 路由模組              | 前綴                     | 說明                        |
+|---------------------|------------------------|---------------------------|
+| `repos`             | `/api`                 | Repo CRUD、手動 fetch        |
+| `alerts`            | `/api/alerts`          | 警報規則 CRUD、觸發記錄           |
+| `trends`            | `/api/trends`          | 趨勢排行（velocity / delta）    |
+| `categories`        | `/api/categories`      | 分類管理、repo 歸類             |
+| `early_signals`     | `/api/early-signals`   | 早期信號、異常偵測                |
+| `context`           | `/api/context`         | HN 情境信號與徽章               |
+| `charts`            | `/api/charts`          | Star 歷史圖表資料              |
+| `recommendations`   | `/api/recommendations` | 相似 repo 推薦               |
+| `discovery`         | `/api/discovery`       | GitHub 搜尋                 |
+| `commit_activity`   | `/api/commit-activity` | Commit 活動與摘要             |
+| `languages`         | `/api/languages`       | 程式語言分佈                   |
+| `star_history`      | `/api/star-history`    | Star 歷史回填                |
+| `scheduler`         | `/api/scheduler`       | 排程器管理                    |
+| `export`            | `/api/export`          | JSON/CSV 匯出              |
+| `github_auth`       | `/api/github-auth`     | OAuth Device Flow         |
+| `health`            | `/api`                 | 健康檢查                     |
 
 ---
 
@@ -193,7 +202,7 @@ StarScope/
 | 國際化       | 英/繁中雙語、深淺主題                  |
 | GitHub 整合 | OAuth Device Flow、Rate Limit |
 
-> **測試覆蓋**：672 frontend tests（86%+ 分支覆蓋率）+ backend tests
+> **測試覆蓋**：前端 665 + 後端 373 = 1038 個測試案例（86%+ 分支覆蓋率）
 
 ---
 

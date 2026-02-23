@@ -71,6 +71,7 @@ npm run type-check       # TypeScript 型別檢查
 npm run lint             # ESLint 檢查
 npm run lint:fix         # ESLint 自動修復
 npm run format           # Prettier 格式化
+npm run build:analyze    # Bundle 大小分析
 ```
 
 ### Python Sidecar
@@ -132,9 +133,9 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 目錄             | 說明                                            |
 |----------------|-----------------------------------------------|
-| `routers/`     | FastAPI 路由（repos、alerts、webhooks、github_auth） |
-| `services/`    | 業務邏輯（analyzer、health_scorer、scheduler 等）      |
-| `db/models.py` | SQLAlchemy 模型（Repo、Snapshot、Alert 等）          |
+| `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
+| `services/`    | 業務邏輯（14 個服務：analyzer、scheduler、recommender 等）      |
+| `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）          |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`            |
 
 ### Tauri `src-tauri/`
@@ -148,16 +149,22 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ## 關鍵服務
 
-| 服務                   | 說明                            |
-|----------------------|-------------------------------|
-| `github.py`          | GitHub API 客戶端（Rate Limit 感知） |
-| `github_auth.py`     | OAuth Device Flow 驗證          |
-| `analyzer.py`        | Star 速度與信號計算                  |
-| `health_scorer.py`   | 7 維度專案健康度評分                   |
-| `scheduler.py`       | APScheduler 背景排程（含失敗追蹤機制）     |
-| `anomaly_detector.py`| 異常偵測（批次預載 active signals）     |
-| `backup.py`          | SQLite 資料庫備份與還原               |
-| `context_fetcher.py` | HackerNews 上下文資訊彙整            |
+| 服務                    | 說明                            |
+|-----------------------|-------------------------------|
+| `github.py`           | GitHub API 客戶端（Rate Limit 感知） |
+| `github_auth.py`      | OAuth Device Flow 驗證          |
+| `analyzer.py`         | Star 速度與信號計算                  |
+| `scheduler.py`        | APScheduler 背景排程（含失敗追蹤機制）     |
+| `anomaly_detector.py` | 異常偵測（批次預載 active signals）     |
+| `backup.py`           | SQLite 資料庫備份與還原               |
+| `context_fetcher.py`  | HackerNews 上下文資訊彙整            |
+| `hacker_news.py`      | Hacker News Algolia API 客戶端   |
+| `recommender.py`      | 相似 repo 推薦（topics + language） |
+| `snapshot.py`         | Repo 快照更新（metadata + signals） |
+| `alerts.py`           | 警報規則評估與觸發                     |
+| `queries.py`          | 共用 DB 查詢工具                    |
+| `settings.py`         | 應用設定管理（Keyring 整合）            |
+| `rate_limiter.py`     | API 請求限速與指數退避重試               |
 
 ---
 
@@ -198,32 +205,48 @@ PORT=8008
 所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
 前端 `client.ts` 的 `doFetch` 自動 unwrap `data` 欄位。
 
-| 端點                                  | 說明                   |
-|-------------------------------------|----------------------|
-| `GET /api/repos`                    | 列出追蹤中的儲存庫            |
-| `POST /api/repos`                   | 新增儲存庫                |
-| `DELETE /api/repos/{id}`            | 移除儲存庫                |
-| `POST /api/repos/{id}/fetch`        | 手動更新單一 repo          |
-| `GET /api/trends`                   | 趨勢儲存庫                |
-| `GET /api/early-signals`            | 早期信號偵測               |
-| `GET /api/alerts/rules`             | 警報規則管理               |
-| `POST /api/github-auth/device-code` | 啟動 OAuth Device Flow |
-| `GET /api/github-auth/status`       | GitHub 連線狀態          |
+| 路由模組                | 前綴                       | 主要端點                              |
+|---------------------|--------------------------|-----------------------------------|
+| `repos`             | `/api`                   | repos CRUD、手動 fetch、batch fetch-all |
+| `alerts`            | `/api/alerts`            | 規則 CRUD、triggered 列表、acknowledge  |
+| `trends`            | `/api/trends`            | velocity / delta-7d / acceleration 排行 |
+| `categories`        | `/api/categories`        | 分類 CRUD、tree 結構、repo 歸類管理        |
+| `early_signals`     | `/api/early-signals`     | 信號列表、summary、acknowledge、batch   |
+| `context`           | `/api/context`           | HN signals / badges、batch badges  |
+| `charts`            | `/api/charts`            | Star 歷史圖表資料（7d/30d/90d）          |
+| `recommendations`   | `/api/recommendations`   | 相似 repo、相似度計算、recalculate       |
+| `discovery`         | `/api/discovery`         | GitHub 搜尋（rate limited 30/min）   |
+| `commit_activity`   | `/api/commit-activity`   | Commit 活動資料與摘要                   |
+| `languages`         | `/api/languages`         | 程式語言分佈與摘要                        |
+| `star_history`      | `/api/star-history`      | Star 歷史回填（< 5000 stars）          |
+| `scheduler`         | `/api/scheduler`         | 排程器狀態、啟停、手動觸發                    |
+| `export`            | `/api/export`            | Watchlist JSON/CSV 匯出            |
+| `github_auth`       | `/api/github-auth`       | OAuth Device Flow、連線狀態           |
+| `health`            | `/api`                   | 健康檢查                              |
+
+> 共 16 個路由模組、57 個端點
 
 ---
 
 ## 資料庫
 
-SQLite 位於 `sidecar/starscope.db`：
+SQLite 位於 `sidecar/starscope.db`（13 張表）：
 
-| 資料表            | 說明              |
-|----------------|-----------------|
-| `repos`        | 追蹤中的儲存庫         |
-| `snapshots`    | 歷史 star 數記錄     |
-| `signals`      | 偵測到的速度信號        |
-| `alerts`       | 使用者定義的警報規則      |
-| `webhooks`     | Webhook 設定      |
-| `app_settings` | OAuth token 及設定 |
+| 資料表                | 說明                              |
+|--------------------|---------------------------------|
+| `repos`            | 追蹤中的 GitHub 儲存庫                 |
+| `repo_snapshots`   | 時間點快照（stars、forks、watchers 等）   |
+| `signals`          | 計算的速度信號（velocity、acceleration 等）|
+| `alert_rules`      | 使用者定義的警報規則                      |
+| `triggered_alerts` | 已觸發的警報記錄                        |
+| `context_signals`  | 外部情境信號（HN 提及）                   |
+| `similar_repos`    | 相似 repo 關係與分數                   |
+| `categories`       | 使用者自訂分類（支援階層 parent_id）         |
+| `repo_categories`  | Repo ↔ Category 多對多關聯          |
+| `early_signals`    | 異常偵測信號（rising star、spike 等）     |
+| `app_settings`     | 應用設定（key-value，含 Keyring 整合）    |
+| `commit_activities`| 每週 commit 活動資料                  |
+| `repo_languages`   | 程式語言分佈（bytes + 百分比）             |
 
 ---
 
@@ -262,4 +285,9 @@ SQLite 位於 `sidecar/starscope.db`：
 - **版本** - `react-window@2.2.5`（v2 API）
 - **核心組件** - `List` 需 3 個必要 props：`height`, `itemCount`, `itemSize`；`children` 為 render prop 函數
 - **RowComponent 型別** - `RowComponentProps<T = unknown>` from `react-window`
-- **常見陷阱** - 避免 `renderRow` 命名（v1 API），改用 `children` render prop；避免直接傳 `itemData={data}` 到 `List` 的 render function 參數
+- **動態行高** - `rowHeight` 支援函數型式 `(index: number) => number`，用於圖表展開時調整行高
+  - 收合：`COLLAPSED_ITEM_SIZE = 296px`（卡片 280 + 間距 16）
+  - 展開：`EXPANDED_ITEM_SIZE = 596px`（加上圖表 300px）
+- **圖表展開狀態** - 由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理，通過 `chartExpanded` / `onChartToggle` props 傳入 `RepoCard`
+- **Memo 優化** - `onChartToggle` 接受 `(repoId: number)` 參數以避免 inline arrow 破壞 `RepoCard` 的 `memo`
+- **常見陷阱** - 避免 `renderRow` 命名（v1 API），改用 `children` render prop；避免直接傳 `itemData={data}` 到 `List` 的 render function 參數；避免在 `RowComponent` 中使用 inline arrow 作為 memoized 子元件的 callback

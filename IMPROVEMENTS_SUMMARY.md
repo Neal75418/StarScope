@@ -13,8 +13,8 @@ StarScope 專案已完成全面的改進升級，涵蓋**安全性、效能、�
 **測試結果**:
 - ✅ TypeScript 型別檢查通過
 - ✅ ESLint 檢查通過 (max-warnings 0)
-- ✅ 前端測試通過 (658/659 tests)
-- ✅ 後端測試通過 (344/344 tests)
+- ✅ 前端測試通過 (665 tests)
+- ✅ 後端測試通過 (373 tests)
 - ✅ 所有改進已驗證並通過完整測試
 
 ---
@@ -344,23 +344,16 @@ npm run test:e2e
 
 ### 短期 (1-2 週)
 
-1. **API 格式遷移**: 逐步將 18 個路由器遷移到統一格式
-   - 優先: `repos.py`, `trends.py`, `early_signals.py`
-   - 參考: `MIGRATION_GUIDE_API_RESPONSE.md`
+1. ~~**API 格式遷移**: 逐步將路由器遷移到統一格式~~ ✅ 已完成（全部 16 個路由模組）
 
-2. **React Query 整合**: 將更多 hooks 遷移到 React Query
-   - 優先: `useWatchlist`, `useTrends`, `useSignals`
+2. ~~**React Query 整合**: 將更多 hooks 遷移到 React Query~~ ✅ 已完成（useTrends、useDashboard、Mutation hooks）
 
-3. **後端環境修復**: 安裝缺失的依賴
-   ```bash
-   cd sidecar && pip install -r requirements.txt
-   ```
+3. **集成測試擴展**: 新增跨服務的端到端測試
 
 ### 長期 (1-3 個月)
 
-4. **集成測試擴展**: 新增跨服務的端到端測試
-5. **效能監控儀表板**: 整合 Prometheus + Grafana
-6. **結構化日誌**: 改用 JSON 格式日誌
+4. **效能監控儀表板**: 整合 Prometheus + Grafana
+5. **結構化日誌**: 改用 JSON 格式日誌
 
 ---
 
@@ -384,7 +377,7 @@ npm run test:e2e
 
 **改進完成日期**: 2026-02-21
 **總執行時間**: ~2 小時
-**測試狀態**: ✅ 前端通過 (658/659), ✅ 後端通過 (344/344)
-**建議下一步**: 開始 API 遷移（參考 MIGRATION_GUIDE_API_RESPONSE.md）
+**測試狀態**: ✅ 前端通過 (665), ✅ 後端通過 (373)
+**後續完成**: API 統一格式遷移（全部路由）、React Query 全面遷移、虛擬滾動動態行高、滾動效能優化
 
 🎉 **所有改進已成功實施並通過完整測試！**
