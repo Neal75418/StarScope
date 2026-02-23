@@ -4439,7 +4439,7 @@ a:focus-visible {
   font-size: 12px;
   font-weight: 600;
   border: none;
-  cursor: default;
+  cursor: pointer;
   transition: transform 0.15s ease;
 }
 

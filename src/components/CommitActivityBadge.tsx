@@ -50,7 +50,15 @@ function EmptyBadge({ fetching, onClick }: { fetching: boolean; onClick: () => v
   );
 }
 
-function ActivityBadge({ avgCommitsPerWeek }: { avgCommitsPerWeek: number }) {
+function ActivityBadge({
+  avgCommitsPerWeek,
+  onClick,
+  fetching,
+}: {
+  avgCommitsPerWeek: number;
+  onClick: () => void;
+  fetching: boolean;
+}) {
   const { t } = useI18n();
   const level = getActivityLevel(avgCommitsPerWeek);
   const colors = ACTIVITY_COLORS[level];
@@ -60,13 +68,15 @@ function ActivityBadge({ avgCommitsPerWeek }: { avgCommitsPerWeek: number }) {
   });
 
   return (
-    <span
+    <button
       className="activity-badge"
       style={{ backgroundColor: colors.bg, color: colors.text }}
       title={titleText}
+      onClick={onClick}
+      disabled={fetching}
     >
-      {displayText}
-    </span>
+      {fetching ? "..." : displayText}
+    </button>
   );
 }
 
@@ -81,9 +91,17 @@ export function CommitActivityBadge({ repoId }: CommitActivityBadgeProps) {
     return <ErrorBadge error={error} />;
   }
 
+  const handleClick = () => void fetchData();
+
   if (!summary) {
-    return <EmptyBadge fetching={fetching} onClick={() => void fetchData()} />;
+    return <EmptyBadge fetching={fetching} onClick={handleClick} />;
   }
 
-  return <ActivityBadge avgCommitsPerWeek={summary.avg_commits_per_week} />;
+  return (
+    <ActivityBadge
+      avgCommitsPerWeek={summary.avg_commits_per_week}
+      onClick={handleClick}
+      fetching={fetching}
+    />
+  );
 }
