@@ -65,7 +65,7 @@ git commit -m "test"  # 會觸發敏感資料檢查
 
 #### 3. API 響應格式統一化
 
-**問題**: 18 個路由器使用不一致的響應格式
+**問題**: 16 個路由模組使用不一致的響應格式
 
 **解決方案**:
 - ✅ 已存在完善的 `schemas/response.py` (ApiResponse, success_response, error_response)
@@ -93,7 +93,7 @@ git commit -m "test"  # 會觸發敏感資料檢查
 
 **狀態**: ✅ 已存在
 
-**位置**: `sidecar/routers/early_signals.py` (Line 297-339)
+**位置**: `sidecar/routers/early_signals.py` (Line 315-376)
 
 **端點**: `POST /api/early-signals/batch`
 
@@ -254,7 +254,7 @@ with log_query_stats("Fetch all repos"):
 
 ## 📁 新增/修改的檔案清單
 
-### 新增檔案 (8 個)
+### 新增檔案 (6 個)
 
 1. `sidecar/MIGRATION_GUIDE_API_RESPONSE.md` - API 統一化遷移指南
 2. `src/lib/react-query.ts` - React Query 配置
@@ -263,7 +263,7 @@ with log_query_stats("Fetch all repos"):
 5. `sidecar/db/query_logger.py` - 慢查詢日誌
 6. `IMPROVEMENTS_SUMMARY.md` - 本報告
 
-### 修改檔案 (11 個)
+### 修改檔案 (10 個)
 
 1. `sidecar/requirements.txt` - pytest 版本註解更新
 2. `.husky/pre-commit` - 敏感資料檢查
@@ -274,8 +274,7 @@ with log_query_stats("Fetch all repos"):
 7. `sidecar/services/scheduler.py` - 新增備份任務
 8. `vite.config.ts` - Bundle 分析工具
 9. `sidecar/db/database.py` - 啟用查詢日誌
-10. `src/hooks/useReposQuery.ts` - 修復型別錯誤
-11. `sidecar/tests/test_health.py` - 更新測試以符合新 API 格式
+10. `sidecar/tests/test_health.py` - 更新測試以符合新 API 格式
 
 ---
 
@@ -330,7 +329,7 @@ npm run test:e2e
 |---------|---------|---------|
 | pytest 修補 | 安全性提升 | 🟢 無風險 |
 | pre-commit hook | 防止洩露 | 🟢 無風險 |
-| API 統一化 | 開發體驗改善 | 🟡 需漸進遷移 |
+| API 統一化 | 開發體驗改善 | 🟢 已完成 |
 | 批量 API | 減少 N+1 請求 | 🟢 已驗證 |
 | React Query | 減少重複請求 30-50% | 🟢 向下相容 |
 | OpenAPI 文檔 | 開發效率提升 | 🟢 無風險 |
@@ -344,7 +343,7 @@ npm run test:e2e
 
 ### 短期 (1-2 週)
 
-1. ~~**API 格式遷移**: 逐步將路由器遷移到統一格式~~ ✅ 已完成（全部 16 個路由模組）
+1. ~~**API 格式遷移**: 逐步將路由器遷移到統一格式~~ ✅ 已完成（15 個路由模組使用 ApiResponse，`export.py` 使用 StreamingResponse）
 
 2. ~~**React Query 整合**: 將更多 hooks 遷移到 React Query~~ ✅ 已完成（useTrends、useDashboard、Mutation hooks）
 

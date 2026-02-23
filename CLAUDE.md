@@ -122,7 +122,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 | 目錄              | 說明                                                 |
 |-----------------|----------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Settings      |
-| `components/`   | RepoCard、StarsChart、HealthBadge、GitHubConnection 等 |
+| `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等 |
 | `hooks/`        | 自訂 Hooks（React Query 查詢/Mutation、狀態管理）            |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                              |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）              |
@@ -224,7 +224,7 @@ PORT=8008
 | `github_auth`       | `/api/github-auth`       | OAuth Device Flow、連線狀態           |
 | `health`            | `/api`                   | 健康檢查                              |
 
-> 共 16 個路由模組、57 個端點
+> 共 16 個路由模組、68 個端點
 
 ---
 
@@ -283,11 +283,11 @@ SQLite 位於 `sidecar/starscope.db`（13 張表）：
 ### React-Window (虛擬滾動)
 
 - **版本** - `react-window@2.2.5`（v2 API）
-- **核心組件** - `List` 需 3 個必要 props：`height`, `itemCount`, `itemSize`；`children` 為 render prop 函數
-- **RowComponent 型別** - `RowComponentProps<T = unknown>` from `react-window`
+- **核心組件** - `List` 需 4 個必要 props：`rowComponent`, `rowCount`, `rowHeight`, `style`（含 height/width）
+- **RowComponent 型別** - `RowComponentProps` from `react-window`
 - **動態行高** - `rowHeight` 支援函數型式 `(index: number) => number`，用於圖表展開時調整行高
   - 收合：`COLLAPSED_ITEM_SIZE = 296px`（卡片 280 + 間距 16）
   - 展開：`EXPANDED_ITEM_SIZE = 596px`（加上圖表 300px）
 - **圖表展開狀態** - 由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理，通過 `chartExpanded` / `onChartToggle` props 傳入 `RepoCard`
 - **Memo 優化** - `onChartToggle` 接受 `(repoId: number)` 參數以避免 inline arrow 破壞 `RepoCard` 的 `memo`
-- **常見陷阱** - 避免 `renderRow` 命名（v1 API），改用 `children` render prop；避免直接傳 `itemData={data}` 到 `List` 的 render function 參數；避免在 `RowComponent` 中使用 inline arrow 作為 memoized 子元件的 callback
+- **常見陷阱** - v2 API 使用 `rowComponent` prop（非 v1 的 `children` render prop）；避免直接傳 `itemData` 到 `List`，改用 `rowProps`；避免在 `RowComponent` 中使用 inline arrow 作為 memoized 子元件的 callback

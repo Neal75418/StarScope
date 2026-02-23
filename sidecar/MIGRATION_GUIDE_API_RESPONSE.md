@@ -7,7 +7,7 @@
 ## 當前狀態
 
 - ✅ **已完成**: `schemas/response.py` 包含完整的 `ApiResponse[T]` 實現
-- ⚠️ **待處理**: 18 個路由器文件尚未使用統一格式
+- ✅ **已完成**: 15 個路由模組已遷移至 `ApiResponse` 格式（`export.py` 使用 `StreamingResponse`，屬正常例外）
 
 ## 遷移範例
 
@@ -122,31 +122,33 @@ async def get_repo(repo: Repo = Depends(get_repo_or_404), ...) -> dict:
 
 ### 階段 1: 基礎設施
 
-- [x] 建立 `schemas/response.py` (已完成)
-- [ ] 在 `main.py` 建立全域異常處理器
-- [ ] 更新 `schemas/__init__.py` 匯出 `ApiResponse` 相關類別
+- [x] 建立 `schemas/response.py`
+- [x] 在 `main.py` 建立全域異常處理器
+- [x] 更新 `schemas/__init__.py` 匯出 `ApiResponse` 相關類別
 
-### 階段 2: 路由器遷移 (18 個檔案)
-
-建議優先順序：
+### 階段 2: 路由器遷移 (16 個模組)
 
 **高優先級** (核心 CRUD 操作):
-- [ ] `routers/repos.py` - 主要的 repo 管理
-- [ ] `routers/early_signals.py` - 早期訊號
-- [ ] `routers/trends.py` - 趨勢資料
+- [x] `routers/repos.py` - 主要的 repo 管理
+- [x] `routers/early_signals.py` - 早期訊號
+- [x] `routers/trends.py` - 趨勢資料
 
 **中優先級**:
-- [ ] `routers/alerts.py`
-- [ ] `routers/categories.py`
-- [ ] `routers/discovery.py`
-- [ ] `routers/recommendations.py`
-- [ ] `routers/github_auth.py`
+- [x] `routers/alerts.py`
+- [x] `routers/categories.py`
+- [x] `routers/discovery.py`
+- [x] `routers/recommendations.py`
+- [x] `routers/github_auth.py`
 
 **低優先級** (輔助端點):
-- [ ] `routers/charts.py`
-- [ ] `routers/context.py`
-- [ ] `routers/export.py`
-- [ ] 其餘 7 個路由器
+- [x] `routers/charts.py`
+- [x] `routers/context.py`
+- [x] `routers/export.py` — 使用 `StreamingResponse`（檔案下載端點，不適用 ApiResponse）
+- [x] `routers/health.py`
+- [x] `routers/scheduler.py`
+- [x] `routers/commit_activity.py`
+- [x] `routers/languages.py`
+- [x] `routers/star_history.py`
 
 ### 階段 3: 前端更新
 
