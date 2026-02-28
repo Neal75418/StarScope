@@ -120,6 +120,77 @@ def _parse_shared_topics(json_str: Optional[str]) -> List[str]:
         return []
 
 
+def _preload_all_data(db: Session) -> Tuple[List[Repo], Dict[int, Optional[int]], Dict[int, Set[str]]]:
+    """
+    預載所有 repo 資料及其相關資訊（stars、topics）。
+    回傳 (repos, stars_map, topics_map)。
+    """
+    # noinspection PyTypeChecker
+    repos: List[Repo] = db.query(Repo).all()
+    # noinspection PyTypeChecker
+    all_ids = [int(r.id) for r in repos]
+    stars_map = build_stars_map(db, all_ids)
+    # noinspection PyTypeChecker
+    topics_map: Dict[int, Set[str]] = {
+        int(r.id): _get_repo_topics(r) for r in repos
+    }
+    return repos, stars_map, topics_map
+
+
+def _calculate_pairwise_similarities(
+    repos: List[Repo],
+    stars_map: Dict[int, Optional[int]],
+    topics_map: Dict[int, Set[str]],
+    calculate_similarity_fn,
+) -> Tuple[List[SimilarRepo], int]:
+    """
+    使用上三角矩陣計算所有 repo 的兩兩相似度。
+    回傳 (相似度紀錄列表, 配對總數)。
+    """
+    total = len(repos)
+    now = utc_now()
+    similarities: List[SimilarRepo] = []
+    similarities_found = 0
+
+    for i in range(total):
+        repo_a = repos[i]
+        # noinspection PyTypeChecker
+        id_a = int(repo_a.id)
+        topics_a = topics_map[id_a]
+        stars_a = stars_map.get(id_a)
+
+        for j in range(i + 1, total):
+            repo_b = repos[j]
+            # noinspection PyTypeChecker
+            id_b = int(repo_b.id)
+            topics_b = topics_map[id_b]
+            stars_b = stars_map.get(id_b)
+
+            score, shared, same_lang = calculate_similarity_fn(
+                repo_a, repo_b, topics_a, topics_b, stars_a, stars_b
+            )
+
+            if score < MIN_SIMILARITY_THRESHOLD:
+                continue
+
+            shared_json = json.dumps(shared) if shared else None
+
+            # 雙向寫入 A→B 和 B→A
+            similarities.append(SimilarRepo(
+                repo_id=id_a, similar_repo_id=id_b,
+                similarity_score=score, shared_topics=shared_json,
+                same_language=same_lang, calculated_at=now,
+            ))
+            similarities.append(SimilarRepo(
+                repo_id=id_b, similar_repo_id=id_a,
+                similarity_score=score, shared_topics=shared_json,
+                same_language=same_lang, calculated_at=now,
+            ))
+            similarities_found += 1
+
+    return similarities, similarities_found
+
+
 class RecommenderService:
     """計算並儲存 repo 相似度的服務。"""
 
@@ -278,78 +349,28 @@ class RecommenderService:
         使用批量預載 + 上三角矩陣避免重複計算，大幅降低 DB 查詢次數。
         回傳摘要統計。
         """
-        # noinspection PyTypeChecker
-        repos: List[Repo] = db.query(Repo).all()
+        # 1. 預載所有資料
+        repos, stars_map, topics_map = _preload_all_data(db)
         total = len(repos)
 
         if total < 2:
             return {"total_repos": total, "processed": total, "similarities_found": 0}
 
-        # 1. 一次性載入所有 topics 與 stars（3 個查詢取代 3N 個）
-        # noinspection PyTypeChecker
-        all_ids = [int(r.id) for r in repos]
-        stars_map = build_stars_map(db, all_ids)
-        # noinspection PyTypeChecker
-        topics_map: Dict[int, Set[str]] = {
-            int(r.id): _get_repo_topics(r) for r in repos
-        }
-
-        # 整體操作為原子性：DELETE + 重算 + COMMIT，任何錯誤都 rollback 以保留舊資料
+        # 2. 整體操作為原子性：DELETE + 重算 + COMMIT，任何錯誤都 rollback 以保留舊資料
         try:
-            # 2. 清除所有既有相似度紀錄（1 次 DELETE 取代 N 次）
+            # 清除所有既有相似度紀錄（1 次 DELETE 取代 N 次）
             db.query(SimilarRepo).delete(synchronize_session=False)
 
-            # 3. 上三角矩陣：只計算 (i, j) 其中 i < j，產生雙向紀錄
-            now = utc_now()
-            similarities_found = 0
-            batch: List[SimilarRepo] = []
+            # 3. 計算兩兩相似度（上三角矩陣）
+            similarities, similarities_found = _calculate_pairwise_similarities(
+                repos, stars_map, topics_map, self.calculate_similarity
+            )
+
+            # 4. 批量寫入相似度紀錄
             flush_size = 500
-
-            for i in range(total):
-                repo_a = repos[i]
-                # noinspection PyTypeChecker
-                id_a = int(repo_a.id)
-                topics_a = topics_map[id_a]
-                stars_a = stars_map.get(id_a)
-
-                for j in range(i + 1, total):
-                    repo_b = repos[j]
-                    # noinspection PyTypeChecker
-                    id_b = int(repo_b.id)
-                    topics_b = topics_map[id_b]
-                    stars_b = stars_map.get(id_b)
-
-                    score, shared, same_lang = self.calculate_similarity(
-                        repo_a, repo_b, topics_a, topics_b, stars_a, stars_b
-                    )
-
-                    if score < MIN_SIMILARITY_THRESHOLD:
-                        continue
-
-                    shared_json = json.dumps(shared) if shared else None
-
-                    # 雙向寫入 A→B 和 B→A
-                    batch.append(SimilarRepo(
-                        repo_id=id_a, similar_repo_id=id_b,
-                        similarity_score=score, shared_topics=shared_json,
-                        same_language=same_lang, calculated_at=now,
-                    ))
-                    batch.append(SimilarRepo(
-                        repo_id=id_b, similar_repo_id=id_a,
-                        similarity_score=score, shared_topics=shared_json,
-                        same_language=same_lang, calculated_at=now,
-                    ))
-                    similarities_found += 1
-
-                    # 4. 每 FLUSH_SIZE 筆批量寫入
-                    if len(batch) >= flush_size:
-                        db.bulk_save_objects(batch)
-                        batch.clear()
-
-            # 寫入剩餘紀錄
-            if batch:
+            for i in range(0, len(similarities), flush_size):
+                batch = similarities[i:i + flush_size]
                 db.bulk_save_objects(batch)
-                batch.clear()
 
             db.commit()
         except Exception as e:

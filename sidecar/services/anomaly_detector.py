@@ -168,6 +168,24 @@ class AnomalyDetector:
         )
 
     @staticmethod
+    def _calculate_star_deltas(snapshots: List["RepoSnapshot"]) -> Tuple[int, float]:
+        """
+        計算每日 star 差值。
+        回傳 (latest_delta, avg_delta)。
+        """
+        deltas = []
+        for i in range(len(snapshots) - 1):
+            delta = snapshots[i].stars - snapshots[i + 1].stars
+            deltas.append(delta)
+
+        if not deltas:
+            return 0, 0.0
+
+        latest_delta = deltas[0]
+        avg_delta = sum(deltas[1:]) / len(deltas[1:]) if len(deltas) > 1 else 0.0
+        return latest_delta, avg_delta
+
+    @staticmethod
     def detect_sudden_spike(
         repo: "Repo",
         db: Session,
@@ -180,6 +198,7 @@ class AnomalyDetector:
         """
         _ = snapshot_map  # 由呼叫端傳入，本偵測器直接查詢快照
         _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
+
         # 取得近期快照
         snapshots = db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == repo.id
@@ -189,16 +208,10 @@ class AnomalyDetector:
             return None
 
         # 計算每日差值
-        deltas = []
-        for i in range(len(snapshots) - 1):
-            delta = snapshots[i].stars - snapshots[i + 1].stars
-            deltas.append(delta)
+        latest_delta, avg_delta = AnomalyDetector._calculate_star_deltas(snapshots)
 
-        if not deltas:
+        if latest_delta == 0:
             return None
-
-        latest_delta = deltas[0] if deltas else 0
-        avg_delta = sum(deltas[1:]) / len(deltas[1:]) if len(deltas) > 1 else 0
 
         # 檢查暴漲條件
         is_spike = (

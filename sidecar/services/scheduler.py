@@ -293,6 +293,70 @@ def backup_job() -> None:
         logger.critical(f"[排程] 資料庫備份未預期錯誤: {e}", exc_info=True)
 
 
+def _register_fetch_job(scheduler, interval_minutes: int) -> None:
+    """註冊資料抓取工作。"""
+    scheduler.add_job(
+        fetch_all_repos_job,
+        trigger=IntervalTrigger(minutes=interval_minutes),
+        id="fetch_all_repos",
+        name="Fetch all repos from GitHub",
+        replace_existing=True,
+        max_instances=1,  # Prevent overlapping runs
+    )
+
+
+def _register_alert_job(scheduler, interval_minutes: int) -> None:
+    """註冊警報檢查工作（抓取後 1 分鐘執行）。"""
+    scheduler.add_job(
+        check_alerts_job,
+        trigger=IntervalTrigger(
+            minutes=interval_minutes,
+            start_date=utc_now() + timedelta(minutes=1),
+        ),
+        id="check_alerts",
+        name="Check alert rules",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+
+def _register_context_job(scheduler) -> None:
+    """註冊情境訊號工作（每 30 分鐘執行）。"""
+    scheduler.add_job(
+        fetch_context_signals_job,
+        trigger=IntervalTrigger(minutes=CONTEXT_FETCH_INTERVAL_MINUTES),
+        id="fetch_context_signals",
+        name="Fetch context signals (HN)",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+
+def _register_cleanup_jobs(scheduler) -> None:
+    """註冊清理工作（快照清理 + 資料庫備份）。"""
+    from apscheduler.triggers.cron import CronTrigger
+
+    # 每日清理過期快照（保留 90 天）
+    scheduler.add_job(
+        cleanup_old_snapshots,
+        trigger=IntervalTrigger(hours=24),
+        id="cleanup_old_snapshots",
+        name="Cleanup old snapshots (90d retention)",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    # 每日資料庫備份（凌晨 2 點，保留 7 天）
+    scheduler.add_job(
+        backup_job,
+        trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨 2 點
+        id="database_backup",
+        name="Daily database backup (7d retention)",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+
 def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     """
     啟動背景排程器。
@@ -306,60 +370,10 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
         logger.warning("[排程] 排程器已在執行中")
         return
 
-    # 新增抓取工作
-    scheduler.add_job(
-        fetch_all_repos_job,
-        trigger=IntervalTrigger(minutes=fetch_interval_minutes),
-        id="fetch_all_repos",
-        name="Fetch all repos from GitHub",
-        replace_existing=True,
-        max_instances=1,  # Prevent overlapping runs
-    )
-
-    # 新增警報檢查工作（抓取後 1 分鐘執行）
-    scheduler.add_job(
-        check_alerts_job,
-        trigger=IntervalTrigger(
-            minutes=fetch_interval_minutes,
-            start_date=utc_now() + timedelta(minutes=1),
-        ),
-        id="check_alerts",
-        name="Check alert rules",
-        replace_existing=True,
-        max_instances=1,
-    )
-
-    # 新增情境訊號工作（每 30 分鐘執行）
-    scheduler.add_job(
-        fetch_context_signals_job,
-        trigger=IntervalTrigger(minutes=CONTEXT_FETCH_INTERVAL_MINUTES),
-        id="fetch_context_signals",
-        name="Fetch context signals (HN)",
-        replace_existing=True,
-        max_instances=1,
-    )
-
-    # 每日清理過期快照（保留 90 天）
-    scheduler.add_job(
-        cleanup_old_snapshots,
-        trigger=IntervalTrigger(hours=24),
-        id="cleanup_old_snapshots",
-        name="Cleanup old snapshots (90d retention)",
-        replace_existing=True,
-        max_instances=1,
-    )
-
-    # 每日資料庫備份（凌晨 2 點，保留 7 天）
-    from apscheduler.triggers.cron import CronTrigger
-
-    scheduler.add_job(
-        backup_job,
-        trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨 2 點
-        id="database_backup",
-        name="Daily database backup (7d retention)",
-        replace_existing=True,
-        max_instances=1,
-    )
+    _register_fetch_job(scheduler, fetch_interval_minutes)
+    _register_alert_job(scheduler, fetch_interval_minutes)
+    _register_context_job(scheduler)
+    _register_cleanup_jobs(scheduler)
 
     scheduler.start()
     logger.info(

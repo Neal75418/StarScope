@@ -156,36 +156,36 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
     }
 
 
-def cleanup_old_context_signals(
-    db: Session,
-    max_age_days: int = CONTEXT_SIGNAL_MAX_AGE_DAYS,
-    max_per_repo: int = CONTEXT_SIGNAL_MAX_PER_REPO
-) -> Dict[str, int]:
+def _cleanup_signals_by_age(db: Session, cutoff_date) -> int:
     """
-    移除舊的情境訊號以防止資料庫無限成長。
-
-    策略：
-    1. 移除超過 max_age_days 的訊號
-    2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+    刪除超過指定時間的情境訊號。
 
     Args:
         db: 資料庫 session
-        max_age_days: 移除超過此天數的訊號（預設 90）
-        max_per_repo: 每個 repo 最多保留的訊號數（預設 100）
+        cutoff_date: 刪除此時間之前的訊號
 
     Returns:
-        清理統計：{deleted_by_age, deleted_by_limit}
+        刪除的訊號數量
     """
-    stats = {"deleted_by_age": 0, "deleted_by_limit": 0}
-
-    # 1. 刪除超過 max_age_days 的訊號
-    cutoff_date = utc_now() - timedelta(days=max_age_days)
-    deleted_by_age = db.query(ContextSignal).filter(
+    deleted = db.query(ContextSignal).filter(
         ContextSignal.fetched_at < cutoff_date
     ).delete(synchronize_session=False)
-    stats["deleted_by_age"] = deleted_by_age
+    return deleted
 
-    # 2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+
+def _cleanup_signals_by_limit(db: Session, max_per_repo: int) -> int:
+    """
+    每個 repo 僅保留最新的 max_per_repo 筆訊號。
+
+    Args:
+        db: 資料庫 session
+        max_per_repo: 每個 repo 最多保留的訊號數
+
+    Returns:
+        刪除的訊號總數
+    """
+    total_deleted = 0
+
     # 先取得超過 max_per_repo 的 repo ID
     repo_counts = (
         db.query(ContextSignal.repo_id, func.count(ContextSignal.id).label("count"))
@@ -213,14 +213,44 @@ def cleanup_old_context_signals(
             )
             .delete(synchronize_session=False)
         )
-        stats["deleted_by_limit"] += deleted
+        total_deleted += deleted
+
+    return total_deleted
+
+
+def cleanup_old_context_signals(
+    db: Session,
+    max_age_days: int = CONTEXT_SIGNAL_MAX_AGE_DAYS,
+    max_per_repo: int = CONTEXT_SIGNAL_MAX_PER_REPO
+) -> Dict[str, int]:
+    """
+    移除舊的情境訊號以防止資料庫無限成長。
+
+    策略：
+    1. 移除超過 max_age_days 的訊號
+    2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+
+    Args:
+        db: 資料庫 session
+        max_age_days: 移除超過此天數的訊號（預設 90）
+        max_per_repo: 每個 repo 最多保留的訊號數（預設 100）
+
+    Returns:
+        清理統計：{deleted_by_age, deleted_by_limit}
+    """
+    # 1. 刪除超過 max_age_days 的訊號
+    cutoff_date = utc_now() - timedelta(days=max_age_days)
+    deleted_by_age = _cleanup_signals_by_age(db, cutoff_date)
+
+    # 2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+    deleted_by_limit = _cleanup_signals_by_limit(db, max_per_repo)
 
     db.commit()
 
-    if stats["deleted_by_age"] > 0 or stats["deleted_by_limit"] > 0:
+    if deleted_by_age > 0 or deleted_by_limit > 0:
         logger.info(
-            f"[上下文] 上下文訊號清理: 依時間刪除 {stats['deleted_by_age']} 筆、"
-            f"依上限刪除 {stats['deleted_by_limit']} 筆"
+            f"[上下文] 上下文訊號清理: 依時間刪除 {deleted_by_age} 筆、"
+            f"依上限刪除 {deleted_by_limit} 筆"
         )
 
-    return stats
+    return {"deleted_by_age": deleted_by_age, "deleted_by_limit": deleted_by_limit}
