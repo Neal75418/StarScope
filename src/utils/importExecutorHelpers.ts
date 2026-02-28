@@ -8,7 +8,7 @@ import { ParsedRepo } from "./importHelpers";
 /**
  * 執行儲存庫列表的匯入迴圈。
  */
-export async function runImportLoop(
+async function runImportLoop(
   reposToProcess: ParsedRepo[],
   abortController: AbortController,
   existingSet: Set<string>,
@@ -55,7 +55,7 @@ export async function executeImportFlow(
   );
 }
 
-export async function fetchExistingRepoSet(): Promise<Set<string>> {
+async function fetchExistingRepoSet(): Promise<Set<string>> {
   try {
     const response = await getRepos();
     return new Set(response.repos.map((r) => r.full_name.toLowerCase()));
@@ -67,7 +67,7 @@ export async function fetchExistingRepoSet(): Promise<Set<string>> {
 /**
  * 以指數退避重試執行非同步操作，用於處理 rate limit。
  */
-export async function executeWithRetry<T>(
+async function executeWithRetry<T>(
   operation: () => Promise<T>,
   signal: AbortSignal,
   maxAttempts: number = 3
@@ -101,7 +101,7 @@ export async function executeWithRetry<T>(
  * 處理單一儲存庫的匯入。
  * 回傳結果狀態。
  */
-export async function processSingleRepo(
+async function processSingleRepo(
   repo: ParsedRepo,
   signal: AbortSignal,
   existingSet: Set<string>,

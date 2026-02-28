@@ -8,9 +8,9 @@
 const DEFAULT_API_PORT = 8008;
 const DEFAULT_API_HOST = "127.0.0.1";
 
-export const API_BASE_URL =
+const API_BASE_URL =
   import.meta.env.VITE_API_URL || `http://${DEFAULT_API_HOST}:${DEFAULT_API_PORT}`;
-export const API_PREFIX = "/api";
+const API_PREFIX = "/api";
 
 // 完整 API endpoint
 export const API_ENDPOINT = `${API_BASE_URL}${API_PREFIX}`;

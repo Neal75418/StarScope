@@ -5,12 +5,12 @@
 
 import { EarlySignalType } from "../api/client";
 
-export interface SignalTypeDisplay {
+interface SignalTypeDisplay {
   icon: string;
   className: string;
 }
 
-export const SIGNAL_TYPE_CONFIG: Record<EarlySignalType, SignalTypeDisplay> = {
+const SIGNAL_TYPE_CONFIG: Record<EarlySignalType, SignalTypeDisplay> = {
   rising_star: { icon: "\u{1F31F}", className: "signal-rising-star" },
   sudden_spike: { icon: "\u26A1", className: "signal-sudden-spike" },
   breakout: { icon: "\u{1F680}", className: "signal-breakout" },
