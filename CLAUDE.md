@@ -133,7 +133,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 目錄             | 說明                                            |
 |----------------|-----------------------------------------------|
-| `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
+| `routers/`     | FastAPI 路由（15 個模組：repos、alerts、trends、categories 等） |
 | `services/`    | 業務邏輯（14 個服務：analyzer、scheduler、recommender 等）      |
 | `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）          |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`            |
@@ -219,12 +219,11 @@ PORT=8008
 | `commit_activity`   | `/api/commit-activity`   | Commit 活動資料與摘要                   |
 | `languages`         | `/api/languages`         | 程式語言分佈與摘要                        |
 | `star_history`      | `/api/star-history`      | Star 歷史回填（< 5000 stars）          |
-| `scheduler`         | `/api/scheduler`         | 排程器狀態、啟停、手動觸發                    |
 | `export`            | `/api/export`            | Watchlist JSON/CSV 匯出            |
 | `github_auth`       | `/api/github-auth`       | OAuth Device Flow、連線狀態           |
 | `health`            | `/api`                   | 健康檢查                              |
 
-> 共 16 個路由模組、68 個端點
+> 共 15 個路由模組、64 個端點
 
 ---
 
@@ -260,9 +259,7 @@ SQLite 位於 `sidecar/starscope.db`（13 張表）：
   - `useReposQuery` — repos 列表查詢（WatchlistContext 內部使用）
   - `useTrends` — Trends 頁面主資料（含 filter 狀態）
   - `useDashboard` — 4 個平行 useQuery（repos、alerts、signals、summary）
-- **Mutation hooks** (`hooks/mutations/useRepoMutations.ts`):
-  - `useAddRepoMutation` / `useRemoveRepoMutation` / `useFetchRepoMutation` / `useRefreshAllMutation`
-  - 成功後自動 invalidate repos cache
+- **寫入操作** — 由 `WatchlistContext` actions 統一處理（addRepo / removeRepo / fetchRepo / refreshAll），成功後自動 invalidate React Query cache
 - **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
 
 ### Watchlist Context + useReducer 架構

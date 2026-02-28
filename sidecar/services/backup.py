@@ -114,66 +114,6 @@ class BackupService:
             logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
             return 0
 
-    def list_backups(self) -> list[tuple[Path, datetime, int]]:
-        """
-        列出所有備份檔案。
-
-        Returns:
-            備份列表，每個元素為 (檔案路徑, 建立時間, 檔案大小 bytes)
-
-        Example:
-            >>> service = BackupService("starscope.db")
-            >>> backups = service.list_backups()
-            >>> for path, created_at, size in backups:
-            ...     print(f"{path.name}: {size} bytes, created {created_at}")
-        """
-        backups = []
-        pattern = f"{self.db_path.stem}_*.db"
-
-        for backup_file in sorted(self.backup_dir.glob(pattern), reverse=True):
-            stat = backup_file.stat()
-            created_at = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
-            backups.append((backup_file, created_at, stat.st_size))
-
-        return backups
-
-    def restore_backup(self, backup_path: Path) -> bool:
-        """
-        還原備份（謹慎使用！會覆蓋當前資料庫）。
-
-        Args:
-            backup_path: 備份檔案路徑
-
-        Returns:
-            是否成功還原
-
-        Warning:
-            這個操作會覆蓋當前的資料庫檔案！
-            建議在還原前先建立當前資料庫的備份。
-        """
-        try:
-            if not backup_path.exists():
-                logger.error(f"Backup file not found: {backup_path}")
-                return False
-
-            # 建立當前資料庫的安全備份
-            safety_backup = self.create_backup()
-            if not safety_backup:
-                logger.error("Failed to create safety backup before restore")
-                return False
-
-            logger.warning(f"Restoring backup from {backup_path} (safety backup: {safety_backup})")
-
-            # 還原備份
-            shutil.copy2(backup_path, self.db_path)
-
-            logger.info(f"Database restored from {backup_path}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to restore backup: {e}", exc_info=True)
-            return False
-
 
 def backup_database(db_path: str, retention_days: int = 7) -> Optional[Path]:
     """

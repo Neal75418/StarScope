@@ -166,7 +166,7 @@ StarScope/
 
 ## API 端點
 
-所有端點使用統一 `ApiResponse[T]` 格式回傳。共 16 個路由模組、68 個端點：
+所有端點使用統一 `ApiResponse[T]` 格式回傳。共 15 個路由模組、64 個端點：
 
 | 路由模組              | 前綴                     | 說明                        |
 |---------------------|------------------------|---------------------------|
@@ -182,7 +182,6 @@ StarScope/
 | `commit_activity`   | `/api/commit-activity` | Commit 活動與摘要             |
 | `languages`         | `/api/languages`       | 程式語言分佈                   |
 | `star_history`      | `/api/star-history`    | Star 歷史回填                |
-| `scheduler`         | `/api/scheduler`       | 排程器管理                    |
 | `export`            | `/api/export`          | JSON/CSV 匯出              |
 | `github_auth`       | `/api/github-auth`     | OAuth Device Flow         |
 | `health`            | `/api`                 | 健康檢查                     |

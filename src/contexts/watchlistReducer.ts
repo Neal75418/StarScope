@@ -58,12 +58,6 @@ export interface WatchlistState {
  * Reducer Actions - 使用語意化的 action types
  */
 export type WatchlistAction =
-  // 初始化（由 React Query 驅動，reducer 只管 loadingState）
-  | { type: "INITIALIZE_START" }
-  | { type: "INITIALIZE_SUCCESS" }
-  | { type: "INITIALIZE_FAILURE"; payload: { error: string } }
-  | { type: "SET_CONNECTION_STATUS"; payload: { isConnected: boolean } }
-
   // Repo 操作（repos 資料由 React Query 管理，reducer 只追蹤 loadingState/UI）
   | { type: "ADD_REPO_START"; payload: { fullName: string } }
   | { type: "ADD_REPO_SUCCESS" }
@@ -86,7 +80,6 @@ export type WatchlistAction =
   // UI 操作
   | { type: "OPEN_DIALOG" }
   | { type: "CLOSE_DIALOG" }
-  | { type: "CLEAR_DIALOG_ERROR" }
   | {
       type: "OPEN_REMOVE_CONFIRM";
       payload: { repoId: number; repoName: string };
@@ -176,34 +169,6 @@ export const initialState: WatchlistState = {
  */
 export function watchlistReducer(state: WatchlistState, action: WatchlistAction): WatchlistState {
   switch (action.type) {
-    // 初始化
-    case "INITIALIZE_START":
-      return {
-        ...state,
-        loadingState: { type: "initializing" },
-        error: null,
-      };
-
-    case "INITIALIZE_SUCCESS":
-      return {
-        ...state,
-        loadingState: { type: "idle" },
-        error: null,
-      };
-
-    case "INITIALIZE_FAILURE":
-      return {
-        ...state,
-        loadingState: { type: "idle" },
-        error: action.payload.error,
-      };
-
-    case "SET_CONNECTION_STATUS":
-      return {
-        ...state,
-        isConnected: action.payload.isConnected,
-      };
-
     // 新增 Repo
     case "ADD_REPO_START":
       return {
@@ -354,18 +319,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
           ...state.ui,
           dialog: {
             isOpen: false,
-            error: null,
-          },
-        },
-      };
-
-    case "CLEAR_DIALOG_ERROR":
-      return {
-        ...state,
-        ui: {
-          ...state.ui,
-          dialog: {
-            ...state.ui.dialog,
             error: null,
           },
         },

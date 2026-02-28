@@ -37,41 +37,6 @@ function reduce(state: WatchlistState, ...actions: WatchlistAction[]): Watchlist
 }
 
 describe("watchlistReducer", () => {
-  // ==================== 初始化 ====================
-
-  describe("initialization", () => {
-    it("INITIALIZE_START sets loadingState to initializing and clears error", () => {
-      const state = { ...initialState, error: "old error" };
-      const next = watchlistReducer(state, { type: "INITIALIZE_START" });
-      expect(next.loadingState).toEqual({ type: "initializing" });
-      expect(next.error).toBeNull();
-    });
-
-    it("INITIALIZE_SUCCESS returns to idle and clears error", () => {
-      const state = { ...initialState, loadingState: { type: "initializing" as const } };
-      const next = watchlistReducer(state, { type: "INITIALIZE_SUCCESS" });
-      expect(next.loadingState).toEqual({ type: "idle" });
-      expect(next.error).toBeNull();
-    });
-
-    it("INITIALIZE_FAILURE sets error and returns to idle", () => {
-      const next = watchlistReducer(initialState, {
-        type: "INITIALIZE_FAILURE",
-        payload: { error: "Connection failed" },
-      });
-      expect(next.error).toBe("Connection failed");
-      expect(next.loadingState).toEqual({ type: "idle" });
-    });
-
-    it("SET_CONNECTION_STATUS updates isConnected", () => {
-      const next = watchlistReducer(initialState, {
-        type: "SET_CONNECTION_STATUS",
-        payload: { isConnected: true },
-      });
-      expect(next.isConnected).toBe(true);
-    });
-  });
-
   // ==================== Repo 操作 ====================
 
   describe("add repo", () => {
@@ -220,16 +185,6 @@ describe("watchlistReducer", () => {
       expect(closed.ui.dialog.error).toBeNull();
     });
 
-    it("CLEAR_DIALOG_ERROR clears only dialog error", () => {
-      const state = {
-        ...initialState,
-        ui: { ...initialState.ui, dialog: { isOpen: true, error: "Some error" } },
-      };
-      const next = watchlistReducer(state, { type: "CLEAR_DIALOG_ERROR" });
-      expect(next.ui.dialog.error).toBeNull();
-      expect(next.ui.dialog.isOpen).toBe(true);
-    });
-
     it("OPEN_REMOVE_CONFIRM / CLOSE_REMOVE_CONFIRM toggles confirm state", () => {
       const opened = watchlistReducer(initialState, {
         type: "OPEN_REMOVE_CONFIRM",
@@ -341,13 +296,11 @@ describe("watchlistReducer", () => {
     it("multiple actions compose correctly", () => {
       const result = reduce(
         initialState,
-        { type: "SET_CONNECTION_STATUS", payload: { isConnected: true } },
-        { type: "INITIALIZE_SUCCESS" },
-        { type: "SET_SEARCH_QUERY", payload: { query: "react" } }
+        { type: "SET_SEARCH_QUERY", payload: { query: "react" } },
+        { type: "SHOW_TOAST", payload: { id: "test", message: "test", type: "info" } }
       );
-      expect(result.isConnected).toBe(true);
-      expect(result.loadingState).toEqual({ type: "idle" });
       expect(result.filters.searchQuery).toBe("react");
+      expect(result.toasts).toHaveLength(1);
     });
   });
 });
