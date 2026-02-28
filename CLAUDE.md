@@ -133,7 +133,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 目錄             | 說明                                            |
 |----------------|-----------------------------------------------|
-| `routers/`     | FastAPI 路由（15 個模組：repos、alerts、trends、categories 等） |
+| `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
 | `services/`    | 業務邏輯（14 個服務：analyzer、scheduler、recommender 等）      |
 | `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）          |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`            |
