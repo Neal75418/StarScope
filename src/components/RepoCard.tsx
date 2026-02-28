@@ -64,8 +64,8 @@ export const RepoCard = memo(function RepoCard({
     }
   }, [chartState, repo.id]);
   const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
-  const handleFetch = useCallback(() => handlers.onFetch(repo.id), [handlers.onFetch, repo.id]);
-  const handleRemove = useCallback(() => handlers.onRemove(repo.id), [handlers.onRemove, repo.id]);
+  const handleFetch = useCallback(() => handlers.onFetch(repo.id), [handlers, repo.id]);
+  const handleRemove = useCallback(() => handlers.onRemove(repo.id), [handlers, repo.id]);
   const handleRemoveFromCategory = useCallback(
     () =>
       categoryContext?.selectedId &&
