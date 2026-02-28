@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TypeVar, Callable, Awaitable
+from typing import TypeVar, Callable, Awaitable, Any
 
 from tenacity import (
     retry,
@@ -45,7 +45,7 @@ def _should_retry_github_error(exception: BaseException) -> bool:
     return isinstance(exception, (GitHubRateLimitError, GitHubAPIError))
 
 
-def create_github_retry_decorator(max_attempts: int = 5):
+def create_github_retry_decorator(max_attempts: int = 5) -> Any:
     """
     為 GitHub API 呼叫建立重試裝飾器。
 

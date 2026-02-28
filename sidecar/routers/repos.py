@@ -27,6 +27,7 @@ from services.github import (
     GitHubService,
     GitHubAPIError,
     GitHubNotFoundError,
+    get_github_service,
 )
 from services.rate_limiter import fetch_repo_with_retry
 from services.queries import build_signal_map, build_snapshot_map
@@ -214,7 +215,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
 
     # 從 GitHub 抓取 repo 資訊
     # GitHub 例外由 main.py 中的全域例外處理器處理。
-    github = GitHubService()
+    github = get_github_service()
     github_data = await github.get_repo(owner, name)
 
     # 建立 repo 紀錄
@@ -275,7 +276,7 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     repo = get_repo_or_404(repo_id, db)
 
     # 從 GitHub 抓取（例外由 main.py 全域處理器處理）
-    github = GitHubService()
+    github = get_github_service()
     github_data = await github.get_repo(repo.owner, repo.name)
 
     # 原子性更新中繼資料 + 快照 + 訊號
@@ -298,7 +299,7 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
     _ = request  # 由 @limiter.limit decorator 隱式使用
     # noinspection PyTypeChecker
     repos: List[Repo] = db.query(Repo).all()
-    github = GitHubService()
+    github = get_github_service()
 
     success_count = 0
     failed_count = 0

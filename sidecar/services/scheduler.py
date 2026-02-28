@@ -70,7 +70,7 @@ def _track_repo_failure(repo_id: int, full_name: str, reason: str) -> None:
         )
 
 
-async def fetch_all_repos_job(skip_recent_minutes: int = 30):
+async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
     """
     背景工作：抓取追蹤清單中所有 repo。
     根據設定的間隔定期執行。
@@ -142,10 +142,11 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
                         _track_repo_failure(repo_id, repo.full_name, str(e))
                         logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
                     except Exception as e:
+                        # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
                         error_count += 1
                         db.rollback()
                         _track_repo_failure(repo_id, repo.full_name, str(e))
-                        logger.error(f"[排程] 抓取 {repo.full_name} 非預期錯誤: {e}", exc_info=True)
+                        logger.critical(f"[排程] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
 
             logger.info(
                 f"[排程] 排程抓取完成: {success_count} 成功、"
@@ -164,7 +165,7 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30):
             raise
 
 
-def check_alerts_job():
+def check_alerts_job() -> None:
     """
     背景工作：檢查警報規則並觸發通知。
     在資料抓取後執行。
@@ -188,11 +189,13 @@ def check_alerts_job():
             else:
                 logger.debug("[排程] 無警報觸發")
 
+        except SQLAlchemyError as e:
+            logger.error(f"[排程] 檢查警報資料庫錯誤: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"[排程] 檢查警報失敗: {e}", exc_info=True)
+            logger.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
 
 
-async def fetch_context_signals_job():
+async def fetch_context_signals_job() -> None:
     """
     背景工作：為所有 repo 抓取情境訊號。
     從 Hacker News 抓取並執行清理。
@@ -213,8 +216,10 @@ async def fetch_context_signals_job():
             cleanup_stats = cleanup_old_context_signals(db)
             if cleanup_stats["deleted_by_age"] > 0 or cleanup_stats["deleted_by_limit"] > 0:
                 logger.info(f"[排程] 上下文訊號清理: {cleanup_stats}")
+        except SQLAlchemyError as e:
+            logger.error(f"[排程] 上下文訊號資料庫錯誤: {e}", exc_info=True)
         except Exception as e:
-            logger.error(f"[排程] 上下文訊號任務錯誤: {e}", exc_info=True)
+            logger.critical(f"[排程] 上下文訊號未預期錯誤: {e}", exc_info=True)
 
 
 def cleanup_old_snapshots(retention_days: int = 90) -> int:
@@ -263,7 +268,7 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
             return 0
 
 
-def backup_job():
+def backup_job() -> None:
     """資料庫備份工作（模組層級，供 APScheduler 序列化引用）。"""
     try:
         # 取得資料庫檔案路徑（移除 sqlite:/// 前綴）
@@ -282,11 +287,13 @@ def backup_job():
         else:
             logger.error("[排程] 資料庫備份失敗")
 
+    except (OSError, IOError) as e:
+        logger.error(f"[排程] 資料庫備份檔案操作錯誤: {e}", exc_info=True)
     except Exception as e:
-        logger.error(f"[排程] 資料庫備份錯誤: {e}", exc_info=True)
+        logger.critical(f"[排程] 資料庫備份未預期錯誤: {e}", exc_info=True)
 
 
-def start_scheduler(fetch_interval_minutes: int = 60):
+def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     """
     啟動背景排程器。
 
@@ -362,7 +369,7 @@ def start_scheduler(fetch_interval_minutes: int = 60):
     )
 
 
-def stop_scheduler():
+def stop_scheduler() -> None:
     """停止背景排程器（最多等待 10 秒讓進行中的任務完成）。"""
     import concurrent.futures
 
@@ -397,7 +404,7 @@ def get_scheduler_status() -> dict:
     }
 
 
-async def trigger_fetch_now():
+async def trigger_fetch_now() -> None:
     """手動觸發立即抓取所有 repo 與情境訊號。"""
     logger.info("[排程] 手動抓取已觸發")
     await fetch_all_repos_job()

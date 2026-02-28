@@ -16,6 +16,9 @@ interface AlertRuleFormProps {
   onCancel: () => void;
 }
 
+const DEFAULT_THRESHOLD = 0;
+const DEFAULT_ENABLED = true;
+
 const OPERATORS: { value: AlertOperator; label: string }[] = [
   { value: ">", label: ">" },
   { value: "<", label: "<" },
@@ -125,7 +128,9 @@ export function AlertRuleForm({
             id="alert-rule-threshold"
             type="number"
             value={rule.threshold}
-            onChange={(e) => setRule({ ...rule, threshold: parseFloat(e.target.value) || 0 })}
+            onChange={(e) =>
+              setRule({ ...rule, threshold: parseFloat(e.target.value) || DEFAULT_THRESHOLD })
+            }
             step="any"
             required
           />
@@ -179,7 +184,7 @@ export function AlertRuleForm({
         <label className="checkbox-option">
           <input
             type="checkbox"
-            checked={rule.enabled ?? true}
+            checked={rule.enabled ?? DEFAULT_ENABLED}
             onChange={(e) => setRule({ ...rule, enabled: e.target.checked })}
           />
           {t.settings.alerts.form.enabled}

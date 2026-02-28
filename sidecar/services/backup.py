@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class BackupService:
     """資料庫備份服務"""
 
-    def __init__(self, db_path: str, backup_dir: Optional[str] = None):
+    def __init__(self, db_path: str, backup_dir: Optional[str] = None) -> None:
         """
         初始化備份服務。
 

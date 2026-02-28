@@ -17,6 +17,13 @@ interface ContextBadgesProps {
   isRefreshing?: boolean;
 }
 
+interface PanelState {
+  expanded: boolean;
+  signals: ContextSignal[];
+  loading: boolean;
+  fetched: boolean;
+}
+
 const BADGE_CONFIG: Record<
   string,
   { icon: string; label: string; color: string; tooltip: string }
@@ -98,29 +105,28 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
 }
 
 export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [signals, setSignals] = useState<ContextSignal[]>([]);
-  const [signalsLoading, setSignalsLoading] = useState(false);
-  const [signalsFetched, setSignalsFetched] = useState(false);
+  const [panelState, setPanelState] = useState<PanelState>({
+    expanded: false,
+    signals: [],
+    loading: false,
+    fetched: false,
+  });
 
   const toggleExpand = useCallback(async () => {
     if (!repoId) return;
 
-    if (!expanded && !signalsFetched) {
-      setSignalsLoading(true);
+    if (!panelState.expanded && !panelState.fetched) {
+      setPanelState((prev) => ({ ...prev, loading: true }));
       try {
         const res = await getContextSignals(repoId, "hn");
-        setSignals(res.signals);
+        setPanelState((prev) => ({ ...prev, signals: res.signals, loading: false, fetched: true }));
       } catch (err) {
         logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
-        setSignals([]);
-      } finally {
-        setSignalsLoading(false);
-        setSignalsFetched(true);
+        setPanelState((prev) => ({ ...prev, signals: [], loading: false, fetched: true }));
       }
     }
-    setExpanded((prev) => !prev);
-  }, [expanded, signalsFetched, repoId]);
+    setPanelState((prev) => ({ ...prev, expanded: !prev.expanded }));
+  }, [panelState.expanded, panelState.fetched, repoId]);
 
   if (badges.length === 0) return null;
 
@@ -148,13 +154,17 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               <span className="badge-icon">{config.icon}</span>
               {config.label && <span className="badge-label">{config.label}</span>}
               <span className="badge-value">{value}</span>
-              {repoId && <span className="badge-expand-arrow">{expanded ? "▾" : "▸"}</span>}
+              {repoId && (
+                <span className="badge-expand-arrow">{panelState.expanded ? "▾" : "▸"}</span>
+              )}
             </button>
           );
         })}
       </div>
 
-      {expanded && <HnDiscussionPanel signals={signals} loading={signalsLoading} />}
+      {panelState.expanded && (
+        <HnDiscussionPanel signals={panelState.signals} loading={panelState.loading} />
+      )}
     </div>
   );
 }

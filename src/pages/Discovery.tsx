@@ -31,11 +31,10 @@ export function Discovery() {
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
-  const watchlistFullNames = useMemo(() => {
-    const names = new Set(watchlist.map((r) => r.full_name.toLowerCase()));
-    locallyAdded.forEach((name) => names.add(name));
-    return names;
-  }, [watchlist, locallyAdded]);
+  const watchlistFullNames = useMemo(
+    () => new Set([...watchlist.map((r) => r.full_name.toLowerCase()), ...locallyAdded]),
+    [watchlist, locallyAdded]
+  );
 
   // 取得時間區間的顯示文字
   const getPeriodLabel = useCallback(

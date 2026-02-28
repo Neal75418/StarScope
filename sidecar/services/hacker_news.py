@@ -20,7 +20,7 @@ HN_SEARCH_API = "https://hn.algolia.com/api/v1/search"
 
 class HackerNewsAPIError(Exception):
     """HN API 錯誤的自訂例外。"""
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
@@ -108,7 +108,7 @@ async def _execute_hn_query(
 class HackerNewsService:
     """透過 Algolia API 搜尋 Hacker News 的服務。"""
 
-    def __init__(self, timeout: float = HN_API_TIMEOUT_SECONDS):
+    def __init__(self, timeout: float = HN_API_TIMEOUT_SECONDS) -> None:
         self.timeout = timeout
 
     async def search_repo(self, repo_name: str, owner: str) -> List[HNStory]:

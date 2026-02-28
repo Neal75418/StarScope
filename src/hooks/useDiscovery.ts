@@ -40,26 +40,35 @@ export function useDiscovery() {
     [executeSearch]
   );
 
+  // 統一的參數更新函數
+  const updateSearchParams = useCallback(
+    (updates: {
+      keyword?: string;
+      period?: TrendingPeriod | undefined;
+      filters?: SearchFilters;
+    }) => {
+      const newKeyword = updates.keyword ?? state.keyword;
+      const newPeriod = updates.period !== undefined ? updates.period : state.period;
+      const newFilters = updates.filters ?? state.filters;
+      search(newKeyword, newPeriod, newFilters);
+    },
+    [state.keyword, state.period, state.filters, search]
+  );
+
   // 設定值同時觸發搜尋
   const setKeyword = useCallback(
-    (kw: string) => {
-      search(kw, state.period, state.filters);
-    },
-    [state.period, state.filters, search]
+    (kw: string) => updateSearchParams({ keyword: kw }),
+    [updateSearchParams]
   );
 
   const setPeriod = useCallback(
-    (p: TrendingPeriod | undefined) => {
-      search(state.keyword, p, state.filters);
-    },
-    [state.keyword, state.filters, search]
+    (p: TrendingPeriod | undefined) => updateSearchParams({ period: p }),
+    [updateSearchParams]
   );
 
   const setFilters = useCallback(
-    (f: SearchFilters) => {
-      search(state.keyword, state.period, f);
-    },
-    [state.keyword, state.period, search]
+    (f: SearchFilters) => updateSearchParams({ filters: f }),
+    [updateSearchParams]
   );
 
   const loadMore = useCallback(() => {

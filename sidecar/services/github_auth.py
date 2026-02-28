@@ -60,7 +60,7 @@ class GitHubAuthError(Exception):
 class GitHubAuthService:
     """處理 GitHub Device Flow 驗證的服務。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.client_id = os.getenv(GITHUB_CLIENT_ID_ENV_VAR)
         if not self.client_id:
             logger.warning(

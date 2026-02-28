@@ -8,6 +8,8 @@ import os
 import threading
 import httpx
 from typing import Optional
+from sqlalchemy.exc import SQLAlchemyError
+from keyring.errors import KeyringError
 
 from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
 from db.models import AppSettingKey
@@ -20,14 +22,14 @@ GITHUB_API_BASE = "https://api.github.com"
 # 例外類別
 class GitHubAPIError(Exception):
     """GitHub API 錯誤的自訂例外。"""
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
 
 class GitHubRateLimitError(GitHubAPIError):
     """GitHub API 速率限制超過時拋出。"""
-    def __init__(self, message: str, status_code: Optional[int] = None, reset_at: Optional[int] = None):
+    def __init__(self, message: str, status_code: Optional[int] = None, reset_at: Optional[int] = None) -> None:
         super().__init__(message, status_code)
         self.reset_at = reset_at  # Unix timestamp of rate limit reset
 
@@ -105,7 +107,7 @@ def handle_github_response(
 
 
 class GitHubService:
-    def __init__(self, token: Optional[str] = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS):
+    def __init__(self, token: Optional[str] = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS) -> None:
         self.token = token
         self.timeout = timeout
         self.headers = build_github_headers(token)
@@ -358,8 +360,10 @@ def _resolve_github_token() -> Optional[str]:
         if token:
             logger.info("[GitHub API] 使用資料庫中的 GitHub token (OAuth)")
             return token
+    except (SQLAlchemyError, KeyringError) as e:
+        logger.debug(f"[GitHub API] 無法從資料庫/Keyring 讀取 token: {e}")
     except Exception as e:
-        logger.debug(f"[GitHub API] 無法從資料庫讀取 token: {e}")
+        logger.warning(f"[GitHub API] 讀取 token 未預期錯誤，回退至環境變數: {e}")
 
     token = os.getenv(GITHUB_TOKEN_ENV_VAR)
     if token:

@@ -3,8 +3,9 @@
 import logging
 from typing import Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 import keyring
-from keyring.errors import PasswordDeleteError
+from keyring.errors import PasswordDeleteError, KeyringError
 
 from db.models import AppSetting, AppSettingKey
 from db.database import SessionLocal
@@ -30,8 +31,10 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
             token = keyring.get_password(SERVICE_NAME, key)
             if token:
                 return token
-        except Exception as e:
+        except KeyringError as e:
             logger.warning(f"[設定] 存取 keyring 失敗 ({key}): {e}")
+        except Exception as e:
+            logger.critical(f"[設定] 存取 keyring 未預期錯誤 ({key}): {e}", exc_info=True)
 
     # 回退至 DB（或非 token 設定）
     close_db = False
@@ -59,10 +62,14 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
                 db.delete(setting)
                 db.commit()
                 logger.info(f"[設定] Token {key} 成功遷移至 Keyring")
-            except Exception as e:
+            except (KeyringError, SQLAlchemyError, ValueError) as e:
                 db.rollback()
                 logger.error(f"[設定] Token 遷移失敗: {e}", exc_info=True)
                 raise RuntimeError(f"Token 遷移失敗: {e}") from e
+            except Exception as e:
+                db.rollback()
+                logger.critical(f"[設定] Token 遷移未預期錯誤: {e}", exc_info=True)
+                raise RuntimeError(f"Token 遷移未預期錯誤: {e}") from e
 
         return value
     finally:
@@ -89,8 +96,11 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
             delete_setting_from_db(key, db)
             logger.debug(f"[設定] 敏感設定 '{key}' 已成功儲存至安全儲存")
             return
-        except Exception as e:
+        except (KeyringError, ValueError, SQLAlchemyError) as e:
             logger.error(f"[設定] 儲存 {key} 至 keyring 失敗: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.critical(f"[設定] 儲存 {key} 至 keyring 未預期錯誤: {e}", exc_info=True)
             raise
 
     # 一般 DB 路徑
@@ -108,9 +118,13 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
             db.add(setting)
         db.commit()
         logger.info(f"[設定] 設定 '{key}' 已成功儲存")
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"[設定] 儲存設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+        raise
     except Exception as e:
         db.rollback()
-        logger.error(f"[設定] 儲存設定 '{key}' 失敗: {e}", exc_info=True)
+        logger.critical(f"[設定] 儲存設定 '{key}' 未預期錯誤: {e}", exc_info=True)
         raise
     finally:
         if close_db:
@@ -133,8 +147,10 @@ def delete_setting(key: str, db: Optional[Session] = None) -> bool:
         except PasswordDeleteError:
             # Keyring 中找不到密碼
             pass
-        except Exception as e:
+        except KeyringError as e:
             logger.warning(f"[設定] 刪除 {key} 時存取 keyring 失敗: {e}")
+        except Exception as e:
+            logger.critical(f"[設定] 刪除 {key} 時 keyring 未預期錯誤: {e}", exc_info=True)
 
     # 從 DB 刪除
     db_deleted = delete_setting_from_db(key, db)
@@ -156,9 +172,13 @@ def delete_setting_from_db(key: str, db: Optional[Session] = None) -> bool:
             logger.info(f"[設定] 設定 '{key}' 已從資料庫刪除")
             return True
         return False
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"[設定] 從資料庫刪除設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+        raise
     except Exception as e:
         db.rollback()
-        logger.error(f"[設定] 從資料庫刪除設定 '{key}' 失敗: {e}", exc_info=True)
+        logger.critical(f"[設定] 從資料庫刪除設定 '{key}' 未預期錯誤: {e}", exc_info=True)
         raise
     finally:
         if close_db:

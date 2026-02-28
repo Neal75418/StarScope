@@ -20,40 +20,46 @@ export function useCategoryOperations(
 ): CategoryOperationsResult {
   const [isLoading, setIsLoading] = useState(false);
 
-  const addToCategory = useCallback(
-    async (categoryId: number, repoId: number): Promise<boolean> => {
-      setIsLoading(true);
-      try {
-        await addRepoToCategory(categoryId, repoId);
-        onSuccess?.();
-        return true;
-      } catch (err) {
-        logger.error("[CategoryOps] Repo 加入分類失敗:", err);
-        onError?.(getErrorMessage(err, "Failed to add repo to category"));
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
+  // 工廠函數：統一處理分類操作的錯誤處理與載入狀態
+  const createCategoryOperation = useCallback(
+    (
+      operation: (categoryId: number, repoId: number) => Promise<unknown>,
+      errorLogPrefix: string,
+      errorMessage: string
+    ) =>
+      async (categoryId: number, repoId: number): Promise<boolean> => {
+        setIsLoading(true);
+        try {
+          await operation(categoryId, repoId);
+          onSuccess?.();
+          return true;
+        } catch (err) {
+          logger.error(errorLogPrefix, err);
+          onError?.(getErrorMessage(err, errorMessage));
+          return false;
+        } finally {
+          setIsLoading(false);
+        }
+      },
     [onSuccess, onError]
   );
 
+  const addToCategory = useCallback(
+    createCategoryOperation(
+      addRepoToCategory,
+      "[CategoryOps] Repo 加入分類失敗:",
+      "Failed to add repo to category"
+    ),
+    [createCategoryOperation]
+  );
+
   const removeFromCategory = useCallback(
-    async (categoryId: number, repoId: number): Promise<boolean> => {
-      setIsLoading(true);
-      try {
-        await removeRepoFromCategory(categoryId, repoId);
-        onSuccess?.();
-        return true;
-      } catch (err) {
-        logger.error("[CategoryOps] Repo 移出分類失敗:", err);
-        onError?.(getErrorMessage(err, "Failed to remove repo from category"));
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [onSuccess, onError]
+    createCategoryOperation(
+      removeRepoFromCategory,
+      "[CategoryOps] Repo 移出分類失敗:",
+      "Failed to remove repo from category"
+    ),
+    [createCategoryOperation]
   );
 
   const getCategories = useCallback(
