@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from db.database import get_db
@@ -20,6 +21,79 @@ from services.queries import build_snapshot_map, build_signal_map
 from utils.time import utc_now
 
 router = APIRouter(prefix="/api/export", tags=["export"])
+
+
+# Response Models for OpenAPI documentation
+class ExportedRepo(BaseModel):
+    """匯出的 Repo 資料結構（包含訊號）。"""
+    id: int = Field(..., description="Repo ID")
+    owner: str = Field(..., description="擁有者")
+    name: str = Field(..., description="專案名稱")
+    full_name: str = Field(..., description="完整名稱（owner/name）")
+    url: str = Field(..., description="GitHub URL")
+    description: Optional[str] = Field(None, description="專案描述")
+    language: Optional[str] = Field(None, description="主要程式語言")
+    topics: Optional[str] = Field(None, description="Topics JSON 字串")
+    added_at: Optional[str] = Field(None, description="加入追蹤時間（ISO 格式）")
+    updated_at: Optional[str] = Field(None, description="最後更新時間（ISO 格式）")
+    stars: Optional[int] = Field(None, description="Star 數量")
+    forks: Optional[int] = Field(None, description="Fork 數量")
+    stars_delta_7d: Optional[float] = Field(None, description="7 日 Star 增量")
+    stars_delta_30d: Optional[float] = Field(None, description="30 日 Star 增量")
+    velocity: Optional[float] = Field(None, description="Star 速度")
+    acceleration: Optional[float] = Field(None, description="Star 加速度")
+    trend: Optional[float] = Field(None, description="趨勢分數")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "owner": "torvalds",
+                "name": "linux",
+                "full_name": "torvalds/linux",
+                "url": "https://github.com/torvalds/linux",
+                "description": "Linux kernel source tree",
+                "language": "C",
+                "topics": '["kernel", "linux", "operating-system"]',
+                "added_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-02T00:00:00Z",
+                "stars": 150000,
+                "forks": 50000,
+                "stars_delta_7d": 500.0,
+                "stars_delta_30d": 2000.0,
+                "velocity": 100.0,
+                "acceleration": 5.0,
+                "trend": 0.8,
+            }
+        }
+
+
+class WatchlistExportResponse(BaseModel):
+    """Watchlist JSON 匯出響應。"""
+    exported_at: str = Field(..., description="匯出時間（ISO 格式）")
+    total: int = Field(..., description="Repo 總數")
+    repos: List[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "exported_at": "2024-01-15T12:00:00Z",
+                "total": 42,
+                "repos": [
+                    {
+                        "id": 1,
+                        "owner": "torvalds",
+                        "name": "linux",
+                        "full_name": "torvalds/linux",
+                        "url": "https://github.com/torvalds/linux",
+                        "description": "Linux kernel source tree",
+                        "language": "C",
+                        "stars": 150000,
+                        "velocity": 100.0,
+                    }
+                ]
+            }
+        }
 
 
 def _build_repo_dict(
@@ -70,12 +144,40 @@ def _get_repos_with_signals(repos: List["Repo"], db: Session) -> List[dict]:
     ]
 
 
-@router.get("/watchlist.json")
+@router.get(
+    "/watchlist.json",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": "JSON 格式的 watchlist 匯出",
+            "content": {
+                "application/json": {
+                    "schema": WatchlistExportResponse.model_json_schema(),
+                    "example": {
+                        "exported_at": "2024-01-15T12:00:00Z",
+                        "total": 42,
+                        "repos": [
+                            {
+                                "id": 1,
+                                "full_name": "torvalds/linux",
+                                "stars": 150000,
+                                "velocity": 100.0,
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+)
 async def export_watchlist_json(
     db: Session = Depends(get_db)
 ):
     """
     將整個追蹤清單匯出為 JSON。
+
+    回傳包含所有追蹤 repo 及其訊號（velocity、delta 等）的 JSON 檔案。
+    檔名格式：starscope_watchlist_YYYYMMDD.json
     """
     # noinspection PyTypeChecker
     repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
@@ -101,12 +203,34 @@ CSV_COLUMNS = [
 ]
 
 
-@router.get("/watchlist.csv")
+@router.get(
+    "/watchlist.csv",
+    response_class=StreamingResponse,
+    responses={
+        200: {
+            "description": "CSV 格式的 watchlist 匯出",
+            "content": {
+                "text/csv": {
+                    "schema": {
+                        "type": "string",
+                        "format": "binary",
+                        "description": "CSV 檔案，包含欄位：full_name, owner, name, url, language, description, stars, forks, velocity, stars_delta_7d, stars_delta_30d, acceleration, trend, added_at"
+                    },
+                    "example": "full_name,owner,name,url,language,stars,velocity\ntorvalds/linux,torvalds,linux,https://github.com/torvalds/linux,C,150000,100.0\n"
+                }
+            }
+        }
+    }
+)
 async def export_watchlist_csv(
     db: Session = Depends(get_db)
 ):
     """
     將整個追蹤清單匯出為 CSV。
+
+    回傳包含所有追蹤 repo 及其訊號的 CSV 檔案。
+    欄位：full_name, owner, name, url, language, description, stars, forks, velocity, stars_delta_7d, stars_delta_30d, acceleration, trend, added_at
+    檔名格式：starscope_watchlist_YYYYMMDD.csv
     """
     # noinspection PyTypeChecker
     repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
