@@ -5,6 +5,8 @@
 import { useState, useEffect, FormEvent } from "react";
 import { AlertOperator, AlertRuleCreate, SignalTypeInfo, RepoWithSignals } from "../../api/client";
 import { useI18n } from "../../i18n";
+import { useAlertRuleFormValidation } from "../../hooks/useAlertRuleFormValidation";
+import { getSignalTypeLabel as getSignalTypeLabelUtil } from "../../utils/signalTypeHelpers";
 
 interface AlertRuleFormProps {
   initialData: AlertRuleCreate;
@@ -39,6 +41,7 @@ export function AlertRuleForm({
   const { t } = useI18n();
   const [rule, setRule] = useState<AlertRuleCreate>(initialData);
   const [applyToAll, setApplyToAll] = useState(initialData.repo_id === undefined);
+  const { validate } = useAlertRuleFormValidation(rule, applyToAll);
 
   // initialData 變更時重設表單（編輯模式用）
   useEffect(() => {
@@ -49,14 +52,14 @@ export function AlertRuleForm({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const trimmedName = rule.name.trim();
-    if (!trimmedName || !rule.signal_type) return;
-    if (!Number.isFinite(rule.threshold)) return;
-    if (!applyToAll && rule.repo_id === undefined) return;
+    const validationResult = validate();
+    if (!validationResult.valid) {
+      return;
+    }
 
     const ruleData: AlertRuleCreate = {
       ...rule,
-      name: trimmedName,
+      name: rule.name.trim(),
       repo_id: applyToAll ? undefined : rule.repo_id,
     };
 
@@ -66,16 +69,6 @@ export function AlertRuleForm({
       // 重新開啟時會收到新的 initialData
       onCancel();
     }
-  };
-
-  // 取得翻譯後的訊號類型名稱
-  const getSignalTypeLabel = (type: string): string => {
-    const conditionKey = type as keyof typeof t.settings.alerts.conditions;
-    if (t.settings.alerts.conditions[conditionKey]) {
-      return t.settings.alerts.conditions[conditionKey];
-    }
-    const signalType = signalTypes.find((s) => s.type === type);
-    return signalType?.name ?? type;
   };
 
   return (
@@ -104,7 +97,7 @@ export function AlertRuleForm({
           >
             {signalTypes.map((type) => (
               <option key={type.type} value={type.type}>
-                {getSignalTypeLabel(type.type)}
+                {getSignalTypeLabelUtil(type.type, signalTypes, t.settings.alerts.conditions)}
               </option>
             ))}
           </select>
