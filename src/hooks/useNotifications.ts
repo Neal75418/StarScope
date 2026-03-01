@@ -6,6 +6,7 @@ import { useState, useCallback } from "react";
 import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
+import { useOSNotification } from "./useOSNotification";
 import type { Page } from "../types/navigation";
 
 export type NotificationType = "alert" | "signal" | "system";
@@ -35,8 +36,15 @@ export function useNotifications() {
   // 已讀狀態儲存
   const { readIdsRef, markIdAsRead, markIdsAsRead } = useNotificationStorage();
 
-  // 輪詢邏輯
-  const { isLoading, error, refresh } = useNotificationPolling(setNotifications, readIdsRef);
+  // OS 通知功能
+  const osNotification = useOSNotification();
+
+  // 輪詢邏輯（整合 OS 通知）
+  const { isLoading, error, refresh } = useNotificationPolling(
+    setNotifications,
+    readIdsRef,
+    osNotification
+  );
 
   // 操作邏輯
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
@@ -59,5 +67,11 @@ export function useNotifications() {
     markAllAsRead,
     clearNotification,
     refresh,
+    // 暴露 OS 通知相關功能
+    osNotification: {
+      isGranted: osNotification.isGranted,
+      isLoading: osNotification.isLoading,
+      requestPermission: osNotification.requestNotificationPermission,
+    },
   };
 }
