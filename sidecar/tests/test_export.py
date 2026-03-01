@@ -45,11 +45,11 @@ class TestExportWatchlistJson:
 
         repo = data["repos"][0]
         assert repo["id"] == mock_repo.id
-        assert repo["owner"] == "torvalds"
-        assert repo["name"] == "linux"
-        assert repo["full_name"] == "torvalds/linux"
-        assert repo["url"] == "https://github.com/torvalds/linux"
-        assert repo["language"] == "C"
+        assert repo["owner"] == "testowner"
+        assert repo["name"] == "testrepo"
+        assert repo["full_name"] == "testowner/testrepo"
+        assert repo["url"] == "https://github.com/testowner/testrepo"
+        assert repo["language"] == "Python"
 
         # 無 snapshot 時應為 None
         assert repo["stars"] is None
@@ -378,11 +378,11 @@ class TestExportWatchlistCsv:
         row = rows[0]
 
         # 驗證資料正確性
-        assert row["full_name"] == "torvalds/linux"
-        assert row["owner"] == "torvalds"
-        assert row["name"] == "linux"
-        assert row["url"] == "https://github.com/torvalds/linux"
-        assert row["language"] == "C"
+        assert row["full_name"] == "testowner/testrepo"
+        assert row["owner"] == "testowner"
+        assert row["name"] == "testrepo"
+        assert row["url"] == "https://github.com/testowner/testrepo"
+        assert row["language"] == "Python"
         assert row["stars"] == "25000"
         assert row["forks"] == "10000"
         assert row["velocity"] == "150.0"
