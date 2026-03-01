@@ -5,7 +5,6 @@
 import { useCallback, useRef, useEffect } from "react";
 import { pollAuthorization, GitHubConnectionStatus } from "../api/client";
 import { useI18n, interpolate } from "../i18n";
-import { usePollingRefs } from "./usePollingRefs";
 import {
   DEVICE_FLOW_MIN_POLL_INTERVAL_SEC,
   DEVICE_FLOW_SLOWDOWN_EXTRA_SEC,
@@ -33,10 +32,30 @@ export function useDeviceFlowPolling({
   setPollStatus,
 }: UseDeviceFlowPollingOptions): UseDeviceFlowPollingResult {
   const { t } = useI18n();
-  const { pollIntervalRef, pollTimeoutRef, currentIntervalRef, stopPolling, resetInterval } =
-    usePollingRefs();
+
+  // 從 usePollingRefs 內聯的邏輯
+  const pollIntervalRef = useRef<number | null>(null);
+  const pollTimeoutRef = useRef<number | null>(null);
+  const currentIntervalRef = useRef<number>(10); // DEFAULT_INTERVAL
+
   const codeRef = useRef<string>("");
   const initialDelayRef = useRef<number | null>(null);
+
+  // 從 usePollingRefs 內聯的清理函數
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }, []);
+
+  const resetInterval = useCallback(() => {
+    currentIntervalRef.current = 10; // DEFAULT_INTERVAL
+  }, []);
 
   const handleSuccess = useCallback(
     (username?: string) => {
@@ -144,6 +163,18 @@ export function useDeviceFlowPolling({
     return () => {
       if (initialDelayRef.current !== null) {
         clearTimeout(initialDelayRef.current);
+      }
+    };
+  }, []);
+
+  // 元件卸載時清除 timers（從 usePollingRefs 遷移）
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
       }
     };
   }, []);
