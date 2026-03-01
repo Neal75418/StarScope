@@ -3,7 +3,7 @@ Tests for services/recommender.py - Repository recommendation service.
 """
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -117,7 +117,7 @@ class TestBuildStarsMap:
 
         old_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today().replace(day=1),
+            snapshot_date=date.today() - timedelta(days=7),  # 7 天前
             stars=500,
         )
         new_snapshot = RepoSnapshot(
