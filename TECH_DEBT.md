@@ -196,6 +196,16 @@ def update_readme(router_count, service_count):
 - **解決方案**: Stage 1-3 重構
 - **詳見**: [REFACTORING_SUMMARY.md](REFACTORING_SUMMARY.md)
 
+#### ✅ TD-005: Export 測試覆蓋不足（已完成 2026-03-01）
+- **問題**: `test_export.py` 只有 15 行、1 個測試，缺少訊號資料和批次查詢測試
+- **解決方案**: 補強測試至 569 行、18 個測試，涵蓋 JSON/CSV 格式、訊號完整性、批次優化
+- **變更內容**:
+  - 新增 `TestExportWatchlistJson` 類別（9 個測試）
+  - 新增 `TestExportWatchlistCsv` 類別（7 個測試）
+  - 新增 `TestExportBatchQueryOptimization` 類別（2 個測試）
+- **影響**: 測試覆蓋率提升 3693%，確保 Export 功能品質
+- **Commit**: `87a3459`
+
 ---
 
 ## 📊 技術債統計
@@ -213,6 +223,7 @@ def update_readme(router_count, service_count):
 
 ### Q1 (1-3 月)
 - [x] 完成 Critical + High 問題修復
+- [x] 補強 Export 測試覆蓋（TD-005）
 - [ ] 監控延後項目影響
 
 ### Q2 (4-6 月)
