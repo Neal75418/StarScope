@@ -133,3 +133,165 @@ class TestCategoryEndpoints:
         assert parent_node is not None
         assert len(parent_node["children"]) > 0
         assert parent_node["children"][0]["name"] == "Tree Child"
+
+
+class TestCategoryUpdate:
+    """Test cases for category update operations."""
+
+    def test_update_category_name(self, client, mock_category):
+        """Test updating a category's name."""
+        response = client.put(f"/api/categories/{mock_category.id}", json={
+            "name": "Updated Name"
+        })
+        assert response.status_code == 200
+        assert response.json()["data"]["name"] == "Updated Name"
+
+    def test_update_category_partial_fields(self, client, mock_category):
+        """Test updating only specific fields via model_fields_set."""
+        response = client.put(f"/api/categories/{mock_category.id}", json={
+            "icon": "star",
+            "color": "#00ff00"
+        })
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["icon"] == "star"
+        assert data["color"] == "#00ff00"
+        # Name should remain unchanged
+        assert data["name"] == "Frontend Frameworks"
+
+    def test_update_category_parent(self, client):
+        """Test updating a category's parent_id."""
+        # Create two categories
+        parent = client.post("/api/categories", json={"name": "Parent"}).json()["data"]
+        child = client.post("/api/categories", json={"name": "Child"}).json()["data"]
+
+        response = client.put(f"/api/categories/{child['id']}", json={
+            "parent_id": parent["id"]
+        })
+        assert response.status_code == 200
+        assert response.json()["data"]["parent_id"] == parent["id"]
+
+    def test_update_category_circular_reference(self, client):
+        """Test that circular parent references are rejected."""
+        parent = client.post("/api/categories", json={"name": "A"}).json()["data"]
+        child = client.post("/api/categories", json={
+            "name": "B", "parent_id": parent["id"]
+        }).json()["data"]
+
+        # Try to make A's parent be B (circular: A -> B -> A)
+        response = client.put(f"/api/categories/{parent['id']}", json={
+            "parent_id": child["id"]
+        })
+        assert response.status_code == 400
+        assert "Circular reference" in response.json()["detail"]
+
+    def test_update_category_indirect_circular_reference(self, client):
+        """Test that indirect circular references (A->B->C->A) are detected."""
+        a = client.post("/api/categories", json={"name": "A"}).json()["data"]
+        b = client.post("/api/categories", json={
+            "name": "B", "parent_id": a["id"]
+        }).json()["data"]
+        c = client.post("/api/categories", json={
+            "name": "C", "parent_id": b["id"]
+        }).json()["data"]
+
+        # Try to make A's parent be C (circular: A -> B -> C -> A)
+        response = client.put(f"/api/categories/{a['id']}", json={
+            "parent_id": c["id"]
+        })
+        assert response.status_code == 400
+        assert "Circular reference" in response.json()["detail"]
+
+    def test_update_category_nonexistent_parent(self, client, mock_category):
+        """Test updating parent_id to a nonexistent category."""
+        response = client.put(f"/api/categories/{mock_category.id}", json={
+            "parent_id": 99999
+        })
+        assert response.status_code == 404
+        assert "Parent category not found" in response.json()["detail"]
+
+
+class TestCategoryDelete:
+    """Test cases for category deletion."""
+
+    def test_delete_category_success(self, client, mock_category):
+        """Test deleting an existing category."""
+        response = client.delete(f"/api/categories/{mock_category.id}")
+        assert response.status_code == 200
+        assert response.json()["data"]["status"] == "ok"
+
+        # Verify category is gone
+        response = client.get(f"/api/categories/{mock_category.id}")
+        assert response.status_code == 404
+
+
+class TestCategoryRepoOperations:
+    """Test cases for repo-category association operations."""
+
+    def test_add_repo_to_category(self, client, mock_category, mock_repo):
+        """Test adding a repo to a category."""
+        response = client.post(
+            f"/api/categories/{mock_category.id}/repos/{mock_repo.id}"
+        )
+        assert response.status_code == 200
+        assert response.json()["data"]["status"] == "ok"
+
+    def test_add_repo_to_category_duplicate(self, client, mock_category, mock_repo):
+        """Test adding same repo again returns 409."""
+        client.post(f"/api/categories/{mock_category.id}/repos/{mock_repo.id}")
+
+        response = client.post(
+            f"/api/categories/{mock_category.id}/repos/{mock_repo.id}"
+        )
+        assert response.status_code == 409
+        assert "already in category" in response.json()["detail"]
+
+    def test_remove_repo_from_category(self, client, mock_category, mock_repo):
+        """Test removing a repo from a category."""
+        client.post(f"/api/categories/{mock_category.id}/repos/{mock_repo.id}")
+
+        response = client.delete(
+            f"/api/categories/{mock_category.id}/repos/{mock_repo.id}"
+        )
+        assert response.status_code == 200
+
+    def test_remove_repo_not_in_category(self, client, mock_category, mock_repo):
+        """Test removing a repo that isn't in the category returns 404."""
+        response = client.delete(
+            f"/api/categories/{mock_category.id}/repos/{mock_repo.id}"
+        )
+        assert response.status_code == 404
+        assert "not in this category" in response.json()["detail"]
+
+    def test_get_category_repos(self, client, mock_category, mock_repo):
+        """Test listing repos in a category."""
+        client.post(f"/api/categories/{mock_category.id}/repos/{mock_repo.id}")
+
+        response = client.get(f"/api/categories/{mock_category.id}/repos")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["total"] == 1
+        assert data["repos"][0]["full_name"] == "testowner/testrepo"
+
+    def test_get_category_repos_empty(self, client, mock_category):
+        """Test listing repos in an empty category."""
+        response = client.get(f"/api/categories/{mock_category.id}/repos")
+        assert response.status_code == 200
+        assert response.json()["data"]["total"] == 0
+
+    def test_get_repo_categories(self, client, mock_category, mock_repo):
+        """Test getting all categories a repo belongs to."""
+        client.post(f"/api/categories/{mock_category.id}/repos/{mock_repo.id}")
+
+        response = client.get(f"/api/categories/repo/{mock_repo.id}/categories")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["repo_id"] == mock_repo.id
+        assert data["total"] == 1
+        assert data["categories"][0]["name"] == "Frontend Frameworks"
+
+    def test_get_repo_categories_none(self, client, mock_repo):
+        """Test getting categories when repo belongs to none."""
+        response = client.get(f"/api/categories/repo/{mock_repo.id}/categories")
+        assert response.status_code == 200
+        assert response.json()["data"]["total"] == 0

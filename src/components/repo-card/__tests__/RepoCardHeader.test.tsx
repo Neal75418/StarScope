@@ -111,4 +111,29 @@ describe("RepoCardHeader", () => {
     );
     expect(screen.getByTitle("Remove from Category")).toBeInTheDocument();
   });
+
+  it("calls safeOpenUrl when repo link is clicked", async () => {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    const user = userEvent.setup();
+    render(<RepoCardHeader {...defaultProps} />);
+
+    const link = screen.getByText("facebook/react").closest("a")!;
+    await user.click(link);
+
+    expect(openUrl).toHaveBeenCalledWith("https://github.com/facebook/react");
+  });
+
+  it("calls onToggleSimilar when similar button clicked", async () => {
+    const user = userEvent.setup();
+    render(<RepoCardHeader {...defaultProps} />);
+    await user.click(screen.getByTitle("Similar"));
+    expect(defaultProps.onToggleSimilar).toHaveBeenCalled();
+  });
+
+  it("calls onRemove when remove button clicked", async () => {
+    const user = userEvent.setup();
+    render(<RepoCardHeader {...defaultProps} />);
+    await user.click(screen.getByTitle("Remove"));
+    expect(defaultProps.onRemove).toHaveBeenCalled();
+  });
 });

@@ -381,3 +381,213 @@ class TestGitHubAPIError:
 
         error = GitHubRateLimitError("Rate limit exceeded", status_code=403)
         assert error.status_code == 403
+
+
+class TestGitHubServiceCommitActivity:
+    """Tests for GitHubService.get_commit_activity method."""
+
+    @pytest.mark.asyncio
+    async def test_commit_activity_success(self):
+        """Test successful commit activity fetch."""
+        service = GitHubService(token="test-token")
+        weekly_data = [{"week": 1700000000, "total": 10, "days": [1, 2, 3, 0, 2, 1, 1]}]
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = weekly_data
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_commit_activity("owner", "repo")
+
+        assert result == weekly_data
+
+    @pytest.mark.asyncio
+    async def test_commit_activity_202_retry(self):
+        """Test 202 retry logic (GitHub computing stats)."""
+        service = GitHubService(token="test-token")
+        weekly_data = [{"week": 1700000000, "total": 5, "days": [0, 1, 2, 0, 1, 1, 0]}]
+
+        resp_202 = MagicMock()
+        resp_202.status_code = 202
+
+        resp_200 = MagicMock()
+        resp_200.status_code = 200
+        resp_200.json.return_value = weekly_data
+
+        with patch('httpx.AsyncClient') as mock_client_class, \
+             patch('asyncio.sleep', new_callable=AsyncMock):
+            mock_client = AsyncMock()
+            mock_client.get.side_effect = [resp_202, resp_200]
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_commit_activity("owner", "repo", max_retries=3)
+
+        assert result == weekly_data
+
+    @pytest.mark.asyncio
+    async def test_commit_activity_202_exhausted(self):
+        """Test 202 returns empty list after max retries."""
+        service = GitHubService(token="test-token")
+
+        resp_202 = MagicMock()
+        resp_202.status_code = 202
+
+        with patch('httpx.AsyncClient') as mock_client_class, \
+             patch('asyncio.sleep', new_callable=AsyncMock):
+            mock_client = AsyncMock()
+            mock_client.get.return_value = resp_202
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_commit_activity("owner", "repo", max_retries=2)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_commit_activity_204_no_content(self):
+        """Test 204 returns empty list (empty repo)."""
+        service = GitHubService(token="test-token")
+
+        resp_204 = MagicMock()
+        resp_204.status_code = 204
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = resp_204
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_commit_activity("owner", "repo")
+
+        assert result == []
+
+
+class TestGitHubServiceLanguages:
+    """Tests for GitHubService.get_languages method."""
+
+    @pytest.mark.asyncio
+    async def test_get_languages_success(self):
+        """Test successful language fetch."""
+        service = GitHubService(token="test-token")
+        lang_data = {"Python": 50000, "JavaScript": 30000}
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = lang_data
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_languages("owner", "repo")
+
+        assert result == lang_data
+
+    @pytest.mark.asyncio
+    async def test_get_languages_empty(self):
+        """Test empty languages (new/empty repo)."""
+        service = GitHubService(token="test-token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.get_languages("owner", "repo")
+
+        assert result == {}
+
+
+class TestGitHubServiceSearchRepos:
+    """Tests for GitHubService.search_repos method."""
+
+    @pytest.mark.asyncio
+    async def test_search_repos_basic(self):
+        """Test basic repo search."""
+        service = GitHubService(token="test-token")
+        search_result = {"total_count": 1, "items": [{"full_name": "facebook/react"}]}
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = search_result
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await service.search_repos("react")
+
+        assert result["total_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_search_repos_with_filters(self):
+        """Test repo search with language and min_stars filters."""
+        service = GitHubService(token="test-token")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"total_count": 0, "items": []}
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            await service.search_repos("web", language="Python", min_stars=100, topic="api")
+
+            # Verify query params include filters
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert "language:Python" in params["q"]
+            assert "stars:>=100" in params["q"]
+            assert "topic:api" in params["q"]
+
+
+class TestGitHubServiceStargazers:
+    """Tests for GitHubService.get_stargazers_with_dates method."""
+
+    @pytest.mark.asyncio
+    async def test_stargazers_exceeds_max_stars(self):
+        """Test returns empty list when stars exceed max_stars."""
+        service = GitHubService(token="test-token")
+
+        with patch.object(service, 'get_repo', new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = {"stargazers_count": 100000}
+
+            result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000)
+
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_stargazers_single_page(self):
+        """Test fetching stargazers that fit in a single page."""
+        service = GitHubService(token="test-token")
+        stargazer_data = [
+            {"starred_at": "2024-01-15T10:00:00Z", "user": {"login": "user1"}},
+            {"starred_at": "2024-01-16T11:00:00Z", "user": {"login": "user2"}},
+        ]
+
+        with patch.object(service, 'get_repo', new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = {"stargazers_count": 2}
+
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_response.json.return_value = stargazer_data
+
+            with patch('httpx.AsyncClient') as mock_client_class:
+                mock_client = AsyncMock()
+                mock_client.get.return_value = mock_response
+                mock_client_class.return_value.__aenter__.return_value = mock_client
+
+                result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000, per_page=100)
+
+        assert len(result) == 2
+        assert result[0]["user"]["login"] == "user1"

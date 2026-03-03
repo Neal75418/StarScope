@@ -219,4 +219,61 @@ describe("CategorySidebar", () => {
       expect(screen.getByText("React")).toBeInTheDocument();
     });
   });
+
+  it("deletes a category after confirmation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+    vi.mocked(apiClient.deleteCategory).mockResolvedValue(undefined);
+
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        onCategoriesChange={mockOnCategoriesChange}
+      />
+    );
+
+    await waitFor(() => screen.getByText("Backend"));
+
+    // Click delete button on Backend category
+    const deleteButtons = screen.getAllByTitle("Delete category");
+    // Backend is the second top-level category (index 1)
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    // ConfirmDialog should appear - click the confirm button
+    await waitFor(() => {
+      const confirmBtn = screen.getByText("Confirm");
+      expect(confirmBtn).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Confirm"));
+
+    await waitFor(() => {
+      expect(apiClient.deleteCategory).toHaveBeenCalledWith(3);
+    });
+  });
+
+  it("selects All Repositories when clicked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+
+    render(<CategorySidebar selectedCategoryId={1} onSelectCategory={mockOnSelectCategory} />);
+
+    await waitFor(() => screen.getByText("All Repositories"));
+
+    await user.click(screen.getByText("All Repositories"));
+
+    expect(mockOnSelectCategory).toHaveBeenCalledWith(null);
+  });
+
+  it("shows category icons", async () => {
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+
+    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("🎨")).toBeInTheDocument();
+      expect(screen.getByText("⚙️")).toBeInTheDocument();
+    });
+  });
 });

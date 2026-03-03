@@ -153,3 +153,146 @@ class TestDeleteSetting:
 
             mock_db.rollback.assert_called_once()
             mock_db.close.assert_called_once()
+
+
+class TestGetSettingToken:
+    """Tests for get_setting with GITHUB_TOKEN (keyring integration)."""
+
+    def test_token_from_keyring(self):
+        """Test reads GITHUB_TOKEN from keyring first."""
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.return_value = "ghp_keyring_token"
+
+            result = get_setting("github_token")
+
+            mock_keyring.get_password.assert_called_once_with("starscope", "github_token")
+            assert result == "ghp_keyring_token"
+
+    def test_token_keyring_error_falls_back_to_db(self, test_db):
+        """Test falls back to DB when keyring raises KeyringError."""
+        from keyring.errors import KeyringError
+
+        setting = AppSetting(key="github_token", value="ghp_db_token")
+        test_db.add(setting)
+        test_db.commit()
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.side_effect = KeyringError("No backend")
+            # Also mock set_password to prevent migration attempt
+            mock_keyring.set_password.side_effect = KeyringError("No backend")
+
+            with pytest.raises(RuntimeError, match="Token 遷移失敗"):
+                get_setting("github_token", test_db)
+
+    def test_token_migration_from_db_to_keyring(self, test_db):
+        """Test migrates token from DB to keyring when found in DB but not keyring."""
+        setting = AppSetting(key="github_token", value="ghp_migrate_me")
+        test_db.add(setting)
+        test_db.commit()
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.side_effect = [None, "ghp_migrate_me"]
+
+            result = get_setting("github_token", test_db)
+
+            mock_keyring.set_password.assert_called_once_with(
+                "starscope", "github_token", "ghp_migrate_me"
+            )
+            assert result == "ghp_migrate_me"
+            # Verify DB record was deleted
+            db_record = test_db.query(AppSetting).filter(
+                AppSetting.key == "github_token"
+            ).first()
+            assert db_record is None
+
+    def test_token_migration_verification_failure(self, test_db):
+        """Test migration fails when keyring stored value doesn't match."""
+        setting = AppSetting(key="github_token", value="ghp_original")
+        test_db.add(setting)
+        test_db.commit()
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.side_effect = [None, "ghp_different"]
+
+            with pytest.raises(RuntimeError, match="Token 遷移失敗"):
+                get_setting("github_token", test_db)
+
+
+class TestSetSettingToken:
+    """Tests for set_setting with GITHUB_TOKEN (keyring integration)."""
+
+    def test_set_token_stores_in_keyring(self, test_db):
+        """Test stores GITHUB_TOKEN in keyring, not DB."""
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.return_value = "ghp_new_token"
+
+            set_setting("github_token", "ghp_new_token", test_db)
+
+            mock_keyring.set_password.assert_called_once_with(
+                "starscope", "github_token", "ghp_new_token"
+            )
+            # Verify NOT stored in DB
+            db_record = test_db.query(AppSetting).filter(
+                AppSetting.key == "github_token"
+            ).first()
+            assert db_record is None
+
+    def test_set_token_keyring_verification_failure(self):
+        """Test raises when keyring stored value doesn't match."""
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.get_password.return_value = "wrong_value"
+
+            with pytest.raises(ValueError, match="Keyring 驗證失敗"):
+                set_setting("github_token", "ghp_correct")
+
+    def test_set_token_keyring_error(self):
+        """Test raises when keyring fails."""
+        from keyring.errors import KeyringError
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.set_password.side_effect = KeyringError("Access denied")
+
+            with pytest.raises(KeyringError):
+                set_setting("github_token", "ghp_token")
+
+
+class TestDeleteSettingToken:
+    """Tests for delete_setting with GITHUB_TOKEN (keyring integration)."""
+
+    def test_delete_token_from_keyring(self, test_db):
+        """Test deletes GITHUB_TOKEN from both keyring and DB."""
+        setting = AppSetting(key="github_token", value="old")
+        test_db.add(setting)
+        test_db.commit()
+
+        with patch('services.settings.keyring') as mock_keyring:
+            result = delete_setting("github_token", test_db)
+
+            mock_keyring.delete_password.assert_called_once_with(
+                "starscope", "github_token"
+            )
+            assert result is True
+
+    def test_delete_token_password_delete_error(self, test_db):
+        """Test handles PasswordDeleteError gracefully (token not in keyring)."""
+        from keyring.errors import PasswordDeleteError
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.delete_password.side_effect = PasswordDeleteError("Not found")
+
+            result = delete_setting("github_token", test_db)
+
+            # Should still return False (not found in DB either)
+            assert result is False
+
+    def test_delete_token_keyring_error(self, test_db):
+        """Test handles KeyringError gracefully during delete."""
+        from keyring.errors import KeyringError
+
+        with patch('services.settings.keyring') as mock_keyring:
+            mock_keyring.delete_password.side_effect = KeyringError("Backend error")
+
+            result = delete_setting("github_token", test_db)
+
+            # Not found in DB, keyring error - returns False
+            assert result is False

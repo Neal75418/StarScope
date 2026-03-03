@@ -114,4 +114,56 @@ describe("useNotificationPolling", () => {
     await vi.advanceTimersByTimeAsync(60000);
     expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(1);
   });
+
+  it("pauses polling when page becomes hidden", async () => {
+    renderHook(() => useNotificationPolling(mockSetNotifications, mockReadIdsRef));
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(1);
+
+    // Simulate page becoming hidden
+    Object.defineProperty(document, "hidden", { value: true, writable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    // Advance time past poll interval
+    await vi.advanceTimersByTimeAsync(120000);
+    // Should not have polled while hidden
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(1);
+
+    // Restore visibility
+    Object.defineProperty(document, "hidden", { value: false, writable: true });
+  });
+
+  it("resumes polling when page becomes visible again", async () => {
+    renderHook(() => useNotificationPolling(mockSetNotifications, mockReadIdsRef));
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(1);
+
+    // Go hidden
+    Object.defineProperty(document, "hidden", { value: true, writable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    // Come back visible
+    Object.defineProperty(document, "hidden", { value: false, writable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await vi.advanceTimersByTimeAsync(0);
+    // Should have fetched again on visibility restore
+    expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(2);
+  });
+
+  it("handles non-Error exceptions in fetch", async () => {
+    vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue("string error");
+
+    const { result } = renderHook(() =>
+      useNotificationPolling(mockSetNotifications, mockReadIdsRef)
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(result.current.error).toBe("通知取得失敗");
+  });
 });
