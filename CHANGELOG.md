@@ -9,6 +9,59 @@
 
 ## [Unreleased]
 
+### 新增功能
+
+- **OS 層級推播通知** — 警報觸發時透過 Tauri notification plugin 發送系統通知
+- **虛擬滾動** — 使用 react-window v2 實現 Watchlist 視窗化載入，大幅提升大量資料渲染效能
+- **React Query 資料層遷移** — 三階段遷移至 React Query v5，取代手動 fetch 邏輯
+- **統一 API 回應格式** — 全部端點遷移至 `ApiResponse[T]` 統一格式
+- **9 項核心改進** — 安全性、效能、架構全面提升
+
+### 重構與變更
+
+- **Critical/High 問題修復** — Stage 1-3 共修復 20 個 Critical/High 優先級問題（依賴注入、異常處理、型別提示、元件拆分、函數分解）
+- **Watchlist 架構升級** — 遷移至 Context + useReducer 模式
+- **前端結構重構** — Watchlist.tsx 元件拆分（484→355 行）、RepoCard Props 優化（10→6 個）
+- **後端結構重構** — 拆分過長函數（recommender / scheduler / context_fetcher / anomaly_detector）
+- **補充 Response Model** — 改善 Export 端點的 OpenAPI 文件完整性
+- **過度設計移除** — 清除過度導出、未使用程式碼、冗餘文件，淨減 881+ 行
+- **程式碼品質** — 修復 17 項 code smell、統一 Page 型別、inline hooks 簡化
+
+### 問題修正
+
+- 修復 Export 測試斷言錯誤（mock_repo fixture 值不匹配）
+- 修復月初觸發的測試失敗（時間敏感 bug：`date.today().replace(day=1)` 在月初等於今日）
+- 修復 React Hooks 依賴警告（CI lint 錯誤）
+- 修復 Dashboard 因 queryFn 資料結構不一致導致 repos 為空
+- 修復虛擬滾動中圖表展開被裁切的問題
+- 修復滾動時圖表不必要的重新渲染
+- 修復 CommitActivityBadge 載入後無法點擊的問題
+- 修復 APScheduler backup_job 序列化錯誤導致啟動失敗
+- 修復第一批 API 遷移的響應結構不匹配導致前端分頁全部壞掉
+- 修復分頁排序不確定性與通知輪詢背景浪費
+- 修復 Watchlist 頁面無限 API 請求循環問題
+- 修復 scheduler rate limit 與 DiscoverySearchBar 狀態同步
+- 修復 useMemo 依賴陣列引用穩定性（ESLint exhaustive-deps）
+- 修復 ESLint 警告 — cleanup 函數中的 ref 訪問
+- 修復 mypy 型別檢查錯誤
+- 修復 mockI18n 循環依賴導致 vitest 死鎖
+- 全面修復 race condition、效能、穩健性、a11y
+
+### 效能優化
+
+- 消除重複 API 請求、優化 recentActivity 與虛擬滾動
+
+### 測試
+
+- Export 測試覆蓋擴充：15 行 → 569 行，1 → 18 個測試（JSON/CSV/批次查詢優化）
+- 修復 early_signals 相關的 mock 測試
+
+### 文件
+
+- 新增技術債追蹤（`TECH_DEBT.md`）
+- 標記 TD-005（Export 測試覆蓋）為已解決
+- 同步文件與程式碼現狀
+
 ---
 
 ## [0.3.0] — 2026-02-09
