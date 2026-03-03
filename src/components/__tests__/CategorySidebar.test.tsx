@@ -223,7 +223,7 @@ describe("CategorySidebar", () => {
   it("deletes a category after confirmation", async () => {
     const user = userEvent.setup();
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-    vi.mocked(apiClient.deleteCategory).mockResolvedValue(undefined);
+    vi.mocked(apiClient.deleteCategory).mockResolvedValue({ status: "ok", message: "deleted" });
 
     render(
       <CategorySidebar
