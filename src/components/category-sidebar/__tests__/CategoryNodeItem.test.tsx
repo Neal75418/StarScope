@@ -50,21 +50,21 @@ describe("CategoryNodeItem", () => {
 
   it("calls onSelect on Enter key", () => {
     const { container } = render(<CategoryNodeItem {...defaultProps} />);
-    const item = container.querySelector(".category-item")!;
+    const item = container.querySelector(".category-item") as HTMLElement;
     fireEvent.keyDown(item, { key: "Enter" });
     expect(defaultProps.onSelect).toHaveBeenCalledWith(1);
   });
 
   it("calls onSelect on Space key", () => {
     const { container } = render(<CategoryNodeItem {...defaultProps} />);
-    const item = container.querySelector(".category-item")!;
+    const item = container.querySelector(".category-item") as HTMLElement;
     fireEvent.keyDown(item, { key: " " });
     expect(defaultProps.onSelect).toHaveBeenCalledWith(1);
   });
 
   it("does not call onSelect on other keys", () => {
     const { container } = render(<CategoryNodeItem {...defaultProps} />);
-    const item = container.querySelector(".category-item")!;
+    const item = container.querySelector(".category-item") as HTMLElement;
     fireEvent.keyDown(item, { key: "Escape" });
     expect(defaultProps.onSelect).not.toHaveBeenCalled();
   });

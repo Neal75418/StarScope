@@ -117,7 +117,7 @@ describe("RepoCardHeader", () => {
     const user = userEvent.setup();
     render(<RepoCardHeader {...defaultProps} />);
 
-    const link = screen.getByText("facebook/react").closest("a")!;
+    const link = screen.getByText("facebook/react").closest("a") as HTMLAnchorElement;
     await user.click(link);
 
     expect(openUrl).toHaveBeenCalledWith("https://github.com/facebook/react");
