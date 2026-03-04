@@ -76,8 +76,16 @@ export const RecommendedForYou = memo(function RecommendedForYou() {
   const { data, isLoading, error } = usePersonalizedRecs(6);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Don't render anything if there's an error or no recommendations
-  if (error) return null;
+  if (error) {
+    return (
+      <div className="rec-section">
+        <div className="rec-section-header">
+          <h3>{t.discovery.recommendations.title}</h3>
+        </div>
+        <div className="rec-card-desc">{t.discovery.recommendations.loadError}</div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

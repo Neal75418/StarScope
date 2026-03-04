@@ -168,7 +168,18 @@ export const WeeklySummary = memo(function WeeklySummary() {
     );
   }
 
-  if (error || !data) return null;
+  if (error) {
+    return (
+      <div className="dashboard-section weekly-summary">
+        <div className="weekly-header">
+          <h3>{t.dashboard.weekly.title}</h3>
+        </div>
+        <div className="weekly-empty">{t.dashboard.weekly.loadError}</div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="dashboard-section weekly-summary">

@@ -309,7 +309,7 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="page">
+      <AnimatedPage className="page">
         <div className="error-container">
           <h2>{t.common.error}</h2>
           <p>{error}</p>
@@ -317,7 +317,7 @@ export function Dashboard() {
             {t.common.retry}
           </button>
         </div>
-      </div>
+      </AnimatedPage>
     );
   }
 

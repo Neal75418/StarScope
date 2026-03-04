@@ -63,6 +63,7 @@ export const translations = {
         decelerating: "decelerating",
         noData: "No movement this week",
         noHnMentions: "No HN mentions this week",
+        loadError: "Failed to load weekly summary",
       },
     },
     // 探索頁面
@@ -109,6 +110,7 @@ export const translations = {
         velocity: "Velocity",
         trend: "Trend",
         matchScore: "Match",
+        loadError: "Failed to load recommendations",
       },
     },
     // 追蹤清單頁面
@@ -643,6 +645,7 @@ export const translations = {
         decelerating: "減速中",
         noData: "本週無變動",
         noHnMentions: "本週無 HN 提及",
+        loadError: "載入週報摘要失敗",
       },
     },
     // 探索頁面
@@ -688,6 +691,7 @@ export const translations = {
         velocity: "成長速度",
         trend: "趨勢",
         matchScore: "匹配度",
+        loadError: "載入推薦失敗",
       },
     },
     // 追蹤清單頁面

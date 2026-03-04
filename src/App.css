@@ -93,6 +93,12 @@
   /* Overlay */
   --overlay-bg: rgba(1, 4, 9, 0.8);
 
+  /* Commit heatmap levels */
+  --heatmap-l1: #0e4429;
+  --heatmap-l2: #006d32;
+  --heatmap-l3: #26a641;
+  --heatmap-l4: #39d353;
+
   /* Dynamic Badge Color Default */
   --badge-color: var(--fg-muted);
 }
@@ -181,6 +187,12 @@
 
   /* Overlay */
   --overlay-bg: rgba(31, 35, 40, 0.5);
+
+  /* Commit heatmap levels (GitHub light) */
+  --heatmap-l1: #9be9a8;
+  --heatmap-l2: #40c463;
+  --heatmap-l3: #30a14e;
+  --heatmap-l4: #216e39;
 
   /* Dynamic Badge Color Default */
   --badge-color: var(--fg-muted);
@@ -3623,9 +3635,16 @@ body {
 
 .category-item:focus-visible,
 .compare-group-item:focus-visible,
-.webhook-card:focus-visible {
+.webhook-card:focus-visible,
+.rec-card:focus-visible,
+.weekly-hn-item:focus-visible {
   outline: 2px solid var(--accent-fg);
   outline-offset: -2px;
+}
+
+.rec-toggle:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
 }
 
 a:focus-visible {
@@ -4506,19 +4525,19 @@ a:focus-visible {
 }
 
 .commit-level-1 {
-  background-color: #0e4429;
+  background-color: var(--heatmap-l1, #0e4429);
 }
 
 .commit-level-2 {
-  background-color: #006d32;
+  background-color: var(--heatmap-l2, #006d32);
 }
 
 .commit-level-3 {
-  background-color: #26a641;
+  background-color: var(--heatmap-l3, #26a641);
 }
 
 .commit-level-4 {
-  background-color: #39d353;
+  background-color: var(--heatmap-l4, #39d353);
 }
 
 .last-updated {
@@ -5528,9 +5547,9 @@ a:focus-visible {
 
 .rec-section {
   margin-bottom: 24px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
+  background: var(--bg-default);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
   padding: 20px;
 }
 
@@ -5544,23 +5563,23 @@ a:focus-visible {
 .rec-section-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  color: var(--text-primary);
+  color: var(--fg-default);
 }
 
 .rec-subtitle {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
 }
 
 .rec-toggle {
   background: transparent;
-  border: 1px solid var(--card-border);
-  color: var(--text-secondary);
+  border: 1px solid var(--border-muted);
+  color: var(--fg-muted);
   cursor: pointer;
   padding: 4px 8px;
   font-size: 0.75rem;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
 }
 
 .rec-grid {
@@ -5574,9 +5593,9 @@ a:focus-visible {
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
   text-decoration: none;
   color: inherit;
   transition:
@@ -5585,8 +5604,8 @@ a:focus-visible {
 }
 
 .rec-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 1px var(--accent-fg);
 }
 
 .rec-card-header {
@@ -5599,7 +5618,7 @@ a:focus-visible {
 .rec-card-name {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--accent);
+  color: var(--accent-fg);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5607,8 +5626,8 @@ a:focus-visible {
 
 .rec-card-lang {
   font-size: 0.7rem;
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
+  color: var(--fg-muted);
+  background: var(--bg-muted);
   padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
@@ -5616,7 +5635,7 @@ a:focus-visible {
 
 .rec-card-desc {
   font-size: 0.8rem;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -5633,12 +5652,12 @@ a:focus-visible {
 
 .rec-metric {
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
 }
 
 .rec-similarity {
-  background: var(--accent);
-  color: var(--bg-primary);
+  background: var(--accent-fg);
+  color: var(--fg-on-emphasis);
   padding: 1px 5px;
   border-radius: 4px;
   font-weight: 600;
@@ -5646,9 +5665,9 @@ a:focus-visible {
 
 .rec-card-reason {
   font-size: 0.72rem;
-  color: var(--text-tertiary);
+  color: var(--fg-subtle);
   font-style: italic;
-  border-top: 1px solid var(--card-border);
+  border-top: 1px solid var(--border-muted);
   padding-top: 6px;
   margin-top: auto;
 }
