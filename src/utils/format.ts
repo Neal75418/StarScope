@@ -53,6 +53,28 @@ export function formatCompactRelativeTime(timestamp: string, justNowText: string
 }
 
 /**
+ * 格式化日期為緊湊的相對時間（例如 "3h"、"5d"、"2mo"）。
+ * 使用語言無關的數字+單位格式，適用於多語系。
+ */
+export function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "—";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  if (diffMs < 0) return "<1m";
+  const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
+  const diffHours = Math.floor(diffMs / MS_PER_HOUR);
+  const diffDays = Math.floor(diffMs / MS_PER_DAY);
+
+  if (diffMins < 1) return "<1m";
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 30) return `${diffDays}d`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo`;
+  return `${Math.floor(diffDays / 365)}y`;
+}
+
+/**
  * 格式化增長速度（每日星數）。
  */
 export function formatVelocity(num: number | null): string {

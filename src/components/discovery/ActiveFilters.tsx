@@ -9,9 +9,13 @@ interface ActiveFiltersProps {
   keyword?: string;
   period?: string;
   language?: string;
+  topic?: string;
+  minStars?: number;
   onRemoveKeyword: () => void;
   onRemovePeriod: () => void;
   onRemoveLanguage: () => void;
+  onRemoveTopic: () => void;
+  onRemoveMinStars: () => void;
   onClearAll: () => void;
 }
 
@@ -19,15 +23,19 @@ export function ActiveFilters({
   keyword,
   period,
   language,
+  topic,
+  minStars,
   onRemoveKeyword,
   onRemovePeriod,
   onRemoveLanguage,
+  onRemoveTopic,
+  onRemoveMinStars,
   onClearAll,
 }: ActiveFiltersProps) {
   const { t } = useI18n();
 
   // 無啟用篩選時不渲染
-  if (!keyword && !period && !language) {
+  if (!keyword && !period && !language && !topic && !minStars) {
     return null;
   }
 
@@ -66,6 +74,30 @@ export function ActiveFilters({
               className={styles.removeFilterBtn}
               onClick={onRemoveLanguage}
               aria-label={`Remove language filter`}
+            >
+              ×
+            </button>
+          </span>
+        )}
+        {topic && (
+          <span className={styles.activeFilterTag}>
+            #{topic}
+            <button
+              className={styles.removeFilterBtn}
+              onClick={onRemoveTopic}
+              aria-label={`Remove topic filter`}
+            >
+              ×
+            </button>
+          </span>
+        )}
+        {minStars != null && minStars > 0 && (
+          <span className={styles.activeFilterTag}>
+            ★ ≥ {minStars.toLocaleString()}
+            <button
+              className={styles.removeFilterBtn}
+              onClick={onRemoveMinStars}
+              aria-label={`Remove min stars filter`}
             >
               ×
             </button>

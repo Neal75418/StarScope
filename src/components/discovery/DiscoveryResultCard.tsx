@@ -1,5 +1,6 @@
 /**
  * 探索結果的 repo 卡片。
+ * 顯示相對更新時間，以及已追蹤 repo 的 StarScope 信號。
  */
 
 import React from "react";
@@ -7,15 +8,19 @@ import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
-import { formatNumber } from "../../utils/format";
+import { formatNumber, formatDelta, formatRelativeTime } from "../../utils/format";
 import { getLanguageColor } from "../../constants/languageColors";
+import type { WatchlistSignal } from "./DiscoveryResults";
 import styles from "./Discovery.module.css";
+
+const TREND_ARROWS: Record<number, string> = { 1: "↑", [-1]: "↓", 0: "→" };
 
 interface DiscoveryResultCardProps {
   repo: DiscoveryRepo;
   isInWatchlist: boolean;
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   isAdding?: boolean;
+  signal?: WatchlistSignal;
 }
 
 export function DiscoveryResultCard({
@@ -23,6 +28,7 @@ export function DiscoveryResultCard({
   isInWatchlist,
   onAddToWatchlist,
   isAdding = false,
+  signal,
 }: DiscoveryResultCardProps) {
   const { t } = useI18n();
 
@@ -67,6 +73,15 @@ export function DiscoveryResultCard({
           <ForkIcon size={14} />
           {formatNumber(repo.forks)}
         </span>
+        {repo.updated_at && (
+          <span className={styles.updatedAt}>{formatRelativeTime(repo.updated_at)}</span>
+        )}
+        {signal && signal.velocity != null && (
+          <span className={styles.signalBadge}>
+            {formatDelta(signal.velocity)}/d
+            {signal.trend != null && ` ${TREND_ARROWS[signal.trend] ?? "→"}`}
+          </span>
+        )}
       </div>
 
       {repo.topics.length > 0 && (

@@ -5,10 +5,13 @@
 import { useState, useCallback, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
+import { useSearchHistory } from "../hooks/useSearchHistory";
+import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { addRepo, DiscoveryRepo } from "../api/client";
+import type { PersonalizedRecommendation } from "../api/types";
 import {
   DiscoverySearchBar,
   TrendingFilters,
@@ -24,6 +27,8 @@ export function Discovery() {
   const { t } = useI18n();
   const toast = useToast();
   const discovery = useDiscovery();
+  const { setKeyword, setPeriod, reset: resetDiscovery } = discovery;
+  const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory();
   const { repos: watchlist } = useWatchlistState();
   const { refreshAll: handleRefreshAll } = useWatchlistActions();
 
@@ -31,10 +36,24 @@ export function Discovery() {
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
+  // Cold start：掛載時自動載入本週趨勢
+  useOnceEffect(() => {
+    setPeriod("weekly");
+  });
+
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
   const watchlistFullNames = useMemo(
     () => new Set([...watchlist.map((r) => r.full_name.toLowerCase()), ...locallyAdded]),
     [watchlist, locallyAdded]
+  );
+
+  // 建立 watchlist 信號 map：full_name -> { velocity, trend }
+  const watchlistSignalMap = useMemo(
+    () =>
+      new Map(
+        watchlist.map((r) => [r.full_name.toLowerCase(), { velocity: r.velocity, trend: r.trend }])
+      ),
+    [watchlist]
   );
 
   // 取得時間區間的顯示文字
@@ -52,20 +71,36 @@ export function Discovery() {
     [t.discovery.trending]
   );
 
+  // 搜尋並記錄歷史
+  const handleSearch = useCallback(
+    (keyword: string) => {
+      setKeyword(keyword);
+      addToHistory(keyword);
+    },
+    [setKeyword, addToHistory]
+  );
+
+  // 從歷史選擇搜尋
+  const handleSelectHistory = useCallback(
+    (keyword: string) => {
+      setKeyword(keyword);
+      addToHistory(keyword);
+    },
+    [setKeyword, addToHistory]
+  );
+
   // 清除所有篩選條件
   const handleClearAll = useCallback(() => {
-    discovery.reset();
-  }, [discovery]);
+    resetDiscovery();
+  }, [resetDiscovery]);
 
-  // 將 repo 加入 watchlist
-  const handleAddToWatchlist = useCallback(
-    async (repo: DiscoveryRepo) => {
-      setAddingRepoId(repo.id);
+  // 將 repo 加入 watchlist（共用邏輯）
+  const doAddToWatchlist = useCallback(
+    async (owner: string, name: string, fullName: string, id: number) => {
+      setAddingRepoId(id);
       try {
-        await addRepo({ owner: repo.owner, name: repo.name });
-        // 立即更新本地狀態以即時反映 UI
-        setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
-        // 背景重新整理 watchlist 以同步後端資料
+        await addRepo({ owner, name });
+        setLocallyAdded((prev) => new Set(prev).add(fullName.toLowerCase()));
         void handleRefreshAll();
         toast.success(t.toast.repoAdded);
       } catch {
@@ -77,6 +112,25 @@ export function Discovery() {
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
   );
 
+  // 搜尋結果加入 watchlist
+  const handleAddToWatchlist = useCallback(
+    async (repo: DiscoveryRepo) => {
+      await doAddToWatchlist(repo.owner, repo.name, repo.full_name, repo.id);
+    },
+    [doAddToWatchlist]
+  );
+
+  // 推薦結果加入 watchlist
+  const handleRecAddToWatchlist = useCallback(
+    async (rec: PersonalizedRecommendation) => {
+      const [owner, name] = rec.full_name.split("/");
+      if (owner && name) {
+        await doAddToWatchlist(owner, name, rec.full_name, rec.repo_id);
+      }
+    },
+    [doAddToWatchlist]
+  );
+
   return (
     <AnimatedPage className="page">
       <header className="page-header">
@@ -84,12 +138,20 @@ export function Discovery() {
         <p className="subtitle">{t.discovery.subtitle}</p>
       </header>
 
-      <RecommendedForYou />
+      <RecommendedForYou
+        watchlistFullNames={watchlistFullNames}
+        onAddToWatchlist={handleRecAddToWatchlist}
+        addingRepoId={addingRepoId}
+      />
 
       <DiscoverySearchBar
-        onSearch={discovery.setKeyword}
+        onSearch={handleSearch}
         loading={discovery.loading}
         initialQuery={discovery.keyword}
+        searchHistory={history}
+        onSelectHistory={handleSelectHistory}
+        onRemoveHistory={removeFromHistory}
+        onClearHistory={clearHistory}
       />
 
       <div className="discovery-toolbar">
@@ -106,9 +168,13 @@ export function Discovery() {
         keyword={discovery.keyword || undefined}
         period={discovery.period ? getPeriodLabel(discovery.period) : undefined}
         language={discovery.filters.language}
+        topic={discovery.filters.topic}
+        minStars={discovery.filters.minStars}
         onRemoveKeyword={discovery.removeKeyword}
         onRemovePeriod={discovery.removePeriod}
         onRemoveLanguage={discovery.removeLanguage}
+        onRemoveTopic={discovery.removeTopic}
+        onRemoveMinStars={discovery.removeMinStars}
         onClearAll={handleClearAll}
       />
 
@@ -121,6 +187,7 @@ export function Discovery() {
         loading={discovery.loading}
         error={discovery.error}
         watchlistFullNames={watchlistFullNames}
+        watchlistSignalMap={watchlistSignalMap}
         onAddToWatchlist={handleAddToWatchlist}
         onLoadMore={discovery.loadMore}
         addingRepoId={addingRepoId}

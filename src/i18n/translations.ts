@@ -87,6 +87,9 @@ export const translations = {
         sortByStars: "Most Stars",
         sortByForks: "Most Forks",
         sortByUpdated: "Recently Updated",
+        topicPlaceholder: "e.g. machine-learning",
+        minStars: "Min Stars",
+        anyStars: "Any",
       },
       empty: {
         noResults: "No repositories found",
@@ -99,6 +102,10 @@ export const translations = {
       },
       loadMore: "Load More",
       results: "{count} results",
+      searchHistory: {
+        title: "Recent searches",
+        clear: "Clear history",
+      },
       recommendations: {
         title: "Recommended for You",
         subtitle: "Based on your watchlist's similarity patterns and momentum",
@@ -111,6 +118,9 @@ export const translations = {
         trend: "Trend",
         matchScore: "Match",
         loadError: "Failed to load recommendations",
+        showMore: "Show More",
+        showLess: "Show Less",
+        dismiss: "Not interested",
       },
     },
     // 追蹤清單頁面
@@ -669,6 +679,9 @@ export const translations = {
         sortByStars: "依星數排序",
         sortByForks: "依分支數排序",
         sortByUpdated: "依更新時間排序",
+        topicPlaceholder: "例如 machine-learning",
+        minStars: "最低星數",
+        anyStars: "不限",
       },
       empty: {
         noResults: "找不到儲存庫",
@@ -681,6 +694,10 @@ export const translations = {
       },
       loadMore: "載入更多",
       results: "{count} 個結果",
+      searchHistory: {
+        title: "最近搜尋",
+        clear: "清除歷史",
+      },
       recommendations: {
         title: "為你推薦",
         subtitle: "根據你的追蹤清單相似度與動量分析",
@@ -692,6 +709,9 @@ export const translations = {
         trend: "趨勢",
         matchScore: "匹配度",
         loadError: "載入推薦失敗",
+        showMore: "顯示更多",
+        showLess: "收起",
+        dismiss: "不感興趣",
       },
     },
     // 追蹤清單頁面

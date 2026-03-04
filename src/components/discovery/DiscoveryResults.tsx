@@ -7,6 +7,11 @@ import { DiscoveryResultCard } from "./DiscoveryResultCard";
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
 
+export interface WatchlistSignal {
+  velocity: number | null;
+  trend: number | null;
+}
+
 interface DiscoveryResultsProps {
   repos: DiscoveryRepo[];
   totalCount: number;
@@ -14,6 +19,7 @@ interface DiscoveryResultsProps {
   loading: boolean;
   error: string | null;
   watchlistFullNames: Set<string>;
+  watchlistSignalMap?: Map<string, WatchlistSignal>;
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   onLoadMore: () => void;
   addingRepoId: number | null;
@@ -27,6 +33,7 @@ export function DiscoveryResults({
   loading,
   error,
   watchlistFullNames,
+  watchlistSignalMap,
   onAddToWatchlist,
   onLoadMore,
   addingRepoId,
@@ -87,6 +94,7 @@ export function DiscoveryResults({
             isInWatchlist={watchlistFullNames.has(repo.full_name.toLowerCase())}
             onAddToWatchlist={onAddToWatchlist}
             isAdding={addingRepoId === repo.id}
+            signal={watchlistSignalMap?.get(repo.full_name.toLowerCase())}
           />
         ))}
       </div>

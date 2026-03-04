@@ -90,6 +90,14 @@ export function useDiscovery() {
     setFilters({ ...state.filters, language: undefined });
   }, [state.filters, setFilters]);
 
+  const removeTopic = useCallback(() => {
+    setFilters({ ...state.filters, topic: undefined });
+  }, [state.filters, setFilters]);
+
+  const removeMinStars = useCallback(() => {
+    setFilters({ ...state.filters, minStars: undefined });
+  }, [state.filters, setFilters]);
+
   // 套用已儲存的篩選條件
   const applySavedFilter = useCallback(
     (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
@@ -114,6 +122,8 @@ export function useDiscovery() {
     removeKeyword,
     removePeriod,
     removeLanguage,
+    removeTopic,
+    removeMinStars,
     reset,
     loadMore,
     applySavedFilter,
