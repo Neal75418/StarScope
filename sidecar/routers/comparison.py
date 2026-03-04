@@ -66,8 +66,8 @@ class ComparisonRequest(BaseModel):
 
 class ChartDataPoint(BaseModel):
     date: date
-    stars: int
-    forks: int
+    stars: int | float
+    forks: int | float
 
 
 class ComparisonRepoData(BaseModel):
@@ -138,8 +138,8 @@ async def comparison_chart(
 
         data_points: list[ChartDataPoint] = []
         for s in snaps:
-            stars = s.stars
-            forks = s.forks
+            stars: int | float = s.stars
+            forks: int | float = s.forks
             if req.normalize and snaps:
                 base = snaps[0].stars
                 if base > 0:
