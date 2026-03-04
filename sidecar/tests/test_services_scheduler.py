@@ -9,11 +9,15 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 
 def _mock_db_ctx(db):
-    """Create a context manager that yields the given db session."""
+    """Create a context manager factory that yields the given db session.
+
+    Returns the factory (not an instance) so each call produces a fresh,
+    reusable context manager.  Use with ``patch(..., new=_mock_db_ctx(db))``.
+    """
     @contextmanager
     def _ctx():
         yield db
-    return _ctx()
+    return _ctx
 
 
 from services.github import GitHubAPIError
@@ -74,14 +78,14 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_empty_watchlist(self, test_db):
         """Test with empty watchlist."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)):
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)):
             # Should complete without error
             await fetch_all_repos_job()
 
     @pytest.mark.asyncio
     async def test_fetches_repos(self, test_db, mock_repo):
         """Test fetches repos from watchlist."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
              patch('services.scheduler.update_repo_from_github') as mock_update:
 
@@ -102,7 +106,7 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):
         """Test handles errors during fetch."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.return_value = None  # Simulate fetch failure
@@ -113,7 +117,7 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_handles_github_exception(self, test_db, mock_repo):
         """Test handles GitHub API exceptions gracefully (per-repo)."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = GitHubAPIError("API Error")
@@ -124,7 +128,7 @@ class TestFetchAllReposJob:
     @pytest.mark.asyncio
     async def test_handles_unexpected_exception(self, test_db, mock_repo):
         """Test handles unexpected exceptions gracefully (per-repo)."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = ValueError("Unexpected error")
@@ -138,7 +142,7 @@ class TestCheckAlertsJob:
 
     def test_checks_alerts(self, test_db):
         """Test calls check_all_alerts."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.return_value = []
@@ -148,7 +152,7 @@ class TestCheckAlertsJob:
 
     def test_handles_triggered_alerts(self, test_db):
         """Test handles triggered alerts."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.return_value = [MagicMock(), MagicMock()]
@@ -158,7 +162,7 @@ class TestCheckAlertsJob:
 
     def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.side_effect = Exception("DB Error")
@@ -171,7 +175,7 @@ class TestFetchContextSignalsJob:
     @pytest.mark.asyncio
     async def test_fetches_context_signals(self, test_db):
         """Test fetches context signals."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.return_value = {
@@ -186,7 +190,7 @@ class TestFetchContextSignalsJob:
     @pytest.mark.asyncio
     async def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = Exception("Network Error")
@@ -271,7 +275,7 @@ class TestCleanupOldSnapshots:
 
     def test_cleanup_no_old_snapshots(self, test_db):
         """Test cleanup when no snapshots exceed retention period."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)):
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)):
             deleted = cleanup_old_snapshots(retention_days=90)
             assert deleted == 0
 
@@ -305,7 +309,7 @@ class TestCleanupOldSnapshots:
         test_db.add(recent_snapshot)
         test_db.commit()
 
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)):
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)):
             deleted = cleanup_old_snapshots(retention_days=90)
             assert deleted == 1
 
@@ -313,7 +317,7 @@ class TestCleanupOldSnapshots:
         """Test cleanup handles DB error gracefully."""
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch.object(test_db, 'query', side_effect=SQLAlchemyError("DB error")):
             deleted = cleanup_old_snapshots()
             assert deleted == 0
@@ -383,7 +387,7 @@ class TestCheckAlertsJobImportError:
         """Test handles SQLAlchemyError during alert check."""
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
             mock_check.side_effect = SQLAlchemyError("Connection lost")
 
@@ -396,7 +400,7 @@ class TestFetchContextSignalsJobCleanup:
     @pytest.mark.asyncio
     async def test_runs_cleanup_after_fetch(self, test_db):
         """Test runs cleanup_old_context_signals after successful fetch."""
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch, \
              patch('services.context_fetcher.cleanup_old_context_signals') as mock_cleanup:
 
@@ -412,7 +416,7 @@ class TestFetchContextSignalsJobCleanup:
         """Test handles SQLAlchemyError during context signal fetch."""
         from sqlalchemy.exc import SQLAlchemyError
 
-        with patch('services.scheduler.get_db_session', return_value=_mock_db_ctx(test_db)), \
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = SQLAlchemyError("DB error")

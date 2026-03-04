@@ -194,8 +194,9 @@ describe("CategorySidebar", () => {
     render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
 
     await waitFor(() => {
-      const counts = screen.getAllByText(/[0-9]+/);
-      expect(counts.length).toBeGreaterThan(0);
+      // Frontend: 5, Backend: 2 (from mockCategoryTree)
+      expect(screen.getByText("5")).toBeInTheDocument();
+      expect(screen.getByText("2")).toBeInTheDocument();
     });
   });
 
@@ -210,8 +211,8 @@ describe("CategorySidebar", () => {
     // React should not be visible initially
     expect(screen.queryByText("React")).not.toBeInTheDocument();
 
-    // Click expand button
-    const expandButton = screen.getByText("▶");
+    // Click expand button (uses aria-label from i18n)
+    const expandButton = screen.getByLabelText("Expand");
     await user.click(expandButton);
 
     // Now React should be visible

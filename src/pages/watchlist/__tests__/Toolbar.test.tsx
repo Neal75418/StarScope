@@ -19,7 +19,6 @@ describe("Toolbar", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
   });
 
   it("renders search input, add, refresh, and recalculate buttons", () => {
@@ -30,7 +29,6 @@ describe("Toolbar", () => {
   });
 
   it("calls onAddRepo when add button clicked", async () => {
-    vi.useRealTimers();
     const user = userEvent.setup();
     render(<Toolbar {...defaultProps} />);
     await user.click(screen.getByTestId("add-repo-btn"));
@@ -38,7 +36,6 @@ describe("Toolbar", () => {
   });
 
   it("debounces search input by 300ms", async () => {
-    vi.useRealTimers();
     const user = userEvent.setup();
     render(<Toolbar {...defaultProps} />);
 

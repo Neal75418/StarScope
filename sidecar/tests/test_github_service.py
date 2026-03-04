@@ -3,6 +3,8 @@ Tests for GitHub service.
 """
 
 import os
+from contextlib import contextmanager
+
 import pytest
 import httpx
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -18,6 +20,27 @@ from services.github import (
     get_github_service,
     reset_github_service,
 )
+
+
+def _make_response(status_code: int = 200, json_data=None, headers=None):
+    """Build a MagicMock that mimics an httpx.Response."""
+    resp = MagicMock()
+    resp.status_code = status_code
+    if json_data is not None:
+        resp.json.return_value = json_data
+    if headers is not None:
+        resp.headers = headers
+    return resp
+
+
+@contextmanager
+def _mock_http_client(response):
+    """Patch httpx.AsyncClient so that .get() returns *response*."""
+    with patch("httpx.AsyncClient") as mock_cls:
+        mock_client = AsyncMock()
+        mock_client.get.return_value = response
+        mock_cls.return_value.__aenter__.return_value = mock_client
+        yield mock_client
 
 
 class TestBuildGitHubHeaders:
@@ -45,73 +68,47 @@ class TestHandleGitHubResponse:
 
     def test_handles_successful_response(self):
         """Test handles 200 response correctly."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"stargazers_count": 1000}
-
-        result = handle_github_response(mock_response)
-
+        result = handle_github_response(_make_response(200, {"stargazers_count": 1000}))
         assert result == {"stargazers_count": 1000}
 
     def test_handles_404_with_raise(self):
         """Test raises GitHubNotFoundError on 404."""
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-
         with pytest.raises(GitHubNotFoundError) as exc_info:
-            handle_github_response(mock_response, raise_on_error=True, context="owner/repo")
+            handle_github_response(_make_response(404), raise_on_error=True, context="owner/repo")
 
         assert exc_info.value.status_code == 404
         assert "owner/repo" in str(exc_info.value)
 
     def test_handles_404_without_raise(self):
         """Test returns None on 404 when raise_on_error=False."""
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-
-        result = handle_github_response(mock_response, raise_on_error=False)
-
+        result = handle_github_response(_make_response(404), raise_on_error=False)
         assert result is None
 
     def test_handles_403_rate_limit(self):
         """Test raises GitHubRateLimitError on 403."""
-        mock_response = MagicMock()
-        mock_response.status_code = 403
-        mock_response.headers = {"X-RateLimit-Remaining": "0"}
-
+        resp = _make_response(403, headers={"X-RateLimit-Remaining": "0"})
         with pytest.raises(GitHubRateLimitError) as exc_info:
-            handle_github_response(mock_response, raise_on_error=True)
+            handle_github_response(resp, raise_on_error=True)
 
         assert exc_info.value.status_code == 403
 
     def test_handles_403_without_raise(self):
         """Test returns None on 403 when raise_on_error=False."""
-        mock_response = MagicMock()
-        mock_response.status_code = 403
-        mock_response.headers = {"X-RateLimit-Remaining": "0"}
-
-        result = handle_github_response(mock_response, raise_on_error=False, context="test")
-
+        resp = _make_response(403, headers={"X-RateLimit-Remaining": "0"})
+        result = handle_github_response(resp, raise_on_error=False, context="test")
         assert result is None
 
     def test_handles_401_unauthorized(self):
         """Test raises GitHubAPIError on 401."""
-        mock_response = MagicMock()
-        mock_response.status_code = 401
-
         with pytest.raises(GitHubAPIError) as exc_info:
-            handle_github_response(mock_response, raise_on_error=True)
+            handle_github_response(_make_response(401), raise_on_error=True)
 
         assert exc_info.value.status_code == 401
         assert "authentication" in str(exc_info.value).lower()
 
     def test_handles_401_without_raise(self):
         """Test returns None on 401 when raise_on_error=False."""
-        mock_response = MagicMock()
-        mock_response.status_code = 401
-
-        result = handle_github_response(mock_response, raise_on_error=False)
-
+        result = handle_github_response(_make_response(401), raise_on_error=False)
         assert result is None
 
 
@@ -213,15 +210,7 @@ class TestGitHubServiceGetRepo:
         """Test successful repo fetch."""
         service = GitHubService(token="test-token")
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"stargazers_count": 1000}
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, {"stargazers_count": 1000})) as mock_client:
             result = await service.get_repo("owner", "repo")
 
             assert result == {"stargazers_count": 1000}
@@ -392,15 +381,7 @@ class TestGitHubServiceCommitActivity:
         service = GitHubService(token="test-token")
         weekly_data = [{"week": 1700000000, "total": 10, "days": [1, 2, 3, 0, 2, 1, 1]}]
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = weekly_data
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, weekly_data)):
             result = await service.get_commit_activity("owner", "repo")
 
         assert result == weekly_data
@@ -411,17 +392,10 @@ class TestGitHubServiceCommitActivity:
         service = GitHubService(token="test-token")
         weekly_data = [{"week": 1700000000, "total": 5, "days": [0, 1, 2, 0, 1, 1, 0]}]
 
-        resp_202 = MagicMock()
-        resp_202.status_code = 202
-
-        resp_200 = MagicMock()
-        resp_200.status_code = 200
-        resp_200.json.return_value = weekly_data
-
         with patch('httpx.AsyncClient') as mock_client_class, \
              patch('asyncio.sleep', new_callable=AsyncMock):
             mock_client = AsyncMock()
-            mock_client.get.side_effect = [resp_202, resp_200]
+            mock_client.get.side_effect = [_make_response(202), _make_response(200, weekly_data)]
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             result = await service.get_commit_activity("owner", "repo", max_retries=3)
@@ -433,15 +407,8 @@ class TestGitHubServiceCommitActivity:
         """Test 202 returns empty list after max retries."""
         service = GitHubService(token="test-token")
 
-        resp_202 = MagicMock()
-        resp_202.status_code = 202
-
-        with patch('httpx.AsyncClient') as mock_client_class, \
+        with _mock_http_client(_make_response(202)), \
              patch('asyncio.sleep', new_callable=AsyncMock):
-            mock_client = AsyncMock()
-            mock_client.get.return_value = resp_202
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
             result = await service.get_commit_activity("owner", "repo", max_retries=2)
 
         assert result == []
@@ -451,14 +418,7 @@ class TestGitHubServiceCommitActivity:
         """Test 204 returns empty list (empty repo)."""
         service = GitHubService(token="test-token")
 
-        resp_204 = MagicMock()
-        resp_204.status_code = 204
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = resp_204
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(204)):
             result = await service.get_commit_activity("owner", "repo")
 
         assert result == []
@@ -473,15 +433,7 @@ class TestGitHubServiceLanguages:
         service = GitHubService(token="test-token")
         lang_data = {"Python": 50000, "JavaScript": 30000}
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = lang_data
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, lang_data)):
             result = await service.get_languages("owner", "repo")
 
         assert result == lang_data
@@ -491,15 +443,7 @@ class TestGitHubServiceLanguages:
         """Test empty languages (new/empty repo)."""
         service = GitHubService(token="test-token")
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {}
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, {})):
             result = await service.get_languages("owner", "repo")
 
         assert result == {}
@@ -514,15 +458,7 @@ class TestGitHubServiceSearchRepos:
         service = GitHubService(token="test-token")
         search_result = {"total_count": 1, "items": [{"full_name": "facebook/react"}]}
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = search_result
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, search_result)):
             result = await service.search_repos("react")
 
         assert result["total_count"] == 1
@@ -532,15 +468,7 @@ class TestGitHubServiceSearchRepos:
         """Test repo search with language and min_stars filters."""
         service = GitHubService(token="test-token")
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"total_count": 0, "items": []}
-
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
-
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
             await service.search_repos("web", language="Python", min_stars=100, topic="api")
 
             # Verify query params include filters
@@ -578,15 +506,7 @@ class TestGitHubServiceStargazers:
         with patch.object(service, 'get_repo', new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"stargazers_count": 2}
 
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = stargazer_data
-
-            with patch('httpx.AsyncClient') as mock_client_class:
-                mock_client = AsyncMock()
-                mock_client.get.return_value = mock_response
-                mock_client_class.return_value.__aenter__.return_value = mock_client
-
+            with _mock_http_client(_make_response(200, stargazer_data)):
                 result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000, per_page=100)
 
         assert len(result) == 2

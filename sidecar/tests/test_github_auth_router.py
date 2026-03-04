@@ -182,10 +182,15 @@ class TestDisconnect:
     """Test cases for /api/github-auth/disconnect endpoint."""
 
     def test_disconnect_when_connected(self, client):
-        """Test disconnecting when currently connected."""
+        """Test disconnecting when currently connected.
+
+        Note: service.disconnect() is sync (not async), so we use
+        MagicMock for that method while keeping AsyncMock for the service
+        (other methods like poll_for_token are async).
+        """
         with patch("routers.github_auth.get_github_auth_service") as mock_get:
-            mock_service = MagicMock()
-            mock_service.disconnect.return_value = True
+            mock_service = AsyncMock()
+            mock_service.disconnect = MagicMock(return_value=True)
             mock_get.return_value = mock_service
 
             response = client.post("/api/github-auth/disconnect")
@@ -198,8 +203,8 @@ class TestDisconnect:
     def test_disconnect_when_not_connected(self, client):
         """Test disconnecting when not connected."""
         with patch("routers.github_auth.get_github_auth_service") as mock_get:
-            mock_service = MagicMock()
-            mock_service.disconnect.return_value = False
+            mock_service = AsyncMock()
+            mock_service.disconnect = MagicMock(return_value=False)
             mock_get.return_value = mock_service
 
             response = client.post("/api/github-auth/disconnect")

@@ -71,33 +71,33 @@ describe("CategoryNodeItem", () => {
 
   it("shows expand button when hasChildren is true", () => {
     render(<CategoryNodeItem {...defaultProps} hasChildren={true} />);
-    expect(screen.getByText("▶")).toBeInTheDocument();
+    expect(screen.getByLabelText("Expand")).toBeInTheDocument();
   });
 
   it("shows collapse indicator when expanded", () => {
     render(<CategoryNodeItem {...defaultProps} hasChildren={true} isExpanded={true} />);
-    expect(screen.getByText("▼")).toBeInTheDocument();
+    expect(screen.getByLabelText("Collapse")).toBeInTheDocument();
   });
 
   it("calls onToggleExpand when expand button clicked", async () => {
     const user = userEvent.setup();
     render(<CategoryNodeItem {...defaultProps} hasChildren={true} />);
-    await user.click(screen.getByText("▶"));
-    expect(defaultProps.onToggleExpand).toHaveBeenCalledWith(1, expect.anything());
+    await user.click(screen.getByLabelText("Expand"));
+    expect(defaultProps.onToggleExpand).toHaveBeenCalledWith(1, expect.any(Object));
   });
 
   it("calls onEdit when edit button clicked", async () => {
     const user = userEvent.setup();
     render(<CategoryNodeItem {...defaultProps} />);
     await user.click(screen.getByTitle("Edit category"));
-    expect(defaultProps.onEdit).toHaveBeenCalledWith(defaultProps.node, expect.anything());
+    expect(defaultProps.onEdit).toHaveBeenCalledWith(defaultProps.node, expect.any(Object));
   });
 
   it("calls onDelete when delete button clicked", async () => {
     const user = userEvent.setup();
     render(<CategoryNodeItem {...defaultProps} />);
     await user.click(screen.getByTitle("Delete category"));
-    expect(defaultProps.onDelete).toHaveBeenCalledWith(1, expect.anything());
+    expect(defaultProps.onDelete).toHaveBeenCalledWith(1, expect.any(Object));
   });
 
   it("applies selected class when isSelected", () => {

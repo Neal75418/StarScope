@@ -20,6 +20,17 @@ MOCK_GITHUB_REPO_DATA = {
 }
 
 
+def _mock_github_service(**repo_overrides):
+    """Create a patched GitHub service returning the given repo data.
+
+    Returns a tuple of (patch_context, mock_service) for use with ``with``.
+    ``repo_overrides`` are merged into MOCK_GITHUB_REPO_DATA.
+    """
+    mock_service = AsyncMock()
+    mock_service.get_repo.return_value = {**MOCK_GITHUB_REPO_DATA, **repo_overrides}
+    return mock_service
+
+
 class TestReposEndpoints:
     """Test cases for /api/repos endpoints."""
 
@@ -65,13 +76,12 @@ class TestReposEndpoints:
         """Test that providing per_page without page raises 400."""
         response = client.get("/api/repos?per_page=10")
         assert response.status_code == 400
+        assert "Both" in response.json()["detail"]
 
     def test_add_repo_success(self, client):
         """Test adding a new repo with owner+name via mocked GitHub."""
         with patch("routers.repos.get_github_service") as mock_gh:
-            mock_service = AsyncMock()
-            mock_service.get_repo.return_value = MOCK_GITHUB_REPO_DATA
-            mock_gh.return_value = mock_service
+            mock_gh.return_value = _mock_github_service()
 
             response = client.post("/api/repos", json={
                 "owner": "facebook",
@@ -88,9 +98,7 @@ class TestReposEndpoints:
     def test_add_repo_via_url(self, client):
         """Test adding a new repo via GitHub URL."""
         with patch("routers.repos.get_github_service") as mock_gh:
-            mock_service = AsyncMock()
-            mock_service.get_repo.return_value = MOCK_GITHUB_REPO_DATA
-            mock_gh.return_value = mock_service
+            mock_gh.return_value = _mock_github_service()
 
             response = client.post("/api/repos", json={
                 "url": "https://github.com/facebook/react"
@@ -144,13 +152,9 @@ class TestReposEndpoints:
     def test_fetch_repo_success(self, client, mock_repo):
         """Test manually fetching latest data for a repo."""
         with patch("routers.repos.get_github_service") as mock_gh:
-            mock_service = AsyncMock()
-            mock_service.get_repo.return_value = {
-                **MOCK_GITHUB_REPO_DATA,
-                "full_name": "testowner/testrepo",
-                "name": "testrepo",
-            }
-            mock_gh.return_value = mock_service
+            mock_gh.return_value = _mock_github_service(
+                full_name="testowner/testrepo", name="testrepo"
+            )
 
             response = client.post(f"/api/repos/{mock_repo.id}/fetch")
 

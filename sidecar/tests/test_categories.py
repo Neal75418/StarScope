@@ -2,6 +2,9 @@
 Tests for category endpoints.
 """
 
+# ID guaranteed not to exist in the test database
+NONEXISTENT_CATEGORY_ID = 99999
+
 
 class TestCategoryEndpoints:
     """Test cases for /api/categories endpoints."""
@@ -70,24 +73,24 @@ class TestCategoryEndpoints:
 
     def test_get_category_not_found(self, client):
         """Test getting a nonexistent category."""
-        response = client.get("/api/categories/99999")
+        response = client.get(f"/api/categories/{NONEXISTENT_CATEGORY_ID}")
         assert response.status_code == 404
 
     def test_delete_category_not_found(self, client):
         """Test deleting a nonexistent category."""
-        response = client.delete("/api/categories/99999")
+        response = client.delete(f"/api/categories/{NONEXISTENT_CATEGORY_ID}")
         assert response.status_code == 404
 
     def test_update_category_not_found(self, client):
         """Test updating a nonexistent category."""
-        response = client.put("/api/categories/99999", json={
+        response = client.put(f"/api/categories/{NONEXISTENT_CATEGORY_ID}", json={
             "name": "Updated Name"
         })
         assert response.status_code == 404
 
     def test_get_category_repos_not_found(self, client):
         """Test getting repos from nonexistent category."""
-        response = client.get("/api/categories/99999/repos")
+        response = client.get(f"/api/categories/{NONEXISTENT_CATEGORY_ID}/repos")
         assert response.status_code == 404
 
     def test_category_with_parent(self, client):
@@ -205,7 +208,7 @@ class TestCategoryUpdate:
     def test_update_category_nonexistent_parent(self, client, mock_category):
         """Test updating parent_id to a nonexistent category."""
         response = client.put(f"/api/categories/{mock_category.id}", json={
-            "parent_id": 99999
+            "parent_id": NONEXISTENT_CATEGORY_ID
         })
         assert response.status_code == 404
         assert "Parent category not found" in response.json()["detail"]
