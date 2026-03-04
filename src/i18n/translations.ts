@@ -14,6 +14,7 @@ export const translations = {
       discovery: "Discover",
       watchlist: "Watchlist",
       trends: "Trends",
+      compare: "Compare",
       settings: "Settings",
     },
     // 儀表板頁面
@@ -50,6 +51,19 @@ export const translations = {
           releaseSurge: "Release Surge",
         },
       },
+      weekly: {
+        title: "Weekly Summary",
+        starsThisWeek: "stars this week",
+        topMovers: "Top Movers",
+        signals: "Signals",
+        hnMentions: "HN Mentions",
+        alertsTriggered: "Alerts Triggered",
+        earlySignals: "Early Signals",
+        accelerating: "accelerating",
+        decelerating: "decelerating",
+        noData: "No movement this week",
+        noHnMentions: "No HN mentions this week",
+      },
     },
     // 探索頁面
     discovery: {
@@ -84,6 +98,18 @@ export const translations = {
       },
       loadMore: "Load More",
       results: "{count} results",
+      recommendations: {
+        title: "Recommended for You",
+        subtitle: "Based on your watchlist's similarity patterns and momentum",
+        similarTo: "Similar to {repo}",
+        topics: "topics: {topics}",
+        sameLanguage: "same language",
+        noData:
+          "No recommendations yet. Add more repos and calculate similarities to get personalized suggestions.",
+        velocity: "Velocity",
+        trend: "Trend",
+        matchScore: "Match",
+      },
     },
     // 追蹤清單頁面
     watchlist: {
@@ -163,6 +189,27 @@ export const translations = {
         minStars: "Min Stars",
         addToWatchlist: "+ Watchlist",
         inWatchlist: "In Watchlist",
+      },
+    },
+    // 對比頁面
+    compare: {
+      title: "Compare",
+      subtitle: "Compare star trends across repositories",
+      selectRepos: "Select repositories to compare",
+      searchPlaceholder: "Search watchlist...",
+      minRepos: "Select at least 2 repos",
+      maxRepos: "Maximum 5 repos",
+      normalize: "Normalize (%)",
+      metrics: "Metrics",
+      noData: "No data available for selected time range",
+      columns: {
+        repo: "Repository",
+        stars: "Stars",
+        delta7d: "7d Delta",
+        delta30d: "30d Delta",
+        velocity: "Velocity",
+        acceleration: "Accel",
+        trend: "Trend",
       },
     },
     // 設定頁面
@@ -547,6 +594,7 @@ export const translations = {
       discovery: "探索",
       watchlist: "追蹤清單",
       trends: "趨勢",
+      compare: "對比",
       settings: "設定",
     },
     // 儀表板頁面
@@ -583,6 +631,19 @@ export const translations = {
           releaseSurge: "版本釋出潮",
         },
       },
+      weekly: {
+        title: "本週摘要",
+        starsThisWeek: "本週新增星數",
+        topMovers: "漲跌排行",
+        signals: "訊號總覽",
+        hnMentions: "HN 提及",
+        alertsTriggered: "觸發警報",
+        earlySignals: "早期信號",
+        accelerating: "加速中",
+        decelerating: "減速中",
+        noData: "本週無變動",
+        noHnMentions: "本週無 HN 提及",
+      },
     },
     // 探索頁面
     discovery: {
@@ -617,6 +678,17 @@ export const translations = {
       },
       loadMore: "載入更多",
       results: "{count} 個結果",
+      recommendations: {
+        title: "為你推薦",
+        subtitle: "根據你的追蹤清單相似度與動量分析",
+        similarTo: "與 {repo} 相似",
+        topics: "主題：{topics}",
+        sameLanguage: "相同語言",
+        noData: "尚無推薦。新增更多儲存庫並計算相似度以獲取個人化建議。",
+        velocity: "成長速度",
+        trend: "趨勢",
+        matchScore: "匹配度",
+      },
     },
     // 追蹤清單頁面
     watchlist: {
@@ -696,6 +768,27 @@ export const translations = {
         minStars: "最低星數",
         addToWatchlist: "+ 追蹤",
         inWatchlist: "已追蹤",
+      },
+    },
+    // 對比頁面
+    compare: {
+      title: "對比",
+      subtitle: "比較多個儲存庫的星數趨勢",
+      selectRepos: "選擇要對比的儲存庫",
+      searchPlaceholder: "搜尋追蹤清單...",
+      minRepos: "至少選擇 2 個儲存庫",
+      maxRepos: "最多 5 個儲存庫",
+      normalize: "正規化 (%)",
+      metrics: "指標",
+      noData: "所選時間範圍內無資料",
+      columns: {
+        repo: "儲存庫",
+        stars: "星數",
+        delta7d: "7天 Δ",
+        delta30d: "30天 Δ",
+        velocity: "速度",
+        acceleration: "加速度",
+        trend: "趨勢",
       },
     },
     // 設定頁面

@@ -17,6 +17,7 @@ import {
   DiscoveryFilters,
   DiscoveryResults,
   SavedFilters,
+  RecommendedForYou,
 } from "../components/discovery";
 
 export function Discovery() {
@@ -82,6 +83,8 @@ export function Discovery() {
         <h1 data-testid="page-title">{t.discovery.title}</h1>
         <p className="subtitle">{t.discovery.subtitle}</p>
       </header>
+
+      <RecommendedForYou />
 
       <DiscoverySearchBar
         onSearch={discovery.setKeyword}

@@ -179,6 +179,7 @@ vi.mock("../../components/discovery", () => ({
     </div>
   ),
   SavedFilters: () => <div data-testid="saved-filters" />,
+  RecommendedForYou: () => null,
 }));
 
 describe("Discovery", () => {

@@ -8,6 +8,7 @@ import {
   SearchIcon,
   RepoIcon,
   GraphIcon,
+  GitCompareIcon,
   GearIcon,
   SunIcon,
   MoonIcon,
@@ -42,6 +43,7 @@ function buildNavItems(t: TranslationKeys): NavItem[] {
     { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={16} /> },
     { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={16} /> },
     { id: "trends", label: t.nav.trends, icon: <GraphIcon size={16} /> },
+    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={16} /> },
   ];
 }
 
@@ -51,6 +53,7 @@ function buildMobileNavItems(t: TranslationKeys): NavItem[] {
     { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={20} /> },
     { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={20} /> },
     { id: "trends", label: t.nav.trends, icon: <GraphIcon size={20} /> },
+    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={20} /> },
     { id: "settings", label: t.nav.settings, icon: <GearIcon size={20} /> },
   ];
 }

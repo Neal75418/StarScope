@@ -1,1 +1,1 @@
-export type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "settings";
+export type Page = "dashboard" | "discovery" | "watchlist" | "trends" | "compare" | "settings";

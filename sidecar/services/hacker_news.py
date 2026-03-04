@@ -114,7 +114,8 @@ class HackerNewsService:
     async def search_repo(self, repo_name: str, owner: str) -> List[HNStory]:
         """
         搜尋 HN 上關於 repo 的提及。
-        同時搜尋 "owner/repo" 與 "repo" 名稱。
+        同時搜尋 "owner/repo" 與 "repo" 名稱，
+        並過濾掉標題或 URL 中未實際包含 repo 名稱的模糊匹配結果。
 
         Args:
             repo_name: repo 名稱
@@ -140,6 +141,22 @@ class HackerNewsService:
         # 僅在所有查詢失敗且無結果時拋出錯誤
         if not stories and errors:
             raise HackerNewsAPIError(f"All queries failed: {'; '.join(errors)}")
+
+        # 過濾 Algolia 模糊匹配的假結果：
+        # 標題或 URL 中必須包含 repo 名稱（大小寫不敏感）
+        full_name_lower = f"{owner}/{repo_name}".lower()
+        repo_lower = repo_name.lower()
+        before_count = len(stories)
+        stories = [
+            s for s in stories
+            if full_name_lower in f"{s.title} {s.url}".lower()
+            or repo_lower in f"{s.title} {s.url}".lower()
+        ]
+        filtered_count = before_count - len(stories)
+        if filtered_count > 0:
+            logger.info(
+                f"[HN] 過濾了 {filtered_count} 筆與 {owner}/{repo_name} 不相關的模糊匹配結果"
+            )
 
         # 依分數排序（最高優先）
         stories.sort(key=lambda s: s.points, reverse=True)

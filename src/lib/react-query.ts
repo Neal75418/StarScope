@@ -94,6 +94,7 @@ export const queryKeys = {
     all: ["dashboard"] as const,
     stats: ["dashboard", "stats"] as const,
     health: ["dashboard", "health"] as const,
+    weeklySummary: () => [...queryKeys.dashboard.all, "weeklySummary"] as const,
   },
 
   // Alerts
@@ -102,6 +103,20 @@ export const queryKeys = {
     rules: () => [...queryKeys.alerts.all, "rules"] as const,
     triggered: () => [...queryKeys.alerts.all, "triggered"] as const,
     signalTypes: () => [...queryKeys.alerts.all, "signalTypes"] as const,
+  },
+
+  // Comparison
+  comparison: {
+    all: ["comparison"] as const,
+    chart: (repoIds: number[], timeRange: string, normalize: boolean) =>
+      [...queryKeys.comparison.all, "chart", repoIds, timeRange, normalize] as const,
+  },
+
+  // Recommendations
+  recommendations: {
+    all: ["recommendations"] as const,
+    personalized: (limit: number) =>
+      [...queryKeys.recommendations.all, "personalized", limit] as const,
   },
 
   // Notifications

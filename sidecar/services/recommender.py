@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from sqlalchemy.orm import Session
 
 from db.models import Repo, SimilarRepo
-from services.queries import build_stars_map
+from services.queries import build_stars_map, build_signal_map
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -426,3 +426,111 @@ def recalculate_all_similarities(db: Session) -> dict:
     """重新計算所有相似度的便利函式。"""
     recommender = get_recommender_service()
     return recommender.recalculate_all(db)
+
+
+def _velocity_boost(velocity: Optional[float]) -> float:
+    """根據 velocity 計算推薦加權。成長中的 repo 獲得更高推薦分數。"""
+    if velocity is None or velocity <= 0:
+        return 0.0
+    if velocity > 10:
+        return 0.3
+    if velocity > 5:
+        return 0.15
+    return 0.05
+
+
+def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
+    """
+    根據用戶 watchlist 中的 repo 相似度與動量，推薦最值得關注的 repo。
+
+    演算法：
+    1. 取得 watchlist 中所有 repo 的相似度配對
+    2. 聚合每個 repo 從不同來源 repo 獲得的相似度分數
+    3. 以 similarity_score × (1 + velocity_boost) 排序
+    4. 取 top N，附帶推薦理由（來源 repo 與共同 topic）
+    """
+    # 取得全部 watchlist repo
+    all_repos: List[Repo] = db.query(Repo).all()
+    if not all_repos:
+        return {"recommendations": [], "total": 0, "based_on_repos": 0}
+
+    # noinspection PyTypeChecker
+    watchlist_ids: Set[int] = {int(r.id) for r in all_repos}
+    repo_name_map: Dict[int, str] = {int(r.id): str(r.full_name) for r in all_repos}
+
+    # 查詢所有相似 repo 配對
+    similar_entries = (
+        db.query(SimilarRepo)
+        .filter(SimilarRepo.repo_id.in_(watchlist_ids))
+        .order_by(SimilarRepo.similarity_score.desc())
+        .all()
+    )
+
+    if not similar_entries:
+        return {
+            "recommendations": [],
+            "total": 0,
+            "based_on_repos": len(watchlist_ids),
+        }
+
+    # 收集所有被推薦的 repo ID，批次載入 signal 與 star 資料
+    # noinspection PyTypeChecker
+    recommended_ids: List[int] = list({int(e.similar_repo_id) for e in similar_entries})
+    signal_map = build_signal_map(db, recommended_ids)
+    stars_map = build_stars_map(db, recommended_ids)
+
+    # 對每個被推薦 repo 取最高 adjusted_score 的來源
+    # key = similar_repo_id, value = best entry info
+    best_per_repo: Dict[int, dict] = {}
+
+    for entry in similar_entries:
+        # noinspection PyTypeChecker
+        target_id = int(entry.similar_repo_id)
+        # noinspection PyTypeChecker
+        source_id = int(entry.repo_id)
+
+        # velocity boost
+        signals = signal_map.get(target_id, {})
+        velocity = signals.get("velocity")
+        trend_val = signals.get("trend")
+        boost = _velocity_boost(velocity)
+        adjusted_score = float(entry.similarity_score) * (1 + boost)
+
+        if target_id not in best_per_repo or adjusted_score > best_per_repo[target_id]["adjusted_score"]:
+            shared_topics = _parse_shared_topics(entry.shared_topics)
+            source_name = repo_name_map.get(source_id, f"repo #{source_id}")
+
+            target_repo: Repo = entry.similar  # type: ignore[assignment]
+            best_per_repo[target_id] = {
+                "repo_id": target_id,
+                "full_name": str(target_repo.full_name),
+                "description": target_repo.description,
+                "language": target_repo.language,
+                "url": str(target_repo.url),
+                "stars": stars_map.get(target_id),
+                "velocity": velocity,
+                "trend": int(trend_val) if trend_val is not None else None,
+                "similarity_score": round(float(entry.similarity_score), 3),
+                "shared_topics": shared_topics[:3],
+                "same_language": bool(entry.same_language),
+                "source_repo_id": source_id,
+                "source_repo_name": source_name,
+                "adjusted_score": adjusted_score,
+            }
+
+    # 按 adjusted_score 排序取 top N
+    sorted_recs = sorted(
+        best_per_repo.values(),
+        key=lambda r: r["adjusted_score"],
+        reverse=True,
+    )[:limit]
+
+    # 移除內部用的 adjusted_score 欄位
+    for rec in sorted_recs:
+        del rec["adjusted_score"]
+
+    return {
+        "recommendations": sorted_recs,
+        "total": len(sorted_recs),
+        "based_on_repos": len(watchlist_ids),
+    }

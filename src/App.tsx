@@ -21,6 +21,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default:
 const Discovery = lazy(() => import("./pages/Discovery").then((m) => ({ default: m.Discovery })));
 const Watchlist = lazy(() => import("./pages/Watchlist").then((m) => ({ default: m.Watchlist })));
 const Trends = lazy(() => import("./pages/Trends").then((m) => ({ default: m.Trends })));
+const Compare = lazy(() => import("./pages/Compare").then((m) => ({ default: m.Compare })));
 const Settings = lazy(() => import("./pages/Settings").then((m) => ({ default: m.Settings })));
 
 /** 載入中的 fallback 元件 */
@@ -44,6 +45,8 @@ function PageContent({ page }: { page: Page }) {
       return <Watchlist />;
     case "trends":
       return <Trends />;
+    case "compare":
+      return <Compare />;
     case "settings":
       return <Settings />;
   }
@@ -52,7 +55,14 @@ function PageContent({ page }: { page: Page }) {
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     const saved = localStorage.getItem("starscope-page");
-    const validPages: Page[] = ["dashboard", "discovery", "watchlist", "trends", "settings"];
+    const validPages: Page[] = [
+      "dashboard",
+      "discovery",
+      "watchlist",
+      "trends",
+      "compare",
+      "settings",
+    ];
     return saved && validPages.includes(saved as Page) ? (saved as Page) : "dashboard";
   });
 

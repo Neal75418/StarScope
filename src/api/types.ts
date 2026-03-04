@@ -224,6 +224,30 @@ export interface RecalculateAllResponse {
   similarities_found: number;
 }
 
+// ==================== 個人化推薦型別 ====================
+
+export interface PersonalizedRecommendation {
+  repo_id: number;
+  full_name: string;
+  description: string | null;
+  language: string | null;
+  url: string;
+  stars: number | null;
+  velocity: number | null;
+  trend: number | null;
+  similarity_score: number;
+  shared_topics: string[];
+  same_language: boolean;
+  source_repo_id: number;
+  source_repo_name: string;
+}
+
+export interface PersonalizedResponse {
+  recommendations: PersonalizedRecommendation[];
+  total: number;
+  based_on_repos: number;
+}
+
 // ==================== 分類型別 ====================
 
 export interface Category {
@@ -484,3 +508,59 @@ export interface SearchFilters {
   topic?: string;
   sort?: "stars" | "forks" | "updated";
 }
+
+// ==================== 週報摘要型別 ====================
+
+export interface WeeklyRepoSummary {
+  repo_id: number;
+  full_name: string;
+  stars: number;
+  stars_delta_7d: number;
+  velocity: number;
+  trend: number;
+}
+
+export interface WeeklyHNMention {
+  repo_id: number;
+  repo_name: string;
+  hn_title: string;
+  hn_score: number;
+  hn_url: string;
+}
+
+export interface WeeklySummaryResponse {
+  period_start: string;
+  period_end: string;
+  total_repos: number;
+  total_new_stars: number;
+  top_gainers: WeeklyRepoSummary[];
+  top_losers: WeeklyRepoSummary[];
+  alerts_triggered: number;
+  early_signals_detected: number;
+  early_signals_by_type: Record<string, number>;
+  hn_mentions: WeeklyHNMention[];
+  accelerating: number;
+  decelerating: number;
+}
+
+// ==================== 對比模式型別 ====================
+
+export interface ComparisonRepoData {
+  repo_id: number;
+  repo_name: string;
+  color: string;
+  data_points: ChartDataPoint[];
+  current_stars: number;
+  velocity: number | null;
+  acceleration: number | null;
+  trend: number | null;
+  stars_delta_7d: number | null;
+  stars_delta_30d: number | null;
+}
+
+export interface ComparisonChartResponse {
+  repos: ComparisonRepoData[];
+  time_range: string;
+}
+
+export type ComparisonTimeRange = "7d" | "30d" | "90d" | "all";

@@ -77,6 +77,10 @@ vi.mock("../../components/Skeleton", () => ({
   Skeleton: () => <span data-testid="skeleton" />,
 }));
 
+vi.mock("../../components/dashboard/WeeklySummary", () => ({
+  WeeklySummary: () => <div data-testid="weekly-summary" />,
+}));
+
 describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();

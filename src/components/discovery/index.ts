@@ -10,3 +10,4 @@ export { DiscoveryFilters } from "./DiscoveryFilters";
 export { DiscoveryResultCard } from "./DiscoveryResultCard";
 export { DiscoveryResults } from "./DiscoveryResults";
 export { SavedFilters } from "./SavedFilters";
+export { RecommendedForYou } from "./RecommendedForYou";

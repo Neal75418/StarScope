@@ -10,6 +10,7 @@ import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 import { getSignalTypeConfig } from "../constants/signalTypes";
+import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 
 const SEVERITY_CLASS: Record<string, string> = {
   high: "severity-high",
@@ -339,7 +340,11 @@ export function Dashboard() {
         />
       </FadeIn>
 
-      <FadeIn delay={0.2}>
+      <FadeIn delay={0.18}>
+        <WeeklySummary />
+      </FadeIn>
+
+      <FadeIn delay={0.22}>
         <div className="dashboard-grid">
           <VelocityChart data={velocityDistribution} />
           <RecentActivityList activities={recentActivity} />

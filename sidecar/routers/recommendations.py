@@ -17,6 +17,7 @@ from services.recommender import (
     find_similar_repos,
     calculate_repo_similarities,
     recalculate_all_similarities,
+    get_personalized_recommendations,
 )
 from schemas.response import ApiResponse, success_response
 
@@ -57,6 +58,30 @@ class RecalculateAllResponse(BaseModel):
     total_repos: int
     processed: int
     similarities_found: int
+
+
+class PersonalizedRecommendation(BaseModel):
+    """個人化推薦 repo 的 schema。"""
+    repo_id: int
+    full_name: str
+    description: Optional[str]
+    language: Optional[str]
+    url: str
+    stars: Optional[int]
+    velocity: Optional[float]
+    trend: Optional[int]
+    similarity_score: float
+    shared_topics: List[str]
+    same_language: bool
+    source_repo_id: int
+    source_repo_name: str
+
+
+class PersonalizedResponse(BaseModel):
+    """個人化推薦列表的回應。"""
+    recommendations: List[PersonalizedRecommendation]
+    total: int
+    based_on_repos: int
 
 
 class RecommendationStatsResponse(BaseModel):
@@ -144,6 +169,32 @@ async def recalculate_all(
     return success_response(
         data=recalc_response,
         message=f"Recalculated similarities for {result['processed']} repositories"
+    )
+
+
+@router.get("/personalized", response_model=ApiResponse[PersonalizedResponse])
+async def get_personalized(
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations"),
+    db: Session = Depends(get_db)
+) -> dict:
+    """
+    取得基於 watchlist 的個人化推薦。
+    根據追蹤清單中所有 repo 的相似度，推薦尚未追蹤但值得關注的 repo。
+    加入 velocity boost，讓成長中的 repo 排名更高。
+    """
+    result = get_personalized_recommendations(db, limit)
+
+    personalized_response = PersonalizedResponse(
+        recommendations=[
+            PersonalizedRecommendation(**r) for r in result["recommendations"]
+        ],
+        total=result["total"],
+        based_on_repos=result["based_on_repos"],
+    )
+
+    return success_response(
+        data=personalized_response,
+        message=f"Found {result['total']} personalized recommendations"
     )
 
 

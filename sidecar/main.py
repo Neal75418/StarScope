@@ -24,7 +24,7 @@ from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimit
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ENV = os.getenv("ENV", "development")
 from logging_config import setup_logging
-from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history
+from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison
 from db import init_db
 from db.database import get_app_data_dir
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
@@ -255,7 +255,7 @@ app.add_middleware(
 for _module in [
     health, repos, alerts, trends, context, charts,
     recommendations, categories, early_signals, export, github_auth,
-    discovery, commit_activity, languages, star_history,
+    discovery, commit_activity, languages, star_history, weekly_summary, comparison,
 ]:
     app.include_router(_module.router)
 

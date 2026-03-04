@@ -192,11 +192,11 @@ class TestHackerNewsService:
 
     @pytest.mark.asyncio
     async def test_search_repo_success(self):
-        """Test successful repo search."""
+        """Test successful repo search with relevant title."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "hits": [{"objectID": "1", "title": "Test", "points": 100}]
+            "hits": [{"objectID": "1", "title": "Introducing repo: a new tool", "points": 100}]
         }
 
         with patch('httpx.AsyncClient') as mock_client_class:
@@ -211,15 +211,38 @@ class TestHackerNewsService:
             assert isinstance(result[0], HNStory)
 
     @pytest.mark.asyncio
+    async def test_search_repo_filters_irrelevant(self):
+        """Test irrelevant results are filtered out by relevance check."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "hits": [
+                {"objectID": "1", "title": "About myrepo project", "points": 100},
+                {"objectID": "2", "title": "Unrelated article about cats", "points": 50},
+            ]
+        }
+
+        with patch('httpx.AsyncClient') as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client.get.return_value = mock_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            service = HackerNewsService()
+            result = await service.search_repo("myrepo", "owner")
+
+            assert len(result) == 1
+            assert result[0].title == "About myrepo project"
+
+    @pytest.mark.asyncio
     async def test_search_repo_sorts_by_points(self):
         """Test results are sorted by points descending."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "hits": [
-                {"objectID": "1", "title": "Low", "points": 10},
-                {"objectID": "2", "title": "High", "points": 100},
-                {"objectID": "3", "title": "Medium", "points": 50},
+                {"objectID": "1", "title": "Low score repo mention", "points": 10},
+                {"objectID": "2", "title": "High score repo mention", "points": 100},
+                {"objectID": "3", "title": "Medium score repo mention", "points": 50},
             ]
         }
 

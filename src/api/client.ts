@@ -45,6 +45,10 @@ import type {
   SearchFilters,
   EarlySignalType,
   EarlySignalSeverity,
+  WeeklySummaryResponse,
+  ComparisonChartResponse,
+  ComparisonTimeRange,
+  PersonalizedResponse,
 } from "./types";
 
 export * from "./types";
@@ -707,4 +711,45 @@ export async function searchRepos(
   if (filters.sort) params.set("sort", filters.sort);
 
   return apiCall<SearchResponse>(`/discovery/search?${params}`, { signal });
+}
+
+// ==================== 週報摘要 API 函式 ====================
+
+/**
+ * 取得本週摘要資料。
+ */
+export async function getWeeklySummary(signal?: AbortSignal): Promise<WeeklySummaryResponse> {
+  return apiCall<WeeklySummaryResponse>(`/summary/weekly`, { signal });
+}
+
+// ==================== 對比模式 API 函式 ====================
+
+/**
+ * 取得多 repo 對比圖表資料。
+ */
+export async function getComparisonChart(
+  repoIds: number[],
+  timeRange: ComparisonTimeRange = "30d",
+  normalize: boolean = false
+): Promise<ComparisonChartResponse> {
+  return apiCall<ComparisonChartResponse>(`/comparison/chart`, {
+    method: "POST",
+    body: JSON.stringify({
+      repo_ids: repoIds,
+      time_range: timeRange,
+      normalize,
+    }),
+  });
+}
+
+// ==================== 個人化推薦 API 函式 ====================
+
+/**
+ * 取得基於 watchlist 的個人化推薦。
+ */
+export async function getPersonalizedRecommendations(
+  limit: number = 10,
+  signal?: AbortSignal
+): Promise<PersonalizedResponse> {
+  return apiCall<PersonalizedResponse>(`/recommendations/personalized?limit=${limit}`, { signal });
 }
