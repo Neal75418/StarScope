@@ -145,7 +145,7 @@ export function DiscoverySearchBar({
                   type="button"
                   className={styles.searchHistoryRemove}
                   onClick={(e) => handleRemoveHistory(e, item)}
-                  aria-label={`Remove "${item}" from history`}
+                  aria-label={t.discovery.searchHistory.removeItem.replace("{item}", item)}
                 >
                   ×
                 </button>

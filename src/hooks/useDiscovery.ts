@@ -2,7 +2,7 @@
  * 探索頁面：GitHub Repository 搜尋與篩選。
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { SearchFilters } from "../api/client";
 import { TrendingPeriod } from "../components/discovery";
 import { useDiscoverySearch } from "./useDiscoverySearch";
@@ -31,6 +31,10 @@ export function useDiscovery() {
     useDiscoverySearch();
   const [state, setState] = useState<DiscoveryState>(INITIAL_STATE);
 
+  // 透過 ref 追蹤最新 state，避免 useCallback 的 stale closure 問題
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   // 觸發新搜尋（重設頁碼為 1）
   const search = useCallback(
     (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
@@ -40,19 +44,20 @@ export function useDiscovery() {
     [executeSearch]
   );
 
-  // 統一的參數更新函數
+  // 統一的參數更新函數（透過 stateRef 讀取最新值，避免 stale closure）
   const updateSearchParams = useCallback(
     (updates: {
       keyword?: string;
       period?: TrendingPeriod | undefined;
       filters?: SearchFilters;
     }) => {
-      const newKeyword = updates.keyword ?? state.keyword;
-      const newPeriod = updates.period !== undefined ? updates.period : state.period;
-      const newFilters = updates.filters ?? state.filters;
+      const cur = stateRef.current;
+      const newKeyword = updates.keyword ?? cur.keyword;
+      const newPeriod = updates.period !== undefined ? updates.period : cur.period;
+      const newFilters = updates.filters ?? cur.filters;
       search(newKeyword, newPeriod, newFilters);
     },
-    [state.keyword, state.period, state.filters, search]
+    [search]
   );
 
   // 設定值同時觸發搜尋
@@ -73,10 +78,11 @@ export function useDiscovery() {
 
   const loadMore = useCallback(() => {
     if (hasMore && !loading) {
+      const { keyword, period, filters } = stateRef.current;
       const nextPage = Math.floor(repos.length / GITHUB_SEARCH_PAGE_SIZE) + 1;
-      void executeSearch(state.keyword, state.period, state.filters, nextPage);
+      void executeSearch(keyword, period, filters, nextPage);
     }
-  }, [hasMore, loading, repos.length, state.keyword, state.period, state.filters, executeSearch]);
+  }, [hasMore, loading, repos.length, executeSearch]);
 
   const reset = useCallback(() => {
     setState(INITIAL_STATE);
@@ -87,24 +93,16 @@ export function useDiscovery() {
   const removeKeyword = useCallback(() => setKeyword(""), [setKeyword]);
   const removePeriod = useCallback(() => setPeriod(undefined), [setPeriod]);
   const removeLanguage = useCallback(() => {
-    setFilters({ ...state.filters, language: undefined });
-  }, [state.filters, setFilters]);
+    setFilters({ ...stateRef.current.filters, language: undefined });
+  }, [setFilters]);
 
   const removeTopic = useCallback(() => {
-    setFilters({ ...state.filters, topic: undefined });
-  }, [state.filters, setFilters]);
+    setFilters({ ...stateRef.current.filters, topic: undefined });
+  }, [setFilters]);
 
   const removeMinStars = useCallback(() => {
-    setFilters({ ...state.filters, minStars: undefined });
-  }, [state.filters, setFilters]);
-
-  // 套用已儲存的篩選條件
-  const applySavedFilter = useCallback(
-    (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
-      search(kw, p, f);
-    },
-    [search]
-  );
+    setFilters({ ...stateRef.current.filters, minStars: undefined });
+  }, [setFilters]);
 
   return {
     repos,
@@ -126,6 +124,6 @@ export function useDiscovery() {
     removeMinStars,
     reset,
     loadMore,
-    applySavedFilter,
+    applySavedFilter: search,
   };
 }

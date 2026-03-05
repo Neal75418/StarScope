@@ -8,17 +8,15 @@ import { useI18n } from "../../i18n";
 import { usePersonalizedRecs } from "../../hooks/usePersonalizedRecs";
 import { useDismissedRecs } from "../../hooks/useDismissedRecs";
 import { Skeleton } from "../Skeleton";
-import { formatNumber, formatDelta } from "../../utils/format";
+import { formatNumber, formatDelta, normalizeRepoName } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
+import { TREND_ARROWS } from "../../constants/trends";
 import type { PersonalizedRecommendation } from "../../api/types";
-
-const TREND_ICON: Record<number, string> = {
-  1: "↑",
-  0: "→",
-  [-1]: "↓",
-};
+import discoveryCss from "./Discovery.module.css";
 
 const INITIAL_DISPLAY_COUNT = 6;
+// 多 fetch 一些推薦，以便 dismiss 後仍有足夠項目可顯示
+const FETCH_LIMIT = 20;
 
 function buildReason(rec: PersonalizedRecommendation, t: ReturnType<typeof useI18n>["t"]): string {
   const r = t.discovery.recommendations;
@@ -97,7 +95,7 @@ const RecCard = memo(function RecCard({
             {t.discovery.recommendations.velocity}: {formatDelta(rec.velocity)}
           </span>
         )}
-        {rec.trend != null && <span className="rec-metric">{TREND_ICON[rec.trend] ?? "→"}</span>}
+        {rec.trend != null && <span className="rec-metric">{TREND_ARROWS[rec.trend] ?? "→"}</span>}
         <span className="rec-metric rec-similarity">
           {t.discovery.recommendations.matchScore} {Math.round(rec.similarity_score * 100)}%
         </span>
@@ -106,7 +104,7 @@ const RecCard = memo(function RecCard({
       {onAddToWatchlist && (
         <div className="rec-card-actions">
           <button
-            className={`rec-add-btn ${isInWatchlist ? "rec-add-btn--added" : ""}`}
+            className={`${discoveryCss.addButton} ${isInWatchlist ? discoveryCss.inWatchlist : ""}`}
             onClick={handleAddToWatchlist}
             disabled={isInWatchlist || isAdding}
           >
@@ -130,7 +128,7 @@ export const RecommendedForYou = memo(function RecommendedForYou({
   addingRepoId,
 }: RecommendedForYouProps) {
   const { t } = useI18n();
-  const { data, isLoading, error } = usePersonalizedRecs(20);
+  const { data, isLoading, error } = usePersonalizedRecs(FETCH_LIMIT);
   const { dismissedIds, dismiss } = useDismissedRecs();
   const [collapsed, setCollapsed] = useState(false);
   const [showAll, setShowAll] = useState(false);
@@ -197,7 +195,7 @@ export const RecommendedForYou = memo(function RecommendedForYou({
                 rec={rec}
                 t={t}
                 onDismiss={dismiss}
-                isInWatchlist={watchlistFullNames?.has(rec.full_name.toLowerCase())}
+                isInWatchlist={watchlistFullNames?.has(normalizeRepoName(rec.full_name))}
                 onAddToWatchlist={onAddToWatchlist}
                 isAdding={addingRepoId === rec.repo_id}
               />

@@ -82,6 +82,7 @@ export const translations = {
       },
       currentFilters: "Active filters:",
       clearAll: "Clear all",
+      removeFilter: "Remove {type} filter",
       filters: {
         allLanguages: "All Languages",
         sortByStars: "Most Stars",
@@ -105,6 +106,7 @@ export const translations = {
       searchHistory: {
         title: "Recent searches",
         clear: "Clear history",
+        removeItem: 'Remove "{item}" from search history',
       },
       recommendations: {
         title: "Recommended for You",
@@ -674,6 +676,7 @@ export const translations = {
       },
       currentFilters: "目前篩選：",
       clearAll: "清除全部",
+      removeFilter: "移除{type}篩選",
       filters: {
         allLanguages: "所有語言",
         sortByStars: "依星數排序",
@@ -697,6 +700,7 @@ export const translations = {
       searchHistory: {
         title: "最近搜尋",
         clear: "清除歷史",
+        removeItem: "從搜尋歷史移除「{item}」",
       },
       recommendations: {
         title: "為你推薦",

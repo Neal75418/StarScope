@@ -10,10 +10,11 @@ import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 import { formatNumber, formatDelta, formatRelativeTime } from "../../utils/format";
 import { getLanguageColor } from "../../constants/languageColors";
+import { TREND_ARROWS } from "../../constants/trends";
 import type { WatchlistSignal } from "./DiscoveryResults";
 import styles from "./Discovery.module.css";
 
-const TREND_ARROWS: Record<number, string> = { 1: "↑", [-1]: "↓", 0: "→" };
+const MAX_VISIBLE_TOPICS = 5;
 
 interface DiscoveryResultCardProps {
   repo: DiscoveryRepo;
@@ -86,13 +87,13 @@ export function DiscoveryResultCard({
 
       {repo.topics.length > 0 && (
         <div className={styles.topics}>
-          {repo.topics.slice(0, 5).map((topic) => (
+          {repo.topics.slice(0, MAX_VISIBLE_TOPICS).map((topic) => (
             <span key={topic} className={styles.topic}>
               {topic}
             </span>
           ))}
-          {repo.topics.length > 5 && (
-            <span className={styles.topicMore}>+{repo.topics.length - 5}</span>
+          {repo.topics.length > MAX_VISIBLE_TOPICS && (
+            <span className={styles.topicMore}>+{repo.topics.length - MAX_VISIBLE_TOPICS}</span>
           )}
         </div>
       )}

@@ -46,11 +46,5 @@ export function useDismissedRecs() {
     setDismissedIds((prev) => new Set(prev).add(repoId));
   }, []);
 
-  const isDismissed = useCallback((repoId: number) => dismissedIds.has(repoId), [dismissedIds]);
-
-  const clearDismissed = useCallback(() => {
-    setDismissedIds(new Set());
-  }, []);
-
-  return { dismissedIds, dismiss, isDismissed, clearDismissed };
+  return { dismissedIds, dismiss };
 }

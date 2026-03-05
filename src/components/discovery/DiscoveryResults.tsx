@@ -5,6 +5,7 @@
 import { DiscoveryRepo } from "../../api/client";
 import { DiscoveryResultCard } from "./DiscoveryResultCard";
 import { useI18n } from "../../i18n";
+import { normalizeRepoName } from "../../utils/format";
 import styles from "./Discovery.module.css";
 
 export interface WatchlistSignal {
@@ -91,10 +92,10 @@ export function DiscoveryResults({
           <DiscoveryResultCard
             key={repo.id}
             repo={repo}
-            isInWatchlist={watchlistFullNames.has(repo.full_name.toLowerCase())}
+            isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
             onAddToWatchlist={onAddToWatchlist}
             isAdding={addingRepoId === repo.id}
-            signal={watchlistSignalMap?.get(repo.full_name.toLowerCase())}
+            signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
           />
         ))}
       </div>

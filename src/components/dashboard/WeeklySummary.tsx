@@ -8,10 +8,9 @@ import { useWeeklySummary } from "../../hooks/useWeeklySummary";
 import { useI18n } from "../../i18n";
 import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
+import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
 import type { WeeklyRepoSummary, WeeklyHNMention } from "../../api/types";
-
-const TREND_ARROWS: Record<number, string> = { 1: "↑", [-1]: "↓", 0: "→" };
 
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start);

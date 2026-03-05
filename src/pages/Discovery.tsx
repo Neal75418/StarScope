@@ -10,6 +10,7 @@ import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
+import { normalizeRepoName } from "../utils/format";
 import { addRepo, DiscoveryRepo } from "../api/client";
 import type { PersonalizedRecommendation } from "../api/types";
 import {
@@ -43,7 +44,7 @@ export function Discovery() {
 
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
   const watchlistFullNames = useMemo(
-    () => new Set([...watchlist.map((r) => r.full_name.toLowerCase()), ...locallyAdded]),
+    () => new Set([...watchlist.map((r) => normalizeRepoName(r.full_name)), ...locallyAdded]),
     [watchlist, locallyAdded]
   );
 
@@ -51,7 +52,10 @@ export function Discovery() {
   const watchlistSignalMap = useMemo(
     () =>
       new Map(
-        watchlist.map((r) => [r.full_name.toLowerCase(), { velocity: r.velocity, trend: r.trend }])
+        watchlist.map((r) => [
+          normalizeRepoName(r.full_name),
+          { velocity: r.velocity, trend: r.trend },
+        ])
       ),
     [watchlist]
   );
@@ -71,17 +75,8 @@ export function Discovery() {
     [t.discovery.trending]
   );
 
-  // 搜尋並記錄歷史
+  // 搜尋並記錄歷史（也用於從歷史選擇搜尋）
   const handleSearch = useCallback(
-    (keyword: string) => {
-      setKeyword(keyword);
-      addToHistory(keyword);
-    },
-    [setKeyword, addToHistory]
-  );
-
-  // 從歷史選擇搜尋
-  const handleSelectHistory = useCallback(
     (keyword: string) => {
       setKeyword(keyword);
       addToHistory(keyword);
@@ -100,7 +95,7 @@ export function Discovery() {
       setAddingRepoId(id);
       try {
         await addRepo({ owner, name });
-        setLocallyAdded((prev) => new Set(prev).add(fullName.toLowerCase()));
+        setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(fullName)));
         void handleRefreshAll();
         toast.success(t.toast.repoAdded);
       } catch {
@@ -149,7 +144,7 @@ export function Discovery() {
         loading={discovery.loading}
         initialQuery={discovery.keyword}
         searchHistory={history}
-        onSelectHistory={handleSelectHistory}
+        onSelectHistory={handleSearch}
         onRemoveHistory={removeFromHistory}
         onClearHistory={clearHistory}
       />

@@ -9,7 +9,7 @@ import type { SortOption } from "../../hooks/useDiscovery";
 import styles from "./Discovery.module.css";
 
 const LANGUAGES = [
-  { value: "", labelKey: "allLanguages" as const },
+  { value: "", label: "" },
   { value: "typescript", label: "TypeScript" },
   { value: "javascript", label: "JavaScript" },
   { value: "python", label: "Python" },
@@ -34,7 +34,7 @@ const SORT_OPTIONS: {
 ];
 
 const MIN_STARS_OPTIONS = [
-  { value: 0, labelKey: "anyStars" as const },
+  { value: 0, label: "" },
   { value: 100, label: "100+" },
   { value: 500, label: "500+" },
   { value: 1000, label: "1,000+" },

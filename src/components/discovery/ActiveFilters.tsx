@@ -5,6 +5,30 @@
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
 
+function FilterTag({
+  label,
+  onRemove,
+  filterType,
+}: {
+  label: string;
+  onRemove: () => void;
+  filterType: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <span className={styles.activeFilterTag}>
+      {label}
+      <button
+        className={styles.removeFilterBtn}
+        onClick={onRemove}
+        aria-label={t.discovery.removeFilter.replace("{type}", filterType)}
+      >
+        ×
+      </button>
+    </span>
+  );
+}
+
 interface ActiveFiltersProps {
   keyword?: string;
   period?: string;
@@ -34,7 +58,6 @@ export function ActiveFilters({
 }: ActiveFiltersProps) {
   const { t } = useI18n();
 
-  // 無啟用篩選時不渲染
   if (!keyword && !period && !language && !topic && !minStars) {
     return null;
   }
@@ -44,64 +67,19 @@ export function ActiveFilters({
       <span className={styles.activeFiltersLabel}>{t.discovery.currentFilters}</span>
       <div className={styles.activeFilterTags}>
         {keyword && (
-          <span className={styles.activeFilterTag}>
-            &quot;{keyword}&quot;
-            <button
-              className={styles.removeFilterBtn}
-              onClick={onRemoveKeyword}
-              aria-label={`Remove keyword filter`}
-            >
-              ×
-            </button>
-          </span>
+          <FilterTag label={`"${keyword}"`} onRemove={onRemoveKeyword} filterType="keyword" />
         )}
-        {period && (
-          <span className={styles.activeFilterTag}>
-            {period}
-            <button
-              className={styles.removeFilterBtn}
-              onClick={onRemovePeriod}
-              aria-label={`Remove period filter`}
-            >
-              ×
-            </button>
-          </span>
-        )}
+        {period && <FilterTag label={period} onRemove={onRemovePeriod} filterType="period" />}
         {language && (
-          <span className={styles.activeFilterTag}>
-            {language}
-            <button
-              className={styles.removeFilterBtn}
-              onClick={onRemoveLanguage}
-              aria-label={`Remove language filter`}
-            >
-              ×
-            </button>
-          </span>
+          <FilterTag label={language} onRemove={onRemoveLanguage} filterType="language" />
         )}
-        {topic && (
-          <span className={styles.activeFilterTag}>
-            #{topic}
-            <button
-              className={styles.removeFilterBtn}
-              onClick={onRemoveTopic}
-              aria-label={`Remove topic filter`}
-            >
-              ×
-            </button>
-          </span>
-        )}
+        {topic && <FilterTag label={`#${topic}`} onRemove={onRemoveTopic} filterType="topic" />}
         {minStars != null && minStars > 0 && (
-          <span className={styles.activeFilterTag}>
-            ★ ≥ {minStars.toLocaleString()}
-            <button
-              className={styles.removeFilterBtn}
-              onClick={onRemoveMinStars}
-              aria-label={`Remove min stars filter`}
-            >
-              ×
-            </button>
-          </span>
+          <FilterTag
+            label={`★ ≥ ${minStars.toLocaleString()}`}
+            onRemove={onRemoveMinStars}
+            filterType="min stars"
+          />
         )}
         <button className={styles.clearAllBtn} onClick={onClearAll}>
           {t.discovery.clearAll}

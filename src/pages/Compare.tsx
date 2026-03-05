@@ -21,10 +21,10 @@ import type { RepoWithSignals, ComparisonRepoData, ComparisonTimeRange } from ".
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta } from "../utils/format";
+import { TREND_ARROWS } from "../constants/trends";
 import { queryKeys } from "../lib/react-query";
 
 const TIME_RANGES: ComparisonTimeRange[] = ["7d", "30d", "90d", "all"];
-const TREND_ARROWS: Record<number, string> = { 1: "↑", [-1]: "↓", 0: "→" };
 const STORAGE_KEY = "starscope-compare-repos";
 
 function loadSavedRepoIds(): number[] {

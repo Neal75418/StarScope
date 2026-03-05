@@ -87,5 +87,13 @@ export function formatVelocity(num: number | null): string {
  */
 export function formatChartDate(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "—";
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+/**
+ * 正規化 repo full_name 以進行大小寫不敏感的比對。
+ */
+export function normalizeRepoName(fullName: string): string {
+  return fullName.toLowerCase();
 }
