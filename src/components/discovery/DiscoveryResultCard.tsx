@@ -3,7 +3,7 @@
  * 顯示相對更新時間，以及已追蹤 repo 的 StarScope 信號。
  */
 
-import React from "react";
+import React, { memo } from "react";
 import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { useI18n } from "../../i18n";
@@ -24,7 +24,7 @@ interface DiscoveryResultCardProps {
   signal?: WatchlistSignal;
 }
 
-export function DiscoveryResultCard({
+export const DiscoveryResultCard = memo(function DiscoveryResultCard({
   repo,
   isInWatchlist,
   onAddToWatchlist,
@@ -99,4 +99,4 @@ export function DiscoveryResultCard({
       )}
     </div>
   );
-}
+});

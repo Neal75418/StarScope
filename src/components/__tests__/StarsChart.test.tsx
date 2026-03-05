@@ -107,7 +107,7 @@ describe("StarsChart", () => {
     render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));
     });
   });
 
@@ -127,7 +127,7 @@ describe("StarsChart", () => {
     await user.click(sevenDayButton);
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "7d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "7d", expect.any(AbortSignal));
     });
 
     // Click on 90d button
@@ -135,7 +135,7 @@ describe("StarsChart", () => {
     await user.click(ninetyDayButton);
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "90d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "90d", expect.any(AbortSignal));
     });
   });
 
@@ -185,14 +185,14 @@ describe("StarsChart", () => {
     const { rerender } = render(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));
     });
 
     // Change repo ID
     rerender(<StarsChart repoId={2} />);
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(2, "30d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(2, "30d", expect.any(AbortSignal));
     });
 
     // Should have been called twice (once for each repo)

@@ -2,7 +2,7 @@
  * Discovery 頁面的搜尋列元件，含搜尋歷史下拉選單。
  */
 
-import React, { useState, useCallback, useEffect, useRef, FormEvent } from "react";
+import React, { memo, useState, useCallback, useEffect, useRef, FormEvent } from "react";
 import { SearchIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
@@ -17,7 +17,7 @@ interface DiscoverySearchBarProps {
   onClearHistory?: () => void;
 }
 
-export function DiscoverySearchBar({
+export const DiscoverySearchBar = memo(function DiscoverySearchBar({
   onSearch,
   loading = false,
   initialQuery = "",
@@ -159,4 +159,4 @@ export function DiscoverySearchBar({
       </button>
     </form>
   );
-}
+});

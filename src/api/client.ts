@@ -253,9 +253,10 @@ export async function fetchRepoContext(
  */
 export async function getStarsChart(
   repoId: number,
-  timeRange: "7d" | "30d" | "90d" = "30d"
+  timeRange: "7d" | "30d" | "90d" = "30d",
+  signal?: AbortSignal
 ): Promise<StarsChartResponse> {
-  return apiCall<StarsChartResponse>(`/charts/${repoId}/stars?time_range=${timeRange}`);
+  return apiCall<StarsChartResponse>(`/charts/${repoId}/stars?time_range=${timeRange}`, { signal });
 }
 
 // Commit 活動 API 函式
@@ -315,8 +316,11 @@ export async function backfillStarHistory(repoId: number): Promise<BackfillResul
 /**
  * 取得儲存庫的完整星數歷史。
  */
-export async function getStarHistory(repoId: number): Promise<StarHistoryResponse> {
-  return apiCall<StarHistoryResponse>(`/star-history/${repoId}`);
+export async function getStarHistory(
+  repoId: number,
+  signal?: AbortSignal
+): Promise<StarHistoryResponse> {
+  return apiCall<StarHistoryResponse>(`/star-history/${repoId}`, { signal });
 }
 
 // 推薦系統 API 函式

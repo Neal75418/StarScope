@@ -21,17 +21,18 @@ const initialState: ChartState = {
 
 async function fetchChartDataPoints(
   repoId: number,
-  timeRange: TimeRange
+  timeRange: TimeRange,
+  signal: AbortSignal
 ): Promise<ChartDataPoint[]> {
   if (timeRange === "all") {
-    const response = await getStarHistory(repoId);
+    const response = await getStarHistory(repoId, signal);
     return response.history.map((point) => ({
       date: point.date,
       stars: point.stars,
       forks: 0,
     }));
   }
-  const response = await getStarsChart(repoId, timeRange);
+  const response = await getStarsChart(repoId, timeRange, signal);
   return response.data_points;
 }
 
@@ -39,31 +40,34 @@ export function useStarsChart(repoId: number) {
   const [state, setState] = useState<ChartState>(initialState);
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   const [refetchTrigger, setRefetchTrigger] = useState(0);
-  // 追蹤最新請求 ID，捨棄過期回應
-  const fetchIdRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const refetch = useCallback(() => {
     setRefetchTrigger((prev) => prev + 1);
   }, []);
 
   useEffect(() => {
-    const currentFetchId = ++fetchIdRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setState((prev) => ({ ...prev, loading: true, error: null }));
 
-    fetchChartDataPoints(repoId, timeRange).then(
+    fetchChartDataPoints(repoId, timeRange, controller.signal).then(
       (dataPoints) => {
-        if (currentFetchId === fetchIdRef.current) {
+        if (!controller.signal.aborted) {
           setState({ data: dataPoints, loading: false, error: null });
         }
       },
       (err) => {
-        if (currentFetchId === fetchIdRef.current) {
+        if (!controller.signal.aborted) {
           const message = err instanceof Error ? err.message : "圖表載入失敗";
           setState({ data: [], error: message, loading: false });
         }
       }
     );
+
+    return () => controller.abort();
   }, [repoId, timeRange, refetchTrigger]);
 
   return {

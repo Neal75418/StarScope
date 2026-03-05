@@ -12,7 +12,7 @@ import { formatNumber, formatDelta, normalizeRepoName } from "../../utils/format
 import { safeOpenUrl } from "../../utils/url";
 import { TREND_ARROWS } from "../../constants/trends";
 import type { PersonalizedRecommendation } from "../../api/types";
-import discoveryCss from "./Discovery.module.css";
+import styles from "./Discovery.module.css";
 
 const INITIAL_DISPLAY_COUNT = 6;
 // 多 fetch 一些推薦，以便 dismiss 後仍有足夠項目可顯示
@@ -69,42 +69,44 @@ const RecCard = memo(function RecCard({
     <div
       role="link"
       tabIndex={0}
-      className="rec-card"
+      className={styles.recCard}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === "Enter") handleClick();
       }}
     >
       <button
-        className="rec-dismiss-btn"
+        className={styles.recDismissBtn}
         onClick={handleDismiss}
         aria-label={t.discovery.recommendations.dismiss}
         title={t.discovery.recommendations.dismiss}
       >
         ×
       </button>
-      <div className="rec-card-header">
-        <span className="rec-card-name">{rec.full_name}</span>
-        {rec.language && <span className="rec-card-lang">{rec.language}</span>}
+      <div className={styles.recCardHeader}>
+        <span className={styles.recCardName}>{rec.full_name}</span>
+        {rec.language && <span className={styles.recCardLang}>{rec.language}</span>}
       </div>
-      {rec.description && <div className="rec-card-desc">{rec.description}</div>}
-      <div className="rec-card-metrics">
-        {rec.stars != null && <span className="rec-metric">★ {formatNumber(rec.stars)}</span>}
+      {rec.description && <div className={styles.recCardDesc}>{rec.description}</div>}
+      <div className={styles.recCardMetrics}>
+        {rec.stars != null && <span className={styles.recMetric}>★ {formatNumber(rec.stars)}</span>}
         {rec.velocity != null && (
-          <span className="rec-metric">
+          <span className={styles.recMetric}>
             {t.discovery.recommendations.velocity}: {formatDelta(rec.velocity)}
           </span>
         )}
-        {rec.trend != null && <span className="rec-metric">{TREND_ARROWS[rec.trend] ?? "→"}</span>}
-        <span className="rec-metric rec-similarity">
+        {rec.trend != null && (
+          <span className={styles.recMetric}>{TREND_ARROWS[rec.trend] ?? "→"}</span>
+        )}
+        <span className={`${styles.recMetric} ${styles.recSimilarity}`}>
           {t.discovery.recommendations.matchScore} {Math.round(rec.similarity_score * 100)}%
         </span>
       </div>
-      <div className="rec-card-reason">{buildReason(rec, t)}</div>
+      <div className={styles.recCardReason}>{buildReason(rec, t)}</div>
       {onAddToWatchlist && (
-        <div className="rec-card-actions">
+        <div className={styles.recCardActions}>
           <button
-            className={`${discoveryCss.addButton} ${isInWatchlist ? discoveryCss.inWatchlist : ""}`}
+            className={`${styles.addButton} ${isInWatchlist ? styles.inWatchlist : ""}`}
             onClick={handleAddToWatchlist}
             disabled={isInWatchlist || isAdding}
           >
@@ -145,24 +147,24 @@ export const RecommendedForYou = memo(function RecommendedForYou({
 
   if (error) {
     return (
-      <div className="rec-section">
-        <div className="rec-section-header">
+      <div className={styles.recSection}>
+        <div className={styles.recSectionHeader}>
           <h3>{t.discovery.recommendations.title}</h3>
         </div>
-        <div className="rec-card-desc">{t.discovery.recommendations.loadError}</div>
+        <div className={styles.recCardDesc}>{t.discovery.recommendations.loadError}</div>
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="rec-section">
-        <div className="rec-section-header">
+      <div className={styles.recSection}>
+        <div className={styles.recSectionHeader}>
           <Skeleton width={200} height={24} />
         </div>
-        <div className="rec-grid">
+        <div className={styles.recGrid}>
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rec-card">
+            <div key={i} className={styles.recCard}>
               <Skeleton width="70%" height={16} style={{ marginBottom: 8 }} />
               <Skeleton width="100%" height={12} style={{ marginBottom: 12 }} />
               <Skeleton width="60%" height={14} />
@@ -176,19 +178,22 @@ export const RecommendedForYou = memo(function RecommendedForYou({
   if (!data || filteredRecs.length === 0) return null;
 
   return (
-    <div className="rec-section">
-      <div className="rec-section-header">
+    <div className={styles.recSection}>
+      <div className={styles.recSectionHeader}>
         <div>
           <h3>{t.discovery.recommendations.title}</h3>
-          <p className="rec-subtitle">{t.discovery.recommendations.subtitle}</p>
+          <p className={styles.recSubtitle}>{t.discovery.recommendations.subtitle}</p>
         </div>
-        <button className="btn btn-sm rec-toggle" onClick={() => setCollapsed((prev) => !prev)}>
+        <button
+          className={`btn btn-sm ${styles.recToggle}`}
+          onClick={() => setCollapsed((prev) => !prev)}
+        >
           {collapsed ? "▼" : "▲"}
         </button>
       </div>
       {!collapsed && (
         <>
-          <div className="rec-grid">
+          <div className={styles.recGrid}>
             {displayedRecs.map((rec) => (
               <RecCard
                 key={rec.repo_id}
@@ -202,9 +207,9 @@ export const RecommendedForYou = memo(function RecommendedForYou({
             ))}
           </div>
           {hasMore && (
-            <div className="rec-show-more-wrapper">
+            <div className={styles.recShowMoreWrapper}>
               <button
-                className="btn btn-sm rec-show-more"
+                className={`btn btn-sm ${styles.recShowMore}`}
                 onClick={() => setShowAll((prev) => !prev)}
               >
                 {showAll

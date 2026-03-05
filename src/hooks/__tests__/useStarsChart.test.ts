@@ -58,7 +58,7 @@ describe("useStarsChart", () => {
 
     expect(result.current.data).toEqual(mockChartData);
     expect(result.current.error).toBe(null);
-    expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d");
+    expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));
   });
 
   it("handles API error", async () => {
@@ -95,7 +95,7 @@ describe("useStarsChart", () => {
     });
 
     await waitFor(() => {
-      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "7d");
+      expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "7d", expect.any(AbortSignal));
     });
   });
 
@@ -119,7 +119,7 @@ describe("useStarsChart", () => {
     });
 
     await waitFor(() => {
-      expect(apiClient.getStarHistory).toHaveBeenCalledWith(1);
+      expect(apiClient.getStarHistory).toHaveBeenCalledWith(1, expect.any(AbortSignal));
     });
   });
 
