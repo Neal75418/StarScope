@@ -9,7 +9,7 @@ import { useNotificationActions } from "./useNotificationActions";
 import { useOSNotification } from "./useOSNotification";
 import type { Page } from "../types/navigation";
 
-export type NotificationType = "alert" | "signal" | "system";
+type NotificationType = "alert" | "signal" | "system";
 
 export interface Notification {
   id: string;

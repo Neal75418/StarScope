@@ -18,7 +18,7 @@ import { getRepos } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 import type { RepoWithSignals } from "../api/types";
 
-export interface UseReposQueryOptions {
+interface UseReposQueryOptions {
   /**
    * 是否啟用此查詢（預設：true）
    * 設為 false 時不會發送請求

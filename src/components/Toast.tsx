@@ -5,7 +5,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { generateId } from "../utils/id";
 
-export type ToastType = "success" | "error" | "info" | "warning";
+type ToastType = "success" | "error" | "info" | "warning";
 
 export interface ToastMessage {
   id: string;

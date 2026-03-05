@@ -103,7 +103,7 @@ export interface CommitActivitySummary {
 
 // ==================== 語言統計型別 ====================
 
-export interface LanguageBreakdown {
+interface LanguageBreakdown {
   language: string;
   bytes: number;
   percentage: number;

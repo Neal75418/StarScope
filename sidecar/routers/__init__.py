@@ -15,6 +15,8 @@ from . import discovery
 from . import commit_activity
 from . import languages
 from . import star_history
+from . import weekly_summary
+from . import comparison
 
 __all__ = [
     "health",
@@ -32,4 +34,6 @@ __all__ = [
     "commit_activity",
     "languages",
     "star_history",
+    "weekly_summary",
+    "comparison",
 ]

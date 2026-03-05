@@ -11,7 +11,7 @@ import {
   TranslationKeys,
 } from "../i18n";
 
-export interface UseAppLanguageReturn {
+interface UseAppLanguageReturn {
   language: Language;
   setLanguage: (lang: Language) => void;
   toggleLanguage: () => void;

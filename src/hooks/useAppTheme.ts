@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Theme, getInitialTheme, saveTheme, applyTheme } from "../theme";
 
-export interface UseAppThemeReturn {
+interface UseAppThemeReturn {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
