@@ -96,6 +96,7 @@ const NotificationItem = memo(
         onClick={handleClick}
         role="button"
         tabIndex={0}
+        aria-label={notification.title}
         onKeyDown={handleKeyDown}
       >
         <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>

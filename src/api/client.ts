@@ -3,7 +3,12 @@
  */
 
 import { API_ENDPOINT } from "../config";
-import { GITHUB_SEARCH_PAGE_SIZE } from "../constants/api";
+import {
+  GITHUB_SEARCH_PAGE_SIZE,
+  DEFAULT_TIMEOUT_MS,
+  MAX_RETRIES,
+  RETRY_DELAY_MS,
+} from "../constants/api";
 import { ApiError } from "./types";
 import type {
   RepoWithSignals,
@@ -52,13 +57,6 @@ import type {
 } from "./types";
 
 export * from "./types";
-
-// 預設請求逾時時間（毫秒）
-const DEFAULT_TIMEOUT_MS = 30_000;
-
-// 重試設定
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 500;
 
 // 單次 API 請求（無重試）
 async function doFetch<T>(

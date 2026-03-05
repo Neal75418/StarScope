@@ -3,7 +3,7 @@
  */
 
 import { ApiError } from "../api/client";
-import { MS_PER_MINUTE } from "./format";
+import { formatRelativeTime as formatRelativeTimeBase } from "./format";
 
 // 判斷是否為網路錯誤
 export function isNetworkError(err: unknown): boolean {
@@ -13,19 +13,7 @@ export function isNetworkError(err: unknown): boolean {
   return err instanceof ApiError && (err.status === 0 || err.status >= 500);
 }
 
-// 格式化相對時間
+// 格式化相對時間（委託給 format.ts 的統一實作）
 export function formatRelativeTime(date: Date | null, justNowText: string): string {
-  if (!date) return "";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / MS_PER_MINUTE);
-
-  if (diffMins < 1) return justNowText;
-  if (diffMins < 60) return `${diffMins}m ago`;
-
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  return formatRelativeTimeBase(date, { justNowText, suffix: " ago" });
 }

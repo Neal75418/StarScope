@@ -10,10 +10,8 @@ import {
   mergeNotifications,
 } from "../utils/notificationHelpers";
 import { Notification } from "./useNotifications";
-import { MS_PER_MINUTE } from "../utils/format";
+import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
-
-const POLL_INTERVAL = MS_PER_MINUTE;
 
 interface OSNotificationSender {
   sendOSNotification: (options: { title: string; body: string }) => Promise<void>;
@@ -41,7 +39,7 @@ async function fetchAndMergeNotifications(
       const unreadNewNotifications = brandNewNotifications.filter((n) => !n.read);
 
       // 發送 OS 通知（限制最多 3 個，避免轟炸用戶）
-      const notificationsToSend = unreadNewNotifications.slice(0, 3);
+      const notificationsToSend = unreadNewNotifications.slice(0, MAX_OS_NOTIFICATIONS_PER_POLL);
 
       for (const notification of notificationsToSend) {
         try {
@@ -56,9 +54,9 @@ async function fetchAndMergeNotifications(
       }
 
       // 如果有更多未發送的，記錄 log
-      if (unreadNewNotifications.length > 3) {
+      if (unreadNewNotifications.length > MAX_OS_NOTIFICATIONS_PER_POLL) {
         logger.info(
-          `[Notification Polling] 有 ${unreadNewNotifications.length - 3} 個額外的未讀通知未發送 OS 通知`
+          `[Notification Polling] 有 ${unreadNewNotifications.length - MAX_OS_NOTIFICATIONS_PER_POLL} 個額外的未讀通知未發送 OS 通知`
         );
       }
     }
@@ -111,7 +109,7 @@ export function useNotificationPolling(
     const scheduleNext = () => {
       timerId = setTimeout(() => {
         void poll();
-      }, POLL_INTERVAL);
+      }, NOTIFICATION_POLL_INTERVAL_MS);
     };
 
     const poll = async () => {

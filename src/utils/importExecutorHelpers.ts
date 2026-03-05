@@ -4,6 +4,7 @@
 
 import { addRepo, getRepos } from "../api/client";
 import { ParsedRepo } from "./importHelpers";
+import { logger } from "./logger";
 
 /**
  * 執行儲存庫列表的匯入迴圈。
@@ -43,24 +44,30 @@ export async function executeImportFlow(
   parsedRepos: ParsedRepo[],
   abortController: AbortController,
   updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void
-): Promise<{ success: number; skipped: number; failed: number }> {
-  const existingSet = await fetchExistingRepoSet();
+): Promise<{ success: number; skipped: number; failed: number; dedupCheckFailed: boolean }> {
+  const { set: existingSet, hadError } = await fetchExistingRepoSet();
 
-  return runImportLoop(
+  const result = await runImportLoop(
     parsedRepos,
     abortController,
     existingSet,
     updateRepo,
     async () => new Promise((resolve) => setTimeout(resolve, 500))
   );
+
+  return { ...result, dedupCheckFailed: hadError };
 }
 
-async function fetchExistingRepoSet(): Promise<Set<string>> {
+async function fetchExistingRepoSet(): Promise<{ set: Set<string>; hadError: boolean }> {
   try {
     const response = await getRepos();
-    return new Set(response.repos.map((r) => r.full_name.toLowerCase()));
-  } catch {
-    return new Set();
+    return {
+      set: new Set(response.repos.map((r) => r.full_name.toLowerCase())),
+      hadError: false,
+    };
+  } catch (err) {
+    logger.warn("[Import] Failed to fetch existing repos for dedup check:", err);
+    return { set: new Set(), hadError: true };
   }
 }
 

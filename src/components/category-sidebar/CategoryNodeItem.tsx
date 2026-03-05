@@ -44,6 +44,7 @@ export const CategoryNodeItem = memo(function CategoryNodeItem({
       }}
       role="button"
       tabIndex={0}
+      aria-label={node.name}
     >
       {hasChildren ? (
         <button

@@ -132,6 +132,7 @@ const SignalSpotlight = memo(function SignalSpotlight({
                     className="btn btn-sm signal-ack-btn"
                     onClick={() => onAcknowledge(signal.id)}
                     title={t.dashboard.signals.acknowledge}
+                    aria-label={t.dashboard.signals.acknowledge}
                   >
                     ✓
                   </button>

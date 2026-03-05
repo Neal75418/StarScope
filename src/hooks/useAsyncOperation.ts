@@ -12,7 +12,7 @@ export function useAsyncOperation(toast: Toast) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const execute = useCallback(
-    async <T>(operation: () => Promise<T>, successMessage?: string): Promise<boolean> => {
+    async (operation: () => Promise<unknown>, successMessage?: string): Promise<boolean> => {
       setIsSubmitting(true);
       try {
         await operation();

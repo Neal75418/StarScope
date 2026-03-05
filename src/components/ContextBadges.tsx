@@ -149,6 +149,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""} ${repoId ? "expandable" : ""}`}
               style={{ "--badge-color": config.color } as React.CSSProperties}
               title={`${config.tooltip}: ${badge.label}`}
+              aria-label={`${config.label}: ${badge.label}`}
               onClick={repoId ? toggleExpand : undefined}
             >
               <span className="badge-icon">{config.icon}</span>

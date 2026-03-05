@@ -19,16 +19,20 @@ vi.mock("../../api/client", async (importOriginal) => {
 });
 
 // Mock format utils
-vi.mock("../../utils/format", () => ({
-  formatNumber: vi.fn((num: number) => {
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-    return num.toString();
-  }),
-  formatChartDate: vi.fn((dateStr: string) => {
-    const date = new Date(dateStr);
-    return `${date.getMonth() + 1}/${date.getDate()}`;
-  }),
-}));
+vi.mock("../../utils/format", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/format")>();
+  return {
+    ...actual,
+    formatNumber: vi.fn((num: number) => {
+      if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+      return num.toString();
+    }),
+    formatChartDate: vi.fn((dateStr: string) => {
+      const date = new Date(dateStr);
+      return `${date.getMonth() + 1}/${date.getDate()}`;
+    }),
+  };
+});
 
 describe("StarsChart", () => {
   const mockChartData = {

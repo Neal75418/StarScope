@@ -15,6 +15,7 @@ export interface ImportResult {
   success: number;
   skipped: number;
   failed: number;
+  dedupCheckFailed?: boolean;
 }
 
 /**

@@ -3,6 +3,12 @@
  * 防止重複的並發請求，並在短 TTL 內快取回應。
  */
 
+import {
+  CACHE_DEFAULT_TTL_MS,
+  CACHE_EVICTION_THRESHOLD,
+  CACHE_TARGET_SIZE_AFTER_EVICTION,
+} from "../constants/cache";
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -12,14 +18,6 @@ interface CacheEntry<T> {
 interface PendingRequest<T> {
   promise: Promise<T>;
 }
-
-// 預設 TTL 為 30 秒
-const DEFAULT_TTL_MS = 30 * 1000;
-
-// Cache 最大條目數，超過時淘汰最久未使用的條目 (LRU)
-const MAX_CACHE_SIZE = 200;
-const EVICTION_THRESHOLD = Math.floor(MAX_CACHE_SIZE * 1.2); // 240
-const TARGET_SIZE_AFTER_EVICTION = Math.floor(MAX_CACHE_SIZE * 0.8); // 160
 
 // 記憶體內的回應 cache
 const cache = new Map<string, CacheEntry<unknown>>();
@@ -38,7 +36,7 @@ const pendingRequests = new Map<string, PendingRequest<unknown>>();
 export async function cachedRequest<T>(
   key: string,
   fetchFn: () => Promise<T>,
-  ttlMs: number = DEFAULT_TTL_MS
+  ttlMs: number = CACHE_DEFAULT_TTL_MS
 ): Promise<T> {
   const now = Date.now();
 
@@ -60,7 +58,7 @@ export async function cachedRequest<T>(
   const promise = fetchFn()
     .then((data) => {
       // LRU 淘汰策略：插入前檢查，避免暫時超出上限
-      if (cache.size >= EVICTION_THRESHOLD) {
+      if (cache.size >= CACHE_EVICTION_THRESHOLD) {
         evictLRU();
       }
 
@@ -93,7 +91,7 @@ function evictLRU(): void {
   entries.sort((a, b) => a.lastAccessed - b.lastAccessed);
 
   // 刪除最久未使用的條目
-  const toDelete = entries.length - TARGET_SIZE_AFTER_EVICTION;
+  const toDelete = entries.length - CACHE_TARGET_SIZE_AFTER_EVICTION;
   for (let i = 0; i < toDelete; i++) {
     cache.delete(entries[i].key);
   }
