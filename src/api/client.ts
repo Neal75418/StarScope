@@ -69,8 +69,10 @@ async function doFetch<T>(
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), DEFAULT_TIMEOUT_MS);
 
-  if (callerSignal) {
+  if (callerSignal && !callerSignal.aborted) {
     callerSignal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+  } else if (callerSignal?.aborted) {
+    timeoutController.abort();
   }
 
   let response: Response;

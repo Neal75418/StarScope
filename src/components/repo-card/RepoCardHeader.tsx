@@ -8,7 +8,7 @@ import { RepoWithSignals } from "../../api/client";
 import { CommitActivityBadge } from "../CommitActivityBadge";
 import { LanguagesBadge } from "../LanguagesBadge";
 import { LinkExternalIcon } from "../Icons";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 
 export interface RepoCardHeaderProps {
   repo: RepoWithSignals;
@@ -55,7 +55,10 @@ export const RepoCardHeader = React.memo(function RepoCardHeader({
         <CommitActivityBadge repoId={repo.id} />
         <LanguagesBadge repoId={repo.id} />
         {activeSignalCount > 0 && (
-          <span className="signal-badge" title={`${activeSignalCount} active signal(s)`}>
+          <span
+            className="signal-badge"
+            title={interpolate(t.repo.activeSignals, { count: activeSignalCount })}
+          >
             ⚡ {activeSignalCount}
           </span>
         )}

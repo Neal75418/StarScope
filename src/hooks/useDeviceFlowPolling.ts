@@ -86,7 +86,7 @@ export function useDeviceFlowPolling({
         // 將在下一個 tick 重新設定
       }
     },
-    [t, currentIntervalRef, pollIntervalRef, setPollStatus]
+    [t, setPollStatus]
   );
 
   const startPolling = useCallback(
@@ -144,18 +144,7 @@ export function useDeviceFlowPolling({
       initialDelayRef.current = window.setTimeout(doPoll, DEVICE_FLOW_INITIAL_DELAY_MS);
       pollIntervalRef.current = window.setInterval(doPoll, currentIntervalRef.current * 1000);
     },
-    [
-      t,
-      pollIntervalRef,
-      pollTimeoutRef,
-      currentIntervalRef,
-      stopPolling,
-      onExpired,
-      setPollStatus,
-      handleSuccess,
-      handleError,
-      restartWithNewInterval,
-    ]
+    [t, stopPolling, onExpired, setPollStatus, handleSuccess, handleError, restartWithNewInterval]
   );
 
   // 元件卸載時清理 initialDelay timeout

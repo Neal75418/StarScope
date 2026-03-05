@@ -14,7 +14,7 @@ export function alertsToNotifications(
       id,
       type: "alert" as const,
       title: alert.rule_name,
-      message: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold} (current: ${alert.signal_value.toFixed(1)})`,
+      message: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold} (current: ${(alert.signal_value ?? 0).toFixed(1)})`,
       timestamp: alert.triggered_at,
       read: readIds.has(id) || alert.acknowledged_at !== null,
       link: {

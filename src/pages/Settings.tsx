@@ -81,34 +81,26 @@ export function Settings() {
         </div>
 
         {/* OS 通知設定 */}
-        <div
-          className="os-notification-settings"
-          style={{
-            marginBottom: "1rem",
-            padding: "1rem",
-            border: "1px solid var(--border)",
-            borderRadius: "8px",
-          }}
-        >
-          <h3 style={{ marginTop: 0, marginBottom: "0.5rem", fontSize: "1rem" }}>🔔 系統通知</h3>
-          <p style={{ marginBottom: "1rem", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+        <div className="os-notification-settings">
+          <h3>{t.settings.osNotification.title}</h3>
+          <p className="os-notification-desc">
             {osNotification.isGranted
-              ? "已啟用 OS 層級通知，新的警示會顯示在系統通知中心"
-              : "啟用後可在系統通知中心接收警示"}
+              ? t.settings.osNotification.enabledDesc
+              : t.settings.osNotification.disabledDesc}
           </p>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className="os-notification-actions">
             {osNotification.isLoading ? (
-              <span style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-                檢查中...
-              </span>
+              <span className="os-notification-status">{t.settings.osNotification.checking}</span>
             ) : osNotification.isGranted ? (
-              <span style={{ fontSize: "0.875rem", color: "var(--success)" }}>✓ 已啟用</span>
+              <span className="os-notification-status enabled">
+                {`✓ ${t.settings.osNotification.enabled}`}
+              </span>
             ) : (
               <button
                 className="btn btn-sm"
                 onClick={() => void osNotification.requestPermission()}
               >
-                啟用系統通知
+                {t.settings.osNotification.enable}
               </button>
             )}
           </div>

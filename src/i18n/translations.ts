@@ -166,6 +166,7 @@ export const translations = {
       exportHistory: "Export",
       remove: "Remove",
       removeFromCategory: "Remove from Category",
+      activeSignals: "{count} active signal(s)",
       loadingBadges: "Loading badges...",
     },
     // 趨勢頁面
@@ -258,6 +259,15 @@ export const translations = {
         language: "Language",
         english: "English",
         chinese: "繁體中文",
+      },
+      osNotification: {
+        title: "System Notifications",
+        enabledDesc:
+          "OS-level notifications enabled. New alerts will appear in the system notification center.",
+        disabledDesc: "Enable to receive alerts in the system notification center.",
+        checking: "Checking...",
+        enabled: "Enabled",
+        enable: "Enable Notifications",
       },
       alerts: {
         title: "Alert Rules",
@@ -393,6 +403,7 @@ export const translations = {
       yes: "Yes",
       no: "No",
       retry: "Retry",
+      dismiss: "Dismiss",
       skipToContent: "Skip to content",
       offline: "Offline",
     },
@@ -759,6 +770,7 @@ export const translations = {
       exportHistory: "匯出",
       remove: "移除",
       removeFromCategory: "從分類移除",
+      activeSignals: "{count} 個活躍信號",
       loadingBadges: "載入徽章中...",
     },
     // 趨勢頁面
@@ -851,6 +863,14 @@ export const translations = {
         language: "語言",
         english: "English",
         chinese: "繁體中文",
+      },
+      osNotification: {
+        title: "系統通知",
+        enabledDesc: "已啟用 OS 層級通知，新的警示會顯示在系統通知中心",
+        disabledDesc: "啟用後可在系統通知中心接收警示",
+        checking: "檢查中...",
+        enabled: "已啟用",
+        enable: "啟用系統通知",
       },
       alerts: {
         title: "警報規則",
@@ -985,6 +1005,7 @@ export const translations = {
       yes: "是",
       no: "否",
       retry: "重試",
+      dismiss: "關閉",
       skipToContent: "跳至主要內容",
       offline: "離線",
     },

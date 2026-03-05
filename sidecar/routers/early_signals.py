@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func
 
@@ -314,7 +314,7 @@ async def delete_signal(
 
 class BatchSignalsRequest(BaseModel):
     """批次取得訊號的請求。"""
-    repo_ids: List[int]
+    repo_ids: List[int] = Field(..., max_length=100)
 
 
 class BatchSignalsResponse(BaseModel):

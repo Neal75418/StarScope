@@ -5,7 +5,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
@@ -191,8 +191,8 @@ async def list_signal_types():
 
 @router.get("/rules", response_model=ApiResponse[List[AlertRuleResponse]])
 async def list_rules(
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
     """
@@ -203,8 +203,6 @@ async def list_rules(
         limit: 回傳的最大紀錄數（預設 100，上限 500）
         db: 資料庫 session
     """
-    # 限制上限以防止過量資料擷取
-    limit = min(limit, 500)
 
     # 使用 joinedload 避免存取 rule.repo 時的 N+1 查詢
     # noinspection PyTypeChecker
@@ -309,7 +307,7 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
 @router.get("/triggered", response_model=ApiResponse[List[TriggeredAlertResponse]])
 async def list_triggered_alerts(
     unacknowledged_only: bool = False,
-    limit: int = 50,
+    limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
 ):
     """列出已觸發的警報。"""

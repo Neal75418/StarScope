@@ -25,7 +25,7 @@ function getTargetPage(notification: Notification): Page | null {
 }
 
 function isButtonTarget(target: EventTarget | null): boolean {
-  return (target as HTMLElement | null)?.tagName === "BUTTON";
+  return target instanceof HTMLElement && target.tagName === "BUTTON";
 }
 
 function isActivationKey(key: string): boolean {

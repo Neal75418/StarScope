@@ -3,6 +3,7 @@
  */
 
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useI18n } from "../i18n";
 import { generateId } from "../utils/id";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -20,6 +21,8 @@ interface ToastProps {
 }
 
 export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     const timer = setTimeout(() => {
       onDismiss(toast.id);
@@ -42,7 +45,11 @@ export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
     >
       <span className="toast-icon">{icons[toast.type]}</span>
       <span className="toast-message">{toast.message}</span>
-      <button className="toast-dismiss" onClick={() => onDismiss(toast.id)} aria-label="Dismiss">
+      <button
+        className="toast-dismiss"
+        onClick={() => onDismiss(toast.id)}
+        aria-label={t.common.dismiss}
+      >
         &times;
       </button>
     </div>
