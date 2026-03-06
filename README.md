@@ -80,7 +80,7 @@ graph TB
     subgraph Desktop["Desktop Client"]
         direction TB
         subgraph UI["React 19 + TypeScript"]
-            Pages["Pages\nDashboard / Watchlist / Trends\nDiscovery / Settings"]
+            Pages["Pages\nDashboard / Watchlist / Trends\nDiscovery / Compare / Settings"]
             Components["Components\nRepoCard / Charts / Badges\nNotificationCenter"]
         end
         subgraph Native["Rust Native"]
@@ -201,15 +201,16 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   45 個 Custom Hooks
+│   ├── hooks/                     #   50 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
-│   ├── pages/                     #   5 個頁面
+│   ├── pages/                     #   6 個頁面
 │   │   ├── Dashboard.tsx          #     儀表板總覽
 │   │   ├── Watchlist.tsx          #     追蹤清單（虛擬滾動）
 │   │   ├── Trends.tsx             #     趨勢排行
 │   │   ├── Discovery.tsx          #     探索 GitHub
+│   │   ├── Compare.tsx            #     多專案對比
 │   │   └── Settings.tsx           #     設定與警報管理
 │   ├── theme/                     #   淺色／深色主題
 │   ├── types/                     #   共用 TypeScript 型別
@@ -224,13 +225,13 @@ StarScope/
 │
 ├── sidecar/                       # Python 資料引擎
 │   ├── main.py                    #   FastAPI 入口（port 8008）
-│   ├── routers/                   #   15 個路由模組（64 個端點）
-│   ├── services/                  #   14 個業務邏輯服務
+│   ├── routers/                   #   17 個路由模組（67 個端點）
+│   ├── services/                  #   15 個業務邏輯服務
 │   ├── schemas/                   #   Pydantic 資料模型
 │   ├── db/                        #   SQLite + SQLAlchemy（13 張表）
-│   ├── middleware/                 #   日誌 + 限速中介層
+│   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（373+ 個）
+│   └── tests/                     #   pytest 後端測試（484 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -241,7 +242,7 @@ StarScope/
 ## 🔌 API 端點
 
 所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
-共 **15 個路由模組**、**64 個端點**：
+共 **17 個路由模組**、**67 個端點**：
 
 | 路由模組              | 前綴                     | 說明                                    |
 |-------------------|------------------------|---------------------------------------|
@@ -257,6 +258,8 @@ StarScope/
 | `commit_activity` | `/api/commit-activity` | Commit 活動與摘要                          |
 | `languages`       | `/api/languages`       | 程式語言分佈                                |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
+| `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
+| `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
 | `export`          | `/api/export`          | Watchlist JSON / CSV 匯出               |
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
 | `health`          | `/api`                 | 健康檢查                                  |
@@ -278,7 +281,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 665 + 後端 373 = **1,038+ 個測試案例**（86%+ 分支覆蓋率）
+> **測試覆蓋**：前端 892 + 後端 484 = **1,376+ 個測試案例**
 
 ---
 

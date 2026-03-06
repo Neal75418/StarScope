@@ -95,7 +95,7 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：86%+ 分支覆蓋率（前端 665 + 後端 373 = 1038 個測試案例）
+> **測試覆蓋率**：前端 892 + 後端 484 = 1,376+ 個測試案例
 
 ### E2E 測試
 
@@ -119,22 +119,22 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ### 前端 `src/`
 
-| 目錄              | 說明                                                   |
-|-----------------|------------------------------------------------------|
-| `pages/`        | Watchlist、Trends、Discovery、Dashboard、Settings        |
-| `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等 |
-| `hooks/`        | 45 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                |
-| `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                |
-| `lib/`          | React Query 設定（queryKeys、QueryClient）                |
-| `utils/`        | 工具函式（logger、error handling 等）                        |
-| `**/__tests__/` | Vitest 單元測試（665 個測試案例）                               |
+| 目錄              | 說明                                                    |
+|-----------------|-------------------------------------------------------|
+| `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
+| `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
+| `hooks/`        | 50 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
+| `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
+| `utils/`        | 工具函式（logger、error handling 等）                         |
+| `**/__tests__/` | Vitest 單元測試（892 個測試案例）                                |
 
 ### Sidecar `sidecar/`
 
 | 目錄             | 說明                                                  |
 |----------------|-----------------------------------------------------|
-| `routers/`     | FastAPI 路由（15 個模組：repos、alerts、trends、categories 等） |
-| `services/`    | 業務邏輯（14 個服務：analyzer、scheduler、recommender 等）       |
+| `routers/`     | FastAPI 路由（17 個模組：repos、alerts、trends、categories 等） |
+| `services/`    | 業務邏輯（15 個服務：analyzer、scheduler、recommender 等）       |
 | `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）         |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`                  |
 
@@ -230,11 +230,13 @@ PORT=8008
 | `commit_activity` | `/api/commit-activity` | Commit 活動資料與摘要                        |
 | `languages`       | `/api/languages`       | 程式語言分佈與摘要                             |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
+| `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
+| `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
 | `export`          | `/api/export`          | Watchlist JSON/CSV 匯出                 |
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
 | `health`          | `/api`                 | 健康檢查                                  |
 
-> 共 15 個路由模組、64 個端點
+> 共 17 個路由模組、67 個端點
 
 ---
 

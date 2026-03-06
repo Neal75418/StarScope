@@ -23,7 +23,7 @@ StarScope 採用三層式架構：
 |--------------|--------------|-----------------------------------------------------|
 | **Frontend** | `src/`       | React 19 + TypeScript，資料層由 React Query + Context 管理 |
 | **Desktop**  | `src-tauri/` | Rust Tauri v2，System Tray、Sidecar 管理、OS 通知          |
-| **Backend**  | `sidecar/`   | Python FastAPI，15 個路由模組、14 個服務、SQLite               |
+| **Backend**  | `sidecar/`   | Python FastAPI，17 個路由模組、15 個服務、SQLite               |
 
 > 詳細架構文件請參考 [CLAUDE.md](./CLAUDE.md)。
 
