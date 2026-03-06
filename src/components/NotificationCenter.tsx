@@ -220,7 +220,14 @@ function NotificationDropdown({
       <div className="notification-list">
         {showLoading && <div className="notification-empty">{t.common.loading}</div>}
 
-        {showEmpty && <div className="notification-empty">{t.notifications.empty}</div>}
+        {showEmpty && (
+          <div className="notification-empty">
+            <span className="notification-empty-icon" aria-hidden="true">
+              <BellIcon size={32} />
+            </span>
+            <span className="notification-empty-text">{t.notifications.empty}</span>
+          </div>
+        )}
 
         {notifications.map((notification) => (
           <NotificationItem

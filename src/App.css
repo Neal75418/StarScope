@@ -481,8 +481,22 @@ body {
 }
 
 .notification-empty {
-  padding: 32px 16px;
+  padding: 40px 16px;
   text-align: center;
+  font-size: 13px;
+  color: var(--fg-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-empty-icon {
+  opacity: 0.3;
+  color: var(--fg-muted);
+}
+
+.notification-empty-text {
   font-size: 13px;
   color: var(--fg-muted);
 }
@@ -818,15 +832,17 @@ body {
 }
 
 .btn-danger {
-  background: linear-gradient(180deg, var(--danger-emphasis) 0%, #b62324 100%);
-  border-color: var(--danger-emphasis);
-  color: var(--fg-on-emphasis);
-  box-shadow: 0 1px 3px rgba(218, 54, 51, 0.3);
+  background: linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg-muted) 100%);
+  border-color: var(--border-default);
+  color: var(--fg-muted);
+  box-shadow: none;
+  transition: all 0.2s ease;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--danger-hover) 0%, var(--danger-emphasis) 100%);
-  border-color: var(--danger-hover);
+  background: linear-gradient(180deg, var(--danger-emphasis) 0%, #b62324 100%);
+  border-color: var(--danger-emphasis);
+  color: var(--fg-on-emphasis);
   box-shadow: 0 4px 12px rgba(218, 54, 51, 0.4);
 }
 
@@ -1116,6 +1132,14 @@ body {
   color: var(--success-fg);
 }
 
+.repo-stats .stat-value {
+  font-size: 15px;
+}
+
+.repo-stats .stat-label {
+  font-size: 11px;
+}
+
 /* Dialog Overlay */
 .dialog-overlay {
   position: fixed;
@@ -1329,13 +1353,26 @@ body {
 }
 
 .trends-in-watchlist {
-  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
   color: var(--success-fg);
   font-weight: 500;
+  padding: 3px 8px;
+  background: var(--success-subtle);
+  border: 1px solid var(--success-fg);
+  border-radius: 4px;
+  opacity: 0.8;
 }
 
 .repo-col {
   min-width: 200px;
+}
+
+.repo-col .repo-language {
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .repo-link {
@@ -2779,7 +2816,7 @@ body {
 .settings-section-header h2 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin: 0;
 }
 
@@ -3750,20 +3787,36 @@ a:focus-visible {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 6px 0;
+    gap: 1px;
+    padding: 6px 2px;
     background: none;
     border: none;
     cursor: pointer;
     color: var(--fg-muted);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
     transition: color 0.15s ease;
+    min-width: 0;
   }
 
   .mobile-tab-item:hover,
   .mobile-tab-item.active {
     color: var(--fg-default);
+  }
+
+  .mobile-tab-item.active {
+    position: relative;
+  }
+
+  .mobile-tab-item.active::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 25%;
+    right: 25%;
+    height: 2px;
+    background-color: var(--accent-fg);
+    border-radius: 0 0 2px 2px;
   }
 
   .mobile-tab-item.active .mobile-tab-icon {
@@ -3774,11 +3827,15 @@ a:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 24px;
+    height: 22px;
   }
 
   .mobile-tab-label {
     line-height: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
 
   /* Add bottom padding to main content so it's not hidden behind tab bar */
@@ -4199,6 +4256,7 @@ a:focus-visible {
 .stat-card {
   background-color: var(--bg-subtle);
   border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent-emphasis);
   border-radius: var(--radius-md);
   padding: 20px;
   display: flex;
@@ -4208,6 +4266,22 @@ a:focus-visible {
   transition:
     transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
     box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stats-grid .stat-card:nth-child(1) {
+  border-left-color: var(--accent-emphasis);
+}
+
+.stats-grid .stat-card:nth-child(2) {
+  border-left-color: var(--warning-fg);
+}
+
+.stats-grid .stat-card:nth-child(3) {
+  border-left-color: var(--success-fg);
+}
+
+.stats-grid .stat-card:nth-child(4) {
+  border-left-color: var(--danger-fg);
 }
 
 .stat-card:hover {

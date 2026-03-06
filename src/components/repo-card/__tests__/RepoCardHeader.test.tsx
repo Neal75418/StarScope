@@ -64,9 +64,9 @@ describe("RepoCardHeader", () => {
     );
   });
 
-  it("displays language badge", () => {
+  it("displays languages badge component", () => {
     render(<RepoCardHeader {...defaultProps} />);
-    expect(screen.getByText("JavaScript")).toBeInTheDocument();
+    expect(screen.getByTestId("languages-badge")).toBeInTheDocument();
   });
 
   it("renders all action buttons", () => {

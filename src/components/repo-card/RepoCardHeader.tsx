@@ -51,9 +51,8 @@ export const RepoCardHeader = React.memo(function RepoCardHeader({
           {repo.full_name}
           <LinkExternalIcon size={14} />
         </a>
-        {repo.language && <span className="repo-language">{repo.language}</span>}
-        <CommitActivityBadge repoId={repo.id} />
         <LanguagesBadge repoId={repo.id} />
+        <CommitActivityBadge repoId={repo.id} />
         {activeSignalCount > 0 && (
           <span
             className="signal-badge"
