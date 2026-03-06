@@ -28,3 +28,12 @@ export const MAX_RETRIES = 2;
 
 /** 重試間的基本延遲（毫秒），配合指數退避使用。 */
 export const RETRY_DELAY_MS = 500;
+
+/** API 錯誤訊息常量，統一管理硬編碼字串。 */
+export const API_ERROR_MESSAGES = {
+  CANCELLED: "Request cancelled",
+  TIMED_OUT: "Request timed out",
+  UNKNOWN_ERROR: "Unknown error",
+  REQUEST_FAILED: "API request failed",
+  RETRIES_EXHAUSTED: "Request failed after retries",
+} as const;

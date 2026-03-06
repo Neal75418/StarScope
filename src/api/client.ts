@@ -8,6 +8,7 @@ import {
   DEFAULT_TIMEOUT_MS,
   MAX_RETRIES,
   RETRY_DELAY_MS,
+  API_ERROR_MESSAGES,
 } from "../constants/api";
 import { ApiError } from "./types";
 import type {
@@ -86,17 +87,20 @@ async function doFetch<T>(
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       if (callerSignal?.aborted) {
-        throw new ApiError(0, "Request cancelled");
+        throw new ApiError(0, API_ERROR_MESSAGES.CANCELLED);
       }
-      throw new ApiError(0, "Request timed out");
+      throw new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
     }
-    throw new ApiError(0, `Network error: ${error instanceof Error ? error.message : "Unknown"}`);
+    throw new ApiError(
+      0,
+      `Network error: ${error instanceof Error ? error.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
+    );
   } finally {
     clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+    const error = await response.json().catch(() => ({ detail: API_ERROR_MESSAGES.UNKNOWN_ERROR }));
     throw new ApiError(response.status, error.detail || `HTTP ${response.status}`);
   }
 
@@ -111,7 +115,10 @@ async function doFetch<T>(
   // 已遷移的端點回傳 {success, data, message, error} 結構
   if (json && typeof json === "object" && "success" in json && "data" in json) {
     if (!json.success) {
-      throw new ApiError(response.status, json.error || json.message || "API request failed");
+      throw new ApiError(
+        response.status,
+        json.error || json.message || API_ERROR_MESSAGES.REQUEST_FAILED
+      );
     }
     return json.data as T;
   }
@@ -140,7 +147,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       }
     }
   }
-  throw lastError ?? new ApiError(0, "Request failed after retries");
+  throw lastError ?? new ApiError(0, API_ERROR_MESSAGES.RETRIES_EXHAUSTED);
 }
 
 // API 函式

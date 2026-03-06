@@ -28,7 +28,11 @@ export function getInitialTheme(): Theme {
 
 // 儲存主題偏好
 export function saveTheme(theme: Theme): void {
-  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // QuotaExceededError — 靜默忽略，主題偏好不會持久化
+  }
 }
 
 // 將主題套用至 document

@@ -27,7 +27,11 @@ export function getInitialLanguage(): Language {
 
 // 儲存語言偏好
 export function saveLanguage(lang: Language): void {
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+  } catch {
+    // QuotaExceededError — 靜默忽略，語言偏好不會持久化
+  }
 }
 
 // 語言狀態的 Context

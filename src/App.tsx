@@ -68,7 +68,11 @@ function App() {
 
   const handlePageChange = (page: Page) => {
     setCurrentPage(page);
-    localStorage.setItem("starscope-page", page);
+    try {
+      localStorage.setItem("starscope-page", page);
+    } catch {
+      // QuotaExceededError — 靜默忽略，不影響導航功能
+    }
   };
   const { theme, setTheme, toggleTheme } = useAppTheme();
   const { language, setLanguage, toggleLanguage, t } = useAppLanguage();

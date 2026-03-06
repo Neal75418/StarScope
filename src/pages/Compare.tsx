@@ -184,7 +184,11 @@ export function Compare() {
   const toggleRepo = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // QuotaExceededError — 靜默忽略
+      }
       return next;
     });
   }, []);
