@@ -9,6 +9,7 @@ import math
 import threading
 from typing import Dict, List, Optional, Set, Tuple
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from db.models import Repo, SimilarRepo
@@ -373,7 +374,7 @@ class RecommenderService:
                 db.bulk_save_objects(batch)
 
             db.commit()
-        except Exception as e:
+        except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"[推薦] 相似度重新計算失敗，已回滾: {e}", exc_info=True)
             raise

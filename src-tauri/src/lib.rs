@@ -51,21 +51,31 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
 }
 
 /// 啟動 Python sidecar，失敗時優雅降級。
+/// 透過 `Command::env()` 傳遞 app data dir，避免在多執行緒環境呼叫 `std::env::set_var`。
 fn start_sidecar(app: &App) {
-    let state = match app.shell().sidecar("starscope-sidecar") {
-        Ok(cmd) => match cmd.spawn() {
-            Ok((_rx, child)) => SidecarState {
-                child: Mutex::new(Some(child)),
-            },
-            Err(e) => {
-                warn!("sidecar 啟動失敗: {e}，開發環境請執行 './start-dev.sh'");
-                SidecarState {
-                    child: Mutex::new(None),
-                }
-            }
-        },
+    let mut cmd = match app.shell().sidecar("starscope-sidecar") {
+        Ok(c) => c,
         Err(e) => {
             warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
+            app.manage(SidecarState {
+                child: Mutex::new(None),
+            });
+            return;
+        }
+    };
+
+    // 將 app data dir 透過環境變數傳給 sidecar 子程序，
+    // 而非使用 std::env::set_var（在多執行緒環境有 data race 風險）。
+    if let Ok(app_data_dir) = app.path().app_data_dir() {
+        cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
+    }
+
+    let state = match cmd.spawn() {
+        Ok((_rx, child)) => SidecarState {
+            child: Mutex::new(Some(child)),
+        },
+        Err(e) => {
+            warn!("sidecar 啟動失敗: {e}，開發環境請執行 './start-dev.sh'");
             SidecarState {
                 child: Mutex::new(None),
             }
@@ -153,11 +163,6 @@ fn cleanup_sidecar(app: &AppHandle) {
     }
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tracing_subscriber::fmt()
@@ -179,13 +184,6 @@ pub fn run() {
                 disable_fullscreen_button(&window);
             }
 
-            if let Ok(app_data_dir) = app.path().app_data_dir() {
-                std::env::set_var(
-                    "TAURI_APP_DATA_DIR",
-                    app_data_dir.to_string_lossy().to_string(),
-                );
-            }
-
             start_sidecar(app);
             setup_tray(app)?;
 
@@ -196,7 +194,6 @@ pub fn run() {
                 cleanup_sidecar(window.app_handle());
             }
         })
-        .invoke_handler(tauri::generate_handler![greet])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

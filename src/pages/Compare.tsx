@@ -23,8 +23,7 @@ import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta } from "../utils/format";
 import { TREND_ARROWS } from "../constants/trends";
 import { queryKeys } from "../lib/react-query";
-
-const TIME_RANGES: ComparisonTimeRange[] = ["7d", "30d", "90d", "all"];
+import { TIME_RANGES } from "../constants/chart";
 const STORAGE_KEY = "starscope-compare-repos";
 
 function loadSavedRepoIds(): number[] {

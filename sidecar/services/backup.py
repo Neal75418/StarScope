@@ -69,7 +69,7 @@ class BackupService:
             logger.info(f"Backup created successfully: {backup_path} ({backup_path.stat().st_size} bytes)")
             return backup_path
 
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Failed to create backup: {e}", exc_info=True)
             return None
 
@@ -110,7 +110,7 @@ class BackupService:
 
             return deleted_count
 
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
             return 0
 

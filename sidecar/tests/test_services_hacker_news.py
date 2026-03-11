@@ -319,9 +319,9 @@ class TestFetchHnMentions:
 
     @pytest.mark.asyncio
     async def test_returns_none_on_unexpected_error(self):
-        """Test returns None on unexpected error."""
+        """Test returns None on unexpected error (e.g. data parsing)."""
         with patch.object(HackerNewsService, 'search_repo', new_callable=AsyncMock) as mock_search:
-            mock_search.side_effect = Exception("Unexpected error")
+            mock_search.side_effect = ValueError("Unexpected data format")
 
             result = await fetch_hn_mentions("owner", "repo")
 

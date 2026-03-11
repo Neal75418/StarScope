@@ -187,6 +187,6 @@ async def fetch_hn_mentions(owner: str, repo_name: str) -> Optional[List[HNStory
     except HackerNewsAPIError as e:
         logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及失敗: {e}", exc_info=True)
         return None
-    except Exception as e:
+    except (httpx.RequestError, httpx.HTTPStatusError, KeyError, ValueError) as e:
         logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及時發生非預期錯誤: {e}", exc_info=True)
         return None

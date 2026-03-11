@@ -108,11 +108,11 @@ async def list_early_signals(
         query = query.filter(EarlySignal.severity == severity)
 
     if not include_acknowledged:
-        query = query.filter(EarlySignal.acknowledged == False)
+        query = query.filter(EarlySignal.acknowledged.is_(False))
 
     if not include_expired:
         query = query.filter(
-            (EarlySignal.expires_at == None) | (EarlySignal.expires_at > utc_now())
+            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now())
         )
 
     # noinspection PyTypeChecker
@@ -149,11 +149,11 @@ async def get_repo_signals(
     query = db.query(EarlySignal).options(joinedload(EarlySignal.repo)).filter(EarlySignal.repo_id == repo_id)
 
     if not include_acknowledged:
-        query = query.filter(EarlySignal.acknowledged == False)
+        query = query.filter(EarlySignal.acknowledged.is_(False))
 
     if not include_expired:
         query = query.filter(
-            (EarlySignal.expires_at == None) | (EarlySignal.expires_at > utc_now())
+            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now())
         )
 
     # noinspection PyTypeChecker
@@ -181,8 +181,8 @@ async def get_signal_summary(
 
     # 活躍訊號（未確認、未過期）
     active_query = db.query(EarlySignal).filter(
-        EarlySignal.acknowledged == False,
-        (EarlySignal.expires_at == None) | (EarlySignal.expires_at > now)
+        EarlySignal.acknowledged.is_(False),
+        (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > now)
     )
 
     total_active = active_query.count()
@@ -253,7 +253,7 @@ async def acknowledge_all_signals(
     確認所有活躍訊號。
     可選擇依訊號類型篩選。
     """
-    query = db.query(EarlySignal).filter(EarlySignal.acknowledged == False)
+    query = db.query(EarlySignal).filter(EarlySignal.acknowledged.is_(False))
 
     if signal_type:
         query = query.filter(EarlySignal.signal_type == signal_type)
@@ -344,8 +344,8 @@ async def get_repo_signals_batch(
         joinedload(EarlySignal.repo)
     ).filter(
         EarlySignal.repo_id.in_(repo_ids),
-        EarlySignal.acknowledged == False,
-        (EarlySignal.expires_at == None) | (EarlySignal.expires_at > now)
+        EarlySignal.acknowledged.is_(False),
+        (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > now)
     ).order_by(
         _SEVERITY_ORDER,
         EarlySignal.detected_at.desc()

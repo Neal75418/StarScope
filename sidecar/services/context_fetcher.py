@@ -8,6 +8,7 @@ from datetime import timedelta
 from typing import List, Dict, Any
 
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from constants import ContextSignalType
@@ -116,8 +117,8 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     try:
         hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
         hn_count = _store_hn_signals(repo.id, hn_stories, db) if hn_stories else 0
-    except Exception as e:
-        logger.warning(f"[上下文] {repo.full_name} HN 抓取失敗: {e}")
+    except SQLAlchemyError as e:
+        logger.warning(f"[上下文] {repo.full_name} HN 訊號儲存失敗: {e}")
         hn_count = 0
 
     db.commit()
@@ -145,9 +146,13 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
             hn = await fetch_context_signals_for_repo(repo, db)
             total_hn += hn
             logger.debug(f"[上下文] {repo.full_name} 上下文訊號: HN={hn}")
-        except Exception as e:
+        except SQLAlchemyError as e:
             errors += 1
             logger.error(f"[上下文] 抓取 {repo.full_name} 上下文訊號失敗: {e}", exc_info=True)
+        except Exception as e:
+            # 安全網：防止單一 repo 失敗中斷整個 batch
+            errors += 1
+            logger.error(f"[上下文] 抓取 {repo.full_name} 上下文訊號非預期錯誤: {e}", exc_info=True)
 
     return {
         "repos_processed": len(repos),

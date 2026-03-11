@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch, AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from services.context_fetcher import (
     fetch_context_signals_for_repo,
@@ -79,16 +80,19 @@ class TestFetchContextSignalsForRepo:
             assert hn_count == 1
 
     @pytest.mark.asyncio
-    async def test_handles_exceptions(self, test_db, mock_repo):
-        """Test handling exceptions from HN fetcher."""
+    async def test_handles_db_errors(self, test_db, mock_repo):
+        """Test handling SQLAlchemy errors from signal storage."""
         with patch(
             'services.context_fetcher.fetch_hn_mentions', new_callable=AsyncMock
-        ) as mock_hn:
-            mock_hn.side_effect = Exception("HN API Error")
+        ) as mock_hn, patch(
+            'services.context_fetcher._store_hn_signals',
+            side_effect=SQLAlchemyError("DB write error"),
+        ):
+            mock_hn.return_value = [create_mock_hn_story("hn1")]
 
             hn_count = await fetch_context_signals_for_repo(mock_repo, test_db)
 
-            # Exception should result in 0 count, not crash
+            # SQLAlchemyError should result in 0 count, not crash
             assert hn_count == 0
 
 
@@ -109,13 +113,26 @@ class TestFetchAllContextSignals:
             assert result["errors"] == 0
 
     @pytest.mark.asyncio
-    async def test_handles_errors_gracefully(self, test_db, mock_repo):
-        """Test that errors don't crash the entire process."""
+    async def test_handles_db_errors_gracefully(self, test_db, mock_repo):
+        """Test that DB errors don't crash the entire batch process."""
         with patch(
             'services.context_fetcher.fetch_context_signals_for_repo',
             new_callable=AsyncMock,
         ) as mock_fetch:
-            mock_fetch.side_effect = Exception("Test error")
+            mock_fetch.side_effect = SQLAlchemyError("DB commit error")
+
+            result = await fetch_all_context_signals(test_db)
+
+            assert result["errors"] == 1
+
+    @pytest.mark.asyncio
+    async def test_handles_unexpected_errors_gracefully(self, test_db, mock_repo):
+        """Test that unexpected errors don't crash the entire batch process."""
+        with patch(
+            'services.context_fetcher.fetch_context_signals_for_repo',
+            new_callable=AsyncMock,
+        ) as mock_fetch:
+            mock_fetch.side_effect = RuntimeError("Unexpected failure")
 
             result = await fetch_all_context_signals(test_db)
 

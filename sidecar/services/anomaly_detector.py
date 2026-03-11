@@ -67,7 +67,7 @@ def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
         EarlySignal.repo_id == repo_id,
         EarlySignal.signal_type == signal_type,
         EarlySignal.expires_at > utc_now(),
-        EarlySignal.acknowledged == False  # noqa: E712
+        EarlySignal.acknowledged.is_(False)
     ).first() is not None
 
 
@@ -77,7 +77,7 @@ def _build_active_signals_set(db: Session) -> Set[Tuple[int, str]]:
         EarlySignal.repo_id, EarlySignal.signal_type
     ).filter(
         EarlySignal.expires_at > utc_now(),
-        EarlySignal.acknowledged == False  # noqa: E712
+        EarlySignal.acknowledged.is_(False)
     ).all()
     return {(int(row[0]), row[1]) for row in rows}
 

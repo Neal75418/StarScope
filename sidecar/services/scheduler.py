@@ -6,6 +6,8 @@
 import asyncio
 import logging
 import threading
+import uuid
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Optional
 
@@ -26,6 +28,25 @@ from utils.time import utc_now
 import os
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def _job_context(job_name: str):
+    """
+    為排程工作建立 correlation ID 並注入 logger。
+    所有 log 訊息自動帶上 job_id 以便追蹤。
+    """
+    job_id = uuid.uuid4().hex[:8]
+    job_logger = logging.LoggerAdapter(logger, {"job_id": job_id})
+    job_logger.info(f"[排程] [{job_id}] {job_name} 開始")
+    try:
+        yield job_logger
+    except Exception:
+        job_logger.error(f"[排程] [{job_id}] {job_name} 異常結束", exc_info=True)
+        raise
+    else:
+        job_logger.info(f"[排程] [{job_id}] {job_name} 完成")
+
 
 # 全域排程器實例
 _scheduler: Optional[AsyncIOScheduler] = None
@@ -79,7 +100,9 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
         skip_recent_minutes: 跳過此分鐘數內已抓取的 repo（預設 30）。
                            避免重啟後重複抓取。
     """
-    logger.info("[排程] 開始排程抓取所有 repo...")
+    job_id = uuid.uuid4().hex[:8]
+    log = logging.LoggerAdapter(logger, {"job_id": job_id})
+    log.info(f"[排程] [{job_id}] 開始排程抓取所有 repo...")
 
     with get_db_session() as db:
         try:
@@ -107,14 +130,14 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
             skipped_count = total_count - need_fetch_count
 
             if total_count == 0:
-                logger.info("[排程] 監控清單無 repo，跳過抓取")
+                log.info(f"[排程] [{job_id}] 監控清單無 repo，跳過抓取")
                 return
 
             success_count = 0
             error_count = 0
 
             if skipped_count > 0:
-                logger.debug(f"[排程] 跳過 {skipped_count} 個近期已抓取的 repo")
+                log.debug(f"[排程] [{job_id}] 跳過 {skipped_count} 個近期已抓取的 repo")
 
             # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
             # 避免一次性載入所有 repo 到記憶體
@@ -131,7 +154,7 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
                             success_count += 1
                             # 成功時重置失敗計數
                             _repo_failure_counts.pop(repo_id, None)
-                            logger.debug(f"[排程] 已抓取 {repo.full_name}")
+                            log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
                         else:
                             error_count += 1
                             _track_repo_failure(repo_id, repo.full_name, "資料為空")
@@ -140,27 +163,27 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
                         error_count += 1
                         db.rollback()
                         _track_repo_failure(repo_id, repo.full_name, str(e))
-                        logger.error(f"[排程] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+                        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
                     except Exception as e:
                         # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
                         error_count += 1
                         db.rollback()
                         _track_repo_failure(repo_id, repo.full_name, str(e))
-                        logger.critical(f"[排程] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
+                        log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
 
-            logger.info(
-                f"[排程] 排程抓取完成: {success_count} 成功、"
+            log.info(
+                f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"
                 f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
             )
 
         except (GitHubAPIError, SQLAlchemyError) as e:
-            logger.error(f"[排程] 資料庫/API 錯誤: {e}", exc_info=True)
+            log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
             # 可恢復的錯誤，不中斷排程
         except KeyboardInterrupt:
-            logger.info("[排程] 收到中斷信號")
+            log.info(f"[排程] [{job_id}] 收到中斷信號")
             raise
         except Exception as e:
-            logger.critical(f"[排程] 未預期的嚴重錯誤: {e}", exc_info=True)
+            log.critical(f"[排程] [{job_id}] 未預期的嚴重錯誤: {e}", exc_info=True)
             # 嚴重錯誤，記錄並重新拋出
             raise
 
@@ -170,29 +193,27 @@ def check_alerts_job() -> None:
     背景工作：檢查警報規則並觸發通知。
     在資料抓取後執行。
     """
-    logger.info("[排程] 正在檢查警報規則...")
-
-    # 在此 import 以避免循環引用
-    try:
-        from services.alerts import check_all_alerts
-    except ImportError:
-        # alerts 服務尚未實作
-        logger.debug("[排程] 警報服務尚未可用")
-        return
-
-    with get_db_session() as db:
+    with _job_context("檢查警報規則") as log:
+        # 在此 import 以避免循環引用
         try:
-            triggered = check_all_alerts(db)
+            from services.alerts import check_all_alerts
+        except ImportError:
+            log.debug("[排程] 警報服務尚未可用")
+            return
 
-            if triggered:
-                logger.info(f"[排程] 已觸發 {len(triggered)} 個警報")
-            else:
-                logger.debug("[排程] 無警報觸發")
+        with get_db_session() as db:
+            try:
+                triggered = check_all_alerts(db)
 
-        except SQLAlchemyError as e:
-            logger.error(f"[排程] 檢查警報資料庫錯誤: {e}", exc_info=True)
-        except Exception as e:
-            logger.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
+                if triggered:
+                    log.info(f"[排程] 已觸發 {len(triggered)} 個警報")
+                else:
+                    log.debug("[排程] 無警報觸發")
+
+            except SQLAlchemyError as e:
+                log.error(f"[排程] 檢查警報資料庫錯誤: {e}", exc_info=True)
+            except Exception as e:
+                log.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
 
 
 async def fetch_context_signals_job() -> None:
@@ -200,13 +221,15 @@ async def fetch_context_signals_job() -> None:
     背景工作：為所有 repo 抓取情境訊號。
     從 Hacker News 抓取並執行清理。
     """
-    logger.info("[排程] 開始排程抓取上下文訊號...")
+    job_id = uuid.uuid4().hex[:8]
+    log = logging.LoggerAdapter(logger, {"job_id": job_id})
+    log.info(f"[排程] [{job_id}] 開始排程抓取上下文訊號...")
 
     with get_db_session() as db:
         try:
             result = await fetch_all_context_signals(db)
-            logger.info(
-                f"[排程] 上下文訊號抓取完成: "
+            log.info(
+                f"[排程] [{job_id}] 上下文訊號抓取完成: "
                 f"HN={result['new_hn_signals']}、"
                 f"錯誤={result['errors']}"
             )
@@ -215,11 +238,11 @@ async def fetch_context_signals_job() -> None:
             from services.context_fetcher import cleanup_old_context_signals
             cleanup_stats = cleanup_old_context_signals(db)
             if cleanup_stats["deleted_by_age"] > 0 or cleanup_stats["deleted_by_limit"] > 0:
-                logger.info(f"[排程] 上下文訊號清理: {cleanup_stats}")
+                log.info(f"[排程] [{job_id}] 上下文訊號清理: {cleanup_stats}")
         except SQLAlchemyError as e:
-            logger.error(f"[排程] 上下文訊號資料庫錯誤: {e}", exc_info=True)
+            log.error(f"[排程] [{job_id}] 上下文訊號資料庫錯誤: {e}", exc_info=True)
         except Exception as e:
-            logger.critical(f"[排程] 上下文訊號未預期錯誤: {e}", exc_info=True)
+            log.critical(f"[排程] [{job_id}] 上下文訊號未預期錯誤: {e}", exc_info=True)
 
 
 def cleanup_old_snapshots(retention_days: int = 90) -> int:

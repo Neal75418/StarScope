@@ -17,13 +17,12 @@ import { formatNumber, formatChartDate } from "../utils/format";
 import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
 import { StarHistoryBackfill } from "./StarHistoryBackfill";
 import { useI18n } from "../i18n";
+import { TIME_RANGES } from "../constants/chart";
 
 interface StarsChartProps {
   repoId: number;
   currentStars?: number | null;
 }
-
-const TIME_RANGES: TimeRange[] = ["7d", "30d", "90d", "all"];
 
 const TOOLTIP_STYLE = {
   backgroundColor: "var(--bg-default, #1a1a1a)",

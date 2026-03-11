@@ -301,3 +301,20 @@ SQLite 位於 `sidecar/starscope.db`（13 張表）：
 - **圖表展開狀態** - 由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理，通過 `chartExpanded` / `onChartToggle` props 傳入 `RepoCard`
 - **Memo 優化** - `onChartToggle` 接受 `(repoId: number)` 參數以避免 inline arrow 破壞 `RepoCard` 的 `memo`
 - **常見陷阱** - v2 API 使用 `rowComponent` prop（非 v1 的 `children` render prop）；避免直接傳 `itemData` 到 `List`，改用 `rowProps`；避免在 `RowComponent` 中使用 inline arrow 作為 memoized 子元件的 callback
+
+---
+
+## 安全性決策記錄
+
+### CSP `style-src 'unsafe-inline'`
+
+`tauri.conf.json` 中的 CSP 使用 `style-src 'self' 'unsafe-inline'`。此決策的原因：
+
+- **必要性**：Recharts 和 framer-motion 在 runtime 注入 inline styles，無法避免
+- **風險評估**：`unsafe-inline` 僅適用於 `style-src`，`script-src` 並未包含 `unsafe-inline`（這是更關鍵的安全邊界）
+- **Desktop 應用環境**：Tauri 應用不暴露於公共網路，XSS 攻擊面遠小於 Web 應用
+- **結論**：可接受的 tradeoff。若未來 Recharts/framer-motion 支援 nonce-based CSP，應升級
+
+### API 不使用版本化路徑
+
+桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴。
