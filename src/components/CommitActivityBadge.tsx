@@ -4,6 +4,7 @@
 
 import { useCommitActivitySummary } from "../hooks/useCommitActivitySummary";
 import { useI18n, interpolate } from "../i18n";
+import { StatusBadge } from "./StatusBadge";
 
 interface CommitActivityBadgeProps {
   repoId: number;
@@ -22,32 +23,6 @@ function getActivityLevel(avgCommitsPerWeek: number): string {
   if (avgCommitsPerWeek >= 5) return "medium";
   if (avgCommitsPerWeek >= 1) return "low";
   return "inactive";
-}
-
-function LoadingBadge() {
-  return <span className="activity-badge activity-badge-loading">...</span>;
-}
-
-function ErrorBadge({ error }: { error: string }) {
-  return (
-    <span className="activity-badge activity-badge-error" title={error}>
-      !
-    </span>
-  );
-}
-
-function EmptyBadge({ fetching, onClick }: { fetching: boolean; onClick: () => void }) {
-  const { t } = useI18n();
-  return (
-    <button
-      className="activity-badge activity-badge-empty"
-      onClick={onClick}
-      disabled={fetching}
-      title={t.commitActivity?.clickToFetch ?? "Click to fetch commit activity"}
-    >
-      {fetching ? "..." : "?"}
-    </button>
-  );
 }
 
 function ActivityBadge({
@@ -81,20 +56,29 @@ function ActivityBadge({
 }
 
 export function CommitActivityBadge({ repoId }: CommitActivityBadgeProps) {
+  const { t } = useI18n();
   const { summary, loading, fetching, error, fetchData } = useCommitActivitySummary(repoId);
 
   if (loading) {
-    return <LoadingBadge />;
+    return <StatusBadge variant="loading" classPrefix="activity-badge" />;
   }
 
   if (error) {
-    return <ErrorBadge error={error} />;
+    return <StatusBadge variant="error" classPrefix="activity-badge" error={error} />;
   }
 
   const handleClick = () => void fetchData();
 
   if (!summary) {
-    return <EmptyBadge fetching={fetching} onClick={handleClick} />;
+    return (
+      <StatusBadge
+        variant="empty"
+        classPrefix="activity-badge"
+        fetching={fetching}
+        onClick={handleClick}
+        emptyTooltip={t.commitActivity?.clickToFetch ?? "Click to fetch commit activity"}
+      />
+    );
   }
 
   return (

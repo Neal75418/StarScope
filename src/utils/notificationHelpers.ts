@@ -34,7 +34,7 @@ export function alertsToNotifications(
  * 依時間戳排序通知（最新的在前）。
  */
 export function sortNotifications(notifications: Notification[]): Notification[] {
-  return notifications.sort(
+  return [...notifications].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 }

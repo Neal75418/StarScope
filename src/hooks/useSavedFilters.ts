@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { SearchFilters } from "../api/client";
 import { logger } from "../utils/logger";
 import { generateId } from "../utils/id";
+import { STORAGE_KEYS } from "../constants/storage";
 
 export interface SavedFilter {
   id: string;
@@ -15,8 +16,6 @@ export interface SavedFilter {
   period?: string;
   filters: SearchFilters;
 }
-
-const STORAGE_KEY = "starscope_saved_filters";
 const MAX_SAVED_FILTERS = 20;
 
 /**
@@ -24,7 +23,7 @@ const MAX_SAVED_FILTERS = 20;
  */
 function loadSavedFilters(): SavedFilter[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.SAVED_FILTERS);
     if (stored) {
       const parsed = JSON.parse(stored) as SavedFilter[];
       // 驗證後回傳
@@ -43,7 +42,7 @@ function loadSavedFilters(): SavedFilter[] {
  */
 function saveSavedFilters(filters: SavedFilter[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(filters));
+    localStorage.setItem(STORAGE_KEYS.SAVED_FILTERS, JSON.stringify(filters));
   } catch (err) {
     logger.warn("[SavedFilters] 篩選條件儲存失敗:", err);
   }
@@ -52,20 +51,13 @@ function saveSavedFilters(filters: SavedFilter[]): void {
 export function useSavedFilters() {
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
-  const mountedRef = useRef(true);
   const savedFiltersRef = useRef<SavedFilter[]>([]);
 
   // 掛載時從 localStorage 載入
   useEffect(() => {
     const loaded = loadSavedFilters();
-    if (mountedRef.current) {
-      setSavedFilters(loaded);
-      setIsLoaded(true);
-    }
-
-    return () => {
-      mountedRef.current = false;
-    };
+    setSavedFilters(loaded);
+    setIsLoaded(true);
   }, []);
 
   // 篩選條件變更時存入 localStorage（初次載入除外）

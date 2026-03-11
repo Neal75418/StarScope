@@ -147,18 +147,12 @@ export function useDeviceFlowPolling({
     [t, stopPolling, onExpired, setPollStatus, handleSuccess, handleError, restartWithNewInterval]
   );
 
-  // 元件卸載時清理 initialDelay timeout
+  // 元件卸載時清理所有 timers
   useEffect(() => {
     return () => {
       if (initialDelayRef.current !== null) {
         clearTimeout(initialDelayRef.current);
       }
-    };
-  }, []);
-
-  // 元件卸載時清除 timers（從 usePollingRefs 遷移）
-  useEffect(() => {
-    return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }

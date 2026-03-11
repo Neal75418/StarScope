@@ -92,6 +92,7 @@ fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
     // 安全取得預設視窗圖示，未設定時回傳錯誤
+    // Clone required -- TrayIconBuilder::icon() takes ownership
     let icon = app
         .default_window_icon()
         .ok_or("No default window icon configured in tauri.conf.json")?
@@ -195,5 +196,5 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("Fatal: failed to start Tauri application. Check WebView runtime and port availability.");
 }

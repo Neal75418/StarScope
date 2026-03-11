@@ -2,6 +2,7 @@
  * Repo 卡片可展開面板（圖表、相似 repo）。
  */
 
+import { memo } from "react";
 import { StarsChart } from "../StarsChart";
 import { SimilarRepos } from "../SimilarRepos";
 
@@ -12,7 +13,7 @@ interface RepoCardPanelsProps {
   onCloseSimilar: () => void;
 }
 
-export function RepoCardPanels({
+export const RepoCardPanels = memo(function RepoCardPanels({
   repoId,
   showChart,
   showSimilar,
@@ -29,4 +30,4 @@ export function RepoCardPanels({
       {showSimilar && <SimilarRepos repoId={repoId} onClose={onCloseSimilar} />}
     </>
   );
-}
+});

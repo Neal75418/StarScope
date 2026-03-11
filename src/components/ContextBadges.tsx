@@ -7,14 +7,12 @@ import React, { useState, useCallback } from "react";
 import { safeOpenUrl } from "../utils/url";
 import { ContextBadge, ContextSignal, getContextSignals } from "../api/client";
 import { useI18n } from "../i18n";
-import { MS_PER_DAY } from "../utils/format";
+import { formatTimeAgo } from "../utils/format";
 import { logger } from "../utils/logger";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
   repoId?: number;
-  onRefresh?: () => void;
-  isRefreshing?: boolean;
 }
 
 interface PanelState {
@@ -37,19 +35,6 @@ function formatValue(badge: ContextBadge): string {
     if (match) return match[1];
   }
   return badge.label;
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / MS_PER_DAY);
-
-  if (diffDays === 0) return "today";
-  if (diffDays === 1) return "1d ago";
-  if (diffDays < 30) return `${diffDays}d ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return `${Math.floor(diffDays / 365)}y ago`;
 }
 
 function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loading: boolean }) {

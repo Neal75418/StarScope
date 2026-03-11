@@ -2,6 +2,7 @@
  * Discovery 頁面的搜尋結果容器。
  */
 
+import { memo } from "react";
 import { DiscoveryRepo } from "../../api/client";
 import { DiscoveryResultCard } from "./DiscoveryResultCard";
 import { useI18n } from "../../i18n";
@@ -27,7 +28,7 @@ interface DiscoveryResultsProps {
   hasSearched: boolean;
 }
 
-export function DiscoveryResults({
+export const DiscoveryResults = memo(function DiscoveryResults({
   repos,
   totalCount,
   hasMore,
@@ -109,4 +110,4 @@ export function DiscoveryResults({
       )}
     </div>
   );
-}
+});

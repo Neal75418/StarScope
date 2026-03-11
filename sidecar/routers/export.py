@@ -11,7 +11,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from db.database import get_db
@@ -44,28 +44,27 @@ class ExportedRepo(BaseModel):
     acceleration: Optional[float] = Field(None, description="Star 加速度")
     trend: Optional[float] = Field(None, description="趨勢分數")
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "id": 1,
-                "owner": "torvalds",
-                "name": "linux",
-                "full_name": "torvalds/linux",
-                "url": "https://github.com/torvalds/linux",
-                "description": "Linux kernel source tree",
-                "language": "C",
-                "topics": '["kernel", "linux", "operating-system"]',
-                "added_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-02T00:00:00Z",
-                "stars": 150000,
-                "forks": 50000,
-                "stars_delta_7d": 500.0,
-                "stars_delta_30d": 2000.0,
-                "velocity": 100.0,
-                "acceleration": 5.0,
-                "trend": 0.8,
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "id": 1,
+            "owner": "torvalds",
+            "name": "linux",
+            "full_name": "torvalds/linux",
+            "url": "https://github.com/torvalds/linux",
+            "description": "Linux kernel source tree",
+            "language": "C",
+            "topics": '["kernel", "linux", "operating-system"]',
+            "added_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+            "stars": 150000,
+            "forks": 50000,
+            "stars_delta_7d": 500.0,
+            "stars_delta_30d": 2000.0,
+            "velocity": 100.0,
+            "acceleration": 5.0,
+            "trend": 0.8,
         }
+    })
 
 
 class WatchlistExportResponse(BaseModel):
@@ -74,26 +73,25 @@ class WatchlistExportResponse(BaseModel):
     total: int = Field(..., description="Repo 總數")
     repos: List[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "exported_at": "2024-01-15T12:00:00Z",
-                "total": 42,
-                "repos": [
-                    {
-                        "id": 1,
-                        "owner": "torvalds",
-                        "name": "linux",
-                        "full_name": "torvalds/linux",
-                        "url": "https://github.com/torvalds/linux",
-                        "description": "Linux kernel source tree",
-                        "language": "C",
-                        "stars": 150000,
-                        "velocity": 100.0,
-                    }
-                ]
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "exported_at": "2024-01-15T12:00:00Z",
+            "total": 42,
+            "repos": [
+                {
+                    "id": 1,
+                    "owner": "torvalds",
+                    "name": "linux",
+                    "full_name": "torvalds/linux",
+                    "url": "https://github.com/torvalds/linux",
+                    "description": "Linux kernel source tree",
+                    "language": "C",
+                    "stars": 150000,
+                    "velocity": 100.0,
+                }
+            ]
         }
+    })
 
 
 def _build_repo_dict(

@@ -2,7 +2,7 @@
  * 分類與 Repo 的關聯操作。
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
@@ -44,23 +44,23 @@ export function useCategoryOperations(
     [onSuccess, onError]
   );
 
-  const addToCategory = useMemo(
-    () =>
+  const addToCategory = useCallback(
+    (categoryId: number, repoId: number) =>
       createCategoryOperation(
         addRepoToCategory,
         "[CategoryOps] Repo 加入分類失敗:",
         "Failed to add repo to category"
-      ),
+      )(categoryId, repoId),
     [createCategoryOperation]
   );
 
-  const removeFromCategory = useMemo(
-    () =>
+  const removeFromCategory = useCallback(
+    (categoryId: number, repoId: number) =>
       createCategoryOperation(
         removeRepoFromCategory,
         "[CategoryOps] Repo 移出分類失敗:",
         "Failed to remove repo from category"
-      ),
+      )(categoryId, repoId),
     [createCategoryOperation]
   );
 

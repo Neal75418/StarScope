@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
@@ -70,8 +70,7 @@ class AlertRuleResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TriggeredAlertResponse(BaseModel):
@@ -89,8 +88,7 @@ class TriggeredAlertResponse(BaseModel):
     acknowledged: bool
     acknowledged_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SignalTypeInfo(BaseModel):

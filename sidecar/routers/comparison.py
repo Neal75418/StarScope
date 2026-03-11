@@ -15,6 +15,7 @@ from sqlalchemy import asc
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
+from constants import SignalType
 from services.queries import build_signal_map, build_snapshot_map
 from utils.time import utc_today
 
@@ -159,11 +160,11 @@ async def comparison_chart(
             color=PALETTE[i % len(PALETTE)],
             data_points=data_points,
             current_stars=latest.stars if latest else 0,
-            velocity=round(sigs.get("star_velocity", 0), 2) if "star_velocity" in sigs else None,
-            acceleration=round(sigs.get("acceleration", 0), 2) if "acceleration" in sigs else None,
-            trend=int(sigs["trend"]) if "trend" in sigs else None,
-            stars_delta_7d=int(sigs["stars_delta_7d"]) if "stars_delta_7d" in sigs else None,
-            stars_delta_30d=int(sigs["stars_delta_30d"]) if "stars_delta_30d" in sigs else None,
+            velocity=round(sigs.get(SignalType.VELOCITY, 0), 2) if SignalType.VELOCITY in sigs else None,
+            acceleration=round(sigs.get(SignalType.ACCELERATION, 0), 2) if SignalType.ACCELERATION in sigs else None,
+            trend=int(sigs[SignalType.TREND]) if SignalType.TREND in sigs else None,
+            stars_delta_7d=int(sigs[SignalType.STARS_DELTA_7D]) if SignalType.STARS_DELTA_7D in sigs else None,
+            stars_delta_30d=int(sigs[SignalType.STARS_DELTA_30D]) if SignalType.STARS_DELTA_30D in sigs else None,
         ))
 
     chart_data = ComparisonChartResponse(

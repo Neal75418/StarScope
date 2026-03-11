@@ -3,6 +3,8 @@
 集中管理 magic numbers 與設定值。
 """
 
+from enum import StrEnum
+
 # 排程器設定
 DEFAULT_FETCH_INTERVAL_MINUTES = 30
 
@@ -43,7 +45,7 @@ TREND_STRONG_DECLINE_THRESHOLD = -0.3       # 低於此值視為強烈衰退
 
 # ==================== 類型常量 ====================
 
-class SignalType:
+class SignalType(StrEnum):
     """Signal 類型常數。"""
     STARS_DELTA_7D = "stars_delta_7d"
     STARS_DELTA_30D = "stars_delta_30d"
@@ -52,7 +54,7 @@ class SignalType:
     TREND = "trend"  # -1, 0, 1（下降、穩定、上升）
 
 
-class AlertOperator:
+class AlertOperator(StrEnum):
     """警報運算子常數。"""
     GT = ">"
     LT = "<"
@@ -61,12 +63,12 @@ class AlertOperator:
     EQ = "=="
 
 
-class ContextSignalType:
+class ContextSignalType(StrEnum):
     """Context Signal 類型常數。"""
     HACKER_NEWS = "hacker_news"
 
 
-class EarlySignalType:
+class EarlySignalType(StrEnum):
     """Early Signal 類型常數。"""
     RISING_STAR = "rising_star"      # 高 velocity + 低 star 數
     SUDDEN_SPIKE = "sudden_spike"    # 單日異常成長
@@ -74,7 +76,7 @@ class EarlySignalType:
     VIRAL_HN = "viral_hn"            # Hacker News 熱門
 
 
-class EarlySignalSeverity:
+class EarlySignalSeverity(StrEnum):
     """Early Signal 嚴重等級。"""
     LOW = "low"
     MEDIUM = "medium"

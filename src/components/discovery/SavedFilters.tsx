@@ -6,6 +6,7 @@ import type React from "react";
 import { useState, useCallback, useRef, useEffect, memo } from "react";
 import { useI18n } from "../../i18n";
 import { useSavedFilters, SavedFilter } from "../../hooks/useSavedFilters";
+import { useClickOutside } from "../../hooks/useClickOutside";
 import { SearchFilters } from "../../api/client";
 import { ChevronDownIcon, XIcon, CheckIcon, StarIcon } from "../Icons";
 import styles from "./Discovery.module.css";
@@ -98,23 +99,15 @@ export function SavedFilters({
     );
 
   // 點擊外部時關閉
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setIsSaving(false);
-        setNewName("");
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
+  useClickOutside(
+    dropdownRef,
+    useCallback(() => {
+      setIsOpen(false);
+      setIsSaving(false);
+      setNewName("");
+    }, []),
+    isOpen
+  );
 
   // 進入儲存模式時自動聚焦輸入框
   useEffect(() => {

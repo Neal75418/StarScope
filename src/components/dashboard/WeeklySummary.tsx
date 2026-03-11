@@ -12,6 +12,8 @@ import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
 import type { WeeklyRepoSummary, WeeklyHNMention } from "../../api/types";
 
+const MAX_HN_MENTIONS_DISPLAY = 6;
+
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start);
   const e = new Date(end);
@@ -116,9 +118,9 @@ const HNMentionsList = memo(function HNMentionsList({
         <div className="weekly-empty">{t.dashboard.weekly.noHnMentions}</div>
       ) : (
         <div className="weekly-hn-grid">
-          {mentions.slice(0, 6).map((m, i) => (
+          {mentions.slice(0, MAX_HN_MENTIONS_DISPLAY).map((m) => (
             <div
-              key={i}
+              key={m.hn_url || `${m.repo_name}-${m.hn_title}`}
               role="link"
               tabIndex={0}
               className="weekly-hn-item"

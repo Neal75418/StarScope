@@ -4,12 +4,11 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { logger } from "../utils/logger";
-
-const STORAGE_KEY = "starscope_dismissed_recs";
+import { STORAGE_KEYS } from "../constants/storage";
 
 function loadDismissed(): Set<number> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.DISMISSED_RECS);
     if (stored) {
       const parsed = JSON.parse(stored) as number[];
       if (Array.isArray(parsed)) {
@@ -24,7 +23,7 @@ function loadDismissed(): Set<number> {
 
 function saveDismissed(ids: Set<number>): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+    localStorage.setItem(STORAGE_KEYS.DISMISSED_RECS, JSON.stringify([...ids]));
   } catch (err) {
     logger.warn("[DismissedRecs] 儲存 dismissed recs 失敗:", err);
   }

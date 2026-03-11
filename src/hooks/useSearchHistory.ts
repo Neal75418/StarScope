@@ -5,13 +5,12 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { logger } from "../utils/logger";
-
-const STORAGE_KEY = "starscope_search_history";
+import { STORAGE_KEYS } from "../constants/storage";
 const MAX_HISTORY = 10;
 
 function loadHistory(): string[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_HISTORY);
     if (stored) {
       const parsed = JSON.parse(stored) as string[];
       if (Array.isArray(parsed)) {
@@ -26,7 +25,7 @@ function loadHistory(): string[] {
 
 function saveHistory(history: string[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    localStorage.setItem(STORAGE_KEYS.SEARCH_HISTORY, JSON.stringify(history));
   } catch (err) {
     logger.warn("[SearchHistory] 儲存搜尋歷史失敗:", err);
   }

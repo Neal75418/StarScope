@@ -1,8 +1,8 @@
 [package]
 name = "starscope"
 version = "0.3.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "GitHub project intelligence desktop app"
+authors = ["Neal Chen"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,5 +27,5 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSWindowTabGroup", "NSButton", "NSControl", "NSView", "NSResponder"] }
+objc2-app-kit = { version = "0.3", features = ["NSWindow", "NSButton", "NSControl", "NSView", "NSResponder"] }
 

@@ -5,35 +5,10 @@
 import { useLanguagesSummary } from "../hooks/useLanguagesSummary";
 import { useI18n } from "../i18n";
 import { getLanguageColors } from "../constants/languageColors";
+import { StatusBadge } from "./StatusBadge";
 
 interface LanguagesBadgeProps {
   repoId: number;
-}
-
-function LoadingBadge() {
-  return <span className="language-badge language-badge-loading">...</span>;
-}
-
-function ErrorBadge({ error }: { error: string }) {
-  return (
-    <span className="language-badge language-badge-error" title={error}>
-      !
-    </span>
-  );
-}
-
-function EmptyBadge({ fetching, onClick }: { fetching: boolean; onClick: () => void }) {
-  const { t } = useI18n();
-  return (
-    <button
-      className="language-badge language-badge-empty"
-      onClick={onClick}
-      disabled={fetching}
-      title={t.languages?.clickToFetch ?? "Click to fetch languages"}
-    >
-      {fetching ? "..." : "?"}
-    </button>
-  );
 }
 
 function LanguageBadge({ language, languageCount }: { language: string; languageCount: number }) {
@@ -52,18 +27,27 @@ function LanguageBadge({ language, languageCount }: { language: string; language
 }
 
 export function LanguagesBadge({ repoId }: LanguagesBadgeProps) {
+  const { t } = useI18n();
   const { summary, loading, fetching, error, fetchData } = useLanguagesSummary(repoId);
 
   if (loading) {
-    return <LoadingBadge />;
+    return <StatusBadge variant="loading" classPrefix="language-badge" />;
   }
 
   if (error) {
-    return <ErrorBadge error={error} />;
+    return <StatusBadge variant="error" classPrefix="language-badge" error={error} />;
   }
 
   if (!summary || !summary.primary_language) {
-    return <EmptyBadge fetching={fetching} onClick={() => void fetchData()} />;
+    return (
+      <StatusBadge
+        variant="empty"
+        classPrefix="language-badge"
+        fetching={fetching}
+        onClick={() => void fetchData()}
+        emptyTooltip={t.languages?.clickToFetch ?? "Click to fetch languages"}
+      />
+    );
   }
 
   return (

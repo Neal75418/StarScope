@@ -1,7 +1,8 @@
 """應用程式設定服務，管理鍵值對設定與 Keyring 整合。"""
 
 import logging
-from typing import Optional
+from contextlib import contextmanager
+from typing import Optional, Generator
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import keyring
@@ -13,6 +14,19 @@ from db.database import SessionLocal
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = "starscope"
+
+
+@contextmanager
+def _ensure_db(db: Optional[Session]) -> Generator[Session, None, None]:
+    """確保有可用的 DB session，結束時自動關閉自行建立的 session。"""
+    if db is not None:
+        yield db
+    else:
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
 
 
 def _is_token_key(key: str) -> bool:
@@ -37,13 +51,8 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
             logger.critical(f"[設定] 存取 keyring 未預期錯誤 ({key}): {e}", exc_info=True)
 
     # 回退至 DB（或非 token 設定）
-    close_db = False
-    if db is None:
-        db = SessionLocal()
-        close_db = True
-
-    try:
-        setting = db.query(AppSetting).filter(AppSetting.key == key).first()
+    with _ensure_db(db) as session:
+        setting = session.query(AppSetting).filter(AppSetting.key == key).first()
         # noinspection PyTypeChecker
         value: Optional[str] = setting.value if setting else None
 
@@ -56,25 +65,22 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
                 # 刪除前先驗證是否已儲存
                 stored_value = keyring.get_password(SERVICE_NAME, key)
                 if stored_value != value:
-                    db.rollback()
+                    session.rollback()
                     raise ValueError("Keyring 驗證失敗：儲存的值與原始值不一致")
 
-                db.delete(setting)
-                db.commit()
+                session.delete(setting)
+                session.commit()
                 logger.info(f"[設定] Token {key} 成功遷移至 Keyring")
             except (KeyringError, SQLAlchemyError, ValueError) as e:
-                db.rollback()
+                session.rollback()
                 logger.error(f"[設定] Token 遷移失敗: {e}", exc_info=True)
                 raise RuntimeError(f"Token 遷移失敗: {e}") from e
             except Exception as e:
-                db.rollback()
+                session.rollback()
                 logger.critical(f"[設定] Token 遷移未預期錯誤: {e}", exc_info=True)
                 raise RuntimeError(f"Token 遷移未預期錯誤: {e}") from e
 
         return value
-    finally:
-        if close_db:
-            db.close()
 
 
 def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
@@ -104,31 +110,24 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
             raise
 
     # 一般 DB 路徑
-    close_db = False
-    if db is None:
-        db = SessionLocal()
-        close_db = True
-
-    try:
-        setting = db.query(AppSetting).filter(AppSetting.key == key).first()
-        if setting:
-            setting.value = value
-        else:
-            setting = AppSetting(key=key, value=value)
-            db.add(setting)
-        db.commit()
-        logger.info(f"[設定] 設定 '{key}' 已成功儲存")
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"[設定] 儲存設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.critical(f"[設定] 儲存設定 '{key}' 未預期錯誤: {e}", exc_info=True)
-        raise
-    finally:
-        if close_db:
-            db.close()
+    with _ensure_db(db) as session:
+        try:
+            setting = session.query(AppSetting).filter(AppSetting.key == key).first()
+            if setting:
+                setting.value = value
+            else:
+                setting = AppSetting(key=key, value=value)
+                session.add(setting)
+            session.commit()
+            logger.info(f"[設定] 設定 '{key}' 已成功儲存")
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"[設定] 儲存設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            session.rollback()
+            logger.critical(f"[設定] 儲存設定 '{key}' 未預期錯誤: {e}", exc_info=True)
+            raise
 
 
 def delete_setting(key: str, db: Optional[Session] = None) -> bool:
@@ -159,27 +158,20 @@ def delete_setting(key: str, db: Optional[Session] = None) -> bool:
 
 def delete_setting_from_db(key: str, db: Optional[Session] = None) -> bool:
     """無論 key 存取方式如何，皆從 DB 刪除的輔助函式。"""
-    close_db = False
-    if db is None:
-        db = SessionLocal()
-        close_db = True
-
-    try:
-        setting = db.query(AppSetting).filter(AppSetting.key == key).first()
-        if setting:
-            db.delete(setting)
-            db.commit()
-            logger.info(f"[設定] 設定 '{key}' 已從資料庫刪除")
-            return True
-        return False
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"[設定] 從資料庫刪除設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.critical(f"[設定] 從資料庫刪除設定 '{key}' 未預期錯誤: {e}", exc_info=True)
-        raise
-    finally:
-        if close_db:
-            db.close()
+    with _ensure_db(db) as session:
+        try:
+            setting = session.query(AppSetting).filter(AppSetting.key == key).first()
+            if setting:
+                session.delete(setting)
+                session.commit()
+                logger.info(f"[設定] 設定 '{key}' 已從資料庫刪除")
+                return True
+            return False
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"[設定] 從資料庫刪除設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            session.rollback()
+            logger.critical(f"[設定] 從資料庫刪除設定 '{key}' 未預期錯誤: {e}", exc_info=True)
+            raise

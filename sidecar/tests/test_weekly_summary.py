@@ -4,6 +4,7 @@ Tests for weekly summary endpoint and service.
 
 from datetime import timedelta
 
+from constants import SignalType
 from db.models import RepoSnapshot, TriggeredAlert, AlertRule, EarlySignal, ContextSignal
 from utils.time import utc_now, utc_today
 
@@ -87,7 +88,7 @@ class TestWeeklySummaryEndpoint:
 
         rule = AlertRule(
             name="Test Rule",
-            signal_type="star_velocity",
+            signal_type=SignalType.VELOCITY,
             operator=">",
             threshold=10.0,
         )

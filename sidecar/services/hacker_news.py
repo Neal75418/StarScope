@@ -5,6 +5,7 @@ API: https://hn.algolia.com/api
 """
 
 import logging
+import threading
 from typing import Optional, List
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -166,13 +167,16 @@ class HackerNewsService:
 
 # 模組層級便利函式
 _default_service: Optional[HackerNewsService] = None
+_hn_service_lock = threading.Lock()
 
 
 def get_hn_service() -> HackerNewsService:
-    """取得預設的 HN 服務實例。"""
+    """取得預設的 HN 服務實例（thread-safe double-checked locking）。"""
     global _default_service
     if _default_service is None:
-        _default_service = HackerNewsService()
+        with _hn_service_lock:
+            if _default_service is None:
+                _default_service = HackerNewsService()
     return _default_service
 
 

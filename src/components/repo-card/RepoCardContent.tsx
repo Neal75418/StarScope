@@ -12,8 +12,6 @@ interface RepoCardContentProps {
   description?: string | null;
   badges: ContextBadge[];
   badgesLoading: boolean;
-  onRefreshContext?: () => void;
-  isRefreshingContext?: boolean;
 }
 
 export const RepoCardContent = memo(function RepoCardContent({
@@ -21,8 +19,6 @@ export const RepoCardContent = memo(function RepoCardContent({
   description,
   badges,
   badgesLoading,
-  onRefreshContext,
-  isRefreshingContext,
 }: RepoCardContentProps) {
   const { t } = useI18n();
 
@@ -31,12 +27,7 @@ export const RepoCardContent = memo(function RepoCardContent({
       {badgesLoading ? (
         <div className="badges-loading">{t.repo.loadingBadges}</div>
       ) : (
-        <ContextBadges
-          badges={badges}
-          repoId={repoId}
-          onRefresh={onRefreshContext}
-          isRefreshing={isRefreshingContext}
-        />
+        <ContextBadges badges={badges} repoId={repoId} />
       )}
 
       {description && <p className="repo-description">{description}</p>}

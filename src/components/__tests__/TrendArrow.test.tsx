@@ -12,7 +12,7 @@ describe("TrendArrow", () => {
 
     const arrow = screen.getByText("↑");
     expect(arrow).toBeInTheDocument();
-    expect(arrow).toHaveClass("text-green-500");
+    expect(arrow).toHaveClass("trend-arrow-up");
   });
 
   it("shows down arrow for negative trend", () => {
@@ -20,7 +20,7 @@ describe("TrendArrow", () => {
 
     const arrow = screen.getByText("↓");
     expect(arrow).toBeInTheDocument();
-    expect(arrow).toHaveClass("text-red-500");
+    expect(arrow).toHaveClass("trend-arrow-down");
   });
 
   it("shows horizontal arrow for zero trend", () => {
@@ -28,7 +28,7 @@ describe("TrendArrow", () => {
 
     const arrow = screen.getByText("→");
     expect(arrow).toBeInTheDocument();
-    expect(arrow).toHaveClass("text-gray-400");
+    expect(arrow).toHaveClass("trend-arrow-neutral");
   });
 
   it("shows dash for null trend", () => {
@@ -36,27 +36,27 @@ describe("TrendArrow", () => {
 
     const dash = screen.getByText("—");
     expect(dash).toBeInTheDocument();
-    expect(dash).toHaveClass("text-gray-400");
+    expect(dash).toHaveClass("trend-arrow-neutral");
   });
 
   it("applies small size class", () => {
     render(<TrendArrow trend={1} size="sm" />);
 
     const arrow = screen.getByText("↑");
-    expect(arrow).toHaveClass("text-sm");
+    expect(arrow).toHaveClass("trend-arrow-sm");
   });
 
   it("applies medium size class by default", () => {
     render(<TrendArrow trend={1} />);
 
     const arrow = screen.getByText("↑");
-    expect(arrow).toHaveClass("text-lg");
+    expect(arrow).toHaveClass("trend-arrow-md");
   });
 
   it("applies large size class", () => {
     render(<TrendArrow trend={1} size="lg" />);
 
     const arrow = screen.getByText("↑");
-    expect(arrow).toHaveClass("text-2xl");
+    expect(arrow).toHaveClass("trend-arrow-lg");
   });
 });

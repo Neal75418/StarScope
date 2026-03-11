@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
@@ -21,6 +21,15 @@ from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/context", tags=["context"])
+
+
+def _is_recent(published_at: Optional[datetime], recent_threshold: datetime) -> bool:
+    """檢查 datetime 是否為近期，處理無時區的 datetime。"""
+    if not published_at:
+        return False
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    return published_at > recent_threshold
 
 
 # 回應 schema
@@ -37,8 +46,7 @@ class ContextSignalResponse(BaseModel):
     published_at: Optional[datetime]
     fetched_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ContextSignalsResponse(BaseModel):
@@ -134,15 +142,6 @@ async def get_context_badges(
     badges: List[ContextBadge] = []
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
-    def _is_recent(published_at: Optional[datetime]) -> bool:
-        """檢查 datetime 是否為近期，處理無時區的 datetime。"""
-        if not published_at:
-            return False
-        # 處理 DB 中無時區的 datetime
-        if published_at.tzinfo is None:
-            published_at = published_at.replace(tzinfo=timezone.utc)
-        return published_at > recent_threshold
-
     # 取得分數最高的 HN 文章
     top_hn = (
         db.query(ContextSignal)
@@ -160,7 +159,7 @@ async def get_context_badges(
             label=f"HN: {top_hn.score} pts",
             url=top_hn.url,
             score=top_hn.score,
-            is_recent=_is_recent(top_hn.published_at),
+            is_recent=_is_recent(top_hn.published_at, recent_threshold),
         ))
 
     badges_response = ContextBadgesResponse(badges=badges, repo_id=repo_id)
@@ -215,13 +214,6 @@ async def get_context_badges_batch(
 
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
-    def _is_recent(published_at: Optional[datetime]) -> bool:
-        if not published_at:
-            return False
-        if published_at.tzinfo is None:
-            published_at = published_at.replace(tzinfo=timezone.utc)
-        return published_at > recent_threshold
-
     # 一次查詢所有 repo 的最高分 HN 文章（同分時取最小 id 作為 tiebreaker）
     from sqlalchemy import and_
 
@@ -259,7 +251,7 @@ async def get_context_badges_batch(
                 label=f"HN: {signal.score} pts",
                 url=signal.url,
                 score=signal.score,
-                is_recent=_is_recent(signal.published_at),
+                is_recent=_is_recent(signal.published_at, recent_threshold),
             )
             # noinspection PyTypeChecker
             results[str(signal.repo_id)] = ContextBadgesResponse(

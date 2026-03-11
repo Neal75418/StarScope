@@ -37,25 +37,18 @@ interface AppHeaderProps {
   t: TranslationKeys;
 }
 
-function buildNavItems(t: TranslationKeys): NavItem[] {
-  return [
-    { id: "dashboard", label: t.nav.dashboard, icon: <HomeIcon size={16} /> },
-    { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={16} /> },
-    { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={16} /> },
-    { id: "trends", label: t.nav.trends, icon: <GraphIcon size={16} /> },
-    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={16} /> },
+function buildNavItems(t: TranslationKeys, iconSize: number, includeSettings = false): NavItem[] {
+  const items: NavItem[] = [
+    { id: "dashboard", label: t.nav.dashboard, icon: <HomeIcon size={iconSize} /> },
+    { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={iconSize} /> },
+    { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={iconSize} /> },
+    { id: "trends", label: t.nav.trends, icon: <GraphIcon size={iconSize} /> },
+    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={iconSize} /> },
   ];
-}
-
-function buildMobileNavItems(t: TranslationKeys): NavItem[] {
-  return [
-    { id: "dashboard", label: t.nav.dashboard, icon: <HomeIcon size={20} /> },
-    { id: "discovery", label: t.nav.discovery, icon: <SearchIcon size={20} /> },
-    { id: "watchlist", label: t.nav.watchlist, icon: <RepoIcon size={20} /> },
-    { id: "trends", label: t.nav.trends, icon: <GraphIcon size={20} /> },
-    { id: "compare", label: t.nav.compare, icon: <GitCompareIcon size={20} /> },
-    { id: "settings", label: t.nav.settings, icon: <GearIcon size={20} /> },
-  ];
+  if (includeSettings) {
+    items.push({ id: "settings", label: t.nav.settings, icon: <GearIcon size={iconSize} /> });
+  }
+  return items;
 }
 
 export function AppHeader({
@@ -67,8 +60,8 @@ export function AppHeader({
   onLanguageToggle,
   t,
 }: AppHeaderProps) {
-  const navItems = buildNavItems(t);
-  const mobileNavItems = buildMobileNavItems(t);
+  const navItems = buildNavItems(t, 16);
+  const mobileNavItems = buildNavItems(t, 20, true);
   const isDark = theme === "dark";
   const isEnglish = language === "en";
   const isOnline = useOnlineStatus();

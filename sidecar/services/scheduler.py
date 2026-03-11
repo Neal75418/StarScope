@@ -14,7 +14,7 @@ from typing import Optional
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func
 from sqlalchemy.exc import SQLAlchemyError
 
 from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
@@ -106,8 +106,6 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
 
     with get_db_session() as db:
         try:
-            from sqlalchemy import func
-
             # 使用 naive datetime 與 DB 值比較（SQLite 儲存 naive datetime）
             recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
 
@@ -142,34 +140,34 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
             # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
             # 避免一次性載入所有 repo 到記憶體
             for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
-                    repo_id = int(repo.id)
-                    try:
-                        # 從 GitHub 取得最新資料
-                        github_data = await fetch_repo_data(repo.owner, repo.name)
+                repo_id = int(repo.id)
+                try:
+                    # 從 GitHub 取得最新資料
+                    github_data = await fetch_repo_data(repo.owner, repo.name)
 
-                        if github_data:
-                            # 原子性地更新中繼資料 + 快照 + 訊號
-                            update_repo_from_github(repo, github_data, db)
+                    if github_data:
+                        # 原子性地更新中繼資料 + 快照 + 訊號
+                        update_repo_from_github(repo, github_data, db)
 
-                            success_count += 1
-                            # 成功時重置失敗計數
-                            _repo_failure_counts.pop(repo_id, None)
-                            log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
-                        else:
-                            error_count += 1
-                            _track_repo_failure(repo_id, repo.full_name, "資料為空")
-
-                    except (GitHubAPIError, SQLAlchemyError) as e:
+                        success_count += 1
+                        # 成功時重置失敗計數
+                        _repo_failure_counts.pop(repo_id, None)
+                        log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
+                    else:
                         error_count += 1
-                        db.rollback()
-                        _track_repo_failure(repo_id, repo.full_name, str(e))
-                        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
-                    except Exception as e:
-                        # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
-                        error_count += 1
-                        db.rollback()
-                        _track_repo_failure(repo_id, repo.full_name, str(e))
-                        log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
+                        _track_repo_failure(repo_id, repo.full_name, "資料為空")
+
+                except (GitHubAPIError, SQLAlchemyError) as e:
+                    error_count += 1
+                    db.rollback()
+                    _track_repo_failure(repo_id, repo.full_name, str(e))
+                    log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+                except Exception as e:
+                    # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
+                    error_count += 1
+                    db.rollback()
+                    _track_repo_failure(repo_id, repo.full_name, str(e))
+                    log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
 
             log.info(
                 f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"
@@ -256,8 +254,6 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
     Returns:
         已刪除的快照數量
     """
-    from sqlalchemy import func
-
     with get_db_session() as db:
         try:
             cutoff = (utc_now() - timedelta(days=retention_days)).date()

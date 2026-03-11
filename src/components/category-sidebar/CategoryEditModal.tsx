@@ -5,6 +5,7 @@
 import { useState, FormEvent } from "react";
 import { CategoryTreeNode, CategoryUpdate } from "../../api/client";
 import { useI18n } from "../../i18n";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 interface CategoryEditModalProps {
   category: CategoryTreeNode;
@@ -42,13 +43,10 @@ export function CategoryEditModal({
     }
   };
 
+  useEscapeKey(onClose);
+
   return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-      role="presentation"
-    >
+    <div className="modal-overlay" onClick={onClose} role="presentation">
       <div
         className="modal category-edit-modal"
         onClick={(e) => e.stopPropagation()}

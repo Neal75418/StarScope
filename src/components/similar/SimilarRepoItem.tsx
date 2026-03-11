@@ -2,10 +2,13 @@
  * 單一相似 repo 項目元件，含相似度維度分解條。
  */
 
-import React from "react";
+import type { MouseEvent } from "react";
 import { safeOpenUrl } from "../../utils/url";
 import { SimilarRepo } from "../../api/client";
 import { useI18n } from "../../i18n";
+
+const MAX_DESCRIPTION_LENGTH = 100;
+const MAX_VISIBLE_TOPICS = 3;
 
 interface SimilarRepoItemProps {
   repo: SimilarRepo;
@@ -15,15 +18,18 @@ function formatScore(score: number): string {
   return `${Math.round(score * 100)}%`;
 }
 
-function truncateDescription(description: string, maxLength: number = 100): string {
+function truncateDescription(
+  description: string,
+  maxLength: number = MAX_DESCRIPTION_LENGTH
+): string {
   return description.length > maxLength ? description.substring(0, maxLength) + "..." : description;
 }
 
 function TopicsList({ topics }: { topics: string[] }) {
   if (topics.length === 0) return null;
 
-  const visibleTopics = topics.slice(0, 3);
-  const remainingCount = topics.length - 3;
+  const visibleTopics = topics.slice(0, MAX_VISIBLE_TOPICS);
+  const remainingCount = topics.length - MAX_VISIBLE_TOPICS;
 
   return (
     <div className="similar-repo-topics">
@@ -75,7 +81,7 @@ function SimilarityBreakdown({ repo }: { repo: SimilarRepo }) {
 export function SimilarRepoItem({ repo }: SimilarRepoItemProps) {
   const { t } = useI18n();
 
-  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLinkClick = async (e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     await safeOpenUrl(repo.url);
   };

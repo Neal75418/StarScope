@@ -53,12 +53,13 @@ engine = create_engine(
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, _connection_record):
     """
-    啟用 WAL 模式以提升併發讀寫效能。
-    WAL 允許讀取與寫入同時進行而不互相阻塞。
+    設定 SQLite 優化參數（所有連線共用）。
+    WAL 模式提升併發讀寫效能，cache_size 提升查詢效能。
     """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA cache_size=-10000")  # 10MB cache
     cursor.close()
 
 

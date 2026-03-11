@@ -16,6 +16,7 @@ from db.models import (
     Repo, RepoSnapshot, Signal, TriggeredAlert,
     EarlySignal, ContextSignal,
 )
+from constants import SignalType, ContextSignalType
 from utils.time import utc_now, utc_today
 
 logger = logging.getLogger(__name__)
@@ -106,8 +107,8 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
             "full_name": repo.full_name if repo else "unknown",
             "stars": latest_map.get(repo_id, 0),
             "stars_delta_7d": repo_deltas.get(repo_id, 0),
-            "velocity": round(sigs.get("star_velocity", 0), 2),
-            "trend": int(sigs.get("trend", 0)),
+            "velocity": round(sigs.get(SignalType.VELOCITY, 0), 2),
+            "trend": int(sigs.get(SignalType.TREND, 0)),
         }
 
     # Top gainers (top 5 by 7d delta)
@@ -144,7 +145,7 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
     hn_signals = (
         db.query(ContextSignal)
         .filter(
-            ContextSignal.signal_type == "hacker_news",
+            ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
             ContextSignal.fetched_at >= week_ago,
         )
         .order_by(ContextSignal.score.desc().nullslast())
@@ -166,7 +167,7 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
     accelerating = 0
     decelerating = 0
     for sigs in signal_map.values():
-        acc = sigs.get("acceleration", 0)
+        acc = sigs.get(SignalType.ACCELERATION, 0)
         if acc > 0:
             accelerating += 1
         elif acc < 0:

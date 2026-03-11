@@ -1,14 +1,12 @@
 # FastAPI and server
 fastapi>=0.129.0
 pydantic>=2.0.0  # Explicitly listed for IDE support (bundled with FastAPI)
-# Keep starlette loosely pinned to align with FastAPI's dependency range.
-starlette>=0.52.1
 uvicorn[standard]>=0.34.0
 python-dotenv>=1.0.0
 keyring>=25.0.0
 
-# HTTP client for GitHub API
-httpx>=0.28.0
+# HTTP client for GitHub API (http2 extra used by testing and production)
+httpx[http2]>=0.28.0
 
 # Retry with exponential backoff
 tenacity>=9.1.4
@@ -26,14 +24,8 @@ apscheduler>=3.10.0
 # API rate limiting
 slowapi>=0.1.9
 
-# For future PyInstaller packaging
-pyinstaller>=6.19.0
-
 # Testing
-# CVE-2025-71176 已修補於 pytest 9.1.0+
-# 當前使用 9.0.x，建議定期檢查並升級至 9.1.0+ when available
-pytest>=9.0.0,<10.0.0
+pytest>=9.1.0,<10.0.0
 pytest-asyncio>=0.24.0
 pytest-cov>=6.0.0
 pytest-timeout>=2.3.0
-httpx[http2]>=0.28.0

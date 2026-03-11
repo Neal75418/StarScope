@@ -8,23 +8,19 @@ interface TrendArrowProps {
 }
 
 export function TrendArrow({ trend, size = "md" }: TrendArrowProps) {
-  const sizeClasses = {
-    sm: "text-sm",
-    md: "text-lg",
-    lg: "text-2xl",
-  };
+  const sizeClass = `trend-arrow-${size}`;
 
   if (trend === null) {
-    return <span className={`${sizeClasses[size]} text-gray-400`}>—</span>;
+    return <span className={`${sizeClass} trend-arrow-neutral`}>—</span>;
   }
 
   if (trend > 0) {
-    return <span className={`${sizeClasses[size]} text-green-500`}>↑</span>;
+    return <span className={`${sizeClass} trend-arrow-up`}>↑</span>;
   }
 
   if (trend < 0) {
-    return <span className={`${sizeClasses[size]} text-red-500`}>↓</span>;
+    return <span className={`${sizeClass} trend-arrow-down`}>↓</span>;
   }
 
-  return <span className={`${sizeClasses[size]} text-gray-400`}>→</span>;
+  return <span className={`${sizeClass} trend-arrow-neutral`}>→</span>;
 }

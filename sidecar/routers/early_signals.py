@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func
 
@@ -45,8 +45,7 @@ class EarlySignalResponse(BaseModel):
     acknowledged: bool
     acknowledged_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EarlySignalListResponse(BaseModel):

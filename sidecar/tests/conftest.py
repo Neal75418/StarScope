@@ -8,6 +8,7 @@ from typing import Generator
 from unittest.mock import patch
 
 import pytest
+from constants import SignalType
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -165,7 +166,7 @@ def mock_repo_with_signals(test_db, mock_repo):
 
     signal = Signal(
         repo_id=mock_repo.id,
-        signal_type="star_velocity",
+        signal_type=SignalType.VELOCITY,
         value=50.0,
         calculated_at=utc_now(),
     )

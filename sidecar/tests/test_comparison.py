@@ -4,6 +4,7 @@ Tests for comparison chart endpoint.
 
 from datetime import timedelta
 
+from constants import SignalType
 from db.models import RepoSnapshot, Signal
 from utils.time import utc_now, utc_today
 
@@ -93,7 +94,7 @@ class TestComparisonEndpoint:
             test_db.add(snap)
 
         # Create signals for first repo
-        test_db.add(Signal(repo_id=repos[0].id, signal_type="star_velocity", value=25.5))
+        test_db.add(Signal(repo_id=repos[0].id, signal_type=SignalType.VELOCITY, value=25.5))
         test_db.add(Signal(repo_id=repos[0].id, signal_type="trend", value=1))
         test_db.commit()
 

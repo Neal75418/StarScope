@@ -4,15 +4,14 @@
 
 import { useRef, useCallback } from "react";
 import { logger } from "../utils/logger";
-
-const STORAGE_KEY = "starscope_notifications_read";
+import { STORAGE_KEYS } from "../constants/storage";
 
 /**
  * 從 localStorage 載入已讀通知 ID。
  */
 function loadReadIds(): Set<string> {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS_READ);
     if (stored) {
       const parsed = JSON.parse(stored) as string[];
       return new Set(parsed);
@@ -28,7 +27,7 @@ function loadReadIds(): Set<string> {
  */
 function saveReadIds(ids: Set<string>): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS_READ, JSON.stringify([...ids]));
   } catch (err) {
     logger.warn("[NotificationStorage] 儲存已讀通知 ID 失敗:", err);
   }

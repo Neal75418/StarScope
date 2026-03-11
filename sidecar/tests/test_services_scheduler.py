@@ -282,13 +282,15 @@ class TestCleanupOldSnapshots:
     def test_cleanup_with_old_snapshots(self, test_db, mock_repo):
         """Test cleanup removes old snapshots but keeps latest per repo."""
         from db.models import RepoSnapshot
-        from datetime import datetime, timedelta
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
 
         # Create old snapshot (> 90 days)
         old_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=(datetime.utcnow() - timedelta(days=100)).date(),
-            fetched_at=datetime.utcnow() - timedelta(days=100),
+            snapshot_date=(now - timedelta(days=100)).date(),
+            fetched_at=now - timedelta(days=100),
             stars=100,
             forks=10,
             watchers=5,
@@ -299,8 +301,8 @@ class TestCleanupOldSnapshots:
         # Create recent snapshot (should NOT be deleted, it's the latest)
         recent_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=datetime.utcnow().date(),
-            fetched_at=datetime.utcnow(),
+            snapshot_date=now.date(),
+            fetched_at=now,
             stars=200,
             forks=20,
             watchers=10,

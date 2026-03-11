@@ -1203,15 +1203,24 @@ body {
   gap: 12px;
 }
 
-/* Trend Colors */
-.text-green-500 {
+/* Trend Arrow */
+.trend-arrow-up {
   color: var(--success-fg);
 }
-.text-red-500 {
+.trend-arrow-down {
   color: var(--danger-fg);
 }
-.text-gray-400 {
+.trend-arrow-neutral {
   color: var(--fg-subtle);
+}
+.trend-arrow-sm {
+  font-size: 0.875rem;
+}
+.trend-arrow-md {
+  font-size: 1.125rem;
+}
+.trend-arrow-lg {
+  font-size: 1.5rem;
 }
 
 /* Sort Tabs */

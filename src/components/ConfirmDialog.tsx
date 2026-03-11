@@ -2,9 +2,10 @@
  * 通用確認 dialog 元件，取代瀏覽器原生 confirm()。
  */
 
-import { useEffect, useId } from "react";
+import { useId } from "react";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -35,16 +36,7 @@ export function ConfirmDialog({
   const focusTrapRef = useFocusTrap(isOpen);
 
   // 按 ESC 關閉 dialog
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onCancel();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onCancel]);
+  useEscapeKey(onCancel, isOpen);
 
   if (!isOpen) return null;
 

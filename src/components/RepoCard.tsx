@@ -48,8 +48,7 @@ export const RepoCard = memo(function RepoCard({
   chartState,
   categoryContext,
 }: RepoCardProps) {
-  const { badges, badgesLoading, activeSignalCount, refreshContext, isRefreshingContext } =
-    useRepoCardData(repo.id, preloadedData);
+  const { badges, badgesLoading, activeSignalCount } = useRepoCardData(repo.id, preloadedData);
   // 圖表狀態：外部控制優先（虛擬滾動場景），否則使用內部狀態
   const [internalShowChart, setInternalShowChart] = useState(false);
   const showChart = chartState?.expanded ?? internalShowChart;
@@ -102,8 +101,6 @@ export const RepoCard = memo(function RepoCard({
         description={repo.description}
         badges={badges}
         badgesLoading={badgesLoading}
-        onRefreshContext={refreshContext}
-        isRefreshingContext={isRefreshingContext}
       />
 
       <RepoCardStats repo={repo} />

@@ -8,20 +8,21 @@
 """
 
 import logging
+import threading
 import time
 from typing import Any
 from contextlib import contextmanager
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from sqlalchemy.pool import Pool
 
 logger = logging.getLogger(__name__)
 
 # 慢查詢閾值（秒）
 SLOW_QUERY_THRESHOLD = 0.5  # 500ms
 
-# 查詢統計
+# 查詢統計（thread-safe）
+_query_stats_lock = threading.Lock()
 _query_stats = {
     "total_queries": 0,
     "slow_queries": 0,
@@ -83,13 +84,15 @@ def setup_query_logging(engine: Engine, enable: bool = True):
         start_time = conn.info["query_start_time"].pop(-1)
         elapsed = time.perf_counter() - start_time
 
-        # 更新統計
-        _query_stats["total_queries"] += 1
-        _query_stats["total_time"] += elapsed
+        # 更新統計（thread-safe）
+        with _query_stats_lock:
+            _query_stats["total_queries"] += 1
+            _query_stats["total_time"] += elapsed
 
         # 記錄慢查詢
         if elapsed > SLOW_QUERY_THRESHOLD:
-            _query_stats["slow_queries"] += 1
+            with _query_stats_lock:
+                _query_stats["slow_queries"] += 1
 
             # 截斷長查詢語句
             statement_preview = statement[:500]
@@ -108,21 +111,7 @@ def setup_query_logging(engine: Engine, enable: bool = True):
         elif logger.isEnabledFor(logging.INFO):
             logger.info(f"Query completed in {elapsed:.3f}s")
 
-    @event.listens_for(Pool, "connect")
-    def set_sqlite_pragma(dbapi_conn, connection_record):
-        """設定 SQLite 優化參數"""
-        cursor = dbapi_conn.cursor()
-
-        # 啟用 WAL 模式（更好的並發性能）
-        cursor.execute("PRAGMA journal_mode=WAL")
-
-        # 設定合理的快取大小（10MB）
-        cursor.execute("PRAGMA cache_size=-10000")
-
-        # 啟用外鍵約束
-        cursor.execute("PRAGMA foreign_keys=ON")
-
-        cursor.close()
+    # PRAGMA 設定已統一在 database.py set_sqlite_pragma 中管理
 
     logger.info("Database query logging enabled (slow query threshold: %.1fs)", SLOW_QUERY_THRESHOLD)
 
@@ -140,30 +129,28 @@ def get_query_stats() -> dict[str, Any]:
         >>> print(f"Slow queries: {stats['slow_queries']}")
         >>> print(f"Average time: {stats['avg_time']:.3f}s")
     """
-    avg_time = (
-        _query_stats["total_time"] / _query_stats["total_queries"]
-        if _query_stats["total_queries"] > 0
-        else 0.0
-    )
+    with _query_stats_lock:
+        total = _query_stats["total_queries"]
+        slow = _query_stats["slow_queries"]
+        total_time = _query_stats["total_time"]
+
+    avg_time = total_time / total if total > 0 else 0.0
 
     return {
-        "total_queries": _query_stats["total_queries"],
-        "slow_queries": _query_stats["slow_queries"],
-        "total_time": _query_stats["total_time"],
+        "total_queries": total,
+        "slow_queries": slow,
+        "total_time": total_time,
         "avg_time": avg_time,
-        "slow_query_ratio": (
-            _query_stats["slow_queries"] / _query_stats["total_queries"]
-            if _query_stats["total_queries"] > 0
-            else 0.0
-        ),
+        "slow_query_ratio": slow / total if total > 0 else 0.0,
     }
 
 
 def reset_query_stats():
     """重置查詢統計"""
-    _query_stats["total_queries"] = 0
-    _query_stats["slow_queries"] = 0
-    _query_stats["total_time"] = 0.0
+    with _query_stats_lock:
+        _query_stats["total_queries"] = 0
+        _query_stats["slow_queries"] = 0
+        _query_stats["total_time"] = 0.0
 
 
 @contextmanager

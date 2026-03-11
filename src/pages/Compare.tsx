@@ -3,7 +3,6 @@
  */
 
 import { useState, useMemo, useCallback, memo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import {
   LineChart,
   Line,
@@ -16,19 +15,20 @@ import {
 } from "recharts";
 import { useI18n } from "../i18n";
 import { useComparison } from "../hooks/useComparison";
-import { getRepos } from "../api/client";
+import { useReposQuery } from "../hooks/useReposQuery";
 import type { RepoWithSignals, ComparisonRepoData, ComparisonTimeRange } from "../api/types";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta } from "../utils/format";
 import { TREND_ARROWS } from "../constants/trends";
-import { queryKeys } from "../lib/react-query";
 import { TIME_RANGES } from "../constants/chart";
-const STORAGE_KEY = "starscope-compare-repos";
+import { STORAGE_KEYS } from "../constants/storage";
+
+const MAX_COMPARE_REPOS = 5;
 
 function loadSavedRepoIds(): number[] {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(STORAGE_KEYS.COMPARE_REPOS);
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
@@ -68,7 +68,7 @@ const RepoSelector = memo(function RepoSelector({
       <div className="compare-repo-list">
         {filtered.map((repo) => {
           const isSelected = selectedIds.includes(repo.id);
-          const disabled = !isSelected && selectedIds.length >= 5;
+          const disabled = !isSelected && selectedIds.length >= MAX_COMPARE_REPOS;
           return (
             <button
               key={repo.id}
@@ -166,13 +166,7 @@ export function Compare() {
   const [timeRange, setTimeRange] = useState<ComparisonTimeRange>("30d");
   const [normalize, setNormalize] = useState(false);
 
-  const reposQuery = useQuery<RepoWithSignals[], Error>({
-    queryKey: queryKeys.repos.lists(),
-    queryFn: async () => {
-      const response = await getRepos();
-      return response.repos;
-    },
-  });
+  const reposQuery = useReposQuery();
 
   const {
     data,
@@ -184,7 +178,7 @@ export function Compare() {
     setSelectedIds((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(STORAGE_KEYS.COMPARE_REPOS, JSON.stringify(next));
       } catch {
         // QuotaExceededError — 靜默忽略
       }

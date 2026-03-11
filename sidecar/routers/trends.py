@@ -6,7 +6,7 @@ from typing import List, Optional, cast
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import desc, func
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session, aliased
@@ -45,8 +45,7 @@ class TrendingRepo(BaseModel):
     trend: Optional[int]
     rank: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TrendsResponse(BaseModel):

@@ -42,6 +42,5 @@ export function useImportState() {
     reset,
     cancel,
     complete,
-    abortControllerRef,
   };
 }

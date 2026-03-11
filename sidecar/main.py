@@ -3,38 +3,40 @@ StarScope Python Sidecar。
 為 Tauri 桌面應用提供資料引擎的 FastAPI 伺服器。
 """
 
-import os
+import asyncio
 import logging
+import os
 import time
-import uvicorn
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
+import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-# 從 .env 檔載入環境變數
+# 從 .env 檔載入環境變數（必須在讀取環境變數前呼叫）
 load_dotenv()
 
 from constants import DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
+from db import init_db
+from db.database import get_app_data_dir
+from logging_config import setup_logging
 from middleware import LoggingMiddleware
+from middleware.rate_limit import limiter
+from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError
+from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
 # 環境設定
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ENV = os.getenv("ENV", "development")
-from logging_config import setup_logging
-from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison
-from db import init_db
-from db.database import get_app_data_dir
-from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
 # 最優先設定 logging（非開發 debug 模式時寫入檔案）
 _log_dir = str(get_app_data_dir()) if not DEBUG else None
 setup_logging(level="INFO", log_dir=_log_dir)
-
-
-from typing import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +74,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 啟動後立即抓取資料（不等第一個排程週期）
     # 保留 task 參照以防止 GC 回收
-    import asyncio
     _startup_task = asyncio.create_task(trigger_fetch_now())
 
     logger.info(f"[啟動] StarScope Engine 已啟動 (ENV={ENV}, DEBUG={DEBUG})")
@@ -83,8 +84,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     stop_scheduler()
     logger.info("[啟動] StarScope Engine 已停止")
 
-
-from middleware.rate_limit import limiter
 
 app = FastAPI(
     title="StarScope API",
@@ -191,10 +190,6 @@ app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
 
 # GitHub API 錯誤的全域例外處理器。
 # 避免在各 router 中重複 try/except。
-from fastapi import Request
-from fastapi.responses import JSONResponse
-
-
 @app.exception_handler(GitHubNotFoundError)
 async def github_not_found_handler(_request: Request, exc: GitHubNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc)})
