@@ -39,7 +39,7 @@ StarScope 是一款開源桌面應用，幫助工程師以**動能（velocity）
 ## 🗺️ 功能一覽
 
 ```mermaid
-%%{init: {'theme': 'default'}}%%
+%%{init: {'theme': 'dark'}}%%
 mindmap
   root((StarScope))
     追蹤與分析
@@ -76,6 +76,7 @@ mindmap
 ## 🏗️ 技術架構
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 graph TB
     subgraph Desktop["Desktop Client"]
         direction TB
@@ -97,6 +98,7 @@ graph TB
             Fetch["GitHub Fetcher"]
             Analyze["Signal Analyzer"]
             Detect["Anomaly Detector"]
+            Context["Context Fetcher"]
             Recommend["Recommender"]
         end
         subgraph Data["Data Layer"]
@@ -116,7 +118,7 @@ graph TB
     Components <-->|HTTP/JSON| API
     Native -.->|IPC| API
     Fetch --> GH
-    Analyze --> HN
+    Context --> HN
 
     classDef desktop fill:#1e293b,stroke:#334155,color:#f8fafc,font-weight:bold
     classDef engine fill:#0f172a,stroke:#1e3a5f,color:#e2e8f0,font-weight:bold
@@ -201,7 +203,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   50 個 Custom Hooks
+│   ├── hooks/                     #   49 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -214,7 +216,7 @@ StarScope/
 │   │   └── Settings.tsx           #     設定與警報管理
 │   ├── theme/                     #   淺色／深色主題
 │   ├── types/                     #   共用 TypeScript 型別
-│   └── utils/                     #   工具函式（13 個模組）
+│   └── utils/                     #   工具函式（12 個模組）
 │
 ├── src-tauri/                     # Tauri 桌面層（Rust）
 │   ├── src/
@@ -231,7 +233,7 @@ StarScope/
 │   ├── db/                        #   SQLite + SQLAlchemy（13 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（484 個）
+│   └── tests/                     #   pytest 後端測試（482 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -281,7 +283,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 892 + 後端 484 = **1,376+ 個測試案例**
+> **測試覆蓋**：前端 870 + 後端 482 = **1,352+ 個測試案例**
 
 ---
 
