@@ -10,14 +10,6 @@ interface CommitActivityBadgeProps {
   repoId: number;
 }
 
-// 依每週 commit 數對應顏色
-const ACTIVITY_COLORS: Record<string, { bg: string; text: string }> = {
-  high: { bg: "#14532d", text: "#86efac" }, // ≥10/wk - very active
-  medium: { bg: "#166534", text: "#86efac" }, // 5-9/wk - active
-  low: { bg: "#ca8a04", text: "#fef9c3" }, // 1-4/wk - moderate
-  inactive: { bg: "#6b7280", text: "#f3f4f6" }, // 0/wk - inactive
-};
-
 function getActivityLevel(avgCommitsPerWeek: number): string {
   if (avgCommitsPerWeek >= 10) return "high";
   if (avgCommitsPerWeek >= 5) return "medium";
@@ -36,7 +28,6 @@ function ActivityBadge({
 }) {
   const { t } = useI18n();
   const level = getActivityLevel(avgCommitsPerWeek);
-  const colors = ACTIVITY_COLORS[level];
   const displayText = `${Math.round(avgCommitsPerWeek)}/wk`;
   const titleText = interpolate(t.commitActivity?.perWeek ?? "{count}/wk", {
     count: Math.round(avgCommitsPerWeek),
@@ -44,8 +35,7 @@ function ActivityBadge({
 
   return (
     <button
-      className="activity-badge"
-      style={{ backgroundColor: colors.bg, color: colors.text }}
+      className={`activity-badge ${level}`}
       title={titleText}
       onClick={onClick}
       disabled={fetching}

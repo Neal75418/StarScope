@@ -3,6 +3,7 @@
 /* Default: Dark Theme */
 :root,
 [data-theme="dark"] {
+  color-scheme: dark;
   /* GitHub Dark Colors */
   --bg-canvas: #0d1117;
   --bg-default: #161b22;
@@ -77,6 +78,7 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+  --radius-pill: 9999px;
 
   /* Header specific */
   --header-bg: #161b22;
@@ -105,6 +107,8 @@
 
 /* Light Theme */
 [data-theme="light"] {
+  color-scheme: light;
+
   /* GitHub Light Colors */
   --bg-canvas: #ffffff;
   --bg-default: #f6f8fa;
@@ -225,7 +229,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--bg-muted);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -319,7 +323,7 @@ body {
   font-weight: 500;
   color: var(--nav-item-color);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
@@ -424,7 +428,7 @@ body {
   text-align: center;
   color: #fff;
   background-color: var(--danger-fg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .notification-dropdown {
@@ -436,7 +440,7 @@ body {
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -782,25 +786,25 @@ body {
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--border-default);
   background: linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg-muted) 100%);
   color: var(--fg-default);
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:hover:not(:disabled) {
   background: linear-gradient(180deg, var(--bg-muted) 0%, var(--bg-emphasis) 100%);
   border-color: var(--fg-subtle);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .btn:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn:disabled {
@@ -849,7 +853,7 @@ body {
 .btn-sm {
   padding: 5px 12px;
   font-size: 11px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 /* Loading State */
@@ -1093,7 +1097,7 @@ body {
   padding: 3px 10px;
   background: linear-gradient(135deg, var(--bg-subtle), var(--bg-muted));
   border: 1px solid var(--border-default);
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   color: var(--fg-muted);
   letter-spacing: 0.02em;
 }
@@ -1334,7 +1338,7 @@ body {
 .trends-filter-select {
   padding: 6px 10px;
   font-size: 0.8rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-default);
   background: var(--bg-subtle);
   color: var(--fg-default);
@@ -1357,7 +1361,7 @@ body {
 .trends-add-btn {
   padding: 3px 8px;
   font-size: 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
@@ -1371,7 +1375,7 @@ body {
   padding: 3px 8px;
   background: var(--success-subtle);
   border: 1px solid var(--success-fg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   opacity: 0.8;
 }
 
@@ -1426,7 +1430,7 @@ body {
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 500;
   text-decoration: none;
@@ -1438,7 +1442,7 @@ body {
   color: var(--badge-color);
   border: 1px solid color-mix(in srgb, var(--badge-color) 25%, transparent);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .context-badge .badge-icon {
@@ -1499,7 +1503,7 @@ body {
   padding: 10px;
   background: var(--bg-subtle);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1565,11 +1569,11 @@ body {
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-size: 11px;
   font-weight: 500;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .tag-badge.clickable {
@@ -1578,7 +1582,7 @@ body {
 
 .tag-badge.clickable:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .tag-remove-btn {
@@ -2249,19 +2253,19 @@ body {
   min-width: 28px;
   height: 22px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   font-weight: 700;
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-sm);
   letter-spacing: 0.03em;
 }
 
 .health-badge:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-md);
 }
 
 .health-badge-loading {
@@ -2367,17 +2371,6 @@ body {
 }
 
 /* Health Panel */
-.health-panel-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(1, 4, 9, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
 .health-panel {
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
@@ -2507,13 +2500,13 @@ body {
 .score-bar-container {
   height: 8px;
   background-color: var(--bg-muted);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .score-bar {
   height: 100%;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -2839,8 +2832,8 @@ body {
 .os-notification-settings {
   margin-bottom: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
 }
 
 .os-notification-settings h3 {
@@ -2851,7 +2844,7 @@ body {
 
 .os-notification-desc {
   margin-bottom: 1rem;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
   font-size: 0.875rem;
 }
 
@@ -2863,11 +2856,11 @@ body {
 
 .os-notification-status {
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
 }
 
 .os-notification-status.enabled {
-  color: var(--success);
+  color: var(--success-fg);
 }
 
 /* Export Grid */
@@ -3742,6 +3735,11 @@ a:focus-visible {
     animation: none;
     border-style: dashed;
   }
+
+  .repo-card:hover,
+  .resultCard:hover {
+    transform: none;
+  }
 }
 
 /* Responsive Design */
@@ -4277,19 +4275,19 @@ a:focus-visible {
     box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.stats-grid .stat-card:nth-child(1) {
+.stat-card--accent {
   border-left-color: var(--accent-emphasis);
 }
 
-.stats-grid .stat-card:nth-child(2) {
+.stat-card--warning {
   border-left-color: var(--warning-fg);
 }
 
-.stats-grid .stat-card:nth-child(3) {
+.stat-card--success {
   border-left-color: var(--success-fg);
 }
 
-.stats-grid .stat-card:nth-child(4) {
+.stat-card--danger {
   border-left-color: var(--danger-fg);
 }
 
@@ -4464,17 +4462,6 @@ a:focus-visible {
 }
 
 /* ==================== Commit Activity Panel ==================== */
-.commit-activity-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(1, 4, 9, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
 .commit-activity-panel {
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
@@ -4566,7 +4553,7 @@ a:focus-visible {
   min-width: 32px;
   height: 24px;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 600;
   border: none;
@@ -4574,29 +4561,26 @@ a:focus-visible {
   transition: transform 0.15s ease;
 }
 
-.activity-badge.veryHigh {
+/* CommitActivityBadge 4-level scale (see getActivityLevel in CommitActivityBadge.tsx)
+   Note: Dashboard velocity chart uses a separate 5-level scale (veryHigh/high/medium/low/minimal) */
+.activity-badge.high {
   background-color: var(--success-subtle);
   color: var(--success-fg);
 }
 
-.activity-badge.high {
-  background-color: var(--accent-subtle);
-  color: var(--accent-fg);
-}
-
 .activity-badge.medium {
-  background-color: var(--attention-subtle);
-  color: var(--attention-fg);
+  background-color: var(--success-muted);
+  color: var(--success-fg);
 }
 
 .activity-badge.low {
-  background-color: var(--neutral-subtle);
-  color: var(--fg-muted);
+  background-color: var(--warning-subtle);
+  color: var(--warning-fg);
 }
 
-.activity-badge.minimal {
-  background-color: var(--danger-subtle);
-  color: var(--danger-fg);
+.activity-badge.inactive {
+  background-color: var(--neutral-subtle);
+  color: var(--fg-muted);
 }
 
 /* Commit Heatmap */
@@ -4668,17 +4652,6 @@ a:focus-visible {
 }
 
 /* ==================== Languages Panel ==================== */
-.languages-overlay {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(1, 4, 9, 0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
 .languages-panel {
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
@@ -4926,22 +4899,6 @@ a:focus-visible {
   cursor: not-allowed;
 }
 
-/* ==================== Accessibility: Reduced Motion ==================== */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-
-  .repo-card:hover,
-  .resultCard:hover {
-    transform: none;
-  }
-}
-
 /* Empty State Styling */
 .empty-state-container {
   display: flex;
@@ -5004,7 +4961,7 @@ a:focus-visible {
 .signal-spotlight {
   background: var(--bg-default);
   border: 1px solid var(--border-default);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 24px;
 }
@@ -5060,7 +5017,7 @@ a:focus-visible {
   gap: 12px;
   padding: 10px 12px;
   background: var(--bg-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-muted);
   transition: border-color 0.15s;
 }
@@ -5099,7 +5056,7 @@ a:focus-visible {
   font-size: 0.7rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -5152,7 +5109,7 @@ a:focus-visible {
 .signal-ack-btn {
   padding: 4px 10px;
   font-size: 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
   background: var(--bg-default);
   color: var(--fg-muted);
@@ -5258,7 +5215,7 @@ a:focus-visible {
   color: var(--success-fg);
   background: var(--success-subtle);
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
 }
 
 .weekly-grid {
@@ -5363,7 +5320,7 @@ a:focus-visible {
 
 .weekly-momentum > span {
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--bg-subtle);
 }
 
@@ -5407,7 +5364,7 @@ a:focus-visible {
   color: var(--accent-fg);
   background: var(--accent-subtle);
   padding: 1px 7px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -5436,7 +5393,7 @@ a:focus-visible {
   flex-shrink: 0;
   background: var(--bg-subtle);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 /* Weekly Summary responsive */

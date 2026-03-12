@@ -16,13 +16,15 @@ function StatCard({
   label,
   value,
   trend,
+  variant,
 }: {
   label: string;
   value: string | number;
   trend?: "up" | "down" | "neutral";
+  variant?: "accent" | "warning" | "success" | "danger";
 }) {
   return (
-    <div className="stat-card">
+    <div className={`stat-card${variant ? ` stat-card--${variant}` : ""}`}>
       <div className="stat-label">{label}</div>
       <div className={`stat-value ${trend ? `trend-${trend}` : ""}`}>{value}</div>
     </div>
@@ -35,17 +37,23 @@ const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) 
 
   return (
     <div className="stats-grid">
-      <StatCard label={t.dashboard.stats.totalRepos} value={stats.totalRepos} />
-      <StatCard label={t.dashboard.stats.totalStars} value={formatNumber(stats.totalStars)} />
+      <StatCard label={t.dashboard.stats.totalRepos} value={stats.totalRepos} variant="accent" />
+      <StatCard
+        label={t.dashboard.stats.totalStars}
+        value={formatNumber(stats.totalStars)}
+        variant="warning"
+      />
       <StatCard
         label={t.dashboard.stats.weeklyStars}
         value={formatDelta(stats.weeklyStars)}
         trend={stats.weeklyStars > 0 ? "up" : stats.weeklyStars < 0 ? "down" : "neutral"}
+        variant="success"
       />
       <StatCard
         label={t.dashboard.stats.activeAlerts}
         value={stats.activeAlerts}
         trend={stats.activeAlerts > 0 ? "up" : "neutral"}
+        variant="danger"
       />
     </div>
   );
