@@ -6,13 +6,11 @@ on:
     paths-ignore:
       - '**.md'
       - 'LICENSE'
-      - '.agent/**'
   pull_request:
     branches: [main]
     paths-ignore:
       - '**.md'
       - 'LICENSE'
-      - '.agent/**'
 
 concurrency:
   group: test-${{ github.ref }}
@@ -154,7 +152,7 @@ jobs:
 
       - name: Upload build artifacts
         if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: starscope-${{ matrix.os }}
           path: |
