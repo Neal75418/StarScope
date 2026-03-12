@@ -353,7 +353,7 @@ async def get_repo_signals_batch(
     # 按 repo_id 分組
     grouped: Dict[int, List[EarlySignalResponse]] = {}
     for s in signals:
-        rid: int = s.repo_id  # type: ignore[assignment]  # InstrumentedAttribute → int
+        rid: int = s.repo_id
         if rid not in grouped:
             grouped[rid] = []
         grouped[rid].append(_signal_to_response(s))

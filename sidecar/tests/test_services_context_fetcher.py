@@ -54,7 +54,7 @@ class TestStoreHnSignals:
     def test_stores_new_signals(self, test_db, mock_repo):
         """Test storing new HN signals."""
         stories = [create_mock_hn_story("hn1"), create_mock_hn_story("hn2")]
-        count = context_fetcher_module._store_hn_signals(mock_repo.id, stories, test_db)
+        count = context_fetcher_module._store_hn_signals(mock_repo.id, stories, test_db)  # type: ignore[arg-type]
 
         assert count == 2
 

@@ -315,14 +315,12 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
 
         except GitHubNotFoundError:
             db.rollback()
-            full_name = repo.full_name  # type: ignore[assignment]
-            logger.warning(f"[Repo] {full_name} 在 GitHub 上找不到，跳過")
+            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
             failed_count += 1
             continue
         except GitHubAPIError as e:
             db.rollback()
-            full_name = repo.full_name  # type: ignore[assignment]
-            logger.error(f"[Repo] {full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
             failed_count += 1
             continue
 

@@ -62,7 +62,7 @@ class TestParseHnHit:
             "author": "testuser",
             "created_at": "2024-01-15T12:00:00Z",
         }
-        seen_ids = set()
+        seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
@@ -77,7 +77,7 @@ class TestParseHnHit:
     def test_skips_duplicate_ids(self):
         """Test skips already seen IDs."""
         hit = {"objectID": "12345", "title": "Test"}
-        seen_ids = {"12345"}
+        seen_ids: set[str] = {"12345"}
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
@@ -86,7 +86,7 @@ class TestParseHnHit:
     def test_skips_missing_id(self):
         """Test skips hits without objectID."""
         hit = {"title": "Test"}
-        seen_ids = set()
+        seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
@@ -95,7 +95,7 @@ class TestParseHnHit:
     def test_generates_hn_url_when_missing(self):
         """Test generates HN URL when url is missing."""
         hit = {"objectID": "12345", "title": "Test", "url": None}
-        seen_ids = set()
+        seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
@@ -104,7 +104,7 @@ class TestParseHnHit:
     def test_handles_missing_fields(self):
         """Test handles missing optional fields."""
         hit = {"objectID": "12345"}
-        seen_ids = set()
+        seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
@@ -132,9 +132,9 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
 
-        stories = []
-        seen_ids = set()
-        errors = []
+        stories: list = []
+        seen_ids: set[str] = set()
+        errors: list[str] = []
 
         await hn_module._execute_hn_query(mock_client, "test query", seen_ids, stories, errors)
 
@@ -150,8 +150,8 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
 
-        stories = []
-        errors = []
+        stories: list = []
+        errors: list[str] = []
 
         await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
 
@@ -164,8 +164,8 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.side_effect = httpx.TimeoutException("Timeout")
 
-        stories = []
-        errors = []
+        stories: list = []
+        errors: list[str] = []
 
         await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
 
@@ -178,8 +178,8 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.side_effect = httpx.RequestError("Network error")
 
-        stories = []
-        errors = []
+        stories: list = []
+        errors: list[str] = []
 
         await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
 

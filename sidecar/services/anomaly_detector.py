@@ -127,8 +127,7 @@ class AnomalyDetector:
         偵測 rising star 模式。
         條件：stars < 5000 且（velocity > 10 或 velocity/stars > 0.01）
         """
-        # noinspection PyTypeChecker
-        repo_id: int = repo.id  # type: ignore[assignment]
+        repo_id: int = repo.id
 
         snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
         if not snapshot or snapshot.stars is None:
@@ -251,8 +250,7 @@ class AnomalyDetector:
         偵測 breakout 模式。
         條件：上週 velocity <= 0 且本週 velocity > 2
         """
-        # noinspection PyTypeChecker
-        repo_id: int = repo.id  # type: ignore[assignment]
+        repo_id: int = repo.id
 
         delta_7d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_7D, db, signal_map)
         delta_30d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_30D, db, signal_map)
@@ -320,8 +318,7 @@ class AnomalyDetector:
             hn_signal.score, VIRAL_HN_SEVERITY_HIGH, VIRAL_HN_SEVERITY_MEDIUM
         )
 
-        # noinspection PyTypeChecker
-        repo_id: int = repo.id  # type: ignore[assignment]
+        repo_id: int = repo.id
         snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
 
         return EarlySignal(

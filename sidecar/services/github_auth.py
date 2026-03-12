@@ -200,7 +200,8 @@ class GitHubAuthService:
                 },
             )
             if response.status_code == 200:
-                return response.json().get("login")
+                result: str | None = response.json().get("login")
+                return result
             return None
 
     @staticmethod

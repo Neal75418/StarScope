@@ -116,7 +116,8 @@ def _parse_shared_topics(json_str: Optional[str]) -> List[str]:
     if not json_str:
         return []
     try:
-        return json.loads(json_str)
+        result: list[str] = json.loads(json_str)
+        return result
     except json.JSONDecodeError:
         return []
 
@@ -501,7 +502,7 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
             shared_topics = _parse_shared_topics(entry.shared_topics)
             source_name = repo_name_map.get(source_id, f"repo #{source_id}")
 
-            target_repo: Repo = entry.similar  # type: ignore[assignment]
+            target_repo: Repo = entry.similar
             best_per_repo[target_id] = {
                 "repo_id": target_id,
                 "full_name": str(target_repo.full_name),

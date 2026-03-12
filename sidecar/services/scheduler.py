@@ -270,7 +270,7 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
                 db.query(RepoSnapshot)
                 .filter(
                     RepoSnapshot.snapshot_date < cutoff,
-                    ~RepoSnapshot.id.in_(latest_ids)  # type: ignore[arg-type]
+                    ~RepoSnapshot.id.in_(latest_ids)
                 )
                 .delete(synchronize_session=False)
             )
@@ -280,7 +280,7 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
             if deleted > 0:
                 logger.info(f"[排程] 快照清理: 刪除 {deleted} 筆超過 {retention_days} 天的快照")
 
-            return deleted
+            return int(deleted)
         except SQLAlchemyError as e:
             db.rollback()
             logger.error(f"[排程] 快照清理失敗: {e}", exc_info=True)

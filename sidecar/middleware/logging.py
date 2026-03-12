@@ -59,7 +59,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         """處理 request 並記錄詳情。"""
         # 跳過排除路徑的日誌記錄
         if self._should_exclude(request.url.path):
-            return await call_next(request)
+            response: Response = await call_next(request)
+            return response
 
         # 產生唯一 request ID 用於追蹤
         request_id = str(uuid.uuid4())[:8]

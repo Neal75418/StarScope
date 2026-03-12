@@ -216,7 +216,7 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
         ancestor = db.query(Category).filter(Category.id == current_id).first()
         if not ancestor:
             break
-        current_id = ancestor.parent_id  # type: ignore[assignment]  # InstrumentedAttribute → int
+        current_id = ancestor.parent_id
 
 
 def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:

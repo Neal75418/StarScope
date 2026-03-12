@@ -39,7 +39,7 @@ def build_signal_map(
     signal_map: dict[int, dict[str, float]] = {}
 
     for signal in all_signals:
-        rid: int = signal.repo_id  # type: ignore[assignment]
+        rid: int = signal.repo_id
         if rid not in signal_map:
             signal_map[rid] = {}
         # noinspection PyTypeChecker
@@ -108,7 +108,7 @@ def build_snapshot_map(
         .all()
     )
 
-    return {s.repo_id: s for s in snapshots}  # type: ignore[misc]
+    return {s.repo_id: s for s in snapshots}
 
 
 def build_stars_map(

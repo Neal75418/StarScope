@@ -103,7 +103,8 @@ def handle_github_response(
         return None
 
     response.raise_for_status()
-    return response.json()
+    data: dict = response.json()
+    return data
 
 
 class GitHubService:
@@ -137,7 +138,7 @@ class GitHubService:
         取得 repo 目前的 star 數。
         """
         data = await self.get_repo(owner, repo)
-        return data.get("stargazers_count", 0)
+        return int(data.get("stargazers_count", 0))
 
     async def get_commit_activity(
         self, owner: str, repo: str, max_retries: int = 3
