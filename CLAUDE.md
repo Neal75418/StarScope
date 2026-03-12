@@ -4,16 +4,6 @@
 
 ---
 
-## AI Assistant Skills
-
-> **IMPORTANT**: Before writing any code, consult `.agent/skills/`:
->
-> - **Tauri Master** — `.agent/skills/tauri-master/SKILL.md`
-> - **Python Sidecar** — `.agent/skills/python-sidecar/SKILL.md`
-> - **React Visualizer** — `.agent/skills/react-visualizer/SKILL.md`
-
----
-
 ## 專案概述
 
 StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。
@@ -166,7 +156,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 | `queries.py`          | 共用 DB 查詢工具                    |
 | `settings.py`         | 應用設定管理（Keyring 整合）            |
 | `rate_limiter.py`     | API 請求限速與指數退避重試               |
-| `weekly_summary.py`   | 每週摘要報告生成                        |
+| `weekly_summary.py`   | 每週摘要報告生成                      |
 
 ### 關鍵前端 Hooks
 
