@@ -7,7 +7,6 @@ import json
 import logging
 import math
 import threading
-from typing import Dict, List, Optional, Set, Tuple
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -27,7 +26,7 @@ STAR_MAGNITUDE_WEIGHT = 0.1
 MIN_SIMILARITY_THRESHOLD = 0.1
 
 
-def _parse_topics_json(topics_json: Optional[str]) -> Set[str]:
+def _parse_topics_json(topics_json: str | None) -> set[str]:
     """將 topics JSON 字串解析為小寫 topic 名稱的集合。"""
     if not topics_json:
         return set()
@@ -40,13 +39,13 @@ def _parse_topics_json(topics_json: Optional[str]) -> Set[str]:
     return set()
 
 
-def _get_repo_topics(repo: Repo) -> Set[str]:
+def _get_repo_topics(repo: Repo) -> set[str]:
     """從 repo 的 topics 欄位取得所有 topic。"""
     # noinspection PyTypeChecker
     return _parse_topics_json(repo.topics)
 
 
-def _jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
+def _jaccard_similarity(set1: set[str], set2: set[str]) -> float:
     """計算兩個集合之間的 Jaccard 相似度。"""
     if not set1 or not set2:
         return 0.0
@@ -57,7 +56,7 @@ def _jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def _star_magnitude_similarity(stars1: Optional[int], stars2: Optional[int]) -> float:
+def _star_magnitude_similarity(stars1: int | None, stars2: int | None) -> float:
     """
     基於 star 數量級計算相似度。
     量級相近的 repo 會獲得較高分數。
@@ -84,7 +83,7 @@ def _upsert_similar_repo(
     repo_id: int,
     similar_repo_id: int,
     score: float,
-    shared: List[str],
+    shared: list[str],
     same_lang: bool
 ) -> None:
     """新增或更新相似 repo 紀錄。"""
@@ -111,7 +110,7 @@ def _upsert_similar_repo(
         db.add(similar)
 
 
-def _parse_shared_topics(json_str: Optional[str]) -> List[str]:
+def _parse_shared_topics(json_str: str | None) -> list[str]:
     """解析共同 topics 的 JSON 字串。"""
     if not json_str:
         return []
@@ -122,36 +121,36 @@ def _parse_shared_topics(json_str: Optional[str]) -> List[str]:
         return []
 
 
-def _preload_all_data(db: Session) -> Tuple[List[Repo], Dict[int, Optional[int]], Dict[int, Set[str]]]:
+def _preload_all_data(db: Session) -> tuple[list[Repo], dict[int, int | None], dict[int, set[str]]]:
     """
     預載所有 repo 資料及其相關資訊（stars、topics）。
     回傳 (repos, stars_map, topics_map)。
     """
     # noinspection PyTypeChecker
-    repos: List[Repo] = db.query(Repo).all()
+    repos: list[Repo] = db.query(Repo).all()
     # noinspection PyTypeChecker
     all_ids = [int(r.id) for r in repos]
     stars_map = build_stars_map(db, all_ids)
     # noinspection PyTypeChecker
-    topics_map: Dict[int, Set[str]] = {
+    topics_map: dict[int, set[str]] = {
         int(r.id): _get_repo_topics(r) for r in repos
     }
     return repos, stars_map, topics_map
 
 
 def _calculate_pairwise_similarities(
-    repos: List[Repo],
-    stars_map: Dict[int, Optional[int]],
-    topics_map: Dict[int, Set[str]],
+    repos: list[Repo],
+    stars_map: dict[int, int | None],
+    topics_map: dict[int, set[str]],
     calculate_similarity_fn,
-) -> Tuple[List[SimilarRepo], int]:
+) -> tuple[list[SimilarRepo], int]:
     """
     使用上三角矩陣計算所有 repo 的兩兩相似度。
     回傳 (相似度紀錄列表, 配對總數)。
     """
     total = len(repos)
     now = utc_now()
-    similarities: List[SimilarRepo] = []
+    similarities: list[SimilarRepo] = []
     similarities_found = 0
 
     for i in range(total):
@@ -200,11 +199,11 @@ class RecommenderService:
     def calculate_similarity(
         repo1: Repo,
         repo2: Repo,
-        topics1: Set[str],
-        topics2: Set[str],
-        stars1: Optional[int] = None,
-        stars2: Optional[int] = None,
-    ) -> Tuple[float, List[str], bool]:
+        topics1: set[str],
+        topics2: set[str],
+        stars1: int | None = None,
+        stars2: int | None = None,
+    ) -> tuple[float, list[str], bool]:
         """
         計算兩個 repo 之間的相似度分數。
         回傳 (score, shared_topics, same_language)。
@@ -233,7 +232,7 @@ class RecommenderService:
         return total_score, shared_topics, same_language
 
     @staticmethod
-    def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> List[dict]:
+    def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> list[dict]:
         """
         查詢指定 repo 的相似 repo。
         回傳 similar_repos 表中的快取結果，含各維度分數。
@@ -249,7 +248,7 @@ class RecommenderService:
 
         # 取得來源 repo 以重新計算子分數
         # noinspection PyTypeChecker
-        source_repo: Optional[Repo] = db.query(Repo).filter(Repo.id == repo_id).first()
+        source_repo: Repo | None = db.query(Repo).filter(Repo.id == repo_id).first()
         source_topics = _get_repo_topics(source_repo) if source_repo else set()
 
         # 批次載入所有需要的 star 數（1 次查詢取代 N+1）
@@ -314,7 +313,7 @@ class RecommenderService:
 
         # 取得所有其他 repo
         # noinspection PyTypeChecker
-        other_repos: List[Repo] = db.query(Repo).filter(Repo.id != repo_id).all()
+        other_repos: list[Repo] = db.query(Repo).filter(Repo.id != repo_id).all()
         if not other_repos:
             return 0
 
@@ -393,7 +392,7 @@ class RecommenderService:
 
 
 # 模組層級 singleton
-_recommender: Optional[RecommenderService] = None
+_recommender: RecommenderService | None = None
 _recommender_lock = threading.Lock()
 
 
@@ -408,7 +407,7 @@ def get_recommender_service() -> RecommenderService:
     return _recommender
 
 
-def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> List[dict]:
+def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> list[dict]:
     """查詢相似 repo 的便利函式。"""
     return RecommenderService.find_similar_repos(repo_id, db, limit)
 
@@ -416,7 +415,7 @@ def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> List[dict]
 def calculate_repo_similarities(repo_id: int, db: Session) -> int:
     """計算 repo 相似度的便利函式。"""
     # noinspection PyTypeChecker
-    repo: Optional[Repo] = db.query(Repo).filter(Repo.id == repo_id).first()
+    repo: Repo | None = db.query(Repo).filter(Repo.id == repo_id).first()
     if not repo:
         logger.warning(f"[推薦] 找不到 repo: {repo_id}")
         return 0
@@ -430,7 +429,7 @@ def recalculate_all_similarities(db: Session) -> dict:
     return recommender.recalculate_all(db)
 
 
-def _velocity_boost(velocity: Optional[float]) -> float:
+def _velocity_boost(velocity: float | None) -> float:
     """根據 velocity 計算推薦加權。成長中的 repo 獲得更高推薦分數。"""
     if velocity is None or velocity <= 0:
         return 0.0
@@ -452,13 +451,13 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
     4. 取 top N，附帶推薦理由（來源 repo 與共同 topic）
     """
     # 取得全部 watchlist repo
-    all_repos: List[Repo] = db.query(Repo).all()
+    all_repos: list[Repo] = db.query(Repo).all()
     if not all_repos:
         return {"recommendations": [], "total": 0, "based_on_repos": 0}
 
     # noinspection PyTypeChecker
-    watchlist_ids: Set[int] = {int(r.id) for r in all_repos}
-    repo_name_map: Dict[int, str] = {int(r.id): str(r.full_name) for r in all_repos}
+    watchlist_ids: set[int] = {int(r.id) for r in all_repos}
+    repo_name_map: dict[int, str] = {int(r.id): str(r.full_name) for r in all_repos}
 
     # 查詢所有相似 repo 配對
     similar_entries = (
@@ -477,13 +476,13 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
 
     # 收集所有被推薦的 repo ID，批次載入 signal 與 star 資料
     # noinspection PyTypeChecker
-    recommended_ids: List[int] = list({int(e.similar_repo_id) for e in similar_entries})
+    recommended_ids: list[int] = list({int(e.similar_repo_id) for e in similar_entries})
     signal_map = build_signal_map(db, recommended_ids)
     stars_map = build_stars_map(db, recommended_ids)
 
     # 對每個被推薦 repo 取最高 adjusted_score 的來源
     # key = similar_repo_id, value = best entry info
-    best_per_repo: Dict[int, dict] = {}
+    best_per_repo: dict[int, dict] = {}
 
     for entry in similar_entries:
         # noinspection PyTypeChecker

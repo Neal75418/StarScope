@@ -54,76 +54,73 @@ export function formatTimeAgo(timestamp: string, t: ReturnType<typeof useI18n>["
   }
 }
 
-export const NotificationItem = memo(
-  ({
-    notification,
-    onMarkAsRead,
-    onClear,
-    onNavigate,
-  }: {
-    notification: Notification;
-    onMarkAsRead: (id: string) => void;
-    onClear: (id: string) => void;
-    onNavigate: (page: Page) => void;
-  }) => {
-    const { t } = useI18n();
+export const NotificationItem = memo(function NotificationItem({
+  notification,
+  onMarkAsRead,
+  onClear,
+  onNavigate,
+}: {
+  notification: Notification;
+  onMarkAsRead: (id: string) => void;
+  onClear: (id: string) => void;
+  onNavigate: (page: Page) => void;
+}) {
+  const { t } = useI18n();
 
-    const handleClick = () => {
-      if (shouldMarkAsRead(notification)) {
-        onMarkAsRead(notification.id);
-      }
-      const targetPage = getTargetPage(notification);
-      if (targetPage) {
-        onNavigate(targetPage);
-      }
-    };
+  const handleClick = () => {
+    if (shouldMarkAsRead(notification)) {
+      onMarkAsRead(notification.id);
+    }
+    const targetPage = getTargetPage(notification);
+    if (targetPage) {
+      onNavigate(targetPage);
+    }
+  };
 
-    const handleClear = (e: ReactMouseEvent<HTMLButtonElement>) => {
-      e.stopPropagation();
-      onClear(notification.id);
-    };
+  const handleClear = (e: ReactMouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onClear(notification.id);
+  };
 
-    const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-      // 目標是按鈕時不處理，讓按鈕自行處理事件
-      if (isButtonTarget(e.target)) {
-        return;
-      }
+  const handleKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    // 目標是按鈕時不處理，讓按鈕自行處理事件
+    if (isButtonTarget(e.target)) {
+      return;
+    }
 
-      if (!isActivationKey(e.key)) {
-        return;
-      }
+    if (!isActivationKey(e.key)) {
+      return;
+    }
 
-      e.preventDefault();
-      handleClick();
-    };
+    e.preventDefault();
+    handleClick();
+  };
 
-    const timeAgo = formatTimeAgo(notification.timestamp, t);
+  const timeAgo = formatTimeAgo(notification.timestamp, t);
 
-    return (
-      <div
-        className={`notification-item ${notification.read ? "read" : "unread"}`}
-        onClick={handleClick}
-        role="button"
-        tabIndex={0}
-        aria-label={notification.title}
-        onKeyDown={handleKeyDown}
-      >
-        <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>
-        <div className="notification-content">
-          <div className="notification-title">{notification.title}</div>
-          <div className="notification-message">{notification.message}</div>
-          <div className="notification-time">{timeAgo}</div>
-        </div>
-        <button
-          className="notification-clear"
-          onClick={handleClear}
-          aria-label={t.notifications.clear}
-          title={t.notifications.clear}
-        >
-          <XIcon size={14} />
-        </button>
+  return (
+    <div
+      className={`notification-item ${notification.read ? "read" : "unread"}`}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      aria-label={notification.title}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>
+      <div className="notification-content">
+        <div className="notification-title">{notification.title}</div>
+        <div className="notification-message">{notification.message}</div>
+        <div className="notification-time">{timeAgo}</div>
       </div>
-    );
-  }
-);
-NotificationItem.displayName = "NotificationItem";
+      <button
+        className="notification-clear"
+        onClick={handleClear}
+        aria-label={t.notifications.clear}
+        title={t.notifications.clear}
+      >
+        <XIcon size={14} />
+      </button>
+    </div>
+  );
+});

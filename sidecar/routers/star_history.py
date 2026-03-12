@@ -5,7 +5,6 @@ Star 歷史回填 API 端點。
 
 from collections import defaultdict
 from datetime import datetime, date
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -46,8 +45,8 @@ class BackfillResult(BaseModel):
     success: bool
     total_stargazers: int
     snapshots_created: int
-    earliest_date: Optional[str]  # ISO format date string
-    latest_date: Optional[str]  # ISO format date string
+    earliest_date: str | None  # ISO format date string
+    latest_date: str | None  # ISO format date string
     message: str
 
 
@@ -61,13 +60,13 @@ class StarHistoryResponse(BaseModel):
     """完整 star 歷史回應。"""
     repo_id: int
     repo_name: str
-    history: List[StarHistoryPoint]
+    history: list[StarHistoryPoint]
     is_backfilled: bool
     total_points: int
 
 
 # 輔助函式
-def _parse_starred_at(starred_at: str) -> Optional[date]:
+def _parse_starred_at(starred_at: str) -> date | None:
     """將 ISO datetime 字串解析為 date。"""
     if not starred_at:
         return None
@@ -77,7 +76,7 @@ def _parse_starred_at(starred_at: str) -> Optional[date]:
         return None
 
 
-def _aggregate_stargazers_by_date(stargazers: List[dict]) -> dict[date, int]:
+def _aggregate_stargazers_by_date(stargazers: list[dict]) -> dict[date, int]:
     """
     依日期彙總 stargazer，回傳每日累計 star 數。
 

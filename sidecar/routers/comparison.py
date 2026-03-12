@@ -3,7 +3,6 @@ Comparison chart API endpoint.
 Provides multi-repo star trend data for side-by-side comparison.
 """
 
-from typing import List, Optional
 from datetime import date, timedelta
 from enum import Enum
 
@@ -42,13 +41,13 @@ class TimeRange(str, Enum):
 
 
 class ComparisonRequest(BaseModel):
-    repo_ids: List[int]
+    repo_ids: list[int]
     time_range: str = "30d"
     normalize: bool = False
 
     @field_validator("repo_ids")
     @classmethod
-    def validate_repo_ids(cls, v: List[int]) -> List[int]:
+    def validate_repo_ids(cls, v: list[int]) -> list[int]:
         if len(v) < 2:
             raise ValueError("At least 2 repos required")
         if len(v) > 5:
@@ -75,17 +74,17 @@ class ComparisonRepoData(BaseModel):
     repo_id: int
     repo_name: str
     color: str
-    data_points: List[ChartDataPoint]
+    data_points: list[ChartDataPoint]
     current_stars: int
-    velocity: Optional[float] = None
-    acceleration: Optional[float] = None
-    trend: Optional[int] = None
-    stars_delta_7d: Optional[int] = None
-    stars_delta_30d: Optional[int] = None
+    velocity: float | None = None
+    acceleration: float | None = None
+    trend: int | None = None
+    stars_delta_7d: int | None = None
+    stars_delta_30d: int | None = None
 
 
 class ComparisonChartResponse(BaseModel):
-    repos: List[ComparisonRepoData]
+    repos: list[ComparisonRepoData]
     time_range: str
 
 

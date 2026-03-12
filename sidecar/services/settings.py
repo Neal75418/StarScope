@@ -2,7 +2,7 @@
 
 import logging
 from contextlib import contextmanager
-from typing import Optional, Generator
+from collections.abc import Generator
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import keyring
@@ -17,7 +17,7 @@ SERVICE_NAME = "starscope"
 
 
 @contextmanager
-def _ensure_db(db: Optional[Session]) -> Generator[Session, None, None]:
+def _ensure_db(db: Session | None) -> Generator[Session, None, None]:
     """確保有可用的 DB session，結束時自動關閉自行建立的 session。"""
     if db is not None:
         yield db
@@ -34,7 +34,7 @@ def _is_token_key(key: str) -> bool:
     return key == AppSettingKey.GITHUB_TOKEN
 
 
-def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
+def get_setting(key: str, db: Session | None = None) -> str | None:
     """
     依 key 取得設定值。
     GITHUB_TOKEN 優先從 Keyring 取得，再從 DB 取得（若找到則自動遷移）。
@@ -54,7 +54,7 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
     with _ensure_db(db) as session:
         setting = session.query(AppSetting).filter(AppSetting.key == key).first()
         # noinspection PyTypeChecker
-        value: Optional[str] = setting.value if setting else None
+        value: str | None = setting.value if setting else None
 
         # 遷移邏輯：若在 DB 找到 token 但 Keyring 中沒有，則遷移！
         if value and _is_token_key(key):
@@ -83,7 +83,7 @@ def get_setting(key: str, db: Optional[Session] = None) -> Optional[str]:
         return value
 
 
-def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
+def set_setting(key: str, value: str, db: Session | None = None) -> None:
     """
     設定一個設定值。
     GITHUB_TOKEN 儲存至 Keyring 並從 DB 刪除。
@@ -130,7 +130,7 @@ def set_setting(key: str, value: str, db: Optional[Session] = None) -> None:
             raise
 
 
-def delete_setting(key: str, db: Optional[Session] = None) -> bool:
+def delete_setting(key: str, db: Session | None = None) -> bool:
     """
     依 key 刪除設定。
     GITHUB_TOKEN 同時從 Keyring 與 DB 刪除。
@@ -156,7 +156,7 @@ def delete_setting(key: str, db: Optional[Session] = None) -> bool:
     return deleted or db_deleted
 
 
-def delete_setting_from_db(key: str, db: Optional[Session] = None) -> bool:
+def delete_setting_from_db(key: str, db: Session | None = None) -> bool:
     """無論 key 存取方式如何，皆從 DB 刪除的輔助函式。"""
     with _ensure_db(db) as session:
         try:

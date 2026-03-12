@@ -3,8 +3,6 @@
 基於 topics 與語言提供相似 repo 推薦。
 """
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -29,21 +27,21 @@ class SimilarRepoResponse(BaseModel):
     """相似 repo 的 schema。"""
     repo_id: int
     full_name: str
-    description: Optional[str]
-    language: Optional[str]
+    description: str | None
+    language: str | None
     url: str
     similarity_score: float
-    shared_topics: List[str]
+    shared_topics: list[str]
     same_language: bool
-    topic_score: Optional[float] = None
-    language_score: Optional[float] = None
-    magnitude_score: Optional[float] = None
+    topic_score: float | None = None
+    language_score: float | None = None
+    magnitude_score: float | None = None
 
 
 class SimilarReposResponse(BaseModel):
     """相似 repo 列表的回應。"""
     repo_id: int
-    similar: List[SimilarRepoResponse]
+    similar: list[SimilarRepoResponse]
     total: int
 
 
@@ -64,14 +62,14 @@ class PersonalizedRecommendation(BaseModel):
     """個人化推薦 repo 的 schema。"""
     repo_id: int
     full_name: str
-    description: Optional[str]
-    language: Optional[str]
+    description: str | None
+    language: str | None
     url: str
-    stars: Optional[int]
-    velocity: Optional[float]
-    trend: Optional[int]
+    stars: int | None
+    velocity: float | None
+    trend: int | None
     similarity_score: float
-    shared_topics: List[str]
+    shared_topics: list[str]
     same_language: bool
     source_repo_id: int
     source_repo_name: str
@@ -79,7 +77,7 @@ class PersonalizedRecommendation(BaseModel):
 
 class PersonalizedResponse(BaseModel):
     """個人化推薦列表的回應。"""
-    recommendations: List[PersonalizedRecommendation]
+    recommendations: list[PersonalizedRecommendation]
     total: int
     based_on_repos: int
 

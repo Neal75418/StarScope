@@ -4,7 +4,6 @@ Commit 活動 API 端點。
 """
 
 from datetime import datetime, date, timezone
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -32,10 +31,10 @@ class CommitActivityResponse(BaseModel):
     """Commit 活動回應，含摘要統計。"""
     repo_id: int
     repo_name: str
-    weeks: List[CommitWeekResponse]
+    weeks: list[CommitWeekResponse]
     total_commits_52w: int
     avg_commits_per_week: float
-    last_updated: Optional[datetime]
+    last_updated: datetime | None
 
 
 class CommitActivitySummary(BaseModel):
@@ -43,11 +42,11 @@ class CommitActivitySummary(BaseModel):
     repo_id: int
     total_commits_52w: int
     avg_commits_per_week: float
-    last_updated: Optional[datetime]
+    last_updated: datetime | None
 
 
 # 輔助函式
-def _build_response(repo: Repo, activities: List[CommitActivity]) -> CommitActivityResponse:
+def _build_response(repo: Repo, activities: list[CommitActivity]) -> CommitActivityResponse:
     """從 repo 與活動紀錄建立 CommitActivityResponse。"""
     weeks = [
         CommitWeekResponse(week_start=a.week_start, commit_count=a.commit_count)
@@ -71,8 +70,8 @@ def _build_response(repo: Repo, activities: List[CommitActivity]) -> CommitActiv
 def _store_commit_activity(
     db: Session,
     repo_id: int,
-    github_data: List[dict]
-) -> List[CommitActivity]:
+    github_data: list[dict]
+) -> list[CommitActivity]:
     """
     儲存 GitHub API 回應中的 commit 活動資料。
 
@@ -119,7 +118,7 @@ async def get_commit_activity(
     repo = get_repo_or_404(repo_id, db)
 
     # noinspection PyTypeChecker
-    activities: List[CommitActivity] = db.query(CommitActivity).filter(
+    activities: list[CommitActivity] = db.query(CommitActivity).filter(
         CommitActivity.repo_id == repo_id
     ).all()
 

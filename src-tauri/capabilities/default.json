@@ -15,6 +15,7 @@
         }
       ]
     },
-    "shell:allow-kill"
+    "shell:allow-kill",
+    "notification:default"
   ]
 }

@@ -1,6 +1,6 @@
 /**
- * Weekly Summary component for the Dashboard.
- * Shows a week-at-a-glance: top movers, signals, and HN mentions.
+ * Dashboard 每週摘要元件。
+ * 展示一週概覽：漲跌幅排行、信號，以及 HN 提及。
  */
 
 import { memo, useCallback } from "react";
@@ -21,7 +21,7 @@ function formatDateRange(start: string, end: string): string {
   return `${fmt(s)} – ${fmt(e)}`;
 }
 
-// --- Sub-components ---
+// ==================== 子元件 ====================
 
 const TopMovers = memo(function TopMovers({
   gainers,
@@ -140,7 +140,7 @@ const HNMentionsList = memo(function HNMentionsList({
   );
 });
 
-// --- Main component ---
+// ==================== 主元件 ====================
 
 export const WeeklySummary = memo(function WeeklySummary() {
   const { t } = useI18n();

@@ -3,7 +3,6 @@
 提供使用者自訂 repo 分類的 CRUD 操作。
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,30 +29,30 @@ router = APIRouter(prefix="/api/categories", tags=["categories"])
 class CategoryCreate(BaseModel):
     """建立分類的 schema。"""
     name: str
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    parent_id: Optional[int] = None
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    parent_id: int | None = None
 
 
 class CategoryUpdate(BaseModel):
     """更新分類的 schema。"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    icon: Optional[str] = None
-    color: Optional[str] = None
-    parent_id: Optional[int] = None
-    sort_order: Optional[int] = None
+    name: str | None = None
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    parent_id: int | None = None
+    sort_order: int | None = None
 
 
 class CategoryResponse(BaseModel):
     """分類的 schema。"""
     id: int
     name: str
-    description: Optional[str]
-    icon: Optional[str]
-    color: Optional[str]
-    parent_id: Optional[int]
+    description: str | None
+    icon: str | None
+    color: str | None
+    parent_id: int | None
     sort_order: int
     created_at: datetime
     repo_count: int = 0
@@ -65,25 +64,25 @@ class CategoryTreeNode(BaseModel):
     """樹狀結構中的分類 schema。"""
     id: int
     name: str
-    description: Optional[str]
-    icon: Optional[str]
-    color: Optional[str]
+    description: str | None
+    icon: str | None
+    color: str | None
     sort_order: int
     repo_count: int
-    children: List["CategoryTreeNode"] = []
+    children: list["CategoryTreeNode"] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CategoryListResponse(BaseModel):
     """分類列表的回應。"""
-    categories: List[CategoryResponse]
+    categories: list[CategoryResponse]
     total: int
 
 
 class CategoryTreeResponse(BaseModel):
     """分類樹的回應。"""
-    tree: List[CategoryTreeNode]
+    tree: list[CategoryTreeNode]
     total: int
 
 
@@ -91,8 +90,8 @@ class RepoCategoryResponse(BaseModel):
     """分類中 repo 的 schema。"""
     id: int
     full_name: str
-    description: Optional[str]
-    language: Optional[str]
+    description: str | None
+    language: str | None
     added_at: datetime
 
 
@@ -100,7 +99,7 @@ class CategoryReposResponse(BaseModel):
     """分類中 repo 的回應。"""
     category_id: int
     category_name: str
-    repos: List[RepoCategoryResponse]
+    repos: list[RepoCategoryResponse]
     total: int
 
 
@@ -108,20 +107,20 @@ class RepoCategoryItem(BaseModel):
     """repo 的分類項目。"""
     id: int
     name: str
-    icon: Optional[str]
-    color: Optional[str]
-    added_at: Optional[str]
+    icon: str | None
+    color: str | None
+    added_at: str | None
 
 
 class RepoCategoriesResponse(BaseModel):
     """repo 所屬分類的回應。"""
     repo_id: int
-    categories: List[RepoCategoryItem]
+    categories: list[RepoCategoryItem]
     total: int
 
 
 # 輔助函式
-def _build_repo_count_map(db: Session) -> Dict[int, int]:
+def _build_repo_count_map(db: Session) -> dict[int, int]:
     """以單一查詢批次載入所有分類的 repo 數量。"""
     rows = db.query(
         RepoCategory.category_id,
@@ -135,7 +134,7 @@ def _get_repo_count(category_id: int, db: Session) -> int:
     return db.query(RepoCategory).filter(RepoCategory.category_id == category_id).count()
 
 
-def _category_base_fields(category: Category, repo_count_map: Dict[int, int]) -> Dict:
+def _category_base_fields(category: Category, repo_count_map: dict[int, int]) -> dict:
     """擷取 CategoryResponse 與 CategoryTreeNode 共用的欄位。"""
     return {
         "id": category.id,
@@ -150,7 +149,7 @@ def _category_base_fields(category: Category, repo_count_map: Dict[int, int]) ->
 
 def _category_to_response(
     category: Category,
-    repo_count_map: Dict[int, int],
+    repo_count_map: dict[int, int],
 ) -> CategoryResponse:
     """將 Category model 轉換為回應。"""
     return CategoryResponse(
@@ -161,10 +160,10 @@ def _category_to_response(
 
 
 def _build_tree(
-    categories: List[Category],
-    parent_id: Optional[int],
-    repo_count_map: Dict[int, int],
-) -> List[CategoryTreeNode]:
+    categories: list[Category],
+    parent_id: int | None,
+    repo_count_map: dict[int, int],
+) -> list[CategoryTreeNode]:
     """從扁平分類列表建立樹狀結構。"""
     nodes = []
     for cat in categories:
@@ -192,14 +191,14 @@ def _repo_category_to_response(rc: RepoCategory) -> RepoCategoryResponse:
 def _get_category_or_404(category_id: int, db: Session) -> Category:
     """依 ID 取得分類，不存在則拋出 404。"""
     # noinspection PyTypeChecker
-    category: Optional[Category] = db.query(Category).filter(Category.id == category_id).first()
+    category: Category | None = db.query(Category).filter(Category.id == category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail=ERROR_CATEGORY_NOT_FOUND)
     return category
 
 
 
-def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Session) -> None:
+def _validate_parent_category(parent_id: int, category_id: int | None, db: Session) -> None:
     """驗證父分類是否存在且無循環參考（含間接循環）。"""
     parent = db.query(Category).filter(Category.id == parent_id).first()
     if not parent:
@@ -208,7 +207,7 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
         return
     # 走訪祖先鏈，檢查直接與間接循環
     visited = {category_id}
-    current_id: Optional[int] = parent_id
+    current_id: int | None = parent_id
     while current_id is not None:
         if current_id in visited:
             raise HTTPException(status_code=400, detail=ERROR_CIRCULAR_REFERENCE)
@@ -219,7 +218,7 @@ def _validate_parent_category(parent_id: int, category_id: Optional[int], db: Se
         current_id = ancestor.parent_id
 
 
-def _find_repo_category(category_id: int, repo_id: int, db: Session) -> Optional[RepoCategory]:
+def _find_repo_category(category_id: int, repo_id: int, db: Session) -> RepoCategory | None:
     """依分類與 repo ID 查詢 RepoCategory 關聯。"""
     return db.query(RepoCategory).filter(
         RepoCategory.category_id == category_id,
@@ -258,7 +257,7 @@ async def list_categories(
     total = db.query(Category).count()
 
     # noinspection PyTypeChecker
-    categories: List[Category] = (
+    categories: list[Category] = (
         db.query(Category)
         .order_by(Category.sort_order, Category.name)
         .offset(skip)
@@ -286,7 +285,7 @@ async def get_category_tree(
     以階層樹狀結構取得分類。
     """
     # noinspection PyTypeChecker
-    categories: List[Category] = db.query(Category).all()
+    categories: list[Category] = db.query(Category).all()
     repo_count_map = _build_repo_count_map(db)
     tree = _build_tree(categories, None, repo_count_map)
 
@@ -435,7 +434,7 @@ async def get_category_repos(
     ).count()
 
     # noinspection PyTypeChecker
-    repo_categories: List[RepoCategory] = (
+    repo_categories: list[RepoCategory] = (
         db.query(RepoCategory)
         .options(joinedload(RepoCategory.repo))
         .filter(RepoCategory.category_id == category_id)

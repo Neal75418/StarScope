@@ -84,8 +84,8 @@ async function doFetch<T>(
         ...options.headers,
       },
     });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
       if (callerSignal?.aborted) {
         throw new ApiError(0, API_ERROR_MESSAGES.CANCELLED);
       }
@@ -93,7 +93,7 @@ async function doFetch<T>(
     }
     throw new ApiError(
       0,
-      `Network error: ${error instanceof Error ? error.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
+      `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
     );
   } finally {
     clearTimeout(timeoutId);
@@ -135,8 +135,8 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await doFetch<T>(url, options, callerSignal);
-    } catch (error) {
-      const apiError = error instanceof ApiError ? error : new ApiError(0, String(error));
+    } catch (err) {
+      const apiError = err instanceof ApiError ? err : new ApiError(0, String(err));
       // 4xx 錯誤不重試（客戶端錯誤）
       if (apiError.status > 0 && apiError.status < 500) throw apiError;
       // 使用者取消不重試

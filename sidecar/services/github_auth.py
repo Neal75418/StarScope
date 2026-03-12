@@ -7,7 +7,6 @@ import logging
 import os
 import threading
 import httpx
-from typing import Optional
 from dataclasses import dataclass
 
 from db.models import AppSettingKey
@@ -47,11 +46,11 @@ class DeviceCodeResponse:
 class ConnectionStatus:
     """GitHub 連線狀態。"""
     connected: bool
-    username: Optional[str] = None
-    rate_limit_remaining: Optional[int] = None
-    rate_limit_total: Optional[int] = None
-    rate_limit_reset: Optional[int] = None  # 限制重設的 Unix 時間戳記
-    error: Optional[str] = None
+    username: str | None = None
+    rate_limit_remaining: int | None = None
+    rate_limit_total: int | None = None
+    rate_limit_reset: int | None = None  # 限制重設的 Unix 時間戳記
+    error: str | None = None
 
 
 class GitHubAuthError(Exception):
@@ -191,7 +190,7 @@ class GitHubAuthService:
             }
 
     @staticmethod
-    async def _get_username(token: str) -> Optional[str]:
+    async def _get_username(token: str) -> str | None:
         """取得 token 對應的 GitHub 使用者名稱。"""
         async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.get(
@@ -289,7 +288,7 @@ class GitHubAuthService:
 
 
 # 模組層級 singleton
-_auth_service: Optional[GitHubAuthService] = None
+_auth_service: GitHubAuthService | None = None
 _auth_service_lock = threading.Lock()
 
 

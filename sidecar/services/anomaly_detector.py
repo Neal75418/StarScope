@@ -7,7 +7,7 @@ import bisect
 import logging
 import threading
 from datetime import timedelta
-from typing import List, Optional, Dict, Any, Set, Tuple
+from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -71,7 +71,7 @@ def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
     ).first() is not None
 
 
-def _build_active_signals_set(db: Session) -> Set[Tuple[int, str]]:
+def _build_active_signals_set(db: Session) -> set[tuple[int, str]]:
     """一次性預載所有 active early signals，回傳 {(repo_id, signal_type)} set。"""
     rows = db.query(
         EarlySignal.repo_id, EarlySignal.signal_type
@@ -93,7 +93,7 @@ def _determine_rising_star_severity(velocity: float, velocity_ratio: float) -> s
 
 def _calculate_velocity_percentile(
     velocity: float,
-    velocity_values: Optional[List[float]],
+    velocity_values: list[float] | None,
     db: Session,
 ) -> float:
     """計算 velocity 的百分位排名。"""
@@ -119,10 +119,10 @@ class AnomalyDetector:
     def detect_rising_star(
         repo: "Repo",
         db: Session,
-        snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
-        signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-        velocity_values: Optional[List[float]] = None,
-    ) -> Optional["EarlySignal"]:
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+        signal_map: dict[int, dict[str, float]] | None = None,
+        velocity_values: list[float] | None = None,
+    ) -> "EarlySignal | None":
         """
         偵測 rising star 模式。
         條件：stars < 5000 且（velocity > 10 或 velocity/stars > 0.01）
@@ -167,7 +167,7 @@ class AnomalyDetector:
         )
 
     @staticmethod
-    def _calculate_star_deltas(snapshots: List["RepoSnapshot"]) -> Tuple[int, float]:
+    def _calculate_star_deltas(snapshots: list["RepoSnapshot"]) -> tuple[int, float]:
         """
         計算每日 star 差值。
         回傳 (latest_delta, avg_delta)。
@@ -188,9 +188,9 @@ class AnomalyDetector:
     def detect_sudden_spike(
         repo: "Repo",
         db: Session,
-        snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
-        signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-    ) -> Optional["EarlySignal"]:
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+        signal_map: dict[int, dict[str, float]] | None = None,
+    ) -> "EarlySignal | None":
         """
         偵測突然暴漲模式。
         條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
@@ -243,9 +243,9 @@ class AnomalyDetector:
     def detect_breakout(
         repo: "Repo",
         db: Session,
-        snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
-        signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-    ) -> Optional["EarlySignal"]:
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+        signal_map: dict[int, dict[str, float]] | None = None,
+    ) -> "EarlySignal | None":
         """
         偵測 breakout 模式。
         條件：上週 velocity <= 0 且本週 velocity > 2
@@ -293,9 +293,9 @@ class AnomalyDetector:
     def detect_viral_hn(
         repo: "Repo",
         db: Session,
-        snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
-        signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-    ) -> Optional["EarlySignal"]:
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+        signal_map: dict[int, dict[str, float]] | None = None,
+    ) -> "EarlySignal | None":
         """
         偵測 Hacker News 爆紅訊號。
         條件：48 小時內 HN 貼文分數 >= 100
@@ -336,11 +336,11 @@ class AnomalyDetector:
     def detect_all_for_repo(
         repo: "Repo",
         db: Session,
-        snapshot_map: Optional[Dict[int, "RepoSnapshot"]] = None,
-        signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-        velocity_values: Optional[List[float]] = None,
-        active_signals: Optional[Set[Tuple[int, str]]] = None,
-    ) -> List["EarlySignal"]:
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+        signal_map: dict[int, dict[str, float]] | None = None,
+        velocity_values: list[float] | None = None,
+        active_signals: set[tuple[int, str]] | None = None,
+    ) -> list["EarlySignal"]:
         """
         對單一 repo 執行所有偵測演算法。
         回傳偵測到的訊號列表（尚未儲存）。
@@ -349,7 +349,7 @@ class AnomalyDetector:
             active_signals: 預載的 active signals set，避免 N+1 查詢。
                             若為 None 則 fallback 至逐次 DB 查詢。
         """
-        signals: List["EarlySignal"] = []
+        signals: list["EarlySignal"] = []
         repo_id = int(repo.id)
 
         def _is_active(sig_type: str) -> bool:
@@ -387,7 +387,7 @@ class AnomalyDetector:
 
         return signals
 
-    def run_detection(self, db: Session) -> Dict[str, Any]:
+    def run_detection(self, db: Session) -> dict[str, Any]:
         """
         對所有 repo 執行異常偵測並儲存結果。
         回傳偵測到的訊號摘要。
@@ -395,7 +395,7 @@ class AnomalyDetector:
         all_signals = self.detect_all(db)
         saved = save_detected_signals(all_signals, db)
 
-        signals_by_type: Dict[str, int] = {}
+        signals_by_type: dict[str, int] = {}
         for s in all_signals:
             signals_by_type[s.signal_type] = signals_by_type.get(s.signal_type, 0) + 1
 
@@ -408,17 +408,17 @@ class AnomalyDetector:
             "by_type": signals_by_type,
         }
 
-    def detect_all(self, db: Session) -> List["EarlySignal"]:
+    def detect_all(self, db: Session) -> list["EarlySignal"]:
         """
         對所有 repo 執行異常偵測，回傳偵測到的訊號列表。
         不寫入 DB。
         """
         # noinspection PyTypeChecker
-        repos: List[Repo] = db.query(Repo).all()
+        repos: list[Repo] = db.query(Repo).all()
 
         # 預載快照與訊號資料，避免 N+1 查詢
         # noinspection PyTypeChecker
-        repo_ids: List[int] = [r.id for r in repos]
+        repo_ids: list[int] = [r.id for r in repos]
         snapshot_map = build_snapshot_map(db, repo_ids)
         signal_map = build_signal_map(db, repo_ids)
 
@@ -427,12 +427,12 @@ class AnomalyDetector:
             Signal.signal_type == SignalType.VELOCITY
         ).all()
         # noinspection PyTypeChecker
-        velocity_values: List[float] = sorted(row[0] for row in rows)
+        velocity_values: list[float] = sorted(row[0] for row in rows)
 
         # 預載所有 active early signals，避免 detect_all_for_repo 中的 N+1 查詢
         active_signals = _build_active_signals_set(db)
 
-        all_signals: List["EarlySignal"] = []
+        all_signals: list["EarlySignal"] = []
 
         for repo in repos:
             try:
@@ -450,7 +450,7 @@ class AnomalyDetector:
         return all_signals
 
 
-def save_detected_signals(signals: List["EarlySignal"], db: Session) -> int:
+def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int:
     """將偵測到的 signals 寫入 DB。"""
     for s in signals:
         db.add(s)
@@ -459,7 +459,7 @@ def save_detected_signals(signals: List["EarlySignal"], db: Session) -> int:
 
 
 # 模組層級 singleton
-_detector: Optional[AnomalyDetector] = None
+_detector: AnomalyDetector | None = None
 _detector_lock = threading.Lock()
 
 
@@ -474,7 +474,7 @@ def get_anomaly_detector() -> AnomalyDetector:
     return _detector
 
 
-def run_detection(db: Session) -> Dict[str, Any]:
+def run_detection(db: Session) -> dict[str, Any]:
     """執行偵測的便利函式。"""
     detector = get_anomaly_detector()
     return detector.run_detection(db)

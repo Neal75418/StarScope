@@ -6,7 +6,6 @@
 import csv
 import io
 import json
-from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -30,18 +29,18 @@ class ExportedRepo(BaseModel):
     name: str = Field(..., description="專案名稱")
     full_name: str = Field(..., description="完整名稱（owner/name）")
     url: str = Field(..., description="GitHub URL")
-    description: Optional[str] = Field(None, description="專案描述")
-    language: Optional[str] = Field(None, description="主要程式語言")
-    topics: Optional[str] = Field(None, description="Topics JSON 字串")
-    added_at: Optional[str] = Field(None, description="加入追蹤時間（ISO 格式）")
-    updated_at: Optional[str] = Field(None, description="最後更新時間（ISO 格式）")
-    stars: Optional[int] = Field(None, description="Star 數量")
-    forks: Optional[int] = Field(None, description="Fork 數量")
-    stars_delta_7d: Optional[float] = Field(None, description="7 日 Star 增量")
-    stars_delta_30d: Optional[float] = Field(None, description="30 日 Star 增量")
-    velocity: Optional[float] = Field(None, description="Star 速度")
-    acceleration: Optional[float] = Field(None, description="Star 加速度")
-    trend: Optional[float] = Field(None, description="趨勢分數")
+    description: str | None = Field(None, description="專案描述")
+    language: str | None = Field(None, description="主要程式語言")
+    topics: str | None = Field(None, description="Topics JSON 字串")
+    added_at: str | None = Field(None, description="加入追蹤時間（ISO 格式）")
+    updated_at: str | None = Field(None, description="最後更新時間（ISO 格式）")
+    stars: int | None = Field(None, description="Star 數量")
+    forks: int | None = Field(None, description="Fork 數量")
+    stars_delta_7d: float | None = Field(None, description="7 日 Star 增量")
+    stars_delta_30d: float | None = Field(None, description="30 日 Star 增量")
+    velocity: float | None = Field(None, description="Star 速度")
+    acceleration: float | None = Field(None, description="Star 加速度")
+    trend: float | None = Field(None, description="趨勢分數")
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -70,7 +69,7 @@ class WatchlistExportResponse(BaseModel):
     """Watchlist JSON 匯出響應。"""
     exported_at: str = Field(..., description="匯出時間（ISO 格式）")
     total: int = Field(..., description="Repo 總數")
-    repos: List[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
+    repos: list[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
 
     model_config = ConfigDict(json_schema_extra={
         "example": {
@@ -95,8 +94,8 @@ class WatchlistExportResponse(BaseModel):
 
 def _build_repo_dict(
     repo: "Repo",
-    snapshot: Optional["RepoSnapshot"],
-    signals: Dict[str, float]
+    snapshot: "RepoSnapshot | None",
+    signals: dict[str, float]
 ) -> dict:
     """從預先載入的資料建立 repo 字典。"""
     return {
@@ -120,7 +119,7 @@ def _build_repo_dict(
     }
 
 
-def _get_repos_with_signals(repos: List["Repo"], db: Session) -> List[dict]:
+def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
     """使用批次載入建立含訊號的 repo 字典以避免 N+1 查詢。"""
     if not repos:
         return []
@@ -177,7 +176,7 @@ async def export_watchlist_json(
     檔名格式：starscope_watchlist_YYYYMMDD.json
     """
     # noinspection PyTypeChecker
-    repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
+    repos: list[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
     data = {
         "exported_at": utc_now().isoformat(),
         "total": len(repos),
@@ -230,7 +229,7 @@ async def export_watchlist_csv(
     檔名格式：starscope_watchlist_YYYYMMDD.csv
     """
     # noinspection PyTypeChecker
-    repos: List[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
+    repos: list[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
     repo_dicts = _get_repos_with_signals(repos, db)
 
     output = io.StringIO()

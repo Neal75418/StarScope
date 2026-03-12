@@ -1,5 +1,5 @@
 /**
- * Unit tests for ContextBadges component (HN only after simplification)
+ * ContextBadges 元件單元測試（簡化後僅 HN）
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -101,7 +101,7 @@ describe("ContextBadges", () => {
     expect(button).toHaveClass("context-badge-hn");
   });
 
-  // --- New tests for uncovered branches ---
+  // ==================== 未覆蓋分支的新測試 ====================
 
   it("uses fallback config for unknown badge type", () => {
     const unknownBadge: ContextBadge = {

@@ -6,7 +6,6 @@ API: https://hn.algolia.com/api
 
 import logging
 import threading
-from typing import Optional, List
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -21,7 +20,7 @@ HN_SEARCH_API = "https://hn.algolia.com/api/v1/search"
 
 class HackerNewsAPIError(Exception):
     """HN API 錯誤的自訂例外。"""
-    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
@@ -46,7 +45,7 @@ def _parse_created_at(created_at_str: str) -> datetime:
         return datetime.now(timezone.utc)
 
 
-def _parse_hn_hit(hit: dict, seen_ids: set) -> Optional[HNStory]:
+def _parse_hn_hit(hit: dict, seen_ids: set) -> HNStory | None:
     """將單一 HN API 結果解析為 HNStory，無效或重複時回傳 None。"""
     object_id = hit.get("objectID")
     if not object_id or object_id in seen_ids:
@@ -72,8 +71,8 @@ async def _execute_hn_query(
     client: httpx.AsyncClient,
     query: str,
     seen_ids: set,
-    stories: List[HNStory],
-    errors: List[str]
+    stories: list[HNStory],
+    errors: list[str]
 ) -> None:
     """執行單一 HN 搜尋查詢並附加結果。"""
     try:
@@ -112,7 +111,7 @@ class HackerNewsService:
     def __init__(self, timeout: float = HN_API_TIMEOUT_SECONDS) -> None:
         self.timeout = timeout
 
-    async def search_repo(self, repo_name: str, owner: str) -> List[HNStory]:
+    async def search_repo(self, repo_name: str, owner: str) -> list[HNStory]:
         """
         搜尋 HN 上關於 repo 的提及。
         同時搜尋 "owner/repo" 與 "repo" 名稱，
@@ -128,9 +127,9 @@ class HackerNewsService:
         Raises:
             HackerNewsAPIError: 僅在所有查詢皆失敗時拋出
         """
-        stories: List[HNStory] = []
+        stories: list[HNStory] = []
         seen_ids: set = set()
-        errors: List[str] = []
+        errors: list[str] = []
 
         # 先搜尋完整名稱（更精確），再搜尋 repo 名稱
         queries = [f"{owner}/{repo_name}", repo_name]
@@ -166,7 +165,7 @@ class HackerNewsService:
 
 
 # 模組層級便利函式
-_default_service: Optional[HackerNewsService] = None
+_default_service: HackerNewsService | None = None
 _hn_service_lock = threading.Lock()
 
 
@@ -180,7 +179,7 @@ def get_hn_service() -> HackerNewsService:
     return _default_service
 
 
-async def fetch_hn_mentions(owner: str, repo_name: str) -> Optional[List[HNStory]]:
+async def fetch_hn_mentions(owner: str, repo_name: str) -> list[HNStory] | None:
     """
     抓取 repo HN 提及的便利函式。
     請求失敗時回傳 None。

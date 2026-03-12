@@ -1,5 +1,5 @@
 /**
- * Unit tests for importExecutorHelpers — executeImportFlow, retry, abort, dedup
+ * importExecutorHelpers 單元測試 — executeImportFlow、重試、中止、去重
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -41,7 +41,7 @@ describe("executeImportFlow", () => {
     vi.mocked(apiClient.addRepo).mockResolvedValue(undefined as never);
   });
 
-  // ---------- Normal flow ----------
+  // ==================== 正常流程 ====================
 
   it("imports all repos successfully", async () => {
     const repos = [makeParsedRepo("owner/repo1"), makeParsedRepo("owner/repo2")];
@@ -95,7 +95,7 @@ describe("executeImportFlow", () => {
     expect(updateRepo.mock.calls[0]).toEqual(["owner/repo", { status: "importing" }]);
   });
 
-  // ---------- Dedup check failure ----------
+  // ==================== 去重檢查失敗 ====================
 
   it("returns dedupCheckFailed=true when getRepos fails", async () => {
     vi.mocked(apiClient.getRepos).mockRejectedValue(new Error("Network error"));
@@ -115,7 +115,7 @@ describe("executeImportFlow", () => {
     expect(result.dedupCheckFailed).toBe(false);
   });
 
-  // ---------- Dedup case-insensitivity ----------
+  // ==================== 去重大小寫不敏感 ====================
 
   it("dedup check is case-insensitive", async () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
@@ -131,7 +131,7 @@ describe("executeImportFlow", () => {
     expect(apiClient.addRepo).not.toHaveBeenCalled();
   });
 
-  // ---------- Abort ----------
+  // ==================== 中止 ====================
 
   it("stops processing when aborted before starting", async () => {
     const controller = new AbortController();
@@ -168,7 +168,7 @@ describe("executeImportFlow", () => {
     expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
   });
 
-  // ---------- Rate limit retry ----------
+  // ==================== Rate limit 重試 ====================
 
   it("retries on rate limit error with exponential backoff", async () => {
     vi.useFakeTimers();
@@ -212,7 +212,7 @@ describe("executeImportFlow", () => {
     vi.useRealTimers();
   });
 
-  // ---------- Mixed results ----------
+  // ==================== 混合結果 ====================
 
   it("handles mix of success, skip, and failure", async () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({

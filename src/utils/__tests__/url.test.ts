@@ -1,5 +1,5 @@
 /**
- * Unit tests for URL validation utility — isSafeUrl, safeOpenUrl
+ * URL 驗證工具單元測試 — isSafeUrl、safeOpenUrl
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -14,7 +14,7 @@ vi.mock("../logger", () => ({
 }));
 
 describe("isSafeUrl", () => {
-  // --- Valid URLs ---
+  // ==================== 有效 URL ====================
 
   it("accepts https URL", () => {
     expect(isSafeUrl("https://github.com/user/repo")).toBe(true);
@@ -28,7 +28,7 @@ describe("isSafeUrl", () => {
     expect(isSafeUrl("https://github.com/search?q=test&lang=ts")).toBe(true);
   });
 
-  // --- Blocked protocols ---
+  // ==================== 封鎖的協定 ====================
 
   it("rejects javascript: protocol", () => {
     expect(isSafeUrl("javascript:alert(1)")).toBe(false);
@@ -46,7 +46,7 @@ describe("isSafeUrl", () => {
     expect(isSafeUrl("ftp://example.com/file")).toBe(false);
   });
 
-  // --- Blocked hostnames ---
+  // ==================== 封鎖的主機名 ====================
 
   it("rejects localhost", () => {
     expect(isSafeUrl("http://localhost:8008/api/repos")).toBe(false);
@@ -72,7 +72,7 @@ describe("isSafeUrl", () => {
     expect(isSafeUrl("http://[::ffff:127.0.0.1]:8008/api")).toBe(false);
   });
 
-  // --- Invalid URLs ---
+  // ==================== 無效 URL ====================
 
   it("rejects empty string", () => {
     expect(isSafeUrl("")).toBe(false);

@@ -41,7 +41,7 @@ function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
   }
 }
 
-const RepoItem = memo(({ repo }: { repo: ParsedRepo }) => {
+const RepoItem = memo(function RepoItem({ repo }: { repo: ParsedRepo }) {
   const errorDisplay = repo.error
     ? repo.error.length > 100
       ? `${repo.error.substring(0, 100)}...`
@@ -60,7 +60,6 @@ const RepoItem = memo(({ repo }: { repo: ParsedRepo }) => {
     </div>
   );
 });
-RepoItem.displayName = "RepoItem";
 
 function ImportPreview({ repos }: { repos: ParsedRepo[] }) {
   const { t } = useI18n();

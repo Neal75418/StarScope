@@ -3,7 +3,7 @@
 import time
 import logging
 import uuid
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -25,7 +25,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        exclude_paths: Optional[List[str]] = None,
+        exclude_paths: list[str] | None = None,
         log_headers: bool = False,
         slow_request_threshold_ms: float = 1000.0,
     ):

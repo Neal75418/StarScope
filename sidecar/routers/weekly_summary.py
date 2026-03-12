@@ -3,8 +3,6 @@ Weekly summary API endpoint.
 Provides aggregated weekly data for the Dashboard.
 """
 
-from typing import List, Dict
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -38,18 +36,18 @@ class WeeklySummaryResponse(BaseModel):
     period_end: str
     total_repos: int
     total_new_stars: int
-    top_gainers: List[RepoSummary]
-    top_losers: List[RepoSummary]
+    top_gainers: list[RepoSummary]
+    top_losers: list[RepoSummary]
     alerts_triggered: int
     early_signals_detected: int
-    early_signals_by_type: Dict[str, int]
-    hn_mentions: List[HNMention]
+    early_signals_by_type: dict[str, int]
+    hn_mentions: list[HNMention]
     accelerating: int
     decelerating: int
 
 
 @router.get("/weekly", response_model=ApiResponse[WeeklySummaryResponse])
-async def weekly_summary(db: Session = Depends(get_db)):
+async def weekly_summary(db: Session = Depends(get_db)) -> dict:
     """
     取得本週摘要，包含：
     - 所有 repo 本週新增 stars 總和

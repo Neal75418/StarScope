@@ -2,11 +2,8 @@
 追蹤清單 API 端點，管理 GitHub repo。
 """
 
-from __future__ import annotations
-
 import re
 from datetime import datetime
-from typing import List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -75,8 +72,8 @@ def _validate_github_identifier(owner: str, name: str) -> None:
 
 def _build_repo_with_signals(
     repo: Repo,
-    snapshot: Optional[RepoSnapshot],
-    signals: Dict[str, float | int]
+    snapshot: RepoSnapshot | None,
+    signals: dict[str, float | int]
 ) -> RepoWithSignals:
     """從預先抓取的資料建立 RepoWithSignals 回應。"""
     return RepoWithSignals(
@@ -119,8 +116,8 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
 
 def _build_repo_list_response(
     db: Session,
-    page: Optional[int] = None,
-    per_page: Optional[int] = None,
+    page: int | None = None,
+    per_page: int | None = None,
 ) -> RepoListResponse:
     """建立含所有 repo 及其訊號的 RepoListResponse。支援可選分頁。"""
     query = db.query(Repo).order_by(desc(Repo.added_at))
@@ -133,7 +130,7 @@ def _build_repo_list_response(
     if page is not None and per_page is not None:
         offset = (page - 1) * per_page
         # noinspection PyTypeChecker
-        repos: List[Repo] = query.offset(offset).limit(per_page).all()
+        repos: list[Repo] = query.offset(offset).limit(per_page).all()
         total_pages = (total + per_page - 1) // per_page
     else:
         # noinspection PyTypeChecker
@@ -141,7 +138,7 @@ def _build_repo_list_response(
         total_pages = None
 
     # noinspection PyTypeChecker
-    repo_ids: List[int] = [r.id for r in repos]
+    repo_ids: list[int] = [r.id for r in repos]
     snapshot_map = build_snapshot_map(db, repo_ids)
     signal_map = build_signal_map(db, repo_ids)
 
@@ -166,8 +163,8 @@ def _build_repo_list_response(
 
 @router.get("/repos", response_model=ApiResponse[RepoListResponse])
 async def list_repos(
-    page: Optional[int] = Query(None, ge=1, description="Page number (omit for all results)"),
-    per_page: Optional[int] = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
+    page: int | None = Query(None, ge=1, description="Page number (omit for all results)"),
+    per_page: int | None = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
     db: Session = Depends(get_db),
 ) -> dict:
     """
@@ -256,7 +253,7 @@ async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_repo(repo_id: int, db: Session = Depends(get_db)):
+async def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
     """
     從追蹤清單移除 repo。
     同時刪除所有關聯的快照與訊號。
@@ -298,7 +295,7 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     # noinspection PyTypeChecker
-    repos: List[Repo] = db.query(Repo).all()
+    repos: list[Repo] = db.query(Repo).all()
     github = get_github_service()
 
     success_count = 0

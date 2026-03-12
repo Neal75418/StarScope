@@ -2,7 +2,7 @@
 Unified API response schemas for consistent response formatting.
 """
 
-from typing import TypeVar, Generic, Optional, Any
+from typing import TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 
 # Generic type for data payload
@@ -50,10 +50,10 @@ class ApiResponse(BaseModel, Generic[T]):
             }
     """
     success: bool = True
-    data: Optional[T] = None
-    message: Optional[str] = None
-    error: Optional["ErrorDetail"] = None
-    pagination: Optional[PaginationInfo] = None
+    data: T | None = None
+    message: str | None = None
+    error: "ErrorDetail | None" = None
+    pagination: PaginationInfo | None = None
 
     model_config = {"from_attributes": True}
 
@@ -61,7 +61,7 @@ class ApiResponse(BaseModel, Generic[T]):
 class ErrorDetail(BaseModel):
     """Structured error information."""
     code: str = Field(..., description="Error code for programmatic handling")
-    details: Optional[Any] = Field(None, description="Additional error details")
+    details: Any | None = Field(None, description="Additional error details")
 
 
 # Update forward reference
@@ -85,8 +85,8 @@ class ErrorCode:
 # Helper functions for creating responses
 def success_response(
     data: Any = None,
-    message: Optional[str] = None,
-    pagination: Optional[PaginationInfo] = None
+    message: str | None = None,
+    pagination: PaginationInfo | None = None
 ) -> dict:
     """
     Create a successful API response.
@@ -113,7 +113,7 @@ def success_response(
 def error_response(
     message: str,
     code: str = ErrorCode.INTERNAL_ERROR,
-    details: Optional[Any] = None
+    details: Any | None = None
 ) -> dict:
     """
     Create an error API response.
@@ -142,7 +142,7 @@ def paginated_response(
     total: int,
     page: int = 1,
     per_page: int = 20,
-    message: Optional[str] = None
+    message: str | None = None
 ) -> dict:
     """
     Create a paginated list response.
@@ -177,6 +177,6 @@ def paginated_response(
 class StatusResponse(BaseModel):
     """Simple status response for operations like delete, acknowledge, etc."""
     status: str = "ok"
-    message: Optional[str] = None
-    id: Optional[int] = None
-    count: Optional[int] = None
+    message: str | None = None
+    id: int | None = None
+    count: int | None = None

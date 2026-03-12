@@ -1,5 +1,5 @@
 /**
- * Hook for fetching the weekly summary data.
+ * 取得每週摘要資料的 Hook。
  */
 
 import { useQuery } from "@tanstack/react-query";

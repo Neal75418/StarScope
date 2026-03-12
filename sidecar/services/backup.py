@@ -11,7 +11,6 @@ import shutil
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ logger = logging.getLogger(__name__)
 class BackupService:
     """資料庫備份服務"""
 
-    def __init__(self, db_path: str, backup_dir: Optional[str] = None) -> None:
+    def __init__(self, db_path: str, backup_dir: str | None = None) -> None:
         """
         初始化備份服務。
 
@@ -39,7 +38,7 @@ class BackupService:
         # 確保備份目錄存在
         self.backup_dir.mkdir(parents=True, exist_ok=True)
 
-    def create_backup(self) -> Optional[Path]:
+    def create_backup(self) -> Path | None:
         """
         建立資料庫備份。
 
@@ -115,7 +114,7 @@ class BackupService:
             return 0
 
 
-def backup_database(db_path: str, retention_days: int = 7) -> Optional[Path]:
+def backup_database(db_path: str, retention_days: int = 7) -> Path | None:
     """
     便利函式：建立備份並清理過期備份。
 

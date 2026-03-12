@@ -3,7 +3,6 @@ Pydantic schemas for Repo-related API endpoints.
 """
 
 from datetime import datetime, date
-from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 
@@ -17,13 +16,13 @@ from constants import (
 
 class RepoCreate(BaseModel):
     """Schema for creating a new repo in watchlist."""
-    owner: Optional[str] = Field(None, max_length=MAX_OWNER_LENGTH)
-    name: Optional[str] = Field(None, max_length=MAX_REPO_NAME_LENGTH)
-    url: Optional[str] = None  # Alternative: provide full GitHub URL
+    owner: str | None = Field(None, max_length=MAX_OWNER_LENGTH)
+    name: str | None = Field(None, max_length=MAX_REPO_NAME_LENGTH)
+    url: str | None = None  # Alternative: provide full GitHub URL
 
     @field_validator("owner")
     @classmethod
-    def validate_owner(cls, v: Optional[str]) -> Optional[str]:
+    def validate_owner(cls, v: str | None) -> str | None:
         """Validate GitHub username format."""
         if v is None:
             return None
@@ -37,7 +36,7 @@ class RepoCreate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+    def validate_name(cls, v: str | None) -> str | None:
         """Validate GitHub repository name format."""
         if v is None:
             return None
@@ -51,7 +50,7 @@ class RepoCreate(BaseModel):
 
     @field_validator("url")
     @classmethod
-    def parse_github_url(cls, v: Optional[str]) -> Optional[str]:
+    def parse_github_url(cls, v: str | None) -> str | None:
         """Validate and normalize GitHub URL."""
         if v is None:
             return None
@@ -117,8 +116,8 @@ class RepoResponse(BaseModel):
     name: str
     full_name: str
     url: str
-    description: Optional[str] = None
-    language: Optional[str] = None
+    description: str | None = None
+    language: str | None = None
     added_at: datetime
     updated_at: datetime
 
@@ -128,24 +127,24 @@ class RepoResponse(BaseModel):
 class RepoWithSignals(RepoResponse):
     """Schema for a repo with its latest signals."""
     # Current stats (from latest snapshot)
-    stars: Optional[int] = None
-    forks: Optional[int] = None
+    stars: int | None = None
+    forks: int | None = None
 
     # Signals
-    stars_delta_7d: Optional[float] = None
-    stars_delta_30d: Optional[float] = None
-    velocity: Optional[float] = None  # stars per day
-    acceleration: Optional[float] = None
-    trend: Optional[int] = None  # -1, 0, 1
+    stars_delta_7d: float | None = None
+    stars_delta_30d: float | None = None
+    velocity: float | None = None  # stars per day
+    acceleration: float | None = None
+    trend: int | None = None  # -1, 0, 1
 
     # Latest snapshot date
-    last_fetched: Optional[datetime] = None
+    last_fetched: datetime | None = None
 
 
 class RepoListResponse(BaseModel):
     """Schema for listing repos."""
-    repos: List[RepoWithSignals]
+    repos: list[RepoWithSignals]
     total: int
-    page: Optional[int] = None
-    per_page: Optional[int] = None
-    total_pages: Optional[int] = None
+    page: int | None = None
+    per_page: int | None = None
+    total_pages: int | None = None

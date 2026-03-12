@@ -8,7 +8,6 @@ Tables:
 """
 
 from datetime import datetime, date
-from typing import Optional, List
 from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
@@ -40,13 +39,13 @@ class Repo(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(512), nullable=False, unique=True)
     url: Mapped[str] = mapped_column(String(1024), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     # GitHub 中繼資料
-    github_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    default_branch: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    language: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # GitHub topics 的 JSON 陣列
+    github_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_branch: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    topics: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # GitHub topics 的 JSON 陣列
 
     # 時間戳記
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # GitHub 建立日期
@@ -54,12 +53,12 @@ class Repo(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # 關聯
-    snapshots: Mapped[List["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    signals: Mapped[List["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    context_signals: Mapped[List["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    commit_activities: Mapped[List["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    languages: Mapped[List["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    early_signals: Mapped[List["EarlySignal"]] = relationship("EarlySignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    snapshots: Mapped[list["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    signals: Mapped[list["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    context_signals: Mapped[list["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    commit_activities: Mapped[list["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    languages: Mapped[list["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
+    early_signals: Mapped[list["EarlySignal"]] = relationship("EarlySignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
     # 索引
     __table_args__ = (
@@ -145,10 +144,10 @@ class AlertRule(Base):
 
     # 規則設定
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     # 目標（選填 — 若為 null 則套用於所有 repo）
-    repo_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=True)
+    repo_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=True)
 
     # 條件
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 例如 "stars_delta_7d"、"velocity"
@@ -163,8 +162,8 @@ class AlertRule(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # 關聯
-    repo: Mapped[Optional["Repo"]] = relationship("Repo")
-    triggered_alerts: Mapped[List["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade=CASCADE_DELETE_ORPHAN)
+    repo: Mapped["Repo | None"] = relationship("Repo")
+    triggered_alerts: Mapped[list["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade=CASCADE_DELETE_ORPHAN)
 
     def __repr__(self) -> str:
         target = self.repo.full_name if self.repo else "all repos"
@@ -185,7 +184,7 @@ class TriggeredAlert(Base):
 
     # 使用者是否已檢視/確認此警報
     acknowledged: Mapped[bool] = mapped_column(Integer, default=False)
-    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 關聯
     rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="triggered_alerts")
@@ -222,12 +221,12 @@ class ContextSignal(Base):
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
 
     # 選填中繼資料
-    score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # HN 分數
-    comment_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    author: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # HN 分數
+    comment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    author: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # 時間戳記
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # 外部發布時間
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 外部發布時間
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # 關聯
@@ -258,7 +257,7 @@ class SimilarRepo(Base):
 
     # 相似度指標
     similarity_score: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0-1.0
-    shared_topics: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)  # 共同 topics 的 JSON 陣列
+    shared_topics: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # 共同 topics 的 JSON 陣列
     same_language: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)  # SQLite bool
 
     # 時間戳記
@@ -288,16 +287,16 @@ class Category(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    icon: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # Emoji
-    color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # Hex 色碼
-    parent_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="SET NULL"), nullable=True)
+    description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(10), nullable=True)  # Emoji
+    color: Mapped[str | None] = mapped_column(String(7), nullable=True)  # Hex 色碼
+    parent_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="SET NULL"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     # 關聯
-    parent: Mapped[Optional["Category"]] = relationship("Category", remote_side="Category.id", backref="children")
-    repo_categories: Mapped[List["RepoCategory"]] = relationship("RepoCategory", back_populates="category", cascade=CASCADE_DELETE_ORPHAN)
+    parent: Mapped["Category | None"] = relationship("Category", remote_side="Category.id", backref="children")
+    repo_categories: Mapped[list["RepoCategory"]] = relationship("RepoCategory", back_populates="category", cascade=CASCADE_DELETE_ORPHAN)
 
     # 索引
     __table_args__ = (
@@ -350,17 +349,17 @@ class EarlySignal(Base):
     description: Mapped[str] = mapped_column(String(500), nullable=False)
 
     # 偵測時的指標
-    velocity_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    star_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    percentile_rank: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-100
+    velocity_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    star_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    percentile_rank: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0-100
 
     # 時間戳記
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 使用者互動
     acknowledged: Mapped[bool] = mapped_column(Integer, default=False)  # SQLite bool
-    acknowledged_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 關聯
     repo: Mapped["Repo"] = relationship("Repo", back_populates="early_signals")

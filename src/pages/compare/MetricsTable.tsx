@@ -4,7 +4,7 @@ import type { ComparisonRepoData } from "../../api/types";
 import { formatNumber, formatDelta } from "../../utils/format";
 import { TREND_ARROWS } from "../../constants/trends";
 
-// --- MetricsTable ---
+// ==================== MetricsTable ====================
 export const MetricsTable = memo(function MetricsTable({
   repos,
   t,

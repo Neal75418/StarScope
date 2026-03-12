@@ -2,7 +2,7 @@
 趨勢 API 端點，依各種指標排序檢視 repo。
 """
 
-from typing import List, Optional, cast
+from typing import cast
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query
@@ -35,14 +35,14 @@ class TrendingRepo(BaseModel):
     name: str
     full_name: str
     url: str
-    description: Optional[str]
-    language: Optional[str]
-    stars: Optional[int]
-    stars_delta_7d: Optional[float]
-    stars_delta_30d: Optional[float]
-    velocity: Optional[float]
-    acceleration: Optional[float]
-    trend: Optional[int]
+    description: str | None
+    language: str | None
+    stars: int | None
+    stars_delta_7d: float | None
+    stars_delta_30d: float | None
+    velocity: float | None
+    acceleration: float | None
+    trend: int | None
     rank: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -50,7 +50,7 @@ class TrendingRepo(BaseModel):
 
 class TrendsResponse(BaseModel):
     """趨勢列表的回應。"""
-    repos: List[TrendingRepo]
+    repos: list[TrendingRepo]
     total: int
     sort_by: str
 
@@ -69,8 +69,8 @@ def _get_signal_type_for_sort(sort_by: SortBy) -> str:
 async def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
-    language: Optional[str] = Query(None, description="Filter by programming language"),
-    min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),
+    language: str | None = Query(None, description="Filter by programming language"),
+    min_stars: int | None = Query(None, ge=0, description="Minimum star count"),
     db: Session = Depends(get_db)
 ) -> dict:
     """

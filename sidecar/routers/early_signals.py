@@ -3,7 +3,6 @@
 提供偵測到的異常與早期訊號存取。
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -37,20 +36,20 @@ class EarlySignalResponse(BaseModel):
     signal_type: str
     severity: str
     description: str
-    velocity_value: Optional[float]
-    star_count: Optional[int]
-    percentile_rank: Optional[float]
+    velocity_value: float | None
+    star_count: int | None
+    percentile_rank: float | None
     detected_at: datetime
-    expires_at: Optional[datetime]
+    expires_at: datetime | None
     acknowledged: bool
-    acknowledged_at: Optional[datetime]
+    acknowledged_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class EarlySignalListResponse(BaseModel):
     """訊號列表的回應。"""
-    signals: List[EarlySignalResponse]
+    signals: list[EarlySignalResponse]
     total: int
 
 
@@ -87,8 +86,8 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
 # 端點
 @router.get("/", response_model=ApiResponse[EarlySignalListResponse])
 async def list_early_signals(
-    signal_type: Optional[str] = Query(None, description="Filter by signal type"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
+    signal_type: str | None = Query(None, description="Filter by signal type"),
+    severity: str | None = Query(None, description="Filter by severity"),
     include_acknowledged: bool = Query(False, description="Include acknowledged signals"),
     include_expired: bool = Query(False, description="Include expired signals"),
     limit: int = Query(50, ge=1, le=200),
@@ -115,7 +114,7 @@ async def list_early_signals(
         )
 
     # noinspection PyTypeChecker
-    signals: List[EarlySignal] = query.order_by(
+    signals: list[EarlySignal] = query.order_by(
         _SEVERITY_ORDER,  # High severity first
         EarlySignal.detected_at.desc()
     ).limit(limit).all()
@@ -156,7 +155,7 @@ async def get_repo_signals(
         )
 
     # noinspection PyTypeChecker
-    signals: List[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
+    signals: list[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
 
     signal_responses = [_signal_to_response(s) for s in signals]
     list_response = EarlySignalListResponse(
@@ -245,7 +244,7 @@ async def acknowledge_signal(
 
 @router.post("/acknowledge-all", response_model=ApiResponse[StatusResponse])
 async def acknowledge_all_signals(
-    signal_type: Optional[str] = Query(None),
+    signal_type: str | None = Query(None),
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -313,12 +312,12 @@ async def delete_signal(
 
 class BatchSignalsRequest(BaseModel):
     """批次取得訊號的請求。"""
-    repo_ids: List[int] = Field(..., max_length=100)
+    repo_ids: list[int] = Field(..., max_length=100)
 
 
 class BatchSignalsResponse(BaseModel):
     """批次取得訊號的回應，key 為 repo_id 字串。"""
-    results: Dict[str, EarlySignalListResponse]
+    results: dict[str, EarlySignalListResponse]
 
 
 @router.post("/batch", response_model=ApiResponse[BatchSignalsResponse])
@@ -339,7 +338,7 @@ async def get_repo_signals_batch(
 
     now = utc_now()
     # noinspection PyTypeChecker
-    signals: List[EarlySignal] = db.query(EarlySignal).options(
+    signals: list[EarlySignal] = db.query(EarlySignal).options(
         joinedload(EarlySignal.repo)
     ).filter(
         EarlySignal.repo_id.in_(repo_ids),
@@ -351,7 +350,7 @@ async def get_repo_signals_batch(
     ).all()
 
     # 按 repo_id 分組
-    grouped: Dict[int, List[EarlySignalResponse]] = {}
+    grouped: dict[int, list[EarlySignalResponse]] = {}
     for s in signals:
         rid: int = s.repo_id
         if rid not in grouped:
@@ -359,7 +358,7 @@ async def get_repo_signals_batch(
         grouped[rid].append(_signal_to_response(s))
 
     # 組裝結果（含空結果 repo），每個 repo 用 EarlySignalListResponse 包裝
-    results: Dict[str, EarlySignalListResponse] = {}
+    results: dict[str, EarlySignalListResponse] = {}
     for rid in repo_ids:
         signal_list = grouped.get(rid, [])
         results[str(rid)] = EarlySignalListResponse(

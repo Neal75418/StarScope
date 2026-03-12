@@ -1,5 +1,5 @@
 /**
- * Hook for fetching comparison chart data.
+ * 取得對比圖表資料的 Hook。
  */
 
 import { useQuery } from "@tanstack/react-query";

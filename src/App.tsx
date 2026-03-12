@@ -53,7 +53,7 @@ function PageContent({ page }: { page: Page }) {
   }
 }
 
-function App() {
+export function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.PAGE);
     const validPages: Page[] = [
@@ -119,5 +119,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

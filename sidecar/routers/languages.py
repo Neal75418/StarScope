@@ -4,7 +4,6 @@ Repo 程式語言 API 端點。
 """
 
 from datetime import datetime
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -32,22 +31,22 @@ class LanguagesResponse(BaseModel):
     """語言回應，含計算後的百分比。"""
     repo_id: int
     repo_name: str
-    languages: List[LanguageBreakdown]
-    primary_language: Optional[str]
+    languages: list[LanguageBreakdown]
+    primary_language: str | None
     total_bytes: int
-    last_updated: Optional[datetime]
+    last_updated: datetime | None
 
 
 class LanguagesSummary(BaseModel):
     """徽章/卡片用的簡短摘要。"""
     repo_id: int
-    primary_language: Optional[str]
+    primary_language: str | None
     language_count: int
-    last_updated: Optional[datetime]
+    last_updated: datetime | None
 
 
 # 輔助函式
-def _build_response(repo: Repo, languages: List[RepoLanguage]) -> LanguagesResponse:
+def _build_response(repo: Repo, languages: list[RepoLanguage]) -> LanguagesResponse:
     """從 repo 與語言紀錄建立 LanguagesResponse。"""
     sorted_languages = sorted(languages, key=lambda x: x.bytes, reverse=True)
 
@@ -78,7 +77,7 @@ def _store_languages(
     db: Session,
     repo_id: int,
     github_data: dict[str, int]
-) -> List[RepoLanguage]:
+) -> list[RepoLanguage]:
     """
     儲存 GitHub API 回應中的語言資料。
 
@@ -126,7 +125,7 @@ async def get_languages(
     repo = get_repo_or_404(repo_id, db)
 
     # noinspection PyTypeChecker
-    languages: List[RepoLanguage] = db.query(RepoLanguage).filter(
+    languages: list[RepoLanguage] = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id
     ).all()
 
@@ -169,7 +168,7 @@ async def get_languages_summary(
     get_repo_or_404(repo_id, db)
 
     # noinspection PyTypeChecker
-    languages: List[RepoLanguage] = db.query(RepoLanguage).filter(
+    languages: list[RepoLanguage] = db.query(RepoLanguage).filter(
         RepoLanguage.repo_id == repo_id
     ).order_by(RepoLanguage.bytes.desc()).all()
 

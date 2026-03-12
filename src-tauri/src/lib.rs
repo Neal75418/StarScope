@@ -30,7 +30,7 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
 
             // Verify pointer is non-null before dereferencing
             if ns_window_ptr.is_null() {
-                warn!("Failed to get NSWindow pointer - pointer is null");
+                warn!("取得 NSWindow 指標失敗 — 指標為 null");
                 return;
             }
 
@@ -46,7 +46,7 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
             }
         }
     }) {
-        warn!("Failed to disable fullscreen button: {e}");
+        warn!("停用全螢幕按鈕失敗: {e}");
     }
 }
 
@@ -92,7 +92,7 @@ fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let menu = Menu::with_items(app, &[&show_item, &refresh_item, &quit_item])?;
 
     // 安全取得預設視窗圖示，未設定時回傳錯誤
-    // Clone required -- TrayIconBuilder::icon() takes ownership
+    // 需要 clone — TrayIconBuilder::icon() 會取得所有權
     let icon = app
         .default_window_icon()
         .ok_or("No default window icon configured in tauri.conf.json")?
@@ -116,7 +116,7 @@ fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
         "refresh" => {
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(e) = window.emit("refresh-all", ()) {
-                    warn!("Failed to emit refresh-all event: {e}");
+                    warn!("發送 refresh-all 事件失敗: {e}");
                 }
             }
         }
@@ -141,10 +141,10 @@ fn handle_tray_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         if let Err(e) = window.show() {
-            warn!("Failed to show main window: {e}");
+            warn!("顯示主視窗失敗: {e}");
         }
         if let Err(e) = window.set_focus() {
-            warn!("Failed to focus main window: {e}");
+            warn!("聚焦主視窗失敗: {e}");
         }
     }
 }
@@ -155,9 +155,9 @@ fn cleanup_sidecar(app: &AppHandle) {
         if let Ok(mut child_guard) = state.child.lock() {
             if let Some(child) = child_guard.take() {
                 if let Err(e) = child.kill() {
-                    warn!("Failed to kill sidecar process: {e}");
+                    warn!("終止 sidecar 程序失敗: {e}");
                 } else {
-                    info!("Sidecar process terminated successfully");
+                    info!("Sidecar 程序已成功終止");
                 }
             }
         }
@@ -196,5 +196,5 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("Fatal: failed to start Tauri application. Check WebView runtime and port availability.");
+        .expect("致命錯誤：無法啟動 Tauri 應用程式，請檢查 WebView 運行環境與連接埠可用性");
 }

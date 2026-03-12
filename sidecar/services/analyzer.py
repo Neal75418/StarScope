@@ -10,7 +10,6 @@ StarScope 的訊號計算引擎。
 """
 
 from datetime import date, timedelta
-from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -31,7 +30,7 @@ def get_snapshot_for_date(
     target_date: date,
     db: Session,
     allow_earlier: bool = True
-) -> Optional[RepoSnapshot]:
+) -> RepoSnapshot | None:
     """
     取得指定日期的快照。
     若 allow_earlier 為 True 且無完全匹配，取最接近的較早快照。
@@ -59,7 +58,7 @@ def calculate_delta(
     repo_id: int,
     days: int,
     db: Session
-) -> Optional[float]:
+) -> float | None:
     """
     計算指定天數的 star 差值。
     資料不足時回傳 None。
@@ -84,7 +83,7 @@ def calculate_velocity(
     repo_id: int,
     db: Session,
     days: int = 7
-) -> Optional[float]:
+) -> float | None:
     """
     計算指定期間的 velocity（每日 star 數）。
     """
@@ -98,7 +97,7 @@ def calculate_velocity(
 def calculate_acceleration(
     repo_id: int,
     db: Session
-) -> Optional[float]:
+) -> float | None:
     """
     計算 acceleration（velocity 的變化率）。
     比較本週與上週的 velocity，回傳百分比變化。
@@ -137,8 +136,8 @@ def calculate_acceleration(
 
 
 def calculate_trend(
-    velocity: Optional[float],
-    acceleration: Optional[float]
+    velocity: float | None,
+    acceleration: float | None
 ) -> int:
     """
     根據 velocity 與 acceleration 判斷趨勢方向。

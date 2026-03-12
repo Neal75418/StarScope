@@ -67,7 +67,7 @@ async function fetchExistingRepoSet(): Promise<{ set: Set<string>; hadError: boo
       hadError: false,
     };
   } catch (err) {
-    logger.warn("[Import] Failed to fetch existing repos for dedup check:", err);
+    logger.warn("[Import] 取得現有 repos 進行去重檢查失敗:", err);
     return { set: new Set(), hadError: true };
   }
 }

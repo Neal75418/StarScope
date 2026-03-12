@@ -2,7 +2,7 @@
 
 import logging
 import operator as op
-from typing import List, Optional, Callable
+from typing import Callable
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -90,7 +90,7 @@ def check_rule_for_repo(
     db: Session,
     rule: "AlertRule",
     repo: "Repo"
-) -> Optional["TriggeredAlert"]:
+) -> "TriggeredAlert | None":
     """
     檢查規則是否對特定 repo 觸發。
 
@@ -131,7 +131,7 @@ def check_rule_for_repo(
     return _create_triggered_alert(db, rule, repo, signal_value)
 
 
-def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
+def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
     """
     檢查所有啟用的警報規則並觸發匹配者。
 
@@ -141,11 +141,11 @@ def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
     Returns:
         已觸發警報的列表
     """
-    triggered_alerts: List["TriggeredAlert"] = []
+    triggered_alerts: list["TriggeredAlert"] = []
 
     # 取得所有啟用的規則
     # noinspection PyTypeChecker
-    rules: List[AlertRule] = db.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
+    rules: list[AlertRule] = db.query(AlertRule).filter(AlertRule.enabled.is_(True)).all()
 
     if not rules:
         logger.debug("[警報] 無啟用的警報規則")
@@ -160,9 +160,9 @@ def check_all_alerts(db: Session) -> List["TriggeredAlert"]:
     return triggered_alerts
 
 
-def _check_rule_alerts(db: Session, rule: "AlertRule") -> List["TriggeredAlert"]:
+def _check_rule_alerts(db: Session, rule: "AlertRule") -> list["TriggeredAlert"]:
     """針對適用的 repo 檢查單一規則。"""
-    alerts: List["TriggeredAlert"] = []
+    alerts: list["TriggeredAlert"] = []
 
     try:
         repos = _get_repos_for_rule(db, rule)
@@ -176,7 +176,7 @@ def _check_rule_alerts(db: Session, rule: "AlertRule") -> List["TriggeredAlert"]
     return alerts
 
 
-def _get_repos_for_rule(db: Session, rule: "AlertRule") -> List["Repo"]:
+def _get_repos_for_rule(db: Session, rule: "AlertRule") -> list["Repo"]:
     """取得規則適用的 repo。"""
     if rule.repo_id:
         # 針對特定 repo 的規則
@@ -184,11 +184,11 @@ def _get_repos_for_rule(db: Session, rule: "AlertRule") -> List["Repo"]:
         return [repo] if repo else []
     # 針對所有 repo 的規則
     # noinspection PyTypeChecker
-    all_repos: List[Repo] = db.query(Repo).all()
+    all_repos: list[Repo] = db.query(Repo).all()
     return all_repos
 
 
-def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:
+def get_unacknowledged_alerts(db: Session) -> list[TriggeredAlert]:
     """
     取得所有未確認（未檢視）的警報。
 
@@ -199,7 +199,7 @@ def get_unacknowledged_alerts(db: Session) -> List[TriggeredAlert]:
         未確認警報的列表
     """
     # noinspection PyTypeChecker
-    alerts: List[TriggeredAlert] = (
+    alerts: list[TriggeredAlert] = (
         db.query(TriggeredAlert)
         .filter(TriggeredAlert.acknowledged.is_(False))
         .order_by(TriggeredAlert.triggered_at.desc())

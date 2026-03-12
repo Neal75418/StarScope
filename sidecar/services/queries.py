@@ -5,8 +5,6 @@ Centralizes common query patterns to avoid code duplication.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
-
 from sqlalchemy import func
 from sqlalchemy.orm import Session, Query
 from sqlalchemy.sql.selectable import Subquery
@@ -51,7 +49,7 @@ def build_signal_map(
 def _build_latest_snapshot_subquery(
     db: Session,
     repo_ids: list[int] | None = None
-) -> Optional[Subquery]:
+) -> Subquery | None:
     """
     Build subquery to get max snapshot_date per repo.
     Shared helper to avoid code duplication.
@@ -63,7 +61,7 @@ def _build_latest_snapshot_subquery(
     Returns:
         SQLAlchemy subquery for latest snapshot dates
     """
-    subq_query: Query[Any] = db.query(
+    subq_query: Query = db.query(
         RepoSnapshot.repo_id,
         func.max(RepoSnapshot.snapshot_date).label("max_date")
     )
@@ -149,8 +147,8 @@ def build_stars_map(
 def get_snapshot_for_repo(
     repo_id: int,
     db: Session,
-    snapshot_map: Optional[Dict[int, RepoSnapshot]] = None,
-) -> Optional[RepoSnapshot]:
+    snapshot_map: dict[int, RepoSnapshot] | None = None,
+) -> RepoSnapshot | None:
     """
     取得指定 repo 的最新快照。
     優先使用預載的 snapshot_map，未命中時查詢資料庫。
@@ -171,8 +169,8 @@ def get_signal_value(
     repo_id: int,
     signal_type: str,
     db: Session,
-    signal_map: Optional[Dict[int, Dict[str, float]]] = None,
-) -> Optional[float]:
+    signal_map: dict[int, dict[str, float]] | None = None,
+) -> float | None:
     """
     取得指定 repo 的特定 signal 值。
     優先使用預載的 signal_map，未命中時查詢資料庫。

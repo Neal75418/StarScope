@@ -6,8 +6,8 @@ Aggregates weekly changes across all tracked repos.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
 from typing import Any
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session

@@ -3,7 +3,7 @@
 """
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
@@ -37,8 +37,8 @@ router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 class AlertRuleCreate(BaseModel):
     """建立警報規則的 schema。"""
     name: str
-    description: Optional[str] = None
-    repo_id: Optional[int] = None  # None = 適用於所有 repo
+    description: str | None = None
+    repo_id: int | None = None  # None = 適用於所有 repo
     signal_type: ValidSignalType
     operator: ValidOperator
     threshold: float
@@ -47,22 +47,22 @@ class AlertRuleCreate(BaseModel):
 
 class AlertRuleUpdate(BaseModel):
     """更新警報規則的 schema。"""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    repo_id: Optional[int] = None
-    signal_type: Optional[ValidSignalType] = None
-    operator: Optional[ValidOperator] = None
-    threshold: Optional[float] = None
-    enabled: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    repo_id: int | None = None
+    signal_type: ValidSignalType | None = None
+    operator: ValidOperator | None = None
+    threshold: float | None = None
+    enabled: bool | None = None
 
 
 class AlertRuleResponse(BaseModel):
     """警報規則的回應 schema。"""
     id: int
     name: str
-    description: Optional[str]
-    repo_id: Optional[int]
-    repo_name: Optional[str]
+    description: str | None
+    repo_id: int | None
+    repo_name: str | None
     signal_type: str
     operator: str
     threshold: float
@@ -86,7 +86,7 @@ class TriggeredAlertResponse(BaseModel):
     operator: str
     triggered_at: datetime
     acknowledged: bool
-    acknowledged_at: Optional[datetime]
+    acknowledged_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -110,7 +110,7 @@ class CheckAlertsResponse(BaseModel):
     """警報檢查結果。"""
     status: str
     triggered_count: int
-    triggered: List[TriggeredAlertBrief]
+    triggered: list[TriggeredAlertBrief]
 
 
 # --- 輔助函式 ---
@@ -154,8 +154,8 @@ def _to_triggered_alert_response(alert: TriggeredAlert) -> TriggeredAlertRespons
 
 # --- 端點 ---
 
-@router.get("/signal-types", response_model=ApiResponse[List[SignalTypeInfo]])
-async def list_signal_types():
+@router.get("/signal-types", response_model=ApiResponse[list[SignalTypeInfo]])
+async def list_signal_types() -> dict:
     """列出警報規則可用的訊號類型。"""
     signal_types = [
         SignalTypeInfo(
@@ -187,7 +187,7 @@ async def list_signal_types():
     return success_response(data=signal_types)
 
 
-@router.get("/rules", response_model=ApiResponse[List[AlertRuleResponse]])
+@router.get("/rules", response_model=ApiResponse[list[AlertRuleResponse]])
 async def list_rules(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
@@ -204,7 +204,7 @@ async def list_rules(
 
     # 使用 joinedload 避免存取 rule.repo 時的 N+1 查詢
     # noinspection PyTypeChecker
-    rules: List[AlertRule] = (
+    rules: list[AlertRule] = (
         db.query(AlertRule)
         .options(joinedload(AlertRule.repo))
         .offset(skip)
@@ -246,7 +246,7 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
 @router.get("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 async def get_rule(rule_id: int, db: Session = Depends(get_db)):
     """取得特定警報規則。"""
-    rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
@@ -256,7 +256,7 @@ async def get_rule(rule_id: int, db: Session = Depends(get_db)):
 @router.patch("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)):
     """更新警報規則。"""
-    rule: Optional[AlertRule] = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
+    rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
         raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
 
@@ -302,7 +302,7 @@ async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
     return success_response(data=StatusResponse(status="deleted", id=rule_id))
 
 
-@router.get("/triggered", response_model=ApiResponse[List[TriggeredAlertResponse]])
+@router.get("/triggered", response_model=ApiResponse[list[TriggeredAlertResponse]])
 async def list_triggered_alerts(
     unacknowledged_only: bool = False,
     limit: int = Query(50, ge=1, le=500),
@@ -323,7 +323,7 @@ async def list_triggered_alerts(
         query = query.filter(TriggeredAlert.acknowledged.is_(False))
 
     # noinspection PyTypeChecker
-    alerts: List[TriggeredAlert] = query.limit(limit).all()
+    alerts: list[TriggeredAlert] = query.limit(limit).all()
 
     return success_response(data=[_to_triggered_alert_response(alert) for alert in alerts])
 

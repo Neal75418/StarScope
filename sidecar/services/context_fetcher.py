@@ -5,7 +5,7 @@
 
 import logging
 from datetime import timedelta
-from typing import List, Dict, Any
+from typing import Any
 
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 def _get_existing_signal_map(
     repo_id: int,
     signal_type: str,
-    external_ids: List[str],
+    external_ids: list[str],
     db: Session
-) -> Dict[str, "ContextSignal"]:
+) -> dict[str, "ContextSignal"]:
     """
     批次載入既有訊號以避免 N+1 查詢。
 
@@ -59,7 +59,7 @@ def _update_existing_signal(
     existing.fetched_at = utc_now()
 
 
-def _store_hn_signals(repo_id: int, stories: List[HNStory], db: Session) -> int:
+def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
     """
     將 HN 文章儲存為情境訊號。
 
@@ -125,7 +125,7 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     return hn_count
 
 
-async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
+async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     """
     為追蹤清單中所有 repo 抓取情境訊號。
 
@@ -136,7 +136,7 @@ async def fetch_all_context_signals(db: Session) -> Dict[str, Any]:
         摘要統計字典
     """
     # noinspection PyTypeChecker
-    repos: List[Repo] = db.query(Repo).all()
+    repos: list[Repo] = db.query(Repo).all()
 
     total_hn = 0
     errors = 0
@@ -227,7 +227,7 @@ def cleanup_old_context_signals(
     db: Session,
     max_age_days: int = CONTEXT_SIGNAL_MAX_AGE_DAYS,
     max_per_repo: int = CONTEXT_SIGNAL_MAX_PER_REPO
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """
     移除舊的情境訊號以防止資料庫無限成長。
 

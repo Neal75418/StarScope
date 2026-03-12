@@ -1,5 +1,5 @@
 /**
- * Compare page — multi-repo star trend comparison.
+ * 對比頁面 — 多 repo 星數趨勢對比。
  */
 
 import { useState, useMemo, useCallback } from "react";
@@ -33,7 +33,7 @@ function loadSavedRepoIds(): number[] {
   }
 }
 
-// --- Main ---
+// ==================== 主元件 ====================
 export function Compare() {
   const { t } = useI18n();
   const [selectedIds, setSelectedIds] = useState<number[]>(loadSavedRepoIds);
@@ -60,7 +60,7 @@ export function Compare() {
     });
   }, []);
 
-  // Build unified chart data: [{date, repo1Stars, repo2Stars, ...}]
+  // 建構統一圖表資料：[{date, repo1Stars, repo2Stars, ...}]
   const chartData = useMemo(() => {
     if (!data?.repos.length) return [];
     const dateMap = new Map<string, Record<string, number>>();

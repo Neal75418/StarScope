@@ -3,7 +3,6 @@
 """
 
 from enum import Enum
-from typing import Optional
 import logging
 
 from fastapi import APIRouter, Query, HTTPException, Request
@@ -34,9 +33,9 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 async def search_repos(
     request: Request,
     q: str = Query(..., min_length=1, description="Search query"),
-    language: Optional[str] = Query(None, description="Filter by language"),
-    min_stars: Optional[int] = Query(None, ge=0, description="Minimum star count"),
-    topic: Optional[str] = Query(None, description="Filter by topic"),
+    language: str | None = Query(None, description="Filter by language"),
+    min_stars: int | None = Query(None, ge=0, description="Minimum star count"),
+    topic: str | None = Query(None, description="Filter by topic"),
     sort: SortField = Query(SortField.STARS, description="Sort field"),
     page: int = Query(1, ge=1, le=100, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Results per page"),

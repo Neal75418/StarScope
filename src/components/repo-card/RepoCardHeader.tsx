@@ -2,7 +2,8 @@
  * Repo 卡片標題列，含名稱、語言與操作按鈕。
  */
 
-import React from "react";
+import { memo } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { safeOpenUrl } from "../../utils/url";
 import { RepoWithSignals } from "../../api/client";
 import { CommitActivityBadge } from "../CommitActivityBadge";
@@ -24,7 +25,7 @@ export interface RepoCardHeaderProps {
   onRemoveFromCategory?: () => void;
 }
 
-export const RepoCardHeader = React.memo(function RepoCardHeader({
+export const RepoCardHeader = memo(function RepoCardHeader({
   repo,
   showChart,
   showSimilar,
@@ -39,7 +40,7 @@ export const RepoCardHeader = React.memo(function RepoCardHeader({
 }: RepoCardHeaderProps) {
   const { t } = useI18n();
 
-  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     await safeOpenUrl(repo.url);
   };

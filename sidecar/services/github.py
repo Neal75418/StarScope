@@ -7,7 +7,6 @@ import logging
 import os
 import threading
 import httpx
-from typing import Optional
 from sqlalchemy.exc import SQLAlchemyError
 from keyring.errors import KeyringError
 
@@ -22,14 +21,14 @@ GITHUB_API_BASE = "https://api.github.com"
 # 例外類別
 class GitHubAPIError(Exception):
     """GitHub API 錯誤的自訂例外。"""
-    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+    def __init__(self, message: str, status_code: int | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
 
 
 class GitHubRateLimitError(GitHubAPIError):
     """GitHub API 速率限制超過時拋出。"""
-    def __init__(self, message: str, status_code: Optional[int] = None, reset_at: Optional[int] = None) -> None:
+    def __init__(self, message: str, status_code: int | None = None, reset_at: int | None = None) -> None:
         super().__init__(message, status_code)
         self.reset_at = reset_at  # Unix timestamp of rate limit reset
 
@@ -40,7 +39,7 @@ class GitHubNotFoundError(GitHubAPIError):
 
 
 # GitHub API 請求的共用工具
-def build_github_headers(token: Optional[str] = None) -> dict:
+def build_github_headers(token: str | None = None) -> dict:
     """建立標準 GitHub API headers。"""
     headers = {
         "Accept": "application/vnd.github+json",
@@ -55,7 +54,7 @@ def handle_github_response(
     response: "httpx.Response",
     raise_on_error: bool = True,
     context: str = ""
-) -> Optional[dict]:
+) -> dict | None:
     """
     處理 GitHub API 回應，含標準錯誤檢查。
 
@@ -108,11 +107,11 @@ def handle_github_response(
 
 
 class GitHubService:
-    def __init__(self, token: Optional[str] = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS) -> None:
+    def __init__(self, token: str | None = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS) -> None:
         self.token = token
         self.timeout = timeout
         self.headers = build_github_headers(token)
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -230,9 +229,9 @@ class GitHubService:
     async def search_repos(
         self,
         query: str,
-        language: Optional[str] = None,
-        min_stars: Optional[int] = None,
-        topic: Optional[str] = None,
+        language: str | None = None,
+        min_stars: int | None = None,
+        topic: str | None = None,
         sort: str = "stars",
         order: str = "desc",
         page: int = 1,
@@ -358,11 +357,11 @@ class GitHubService:
 
 
 # 供排程器使用的模組層級便利函式
-_default_service: Optional[GitHubService] = None
+_default_service: GitHubService | None = None
 _service_lock = threading.Lock()
 
 
-def _resolve_github_token() -> Optional[str]:
+def _resolve_github_token() -> str | None:
     """從資料庫（OAuth）或環境變數解析 GitHub token。"""
     try:
         from services.settings import get_setting
@@ -419,7 +418,7 @@ def reset_github_service() -> None:
         _default_service = None
 
 
-async def fetch_repo_data(owner: str, repo: str) -> Optional[dict]:
+async def fetch_repo_data(owner: str, repo: str) -> dict | None:
     """
     從 GitHub 取得 repo 資料。
     請求失敗時回傳 None。

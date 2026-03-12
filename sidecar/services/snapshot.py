@@ -5,8 +5,6 @@
 以防止時序耦合問題。
 """
 
-from typing import Dict, Optional
-
 from sqlalchemy.orm import Session
 
 from db.models import Repo, RepoSnapshot
@@ -19,7 +17,7 @@ from utils.time import utc_now, utc_today
 _WATCHERS_FIELD = "subscribers_count"
 
 
-def create_or_update_snapshot(repo: Repo, github_data: Dict, db: Session) -> RepoSnapshot:
+def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> RepoSnapshot:
     """
     建立或更新 repo 的今日快照。
 
@@ -28,7 +26,7 @@ def create_or_update_snapshot(repo: Repo, github_data: Dict, db: Session) -> Rep
     """
     today = utc_today()
     # noinspection PyTypeChecker
-    existing_snapshot: Optional[RepoSnapshot] = (
+    existing_snapshot: RepoSnapshot | None = (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
         .first()
@@ -55,7 +53,7 @@ def create_or_update_snapshot(repo: Repo, github_data: Dict, db: Session) -> Rep
         return snapshot
 
 
-def update_repo_from_github(repo: Repo, github_data: Dict, db: Session) -> None:
+def update_repo_from_github(repo: Repo, github_data: dict, db: Session) -> None:
     """
     原子性更新 repo 中繼資料、快照及訊號。
 

@@ -1,6 +1,6 @@
 /**
- * Unit tests for API client functions
- * (Simplified after removing Tags, Comparisons, Health Score, and Webhooks)
+ * API client 函式單元測試
+ * （移除 Tags、Comparisons、Health Score 和 Webhooks 後的簡化版）
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -695,7 +695,7 @@ describe("API Client", () => {
     });
   });
 
-  // --- New tests for uncovered branches ---
+  // ==================== 未覆蓋分支的新測試 ====================
 
   describe("searchRepos", () => {
     it("calls discovery/search endpoint with query and page", async () => {

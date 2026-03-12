@@ -3,7 +3,6 @@
 提供 repo 為何趨勢上升的情境資訊（僅 HN）。
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -23,7 +22,7 @@ from schemas.response import ApiResponse, success_response
 router = APIRouter(prefix="/api/context", tags=["context"])
 
 
-def _is_recent(published_at: Optional[datetime], recent_threshold: datetime) -> bool:
+def _is_recent(published_at: datetime | None, recent_threshold: datetime) -> bool:
     """檢查 datetime 是否為近期，處理無時區的 datetime。"""
     if not published_at:
         return False
@@ -40,10 +39,10 @@ class ContextSignalResponse(BaseModel):
     external_id: str
     title: str
     url: str
-    score: Optional[int]
-    comment_count: Optional[int]
-    author: Optional[str]
-    published_at: Optional[datetime]
+    score: int | None
+    comment_count: int | None
+    author: str | None
+    published_at: datetime | None
     fetched_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -51,7 +50,7 @@ class ContextSignalResponse(BaseModel):
 
 class ContextSignalsResponse(BaseModel):
     """情境訊號列表的回應。"""
-    signals: List[ContextSignalResponse]
+    signals: list[ContextSignalResponse]
     total: int
     repo_id: int
 
@@ -61,24 +60,24 @@ class ContextBadge(BaseModel):
     type: str  # "hn"
     label: str  # "HN: 150 pts"
     url: str
-    score: Optional[int]
+    score: int | None
     is_recent: bool  # Published within last 7 days
 
 
 class ContextBadgesResponse(BaseModel):
     """情境徽章的回應。"""
-    badges: List[ContextBadge]
+    badges: list[ContextBadge]
     repo_id: int
 
 
 class BatchBadgesRequest(BaseModel):
     """批次取得徽章的請求。"""
-    repo_ids: List[int]
+    repo_ids: list[int]
 
 
 class BatchBadgesResponse(BaseModel):
     """批次取得徽章的回應，key 為 repo_id 字串。"""
-    results: Dict[str, ContextBadgesResponse]
+    results: dict[str, ContextBadgesResponse]
 
 
 class FetchContextResponse(BaseModel):
@@ -91,7 +90,7 @@ class FetchContextResponse(BaseModel):
 @router.get("/{repo_id}/signals", response_model=ApiResponse[ContextSignalsResponse])
 async def get_context_signals(
     repo_id: int,
-    signal_type: Optional[str] = Query(None, description="Filter by signal type (hacker_news only)"),
+    signal_type: str | None = Query(None, description="Filter by signal type (hacker_news only)"),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db)
 ) -> dict:
@@ -139,7 +138,7 @@ async def get_context_badges(
     """
     get_repo_or_404(repo_id, db)
 
-    badges: List[ContextBadge] = []
+    badges: list[ContextBadge] = []
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
     # 取得分數最高的 HN 文章
@@ -242,7 +241,7 @@ async def get_context_badges_batch(
     ).all()
 
     # 組裝結果
-    results: Dict[str, ContextBadgesResponse] = {}
+    results: dict[str, ContextBadgesResponse] = {}
     for signal in top_signals:
         if signal.score and signal.score >= MIN_HN_SCORE_FOR_BADGE:
             # noinspection PyTypeChecker

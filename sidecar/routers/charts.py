@@ -3,7 +3,6 @@
 提供前端圖表所需的歷史資料。
 """
 
-from typing import List
 from datetime import date, timedelta
 from enum import Enum
 
@@ -39,7 +38,7 @@ class StarsChartResponse(BaseModel):
     repo_id: int
     repo_name: str
     time_range: str
-    data_points: List[ChartDataPoint]
+    data_points: list[ChartDataPoint]
     min_stars: int
     max_stars: int
 

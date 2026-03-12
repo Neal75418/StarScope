@@ -128,7 +128,7 @@ describe("NotificationCenter", () => {
     expect(mockClose).toHaveBeenCalled();
   });
 
-  // --- New tests for uncovered branches ---
+  // ==================== 未覆蓋分支的新測試 ====================
 
   it("shows loading state when loading with no notifications", () => {
     mockReturnValue.isOpen = true;

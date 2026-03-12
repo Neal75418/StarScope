@@ -4,7 +4,7 @@
 
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { App } from "./App";
 window.onerror = (message, source, lineno, colno, error) => {
   // eslint-disable-next-line no-console
   console.error("Uncaught error:", { message, source, lineno, colno, error });

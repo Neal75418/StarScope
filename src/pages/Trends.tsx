@@ -2,7 +2,8 @@
  * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
  */
 
-import React, { useState, useMemo, useCallback } from "react";
+import { memo, useState, useMemo, useCallback } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../components/TrendArrow";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
@@ -18,7 +19,7 @@ const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d"
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
 
-const TrendRow = React.memo(function TrendRow({
+const TrendRow = memo(function TrendRow({
   repo,
   isInWatchlist,
   isAdding,
@@ -31,7 +32,7 @@ const TrendRow = React.memo(function TrendRow({
   onAddToWatchlist: (repo: TrendingRepo) => void;
   t: ReturnType<typeof useI18n>["t"];
 }) {
-  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     await safeOpenUrl(repo.url);
   };

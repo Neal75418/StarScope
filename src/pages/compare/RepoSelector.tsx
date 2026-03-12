@@ -5,7 +5,7 @@ import { normalizeRepoName } from "../../utils/format";
 
 const MAX_COMPARE_REPOS = 5;
 
-// --- RepoSelector ---
+// ==================== RepoSelector ====================
 export const RepoSelector = memo(function RepoSelector({
   repos,
   selectedIds,
