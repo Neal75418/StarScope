@@ -31,13 +31,11 @@ export function useAlertRuleData(toast: Toast) {
   const rulesQuery = useQuery<AlertRule[], Error>({
     queryKey: queryKeys.alertRuleData.rules(),
     queryFn: () => listAlertRules(),
-    staleTime: 1000 * 60 * 5,
   });
 
   const signalTypesQuery = useQuery<SignalTypeInfo[], Error>({
     queryKey: queryKeys.alertRuleData.signalTypes(),
     queryFn: () => listSignalTypes(),
-    staleTime: 1000 * 60 * 5,
   });
 
   const reposQuery = useQuery<RepoWithSignals[], Error>({
@@ -46,7 +44,6 @@ export function useAlertRuleData(toast: Toast) {
       const response = await getRepos();
       return response.repos;
     },
-    staleTime: 1000 * 60 * 5,
   });
 
   // 透過 effect 顯示錯誤 toast，避免在 render 中觸發副作用

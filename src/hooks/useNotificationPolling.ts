@@ -15,6 +15,7 @@ import { Notification } from "./useNotifications";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
 import { queryKeys } from "../lib/react-query";
+import { useI18n } from "../i18n";
 
 interface OSNotificationSender {
   sendOSNotification: (options: { title: string; body: string }) => Promise<void>;
@@ -26,6 +27,7 @@ export function useNotificationPolling(
   readIdsRef: { current: Set<string> },
   osNotificationSender?: OSNotificationSender
 ) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
 
   // 保存當前通知列表的 ref（用於檢測新通知）
@@ -103,7 +105,7 @@ export function useNotificationPolling(
 
   return {
     isLoading: query.isLoading,
-    error: query.error ? query.error.message || "通知取得失敗" : null,
+    error: query.error ? query.error.message || t.notifications.fetchFailed : null,
     refresh,
   };
 }

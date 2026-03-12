@@ -3,7 +3,7 @@ Weekly summary API endpoint.
 Provides aggregated weekly data for the Dashboard.
 """
 
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel

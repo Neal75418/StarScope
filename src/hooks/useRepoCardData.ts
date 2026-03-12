@@ -42,8 +42,6 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
       return response.badges;
     },
     initialData: preloaded?.badges,
-    // 如果有預載資料，標記為 stale 以便背景更新，但不立即 refetch
-    staleTime: preloaded?.badges ? 1000 * 60 * 5 : 1000 * 60 * 5,
     enabled: preloaded?.badges === undefined || isRefreshingContext === false,
   });
 
@@ -54,7 +52,6 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
       return response.signals;
     },
     initialData: preloaded?.signals,
-    staleTime: 1000 * 60 * 5,
     enabled: preloaded?.signals === undefined || isRefreshingContext === false,
   });
 

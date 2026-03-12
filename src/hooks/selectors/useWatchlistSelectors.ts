@@ -5,6 +5,7 @@
 import { useMemo } from "react";
 import { useWatchlistState } from "../../contexts/WatchlistContext";
 import type { RepoWithSignals } from "../../api/client";
+import { normalizeRepoName } from "../../utils/format";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
@@ -29,7 +30,7 @@ export function useFilteredRepos(): RepoWithSignals[] {
       const lowerQuery = trimmedQuery.toLowerCase();
       result = result.filter(
         (r) =>
-          r.full_name.toLowerCase().includes(lowerQuery) ||
+          normalizeRepoName(r.full_name).includes(lowerQuery) ||
           (r.description?.toLowerCase().includes(lowerQuery) ?? false) ||
           (r.language?.toLowerCase().includes(lowerQuery) ?? false)
       );

@@ -39,7 +39,8 @@ def _mock_http_client(response):
     with patch("httpx.AsyncClient") as mock_cls:
         mock_client = AsyncMock()
         mock_client.get.return_value = response
-        mock_cls.return_value.__aenter__.return_value = mock_client
+        mock_client.is_closed = False
+        mock_cls.return_value = mock_client
         yield mock_client
 
 
@@ -396,7 +397,8 @@ class TestGitHubServiceCommitActivity:
              patch('asyncio.sleep', new_callable=AsyncMock):
             mock_client = AsyncMock()
             mock_client.get.side_effect = [_make_response(202), _make_response(200, weekly_data)]
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+            mock_client.is_closed = False
+            mock_client_class.return_value = mock_client
 
             result = await service.get_commit_activity("owner", "repo", max_retries=3)
 

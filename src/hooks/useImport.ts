@@ -9,8 +9,10 @@ import type { ParsedRepo } from "../utils/importHelpers";
 // 重新匯出型別供外部使用
 export type { ParsedRepo, ImportResult } from "../utils/importHelpers";
 import { useImportExecutor } from "./useImportExecutor";
+import { useI18n } from "../i18n";
 
 export function useImport() {
+  const { t } = useI18n();
   const [parsedRepos, setParsedRepos] = useState<ParsedRepo[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
 
@@ -30,16 +32,16 @@ export function useImport() {
         const repos = parseRepositories(content, file.name);
 
         if (repos.length === 0) {
-          setParseError("檔案中未找到有效的 Repository");
+          setParseError(t.settings.import.noValidRepos);
           return;
         }
 
         setParsedRepos(removeDuplicates(repos));
       } catch (err) {
-        setParseError(err instanceof Error ? err.message : "檔案解析失敗");
+        setParseError(err instanceof Error ? err.message : t.settings.import.parseFailed);
       }
     },
-    [setResult]
+    [setResult, t]
   );
 
   const parseText = useCallback(
@@ -51,13 +53,13 @@ export function useImport() {
       const repos = parseRepositories(text);
 
       if (repos.length === 0) {
-        setParseError("未找到有效的 Repository");
+        setParseError(t.settings.import.noValidReposText);
         return;
       }
 
       setParsedRepos(removeDuplicates(repos));
     },
-    [setResult]
+    [setResult, t]
   );
 
   return {

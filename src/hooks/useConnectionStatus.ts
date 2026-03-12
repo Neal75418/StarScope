@@ -36,7 +36,6 @@ export function useConnectionStatus(): UseConnectionStatusResult {
   const query = useQuery<GitHubConnectionStatus | null, Error>({
     queryKey: queryKeys.connection.status(),
     queryFn: getGitHubConnectionStatus,
-    staleTime: 1000 * 60 * 5,
     retry: false,
   });
 

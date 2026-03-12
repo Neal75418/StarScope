@@ -330,7 +330,7 @@ async def get_star_history(
     is_backfilled = False
     if history:
         oldest = history[0].date
-        today = date.today()
+        today = utc_now().date()
         is_backfilled = (today - oldest).days > 30
 
     history_data = StarHistoryResponse(

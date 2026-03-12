@@ -444,7 +444,7 @@ class AnomalyDetector:
                     active_signals=active_signals,
                 )
                 all_signals.extend(signals)
-            except Exception as e:
+            except Exception as e:  # 單一 repo 偵測失敗不應中斷整個批次
                 logger.error(f"[異常偵測] {repo.full_name} 訊號偵測失敗: {e}", exc_info=True)
 
         return all_signals

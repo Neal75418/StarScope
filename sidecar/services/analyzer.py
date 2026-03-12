@@ -15,10 +15,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from constants import SignalType
 from db.models import RepoSnapshot, Signal
 from utils.time import utc_now, utc_today
 from constants import (
+    SignalType,
     TREND_VELOCITY_UPWARD_THRESHOLD,
     TREND_VELOCITY_DOWNWARD_THRESHOLD,
     TREND_ACCELERATION_DECLINE_THRESHOLD,

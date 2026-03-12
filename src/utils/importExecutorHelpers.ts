@@ -4,6 +4,7 @@
 
 import { addRepo, getRepos } from "../api/client";
 import { ParsedRepo } from "./importHelpers";
+import { normalizeRepoName } from "./format";
 import { logger } from "./logger";
 
 /**
@@ -62,7 +63,7 @@ async function fetchExistingRepoSet(): Promise<{ set: Set<string>; hadError: boo
   try {
     const response = await getRepos();
     return {
-      set: new Set(response.repos.map((r) => r.full_name.toLowerCase())),
+      set: new Set(response.repos.map((r) => normalizeRepoName(r.full_name))),
       hadError: false,
     };
   } catch (err) {
@@ -118,7 +119,7 @@ async function processSingleRepo(
   if (signal.aborted) return "failed";
 
   // 檢查是否重複
-  if (existingSet.has(repo.fullName.toLowerCase())) {
+  if (existingSet.has(normalizeRepoName(repo.fullName))) {
     updateRepo(repo.fullName, { status: "skipped" });
     return "skipped";
   }
@@ -130,7 +131,7 @@ async function processSingleRepo(
     await executeWithRetry(() => addRepo({ owner: repo.owner, name: repo.name }), signal);
 
     updateRepo(repo.fullName, { status: "success" });
-    existingSet.add(repo.fullName.toLowerCase());
+    existingSet.add(normalizeRepoName(repo.fullName));
     return "success";
   } catch (err) {
     if (!signal.aborted) {

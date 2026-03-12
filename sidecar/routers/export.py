@@ -6,7 +6,6 @@
 import csv
 import io
 import json
-from datetime import datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends
@@ -189,7 +188,7 @@ async def export_watchlist_json(
         io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
         media_type="application/json",
         headers={
-            "Content-Disposition": f'attachment; filename="starscope_watchlist_{datetime.now().strftime("%Y%m%d")}.json"'
+            "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.json"'
         }
     )
 
@@ -245,6 +244,6 @@ async def export_watchlist_csv(
         output,
         media_type="text/csv",
         headers={
-            "Content-Disposition": f'attachment; filename="starscope_watchlist_{datetime.now().strftime("%Y%m%d")}.csv"'
+            "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.csv"'
         }
     )

@@ -14,6 +14,7 @@ import { useAppLanguage } from "./hooks/useAppLanguage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
 import { queryClient } from "./lib/react-query";
 import type { Page } from "./types/navigation";
+import { STORAGE_KEYS } from "./constants/storage";
 import "./App.css";
 
 // 延遲載入頁面以進行 code splitting
@@ -54,7 +55,7 @@ function PageContent({ page }: { page: Page }) {
 
 function App() {
   const [currentPage, setCurrentPage] = useState<Page>(() => {
-    const saved = localStorage.getItem("starscope-page");
+    const saved = localStorage.getItem(STORAGE_KEYS.PAGE);
     const validPages: Page[] = [
       "dashboard",
       "discovery",
@@ -69,7 +70,7 @@ function App() {
   const handlePageChange = (page: Page) => {
     setCurrentPage(page);
     try {
-      localStorage.setItem("starscope-page", page);
+      localStorage.setItem(STORAGE_KEYS.PAGE, page);
     } catch {
       // QuotaExceededError — 靜默忽略，不影響導航功能
     }

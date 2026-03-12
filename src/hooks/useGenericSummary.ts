@@ -46,7 +46,6 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
         throw err;
       }
     },
-    staleTime: 1000 * 60 * 5,
   });
 
   const mutation = useMutation<T | null, Error>({
@@ -63,13 +62,14 @@ export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGeneri
     },
   });
 
+  const { mutateAsync } = mutation;
   const fetchData = useCallback(async () => {
     try {
-      await mutation.mutateAsync();
+      await mutateAsync();
     } catch {
       // 錯誤已在 mutation.onError 處理
     }
-  }, [mutation]);
+  }, [mutateAsync]);
 
   return {
     summary: query.data ?? null,

@@ -3,17 +3,15 @@
  * 支援深色與淺色主題。
  */
 
-import { createContext, useContext } from "react";
+import { createContext } from "react";
+import { STORAGE_KEYS } from "../constants/storage";
 
 export type Theme = "dark" | "light";
-
-// 儲存主題偏好的 localStorage key
-const THEME_STORAGE_KEY = "starscope-theme";
 
 // 從 localStorage 或系統偏好取得初始主題
 export function getInitialTheme(): Theme {
   // 優先檢查 localStorage
-  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  const stored = localStorage.getItem(STORAGE_KEYS.THEME);
   if (stored === "dark" || stored === "light") {
     return stored;
   }
@@ -29,7 +27,7 @@ export function getInitialTheme(): Theme {
 // 儲存主題偏好
 export function saveTheme(theme: Theme): void {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    localStorage.setItem(STORAGE_KEYS.THEME, theme);
   } catch {
     // QuotaExceededError — 靜默忽略，主題偏好不會持久化
   }
@@ -48,12 +46,3 @@ interface ThemeContextType {
 }
 
 export const ThemeContext = createContext<ThemeContextType | null>(null);
-
-// 使用主題的 Hook
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
-  }
-  return context;
-}

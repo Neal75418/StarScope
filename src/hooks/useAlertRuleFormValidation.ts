@@ -4,6 +4,7 @@
 
 import { useCallback } from "react";
 import { AlertRuleCreate } from "../api/client";
+import { useI18n } from "../i18n";
 
 interface ValidationResult {
   valid: boolean;
@@ -16,27 +17,29 @@ export function useAlertRuleFormValidation(
 ): {
   validate: () => ValidationResult;
 } {
+  const { t } = useI18n();
+
   const validate = useCallback((): ValidationResult => {
     const trimmedName = rule.name.trim();
 
     if (!trimmedName) {
-      return { valid: false, error: "名稱必填" };
+      return { valid: false, error: t.settings.alerts.validation.nameRequired };
     }
 
     if (!rule.signal_type) {
-      return { valid: false, error: "訊號類型必填" };
+      return { valid: false, error: t.settings.alerts.validation.signalTypeRequired };
     }
 
     if (!Number.isFinite(rule.threshold)) {
-      return { valid: false, error: "閾值必填且必須為有效數字" };
+      return { valid: false, error: t.settings.alerts.validation.thresholdInvalid };
     }
 
     if (!applyToAll && rule.repo_id === undefined) {
-      return { valid: false, error: "請選擇 Repo" };
+      return { valid: false, error: t.settings.alerts.validation.selectRepo };
     }
 
     return { valid: true };
-  }, [rule, applyToAll]);
+  }, [rule, applyToAll, t]);
 
   return { validate };
 }

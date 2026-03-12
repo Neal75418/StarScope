@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from db.models import AppSettingKey
 from services.settings import get_setting, set_setting, delete_setting
 from services.github import reset_github_service
+from constants import GITHUB_API_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class GitHubAuthService:
                 f"Please set {GITHUB_CLIENT_ID_ENV_VAR} in your .env file."
             )
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 GITHUB_DEVICE_CODE_URL,
                 data={
@@ -127,7 +128,7 @@ class GitHubAuthService:
             logger.error("[GitHub 驗證] 未設定 Client ID", exc_info=True)
             return {"status": "error", "error": "Client ID not configured"}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 GITHUB_ACCESS_TOKEN_URL,
                 data={
@@ -192,7 +193,7 @@ class GitHubAuthService:
     @staticmethod
     async def _get_username(token: str) -> Optional[str]:
         """取得 token 對應的 GitHub 使用者名稱。"""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.get(
                 GITHUB_USER_URL,
                 headers={

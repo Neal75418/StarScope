@@ -4,14 +4,12 @@
 
 import { createContext, useContext } from "react";
 import { translations, Language, TranslationKeys } from "./translations";
-
-// 儲存語言偏好的 localStorage key
-const LANGUAGE_STORAGE_KEY = "starscope-language";
+import { STORAGE_KEYS } from "../constants/storage";
 
 // 從 localStorage 或瀏覽器偏好取得初始語言
 export function getInitialLanguage(): Language {
   // 優先檢查 localStorage
-  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  const stored = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
   if (stored === "en" || stored === "zh-TW") {
     return stored;
   }
@@ -28,7 +26,7 @@ export function getInitialLanguage(): Language {
 // 儲存語言偏好
 export function saveLanguage(lang: Language): void {
   try {
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
   } catch {
     // QuotaExceededError — 靜默忽略，語言偏好不會持久化
   }

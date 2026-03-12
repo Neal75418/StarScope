@@ -27,7 +27,7 @@ from logging_config import setup_logging
 from middleware import LoggingMiddleware
 from middleware.rate_limit import limiter
 from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison
-from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError
+from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
 # 環境設定
@@ -73,13 +73,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)
 
     # 啟動後立即抓取資料（不等第一個排程週期）
-    # 保留 task 參照以防止 GC 回收
-    _startup_task = asyncio.create_task(trigger_fetch_now())
+    startup_task = asyncio.create_task(trigger_fetch_now())
 
     logger.info(f"[啟動] StarScope Engine 已啟動 (ENV={ENV}, DEBUG={DEBUG})")
 
     yield
 
+    # 關閉：取消啟動任務（如果仍在執行）
+    if not startup_task.done():
+        startup_task.cancel()
+    # 關閉 GitHub HTTP client
+    await close_github_service()
     # 關閉：停止排程器
     stop_scheduler()
     logger.info("[啟動] StarScope Engine 已停止")
@@ -179,7 +183,6 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 def _handle_rate_limit(_request: "Request", exc: Exception):
-    from fastapi.responses import JSONResponse
     detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(
         status_code=429,

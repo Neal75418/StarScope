@@ -2,7 +2,7 @@
  * 通知的已讀、全部已讀與清除操作。
  */
 
-import { useCallback, Dispatch, SetStateAction } from "react";
+import { useCallback, useRef, Dispatch, SetStateAction } from "react";
 import { acknowledgeTriggeredAlert } from "../api/client";
 import { Notification } from "./useNotifications";
 import { logger } from "../utils/logger";
@@ -19,13 +19,17 @@ export function useNotificationActions(
 ) {
   const { markIdAsRead, markIdsAsRead } = storage;
 
-  const handleAcknowledgeAlert = async (alertId: number) => {
+  // 用 ref 保持最新的 notifications，避免 useCallback 閉包捕獲過期陣列
+  const notificationsRef = useRef(notifications);
+  notificationsRef.current = notifications;
+
+  const handleAcknowledgeAlert = useCallback(async (alertId: number) => {
     try {
       await acknowledgeTriggeredAlert(alertId);
     } catch (err) {
       logger.warn(`[NotificationActions] 警報確認失敗 (ID: ${alertId}):`, err);
     }
-  };
+  }, []);
 
   const markAsRead = useCallback(
     async (notificationId: string) => {
@@ -37,32 +41,34 @@ export function useNotificationActions(
       );
 
       // 若為警報類型，同步確認至伺服器
-      const notification = notifications.find((n) => n.id === notificationId);
+      const notification = notificationsRef.current.find((n) => n.id === notificationId);
       if (notification?.type === "alert" && notification.metadata?.alertId) {
         await handleAcknowledgeAlert(notification.metadata.alertId);
       }
     },
-    [markIdAsRead, notifications, setNotifications]
+    [handleAcknowledgeAlert, markIdAsRead, setNotifications]
   );
 
   const markAllAsRead = useCallback(async () => {
+    const current = notificationsRef.current;
+
     // 找出未讀警報
     const alertIdsToAcknowledge: number[] = [];
-    notifications.forEach((n) => {
+    current.forEach((n) => {
       if (!n.read && n.type === "alert" && n.metadata?.alertId) {
         alertIdsToAcknowledge.push(n.metadata.alertId);
       }
     });
 
     // 更新儲存狀態
-    markIdsAsRead(notifications.map((n) => n.id));
+    markIdsAsRead(current.map((n) => n.id));
 
     // 更新元件狀態
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
-    // 同步至伺服器
-    await Promise.all(alertIdsToAcknowledge.map(handleAcknowledgeAlert));
-  }, [markIdsAsRead, notifications, setNotifications]);
+    // 同步至伺服器（allSettled 確保單一失敗不中斷其他）
+    await Promise.allSettled(alertIdsToAcknowledge.map(handleAcknowledgeAlert));
+  }, [handleAcknowledgeAlert, markIdsAsRead, setNotifications]);
 
   const clearNotification = useCallback(
     (notificationId: string) => {

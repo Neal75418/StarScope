@@ -29,7 +29,6 @@ export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarRe
       const response = await getSimilarRepos(repoId, limit);
       return response.similar;
     },
-    staleTime: 1000 * 60 * 5,
   });
 
   const recalculate = useCallback(async () => {

@@ -303,6 +303,12 @@ export const translations = {
           checkComplete: "Alert check complete",
           acknowledgedAll: "All alerts acknowledged",
         },
+        validation: {
+          nameRequired: "Name is required",
+          signalTypeRequired: "Signal type is required",
+          thresholdInvalid: "Threshold is required and must be a valid number",
+          selectRepo: "Please select a Repo",
+        },
         checkNow: "Check Now",
         confirm: {
           deleteTitle: "Delete Alert Rule",
@@ -344,6 +350,9 @@ export const translations = {
         skipped: "Skipped",
         failed: "Failed",
         importMore: "Import More",
+        noValidRepos: "No valid repositories found in file",
+        noValidReposText: "No valid repositories found",
+        parseFailed: "File parsing failed",
       },
       data: {
         title: "Data Management",
@@ -373,6 +382,7 @@ export const translations = {
       markAllRead: "Mark all as read",
       clear: "Clear",
       viewAll: "View all notifications",
+      fetchFailed: "Failed to fetch notifications",
       justNow: "Just now",
       minutesAgo: "{n} min ago",
       hoursAgo: "{n} hr ago",
@@ -489,6 +499,8 @@ export const translations = {
       addToCategoryButton: "+ Category",
       noCategories: "No categories",
       removedFromCategory: "Removed from category",
+      addFailed: "Failed to add repo to category",
+      removeFailed: "Failed to remove repo from category",
       form: {
         name: "Name",
         description: "Description",
@@ -587,6 +599,7 @@ export const translations = {
     // 圖表
     chart: {
       loading: "Loading chart...",
+      loadFailed: "Chart loading failed",
       insufficientData:
         "Insufficient data. At least 2 data points are required to render the chart.",
       timeRange: {
@@ -906,6 +919,12 @@ export const translations = {
           checkComplete: "警報檢查完成",
           acknowledgedAll: "所有警報已確認",
         },
+        validation: {
+          nameRequired: "名稱必填",
+          signalTypeRequired: "訊號類型必填",
+          thresholdInvalid: "閾值必填且必須為有效數字",
+          selectRepo: "請選擇 Repo",
+        },
         checkNow: "立即檢查",
         confirm: {
           deleteTitle: "刪除警報規則",
@@ -946,6 +965,9 @@ export const translations = {
         skipped: "已跳過",
         failed: "失敗",
         importMore: "繼續匯入",
+        noValidRepos: "檔案中未找到有效的 Repository",
+        noValidReposText: "未找到有效的 Repository",
+        parseFailed: "檔案解析失敗",
       },
       data: {
         title: "資料管理",
@@ -975,6 +997,7 @@ export const translations = {
       markAllRead: "全部標為已讀",
       clear: "清除",
       viewAll: "查看所有通知",
+      fetchFailed: "通知取得失敗",
       justNow: "剛剛",
       minutesAgo: "{n} 分鐘前",
       hoursAgo: "{n} 小時前",
@@ -1091,6 +1114,8 @@ export const translations = {
       addToCategoryButton: "+ 分類",
       noCategories: "沒有分類",
       removedFromCategory: "已從分類中移除",
+      addFailed: "加入分類失敗",
+      removeFailed: "移出分類失敗",
       form: {
         name: "名稱",
         description: "說明",
@@ -1189,6 +1214,7 @@ export const translations = {
     // 圖表
     chart: {
       loading: "圖表載入中...",
+      loadFailed: "圖表載入失敗",
       insufficientData: "資料不足，至少需要 2 個資料點才能繪製圖表。",
       timeRange: {
         "7d": "7天",

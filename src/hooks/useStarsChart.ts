@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getStarsChart, getStarHistory, ChartDataPoint } from "../api/client";
 import { queryKeys } from "../lib/react-query";
+import { useI18n } from "../i18n";
 
 export type TimeRange = "7d" | "30d" | "90d" | "all";
 
@@ -28,18 +29,18 @@ async function fetchChartDataPoints(
 }
 
 export function useStarsChart(repoId: number) {
+  const { t } = useI18n();
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
   const query = useQuery<ChartDataPoint[], Error>({
     queryKey: queryKeys.starsChart.data(repoId, timeRange),
     queryFn: ({ signal }) => fetchChartDataPoints(repoId, timeRange, signal),
-    staleTime: 1000 * 60 * 5,
   });
 
   return {
     data: query.data ?? [],
     loading: query.isLoading,
-    error: query.error ? query.error.message || "圖表載入失敗" : null,
+    error: query.error ? query.error.message || t.chart.loadFailed : null,
     timeRange,
     setTimeRange,
     refetch: query.refetch,

@@ -112,6 +112,20 @@ class GitHubService:
         self.token = token
         self.timeout = timeout
         self.headers = build_github_headers(token)
+        self._client: Optional[httpx.AsyncClient] = None
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """取得共用的 httpx.AsyncClient（連線池復用）。"""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self._client
+
+    async def aclose(self) -> None:
+        """關閉底層 HTTP client。"""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     async def get_repo(self, owner: str, repo: str) -> dict:
         """
@@ -122,16 +136,15 @@ class GitHubService:
             GitHubRateLimitError: 速率限制超過（403）
             GitHubAPIError: 其他 API 錯誤
         """
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{GITHUB_API_BASE}/repos/{owner}/{repo}",
-                headers=self.headers,
-            )
-            return handle_github_response(
-                response,
-                raise_on_error=True,
-                context=f"{owner}/{repo}"
-            )
+        response = await self.client.get(
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}",
+            headers=self.headers,
+        )
+        return handle_github_response(
+            response,
+            raise_on_error=True,
+            context=f"{owner}/{repo}"
+        )
 
     async def get_repo_stargazers_count(self, owner: str, repo: str) -> int:
         """
@@ -162,35 +175,34 @@ class GitHubService:
 
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stats/commit_activity"
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            for attempt in range(max_retries):
-                response = await client.get(url, headers=self.headers)
+        for attempt in range(max_retries):
+            response = await self.client.get(url, headers=self.headers)
 
-                # 202 表示 GitHub 正在計算統計，延遲後重試
-                if response.status_code == 202:
-                    if attempt < max_retries - 1:
-                        delay = 2 ** attempt  # 1s, 2s, 4s
-                        logger.info(
-                            f"[GitHub API] GitHub 正在計算 {owner}/{repo} 的統計資料，"
-                            f"{delay} 秒後重試 (第 {attempt + 1}/{max_retries} 次)"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                    # 已達最大重試次數，回傳空列表
-                    logger.warning(
-                        f"[GitHub API] {owner}/{repo} 的統計資料在 {max_retries} 次嘗試後仍未就緒"
+            # 202 表示 GitHub 正在計算統計，延遲後重試
+            if response.status_code == 202:
+                if attempt < max_retries - 1:
+                    delay = 2 ** attempt  # 1s, 2s, 4s
+                    logger.info(
+                        f"[GitHub API] GitHub 正在計算 {owner}/{repo} 的統計資料，"
+                        f"{delay} 秒後重試 (第 {attempt + 1}/{max_retries} 次)"
                     )
-                    return []
-
-                # 204 表示無內容（空 repo）
-                if response.status_code == 204:
-                    return []
-
-                # 處理標準回應
-                data = handle_github_response(
-                    response, raise_on_error=True, context=f"{owner}/{repo}/stats/commit_activity"
+                    await asyncio.sleep(delay)
+                    continue
+                # 已達最大重試次數，回傳空列表
+                logger.warning(
+                    f"[GitHub API] {owner}/{repo} 的統計資料在 {max_retries} 次嘗試後仍未就緒"
                 )
-                return list(data) if data else []
+                return []
+
+            # 204 表示無內容（空 repo）
+            if response.status_code == 204:
+                return []
+
+            # 處理標準回應
+            data = handle_github_response(
+                response, raise_on_error=True, context=f"{owner}/{repo}/stats/commit_activity"
+            )
+            return list(data) if data else []
 
         return []
 
@@ -209,12 +221,11 @@ class GitHubService:
         """
         url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}/languages"
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(url, headers=self.headers)
-            data = handle_github_response(
-                response, raise_on_error=True, context=f"{owner}/{repo}/languages"
-            )
-            return data if data else {}
+        response = await self.client.get(url, headers=self.headers)
+        data = handle_github_response(
+            response, raise_on_error=True, context=f"{owner}/{repo}/languages"
+        )
+        return data if data else {}
 
     async def search_repos(
         self,
@@ -258,21 +269,20 @@ class GitHubService:
 
         full_query = " ".join(q_parts)
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(
-                f"{GITHUB_API_BASE}/search/repositories",
-                headers=self.headers,
-                params={
-                    "q": full_query,
-                    "sort": sort,
-                    "order": order,
-                    "page": page,
-                    "per_page": per_page,
-                },
-            )
-            return handle_github_response(
-                response, raise_on_error=True, context=f"search: {query}"
-            )
+        response = await self.client.get(
+            f"{GITHUB_API_BASE}/search/repositories",
+            headers=self.headers,
+            params={
+                "q": full_query,
+                "sort": sort,
+                "order": order,
+                "page": page,
+                "per_page": per_page,
+            },
+        )
+        return handle_github_response(
+            response, raise_on_error=True, context=f"search: {query}"
+        )
 
     async def get_stargazers_with_dates(
         self,
@@ -322,27 +332,26 @@ class GitHubService:
         all_stargazers: list[dict] = []
         max_pages = 100  # Safety limit: max 10,000 stars
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            for page in range(1, max_pages + 1):
-                response = await client.get(
-                    f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stargazers",
-                    headers=headers,
-                    params={"per_page": per_page, "page": page},
-                )
+        for page in range(1, max_pages + 1):
+            response = await self.client.get(
+                f"{GITHUB_API_BASE}/repos/{owner}/{repo}/stargazers",
+                headers=headers,
+                params={"per_page": per_page, "page": page},
+            )
 
-                data = handle_github_response(
-                    response, raise_on_error=True, context=f"{owner}/{repo}/stargazers?page={page}"
-                )
+            data = handle_github_response(
+                response, raise_on_error=True, context=f"{owner}/{repo}/stargazers?page={page}"
+            )
 
-                if not data:
-                    break
+            if not data:
+                break
 
-                all_stargazers.extend(data)
+            all_stargazers.extend(data)
 
-                if len(data) < per_page:
-                    break
-            else:
-                logger.warning(f"[GitHub API] {owner}/{repo} stargazers 已達分頁上限")
+            if len(data) < per_page:
+                break
+        else:
+            logger.warning(f"[GitHub API] {owner}/{repo} stargazers 已達分頁上限")
 
         logger.info(f"[GitHub API] 已抓取 {owner}/{repo} 的 {len(all_stargazers)} 個 stargazers")
         return all_stargazers
@@ -389,6 +398,14 @@ def get_github_service() -> GitHubService:
             if _default_service is None:
                 _default_service = GitHubService(token=_resolve_github_token())
     return _default_service
+
+
+async def close_github_service() -> None:
+    """關閉預設 GitHub service 的 HTTP client（用於應用程式關閉時）。"""
+    global _default_service
+    if _default_service:
+        await _default_service.aclose()
+        _default_service = None
 
 
 def reset_github_service() -> None:

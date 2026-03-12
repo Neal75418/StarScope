@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
+import { useI18n } from "../i18n";
 
 interface CategoryOperationsResult {
   isLoading: boolean;
@@ -18,6 +19,7 @@ export function useCategoryOperations(
   onSuccess?: () => void,
   onError?: (msg: string) => void
 ): CategoryOperationsResult {
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
 
   // 工廠函數：統一處理分類操作的錯誤處理與載入狀態
@@ -49,9 +51,9 @@ export function useCategoryOperations(
       createCategoryOperation(
         addRepoToCategory,
         "[CategoryOps] Repo 加入分類失敗:",
-        "Failed to add repo to category"
+        t.categories.addFailed
       )(categoryId, repoId),
-    [createCategoryOperation]
+    [createCategoryOperation, t]
   );
 
   const removeFromCategory = useCallback(
@@ -59,9 +61,9 @@ export function useCategoryOperations(
       createCategoryOperation(
         removeRepoFromCategory,
         "[CategoryOps] Repo 移出分類失敗:",
-        "Failed to remove repo from category"
+        t.categories.removeFailed
       )(categoryId, repoId),
-    [createCategoryOperation]
+    [createCategoryOperation, t]
   );
 
   const getCategories = useCallback(

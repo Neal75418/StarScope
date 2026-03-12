@@ -31,7 +31,7 @@ describe("useAlertRuleFormValidation", () => {
 
     const validation = result.current.validate();
     expect(validation.valid).toBe(false);
-    expect(validation.error).toContain("名稱");
+    expect(validation.error).toContain("Name");
   });
 
   it("returns error when name is whitespace only", () => {
@@ -48,7 +48,7 @@ describe("useAlertRuleFormValidation", () => {
 
     const validation = result.current.validate();
     expect(validation.valid).toBe(false);
-    expect(validation.error).toContain("訊號類型");
+    expect(validation.error).toContain("Signal type");
   });
 
   it("returns error when threshold is NaN", () => {
@@ -57,7 +57,7 @@ describe("useAlertRuleFormValidation", () => {
 
     const validation = result.current.validate();
     expect(validation.valid).toBe(false);
-    expect(validation.error).toContain("閾值");
+    expect(validation.error).toContain("Threshold");
   });
 
   it("returns error when threshold is Infinity", () => {

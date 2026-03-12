@@ -53,7 +53,6 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
       }
     },
     enabled: !exceedsStarLimit,
-    staleTime: 1000 * 60 * 5,
     // 404 和網路錯誤已在 queryFn 處理，不需要額外重試
     retry: false,
   });

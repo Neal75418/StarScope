@@ -1,6 +1,7 @@
 import { useState, useMemo, memo } from "react";
 import { useI18n } from "../../i18n";
 import type { RepoWithSignals } from "../../api/types";
+import { normalizeRepoName } from "../../utils/format";
 
 const MAX_COMPARE_REPOS = 5;
 
@@ -21,7 +22,7 @@ export const RepoSelector = memo(function RepoSelector({
   const filtered = useMemo(() => {
     if (!search.trim()) return repos;
     const q = search.toLowerCase();
-    return repos.filter((r) => r.full_name.toLowerCase().includes(q));
+    return repos.filter((r) => normalizeRepoName(r.full_name).includes(q));
   }, [repos, search]);
 
   return (
