@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useBackfillStatus } from "../useBackfillStatus";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -10,6 +13,12 @@ vi.mock("../../api/client", async (importOriginal) => {
     getBackfillStatus: vi.fn(),
   };
 });
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
 
 describe("useBackfillStatus", () => {
   const mockStatus: apiClient.BackfillStatus = {
@@ -31,7 +40,9 @@ describe("useBackfillStatus", () => {
   it("returns initial loading state", () => {
     vi.mocked(apiClient.getBackfillStatus).mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.status).toBe(null);
@@ -42,7 +53,9 @@ describe("useBackfillStatus", () => {
   it("loads status successfully", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -56,7 +69,9 @@ describe("useBackfillStatus", () => {
   it("does not load when exceedsStarLimit is true", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(() => useBackfillStatus(1, true));
+    const { result } = renderHook(() => useBackfillStatus(1, true), {
+      wrapper: createWrapper(),
+    });
 
     // Wait a tick to ensure effect has run
     await act(async () => {
@@ -72,7 +87,9 @@ describe("useBackfillStatus", () => {
       new apiClient.ApiError(404, "Not found")
     );
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -85,7 +102,9 @@ describe("useBackfillStatus", () => {
   it("handles network error with offline state", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockRejectedValue(new TypeError("Failed to fetch"));
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -100,7 +119,9 @@ describe("useBackfillStatus", () => {
       new apiClient.ApiError(400, "Bad request")
     );
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -112,7 +133,9 @@ describe("useBackfillStatus", () => {
   it("exposes loadStatus function", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -124,7 +147,9 @@ describe("useBackfillStatus", () => {
   it("exposes setError function", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
-    const { result } = renderHook(() => useBackfillStatus(1, false));
+    const { result } = renderHook(() => useBackfillStatus(1, false), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

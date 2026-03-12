@@ -1,8 +1,10 @@
 /**
  * 通知輪詢邏輯，定時取得已觸發警報。
+ * 使用 React Query 的 refetchInterval 管理輪詢，visibility 不可見時暫停。
  */
 
-import { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from "react";
+import { useCallback, useRef, Dispatch, SetStateAction } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTriggeredAlerts } from "../api/client";
 import {
   alertsToNotifications,
@@ -12,62 +14,11 @@ import {
 import { Notification } from "./useNotifications";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
+import { queryKeys } from "../lib/react-query";
 
 interface OSNotificationSender {
   sendOSNotification: (options: { title: string; body: string }) => Promise<void>;
   isGranted: boolean;
-}
-
-async function fetchAndMergeNotifications(
-  setNotifications: Dispatch<SetStateAction<Notification[]>>,
-  readIds: Set<string>,
-  setError: Dispatch<SetStateAction<string | null>>,
-  setIsLoading: Dispatch<SetStateAction<boolean>>,
-  osNotificationSender?: OSNotificationSender,
-  existingNotifications?: Notification[]
-): Promise<void> {
-  try {
-    const alerts = await listTriggeredAlerts(false, 50);
-    const newNotifications = sortNotifications(alertsToNotifications(alerts, readIds));
-
-    // 檢測真正的新通知（之前不存在的）
-    if (osNotificationSender?.isGranted && existingNotifications) {
-      const existingIds = new Set(existingNotifications.map((n) => n.id));
-      const brandNewNotifications = newNotifications.filter((n) => !existingIds.has(n.id));
-
-      // 只對未讀的新通知發送 OS 通知
-      const unreadNewNotifications = brandNewNotifications.filter((n) => !n.read);
-
-      // 發送 OS 通知（限制最多 3 個，避免轟炸用戶）
-      const notificationsToSend = unreadNewNotifications.slice(0, MAX_OS_NOTIFICATIONS_PER_POLL);
-
-      for (const notification of notificationsToSend) {
-        try {
-          await osNotificationSender.sendOSNotification({
-            title: "StarScope 警示",
-            body: notification.message,
-          });
-        } catch (err) {
-          // OS 通知失敗不影響應用內通知
-          logger.warn("[Notification Polling] OS 通知發送失敗:", err);
-        }
-      }
-
-      // 如果有更多未發送的，記錄 log
-      if (unreadNewNotifications.length > MAX_OS_NOTIFICATIONS_PER_POLL) {
-        logger.info(
-          `[Notification Polling] 有 ${unreadNewNotifications.length - MAX_OS_NOTIFICATIONS_PER_POLL} 個額外的未讀通知未發送 OS 通知`
-        );
-      }
-    }
-
-    setNotifications((prev) => mergeNotifications(newNotifications, prev));
-    setError(null);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "通知取得失敗");
-  } finally {
-    setIsLoading(false);
-  }
 }
 
 export function useNotificationPolling(
@@ -75,79 +26,84 @@ export function useNotificationPolling(
   readIdsRef: { current: Set<string> },
   osNotificationSender?: OSNotificationSender
 ) {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   // 保存當前通知列表的 ref（用於檢測新通知）
   const notificationsRef = useRef<Notification[]>([]);
+  // 穩定的 ref 追蹤最新的 setter 和 sender
+  const setNotificationsRef = useRef(setNotifications);
+  setNotificationsRef.current = setNotifications;
+  const osNotificationSenderRef = useRef(osNotificationSender);
+  osNotificationSenderRef.current = osNotificationSender;
 
-  // 使用 ref 讓輪詢 interval 總是呼叫最新邏輯，
-  // 無需拆除重建。
-  const fetchRef = useRef<() => Promise<void>>(() => Promise.resolve());
-  fetchRef.current = () =>
-    fetchAndMergeNotifications(
-      (updater) => {
-        setNotifications((prev) => {
-          const updated = typeof updater === "function" ? updater(prev) : updater;
-          notificationsRef.current = updated;
-          return updated;
-        });
-      },
-      readIdsRef.current,
-      setError,
-      setIsLoading,
-      osNotificationSender,
-      notificationsRef.current
-    );
-
-  // 建立穩定的輪詢，不可見時暫停，恢復可見時立即補抓一次。
-  // 使用遞迴 setTimeout 避免請求重疊。
-  useEffect(() => {
-    let cancelled = false;
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleNext = () => {
-      timerId = setTimeout(() => {
-        void poll();
-      }, NOTIFICATION_POLL_INTERVAL_MS);
-    };
-
-    const poll = async () => {
-      if (cancelled || document.hidden) return;
-      await fetchRef.current();
-      if (!cancelled) scheduleNext();
-    };
-
-    const handleVisibilityChange = () => {
-      if (cancelled) return;
-      if (document.hidden) {
-        // 頁面不可見時清除排程
-        if (timerId !== null) {
-          clearTimeout(timerId);
-          timerId = null;
-        }
-      } else {
-        // 恢復可見時立即補抓一次並重新排程
-        void poll();
+  const query = useQuery<Notification[], Error>({
+    queryKey: queryKeys.notifications.polling(),
+    queryFn: async () => {
+      const alerts = await listTriggeredAlerts(false, 50);
+      return sortNotifications(alertsToNotifications(alerts, readIdsRef.current));
+    },
+    // 輪詢間隔：頁面不可見時停止
+    refetchInterval: () => {
+      if (typeof document !== "undefined" && document.hidden) {
+        return false;
       }
-    };
+      return NOTIFICATION_POLL_INTERVAL_MS;
+    },
+    // 資料立即視為過期，確保每次 interval 都觸發 refetch
+    staleTime: 0,
+    // 不使用全域預設的 retry，避免輪詢失敗時重複
+    retry: false,
+    // 不使用 refetchOnWindowFocus（改用 visibility listener）
+    refetchOnWindowFocus: true,
+  });
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+  // 當 query 資料更新時，處理合併與 OS 通知
+  const prevDataRef = useRef<Notification[] | undefined>(undefined);
+  if (query.data && query.data !== prevDataRef.current) {
+    const newNotifications = query.data;
+    prevDataRef.current = query.data;
 
-    // 初始載入
-    void poll();
+    // 發送 OS 通知（對比新增的）
+    const sender = osNotificationSenderRef.current;
+    if (sender?.isGranted && notificationsRef.current.length > 0) {
+      const existingIds = new Set(notificationsRef.current.map((n) => n.id));
+      const brandNewNotifications = newNotifications.filter((n) => !existingIds.has(n.id));
+      const unreadNewNotifications = brandNewNotifications.filter((n) => !n.read);
+      const notificationsToSend = unreadNewNotifications.slice(0, MAX_OS_NOTIFICATIONS_PER_POLL);
 
-    return () => {
-      cancelled = true;
-      if (timerId !== null) clearTimeout(timerId);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []); // 空依賴 — 僅建立一次，透過 ref 取得最新邏輯
+      for (const notification of notificationsToSend) {
+        void sender
+          .sendOSNotification({
+            title: "StarScope 警示",
+            body: notification.message,
+          })
+          .catch((err: unknown) => {
+            logger.warn("[Notification Polling] OS 通知發送失敗:", err);
+          });
+      }
+
+      if (unreadNewNotifications.length > MAX_OS_NOTIFICATIONS_PER_POLL) {
+        logger.info(
+          `[Notification Polling] 有 ${unreadNewNotifications.length - MAX_OS_NOTIFICATIONS_PER_POLL} 個額外的未讀通知未發送 OS 通知`
+        );
+      }
+    }
+
+    // 合併通知並更新 parent state
+    setNotificationsRef.current((prev) => {
+      const updated = mergeNotifications(newNotifications, prev);
+      notificationsRef.current = updated;
+      return updated;
+    });
+  }
 
   const refresh = useCallback(async () => {
-    setIsLoading(true);
-    await fetchRef.current();
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.polling() });
+  }, [queryClient]);
 
-  return { isLoading, error, refresh };
+  return {
+    isLoading: query.isLoading,
+    error: query.error ? query.error.message || "通知取得失敗" : null,
+    refresh,
+  };
 }

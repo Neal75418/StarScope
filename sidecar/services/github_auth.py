@@ -5,6 +5,7 @@ GitHub Device Flow 驗證服務。
 
 import logging
 import os
+import threading
 import httpx
 from typing import Optional
 from dataclasses import dataclass
@@ -288,11 +289,14 @@ class GitHubAuthService:
 
 # 模組層級 singleton
 _auth_service: Optional[GitHubAuthService] = None
+_auth_service_lock = threading.Lock()
 
 
 def get_github_auth_service() -> GitHubAuthService:
     """取得 GitHub 驗證服務的 singleton 實例。"""
     global _auth_service
     if _auth_service is None:
-        _auth_service = GitHubAuthService()
+        with _auth_service_lock:
+            if _auth_service is None:
+                _auth_service = GitHubAuthService()
     return _auth_service

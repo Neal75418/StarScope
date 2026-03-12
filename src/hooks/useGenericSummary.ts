@@ -1,10 +1,12 @@
 /**
  * 通用摘要資料取得，含 loading / error 狀態管理。
+ * 使用 React Query 的 useQuery 取得資料，useMutation 觸發重新計算。
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import type { Dispatch, SetStateAction } from "react";
+import { useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { logger } from "../utils/logger";
+import { queryKeys } from "../lib/react-query";
 
 export interface UseGenericSummaryResult<T> {
   summary: T | null;
@@ -12,19 +14,6 @@ export interface UseGenericSummaryResult<T> {
   fetching: boolean;
   error: string | null;
   fetchData: () => Promise<void>;
-}
-
-type SetState<T> = Dispatch<SetStateAction<T>>;
-type BooleanRef = { current: boolean };
-
-function isNotFoundError(err: unknown): boolean {
-  return (err as { status?: number })?.status === 404;
-}
-
-function setIfMounted<T>(isMountedRef: BooleanRef, setter: SetState<T>, value: T): void {
-  if (isMountedRef.current) {
-    setter(value);
-  }
 }
 
 interface GenericSummaryConfig<T> {
@@ -35,107 +24,58 @@ interface GenericSummaryConfig<T> {
   logPrefix: string;
 }
 
-interface SummaryOperationArgs<T> {
-  isMountedRef: BooleanRef;
-  setActive: SetState<boolean>;
-  setError: SetState<string | null>;
-  setSummary: SetState<T | null>;
-  failedToLoadMessage: string;
-  logPrefix: string;
-  logAction: string;
-  operation: () => Promise<T>;
-  /** 若為 true，404 錯誤會將 summary 設為 null 而非顯示錯誤 */
-  handleNotFound?: boolean;
-}
-
-async function executeSummaryOp<T>({
-  isMountedRef,
-  setActive,
-  setError,
-  setSummary,
-  failedToLoadMessage,
-  logPrefix,
-  logAction,
-  operation,
-  handleNotFound,
-}: SummaryOperationArgs<T>): Promise<void> {
-  setIfMounted(isMountedRef, setActive, true);
-  setIfMounted(isMountedRef, setError, null);
-
-  try {
-    const data = await operation();
-    setIfMounted(isMountedRef, setSummary, data);
-  } catch (err) {
-    if (!isMountedRef.current) return;
-
-    if (handleNotFound && isNotFoundError(err)) {
-      setIfMounted(isMountedRef, setSummary, null);
-    } else {
-      setIfMounted(isMountedRef, setError, failedToLoadMessage);
-      logger.error(`[${logPrefix}] ${logAction}:`, err);
-    }
-  } finally {
-    setIfMounted(isMountedRef, setActive, false);
-  }
+function isNotFoundError(err: unknown): boolean {
+  return (err as { status?: number })?.status === 404;
 }
 
 export function useGenericSummary<T>(config: GenericSummaryConfig<T>): UseGenericSummaryResult<T> {
   const { repoId, failedToLoadMessage, getSummary, triggerFetch, logPrefix } = config;
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.summaries.generic(logPrefix, repoId);
 
-  const [summary, setSummary] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [fetching, setFetching] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
-  // 透過 ref 追蹤 fetching 狀態，保持 fetchData callback 穩定
-  const fetchingRef = useRef(false);
+  const query = useQuery<T | null, Error>({
+    queryKey,
+    queryFn: async () => {
+      try {
+        return await getSummary(repoId);
+      } catch (err) {
+        if (isNotFoundError(err)) {
+          return null;
+        }
+        logger.error(`[${logPrefix}] 載入錯誤:`, err);
+        throw err;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    void executeSummaryOp({
-      isMountedRef,
-      setActive: setLoading,
-      setError,
-      setSummary,
-      failedToLoadMessage,
-      logPrefix,
-      logAction: "載入錯誤",
-      operation: () => getSummary(repoId),
-      handleNotFound: true,
-    });
-
-    return () => {
-      isMountedRef.current = false;
-    };
-    // 只監聽 repoId - 其他參數不應觸發重新請求
-    // failedToLoadMessage, getSummary, triggerFetch, logPrefix 是配置參數，不影響數據載入邏輯
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoId]);
+  const mutation = useMutation<T | null, Error>({
+    mutationFn: async () => {
+      await triggerFetch(repoId);
+      return getSummary(repoId);
+    },
+    onSuccess: (data) => {
+      // 更新快取
+      queryClient.setQueryData(queryKey, data);
+    },
+    onError: (err) => {
+      logger.error(`[${logPrefix}] 取得資料錯誤:`, err);
+    },
+  });
 
   const fetchData = useCallback(async () => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
-    setFetching(true);
     try {
-      await executeSummaryOp({
-        isMountedRef,
-        setActive: setFetching,
-        setError,
-        setSummary,
-        failedToLoadMessage,
-        logPrefix,
-        logAction: "取得資料錯誤",
-        operation: async () => {
-          await triggerFetch(repoId);
-          return getSummary(repoId);
-        },
-      });
-    } finally {
-      fetchingRef.current = false;
+      await mutation.mutateAsync();
+    } catch {
+      // 錯誤已在 mutation.onError 處理
     }
-    // 只監聽 repoId - 其他參數是穩定的配置，不需要重新創建 callback
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [repoId]);
+  }, [mutation]);
 
-  return { summary, loading, fetching, error, fetchData };
+  return {
+    summary: query.data ?? null,
+    loading: query.isLoading,
+    fetching: mutation.isPending,
+    error: query.error || mutation.error ? failedToLoadMessage : null,
+    fetchData,
+  };
 }

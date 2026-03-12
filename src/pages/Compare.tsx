@@ -2,7 +2,7 @@
  * Compare page — multi-repo star trend comparison.
  */
 
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -16,15 +16,13 @@ import {
 import { useI18n } from "../i18n";
 import { useComparison } from "../hooks/useComparison";
 import { useReposQuery } from "../hooks/useReposQuery";
-import type { RepoWithSignals, ComparisonRepoData, ComparisonTimeRange } from "../api/types";
+import type { ComparisonTimeRange } from "../api/types";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
-import { formatNumber, formatDelta } from "../utils/format";
-import { TREND_ARROWS } from "../constants/trends";
 import { TIME_RANGES } from "../constants/chart";
 import { STORAGE_KEYS } from "../constants/storage";
-
-const MAX_COMPARE_REPOS = 5;
+import { RepoSelector } from "./compare/RepoSelector";
+import { MetricsTable } from "./compare/MetricsTable";
 
 function loadSavedRepoIds(): number[] {
   try {
@@ -34,130 +32,6 @@ function loadSavedRepoIds(): number[] {
     return [];
   }
 }
-
-// --- RepoSelector ---
-const RepoSelector = memo(function RepoSelector({
-  repos,
-  selectedIds,
-  onToggle,
-  t,
-}: {
-  repos: RepoWithSignals[];
-  selectedIds: number[];
-  onToggle: (id: number) => void;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  const [search, setSearch] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return repos;
-    const q = search.toLowerCase();
-    return repos.filter((r) => r.full_name.toLowerCase().includes(q));
-  }, [repos, search]);
-
-  return (
-    <div className="compare-selector">
-      <h3>{t.compare.selectRepos}</h3>
-      <input
-        type="text"
-        className="compare-search"
-        placeholder={t.compare.searchPlaceholder}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <div className="compare-repo-list">
-        {filtered.map((repo) => {
-          const isSelected = selectedIds.includes(repo.id);
-          const disabled = !isSelected && selectedIds.length >= MAX_COMPARE_REPOS;
-          return (
-            <button
-              key={repo.id}
-              className={`compare-repo-chip ${isSelected ? "selected" : ""}`}
-              onClick={() => onToggle(repo.id)}
-              disabled={disabled}
-              title={disabled ? t.compare.maxRepos : repo.full_name}
-            >
-              {repo.full_name}
-              {isSelected && <span className="compare-chip-x">×</span>}
-            </button>
-          );
-        })}
-      </div>
-      {selectedIds.length < 2 && <p className="compare-hint">{t.compare.minRepos}</p>}
-    </div>
-  );
-});
-
-// --- MetricsTable ---
-const MetricsTable = memo(function MetricsTable({
-  repos,
-  t,
-}: {
-  repos: ComparisonRepoData[];
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  const sorted = useMemo(
-    () => [...repos].sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0)),
-    [repos]
-  );
-
-  return (
-    <div className="compare-metrics">
-      <h3>{t.compare.metrics}</h3>
-      <div className="compare-table-wrapper">
-        <table className="compare-table">
-          <thead>
-            <tr>
-              <th>{t.compare.columns.repo}</th>
-              <th>{t.compare.columns.stars}</th>
-              <th>{t.compare.columns.delta7d}</th>
-              <th>{t.compare.columns.delta30d}</th>
-              <th>{t.compare.columns.velocity}</th>
-              <th>{t.compare.columns.acceleration}</th>
-              <th>{t.compare.columns.trend}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((r) => (
-              <tr key={r.repo_id}>
-                <td>
-                  <span className="compare-color-dot" style={{ background: r.color }} />
-                  {r.repo_name}
-                </td>
-                <td>{formatNumber(r.current_stars)}</td>
-                <td
-                  className={
-                    r.stars_delta_7d && r.stars_delta_7d > 0
-                      ? "trend-up"
-                      : r.stars_delta_7d && r.stars_delta_7d < 0
-                        ? "trend-down"
-                        : ""
-                  }
-                >
-                  {r.stars_delta_7d != null ? formatDelta(r.stars_delta_7d) : "—"}
-                </td>
-                <td
-                  className={
-                    r.stars_delta_30d && r.stars_delta_30d > 0
-                      ? "trend-up"
-                      : r.stars_delta_30d && r.stars_delta_30d < 0
-                        ? "trend-down"
-                        : ""
-                  }
-                >
-                  {r.stars_delta_30d != null ? formatDelta(r.stars_delta_30d) : "—"}
-                </td>
-                <td>{r.velocity != null ? r.velocity.toFixed(1) : "—"}</td>
-                <td>{r.acceleration != null ? r.acceleration.toFixed(1) : "—"}</td>
-                <td>{r.trend != null ? (TREND_ARROWS[r.trend] ?? "→") : "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-});
 
 // --- Main ---
 export function Compare() {

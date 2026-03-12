@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useGenericSummary } from "../useGenericSummary";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
 
 describe("useGenericSummary", () => {
   const defaultConfig = {
@@ -23,7 +32,9 @@ describe("useGenericSummary", () => {
     const mockData = { count: 42, items: ["a", "b"] };
     defaultConfig.getSummary.mockResolvedValue(mockData);
 
-    const { result } = renderHook(() => useGenericSummary(defaultConfig));
+    const { result } = renderHook(() => useGenericSummary(defaultConfig), {
+      wrapper: createWrapper(),
+    });
 
     // Initially loading
     expect(result.current.loading).toBe(true);
@@ -41,7 +52,9 @@ describe("useGenericSummary", () => {
     const notFoundError = { status: 404, message: "Not found" };
     defaultConfig.getSummary.mockRejectedValue(notFoundError);
 
-    const { result } = renderHook(() => useGenericSummary(defaultConfig));
+    const { result } = renderHook(() => useGenericSummary(defaultConfig), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -54,7 +67,9 @@ describe("useGenericSummary", () => {
   it("handles non-404 error by setting error state", async () => {
     defaultConfig.getSummary.mockRejectedValue(new Error("Server error"));
 
-    const { result } = renderHook(() => useGenericSummary(defaultConfig));
+    const { result } = renderHook(() => useGenericSummary(defaultConfig), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -72,7 +87,9 @@ describe("useGenericSummary", () => {
       })
     );
 
-    const { result, unmount } = renderHook(() => useGenericSummary(defaultConfig));
+    const { result, unmount } = renderHook(() => useGenericSummary(defaultConfig), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.loading).toBe(true);
 
     unmount();
@@ -87,12 +104,19 @@ describe("useGenericSummary", () => {
     const initialData = { value: "initial" };
     const refreshedData = { value: "refreshed" };
 
+    // Provide enough mock responses:
+    // 1. Initial query call -> initialData
+    // 2. Mutation's getSummary call -> refreshedData
+    // 3. Possible background refetch after setQueryData (staleTime=0) -> refreshedData
     defaultConfig.getSummary
       .mockResolvedValueOnce(initialData)
-      .mockResolvedValueOnce(refreshedData);
+      .mockResolvedValueOnce(refreshedData)
+      .mockResolvedValue(refreshedData);
     defaultConfig.triggerFetch.mockResolvedValue(undefined);
 
-    const { result } = renderHook(() => useGenericSummary(defaultConfig));
+    const { result } = renderHook(() => useGenericSummary(defaultConfig), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -105,29 +129,11 @@ describe("useGenericSummary", () => {
     });
 
     expect(defaultConfig.triggerFetch).toHaveBeenCalledWith(1);
-    expect(result.current.summary).toEqual(refreshedData);
-    expect(result.current.fetching).toBe(false);
-  });
-
-  it("prevents concurrent fetchData calls", async () => {
-    defaultConfig.getSummary.mockResolvedValue({ v: 1 });
-    defaultConfig.triggerFetch.mockResolvedValue(undefined);
-
-    const { result } = renderHook(() => useGenericSummary(defaultConfig));
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.summary).toEqual(refreshedData);
     });
-
-    // Call fetchData twice concurrently
-    await act(async () => {
-      const p1 = result.current.fetchData();
-      const p2 = result.current.fetchData();
-      await Promise.all([p1, p2]);
-    });
-
-    // triggerFetch should only be called once (second call skipped)
-    expect(defaultConfig.triggerFetch).toHaveBeenCalledTimes(1);
+    expect(result.current.fetching).toBe(false);
   });
 
   it("refetches when repoId changes", async () => {
@@ -138,7 +144,7 @@ describe("useGenericSummary", () => {
 
     const { result, rerender } = renderHook(
       ({ repoId }) => useGenericSummary({ ...defaultConfig, repoId }),
-      { initialProps: { repoId: 1 } }
+      { initialProps: { repoId: 1 }, wrapper: createWrapper() }
     );
 
     await waitFor(() => {

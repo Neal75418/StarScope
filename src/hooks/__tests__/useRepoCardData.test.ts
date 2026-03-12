@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", () => ({
   getContextBadges: vi.fn(),
   getRepoSignals: vi.fn(),
   fetchRepoContext: vi.fn(),
-}));
-
-vi.mock("../../utils/requestCache", () => ({
-  cachedRequest: vi.fn((_key: string, fn: () => Promise<unknown>) => fn()),
 }));
 
 vi.mock("../../utils/logger", () => ({
@@ -22,6 +21,12 @@ const mockGetBadges = vi.mocked(getContextBadges);
 const mockGetSignals = vi.mocked(getRepoSignals);
 const mockFetchContext = vi.mocked(fetchRepoContext);
 
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
+
 describe("useRepoCardData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,7 +39,7 @@ describe("useRepoCardData", () => {
     mockGetBadges.mockResolvedValue({ badges } as never);
     mockGetSignals.mockResolvedValue({ signals } as never);
 
-    const { result } = renderHook(() => useRepoCardData(42));
+    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.badgesLoading).toBe(false);
@@ -49,12 +54,16 @@ describe("useRepoCardData", () => {
     const preloadedBadges = [{ type: "star", label: "Star" }];
     const preloadedSignals = [{ id: 1, signal_type: "growth", acknowledged: true }];
 
-    // Even though useAsyncFetch runs on mount, the returned data uses preloaded values
     mockGetBadges.mockResolvedValue({ badges: [{ type: "other", label: "Other" }] } as never);
     mockGetSignals.mockResolvedValue({ signals: [] } as never);
 
-    const { result } = renderHook(() =>
-      useRepoCardData(42, { badges: preloadedBadges as never, signals: preloadedSignals as never })
+    const { result } = renderHook(
+      () =>
+        useRepoCardData(42, {
+          badges: preloadedBadges as never,
+          signals: preloadedSignals as never,
+        }),
+      { wrapper: createWrapper() }
     );
 
     // Should use preloaded data, not fetched data
@@ -74,7 +83,7 @@ describe("useRepoCardData", () => {
       ],
     } as never);
 
-    const { result } = renderHook(() => useRepoCardData(42));
+    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.signalsLoading).toBe(false);
@@ -88,7 +97,7 @@ describe("useRepoCardData", () => {
     mockGetSignals.mockResolvedValue({ signals: [] } as never);
     mockFetchContext.mockResolvedValue(undefined as never);
 
-    const { result } = renderHook(() => useRepoCardData(42));
+    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.badgesLoading).toBe(false);
@@ -115,7 +124,7 @@ describe("useRepoCardData", () => {
     mockGetSignals.mockResolvedValue({ signals: [] } as never);
     mockFetchContext.mockRejectedValue(new Error("Context fetch failed"));
 
-    const { result } = renderHook(() => useRepoCardData(42));
+    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.badgesLoading).toBe(false);

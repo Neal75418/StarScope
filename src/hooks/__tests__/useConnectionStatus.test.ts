@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", () => ({
   getGitHubConnectionStatus: vi.fn(),
@@ -10,11 +13,16 @@ vi.mock("../../utils/error", () => ({
     err instanceof Error ? err.message : fallback,
 }));
 
-// useOnceEffect delegates to useEffect; no special mock needed
 import { getGitHubConnectionStatus } from "../../api/client";
 import { useConnectionStatus } from "../useConnectionStatus";
 
 const mockGetStatus = vi.mocked(getGitHubConnectionStatus);
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
 
 describe("useConnectionStatus", () => {
   beforeEach(() => {
@@ -24,7 +32,7 @@ describe("useConnectionStatus", () => {
   it("starts in loading state", () => {
     mockGetStatus.mockReturnValue(new Promise(() => {}));
 
-    const { result } = renderHook(() => useConnectionStatus());
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
     expect(result.current.state).toBe("loading");
     expect(result.current.status).toBeNull();
     expect(result.current.error).toBeNull();
@@ -36,7 +44,7 @@ describe("useConnectionStatus", () => {
       username: "testuser",
     } as never);
 
-    const { result } = renderHook(() => useConnectionStatus());
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.state).toBe("connected");
@@ -52,7 +60,7 @@ describe("useConnectionStatus", () => {
       connected: false,
     } as never);
 
-    const { result } = renderHook(() => useConnectionStatus());
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.state).toBe("disconnected");
@@ -64,7 +72,7 @@ describe("useConnectionStatus", () => {
   it("sets error state on API failure", async () => {
     mockGetStatus.mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => useConnectionStatus());
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.state).toBe("error");
@@ -76,7 +84,7 @@ describe("useConnectionStatus", () => {
   it("fetchStatus can be called manually to refresh", async () => {
     mockGetStatus.mockResolvedValueOnce({ connected: false } as never);
 
-    const { result } = renderHook(() => useConnectionStatus());
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.state).toBe("disconnected");
@@ -93,33 +101,5 @@ describe("useConnectionStatus", () => {
 
     expect(result.current.state).toBe("connected");
     expect(result.current.status?.username).toBe("newuser");
-  });
-
-  it("prevents concurrent fetches via isFetchingRef", async () => {
-    let resolveFirst: (value: unknown) => void = () => {};
-    mockGetStatus.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveFirst = resolve;
-      }) as never
-    );
-
-    const { result } = renderHook(() => useConnectionStatus());
-
-    // First fetch is in progress (from useOnceEffect); second should be skipped
-    await act(async () => {
-      await result.current.fetchStatus();
-    });
-
-    // Resolve first fetch
-    await act(async () => {
-      resolveFirst({ connected: true, username: "user" });
-    });
-
-    await waitFor(() => {
-      expect(result.current.state).toBe("connected");
-    });
-
-    // Only called once (second was skipped)
-    expect(mockGetStatus).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,8 +1,10 @@
 /**
  * Repo 卡片資料取得（badges 與 signals），支援批次預載與個別取得。
+ * 使用 React Query 管理快取與請求去重。
  */
 
 import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ContextBadge,
   EarlySignal,
@@ -10,8 +12,8 @@ import {
   getRepoSignals,
   fetchRepoContext,
 } from "../api/client";
-import { useAsyncFetch } from "./useAsyncFetch";
 import { logger } from "../utils/logger";
+import { queryKeys } from "../lib/react-query";
 
 interface UseRepoCardDataResult {
   badges: ContextBadge[];
@@ -29,37 +31,35 @@ interface PreloadedData {
 }
 
 export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseRepoCardDataResult {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const queryClient = useQueryClient();
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
 
-  // 若有預載資料且尚未手動刷新，跳過個別 API 呼叫
-  // deps=[] 表示永不 fetch；手動 refresh 後 refreshKey>0，切到正常 deps 觸發 fetch
-  const skipBadgesFetch = preloaded?.badges !== undefined && refreshKey === 0;
-  const skipSignalsFetch = preloaded?.signals !== undefined && refreshKey === 0;
+  // 若有預載資料，用 initialData 讓 React Query 立即顯示，但仍可被 refetch 覆蓋
+  const badgesQuery = useQuery<ContextBadge[], Error>({
+    queryKey: queryKeys.repoCard.badges(repoId),
+    queryFn: async () => {
+      const response = await getContextBadges(repoId);
+      return response.badges;
+    },
+    initialData: preloaded?.badges,
+    // 如果有預載資料，標記為 stale 以便背景更新，但不立即 refetch
+    staleTime: preloaded?.badges ? 1000 * 60 * 5 : 1000 * 60 * 5,
+    enabled: preloaded?.badges === undefined || isRefreshingContext === false,
+  });
 
-  const badgesDeps = skipBadgesFetch ? [] : [repoId, refreshKey];
-  const { data: fetchedBadges, loading: badgesLoading } = useAsyncFetch(
-    () => getContextBadges(repoId),
-    (response) => response.badges,
-    [] as ContextBadge[],
-    badgesDeps,
-    "badges",
-    { cacheKey: skipBadgesFetch ? undefined : `badges:${repoId}:${refreshKey}` }
-  );
+  const signalsQuery = useQuery<EarlySignal[], Error>({
+    queryKey: queryKeys.repoCard.signals(repoId),
+    queryFn: async () => {
+      const response = await getRepoSignals(repoId);
+      return response.signals;
+    },
+    initialData: preloaded?.signals,
+    staleTime: 1000 * 60 * 5,
+    enabled: preloaded?.signals === undefined || isRefreshingContext === false,
+  });
 
-  const signalsDeps = skipSignalsFetch ? [] : [repoId, refreshKey];
-  const { data: fetchedSignals, loading: signalsLoading } = useAsyncFetch(
-    () => getRepoSignals(repoId),
-    (response) => response.signals,
-    [] as EarlySignal[],
-    signalsDeps,
-    "signals",
-    { cacheKey: skipSignalsFetch ? undefined : `signals:${repoId}:${refreshKey}` }
-  );
-
-  // 優先使用預載資料，手動刷新後改用 fetch 結果
-  const badges = skipBadgesFetch ? (preloaded.badges ?? []) : fetchedBadges;
-  const signals = skipSignalsFetch ? (preloaded.signals ?? []) : fetchedSignals;
+  const badges = badgesQuery.data ?? [];
+  const signals = signalsQuery.data ?? [];
 
   // 計算未確認的活躍 signals 數量
   const activeSignalCount = signals.filter((s) => !s.acknowledged).length;
@@ -68,20 +68,23 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
     setIsRefreshingContext(true);
     try {
       await fetchRepoContext(repoId);
-      // context 取得後觸發 badges + signals 重新載入（強制個別 fetch）
-      setRefreshKey((prev) => prev + 1);
+      // context 取得後觸發 badges + signals 重新載入
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.repoCard.badges(repoId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.repoCard.signals(repoId) }),
+      ]);
     } catch (err) {
       logger.error("[RepoCardData] Context 重新整理失敗:", err);
     } finally {
       setIsRefreshingContext(false);
     }
-  }, [repoId]);
+  }, [repoId, queryClient]);
 
   return {
     badges,
-    badgesLoading: skipBadgesFetch ? false : badgesLoading,
+    badgesLoading: preloaded?.badges !== undefined ? false : badgesQuery.isLoading,
     signals,
-    signalsLoading: skipSignalsFetch ? false : signalsLoading,
+    signalsLoading: preloaded?.signals !== undefined ? false : signalsQuery.isLoading,
     activeSignalCount,
     refreshContext,
     isRefreshingContext,

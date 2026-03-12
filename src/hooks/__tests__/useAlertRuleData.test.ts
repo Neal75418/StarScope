@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", () => ({
   listAlertRules: vi.fn(),
@@ -20,6 +23,12 @@ const mockListAlertRules = vi.mocked(listAlertRules);
 const mockListSignalTypes = vi.mocked(listSignalTypes);
 const mockGetRepos = vi.mocked(getRepos);
 
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
+
 describe("useAlertRuleData", () => {
   let mockToast: Toast;
 
@@ -37,7 +46,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue(signalTypes as never);
     mockGetRepos.mockResolvedValue({ repos } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     expect(result.current.isLoading).toBe(true);
 
@@ -55,7 +66,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue([]);
     mockGetRepos.mockResolvedValue({ repos: [] } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -69,7 +82,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockRejectedValue(new Error("Signals failed"));
     mockGetRepos.mockResolvedValue({ repos: [] } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -83,7 +98,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue([]);
     mockGetRepos.mockRejectedValue(new Error("Repos failed"));
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -97,7 +114,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockRejectedValue(new Error("fail"));
     mockGetRepos.mockRejectedValue(new Error("fail"));
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -112,7 +131,9 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue([]);
     mockGetRepos.mockResolvedValue({ repos: [] } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast));
+    const { result } = renderHook(() => useAlertRuleData(mockToast), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -125,6 +146,8 @@ describe("useAlertRuleData", () => {
       await result.current.loadRules();
     });
 
-    expect(result.current.rules).toEqual(newRules);
+    await waitFor(() => {
+      expect(result.current.rules).toEqual(newRules);
+    });
   });
 });

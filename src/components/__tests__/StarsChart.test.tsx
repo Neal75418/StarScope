@@ -2,11 +2,14 @@
  * Unit tests for StarsChart component
  */
 
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { StarsChart } from "../StarsChart";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 // Mock API client
 vi.mock("../../api/client", async (importOriginal) => {
@@ -34,6 +37,17 @@ vi.mock("../../utils/format", async (importOriginal) => {
   };
 });
 
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
+
+function renderWithClient(ui: React.ReactElement) {
+  const client = createTestQueryClient();
+  return render(React.createElement(QueryClientProvider, { client }, ui));
+}
+
 describe("StarsChart", () => {
   const mockChartData = {
     repo_id: 1,
@@ -59,7 +73,7 @@ describe("StarsChart", () => {
       () => new Promise(() => {}) // Never resolves
     );
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     expect(screen.getByText("Loading chart...")).toBeInTheDocument();
     expect(screen.getByText("Loading chart...")).toHaveClass("chart-loading");
@@ -68,7 +82,7 @@ describe("StarsChart", () => {
   it("displays chart when data is loaded", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
@@ -83,7 +97,7 @@ describe("StarsChart", () => {
   it("shows error message when API call fails", async () => {
     vi.mocked(apiClient.getStarsChart).mockRejectedValue(new Error("Network error"));
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("Network error")).toBeInTheDocument();
@@ -98,7 +112,7 @@ describe("StarsChart", () => {
       data_points: [{ date: "2024-01-01T00:00:00Z", stars: 220000, forks: 30000 }],
     });
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText(/Insufficient data/)).toBeInTheDocument();
@@ -108,7 +122,7 @@ describe("StarsChart", () => {
   it("fetches chart data with default 30d time range", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));
@@ -119,7 +133,7 @@ describe("StarsChart", () => {
     const user = userEvent.setup();
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     // Wait for initial load
     await waitFor(() => {
@@ -146,7 +160,7 @@ describe("StarsChart", () => {
   it("highlights active time range button", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    render(<StarsChart repoId={1} />);
+    renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       const thirtyDayButton = screen.getByRole("button", { name: "30d" });
@@ -160,7 +174,7 @@ describe("StarsChart", () => {
   it("renders responsive container with correct height", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    const { container } = render(<StarsChart repoId={1} />);
+    const { container } = renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
       expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
@@ -174,7 +188,7 @@ describe("StarsChart", () => {
   it("cleans up async operations on unmount", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    const { unmount } = render(<StarsChart repoId={1} />);
+    const { unmount } = renderWithClient(<StarsChart repoId={1} />);
 
     // Unmount before API call resolves
     unmount();
@@ -186,7 +200,8 @@ describe("StarsChart", () => {
   it("refetches data when repo ID changes", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
-    const { rerender } = render(<StarsChart repoId={1} />);
+    const wrapper = createWrapper();
+    const { rerender } = render(<StarsChart repoId={1} />, { wrapper });
 
     await waitFor(() => {
       expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));

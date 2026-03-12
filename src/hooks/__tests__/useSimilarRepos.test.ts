@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useSimilarRepos } from "../useSimilarRepos";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -11,6 +14,12 @@ vi.mock("../../api/client", async (importOriginal) => {
     calculateRepoSimilarities: vi.fn(),
   };
 });
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
 
 describe("useSimilarRepos", () => {
   const mockSimilarRepos: apiClient.SimilarRepo[] = [
@@ -35,7 +44,7 @@ describe("useSimilarRepos", () => {
   it("returns initial loading state", () => {
     vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useSimilarRepos(1));
+    const { result } = renderHook(() => useSimilarRepos(1), { wrapper: createWrapper() });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.similar).toEqual([]);
@@ -50,7 +59,7 @@ describe("useSimilarRepos", () => {
       total: 1,
     });
 
-    const { result } = renderHook(() => useSimilarRepos(1));
+    const { result } = renderHook(() => useSimilarRepos(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -64,7 +73,7 @@ describe("useSimilarRepos", () => {
   it("handles API error", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => useSimilarRepos(1));
+    const { result } = renderHook(() => useSimilarRepos(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -81,7 +90,7 @@ describe("useSimilarRepos", () => {
       total: 1,
     });
 
-    renderHook(() => useSimilarRepos(1, 10));
+    renderHook(() => useSimilarRepos(1, 10), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(apiClient.getSimilarRepos).toHaveBeenCalledWith(1, 10);
@@ -99,7 +108,7 @@ describe("useSimilarRepos", () => {
       similarities_found: 5,
     });
 
-    const { result } = renderHook(() => useSimilarRepos(1));
+    const { result } = renderHook(() => useSimilarRepos(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -122,7 +131,7 @@ describe("useSimilarRepos", () => {
       new Error("Calculation failed")
     );
 
-    const { result } = renderHook(() => useSimilarRepos(1));
+    const { result } = renderHook(() => useSimilarRepos(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);

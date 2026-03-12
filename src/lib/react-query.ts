@@ -122,6 +122,55 @@ export const queryKeys = {
   // Notifications
   notifications: {
     all: ["notifications"] as const,
+    polling: () => [...queryKeys.notifications.all, "polling"] as const,
+  },
+
+  // Backfill
+  backfill: {
+    all: ["backfill"] as const,
+    status: (repoId: number) => [...queryKeys.backfill.all, "status", repoId] as const,
+  },
+
+  // Similar Repos
+  similarRepos: {
+    all: ["similarRepos"] as const,
+    list: (repoId: number, limit: number) =>
+      [...queryKeys.similarRepos.all, "list", repoId, limit] as const,
+  },
+
+  // Connection
+  connection: {
+    all: ["connection"] as const,
+    status: () => [...queryKeys.connection.all, "status"] as const,
+  },
+
+  // Stars Chart
+  starsChart: {
+    all: ["starsChart"] as const,
+    data: (repoId: number, timeRange: string) =>
+      [...queryKeys.starsChart.all, "data", repoId, timeRange] as const,
+  },
+
+  // Summaries
+  summaries: {
+    all: ["summaries"] as const,
+    generic: (logPrefix: string, repoId: number) =>
+      [...queryKeys.summaries.all, logPrefix, repoId] as const,
+  },
+
+  // Repo Card Data
+  repoCard: {
+    all: ["repoCard"] as const,
+    badges: (repoId: number) => [...queryKeys.repoCard.all, "badges", repoId] as const,
+    signals: (repoId: number) => [...queryKeys.repoCard.all, "signals", repoId] as const,
+  },
+
+  // Alert Rule Data
+  alertRuleData: {
+    all: ["alertRuleData"] as const,
+    rules: () => [...queryKeys.alertRuleData.all, "rules"] as const,
+    signalTypes: () => [...queryKeys.alertRuleData.all, "signalTypes"] as const,
+    repos: () => [...queryKeys.alertRuleData.all, "repos"] as const,
   },
 } as const;
 

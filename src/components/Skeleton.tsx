@@ -31,7 +31,7 @@ export function Skeleton({
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label="loading"
       className={`skeleton skeleton-${variant} skeleton-${animation} ${className}`}
       style={styles}
     />

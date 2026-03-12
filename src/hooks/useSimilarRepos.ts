@@ -1,11 +1,14 @@
 /**
  * 相似 Repository 的取得與重新計算。
+ * 使用 React Query 管理快取與請求去重。
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SimilarRepo, getSimilarRepos, calculateRepoSimilarities } from "../api/client";
 import { useI18n } from "../i18n";
 import { logger } from "../utils/logger";
+import { queryKeys } from "../lib/react-query";
 
 interface UseSimilarReposResult {
   similar: SimilarRepo[];
@@ -17,59 +20,38 @@ interface UseSimilarReposResult {
 
 export function useSimilarRepos(repoId: number, limit: number = 5): UseSimilarReposResult {
   const { t } = useI18n();
-  const [similar, setSimilar] = useState<SimilarRepo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [isRecalculating, setIsRecalculating] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  // 避免 StrictMode 重複請求
-  const isFetchingRef = useRef(false);
-
-  useEffect(() => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-
-    let isMounted = true;
-    setLoading(true);
-    setError(null);
-
-    getSimilarRepos(repoId, limit)
-      .then((response) => {
-        if (isMounted) {
-          setSimilar(response.similar);
-        }
-      })
-      .catch((err) => {
-        if (isMounted) {
-          logger.error("[SimilarRepos] 相似 Repo 載入失敗:", err);
-          setError(t.similarRepos.loadError);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-        isFetchingRef.current = false;
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [repoId, limit, t, refreshKey]);
+  const query = useQuery<SimilarRepo[], Error>({
+    queryKey: queryKeys.similarRepos.list(repoId, limit),
+    queryFn: async () => {
+      const response = await getSimilarRepos(repoId, limit);
+      return response.similar;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const recalculate = useCallback(async () => {
     setIsRecalculating(true);
     try {
       await calculateRepoSimilarities(repoId);
       // 計算完成後觸發重新載入
-      setRefreshKey((prev) => prev + 1);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.similarRepos.list(repoId, limit),
+      });
     } catch (err) {
       logger.error("[SimilarRepos] 重新計算相似度失敗:", err);
     } finally {
       setIsRecalculating(false);
     }
-  }, [repoId]);
+  }, [repoId, limit, queryClient]);
 
-  return { similar, loading, error, recalculate, isRecalculating };
+  return {
+    similar: query.data ?? [],
+    loading: query.isLoading,
+    error: query.error ? (t.similarRepos.loadError as string) : null,
+    recalculate,
+    isRecalculating,
+  };
 }

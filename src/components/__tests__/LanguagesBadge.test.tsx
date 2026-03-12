@@ -1,8 +1,11 @@
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { LanguagesBadge } from "../LanguagesBadge";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -13,6 +16,11 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
+function renderWithClient(ui: React.ReactElement) {
+  const client = createTestQueryClient();
+  return render(React.createElement(QueryClientProvider, { client }, ui));
+}
+
 describe("LanguagesBadge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -21,7 +29,7 @@ describe("LanguagesBadge", () => {
   it("shows loading state initially", () => {
     vi.mocked(apiClient.getLanguagesSummary).mockImplementation(() => new Promise(() => {}));
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
     expect(screen.getByText("...")).toBeInTheDocument();
     expect(screen.getByText("...")).toHaveClass("language-badge-loading");
   });
@@ -31,7 +39,7 @@ describe("LanguagesBadge", () => {
       new apiClient.ApiError(500, "Server error")
     );
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("!")).toBeInTheDocument();
@@ -44,7 +52,7 @@ describe("LanguagesBadge", () => {
       new apiClient.ApiError(404, "Not found")
     );
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("?")).toBeInTheDocument();
@@ -65,7 +73,7 @@ describe("LanguagesBadge", () => {
       last_updated: null,
     });
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("?")).toBeInTheDocument();
@@ -85,7 +93,7 @@ describe("LanguagesBadge", () => {
       last_updated: "2024-01-01T00:00:00Z",
     });
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("TypeScript")).toBeInTheDocument();
@@ -104,7 +112,7 @@ describe("LanguagesBadge", () => {
       last_updated: "2024-01-01T00:00:00Z",
     });
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("Python")).toBeInTheDocument();
@@ -123,7 +131,7 @@ describe("LanguagesBadge", () => {
       last_updated: "2024-01-01T00:00:00Z",
     });
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("Brainfuck")).toBeInTheDocument();
@@ -141,7 +149,7 @@ describe("LanguagesBadge", () => {
       last_updated: null,
     });
 
-    render(<LanguagesBadge repoId={1} />);
+    renderWithClient(<LanguagesBadge repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("?")).toBeInTheDocument();

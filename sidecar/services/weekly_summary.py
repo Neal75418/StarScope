@@ -6,7 +6,7 @@ Aggregates weekly changes across all tracked repos.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -22,22 +22,15 @@ from utils.time import utc_now, utc_today
 logger = logging.getLogger(__name__)
 
 
-def get_weekly_summary(db: Session) -> dict[str, Any]:
+def _fetch_snapshot_deltas(
+    db: Session,
+    period_start: date,
+) -> tuple[dict[int, int], dict[int, int], dict[int, int], int]:
+    """取得每個 repo 的最新 / 7 天前快照並計算星數差異。
+
+    Returns:
+        ``(latest_map, old_map, repo_deltas, total_new_stars)``
     """
-    Build a weekly summary covering the last 7 days.
-
-    Returns a dict matching the WeeklySummaryResponse schema.
-    """
-    today = utc_today()
-    period_end = today
-    period_start = today - timedelta(days=7)
-    now = utc_now()
-    week_ago = now - timedelta(days=7)
-
-    # --- Total repos ---
-    total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
-
-    # --- Stars delta per repo (latest snapshot vs 7-day-ago snapshot) ---
     # Subquery: latest snapshot per repo
     latest_sub = (
         db.query(
@@ -89,40 +82,84 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
 
     total_new_stars = sum(repo_deltas.values())
 
-    # --- Signal map for velocity / acceleration / trend ---
+    return latest_map, old_map, repo_deltas, total_new_stars
+
+
+def _preload_signal_and_repo_maps(
+    db: Session,
+) -> tuple[dict[int, dict[str, float]], dict[int, Repo]]:
+    """預載入所有訊號與 repo 資訊，以 dict 形式回傳以便快速查詢。
+
+    Returns:
+        ``(signal_map, repo_info)``
+    """
     all_signals = db.query(Signal).all()
     signal_map: dict[int, dict[str, float]] = {}
     for sig in all_signals:
         signal_map.setdefault(sig.repo_id, {})[sig.signal_type] = sig.value
 
-    # --- Repo info map ---
     repos = db.query(Repo).all()
     repo_info: dict[int, Repo] = {r.id: r for r in repos}
 
-    def _repo_summary(repo_id: int) -> dict[str, Any]:
-        repo = repo_info.get(repo_id)
-        sigs = signal_map.get(repo_id, {})
-        return {
-            "repo_id": repo_id,
-            "full_name": repo.full_name if repo else "unknown",
-            "stars": latest_map.get(repo_id, 0),
-            "stars_delta_7d": repo_deltas.get(repo_id, 0),
-            "velocity": round(sigs.get(SignalType.VELOCITY, 0), 2),
-            "trend": int(sigs.get(SignalType.TREND, 0)),
-        }
+    return signal_map, repo_info
 
-    # Top gainers (top 5 by 7d delta)
+
+def _build_repo_summary(
+    repo_id: int,
+    repo_info: dict[int, Repo],
+    latest_map: dict[int, int],
+    repo_deltas: dict[int, int],
+    signal_map: dict[int, dict[str, float]],
+) -> dict[str, Any]:
+    """組裝單一 repo 的摘要資訊。"""
+    repo = repo_info.get(repo_id)
+    sigs = signal_map.get(repo_id, {})
+    return {
+        "repo_id": repo_id,
+        "full_name": repo.full_name if repo else "unknown",
+        "stars": latest_map.get(repo_id, 0),
+        "stars_delta_7d": repo_deltas.get(repo_id, 0),
+        "velocity": round(sigs.get(SignalType.VELOCITY, 0), 2),
+        "trend": int(sigs.get(SignalType.TREND, 0)),
+    }
+
+
+def _find_top_movers(
+    repo_deltas: dict[int, int],
+    repo_info: dict[int, Repo],
+    latest_map: dict[int, int],
+    signal_map: dict[int, dict[str, float]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """找出星數增長前 5 名與衰退前 3 名的 repo。
+
+    Returns:
+        ``(top_gainers, top_losers)``
+    """
     sorted_by_delta = sorted(repo_deltas.items(), key=lambda x: x[1], reverse=True)
-    top_gainers = [_repo_summary(rid) for rid, _ in sorted_by_delta[:5] if repo_deltas[rid] > 0]
+    top_gainers = [
+        _build_repo_summary(rid, repo_info, latest_map, repo_deltas, signal_map)
+        for rid, _ in sorted_by_delta[:5]
+        if repo_deltas[rid] > 0
+    ]
 
-    # Top losers (bottom 3 with negative delta)
     top_losers = [
-        _repo_summary(rid)
+        _build_repo_summary(rid, repo_info, latest_map, repo_deltas, signal_map)
         for rid, delta in reversed(sorted_by_delta)
         if delta < 0
     ][:3]
 
-    # --- Alerts triggered this week ---
+    return top_gainers, top_losers
+
+
+def _get_alert_and_signal_stats(
+    db: Session,
+    week_ago: datetime,
+) -> tuple[int, int, dict[str, int]]:
+    """查詢本週觸發的警報與偵測到的早期訊號。
+
+    Returns:
+        ``(alerts_triggered, early_signals_detected, early_signals_by_type)``
+    """
     alerts_triggered: int = (
         db.query(func.count(TriggeredAlert.id))
         .filter(TriggeredAlert.triggered_at >= week_ago)
@@ -130,7 +167,6 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
         or 0
     )
 
-    # --- Early signals detected this week ---
     early_signals = (
         db.query(EarlySignal)
         .filter(EarlySignal.detected_at >= week_ago)
@@ -141,7 +177,15 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
     for es in early_signals:
         early_signals_by_type[es.signal_type] = early_signals_by_type.get(es.signal_type, 0) + 1
 
-    # --- HN mentions this week ---
+    return alerts_triggered, early_signals_detected, early_signals_by_type
+
+
+def _get_hn_mentions(
+    db: Session,
+    week_ago: datetime,
+    repo_info: dict[int, Repo],
+) -> list[dict[str, Any]]:
+    """查詢本週 Hacker News 上的提及（最多 10 筆，依分數排序）。"""
     hn_signals = (
         db.query(ContextSignal)
         .filter(
@@ -152,7 +196,7 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
         .limit(10)
         .all()
     )
-    hn_mentions = [
+    return [
         {
             "repo_id": hn.repo_id,
             "repo_name": repo_info[hn.repo_id].full_name if hn.repo_id in repo_info else "unknown",
@@ -163,7 +207,15 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
         for hn in hn_signals
     ]
 
-    # --- Accelerating / decelerating repos ---
+
+def _count_acceleration(
+    signal_map: dict[int, dict[str, float]],
+) -> tuple[int, int]:
+    """統計加速 / 減速中的 repo 數量。
+
+    Returns:
+        ``(accelerating, decelerating)``
+    """
     accelerating = 0
     decelerating = 0
     for sigs in signal_map.values():
@@ -172,6 +224,41 @@ def get_weekly_summary(db: Session) -> dict[str, Any]:
             accelerating += 1
         elif acc < 0:
             decelerating += 1
+    return accelerating, decelerating
+
+
+def get_weekly_summary(db: Session) -> dict[str, Any]:
+    """
+    Build a weekly summary covering the last 7 days.
+
+    Returns a dict matching the WeeklySummaryResponse schema.
+    """
+    today = utc_today()
+    period_end = today
+    period_start = today - timedelta(days=7)
+    now = utc_now()
+    week_ago = now - timedelta(days=7)
+
+    # --- Total repos ---
+    total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
+
+    # --- Stars delta per repo (latest snapshot vs 7-day-ago snapshot) ---
+    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start)
+
+    # --- Signal map & repo info ---
+    signal_map, repo_info = _preload_signal_and_repo_maps(db)
+
+    # --- Top gainers / losers ---
+    top_gainers, top_losers = _find_top_movers(repo_deltas, repo_info, latest_map, signal_map)
+
+    # --- Alerts & early signals ---
+    alerts_triggered, early_signals_detected, early_signals_by_type = _get_alert_and_signal_stats(db, week_ago)
+
+    # --- HN mentions ---
+    hn_mentions = _get_hn_mentions(db, week_ago, repo_info)
+
+    # --- Accelerating / decelerating repos ---
+    accelerating, decelerating = _count_acceleration(signal_map)
 
     return {
         "period_start": period_start.isoformat(),

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
+import React from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useStarsChart } from "../useStarsChart";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -11,6 +14,12 @@ vi.mock("../../api/client", async (importOriginal) => {
     getStarHistory: vi.fn(),
   };
 });
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+}
 
 describe("useStarsChart", () => {
   const mockChartData: apiClient.ChartDataPoint[] = [
@@ -32,7 +41,7 @@ describe("useStarsChart", () => {
   it("returns initial loading state", () => {
     vi.mocked(apiClient.getStarsChart).mockImplementation(() => new Promise(() => {}));
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.data).toEqual([]);
@@ -50,7 +59,7 @@ describe("useStarsChart", () => {
       max_stars: 150,
     });
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -64,7 +73,7 @@ describe("useStarsChart", () => {
   it("handles API error", async () => {
     vi.mocked(apiClient.getStarsChart).mockRejectedValue(new Error("Network error"));
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -84,7 +93,7 @@ describe("useStarsChart", () => {
       max_stars: 150,
     });
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -100,6 +109,14 @@ describe("useStarsChart", () => {
   });
 
   it("uses getStarHistory for 'all' time range", async () => {
+    vi.mocked(apiClient.getStarsChart).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "test/repo",
+      time_range: "30d",
+      data_points: mockChartData,
+      min_stars: 100,
+      max_stars: 150,
+    });
     vi.mocked(apiClient.getStarHistory).mockResolvedValue({
       repo_id: 1,
       repo_name: "test/repo",
@@ -108,7 +125,7 @@ describe("useStarsChart", () => {
       total_points: 2,
     });
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -133,7 +150,7 @@ describe("useStarsChart", () => {
       max_stars: 150,
     });
 
-    const { result } = renderHook(() => useStarsChart(1));
+    const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.loading).toBe(false);
@@ -141,8 +158,8 @@ describe("useStarsChart", () => {
 
     const initialCallCount = vi.mocked(apiClient.getStarsChart).mock.calls.length;
 
-    act(() => {
-      result.current.refetch();
+    await act(async () => {
+      await result.current.refetch();
     });
 
     await waitFor(() => {

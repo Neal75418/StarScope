@@ -2,11 +2,14 @@
  * Unit tests for SimilarRepos component
  */
 
+import React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { SimilarRepos, SimilarReposButton } from "../SimilarRepos";
 import * as apiClient from "../../api/client";
+import { createTestQueryClient } from "../../lib/react-query";
 
 // Mock tauri opener
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -21,6 +24,11 @@ vi.mock("../../api/client", async (importOriginal) => {
     getSimilarRepos: vi.fn(),
   };
 });
+
+function renderWithClient(ui: React.ReactElement) {
+  const client = createTestQueryClient();
+  return render(React.createElement(QueryClientProvider, { client }, ui));
+}
 
 describe("SimilarRepos", () => {
   const mockSimilarRepos = {
@@ -57,7 +65,7 @@ describe("SimilarRepos", () => {
   it("shows loading state initially", () => {
     vi.mocked(apiClient.getSimilarRepos).mockImplementation(() => new Promise(() => {}));
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
@@ -65,7 +73,7 @@ describe("SimilarRepos", () => {
   it("displays similar repos after loading", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("vuejs/vue")).toBeInTheDocument();
@@ -76,7 +84,7 @@ describe("SimilarRepos", () => {
   it("shows error message on failure", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockRejectedValue(new Error("Network error"));
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("Failed to load recommendations")).toBeInTheDocument();
@@ -86,7 +94,7 @@ describe("SimilarRepos", () => {
   it("shows empty state when no similar repos", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ repo_id: 1, total: 0, similar: [] });
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("No similar repos found in your watchlist.")).toBeInTheDocument();
@@ -96,7 +104,7 @@ describe("SimilarRepos", () => {
   it("displays similarity score as percentage", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("85%")).toBeInTheDocument();
@@ -107,7 +115,7 @@ describe("SimilarRepos", () => {
   it("shows same language badge", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getByText("Same Language")).toBeInTheDocument();
@@ -117,7 +125,7 @@ describe("SimilarRepos", () => {
   it("displays shared topics", async () => {
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(() => {
       expect(screen.getAllByText("javascript").length).toBeGreaterThan(0);
@@ -129,7 +137,7 @@ describe("SimilarRepos", () => {
     const mockOnClose = vi.fn();
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} onClose={mockOnClose} />);
+    renderWithClient(<SimilarRepos repoId={1} onClose={mockOnClose} />);
 
     await waitFor(() => {
       expect(screen.getByText("×")).toBeInTheDocument();
@@ -141,7 +149,7 @@ describe("SimilarRepos", () => {
     const mockOnClose = vi.fn();
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} onClose={mockOnClose} />);
+    renderWithClient(<SimilarRepos repoId={1} onClose={mockOnClose} />);
 
     await waitFor(() => screen.getByText("×"));
     await user.click(screen.getByText("×"));
@@ -154,7 +162,7 @@ describe("SimilarRepos", () => {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     vi.mocked(apiClient.getSimilarRepos).mockResolvedValue(mockSimilarRepos);
 
-    render(<SimilarRepos repoId={1} />);
+    renderWithClient(<SimilarRepos repoId={1} />);
 
     await waitFor(async () => {
       const link = screen.getByRole("link", { name: "vuejs/vue" });
@@ -173,14 +181,14 @@ describe("SimilarReposButton", () => {
   });
 
   it("renders button with text", () => {
-    render(<SimilarReposButton repoId={1} />);
+    renderWithClient(<SimilarReposButton repoId={1} />);
 
     expect(screen.getByText("Similar")).toBeInTheDocument();
   });
 
   it("toggles panel visibility on click", async () => {
     const user = userEvent.setup();
-    render(<SimilarReposButton repoId={1} />);
+    renderWithClient(<SimilarReposButton repoId={1} />);
 
     // Click to show panel
     await user.click(screen.getByText("Similar"));
@@ -199,7 +207,7 @@ describe("SimilarReposButton", () => {
 
   it("shows active class when panel is open", async () => {
     const user = userEvent.setup();
-    render(<SimilarReposButton repoId={1} />);
+    renderWithClient(<SimilarReposButton repoId={1} />);
 
     const button = screen.getByText("Similar");
     expect(button).not.toHaveClass("active");

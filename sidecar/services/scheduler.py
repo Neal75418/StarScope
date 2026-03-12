@@ -3,6 +3,8 @@
 使用 APScheduler 按設定間隔執行工作。
 """
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import threading
@@ -16,6 +18,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import create_engine, func
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Query, Session
 
 from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
 from db.database import DATABASE_URL, get_db_session
@@ -91,6 +94,87 @@ def _track_repo_failure(repo_id: int, full_name: str, reason: str) -> None:
         )
 
 
+def _build_need_fetch_query(
+    db: Session,
+    skip_recent_minutes: int,
+    log: logging.LoggerAdapter,
+    job_id: str,
+) -> tuple[Query[Repo], int, int] | None:
+    """建立需要抓取的 repo 查詢，跳過近期已抓取的項目。
+
+    Returns:
+        ``(need_fetch_query, total_count, skipped_count)`` 或
+        ``None``（當監控清單為空時）。
+    """
+    # 使用 naive datetime 與 DB 值比較（SQLite 儲存 naive datetime）
+    recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
+
+    # 子查詢：近期已抓取的 repo ID（將被跳過）
+    recently_fetched_ids = (
+        db.query(RepoSnapshot.repo_id)
+        .group_by(RepoSnapshot.repo_id)
+        .having(func.max(RepoSnapshot.fetched_at) > recent_threshold)
+        .subquery()
+    )
+
+    # 計算需抓取的 repo 數量
+    need_fetch_query = (
+        db.query(Repo)
+        .filter(Repo.id.notin_(db.query(recently_fetched_ids.c.repo_id)))
+    )
+
+    total_count = db.query(func.count(Repo.id)).scalar() or 0
+    need_fetch_count = need_fetch_query.count()
+    skipped_count = total_count - need_fetch_count
+
+    if total_count == 0:
+        log.info(f"[排程] [{job_id}] 監控清單無 repo，跳過抓取")
+        return None
+
+    return need_fetch_query, total_count, skipped_count
+
+
+async def _fetch_and_update_single_repo(
+    repo: Repo,
+    db: Session,
+    log: logging.LoggerAdapter,
+    job_id: str,
+) -> bool:
+    """從 GitHub 抓取單一 repo 資料並更新資料庫。
+
+    Returns:
+        ``True`` 表示成功，``False`` 表示失敗。
+    """
+    repo_id = int(repo.id)
+    try:
+        # 從 GitHub 取得最新資料
+        github_data = await fetch_repo_data(repo.owner, repo.name)
+
+        if github_data:
+            # 原子性地更新中繼資料 + 快照 + 訊號
+            update_repo_from_github(repo, github_data, db)
+
+            # 成功時重置失敗計數
+            _repo_failure_counts.pop(repo_id, None)
+            log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
+            return True
+        else:
+            _track_repo_failure(repo_id, repo.full_name, "資料為空")
+            return False
+
+    except (GitHubAPIError, SQLAlchemyError) as e:
+        db.rollback()
+        _track_repo_failure(repo_id, repo.full_name, str(e))
+        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+        return False
+    except Exception as e:
+        # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
+        db.rollback()
+        _track_repo_failure(repo_id, repo.full_name, str(e))
+        log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
+        return False
+
+
 async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
     """
     背景工作：抓取追蹤清單中所有 repo。
@@ -106,30 +190,10 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
 
     with get_db_session() as db:
         try:
-            # 使用 naive datetime 與 DB 值比較（SQLite 儲存 naive datetime）
-            recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
-
-            # 子查詢：近期已抓取的 repo ID（將被跳過）
-            recently_fetched_ids = (
-                db.query(RepoSnapshot.repo_id)
-                .group_by(RepoSnapshot.repo_id)
-                .having(func.max(RepoSnapshot.fetched_at) > recent_threshold)
-                .subquery()
-            )
-
-            # 計算需抓取的 repo 數量
-            need_fetch_query = (
-                db.query(Repo)
-                .filter(Repo.id.notin_(db.query(recently_fetched_ids.c.repo_id)))
-            )
-
-            total_count = db.query(func.count(Repo.id)).scalar() or 0
-            need_fetch_count = need_fetch_query.count()
-            skipped_count = total_count - need_fetch_count
-
-            if total_count == 0:
-                log.info(f"[排程] [{job_id}] 監控清單無 repo，跳過抓取")
+            result = _build_need_fetch_query(db, skip_recent_minutes, log, job_id)
+            if result is None:
                 return
+            need_fetch_query, total_count, skipped_count = result
 
             success_count = 0
             error_count = 0
@@ -140,34 +204,10 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
             # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
             # 避免一次性載入所有 repo 到記憶體
             for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
-                repo_id = int(repo.id)
-                try:
-                    # 從 GitHub 取得最新資料
-                    github_data = await fetch_repo_data(repo.owner, repo.name)
-
-                    if github_data:
-                        # 原子性地更新中繼資料 + 快照 + 訊號
-                        update_repo_from_github(repo, github_data, db)
-
-                        success_count += 1
-                        # 成功時重置失敗計數
-                        _repo_failure_counts.pop(repo_id, None)
-                        log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
-                    else:
-                        error_count += 1
-                        _track_repo_failure(repo_id, repo.full_name, "資料為空")
-
-                except (GitHubAPIError, SQLAlchemyError) as e:
+                if await _fetch_and_update_single_repo(repo, db, log, job_id):
+                    success_count += 1
+                else:
                     error_count += 1
-                    db.rollback()
-                    _track_repo_failure(repo_id, repo.full_name, str(e))
-                    log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
-                except Exception as e:
-                    # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
-                    error_count += 1
-                    db.rollback()
-                    _track_repo_failure(repo_id, repo.full_name, str(e))
-                    log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
 
             log.info(
                 f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"
