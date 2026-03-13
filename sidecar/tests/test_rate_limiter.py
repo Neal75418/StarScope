@@ -3,7 +3,6 @@ Tests for rate limiter retry functionality.
 Verifies tenacity retry behavior for GitHub API calls.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,7 +15,6 @@ from services.github import (
 )
 from services.rate_limiter import (
     fetch_repo_with_retry,
-    batch_fetch_with_retry,
     create_github_retry_decorator,
 )
 
@@ -105,81 +103,6 @@ class TestFetchRepoWithRetry:
                 await fetch_with_limited_retry(mock_github, "owner", "repo")
 
         assert mock_github.get_repo.call_count == 3
-
-
-class TestBatchFetchWithRetry:
-    """Tests for batch_fetch_with_retry function."""
-
-    @pytest.mark.asyncio
-    async def test_batch_all_success(self):
-        """Test batch fetch with all repos succeeding."""
-        mock_github = MagicMock(spec=GitHubService)
-        mock_github.get_repo = AsyncMock(
-            side_effect=[
-                {"full_name": "owner/repo1", "stargazers_count": 100},
-                {"full_name": "owner/repo2", "stargazers_count": 200},
-            ]
-        )
-
-        repos = [("owner", "repo1"), ("owner", "repo2")]
-        results = await batch_fetch_with_retry(mock_github, repos)
-
-        assert len(results) == 2
-        assert results["owner/repo1"]["stargazers_count"] == 100
-        assert results["owner/repo2"]["stargazers_count"] == 200
-
-    @pytest.mark.asyncio
-    async def test_batch_partial_failure(self):
-        """Test batch fetch with some repos failing."""
-        mock_github = MagicMock(spec=GitHubService)
-        mock_github.get_repo = AsyncMock(
-            side_effect=[
-                {"full_name": "owner/repo1", "stargazers_count": 100},
-                GitHubNotFoundError("Not found", 404),
-            ]
-        )
-
-        repos = [("owner", "repo1"), ("owner", "missing")]
-        results = await batch_fetch_with_retry(mock_github, repos)
-
-        assert results["owner/repo1"]["stargazers_count"] == 100
-        assert results["owner/missing"] is None
-
-    @pytest.mark.asyncio
-    async def test_batch_with_callbacks(self):
-        """Test batch fetch with success/failure callbacks."""
-        mock_github = MagicMock(spec=GitHubService)
-
-        async def mock_get_repo(_owner: str, name: str):
-            await asyncio.sleep(0)  # Satisfy async requirement
-            if name == "repo1":
-                return {"full_name": "owner/repo1", "stargazers_count": 100}
-            raise GitHubNotFoundError("Not found", 404)
-
-        mock_github.get_repo = mock_get_repo
-
-        success_results: list[tuple[str, str, dict]] = []
-        failure_results: list[tuple[str, str, str]] = []
-
-        async def on_success(owner: str, name: str, data: dict) -> None:
-            await asyncio.sleep(0)  # Satisfy async requirement
-            success_results.append((owner, name, data))
-
-        async def on_failure(owner: str, name: str, error: Exception) -> None:
-            await asyncio.sleep(0)  # Satisfy async requirement
-            failure_results.append((owner, name, type(error).__name__))
-
-        repos = [("owner", "repo1"), ("owner", "missing")]
-        await batch_fetch_with_retry(
-            mock_github, repos, on_success=on_success, on_failure=on_failure
-        )
-
-        assert len(success_results) == 1
-        assert success_results[0][0] == "owner"
-        assert success_results[0][1] == "repo1"
-
-        assert len(failure_results) == 1
-        assert failure_results[0][2] == "GitHubNotFoundError"
 
 
 class TestCreateGitHubRetryDecorator:

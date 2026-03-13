@@ -110,67 +110,6 @@ def success_response(
     return response
 
 
-def error_response(
-    message: str,
-    code: str = ErrorCode.INTERNAL_ERROR,
-    details: Any | None = None
-) -> dict:
-    """
-    Create an error API response.
-
-    Args:
-        message: Human-readable error message
-        code: Error code from ErrorCode constants
-        details: Additional error details
-
-    Returns:
-        Dict formatted as ApiResponse with error
-    """
-    return {
-        "success": False,
-        "data": None,
-        "message": message,
-        "error": {
-            "code": code,
-            "details": details,
-        },
-    }
-
-
-def paginated_response(
-    items: list[Any],
-    total: int,
-    page: int = 1,
-    per_page: int = 20,
-    message: str | None = None
-) -> dict:
-    """
-    Create a paginated list response.
-
-    Args:
-        items: List of items for current page
-        total: Total number of items across all pages
-        page: Current page number
-        per_page: Items per page
-        message: Optional message
-
-    Returns:
-        Dict formatted as ApiResponse with pagination
-    """
-    total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
-
-    pagination = PaginationInfo(
-        page=page,
-        per_page=per_page,
-        total=total,
-        total_pages=total_pages
-    )
-
-    return success_response(
-        data=items,
-        message=message,
-        pagination=pagination
-    )
 
 
 # Status response for simple operations

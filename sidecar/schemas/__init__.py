@@ -7,8 +7,6 @@ from .repo import (
     RepoResponse,
     RepoWithSignals,
     RepoListResponse,
-    SnapshotResponse,
-    SignalResponse,
     StarredRepo,
     StarredReposResponse,
     BatchRepoCreate,
@@ -21,8 +19,6 @@ from .response import (
     ErrorCode,
     StatusResponse,
     success_response,
-    error_response,
-    paginated_response,
 )
 from .discovery import (
     DiscoveryRepo,
@@ -35,8 +31,6 @@ __all__ = [
     "RepoResponse",
     "RepoWithSignals",
     "RepoListResponse",
-    "SnapshotResponse",
-    "SignalResponse",
     "StarredRepo",
     "StarredReposResponse",
     "BatchRepoCreate",
@@ -48,8 +42,6 @@ __all__ = [
     "ErrorCode",
     "StatusResponse",
     "success_response",
-    "error_response",
-    "paginated_response",
     # Discovery schemas
     "DiscoveryRepo",
     "SearchResponse",

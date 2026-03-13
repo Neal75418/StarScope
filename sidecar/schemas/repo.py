@@ -2,7 +2,7 @@
 Pydantic schemas for Repo-related API endpoints.
 """
 
-from datetime import datetime, date
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
 import re
 
@@ -84,29 +84,6 @@ class RepoCreate(BaseModel):
             if match:
                 return match.group(1), match.group(2)
         raise ValueError("Must provide either owner+name or a valid GitHub URL")
-
-
-class SnapshotResponse(BaseModel):
-    """Schema for a repo snapshot."""
-    id: int
-    stars: int
-    forks: int
-    watchers: int
-    open_issues: int
-    snapshot_date: date
-    fetched_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class SignalResponse(BaseModel):
-    """Schema for a calculated signal."""
-    id: int
-    signal_type: str
-    value: float
-    calculated_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class RepoResponse(BaseModel):
