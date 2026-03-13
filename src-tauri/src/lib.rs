@@ -151,16 +151,13 @@ fn show_main_window(app: &AppHandle) {
 
 /// 視窗關閉時清理 sidecar 程序。
 fn cleanup_sidecar(app: &AppHandle) {
-    if let Some(state) = app.try_state::<SidecarState>() {
-        if let Ok(mut child_guard) = state.child.lock() {
-            if let Some(child) = child_guard.take() {
-                if let Err(e) = child.kill() {
-                    warn!("終止 sidecar 程序失敗: {e}");
-                } else {
-                    info!("Sidecar 程序已成功終止");
-                }
-            }
-        }
+    let Some(state) = app.try_state::<SidecarState>() else { return };
+    let Ok(mut child_guard) = state.child.lock() else { return };
+    let Some(child) = child_guard.take() else { return };
+    if let Err(e) = child.kill() {
+        warn!("終止 sidecar 程序失敗: {e}");
+    } else {
+        info!("Sidecar 程序已成功終止");
     }
 }
 

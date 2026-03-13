@@ -78,6 +78,22 @@ def _validate_github_identifier(owner: str, name: str) -> None:
         )
 
 
+def _create_repo_from_github(owner: str, name: str, github_data: dict) -> Repo:
+    """從 GitHub API 回傳資料建立 Repo ORM 物件。"""
+    full_name = f"{owner}/{name}"
+    return Repo(
+        owner=owner,
+        name=name,
+        full_name=full_name,
+        url=f"https://github.com/{full_name}",
+        description=github_data.get("description"),
+        github_id=github_data.get("id"),
+        default_branch=github_data.get("default_branch"),
+        language=github_data.get("language"),
+        created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
+    )
+
+
 def _build_repo_with_signals(
     repo: Repo,
     snapshot: RepoSnapshot | None,
@@ -228,17 +244,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     github_data = await github.get_repo(owner, name)
 
     # 建立 repo 紀錄
-    repo = Repo(
-        owner=owner,
-        name=name,
-        full_name=full_name,
-        url=f"https://github.com/{full_name}",
-        description=github_data.get("description"),
-        github_id=github_data.get("id"),
-        default_branch=github_data.get("default_branch"),
-        language=github_data.get("language"),
-        created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
-    )
+    repo = _create_repo_from_github(owner, name, github_data)
     db.add(repo)
     db.flush()
     db.refresh(repo)
@@ -387,17 +393,7 @@ async def batch_add_repos(
             github_data = await github.get_repo(owner, name)
 
             # 建立 repo 紀錄
-            repo = Repo(
-                owner=owner,
-                name=name,
-                full_name=full_name,
-                url=f"https://github.com/{full_name}",
-                description=github_data.get("description"),
-                github_id=github_data.get("id"),
-                default_branch=github_data.get("default_branch"),
-                language=github_data.get("language"),
-                created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
-            )
+            repo = _create_repo_from_github(owner, name, github_data)
             db.add(repo)
             db.flush()
             db.refresh(repo)
