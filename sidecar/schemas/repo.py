@@ -137,6 +137,12 @@ class RepoWithSignals(RepoResponse):
     acceleration: float | None = None
     trend: int | None = None  # -1, 0, 1
 
+    # Fork 與 Issue 趨勢
+    forks_delta_7d: float | None = None
+    forks_delta_30d: float | None = None
+    issues_delta_7d: float | None = None
+    issues_delta_30d: float | None = None
+
     # Latest snapshot date
     last_fetched: datetime | None = None
 
@@ -148,3 +154,35 @@ class RepoListResponse(BaseModel):
     page: int | None = None
     per_page: int | None = None
     total_pages: int | None = None
+
+
+class StarredRepo(BaseModel):
+    """GitHub starred repo 的精簡資訊。"""
+    owner: str
+    name: str
+    full_name: str
+    description: str | None = None
+    language: str | None = None
+    stars: int
+    url: str
+    topics: list[str] = []
+
+
+class StarredReposResponse(BaseModel):
+    """取得 starred repos 的回應。"""
+    repos: list[StarredRepo]
+    total: int
+
+
+class BatchRepoCreate(BaseModel):
+    """批次匯入 repo 的請求（上限 100 筆）。"""
+    repos: list[RepoCreate] = Field(..., max_length=100)
+
+
+class BatchImportResult(BaseModel):
+    """批次匯入結果。"""
+    total: int
+    success: int
+    skipped: int
+    failed: int
+    errors: list[str] = []

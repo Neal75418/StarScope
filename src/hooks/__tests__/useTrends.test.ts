@@ -33,6 +33,10 @@ function makeTrendingRepo(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
     velocity: 14.3,
     acceleration: 0.5,
     trend: 1,
+    forks_delta_7d: null,
+    forks_delta_30d: null,
+    issues_delta_7d: null,
+    issues_delta_30d: null,
     rank: 1,
     ...overrides,
   };

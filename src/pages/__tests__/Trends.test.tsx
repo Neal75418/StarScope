@@ -73,6 +73,10 @@ function makeTrending(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
     velocity: 71.4,
     acceleration: 5.2,
     trend: 1,
+    forks_delta_7d: null,
+    forks_delta_30d: null,
+    issues_delta_7d: null,
+    issues_delta_30d: null,
     rank: 1,
     ...overrides,
   };
@@ -205,7 +209,8 @@ describe("Trends", () => {
   it("shows dash for null velocity", () => {
     mockTrendsReturn.trends = [makeTrending({ velocity: null })];
     render(<Trends />);
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
   it("shows formatted velocity for non-null value", () => {

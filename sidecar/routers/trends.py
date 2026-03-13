@@ -26,6 +26,8 @@ class SortBy(str, Enum):
     STARS_DELTA_7D = "stars_delta_7d"
     STARS_DELTA_30D = "stars_delta_30d"
     ACCELERATION = "acceleration"
+    FORKS_DELTA_7D = "forks_delta_7d"
+    ISSUES_DELTA_7D = "issues_delta_7d"
 
 
 class TrendingRepo(BaseModel):
@@ -43,6 +45,11 @@ class TrendingRepo(BaseModel):
     velocity: float | None
     acceleration: float | None
     trend: int | None
+    # Fork 與 Issue 趨勢
+    forks_delta_7d: float | None = None
+    forks_delta_30d: float | None = None
+    issues_delta_7d: float | None = None
+    issues_delta_30d: float | None = None
     rank: int
 
     model_config = ConfigDict(from_attributes=True)
@@ -62,6 +69,8 @@ def _get_signal_type_for_sort(sort_by: SortBy) -> str:
         SortBy.STARS_DELTA_7D: SignalType.STARS_DELTA_7D,
         SortBy.STARS_DELTA_30D: SignalType.STARS_DELTA_30D,
         SortBy.ACCELERATION: SignalType.ACCELERATION,
+        SortBy.FORKS_DELTA_7D: SignalType.FORKS_DELTA_7D,
+        SortBy.ISSUES_DELTA_7D: SignalType.ISSUES_DELTA_7D,
     }[sort_by]
 
 
@@ -156,6 +165,10 @@ async def get_trends(
             velocity=signals.get(SignalType.VELOCITY),
             acceleration=signals.get(SignalType.ACCELERATION),
             trend=int(trend_val) if trend_val else None,
+            forks_delta_7d=signals.get(SignalType.FORKS_DELTA_7D),
+            forks_delta_30d=signals.get(SignalType.FORKS_DELTA_30D),
+            issues_delta_7d=signals.get(SignalType.ISSUES_DELTA_7D),
+            issues_delta_30d=signals.get(SignalType.ISSUES_DELTA_30D),
             rank=rank,
         ))
 

@@ -22,6 +22,10 @@ export interface RepoWithSignals {
   velocity: number | null;
   acceleration: number | null;
   trend: number | null; // -1, 0, 1 表示趨勢方向
+  forks_delta_7d: number | null;
+  forks_delta_30d: number | null;
+  issues_delta_7d: number | null;
+  issues_delta_30d: number | null;
   last_fetched: string | null;
 }
 
@@ -34,6 +38,32 @@ export interface RepoCreate {
   owner?: string;
   name?: string;
   url?: string;
+}
+
+// ==================== Starred Import 型別 ====================
+
+export interface StarredRepo {
+  owner: string;
+  name: string;
+  full_name: string;
+  description: string | null;
+  language: string | null;
+  stars: number;
+  url: string;
+  topics: string[];
+}
+
+export interface StarredReposResponse {
+  repos: StarredRepo[];
+  total: number;
+}
+
+export interface BatchImportResult {
+  total: number;
+  success: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
 }
 
 export interface HealthResponse {
@@ -377,6 +407,10 @@ export interface TrendingRepo {
   velocity: number | null;
   acceleration: number | null;
   trend: number | null;
+  forks_delta_7d: number | null;
+  forks_delta_30d: number | null;
+  issues_delta_7d: number | null;
+  issues_delta_30d: number | null;
   rank: number;
 }
 

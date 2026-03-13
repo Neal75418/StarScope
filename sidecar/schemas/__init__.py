@@ -9,6 +9,10 @@ from .repo import (
     RepoListResponse,
     SnapshotResponse,
     SignalResponse,
+    StarredRepo,
+    StarredReposResponse,
+    BatchRepoCreate,
+    BatchImportResult,
 )
 from .response import (
     ApiResponse,
@@ -33,6 +37,10 @@ __all__ = [
     "RepoListResponse",
     "SnapshotResponse",
     "SignalResponse",
+    "StarredRepo",
+    "StarredReposResponse",
+    "BatchRepoCreate",
+    "BatchImportResult",
     # Response schemas
     "ApiResponse",
     "PaginationInfo",

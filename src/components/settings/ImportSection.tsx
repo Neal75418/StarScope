@@ -5,6 +5,10 @@
 import { useState, useRef, ChangeEvent, memo } from "react";
 import { useI18n } from "../../i18n";
 import { useImport, ParsedRepo } from "../../hooks/useImport";
+import { useStarredImport } from "../../hooks/useStarredImport";
+import { useQuery } from "@tanstack/react-query";
+import { getGitHubConnectionStatus } from "../../api/client";
+import { queryKeys } from "../../lib/react-query";
 
 function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
   switch (status) {
@@ -119,6 +123,13 @@ export function ImportSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [textInput, setTextInput] = useState("");
 
+  const starred = useStarredImport();
+  const { data: ghStatus } = useQuery({
+    queryKey: queryKeys.connection.status(),
+    queryFn: getGitHubConnectionStatus,
+  });
+  const isConnected = ghStatus?.connected ?? false;
+
   const { parsedRepos, isImporting, result, parseError, parseFile, parseText, startImport, reset } =
     useImport();
 
@@ -149,6 +160,118 @@ export function ImportSection() {
           <h2>{t.settings.import.title}</h2>
           <p className="settings-description">{t.settings.import.description}</p>
         </div>
+      </div>
+
+      {/* 從 GitHub Stars 匯入 */}
+      <div className="import-form" style={{ marginBottom: "1.5rem" }}>
+        <div className="import-method">
+          <label className="import-label">{t.settings.import.starredImport.title}</label>
+          <p className="import-hint">{t.settings.import.starredImport.description}</p>
+
+          {!isConnected ? (
+            <p className="import-hint" style={{ color: "var(--color-warning)" }}>
+              {t.settings.import.starredImport.notConnected}
+            </p>
+          ) : !starred.hasFetched ? (
+            <button
+              className="btn btn-primary"
+              onClick={starred.fetchStarred}
+              disabled={starred.isLoading}
+            >
+              {t.settings.import.starredImport.fetchStars}
+            </button>
+          ) : starred.isLoading ? (
+            <p className="import-hint">{t.settings.import.starredImport.loading}</p>
+          ) : starred.result ? (
+            <ImportResult result={starred.result} />
+          ) : starred.starredRepos.length === 0 ? (
+            <p className="import-hint">{t.settings.import.starredImport.noNew}</p>
+          ) : (
+            <>
+              <div className="import-actions" style={{ marginBottom: "0.75rem" }}>
+                <button className="btn btn-sm" onClick={starred.selectAll}>
+                  {t.settings.import.starredImport.selectAll}
+                </button>
+                <button className="btn btn-sm" onClick={starred.deselectAll}>
+                  {t.settings.import.starredImport.deselectAll}
+                </button>
+                <span className="import-count">
+                  {starred.selectedRepos.size} {t.settings.import.starredImport.selected}
+                </span>
+              </div>
+              <div
+                className="import-preview-list"
+                style={{ maxHeight: "300px", overflowY: "auto" }}
+              >
+                {starred.starredRepos.map((repo) => (
+                  <label
+                    key={repo.full_name}
+                    className="import-item"
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={starred.selectedRepos.has(repo.full_name)}
+                      onChange={() => starred.toggleRepo(repo.full_name)}
+                    />
+                    <span className="import-item-name">{repo.full_name}</span>
+                    {repo.language && (
+                      <span className="import-hint" style={{ fontSize: "0.75rem" }}>
+                        {repo.language}
+                      </span>
+                    )}
+                    <span className="import-hint" style={{ fontSize: "0.75rem" }}>
+                      ★ {repo.stars.toLocaleString()}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="import-actions" style={{ marginTop: "0.75rem" }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void starred.startImport()}
+                  disabled={starred.isImporting || starred.selectedRepos.size === 0}
+                  aria-busy={starred.isImporting}
+                >
+                  {starred.isImporting
+                    ? t.settings.import.importing
+                    : t.settings.import.starredImport.importSelected}
+                </button>
+                <button className="btn" onClick={starred.reset}>
+                  {t.common.cancel}
+                </button>
+              </div>
+            </>
+          )}
+
+          {starred.error && (
+            <div className="import-error" role="alert" style={{ marginTop: "0.5rem" }}>
+              {starred.error}
+            </div>
+          )}
+          {starred.importError && (
+            <div className="import-error" role="alert" style={{ marginTop: "0.5rem" }}>
+              {starred.importError}
+            </div>
+          )}
+          {starred.result && (
+            <div className="import-actions" style={{ marginTop: "0.75rem" }}>
+              <button className="btn btn-primary" onClick={starred.reset}>
+                {t.settings.import.importMore}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 分隔線 */}
+      <div className="import-divider" aria-hidden="true">
+        <span>{t.settings.import.or}</span>
       </div>
 
       <div className="import-form">

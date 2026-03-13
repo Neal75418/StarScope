@@ -15,7 +15,14 @@ import { useWatchlistState } from "../contexts/WatchlistContext";
 import { logger } from "../utils/logger";
 import { safeOpenUrl } from "../utils/url";
 
-const SORT_KEYS: SortOption[] = ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"];
+const SORT_KEYS: SortOption[] = [
+  "velocity",
+  "stars_delta_7d",
+  "stars_delta_30d",
+  "acceleration",
+  "forks_delta_7d",
+  "issues_delta_7d",
+];
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
 
@@ -54,6 +61,16 @@ const TrendRow = memo(function TrendRow({
       <td className="velocity-col">{repo.velocity !== null ? repo.velocity.toFixed(1) : "—"}</td>
       <td className="trend-col">
         <TrendArrow trend={repo.trend} />
+      </td>
+      <td
+        className={`delta-col ${(repo.forks_delta_7d ?? 0) > 0 ? "positive" : (repo.forks_delta_7d ?? 0) < 0 ? "negative" : ""}`}
+      >
+        {formatDelta(repo.forks_delta_7d)}
+      </td>
+      <td
+        className={`delta-col ${(repo.issues_delta_7d ?? 0) > 0 ? "negative" : (repo.issues_delta_7d ?? 0) < 0 ? "positive" : ""}`}
+      >
+        {formatDelta(repo.issues_delta_7d)}
       </td>
       <td className="action-col">
         {isInWatchlist ? (
@@ -124,7 +141,7 @@ export function Trends() {
 
         <div className="toolbar">
           <div className="sort-tabs">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} width={80} height={32} variant="rounded" />
             ))}
           </div>
@@ -141,6 +158,8 @@ export function Trends() {
                 <th className="delta-col">{t.trends.columns.delta30d}</th>
                 <th className="velocity-col">{t.trends.columns.velocity}</th>
                 <th className="trend-col">{t.repo.trend}</th>
+                <th className="delta-col">{t.trends.columns.forksDelta7d}</th>
+                <th className="delta-col">{t.trends.columns.issuesDelta7d}</th>
                 <th className="action-col" />
               </tr>
             </thead>
@@ -167,6 +186,12 @@ export function Trends() {
                   </td>
                   <td className="trend-col">
                     <Skeleton width={20} height={16} />
+                  </td>
+                  <td className="delta-col">
+                    <Skeleton width={40} height={16} />
+                  </td>
+                  <td className="delta-col">
+                    <Skeleton width={40} height={16} />
                   </td>
                   <td className="action-col">
                     <Skeleton width={60} height={24} variant="rounded" />
@@ -197,6 +222,8 @@ export function Trends() {
     stars_delta_7d: t.trends.sortOptions.stars_delta_7d,
     stars_delta_30d: t.trends.sortOptions.stars_delta_30d,
     acceleration: t.trends.sortOptions.acceleration,
+    forks_delta_7d: t.trends.sortOptions.forks_delta_7d,
+    issues_delta_7d: t.trends.sortOptions.issues_delta_7d,
   };
 
   return (
@@ -278,6 +305,8 @@ export function Trends() {
                 <th className="delta-col">{t.trends.columns.delta30d}</th>
                 <th className="velocity-col">{t.trends.columns.velocity}</th>
                 <th className="trend-col">{t.repo.trend}</th>
+                <th className="delta-col">{t.trends.columns.forksDelta7d}</th>
+                <th className="delta-col">{t.trends.columns.issuesDelta7d}</th>
                 <th className="action-col" />
               </tr>
             </thead>

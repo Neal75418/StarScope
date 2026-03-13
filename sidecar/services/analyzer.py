@@ -57,10 +57,12 @@ def get_snapshot_for_date(
 def calculate_delta(
     repo_id: int,
     days: int,
-    db: Session
+    db: Session,
+    field: str = "stars"
 ) -> float | None:
     """
-    計算指定天數的 star 差值。
+    計算指定天數的指標差值。
+    field 可為 "stars"、"forks"、"open_issues"。
     資料不足時回傳 None。
     """
     today = utc_today()
@@ -76,7 +78,7 @@ def calculate_delta(
     if current_snapshot.snapshot_date == past_snapshot.snapshot_date:
         return 0.0
 
-    return float(current_snapshot.stars - past_snapshot.stars)
+    return float(getattr(current_snapshot, field) - getattr(past_snapshot, field))
 
 
 def calculate_velocity(
@@ -180,6 +182,12 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
     acceleration = calculate_acceleration(repo_id, db)
     trend = calculate_trend(velocity, acceleration)
 
+    # Fork 與 Issue 差值
+    forks_delta_7d = calculate_delta(repo_id, 7, db, "forks")
+    forks_delta_30d = calculate_delta(repo_id, 30, db, "forks")
+    issues_delta_7d = calculate_delta(repo_id, 7, db, "open_issues")
+    issues_delta_30d = calculate_delta(repo_id, 30, db, "open_issues")
+
     # 儲存訊號
     signal_values = [
         (SignalType.STARS_DELTA_7D, delta_7d),
@@ -187,6 +195,10 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
         (SignalType.VELOCITY, velocity),
         (SignalType.ACCELERATION, acceleration),
         (SignalType.TREND, float(trend)),
+        (SignalType.FORKS_DELTA_7D, forks_delta_7d),
+        (SignalType.FORKS_DELTA_30D, forks_delta_30d),
+        (SignalType.ISSUES_DELTA_7D, issues_delta_7d),
+        (SignalType.ISSUES_DELTA_30D, issues_delta_30d),
     ]
 
     for signal_type, value in signal_values:

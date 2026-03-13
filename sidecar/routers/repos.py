@@ -10,7 +10,15 @@ from sqlalchemy import desc
 
 from db import get_db, Repo, RepoSnapshot
 from middleware.rate_limit import limiter
-from schemas import RepoCreate, RepoWithSignals, RepoListResponse
+from schemas import (
+    RepoCreate,
+    RepoWithSignals,
+    RepoListResponse,
+    BatchRepoCreate,
+    BatchImportResult,
+    StarredRepo,
+    StarredReposResponse,
+)
 from schemas.response import ApiResponse, success_response
 from constants import (
     SignalType,
@@ -93,6 +101,10 @@ def _build_repo_with_signals(
         velocity=signals.get(SignalType.VELOCITY),
         acceleration=signals.get(SignalType.ACCELERATION),
         trend=int(signals.get(SignalType.TREND, 0)) if SignalType.TREND in signals else None,
+        forks_delta_7d=signals.get(SignalType.FORKS_DELTA_7D),
+        forks_delta_30d=signals.get(SignalType.FORKS_DELTA_30D),
+        issues_delta_7d=signals.get(SignalType.ISSUES_DELTA_7D),
+        issues_delta_30d=signals.get(SignalType.ISSUES_DELTA_30D),
         last_fetched=snapshot.fetched_at if snapshot else None,
     )
 
@@ -242,6 +254,189 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     )
 
 
+@router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
+@limiter.limit("5/minute")
+async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
+    """
+    抓取追蹤清單中所有 repo 的最新資料。
+    使用指數退避重試處理速率限制。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    # noinspection PyTypeChecker
+    repos: list[Repo] = db.query(Repo).all()
+    github = get_github_service()
+
+    success_count = 0
+    failed_count = 0
+
+    for repo in repos:
+        try:
+            # 使用帶指數退避的重試包裝器
+            github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
+
+            # 原子性更新中繼資料 + 快照 + 訊號（每個 repo 獨立 commit）
+            update_repo_from_github(repo, github_data, db)
+            success_count += 1
+
+        except GitHubNotFoundError:
+            db.rollback()
+            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
+            failed_count += 1
+            continue
+        except GitHubAPIError as e:
+            db.rollback()
+            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+            failed_count += 1
+            continue
+
+    repo_list = _build_repo_list_response(db)
+    return success_response(
+        data=repo_list,
+        message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
+    )
+
+
+@router.get("/repos/starred", response_model=ApiResponse[StarredReposResponse])
+@limiter.limit("10/minute")
+async def get_starred_repos(request: Request, db: Session = Depends(get_db)) -> dict:
+    """
+    取得使用者在 GitHub 上已加星號的 repo（排除已在追蹤清單中的）。
+    需要已連結 GitHub 帳號。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    github = get_github_service()
+    if not github.token:
+        raise HTTPException(
+            status_code=401,
+            detail="GitHub account not connected",
+        )
+
+    raw_starred = await github.get_user_starred()
+
+    # 取得已在追蹤清單中的 repo full_name 集合
+    existing_full_names: set[str] = {r.full_name for r in db.query(Repo.full_name).all()}
+
+    # 篩除已追蹤的 repo，轉換為 StarredRepo
+    starred_repos: list[StarredRepo] = []
+    for repo in raw_starred:
+        full_name = repo.get("full_name", "")
+        if full_name in existing_full_names:
+            continue
+        starred_repos.append(
+            StarredRepo(
+                owner=repo["owner"]["login"],
+                name=repo["name"],
+                full_name=full_name,
+                description=repo.get("description"),
+                language=repo.get("language"),
+                stars=repo.get("stargazers_count", 0),
+                url=repo.get("html_url", ""),
+                topics=repo.get("topics", []),
+            )
+        )
+
+    return success_response(
+        data=StarredReposResponse(repos=starred_repos, total=len(starred_repos)),
+    )
+
+
+@router.post("/repos/batch", response_model=ApiResponse[BatchImportResult])
+@limiter.limit("5/minute")
+async def batch_add_repos(
+    batch: BatchRepoCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """
+    批次將多個 repo 加入追蹤清單。
+    已存在的 repo 會被跳過，失敗的不會中斷整個批次。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    github = get_github_service()
+
+    success = 0
+    skipped = 0
+    failed = 0
+    errors: list[str] = []
+
+    for repo_input in batch.repos:
+        try:
+            owner, name = repo_input.get_owner_name()
+        except ValueError as e:
+            failed += 1
+            errors.append(f"無效的 repo 輸入: {e}")
+            continue
+
+        full_name = f"{owner}/{name}"
+
+        try:
+            _validate_github_identifier(owner, name)
+        except HTTPException as e:
+            failed += 1
+            errors.append(f"{full_name}: {e.detail}")
+            continue
+
+        # 檢查是否已存在
+        existing = db.query(Repo).filter(Repo.full_name == full_name).first()
+        if existing:
+            skipped += 1
+            continue
+
+        try:
+            # 從 GitHub 抓取 repo 資訊
+            github_data = await github.get_repo(owner, name)
+
+            # 建立 repo 紀錄
+            repo = Repo(
+                owner=owner,
+                name=name,
+                full_name=full_name,
+                url=f"https://github.com/{full_name}",
+                description=github_data.get("description"),
+                github_id=github_data.get("id"),
+                default_branch=github_data.get("default_branch"),
+                language=github_data.get("language"),
+                created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
+            )
+            db.add(repo)
+            db.flush()
+            db.refresh(repo)
+
+            # 建立初始快照
+            create_or_update_snapshot(repo, github_data, db)
+            db.commit()
+            success += 1
+
+        except GitHubNotFoundError:
+            failed += 1
+            errors.append(f"{full_name}: 在 GitHub 上找不到")
+            db.rollback()
+            continue
+        except GitHubAPIError as e:
+            failed += 1
+            errors.append(f"{full_name}: GitHub API 錯誤 - {e}")
+            db.rollback()
+            continue
+        except Exception as e:
+            failed += 1
+            errors.append(f"{full_name}: 未預期錯誤 - {e}")
+            db.rollback()
+            continue
+
+    return success_response(
+        data=BatchImportResult(
+            total=len(batch.repos),
+            success=success,
+            skipped=skipped,
+            failed=failed,
+            errors=errors,
+        ),
+    )
+
+
+# --- 帶路徑參數的路由放在最後，避免覆蓋固定路徑 ---
+
+
 @router.get("/repos/{repo_id}", response_model=ApiResponse[RepoWithSignals])
 async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """
@@ -283,46 +478,4 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     return success_response(
         data=repo_with_signals,
         message=f"Repository {repo.full_name} data refreshed"
-    )
-
-
-@router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
-@limiter.limit("5/minute")
-async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
-    """
-    抓取追蹤清單中所有 repo 的最新資料。
-    使用指數退避重試處理速率限制。
-    """
-    _ = request  # 由 @limiter.limit decorator 隱式使用
-    # noinspection PyTypeChecker
-    repos: list[Repo] = db.query(Repo).all()
-    github = get_github_service()
-
-    success_count = 0
-    failed_count = 0
-
-    for repo in repos:
-        try:
-            # 使用帶指數退避的重試包裝器
-            github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
-
-            # 原子性更新中繼資料 + 快照 + 訊號（每個 repo 獨立 commit）
-            update_repo_from_github(repo, github_data, db)
-            success_count += 1
-
-        except GitHubNotFoundError:
-            db.rollback()
-            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
-            failed_count += 1
-            continue
-        except GitHubAPIError as e:
-            db.rollback()
-            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
-            failed_count += 1
-            continue
-
-    repo_list = _build_repo_list_response(db)
-    return success_response(
-        data=repo_list,
-        message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
     )

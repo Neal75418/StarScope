@@ -34,6 +34,10 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
     velocity: 71.4,
     acceleration: 5.2,
     trend: 1,
+    forks_delta_7d: null,
+    forks_delta_30d: null,
+    issues_delta_7d: null,
+    issues_delta_30d: null,
     last_fetched: "2024-06-01T00:00:00Z",
     ...overrides,
   };

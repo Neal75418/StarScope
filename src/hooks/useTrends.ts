@@ -11,7 +11,13 @@ import { queryKeys } from "../lib/react-query";
 
 export type { TrendingRepo } from "../api/client";
 import type { TrendingRepo } from "../api/client";
-export type SortOption = "velocity" | "stars_delta_7d" | "stars_delta_30d" | "acceleration";
+export type SortOption =
+  | "velocity"
+  | "stars_delta_7d"
+  | "stars_delta_30d"
+  | "acceleration"
+  | "forks_delta_7d"
+  | "issues_delta_7d";
 
 const EMPTY_TRENDS: TrendingRepo[] = [];
 

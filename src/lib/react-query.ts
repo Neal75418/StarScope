@@ -51,6 +51,7 @@ export const queryKeys = {
       [...queryKeys.repos.lists(), filters] as const,
     details: () => [...queryKeys.repos.all, "detail"] as const,
     detail: (id: number) => [...queryKeys.repos.details(), id] as const,
+    starred: () => [...queryKeys.repos.all, "starred"] as const,
   },
 
   // Early Signals

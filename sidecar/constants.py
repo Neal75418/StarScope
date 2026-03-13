@@ -52,6 +52,10 @@ class SignalType(StrEnum):
     VELOCITY = "velocity"  # 每日 star 數
     ACCELERATION = "acceleration"  # velocity 的變化率
     TREND = "trend"  # -1, 0, 1（下降、穩定、上升）
+    FORKS_DELTA_7D = "forks_delta_7d"  # 7 天 fork 變化量
+    FORKS_DELTA_30D = "forks_delta_30d"  # 30 天 fork 變化量
+    ISSUES_DELTA_7D = "issues_delta_7d"  # 7 天 issue 變化量
+    ISSUES_DELTA_30D = "issues_delta_30d"  # 30 天 issue 變化量
 
 
 class AlertOperator(StrEnum):

@@ -55,6 +55,8 @@ import type {
   ComparisonChartResponse,
   ComparisonTimeRange,
   PersonalizedResponse,
+  StarredReposResponse,
+  BatchImportResult,
 } from "./types";
 
 export * from "./types";
@@ -200,6 +202,23 @@ export async function fetchRepo(repoId: number): Promise<RepoWithSignals> {
 export async function fetchAllRepos(): Promise<RepoListResponse> {
   return apiCall<RepoListResponse>("/repos/fetch-all", {
     method: "POST",
+  });
+}
+
+/**
+ * 取得使用者在 GitHub 上已加星號的 repo（排除已在追蹤清單中的）。
+ */
+export async function getStarredRepos(signal?: AbortSignal): Promise<StarredReposResponse> {
+  return apiCall<StarredReposResponse>("/repos/starred", { signal });
+}
+
+/**
+ * 批次匯入多個 repo。
+ */
+export async function batchAddRepos(repos: RepoCreate[]): Promise<BatchImportResult> {
+  return apiCall<BatchImportResult>("/repos/batch", {
+    method: "POST",
+    body: JSON.stringify({ repos }),
   });
 }
 

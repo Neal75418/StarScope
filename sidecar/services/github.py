@@ -50,21 +50,16 @@ def build_github_headers(token: str | None = None) -> dict:
     return headers
 
 
-def handle_github_response(
+def _check_github_errors(
     response: "httpx.Response",
     raise_on_error: bool = True,
     context: str = ""
-) -> dict | None:
+) -> bool:
     """
-    處理 GitHub API 回應，含標準錯誤檢查。
-
-    Args:
-        response: httpx 回應物件
-        raise_on_error: 為 True 時拋出例外；為 False 時錯誤回傳 None
-        context: 錯誤訊息的上下文字串（例如 "owner/repo"）
+    檢查 GitHub API 回應是否有錯誤。
 
     Returns:
-        JSON 回應字典，或若 raise_on_error=False 且發生錯誤則為 None
+        True 表示回應正常；False 表示有錯誤（且 raise_on_error=False）。
 
     Raises:
         GitHubNotFoundError: 404 且 raise_on_error=True 時
@@ -77,7 +72,7 @@ def handle_github_response(
                 f"Resource not found: {context}" if context else "Resource not found",
                 status_code=404
             )
-        return None
+        return False
 
     if response.status_code == 403:
         remaining = response.headers.get("X-RateLimit-Remaining", "unknown")
@@ -90,7 +85,7 @@ def handle_github_response(
                 reset_at=reset_at,
             )
         logger.warning(f"[GitHub API] 速率限制或禁止存取: {context}")
-        return None
+        return False
 
     if response.status_code == 401:
         if raise_on_error:
@@ -99,10 +94,43 @@ def handle_github_response(
                 status_code=401
             )
         logger.error("[GitHub API] GitHub API 驗證失敗", exc_info=True)
-        return None
+        return False
 
     response.raise_for_status()
+    return True
+
+
+def handle_github_response(
+    response: "httpx.Response",
+    raise_on_error: bool = True,
+    context: str = ""
+) -> dict | None:
+    """
+    處理 GitHub API 回應（回傳 dict 的端點），含標準錯誤檢查。
+
+    Returns:
+        JSON 回應字典，或若 raise_on_error=False 且發生錯誤則為 None
+    """
+    if not _check_github_errors(response, raise_on_error, context):
+        return None
     data: dict = response.json()
+    return data
+
+
+def handle_github_list_response(
+    response: "httpx.Response",
+    raise_on_error: bool = True,
+    context: str = ""
+) -> list[dict]:
+    """
+    處理 GitHub API 回應（回傳 list 的端點），含標準錯誤檢查。
+
+    Returns:
+        JSON 回應列表，或錯誤時回傳空列表。
+    """
+    if not _check_github_errors(response, raise_on_error, context):
+        return []
+    data: list[dict] = response.json()
     return data
 
 
@@ -338,7 +366,7 @@ class GitHubService:
                 params={"per_page": per_page, "page": page},
             )
 
-            data = handle_github_response(
+            data = handle_github_list_response(
                 response, raise_on_error=True, context=f"{owner}/{repo}/stargazers?page={page}"
             )
 
@@ -354,6 +382,45 @@ class GitHubService:
 
         logger.info(f"[GitHub API] 已抓取 {owner}/{repo} 的 {len(all_stargazers)} 個 stargazers")
         return all_stargazers
+
+    async def get_user_starred(self, per_page: int = 100, max_pages: int = 50) -> list[dict]:
+        """
+        取得當前認證使用者的 starred repos。
+
+        使用 GET /user/starred API，需要有效的 OAuth token。
+        分頁取得所有結果，上限 per_page * max_pages 筆。
+
+        Returns:
+            Starred repo 列表，每項包含 full_name、owner、name 等欄位。
+        """
+        all_starred: list[dict] = []
+
+        for page in range(1, max_pages + 1):
+            response = await self.client.get(
+                f"{GITHUB_API_BASE}/user/starred",
+                headers=self.headers,
+                params={
+                    "per_page": per_page,
+                    "page": page,
+                    "sort": "created",
+                    "direction": "desc",
+                },
+            )
+
+            data = handle_github_list_response(
+                response, raise_on_error=True, context=f"user/starred?page={page}"
+            )
+
+            if not data:
+                break
+
+            all_starred.extend(data)
+
+            if len(data) < per_page:
+                break
+
+        logger.info(f"[GitHub API] 已取得使用者的 {len(all_starred)} 個 starred repos")
+        return all_starred
 
 
 # 供排程器使用的模組層級便利函式
