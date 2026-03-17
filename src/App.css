@@ -1377,6 +1377,7 @@ body {
   border: 1px solid var(--success-fg);
   border-radius: var(--radius-sm);
   opacity: 0.8;
+  white-space: nowrap;
 }
 
 .repo-col {

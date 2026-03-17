@@ -50,38 +50,65 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
     }
 }
 
-/// 啟動 Python sidecar，失敗時優雅降級。
+/// 啟動 Python sidecar，失敗時以 exponential backoff 重試，最終優雅降級。
 /// 透過 `Command::env()` 傳遞 app data dir，避免在多執行緒環境呼叫 `std::env::set_var`。
 fn start_sidecar(app: &App) {
-    let mut cmd = match app.shell().sidecar("starscope-sidecar") {
-        Ok(c) => c,
-        Err(e) => {
-            warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
-            app.manage(SidecarState {
-                child: Mutex::new(None),
-            });
-            return;
+    const MAX_RETRIES: u32 = 3;
+    const INITIAL_DELAY_MS: u64 = 500;
+
+    for attempt in 0..=MAX_RETRIES {
+        // 每次重試都重建 Command，因為 spawn() 會 consume self。
+        let mut cmd = match app.shell().sidecar("starscope-sidecar") {
+            Ok(c) => c,
+            Err(e) => {
+                // 找不到 binary 表示檔案不存在，重試無意義。
+                warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
+                app.manage(SidecarState {
+                    child: Mutex::new(None),
+                });
+                return;
+            }
+        };
+
+        // 將 app data dir 透過環境變數傳給 sidecar 子程序，
+        // 而非使用 std::env::set_var（在多執行緒環境有 data race 風險）。
+        if let Ok(app_data_dir) = app.path().app_data_dir() {
+            cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
         }
-    };
 
-    // 將 app data dir 透過環境變數傳給 sidecar 子程序，
-    // 而非使用 std::env::set_var（在多執行緒環境有 data race 風險）。
-    if let Ok(app_data_dir) = app.path().app_data_dir() {
-        cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
-    }
-
-    let state = match cmd.spawn() {
-        Ok((_rx, child)) => SidecarState {
-            child: Mutex::new(Some(child)),
-        },
-        Err(e) => {
-            warn!("sidecar 啟動失敗: {e}，開發環境請執行 './start-dev.sh'");
-            SidecarState {
-                child: Mutex::new(None),
+        match cmd.spawn() {
+            Ok((_rx, child)) => {
+                if attempt > 0 {
+                    info!("Sidecar 在第 {attempt} 次重試後啟動成功");
+                }
+                app.manage(SidecarState {
+                    child: Mutex::new(Some(child)),
+                });
+                return;
+            }
+            Err(e) => {
+                if attempt < MAX_RETRIES {
+                    let delay_ms = INITIAL_DELAY_MS * 2u64.pow(attempt);
+                    warn!(
+                        "Sidecar 啟動失敗 (嘗試 {}/{}): {e}，{delay_ms}ms 後重試",
+                        attempt + 1,
+                        MAX_RETRIES + 1
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                } else {
+                    warn!(
+                        "Sidecar 啟動失敗 (嘗試 {}/{})，已達重試上限: {e}，開發環境請執行 './start-dev.sh'",
+                        attempt + 1,
+                        MAX_RETRIES + 1
+                    );
+                }
             }
         }
-    };
-    app.manage(state);
+    }
+
+    app.manage(SidecarState {
+        child: Mutex::new(None),
+    });
 }
 
 /// 設定系統匣圖示與選單。
