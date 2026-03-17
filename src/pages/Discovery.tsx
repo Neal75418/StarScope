@@ -33,7 +33,13 @@ export function Discovery() {
   const { t } = useI18n();
   const toast = useToast();
   const discovery = useDiscovery();
-  const { setKeyword, setPeriod, reset: resetDiscovery } = discovery;
+  const {
+    setKeyword,
+    setPeriod,
+    setFilters,
+    filters: discoveryFilters,
+    reset: resetDiscovery,
+  } = discovery;
   const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory();
   const { recentRepos, addToRecentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const selection = useSelectionMode();
@@ -94,17 +100,17 @@ export function Discovery() {
   // Quick pick：語言
   const handleQuickLanguage = useCallback(
     (lang: string) => {
-      discovery.setFilters({ ...discovery.filters, language: lang });
+      setFilters({ ...discoveryFilters, language: lang });
     },
-    [discovery.filters, discovery.setFilters]
+    [discoveryFilters, setFilters]
   );
 
   // Quick pick：主題
   const handleQuickTopic = useCallback(
     (topic: string) => {
-      discovery.setFilters({ ...discovery.filters, topic });
+      setFilters({ ...discoveryFilters, topic });
     },
-    [discovery.filters, discovery.setFilters]
+    [discoveryFilters, setFilters]
   );
 
   // 清除所有篩選條件
