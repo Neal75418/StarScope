@@ -48,22 +48,13 @@ export function useAlertRuleData(toast: Toast) {
 
   // 透過 effect 顯示錯誤 toast，避免在 render 中觸發副作用
   useEffect(() => {
-    if (rulesQuery.error) {
-      toastRef.current.error(getErrorMessage(rulesQuery.error, tRef.current.common.error));
+    const errors = [rulesQuery.error, signalTypesQuery.error, reposQuery.error];
+    for (const err of errors) {
+      if (err) {
+        toastRef.current.error(getErrorMessage(err, tRef.current.common.error));
+      }
     }
-  }, [rulesQuery.error]);
-
-  useEffect(() => {
-    if (signalTypesQuery.error) {
-      toastRef.current.error(getErrorMessage(signalTypesQuery.error, tRef.current.common.error));
-    }
-  }, [signalTypesQuery.error]);
-
-  useEffect(() => {
-    if (reposQuery.error) {
-      toastRef.current.error(getErrorMessage(reposQuery.error, tRef.current.common.error));
-    }
-  }, [reposQuery.error]);
+  }, [rulesQuery.error, signalTypesQuery.error, reposQuery.error]);
 
   const setRules: Dispatch<SetStateAction<AlertRule[]>> = useCallback(
     (updater) => {

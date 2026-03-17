@@ -2,7 +2,7 @@
  * 探索頁面：GitHub Repository 搜尋與篩選。
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchFilters } from "../api/client";
 import { TrendingPeriod } from "../components/discovery";
 import { useDiscoverySearch } from "./useDiscoverySearch";
@@ -26,6 +26,9 @@ const INITIAL_STATE: DiscoveryState = {
   hasSearched: false,
 };
 
+/** 搜尋輸入的 debounce 延遲（毫秒），避免每次按鍵都觸發 API 請求。 */
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function useDiscovery() {
   const { repos, totalCount, hasMore, loading, error, executeSearch, resetSearch } =
     useDiscoverySearch();
@@ -35,11 +38,22 @@ export function useDiscovery() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // 觸發新搜尋（重設頁碼為 1）
+  // Debounce timer ref — 延遲新搜尋的 API 呼叫，避免每次按鍵都發請求
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // 清除 debounce timer（unmount 時）
+  useEffect(() => {
+    return () => clearTimeout(searchTimerRef.current);
+  }, []);
+
+  // 觸發新搜尋（重設頁碼為 1），以 debounce 延遲 API 呼叫
   const search = useCallback(
     (kw: string, p: TrendingPeriod | undefined, f: SearchFilters) => {
       setState({ keyword: kw, period: p, filters: f, hasSearched: true });
-      void executeSearch(kw, p, f, 1);
+      clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = setTimeout(() => {
+        void executeSearch(kw, p, f, 1);
+      }, SEARCH_DEBOUNCE_MS);
     },
     [executeSearch]
   );
@@ -85,6 +99,7 @@ export function useDiscovery() {
   }, [hasMore, loading, repos.length, executeSearch]);
 
   const reset = useCallback(() => {
+    clearTimeout(searchTimerRef.current);
     setState(INITIAL_STATE);
     resetSearch();
   }, [resetSearch]);

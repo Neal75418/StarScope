@@ -13,7 +13,7 @@
 
   --fg-default: #c9d1d9;
   --fg-muted: #8b949e;
-  --fg-subtle: #6e7681;
+  --fg-subtle: #848d97;
   --fg-on-emphasis: #ffffff;
 
   --border-default: #30363d;
@@ -79,6 +79,14 @@
   --radius-lg: 8px;
   --radius-xl: 12px;
   --radius-pill: 9999px;
+
+  /* Z-index scale */
+  --z-elevated: 10;
+  --z-sticky: 100;
+  --z-dropdown: 500;
+  --z-overlay: 1000;
+  --z-toast: 2000;
+  --z-skip-link: 9999;
 
   /* Header specific */
   --header-bg: #161b22;
@@ -260,7 +268,7 @@ body {
   border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: var(--z-sticky);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
 }
@@ -441,7 +449,7 @@ body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
 }
@@ -1152,7 +1160,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-overlay);
 }
 
 .dialog {
@@ -1350,6 +1358,10 @@ body {
 .trends-filter-select:hover,
 .trends-filter-select:focus {
   border-color: var(--accent-fg);
+}
+
+.trends-filter-select:focus {
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 /* Trends Action Column */
@@ -2549,6 +2561,7 @@ body {
 .signals-select:focus {
   outline: none;
   border-color: var(--accent-fg);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 .signals-checkbox {
@@ -3203,7 +3216,7 @@ body {
   border-color: var(--border-muted);
   transform: translateY(-2px);
   box-shadow: var(--card-hover-shadow);
-  z-index: 10;
+  z-index: var(--z-elevated);
 }
 
 .alert-rule-card {
@@ -3331,7 +3344,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 2000;
+  z-index: var(--z-toast);
   max-width: 360px;
 }
 
@@ -3513,7 +3526,7 @@ a:focus-visible {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: var(--z-sticky);
     background-color: var(--bg-default);
     border-top: 1px solid var(--border-default);
     padding: 4px 0 env(safe-area-inset-bottom, 4px);
@@ -4897,7 +4910,7 @@ a:focus-visible {
   font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  z-index: 9999;
+  z-index: var(--z-skip-link);
 }
 
 .skip-to-content:focus {
@@ -5165,6 +5178,7 @@ a:focus-visible {
 .compare-search:focus {
   outline: none;
   border-color: var(--accent-fg);
+  box-shadow: 0 0 0 3px var(--accent-muted);
 }
 
 .compare-repo-list {

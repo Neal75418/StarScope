@@ -11,16 +11,32 @@ export function TrendArrow({ trend, size = "md" }: TrendArrowProps) {
   const sizeClass = `trend-arrow-${size}`;
 
   if (trend === null) {
-    return <span className={`${sizeClass} trend-arrow-neutral`}>—</span>;
+    return (
+      <span className={`${sizeClass} trend-arrow-neutral`} aria-hidden="true">
+        —
+      </span>
+    );
   }
 
   if (trend > 0) {
-    return <span className={`${sizeClass} trend-arrow-up`}>↑</span>;
+    return (
+      <span className={`${sizeClass} trend-arrow-up`} aria-hidden="true">
+        ↑
+      </span>
+    );
   }
 
   if (trend < 0) {
-    return <span className={`${sizeClass} trend-arrow-down`}>↓</span>;
+    return (
+      <span className={`${sizeClass} trend-arrow-down`} aria-hidden="true">
+        ↓
+      </span>
+    );
   }
 
-  return <span className={`${sizeClass} trend-arrow-neutral`}>→</span>;
+  return (
+    <span className={`${sizeClass} trend-arrow-neutral`} aria-hidden="true">
+      →
+    </span>
+  );
 }

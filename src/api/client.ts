@@ -139,13 +139,15 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       return await doFetch<T>(url, options, callerSignal);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError(0, String(err));
-      // 4xx 錯誤不重試（客戶端錯誤）
-      if (apiError.status > 0 && apiError.status < 500) throw apiError;
+      // 4xx 錯誤不重試（客戶端錯誤），但 429 Rate Limit 例外
+      if (apiError.status > 0 && apiError.status < 500 && apiError.status !== 429) throw apiError;
       // 使用者取消不重試
       if (callerSignal?.aborted) throw apiError;
       lastError = apiError;
       if (attempt < MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * Math.pow(2, attempt)));
+        // 429 使用更長的退避延遲
+        const baseDelay = apiError.status === 429 ? RETRY_DELAY_MS * 4 : RETRY_DELAY_MS;
+        await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
       }
     }
   }
