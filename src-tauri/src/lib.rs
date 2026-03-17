@@ -50,12 +50,20 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
     }
 }
 
+/// Sidecar 啟動重試的最大次數。
+const MAX_RETRIES: u32 = 3;
+/// Sidecar 啟動重試的初始延遲（毫秒），每次重試倍增。
+const INITIAL_DELAY_MS: u64 = 500;
+
+/// 計算第 n 次重試的 exponential backoff delay（毫秒）。
+/// 使用 `saturating_mul` 防止大 attempt 值溢出。
+fn retry_delay_ms(attempt: u32, initial_delay_ms: u64) -> u64 {
+    initial_delay_ms.saturating_mul(2u64.pow(attempt))
+}
+
 /// 啟動 Python sidecar，失敗時以 exponential backoff 重試，最終優雅降級。
 /// 透過 `Command::env()` 傳遞 app data dir，避免在多執行緒環境呼叫 `std::env::set_var`。
 fn start_sidecar(app: &App) {
-    const MAX_RETRIES: u32 = 3;
-    const INITIAL_DELAY_MS: u64 = 500;
-
     for attempt in 0..=MAX_RETRIES {
         // 每次重試都重建 Command，因為 spawn() 會 consume self。
         let mut cmd = match app.shell().sidecar("starscope-sidecar") {
@@ -88,7 +96,7 @@ fn start_sidecar(app: &App) {
             }
             Err(e) => {
                 if attempt < MAX_RETRIES {
-                    let delay_ms = INITIAL_DELAY_MS * 2u64.pow(attempt);
+                    let delay_ms = retry_delay_ms(attempt, INITIAL_DELAY_MS);
                     warn!(
                         "Sidecar 啟動失敗 (嘗試 {}/{}): {e}，{delay_ms}ms 後重試",
                         attempt + 1,
@@ -109,6 +117,44 @@ fn start_sidecar(app: &App) {
     app.manage(SidecarState {
         child: Mutex::new(None),
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retry_delay_first_attempt() {
+        assert_eq!(retry_delay_ms(0, 500), 500);
+    }
+
+    #[test]
+    fn retry_delay_second_attempt() {
+        assert_eq!(retry_delay_ms(1, 500), 1000);
+    }
+
+    #[test]
+    fn retry_delay_third_attempt() {
+        assert_eq!(retry_delay_ms(2, 500), 2000);
+    }
+
+    #[test]
+    fn retry_delay_zero_initial() {
+        assert_eq!(retry_delay_ms(0, 0), 0);
+        assert_eq!(retry_delay_ms(3, 0), 0);
+    }
+
+    #[test]
+    fn retry_delay_saturates_on_overflow() {
+        // 2^63 * 2 would overflow u64; saturating_mul clamps to u64::MAX
+        assert_eq!(retry_delay_ms(63, 2), u64::MAX);
+    }
+
+    #[test]
+    fn retry_constants_are_expected_values() {
+        assert_eq!(MAX_RETRIES, 3);
+        assert_eq!(INITIAL_DELAY_MS, 500);
+    }
 }
 
 /// 設定系統匣圖示與選單。
