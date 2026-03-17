@@ -259,9 +259,12 @@ class GitHubService:
         query: str,
         language: str | None = None,
         min_stars: int | None = None,
+        max_stars: int | None = None,
         topic: str | None = None,
         sort: str = "stars",
         order: str = "desc",
+        license: str | None = None,
+        hide_archived: bool = False,
         page: int = 1,
         per_page: int = 20,
     ) -> dict:
@@ -272,9 +275,12 @@ class GitHubService:
             query: 搜尋查詢字串
             language: 依程式語言篩選
             min_stars: 依最低 star 數篩選
+            max_stars: 依最高 star 數篩選
             topic: 依 topic 篩選
             sort: 排序欄位（stars、forks、updated）
             order: 排序方向（asc、desc）
+            license: 依授權條款篩選（SPDX ID）
+            hide_archived: 排除已歸檔 repo
             page: 頁碼（從 1 開始）
             per_page: 每頁筆數（最大 100）
 
@@ -290,9 +296,18 @@ class GitHubService:
         if language:
             q_parts.append(f"language:{language}")
         if min_stars is not None and min_stars > 0:
-            q_parts.append(f"stars:>={min_stars}")
+            if max_stars is not None and max_stars > 0:
+                q_parts.append(f"stars:{min_stars}..{max_stars}")
+            else:
+                q_parts.append(f"stars:>={min_stars}")
+        elif max_stars is not None and max_stars > 0:
+            q_parts.append(f"stars:<={max_stars}")
         if topic:
             q_parts.append(f"topic:{topic}")
+        if license:
+            q_parts.append(f"license:{license}")
+        if hide_archived:
+            q_parts.append("archived:false")
 
         full_query = " ".join(q_parts)
 

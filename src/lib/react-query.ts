@@ -75,6 +75,8 @@ export const queryKeys = {
     all: ["discovery"] as const,
     categories: () => [...queryKeys.discovery.all, "categories"] as const,
     trending: () => [...queryKeys.discovery.all, "trending"] as const,
+    search: (params: { query: string; filters: Record<string, unknown> }) =>
+      [...queryKeys.discovery.all, "search", params] as const,
   },
 
   // GitHub Auth

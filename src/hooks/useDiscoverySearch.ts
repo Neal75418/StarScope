@@ -1,12 +1,14 @@
 /**
- * 探索頁面的搜尋邏輯與狀態管理。
+ * 探索頁面的搜尋邏輯，使用 React Query useInfiniteQuery 實現快取與分頁。
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { SearchFilters, DiscoveryRepo } from "../api/client";
 import { buildCombinedQuery, fetchSearchResults, SearchResult } from "../utils/searchHelpers";
 import { TrendingPeriod } from "../components/discovery";
-import { useI18n, TranslationKeys } from "../i18n";
+import { useI18n } from "../i18n";
+import { queryKeys } from "../lib/react-query";
 
 export interface DiscoverySearchState {
   repos: DiscoveryRepo[];
@@ -16,92 +18,97 @@ export interface DiscoverySearchState {
   error: string | null;
 }
 
-const INITIAL_SEARCH_STATE: DiscoverySearchState = {
-  repos: [],
-  totalCount: 0,
-  hasMore: false,
-  loading: false,
-  error: null,
-};
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === "AbortError";
-}
-
-async function runSearch(
-  query: string,
-  filters: SearchFilters,
-  page: number,
-  t: TranslationKeys,
-  signal: AbortSignal
-): Promise<SearchResult | null> {
-  try {
-    return await fetchSearchResults(query, filters, page, t, signal);
-  } catch (err) {
-    if (isAbortError(err)) return null;
-    return { repos: [], totalCount: 0, hasMore: false, error: t.discovery.error.generic };
-  }
-}
-
-function toFinishedState(result: SearchResult): Omit<DiscoverySearchState, "repos"> {
-  return {
-    totalCount: result.totalCount,
-    hasMore: result.hasMore,
-    loading: false,
-    error: result.error || null,
-  };
+interface SearchParams {
+  query: string;
+  filters: SearchFilters;
 }
 
 export function useDiscoverySearch() {
   const { t } = useI18n();
-  const [searchState, setSearchState] = useState<DiscoverySearchState>(INITIAL_SEARCH_STATE);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
 
+  // 驅動 query key 的搜尋參數；null = 尚未搜尋
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
+
+  const queryKey = queryKeys.discovery.search({
+    query: searchParams?.query ?? "",
+    filters: (searchParams?.filters ?? {}) as Record<string, unknown>,
+  });
+
+  const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery<
+    SearchResult,
+    Error
+  >({
+    queryKey,
+    queryFn: async ({ pageParam, signal }): Promise<SearchResult> => {
+      if (!searchParams) throw new Error("Search params not available");
+      return fetchSearchResults(
+        searchParams.query,
+        searchParams.filters,
+        pageParam as number,
+        t,
+        signal
+      );
+    },
+    getNextPageParam: (lastPage, allPages) => (lastPage.hasMore ? allPages.length + 1 : undefined),
+    initialPageParam: 1,
+    enabled: !!searchParams?.query.trim(),
+    staleTime: 2 * 60 * 1000, // 2 分鐘內視為新鮮
+  });
+
+  // 將 infinite pages 展平為單一陣列
+  const repos = useMemo<DiscoveryRepo[]>(
+    () => (searchParams ? (data?.pages.flatMap((p) => p.repos) ?? []) : []),
+    [data?.pages, searchParams]
+  );
+
+  const lastPage = searchParams ? data?.pages[data.pages.length - 1] : undefined;
+  const totalCount = lastPage?.totalCount ?? 0;
+  const error = lastPage?.error ?? null;
+
+  /**
+   * 觸發新搜尋（page 參數保留向後相容；page > 1 由 loadMore 處理）。
+   */
   const executeSearch = useCallback(
-    async (
+    (
       keyword: string,
       period: TrendingPeriod | undefined,
       filters: SearchFilters,
-      page: number = 1
+      _page: number = 1
     ) => {
       const query = buildCombinedQuery(keyword, period, filters.language);
 
       if (!query.trim()) {
-        setSearchState(INITIAL_SEARCH_STATE);
+        setSearchParams(null);
         return;
       }
 
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      setSearchState((prev) => ({
-        ...prev,
-        loading: true,
-        error: null,
-        repos: page === 1 ? [] : prev.repos,
-      }));
-
-      const result = await runSearch(query, filters, page, t, controller.signal);
-
-      if (!result || controller.signal.aborted) return;
-
-      setSearchState((prev) => ({
-        ...toFinishedState(result),
-        repos: page === 1 ? result.repos : [...prev.repos, ...result.repos],
-      }));
+      setSearchParams({ query, filters });
     },
-    [t]
+    []
   );
 
+  /** 載入下一頁結果。 */
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  /** 重設搜尋狀態與快取。 */
   const resetSearch = useCallback(() => {
-    abortControllerRef.current?.abort();
-    setSearchState(INITIAL_SEARCH_STATE);
-  }, []);
+    setSearchParams(null);
+    queryClient.removeQueries({ queryKey: [...queryKeys.discovery.all, "search"] });
+  }, [queryClient]);
 
   return {
-    ...searchState,
+    repos,
+    totalCount,
+    hasMore: hasNextPage ?? false,
+    loading: isFetching,
+    error,
     executeSearch,
     resetSearch,
+    loadMore,
   };
 }

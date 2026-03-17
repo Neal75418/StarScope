@@ -83,14 +83,20 @@ export const translations = {
       currentFilters: "Active filters:",
       clearAll: "Clear all",
       removeFilter: "Remove {type} filter",
+      archived: "Archived",
       filters: {
         allLanguages: "All Languages",
+        allLicenses: "All Licenses",
         sortByStars: "Most Stars",
         sortByForks: "Most Forks",
         sortByUpdated: "Recently Updated",
+        ascending: "Ascending",
+        descending: "Descending",
         topicPlaceholder: "e.g. machine-learning",
         minStars: "Min Stars",
+        maxStars: "Max Stars",
         anyStars: "Any",
+        hideArchived: "Hide archived",
       },
       empty: {
         noResults: "No repositories found",
@@ -108,6 +114,10 @@ export const translations = {
         clear: "Clear history",
         removeItem: 'Remove "{item}" from search history',
       },
+      quickPicks: {
+        languages: "Languages:",
+        topics: "Topics:",
+      },
       recommendations: {
         title: "Recommended for You",
         subtitle: "Based on your watchlist's similarity patterns and momentum",
@@ -123,6 +133,18 @@ export const translations = {
         showMore: "Show More",
         showLess: "Show Less",
         dismiss: "Not interested",
+      },
+      recentlyViewed: {
+        title: "Recently Viewed",
+        clear: "Clear",
+      },
+      batchAdd: {
+        select: "Select",
+        cancel: "Cancel",
+        selected: "{count} selected",
+        addToWatchlist: "Add {count} to Watchlist",
+        adding: "Adding...",
+        success: "Added {count}/{total} repositories",
       },
     },
     // 追蹤清單頁面
@@ -717,14 +739,20 @@ export const translations = {
       currentFilters: "目前篩選：",
       clearAll: "清除全部",
       removeFilter: "移除{type}篩選",
+      archived: "已歸檔",
       filters: {
         allLanguages: "所有語言",
+        allLicenses: "所有授權",
         sortByStars: "依星數排序",
         sortByForks: "依分支數排序",
         sortByUpdated: "依更新時間排序",
+        ascending: "升序",
+        descending: "降序",
         topicPlaceholder: "例如 machine-learning",
         minStars: "最低星數",
+        maxStars: "最高星數",
         anyStars: "不限",
+        hideArchived: "隱藏已歸檔",
       },
       empty: {
         noResults: "找不到儲存庫",
@@ -742,6 +770,10 @@ export const translations = {
         clear: "清除歷史",
         removeItem: "從搜尋歷史移除「{item}」",
       },
+      quickPicks: {
+        languages: "語言：",
+        topics: "主題：",
+      },
       recommendations: {
         title: "為你推薦",
         subtitle: "根據你的追蹤清單相似度與動量分析",
@@ -756,6 +788,18 @@ export const translations = {
         showMore: "顯示更多",
         showLess: "收起",
         dismiss: "不感興趣",
+      },
+      recentlyViewed: {
+        title: "最近檢視",
+        clear: "清除",
+      },
+      batchAdd: {
+        select: "選取",
+        cancel: "取消",
+        selected: "已選 {count} 個",
+        addToWatchlist: "加入 {count} 個到追蹤清單",
+        adding: "新增中...",
+        success: "已新增 {count}/{total} 個儲存庫",
       },
     },
     // 追蹤清單頁面

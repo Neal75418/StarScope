@@ -739,8 +739,12 @@ export async function searchRepos(
   });
   if (filters.language) params.set("language", filters.language);
   if (filters.minStars) params.set("min_stars", String(filters.minStars));
+  if (filters.maxStars) params.set("max_stars", String(filters.maxStars));
   if (filters.topic) params.set("topic", filters.topic);
   if (filters.sort) params.set("sort", filters.sort);
+  if (filters.order) params.set("order", filters.order);
+  if (filters.license) params.set("license", filters.license);
+  if (filters.hideArchived) params.set("hide_archived", "true");
 
   return apiCall<SearchResponse>(`/discovery/search?${params}`, { signal });
 }

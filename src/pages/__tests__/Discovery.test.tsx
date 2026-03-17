@@ -180,6 +180,9 @@ vi.mock("../../components/discovery", () => ({
   ),
   SavedFilters: () => <div data-testid="saved-filters" />,
   RecommendedForYou: () => null,
+  QuickPicks: () => <div data-testid="quick-picks" />,
+  RecentlyViewed: () => <div data-testid="recently-viewed" />,
+  BatchAddBar: () => null,
 }));
 
 describe("Discovery", () => {
@@ -203,6 +206,11 @@ describe("Discovery", () => {
       removeKeyword: vi.fn(),
       removePeriod: vi.fn(),
       removeLanguage: vi.fn(),
+      removeTopic: vi.fn(),
+      removeMinStars: vi.fn(),
+      removeMaxStars: vi.fn(),
+      removeLicense: vi.fn(),
+      removeHideArchived: vi.fn(),
       reset: vi.fn(),
       loadMore: vi.fn(),
     };

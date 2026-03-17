@@ -35,11 +35,17 @@ interface ActiveFiltersProps {
   language?: string;
   topic?: string;
   minStars?: number;
+  maxStars?: number;
+  license?: string;
+  hideArchived?: boolean;
   onRemoveKeyword: () => void;
   onRemovePeriod: () => void;
   onRemoveLanguage: () => void;
   onRemoveTopic: () => void;
   onRemoveMinStars: () => void;
+  onRemoveMaxStars: () => void;
+  onRemoveLicense: () => void;
+  onRemoveHideArchived: () => void;
   onClearAll: () => void;
 }
 
@@ -49,18 +55,35 @@ export function ActiveFilters({
   language,
   topic,
   minStars,
+  maxStars,
+  license,
+  hideArchived,
   onRemoveKeyword,
   onRemovePeriod,
   onRemoveLanguage,
   onRemoveTopic,
   onRemoveMinStars,
+  onRemoveMaxStars,
+  onRemoveLicense,
+  onRemoveHideArchived,
   onClearAll,
 }: ActiveFiltersProps) {
   const { t } = useI18n();
 
-  if (!keyword && !period && !language && !topic && !minStars) {
+  const hasAny =
+    keyword || period || language || topic || minStars || maxStars || license || hideArchived;
+  if (!hasAny) {
     return null;
   }
+
+  // Build star label: range, min-only, or max-only
+  const starLabel =
+    minStars && maxStars
+      ? `\u2605 ${minStars.toLocaleString()} - ${maxStars.toLocaleString()}`
+      : minStars
+        ? `\u2605 \u2265 ${minStars.toLocaleString()}`
+        : null;
+  const maxStarLabel = !minStars && maxStars ? `\u2605 \u2264 ${maxStars.toLocaleString()}` : null;
 
   return (
     <div className={styles.activeFilters}>
@@ -73,12 +96,25 @@ export function ActiveFilters({
         {language && (
           <FilterTag label={language} onRemove={onRemoveLanguage} filterType="language" />
         )}
-        {topic && <FilterTag label={`#${topic}`} onRemove={onRemoveTopic} filterType="topic" />}
-        {minStars != null && minStars > 0 && (
+        {license && (
           <FilterTag
-            label={`★ ≥ ${minStars.toLocaleString()}`}
-            onRemove={onRemoveMinStars}
-            filterType="min stars"
+            label={license.toUpperCase()}
+            onRemove={onRemoveLicense}
+            filterType="license"
+          />
+        )}
+        {topic && <FilterTag label={`#${topic}`} onRemove={onRemoveTopic} filterType="topic" />}
+        {starLabel && (
+          <FilterTag label={starLabel} onRemove={onRemoveMinStars} filterType="min stars" />
+        )}
+        {maxStarLabel && (
+          <FilterTag label={maxStarLabel} onRemove={onRemoveMaxStars} filterType="max stars" />
+        )}
+        {hideArchived && (
+          <FilterTag
+            label={t.discovery.filters.hideArchived}
+            onRemove={onRemoveHideArchived}
+            filterType="hide archived"
           />
         )}
         <button className={styles.clearAllBtn} onClick={onClearAll}>

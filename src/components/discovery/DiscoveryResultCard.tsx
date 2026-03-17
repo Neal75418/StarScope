@@ -5,7 +5,7 @@
 
 import React, { memo } from "react";
 import { DiscoveryRepo } from "../../api/client";
-import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
+import { StarIcon, ForkIcon, LinkExternalIcon, IssueOpenedIcon, LawIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 import { formatNumber, formatDelta, formatRelativeTime } from "../../utils/format";
@@ -22,6 +22,10 @@ interface DiscoveryResultCardProps {
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   isAdding?: boolean;
   signal?: WatchlistSignal;
+  onView?: (repo: DiscoveryRepo) => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelection?: (id: number) => void;
 }
 
 export const DiscoveryResultCard = memo(function DiscoveryResultCard({
@@ -30,17 +34,42 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
   onAddToWatchlist,
   isAdding = false,
   signal,
+  onView,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelection,
 }: DiscoveryResultCardProps) {
   const { t } = useI18n();
 
   const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
+    onView?.(repo);
     await safeOpenUrl(repo.url);
   };
 
+  const cardClassName = [
+    styles.resultCard,
+    repo.archived ? styles.archivedCard : "",
+    isSelected ? styles.selectedCard : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={styles.resultCard}>
+    <div className={cardClassName}>
+      {repo.archived && <span className={styles.archivedBadge}>{t.discovery.archived}</span>}
       <div className={styles.cardHeader}>
+        {isSelectionMode && (
+          <input
+            type="checkbox"
+            className={styles.selectionCheckbox}
+            checked={isSelected}
+            onChange={() => onToggleSelection?.(repo.id)}
+          />
+        )}
+        {repo.owner_avatar_url && (
+          <img src={repo.owner_avatar_url} alt="" className={styles.ownerAvatar} loading="lazy" />
+        )}
         <a href={repo.url} onClick={handleLinkClick} className={styles.repoName}>
           {repo.full_name}
           <LinkExternalIcon size={14} className={styles.externalIcon} />
@@ -74,6 +103,16 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
           <ForkIcon size={14} />
           {formatNumber(repo.forks)}
         </span>
+        <span className={styles.stat}>
+          <IssueOpenedIcon size={14} />
+          {formatNumber(repo.open_issues_count)}
+        </span>
+        {repo.license_spdx && (
+          <span className={styles.licenseBadge}>
+            <LawIcon size={14} />
+            {repo.license_spdx}
+          </span>
+        )}
         {repo.updated_at && (
           <span className={styles.updatedAt}>{formatRelativeTime(repo.updated_at)}</span>
         )}

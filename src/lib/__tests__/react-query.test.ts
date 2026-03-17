@@ -72,6 +72,12 @@ describe("queryKeys", () => {
     it("generates trending key", () => {
       expect(queryKeys.discovery.trending()).toEqual(["discovery", "trending"]);
     });
+
+    it("generates search key with params", () => {
+      expect(
+        queryKeys.discovery.search({ query: "react", filters: { language: "TypeScript" } })
+      ).toEqual(["discovery", "search", { query: "react", filters: { language: "TypeScript" } }]);
+    });
   });
 
   describe("githubAuth", () => {

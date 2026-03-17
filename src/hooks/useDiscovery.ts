@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SearchFilters } from "../api/client";
 import { TrendingPeriod } from "../components/discovery";
 import { useDiscoverySearch } from "./useDiscoverySearch";
-import { GITHUB_SEARCH_PAGE_SIZE } from "../constants/api";
 
 export type SortOption = "stars" | "forks" | "updated";
 
@@ -30,8 +29,16 @@ const INITIAL_STATE: DiscoveryState = {
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function useDiscovery() {
-  const { repos, totalCount, hasMore, loading, error, executeSearch, resetSearch } =
-    useDiscoverySearch();
+  const {
+    repos,
+    totalCount,
+    hasMore,
+    loading,
+    error,
+    executeSearch,
+    resetSearch,
+    loadMore: fetchMore,
+  } = useDiscoverySearch();
   const [state, setState] = useState<DiscoveryState>(INITIAL_STATE);
 
   // 透過 ref 追蹤最新 state，避免 useCallback 的 stale closure 問題
@@ -91,12 +98,8 @@ export function useDiscovery() {
   );
 
   const loadMore = useCallback(() => {
-    if (hasMore && !loading) {
-      const { keyword, period, filters } = stateRef.current;
-      const nextPage = Math.floor(repos.length / GITHUB_SEARCH_PAGE_SIZE) + 1;
-      void executeSearch(keyword, period, filters, nextPage);
-    }
-  }, [hasMore, loading, repos.length, executeSearch]);
+    fetchMore();
+  }, [fetchMore]);
 
   const reset = useCallback(() => {
     clearTimeout(searchTimerRef.current);
@@ -119,6 +122,18 @@ export function useDiscovery() {
     setFilters({ ...stateRef.current.filters, minStars: undefined });
   }, [setFilters]);
 
+  const removeMaxStars = useCallback(() => {
+    setFilters({ ...stateRef.current.filters, maxStars: undefined });
+  }, [setFilters]);
+
+  const removeLicense = useCallback(() => {
+    setFilters({ ...stateRef.current.filters, license: undefined });
+  }, [setFilters]);
+
+  const removeHideArchived = useCallback(() => {
+    setFilters({ ...stateRef.current.filters, hideArchived: undefined });
+  }, [setFilters]);
+
   return {
     repos,
     totalCount,
@@ -137,6 +152,9 @@ export function useDiscovery() {
     removeLanguage,
     removeTopic,
     removeMinStars,
+    removeMaxStars,
+    removeLicense,
+    removeHideArchived,
     reset,
     loadMore,
     applySavedFilter: search,

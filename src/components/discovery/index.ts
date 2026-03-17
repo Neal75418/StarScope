@@ -11,3 +11,6 @@ export { DiscoveryResultCard } from "./DiscoveryResultCard";
 export { DiscoveryResults } from "./DiscoveryResults";
 export { SavedFilters } from "./SavedFilters";
 export { RecommendedForYou } from "./RecommendedForYou";
+export { QuickPicks } from "./QuickPicks";
+export { RecentlyViewed } from "./RecentlyViewed";
+export { BatchAddBar } from "./BatchAddBar";

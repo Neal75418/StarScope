@@ -1,11 +1,12 @@
 /**
- * Discovery 頁面的篩選下拉選單，含語言、排序、Topic、Min Stars。
+ * Discovery 頁面的篩選下拉選單，含語言、授權、排序、Topic、Stars 範圍。
  */
 
 import { useState, useCallback, useEffect, FormEvent } from "react";
 import { useI18n } from "../../i18n";
 import { SearchFilters } from "../../api/client";
 import type { SortOption } from "../../hooks/useDiscovery";
+import { SortAscIcon, SortDescIcon } from "../Icons";
 import styles from "./Discovery.module.css";
 
 const LANGUAGES = [
@@ -24,6 +25,20 @@ const LANGUAGES = [
   { value: "php", label: "PHP" },
 ] as const;
 
+const LICENSES = [
+  { value: "", label: "" },
+  { value: "mit", label: "MIT" },
+  { value: "apache-2.0", label: "Apache 2.0" },
+  { value: "gpl-3.0", label: "GPL 3.0" },
+  { value: "bsd-2-clause", label: "BSD 2-Clause" },
+  { value: "bsd-3-clause", label: "BSD 3-Clause" },
+  { value: "isc", label: "ISC" },
+  { value: "mpl-2.0", label: "MPL 2.0" },
+  { value: "lgpl-3.0", label: "LGPL 3.0" },
+  { value: "agpl-3.0", label: "AGPL 3.0" },
+  { value: "unlicense", label: "Unlicense" },
+] as const;
+
 const SORT_OPTIONS: {
   value: SortOption;
   labelKey: keyof typeof import("../../i18n/translations").translations.en.discovery.filters;
@@ -40,6 +55,15 @@ const MIN_STARS_OPTIONS = [
   { value: 1000, label: "1,000+" },
   { value: 5000, label: "5,000+" },
   { value: 10000, label: "10,000+" },
+] as const;
+
+const MAX_STARS_OPTIONS = [
+  { value: 0, label: "" },
+  { value: 1000, label: "\u2264 1,000" },
+  { value: 5000, label: "\u2264 5,000" },
+  { value: 10000, label: "\u2264 10,000" },
+  { value: 50000, label: "\u2264 50,000" },
+  { value: 100000, label: "\u2264 100,000" },
 ] as const;
 
 interface DiscoveryFiltersProps {
@@ -72,6 +96,8 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
     }
   }, [topicInput, filters, onFiltersChange]);
 
+  const isAsc = filters.order === "asc";
+
   return (
     <div className={styles.filters}>
       <select
@@ -88,15 +114,38 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
 
       <select
         className={styles.filterSelect}
-        value={filters.sort || "stars"}
-        onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as SortOption })}
+        value={filters.license || ""}
+        onChange={(e) => onFiltersChange({ ...filters, license: e.target.value || undefined })}
       >
-        {SORT_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {t.discovery.filters[opt.labelKey]}
+        {LICENSES.map((lic) => (
+          <option key={lic.value} value={lic.value}>
+            {lic.value === "" ? t.discovery.filters.allLicenses : lic.label}
           </option>
         ))}
       </select>
+
+      <div className={styles.sortGroup}>
+        <select
+          className={styles.filterSelect}
+          value={filters.sort || "stars"}
+          onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as SortOption })}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {t.discovery.filters[opt.labelKey]}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={styles.orderToggle}
+          onClick={() => onFiltersChange({ ...filters, order: isAsc ? "desc" : "asc" })}
+          title={isAsc ? t.discovery.filters.ascending : t.discovery.filters.descending}
+          aria-label={isAsc ? t.discovery.filters.ascending : t.discovery.filters.descending}
+        >
+          {isAsc ? <SortAscIcon size={14} /> : <SortDescIcon size={14} />}
+        </button>
+      </div>
 
       <select
         className={styles.filterSelect}
@@ -115,6 +164,23 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
         ))}
       </select>
 
+      <select
+        className={styles.filterSelect}
+        value={filters.maxStars || 0}
+        onChange={(e) => {
+          const val = Number(e.target.value);
+          onFiltersChange({ ...filters, maxStars: val || undefined });
+        }}
+      >
+        {MAX_STARS_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.value === 0
+              ? `${t.discovery.filters.maxStars}: ${t.discovery.filters.anyStars}`
+              : `${t.discovery.filters.maxStars}: ${opt.label}`}
+          </option>
+        ))}
+      </select>
+
       <form onSubmit={handleTopicSubmit} className={styles.topicForm}>
         <input
           type="text"
@@ -125,6 +191,17 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
           onBlur={handleTopicBlur}
         />
       </form>
+
+      <label className={styles.hideArchivedLabel}>
+        <input
+          type="checkbox"
+          checked={filters.hideArchived || false}
+          onChange={(e) =>
+            onFiltersChange({ ...filters, hideArchived: e.target.checked || undefined })
+          }
+        />
+        {t.discovery.filters.hideArchived}
+      </label>
     </div>
   );
 }

@@ -25,6 +25,12 @@ class SortField(str, Enum):
     UPDATED = "updated"
 
 
+class OrderDirection(str, Enum):
+    """排序方向。"""
+    ASC = "asc"
+    DESC = "desc"
+
+
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
@@ -37,6 +43,10 @@ async def search_repos(
     min_stars: int | None = Query(None, ge=0, description="Minimum star count"),
     topic: str | None = Query(None, description="Filter by topic"),
     sort: SortField = Query(SortField.STARS, description="Sort field"),
+    order: OrderDirection = Query(OrderDirection.DESC, description="Sort order"),
+    license: str | None = Query(None, description="Filter by license (SPDX ID)"),
+    max_stars: int | None = Query(None, ge=0, description="Maximum star count"),
+    hide_archived: bool = Query(False, description="Exclude archived repositories"),
     page: int = Query(1, ge=1, le=100, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Results per page"),
 ) -> dict:
@@ -58,8 +68,12 @@ async def search_repos(
             query=q,
             language=language,
             min_stars=min_stars,
+            max_stars=max_stars,
             topic=topic,
             sort=sort,
+            order=order,
+            license=license,
+            hide_archived=hide_archived,
             page=page,
             per_page=per_page,
         )
@@ -72,7 +86,7 @@ async def search_repos(
         logger.error(f"[探索] GitHub Search API 錯誤: {e}", exc_info=True)
         raise HTTPException(
             status_code=502,
-            detail=f"GitHub API error: {str(e)}",
+            detail="GitHub API request failed. Please try again later.",
         )
 
     # 將 GitHub API 回應轉換為我們的 schema
@@ -90,6 +104,11 @@ async def search_repos(
             topics=item.get("topics", []),
             created_at=item["created_at"],
             updated_at=item["updated_at"],
+            owner_avatar_url=item["owner"].get("avatar_url"),
+            open_issues_count=item.get("open_issues_count", 0),
+            license_spdx=item["license"]["spdx_id"] if item.get("license") else None,
+            license_name=item["license"]["name"] if item.get("license") else None,
+            archived=item.get("archived", False),
         )
         for item in result.get("items", [])
     ]

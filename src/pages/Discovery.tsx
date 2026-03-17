@@ -6,6 +6,8 @@ import { useState, useCallback, useMemo } from "react";
 import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
 import { useSearchHistory } from "../hooks/useSearchHistory";
+import { useRecentlyViewed, RecentlyViewedRepo } from "../hooks/useRecentlyViewed";
+import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
@@ -22,6 +24,9 @@ import {
   DiscoveryResults,
   SavedFilters,
   RecommendedForYou,
+  QuickPicks,
+  RecentlyViewed,
+  BatchAddBar,
 } from "../components/discovery";
 
 export function Discovery() {
@@ -30,6 +35,8 @@ export function Discovery() {
   const discovery = useDiscovery();
   const { setKeyword, setPeriod, reset: resetDiscovery } = discovery;
   const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory();
+  const { recentRepos, addToRecentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
+  const selection = useSelectionMode();
   const { repos: watchlist } = useWatchlistState();
   const { refreshAll: handleRefreshAll } = useWatchlistActions();
 
@@ -84,6 +91,22 @@ export function Discovery() {
     [setKeyword, addToHistory]
   );
 
+  // Quick pick：語言
+  const handleQuickLanguage = useCallback(
+    (lang: string) => {
+      discovery.setFilters({ ...discovery.filters, language: lang });
+    },
+    [discovery.filters, discovery.setFilters]
+  );
+
+  // Quick pick：主題
+  const handleQuickTopic = useCallback(
+    (topic: string) => {
+      discovery.setFilters({ ...discovery.filters, topic });
+    },
+    [discovery.filters, discovery.setFilters]
+  );
+
   // 清除所有篩選條件
   const handleClearAll = useCallback(() => {
     resetDiscovery();
@@ -126,6 +149,32 @@ export function Discovery() {
     [doAddToWatchlist]
   );
 
+  // 點擊 repo link 時記錄到 recently viewed
+  const handleViewRepo = useCallback(
+    (repo: DiscoveryRepo) => {
+      const viewed: RecentlyViewedRepo = {
+        id: repo.id,
+        full_name: repo.full_name,
+        owner: repo.owner,
+        name: repo.name,
+        language: repo.language,
+        stars: repo.stars,
+        owner_avatar_url: repo.owner_avatar_url,
+      };
+      addToRecentlyViewed(viewed);
+    },
+    [addToRecentlyViewed]
+  );
+
+  // Batch add：收集已選 repo 的 { owner, name }
+  const selectedReposForBatch = useMemo(
+    () =>
+      discovery.repos
+        .filter((r) => selection.selectedIds.has(r.id))
+        .map((r) => ({ owner: r.owner, name: r.name })),
+    [discovery.repos, selection.selectedIds]
+  );
+
   return (
     <AnimatedPage className="page">
       <header className="page-header">
@@ -159,17 +208,29 @@ export function Discovery() {
         />
       </div>
 
+      {!discovery.hasSearched && (
+        <QuickPicks onSelectLanguage={handleQuickLanguage} onSelectTopic={handleQuickTopic} />
+      )}
+
+      <RecentlyViewed repos={recentRepos} onClear={clearRecentlyViewed} />
+
       <ActiveFilters
         keyword={discovery.keyword || undefined}
         period={discovery.period ? getPeriodLabel(discovery.period) : undefined}
         language={discovery.filters.language}
         topic={discovery.filters.topic}
         minStars={discovery.filters.minStars}
+        maxStars={discovery.filters.maxStars}
+        license={discovery.filters.license}
+        hideArchived={discovery.filters.hideArchived}
         onRemoveKeyword={discovery.removeKeyword}
         onRemovePeriod={discovery.removePeriod}
         onRemoveLanguage={discovery.removeLanguage}
         onRemoveTopic={discovery.removeTopic}
         onRemoveMinStars={discovery.removeMinStars}
+        onRemoveMaxStars={discovery.removeMaxStars}
+        onRemoveLicense={discovery.removeLicense}
+        onRemoveHideArchived={discovery.removeHideArchived}
         onClearAll={handleClearAll}
       />
 
@@ -187,7 +248,21 @@ export function Discovery() {
         onLoadMore={discovery.loadMore}
         addingRepoId={addingRepoId}
         hasSearched={discovery.hasSearched}
+        onViewRepo={handleViewRepo}
+        isSelectionMode={selection.isActive}
+        selectedIds={selection.selectedIds}
+        onToggleSelection={selection.toggleSelection}
+        onEnterSelectionMode={selection.enter}
+        onExitSelectionMode={selection.exit}
       />
+
+      {selection.isActive && (
+        <BatchAddBar
+          selectedRepos={selectedReposForBatch}
+          selectedCount={selection.selectedCount}
+          onDone={selection.exit}
+        />
+      )}
     </AnimatedPage>
   );
 }

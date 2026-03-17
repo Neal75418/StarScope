@@ -480,6 +480,66 @@ class TestGitHubServiceSearchRepos:
             assert "stars:>=100" in params["q"]
             assert "topic:api" in params["q"]
 
+    @pytest.mark.asyncio
+    async def test_search_repos_star_range(self):
+        """Test repo search with min_stars and max_stars produces range syntax."""
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
+            await service.search_repos("web", min_stars=100, max_stars=5000)
+
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert "stars:100..5000" in params["q"]
+
+    @pytest.mark.asyncio
+    async def test_search_repos_max_stars_only(self):
+        """Test repo search with only max_stars."""
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
+            await service.search_repos("web", max_stars=1000)
+
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert "stars:<=1000" in params["q"]
+
+    @pytest.mark.asyncio
+    async def test_search_repos_license_filter(self):
+        """Test repo search with license qualifier."""
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
+            await service.search_repos("web", license="mit")
+
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert "license:mit" in params["q"]
+
+    @pytest.mark.asyncio
+    async def test_search_repos_hide_archived(self):
+        """Test repo search with hide_archived qualifier."""
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
+            await service.search_repos("web", hide_archived=True)
+
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert "archived:false" in params["q"]
+
+    @pytest.mark.asyncio
+    async def test_search_repos_order_param(self):
+        """Test repo search passes order parameter."""
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
+            await service.search_repos("web", order="asc")
+
+            call_kwargs = mock_client.get.call_args
+            params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))
+            assert params["order"] == "asc"
+
 
 class TestGitHubServiceStargazers:
     """Tests for GitHubService.get_stargazers_with_dates method."""

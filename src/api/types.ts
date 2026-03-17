@@ -526,6 +526,11 @@ export interface DiscoveryRepo {
   topics: string[];
   created_at: string;
   updated_at: string;
+  owner_avatar_url: string | null;
+  open_issues_count: number;
+  license_spdx: string | null;
+  license_name: string | null;
+  archived: boolean;
 }
 
 export interface SearchResponse {
@@ -539,8 +544,12 @@ export interface SearchResponse {
 export interface SearchFilters {
   language?: string;
   minStars?: number;
+  maxStars?: number;
   topic?: string;
   sort?: "stars" | "forks" | "updated";
+  order?: "asc" | "desc";
+  license?: string;
+  hideArchived?: boolean;
 }
 
 // ==================== 週報摘要型別 ====================

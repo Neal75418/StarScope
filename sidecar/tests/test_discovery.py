@@ -14,7 +14,10 @@ def _make_github_search_result(count=1, total_count=None):
         items.append({
             "id": 1000 + i,
             "full_name": f"owner{i}/repo{i}",
-            "owner": {"login": f"owner{i}"},
+            "owner": {
+                "login": f"owner{i}",
+                "avatar_url": f"https://avatars.githubusercontent.com/u/{1000 + i}",
+            },
             "name": f"repo{i}",
             "description": f"Description for repo{i}",
             "language": "Python",
@@ -24,6 +27,9 @@ def _make_github_search_result(count=1, total_count=None):
             "topics": ["testing"],
             "created_at": "2024-01-01T00:00:00Z",
             "updated_at": "2025-01-01T00:00:00Z",
+            "open_issues_count": 10 + i,
+            "license": {"spdx_id": "MIT", "name": "MIT License"},
+            "archived": False,
         })
     return {
         "items": items,
@@ -62,6 +68,11 @@ class TestDiscoverySearch:
         assert repo["full_name"] == "owner0/repo0"
         assert repo["stars"] == 500
         assert repo["language"] == "Python"
+        assert repo["owner_avatar_url"] == "https://avatars.githubusercontent.com/u/1000"
+        assert repo["open_issues_count"] == 10
+        assert repo["license_spdx"] == "MIT"
+        assert repo["license_name"] == "MIT License"
+        assert repo["archived"] is False
 
     def test_search_missing_query_returns_422(self, client):
         """Test that missing query parameter returns 422."""
@@ -95,8 +106,12 @@ class TestDiscoverySearch:
             query="web",
             language="Python",
             min_stars=100,
+            max_stars=None,
             topic="api",
             sort="stars",
+            order="desc",
+            license=None,
+            hide_archived=False,
             page=1,
             per_page=20,
         )
@@ -149,4 +164,67 @@ class TestDiscoverySearch:
 
         assert response.status_code == 502
         data = response.json()
-        assert "GitHub API error" in data["detail"]
+        assert data["detail"] == "GitHub API request failed. Please try again later."
+
+    def test_search_with_new_filters(self, client):
+        """Test search with license, max_stars, order, and hide_archived filters."""
+        mock_result = _make_github_search_result(count=1, total_count=1)
+
+        mock_service = AsyncMock()
+        mock_service.search_repos = AsyncMock(return_value=mock_result)
+
+        with patch("routers.discovery.get_github_service", return_value=mock_service):
+            response = client.get(
+                "/api/discovery/search?q=web&license=mit&max_stars=5000"
+                "&order=asc&hide_archived=true"
+            )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["success"] is True
+
+        mock_service.search_repos.assert_called_once_with(
+            query="web",
+            language=None,
+            min_stars=None,
+            max_stars=5000,
+            topic=None,
+            sort="stars",
+            order="asc",
+            license="mit",
+            hide_archived=True,
+            page=1,
+            per_page=20,
+        )
+
+    def test_search_repo_without_license(self, client):
+        """Test that repos with no license have null license fields."""
+        mock_result = _make_github_search_result(count=1)
+        # Set license to None for this item
+        mock_result["items"][0]["license"] = None
+
+        mock_service = AsyncMock()
+        mock_service.search_repos = AsyncMock(return_value=mock_result)
+
+        with patch("routers.discovery.get_github_service", return_value=mock_service):
+            response = client.get("/api/discovery/search?q=test")
+
+        assert response.status_code == 200
+        repo = response.json()["data"]["repos"][0]
+        assert repo["license_spdx"] is None
+        assert repo["license_name"] is None
+
+    def test_search_archived_repo(self, client):
+        """Test that archived field is correctly mapped."""
+        mock_result = _make_github_search_result(count=1)
+        mock_result["items"][0]["archived"] = True
+
+        mock_service = AsyncMock()
+        mock_service.search_repos = AsyncMock(return_value=mock_result)
+
+        with patch("routers.discovery.get_github_service", return_value=mock_service):
+            response = client.get("/api/discovery/search?q=test")
+
+        assert response.status_code == 200
+        repo = response.json()["data"]["repos"][0]
+        assert repo["archived"] is True

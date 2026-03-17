@@ -26,6 +26,12 @@ interface DiscoveryResultsProps {
   onLoadMore: () => void;
   addingRepoId: number | null;
   hasSearched: boolean;
+  onViewRepo?: (repo: DiscoveryRepo) => void;
+  isSelectionMode?: boolean;
+  selectedIds?: Set<number>;
+  onToggleSelection?: (id: number) => void;
+  onEnterSelectionMode?: () => void;
+  onExitSelectionMode?: () => void;
 }
 
 export const DiscoveryResults = memo(function DiscoveryResults({
@@ -40,6 +46,12 @@ export const DiscoveryResults = memo(function DiscoveryResults({
   onLoadMore,
   addingRepoId,
   hasSearched,
+  onViewRepo,
+  isSelectionMode = false,
+  selectedIds,
+  onToggleSelection,
+  onEnterSelectionMode,
+  onExitSelectionMode,
 }: DiscoveryResultsProps) {
   const { t } = useI18n();
 
@@ -86,6 +98,15 @@ export const DiscoveryResults = memo(function DiscoveryResults({
         <span className={styles.resultsCount}>
           {t.discovery.results.replace("{count}", totalCount.toLocaleString())}
         </span>
+        {repos.length > 0 && onEnterSelectionMode && onExitSelectionMode && (
+          <button
+            type="button"
+            className={styles.selectionToggle}
+            onClick={isSelectionMode ? onExitSelectionMode : onEnterSelectionMode}
+          >
+            {isSelectionMode ? t.discovery.batchAdd.cancel : t.discovery.batchAdd.select}
+          </button>
+        )}
       </div>
 
       <div className={styles.resultsList}>
@@ -97,6 +118,10 @@ export const DiscoveryResults = memo(function DiscoveryResults({
             onAddToWatchlist={onAddToWatchlist}
             isAdding={addingRepoId === repo.id}
             signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
+            onView={onViewRepo}
+            isSelectionMode={isSelectionMode}
+            isSelected={selectedIds?.has(repo.id) ?? false}
+            onToggleSelection={onToggleSelection}
           />
         ))}
       </div>

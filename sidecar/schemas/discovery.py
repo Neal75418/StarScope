@@ -20,6 +20,11 @@ class DiscoveryRepo(BaseModel):
     topics: list[str] = Field(default_factory=list, description="Repository topics")
     created_at: str = Field(description="Creation timestamp (ISO 8601)")
     updated_at: str = Field(description="Last update timestamp (ISO 8601)")
+    owner_avatar_url: str | None = Field(default=None, description="Owner avatar URL")
+    open_issues_count: int = Field(default=0, description="Open issues count")
+    license_spdx: str | None = Field(default=None, description="License SPDX identifier")
+    license_name: str | None = Field(default=None, description="License display name")
+    archived: bool = Field(default=False, description="Whether the repository is archived")
 
 
 class SearchResponse(BaseModel):
