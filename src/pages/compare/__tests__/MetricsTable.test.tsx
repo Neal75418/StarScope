@@ -115,4 +115,86 @@ describe("MetricsTable", () => {
     const trendUp = container.querySelector(".trend-up");
     expect(trendUp).toBeInTheDocument();
   });
+
+  it("renders trend-down class for negative deltas", () => {
+    const { container } = render(
+      <MetricsTable
+        repos={[makeComparisonRepo({ stars_delta_7d: -50, stars_delta_30d: -200 })]}
+        t={mockT as never}
+      />
+    );
+    const trendDown = container.querySelectorAll(".trend-down");
+    expect(trendDown.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders dash for null delta values", () => {
+    render(
+      <MetricsTable
+        repos={[makeComparisonRepo({ stars_delta_7d: null, stars_delta_30d: null })]}
+        t={mockT as never}
+      />
+    );
+    const dashes = screen.getAllByText("—");
+    expect(dashes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders zero delta without trend class", () => {
+    const { container } = render(
+      <MetricsTable
+        repos={[makeComparisonRepo({ stars_delta_7d: 0, stars_delta_30d: 0 })]}
+        t={mockT as never}
+      />
+    );
+    // Zero deltas should have no trend class
+    expect(container.querySelector(".trend-up")).not.toBeInTheDocument();
+    expect(container.querySelector(".trend-down")).not.toBeInTheDocument();
+  });
+
+  it("renders breakout badge when signalsByRepoId is provided", () => {
+    render(
+      <MetricsTable
+        repos={[makeComparisonRepo({ repo_id: 1 })]}
+        t={mockT as never}
+        signalsByRepoId={{
+          1: [
+            {
+              id: 1,
+              repo_id: 1,
+              repo_name: "facebook/react",
+              signal_type: "breakout",
+              severity: "high",
+              description: "Stars breakout detected",
+              velocity_value: 50,
+              star_count: 200000,
+              percentile_rank: 99,
+              detected_at: "2024-01-01T00:00:00Z",
+              expires_at: "2024-02-01T00:00:00Z",
+              acknowledged: false,
+              acknowledged_at: null,
+            },
+          ],
+        }}
+      />
+    );
+    expect(screen.getByTestId("breakout-badge")).toBeInTheDocument();
+  });
+
+  it("handles null velocity in sort", () => {
+    const repos = [
+      makeComparisonRepo({ repo_id: 1, repo_name: "null/vel", velocity: null }),
+      makeComparisonRepo({ repo_id: 2, repo_name: "has/vel", velocity: 10.0 }),
+    ];
+    render(<MetricsTable repos={repos} t={mockT as never} />);
+    const rows = screen.getAllByRole("row");
+    // has/vel (10.0) should sort before null/vel (0 fallback)
+    expect(rows[1]).toHaveTextContent("has/vel");
+    expect(rows[2]).toHaveTextContent("null/vel");
+  });
+
+  it("renders fallback arrow for unrecognized trend", () => {
+    render(
+      <MetricsTable repos={[makeComparisonRepo({ trend: 999 as never })]} t={mockT as never} />
+    );
+    expect(screen.getByText("→")).toBeInTheDocument();
+  });
 });
