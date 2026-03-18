@@ -7,6 +7,7 @@ import { StarsChart } from "../../components/StarsChart";
 import { TrendArrow } from "../../components/TrendArrow";
 import { formatNumber, formatDelta } from "../../utils/format";
 import { useI18n } from "../../i18n";
+import { useNavigation } from "../../contexts/NavigationContext";
 import type { TrendingRepo } from "../../api/client";
 
 interface TrendExpandedRowProps {
@@ -19,6 +20,7 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
   onClose,
 }: TrendExpandedRowProps) {
   const { t } = useI18n();
+  const { navigateTo } = useNavigation();
 
   return (
     <tr className="trend-expanded-row" data-testid={`trend-expanded-${repo.id}`}>
@@ -26,13 +28,22 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
         <div className="trend-expanded-panel">
           <div className="trend-expanded-header">
             <h3 className="trend-expanded-title">{repo.full_name}</h3>
-            <button
-              className="btn btn-sm btn-ghost trend-expanded-close"
-              onClick={onClose}
-              aria-label={t.trends.expand.collapse}
-            >
-              &times;
-            </button>
+            <div className="trend-expanded-actions">
+              <button
+                className="btn btn-sm btn-outline"
+                onClick={() => navigateTo("compare", { preselectedIds: [repo.id] })}
+                data-testid={`trend-compare-btn-${repo.id}`}
+              >
+                {t.trends.compareWith}
+              </button>
+              <button
+                className="btn btn-sm btn-ghost trend-expanded-close"
+                onClick={onClose}
+                aria-label={t.trends.expand.collapse}
+              >
+                &times;
+              </button>
+            </div>
           </div>
 
           {repo.description && <p className="trend-expanded-description">{repo.description}</p>}

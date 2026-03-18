@@ -11,6 +11,15 @@ vi.mock("../../../components/StarsChart", () => ({
   ),
 }));
 
+const mockNavigateTo = vi.fn();
+vi.mock("../../../contexts/NavigationContext", () => ({
+  useNavigation: () => ({
+    navigateTo: mockNavigateTo,
+    navigationState: null,
+    consumeNavigationState: () => null,
+  }),
+}));
+
 vi.mock("../../../components/TrendArrow", () => ({
   TrendArrow: ({ trend }: { trend: number | null }) => (
     <span data-testid="trend-arrow">{trend ?? "\u2014"}</span>
@@ -92,5 +101,13 @@ describe("TrendExpandedRow", () => {
   it("renders language badge in metrics", () => {
     renderInTable(<TrendExpandedRow repo={makeTrending({ language: "Rust" })} onClose={vi.fn()} />);
     expect(screen.getByText("Rust")).toBeInTheDocument();
+  });
+
+  it("calls navigateTo with preselectedIds when Compare button is clicked", async () => {
+    const user = userEvent.setup();
+    mockNavigateTo.mockClear();
+    renderInTable(<TrendExpandedRow repo={makeTrending({ id: 42 })} onClose={vi.fn()} />);
+    await user.click(screen.getByTestId("trend-compare-btn-42"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("compare", { preselectedIds: [42] });
   });
 });

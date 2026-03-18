@@ -8,6 +8,7 @@ import { TrendArrow } from "../../components/TrendArrow";
 import { formatNumber, formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import type { useI18n } from "../../i18n";
+import { useNavigation } from "../../contexts/NavigationContext";
 import type { TrendingRepo } from "../../api/client";
 import type { EarlySignal } from "../../api/types";
 import { BreakoutBadge } from "./BreakoutBadge";
@@ -42,6 +43,8 @@ export const TrendCard = memo(function TrendCard({
   onToggleSelection,
   signals,
 }: TrendCardProps) {
+  const { navigateTo } = useNavigation();
+
   const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     await safeOpenUrl(repo.url);
@@ -123,6 +126,16 @@ export const TrendCard = memo(function TrendCard({
             {t.trends.filters.addToWatchlist}
           </button>
         )}
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigateTo("compare", { preselectedIds: [repo.id] });
+          }}
+          data-testid={`trend-compare-btn-${repo.id}`}
+        >
+          {t.trends.compareWith}
+        </button>
       </div>
     </div>
   );

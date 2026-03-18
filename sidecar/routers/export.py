@@ -18,7 +18,7 @@ from db.database import get_db
 from constants import SignalType
 from db.models import Repo, RepoSnapshot, Signal
 from services.queries import build_snapshot_map, build_signal_map, build_stars_map
-from utils.time import utc_now
+from utils.time import utc_now, utc_today
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
@@ -390,5 +390,131 @@ async def export_trends_csv(
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.csv"'
+        }
+    )
+
+
+# ==================== Comparison Export ====================
+
+def _parse_repo_ids(repo_ids_str: str) -> list[int]:
+    """Parse and validate comma-separated repo IDs string."""
+    from datetime import timedelta  # noqa: F811 — local to avoid circular at module level
+    ids = [int(x) for x in repo_ids_str.split(",") if x.strip().isdigit()]
+    # Deduplicate while preserving order
+    seen: set[int] = set()
+    unique: list[int] = []
+    for rid in ids:
+        if rid not in seen:
+            seen.add(rid)
+            unique.append(rid)
+    return unique[:10]  # cap at 10 for export safety
+
+
+def _query_comparison_data(
+    db: Session,
+    repo_ids: list[int],
+    time_range: str,
+    normalize: bool,
+) -> list[dict]:
+    """Query comparison chart data for export, reusing comparison router logic."""
+    from datetime import timedelta
+    from sqlalchemy import asc
+
+    repos = db.query(Repo).filter(Repo.id.in_(repo_ids)).all()
+    repo_map = {r.id: r for r in repos}
+
+    days_map = {"7d": 7, "30d": 30, "90d": 90}
+    today = utc_today()
+    start_date = None if time_range == "all" else today - timedelta(days=days_map.get(time_range, 30))
+
+    snapshot_query = db.query(RepoSnapshot).filter(RepoSnapshot.repo_id.in_(repo_ids))
+    if start_date:
+        snapshot_query = snapshot_query.filter(RepoSnapshot.snapshot_date >= start_date)
+    snapshot_query = snapshot_query.order_by(asc(RepoSnapshot.snapshot_date))
+    all_snapshots = snapshot_query.all()
+
+    snapshots_by_repo: dict[int, list] = {rid: [] for rid in repo_ids}
+    for s in all_snapshots:
+        snapshots_by_repo[s.repo_id].append(s)
+
+    result = []
+    for s in all_snapshots:
+        repo = repo_map.get(s.repo_id)
+        if not repo:
+            continue
+        stars = s.stars
+        forks = s.forks
+        open_issues = s.open_issues
+        if normalize:
+            base_snaps = snapshots_by_repo.get(s.repo_id, [])
+            if base_snaps:
+                base_stars = base_snaps[0].stars
+                base_forks = base_snaps[0].forks
+                base_issues = base_snaps[0].open_issues
+                stars = round((s.stars - base_stars) / max(base_stars, 1) * 100, 2) if base_stars > 0 else 0
+                forks = round((s.forks - base_forks) / max(base_forks, 1) * 100, 2) if base_forks > 0 else 0
+                open_issues = round((s.open_issues - base_issues) / max(base_issues, 1) * 100, 2) if base_issues > 0 else 0
+        result.append({
+            "date": str(s.snapshot_date),
+            "repo_name": repo.full_name,
+            "repo_id": s.repo_id,
+            "stars": stars,
+            "forks": forks,
+            "open_issues": open_issues,
+        })
+    return result
+
+
+COMPARISON_CSV_COLUMNS = ["date", "repo_name", "repo_id", "stars", "forks", "open_issues"]
+
+
+@router.get("/comparison.json", response_class=StreamingResponse)
+async def export_comparison_json(
+    repo_ids: str = Query(..., description="Comma-separated repo IDs"),
+    time_range: str = Query("30d", description="Time range"),
+    normalize: bool = Query(False, description="Normalize to percentage"),
+    db: Session = Depends(get_db),
+):
+    """匯出對比資料為 JSON。"""
+    ids = _parse_repo_ids(repo_ids)
+    rows = _query_comparison_data(db, ids, time_range, normalize)
+    data = {
+        "exported_at": utc_now().isoformat(),
+        "repo_ids": ids,
+        "time_range": time_range,
+        "normalize": normalize,
+        "total": len(rows),
+        "data_points": rows,
+    }
+    return StreamingResponse(
+        io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="starscope_comparison_{utc_now().strftime("%Y%m%d")}.json"'
+        }
+    )
+
+
+@router.get("/comparison.csv", response_class=StreamingResponse)
+async def export_comparison_csv(
+    repo_ids: str = Query(..., description="Comma-separated repo IDs"),
+    time_range: str = Query("30d", description="Time range"),
+    normalize: bool = Query(False, description="Normalize to percentage"),
+    db: Session = Depends(get_db),
+):
+    """匯出對比資料為 CSV。"""
+    ids = _parse_repo_ids(repo_ids)
+    rows = _query_comparison_data(db, ids, time_range, normalize)
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=COMPARISON_CSV_COLUMNS, extrasaction="ignore")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(row)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="starscope_comparison_{utc_now().strftime("%Y%m%d")}.csv"'
         }
     )

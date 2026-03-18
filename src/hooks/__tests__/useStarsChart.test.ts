@@ -23,8 +23,8 @@ function createWrapper() {
 
 describe("useStarsChart", () => {
   const mockChartData: apiClient.ChartDataPoint[] = [
-    { date: "2024-01-01", stars: 100, forks: 10 },
-    { date: "2024-01-08", stars: 150, forks: 15 },
+    { date: "2024-01-01", stars: 100, forks: 10, open_issues: 0 },
+    { date: "2024-01-08", stars: 150, forks: 15, open_issues: 0 },
   ];
 
   const mockStarHistory: apiClient.StarHistoryPoint[] = [

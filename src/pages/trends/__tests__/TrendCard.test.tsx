@@ -8,6 +8,15 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
+const mockNavigateTo = vi.fn();
+vi.mock("../../../contexts/NavigationContext", () => ({
+  useNavigation: () => ({
+    navigateTo: mockNavigateTo,
+    navigationState: null,
+    consumeNavigationState: () => null,
+  }),
+}));
+
 vi.mock("../../../components/TrendArrow", () => ({
   TrendArrow: ({ trend }: { trend: number | null }) => (
     <span data-testid="trend-arrow">{trend ?? "\u2014"}</span>
@@ -49,6 +58,7 @@ const mockT = {
       addToWatchlist: "+ Watchlist",
       inWatchlist: "In Watchlist",
     },
+    compareWith: "Compare",
   },
   repo: { trend: "Trend" },
 } as ReturnType<typeof import("../../../i18n").useI18n>["t"];
@@ -179,5 +189,21 @@ describe("TrendCard", () => {
       />
     );
     expect(screen.getByText("Rust")).toBeInTheDocument();
+  });
+
+  it("calls navigateTo with preselectedIds when Compare button is clicked", async () => {
+    const user = userEvent.setup();
+    mockNavigateTo.mockClear();
+    render(
+      <TrendCard
+        repo={makeTrending({ id: 42 })}
+        isInWatchlist={false}
+        isAdding={false}
+        onAddToWatchlist={vi.fn()}
+        t={mockT}
+      />
+    );
+    await user.click(screen.getByTestId("trend-compare-btn-42"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("compare", { preselectedIds: [42] });
   });
 });

@@ -618,6 +618,38 @@ export function getExportTrendsCsvUrl(
   return `${API_ENDPOINT}/export/trends.csv?${params}`;
 }
 
+/**
+ * 取得對比 JSON 的匯出下載 URL。
+ */
+export function getExportComparisonJsonUrl(
+  repoIds: number[],
+  timeRange: ComparisonTimeRange,
+  normalize: boolean
+): string {
+  const params = new URLSearchParams({
+    repo_ids: repoIds.join(","),
+    time_range: timeRange,
+  });
+  if (normalize) params.set("normalize", "true");
+  return `${API_ENDPOINT}/export/comparison.json?${params}`;
+}
+
+/**
+ * 取得對比 CSV 的匯出下載 URL。
+ */
+export function getExportComparisonCsvUrl(
+  repoIds: number[],
+  timeRange: ComparisonTimeRange,
+  normalize: boolean
+): string {
+  const params = new URLSearchParams({
+    repo_ids: repoIds.join(","),
+    time_range: timeRange,
+  });
+  if (normalize) params.set("normalize", "true");
+  return `${API_ENDPOINT}/export/comparison.csv?${params}`;
+}
+
 // ==================== GitHub 驗證 API 函式 ====================
 
 /**

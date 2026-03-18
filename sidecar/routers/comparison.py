@@ -68,6 +68,7 @@ class ChartDataPoint(BaseModel):
     date: date
     stars: int | float
     forks: int | float
+    open_issues: int | float
 
 
 class ComparisonRepoData(BaseModel):
@@ -81,6 +82,8 @@ class ComparisonRepoData(BaseModel):
     trend: int | None = None
     stars_delta_7d: int | None = None
     stars_delta_30d: int | None = None
+    issues_delta_7d: int | None = None
+    issues_delta_30d: int | None = None
 
 
 class ComparisonChartResponse(BaseModel):
@@ -140,15 +143,15 @@ async def comparison_chart(
         for s in snaps:
             stars: int | float = s.stars
             forks: int | float = s.forks
+            open_issues: int | float = s.open_issues
             if req.normalize and snaps:
-                base = snaps[0].stars
-                if base > 0:
-                    stars = round((s.stars - base) / base * 100, 2)
-                    forks = round((s.forks - snaps[0].forks) / max(snaps[0].forks, 1) * 100, 2)
-                else:
-                    stars = 0
-                    forks = 0
-            data_points.append(ChartDataPoint(date=s.snapshot_date, stars=stars, forks=forks))
+                base_stars = snaps[0].stars
+                base_forks = snaps[0].forks
+                base_issues = snaps[0].open_issues
+                stars = round((s.stars - base_stars) / max(base_stars, 1) * 100, 2) if base_stars > 0 else 0
+                forks = round((s.forks - base_forks) / max(base_forks, 1) * 100, 2) if base_forks > 0 else 0
+                open_issues = round((s.open_issues - base_issues) / max(base_issues, 1) * 100, 2) if base_issues > 0 else 0
+            data_points.append(ChartDataPoint(date=s.snapshot_date, stars=stars, forks=forks, open_issues=open_issues))
 
         sigs = signal_map.get(repo_id, {})
         latest = latest_map.get(repo_id)
@@ -164,6 +167,8 @@ async def comparison_chart(
             trend=int(sigs[SignalType.TREND]) if SignalType.TREND in sigs else None,
             stars_delta_7d=int(sigs[SignalType.STARS_DELTA_7D]) if SignalType.STARS_DELTA_7D in sigs else None,
             stars_delta_30d=int(sigs[SignalType.STARS_DELTA_30D]) if SignalType.STARS_DELTA_30D in sigs else None,
+            issues_delta_7d=int(sigs[SignalType.ISSUES_DELTA_7D]) if SignalType.ISSUES_DELTA_7D in sigs else None,
+            issues_delta_30d=int(sigs[SignalType.ISSUES_DELTA_30D]) if SignalType.ISSUES_DELTA_30D in sigs else None,
         ))
 
     chart_data = ComparisonChartResponse(

@@ -3,7 +3,7 @@
  * 應用程式主入口，含主題與 i18n 支援。
  */
 
-import { useState, lazy, Suspense, useMemo } from "react";
+import { useState, useCallback, lazy, Suspense, useMemo } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AppHeader } from "./components/AppHeader";
@@ -12,6 +12,7 @@ import { ThemeContext } from "./theme";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
+import { NavigationProvider } from "./contexts/NavigationContext";
 import { queryClient } from "./lib/react-query";
 import type { Page } from "./types/navigation";
 import { STORAGE_KEYS } from "./constants/storage";
@@ -67,14 +68,14 @@ export function App() {
     return saved && validPages.includes(saved as Page) ? (saved as Page) : "dashboard";
   });
 
-  const handlePageChange = (page: Page) => {
+  const handlePageChange = useCallback((page: Page) => {
     setCurrentPage(page);
     try {
       localStorage.setItem(STORAGE_KEYS.PAGE, page);
     } catch {
       // QuotaExceededError — 靜默忽略，不影響導航功能
     }
-  };
+  }, []);
   const { theme, setTheme, toggleTheme } = useAppTheme();
   const { language, setLanguage, toggleLanguage, t } = useAppLanguage();
 
@@ -94,25 +95,27 @@ export function App() {
       <ThemeContext.Provider value={themeContextValue}>
         <I18nContext.Provider value={i18nContextValue}>
           <WatchlistProvider>
-            <div className="app">
-              <AppHeader
-                currentPage={currentPage}
-                onPageChange={handlePageChange}
-                theme={theme}
-                onThemeToggle={toggleTheme}
-                language={language}
-                onLanguageToggle={toggleLanguage}
-                t={t}
-              />
+            <NavigationProvider onPageChange={handlePageChange}>
+              <div className="app">
+                <AppHeader
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                  theme={theme}
+                  onThemeToggle={toggleTheme}
+                  language={language}
+                  onLanguageToggle={toggleLanguage}
+                  t={t}
+                />
 
-              <main className="app-main" id="main-content">
-                <ErrorBoundary>
-                  <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                    <PageContent page={currentPage} />
-                  </Suspense>
-                </ErrorBoundary>
-              </main>
-            </div>
+                <main className="app-main" id="main-content">
+                  <ErrorBoundary>
+                    <Suspense fallback={<PageLoader text={t.common.loading} />}>
+                      <PageContent page={currentPage} />
+                    </Suspense>
+                  </ErrorBoundary>
+                </main>
+              </div>
+            </NavigationProvider>
           </WatchlistProvider>
         </I18nContext.Provider>
       </ThemeContext.Provider>

@@ -12,9 +12,10 @@ export function useComparison(
   timeRange: ComparisonTimeRange = "30d",
   normalize: boolean = false
 ) {
-  return useQuery<ComparisonChartResponse, Error>({
+  const { data, isLoading, error, refetch } = useQuery<ComparisonChartResponse, Error>({
     queryKey: queryKeys.comparison.chart(repoIds, timeRange, normalize),
     queryFn: () => getComparisonChart(repoIds, timeRange, normalize),
     enabled: repoIds.length >= 2,
   });
+  return { data, isLoading, error, refetch };
 }

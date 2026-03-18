@@ -1,16 +1,19 @@
 import { useMemo, memo } from "react";
 import { useI18n } from "../../i18n";
-import type { ComparisonRepoData } from "../../api/types";
+import type { ComparisonRepoData, EarlySignal } from "../../api/types";
 import { formatNumber, formatDelta } from "../../utils/format";
 import { TREND_ARROWS } from "../../constants/trends";
+import { BreakoutBadge } from "../trends/BreakoutBadge";
 
 // ==================== MetricsTable ====================
 export const MetricsTable = memo(function MetricsTable({
   repos,
   t,
+  signalsByRepoId,
 }: {
   repos: ComparisonRepoData[];
   t: ReturnType<typeof useI18n>["t"];
+  signalsByRepoId?: Record<number, EarlySignal[]>;
 }) {
   const sorted = useMemo(
     () => [...repos].sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0)),
@@ -39,6 +42,9 @@ export const MetricsTable = memo(function MetricsTable({
                 <td>
                   <span className="compare-color-dot" style={{ background: r.color }} />
                   {r.repo_name}
+                  {signalsByRepoId?.[r.repo_id] && (
+                    <BreakoutBadge signals={signalsByRepoId[r.repo_id]} />
+                  )}
                 </td>
                 <td>{formatNumber(r.current_stars)}</td>
                 <td

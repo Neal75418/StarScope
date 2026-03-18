@@ -198,6 +198,7 @@ export interface ChartDataPoint {
   date: string;
   stars: number;
   forks: number;
+  open_issues: number;
 }
 
 export interface StarsChartResponse {
@@ -599,6 +600,8 @@ export interface ComparisonRepoData {
   trend: number | null;
   stars_delta_7d: number | null;
   stars_delta_30d: number | null;
+  issues_delta_7d: number | null;
+  issues_delta_30d: number | null;
 }
 
 export interface ComparisonChartResponse {

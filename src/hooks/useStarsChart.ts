@@ -22,6 +22,7 @@ async function fetchChartDataPoints(
       date: point.date,
       stars: point.stars,
       forks: 0,
+      open_issues: 0,
     }));
   }
   const response = await getStarsChart(repoId, timeRange, signal);

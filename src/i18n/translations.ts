@@ -321,6 +321,7 @@ export const translations = {
         minutesAgo: "{min}m ago",
         hoursAgo: "{hr}h ago",
       },
+      compareWith: "Compare",
     },
     // 對比頁面
     compare: {
@@ -333,6 +334,33 @@ export const translations = {
       normalize: "Normalize (%)",
       metrics: "Metrics",
       noData: "No data available for selected time range",
+      retry: "Retry",
+      download: "Download PNG",
+      logScale: "Log Scale",
+      share: "Share Link",
+      shareCopied: "Copied!",
+      growthRate: "Growth Rate",
+      metric: {
+        stars: "Stars",
+        forks: "Forks",
+        issues: "Issues",
+      },
+      chartType: {
+        line: "Line",
+        area: "Area",
+      },
+      export: {
+        button: "Export",
+        json: "Download JSON",
+        csv: "Download CSV",
+      },
+      presets: {
+        title: "Presets",
+        saveCurrent: "Save Current",
+        namePlaceholder: "Preset name...",
+        empty: "No saved presets",
+        delete: "Delete",
+      },
       columns: {
         repo: "Repository",
         stars: "Stars",
@@ -341,6 +369,21 @@ export const translations = {
         velocity: "Velocity",
         acceleration: "Accel",
         trend: "Trend",
+      },
+      diff: {
+        title: "Summary",
+        leader: "Leader",
+        fastest: "Fastest Growing",
+        mostGained: "Most Gained (7d)",
+        gap: "Star Gap",
+        closing: "Closing",
+        widening: "Widening",
+      },
+      correlation: {
+        title: "Correlation Matrix",
+      },
+      crossover: {
+        title: "Crossover",
       },
     },
     // 設定頁面
@@ -1067,6 +1110,7 @@ export const translations = {
         minutesAgo: "{min} 分鐘前",
         hoursAgo: "{hr} 小時前",
       },
+      compareWith: "對比",
     },
     // 對比頁面
     compare: {
@@ -1079,6 +1123,33 @@ export const translations = {
       normalize: "正規化 (%)",
       metrics: "指標",
       noData: "所選時間範圍內無資料",
+      retry: "重試",
+      download: "下載 PNG",
+      logScale: "對數刻度",
+      share: "分享連結",
+      shareCopied: "已複製！",
+      growthRate: "成長率",
+      metric: {
+        stars: "星數",
+        forks: "Fork 數",
+        issues: "Issue 數",
+      },
+      chartType: {
+        line: "折線",
+        area: "面積",
+      },
+      export: {
+        button: "匯出",
+        json: "下載 JSON",
+        csv: "下載 CSV",
+      },
+      presets: {
+        title: "預設",
+        saveCurrent: "儲存目前設定",
+        namePlaceholder: "預設名稱...",
+        empty: "尚無儲存的預設",
+        delete: "刪除",
+      },
       columns: {
         repo: "儲存庫",
         stars: "星數",
@@ -1087,6 +1158,21 @@ export const translations = {
         velocity: "速度",
         acceleration: "加速度",
         trend: "趨勢",
+      },
+      diff: {
+        title: "摘要",
+        leader: "領先者",
+        fastest: "成長最快",
+        mostGained: "7天增長最多",
+        gap: "星數差距",
+        closing: "追趕中",
+        widening: "拉開中",
+      },
+      correlation: {
+        title: "相關性矩陣",
+      },
+      crossover: {
+        title: "交叉點",
       },
     },
     // 設定頁面

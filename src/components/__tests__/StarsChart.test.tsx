@@ -54,11 +54,11 @@ describe("StarsChart", () => {
     repo_name: "facebook/react",
     time_range: "30d",
     data_points: [
-      { date: "2024-01-01T00:00:00Z", stars: 220000, forks: 30000 },
-      { date: "2024-01-08T00:00:00Z", stars: 220500, forks: 30100 },
-      { date: "2024-01-15T00:00:00Z", stars: 221000, forks: 30200 },
-      { date: "2024-01-22T00:00:00Z", stars: 221500, forks: 30300 },
-      { date: "2024-01-29T00:00:00Z", stars: 222000, forks: 30400 },
+      { date: "2024-01-01T00:00:00Z", stars: 220000, forks: 30000, open_issues: 0 },
+      { date: "2024-01-08T00:00:00Z", stars: 220500, forks: 30100, open_issues: 0 },
+      { date: "2024-01-15T00:00:00Z", stars: 221000, forks: 30200, open_issues: 0 },
+      { date: "2024-01-22T00:00:00Z", stars: 221500, forks: 30300, open_issues: 0 },
+      { date: "2024-01-29T00:00:00Z", stars: 222000, forks: 30400, open_issues: 0 },
     ],
     min_stars: 220000,
     max_stars: 222000,
@@ -109,7 +109,7 @@ describe("StarsChart", () => {
   it("shows empty state when data has less than 2 points", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue({
       ...mockChartData,
-      data_points: [{ date: "2024-01-01T00:00:00Z", stars: 220000, forks: 30000 }],
+      data_points: [{ date: "2024-01-01T00:00:00Z", stars: 220000, forks: 30000, open_issues: 0 }],
     });
 
     renderWithClient(<StarsChart repoId={1} />);
