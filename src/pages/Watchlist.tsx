@@ -2,7 +2,7 @@
  * Watchlist 頁面，顯示所有追蹤中的 repo。
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -11,20 +11,30 @@ import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import {
-  useFilteredRepos,
+  useSortedFilteredRepos,
   useLoadingRepo,
   useIsRefreshing,
   useIsRecalculating,
   useIsInitializing,
 } from "../hooks/selectors/useWatchlistSelectors";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
+import { useWatchlistSort } from "../hooks/useWatchlistSort";
+import { useViewMode } from "../hooks/useViewMode";
 import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
+import { useWatchlistKeyboard } from "../hooks/useWatchlistKeyboard";
+import { useWatchlistUrl } from "../hooks/useWatchlistUrl";
+import { useSelectionMode } from "../hooks/useSelectionMode";
+import { useWatchlistBatchActions } from "../hooks/useWatchlistBatchActions";
+import { STORAGE_KEYS } from "../constants/storage";
 import { LoadingState } from "./watchlist/LoadingState";
 import { ConnectionError } from "./watchlist/ConnectionError";
 import { ErrorBanner } from "./watchlist/ErrorBanner";
 import { Toolbar } from "./watchlist/Toolbar";
 import { EmptyStateView } from "./watchlist/EmptyStateView";
 import { RepoList } from "./watchlist/RepoList";
+import { RepoGrid } from "./watchlist/RepoGrid";
+import { SummaryPanel } from "./watchlist/SummaryPanel";
+import { BatchActionBar } from "./watchlist/BatchActionBar";
 
 // Watchlist 主元件
 export function Watchlist() {
@@ -34,8 +44,34 @@ export function Watchlist() {
   const state = useWatchlistState();
   const actions = useWatchlistActions();
 
+  // 排序 + 檢視模式 hooks
+  const { sortKey, sortDirection, setSort, restoreSort } = useWatchlistSort();
+  const { viewMode, setViewMode } = useViewMode(STORAGE_KEYS.WATCHLIST_VIEW_MODE);
+
+  // 鍵盤快捷鍵 + URL 同步
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useWatchlistKeyboard({
+    searchInputRef,
+    onRefreshAll: actions.refreshAll,
+    onAddRepo: actions.openDialog,
+  });
+  useWatchlistUrl({
+    categoryId: state.filters.selectedCategoryId,
+    searchQuery: state.filters.searchQuery,
+    sortKey,
+    sortDirection,
+    onRestoreState: useCallback(
+      (restored) => {
+        actions.setCategory(restored.categoryId);
+        actions.setSearchQuery(restored.searchQuery);
+        restoreSort(restored.sortKey, restored.sortDirection);
+      },
+      [actions, restoreSort]
+    ),
+  });
+
   // Selector hooks - 精準訂閱，減少 re-render
-  const displayedRepos = useFilteredRepos();
+  const displayedRepos = useSortedFilteredRepos(sortKey, sortDirection);
   const loadingRepoId = useLoadingRepo();
   const isRefreshing = useIsRefreshing();
   const isRecalculating = useIsRecalculating();
@@ -46,6 +82,28 @@ export function Watchlist() {
   const { dataMap: batchData, setVisibleRange } = useWindowedBatchRepoData(repoIds, {
     bufferSize: 10,
   });
+
+  // 從 batchData 提取 signals map（給 SummaryPanel 使用）
+  const batchSignals = useMemo(() => {
+    const map: Record<number, (typeof batchData)[number]["signals"] | undefined> = {};
+    for (const [id, data] of Object.entries(batchData)) {
+      map[Number(id)] = data?.signals;
+    }
+    return map;
+  }, [batchData]);
+
+  // 批次操作
+  const selection = useSelectionMode();
+  const batchActions = useWatchlistBatchActions(selection.selectedIds, actions);
+
+  const handleSelectAll = useCallback(() => {
+    selection.selectAll(displayedRepos.map((r) => r.id));
+  }, [selection, displayedRepos]);
+
+  const handleBatchDone = useCallback(() => {
+    selection.exit();
+    actions.success(t.watchlist.batch.done);
+  }, [selection, actions, t.watchlist.batch.done]);
 
   // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
   const categoryOps = useCategoryOperations(actions.refreshAll, actions.error);
@@ -69,6 +127,16 @@ export function Watchlist() {
       }
     },
     [categoryOps, actions, t.categories.removedFromCategory]
+  );
+
+  const handleAddRepo = useCallback(
+    async (input: string) => {
+      const result = await actions.addRepo(input);
+      if (result.success) {
+        actions.success(t.toast.repoAdded);
+      }
+    },
+    [actions, t.toast.repoAdded]
   );
 
   if (isInitializing) {
@@ -104,9 +172,22 @@ export function Watchlist() {
             totalCount={state.repos.length}
             searchQuery={state.filters.searchQuery}
             onSearchChange={actions.setSearchQuery}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSortChange={setSort}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            searchInputRef={searchInputRef}
+            isSelectionMode={selection.isActive}
+            onEnterSelectionMode={selection.enter}
+            onExitSelectionMode={selection.exit}
+            onSelectAll={handleSelectAll}
+            selectedCount={selection.selectedCount}
           />
 
           {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
+
+          <SummaryPanel repos={state.repos} batchSignals={batchSignals} />
 
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
@@ -117,6 +198,20 @@ export function Watchlist() {
                   onAddRepo={actions.openDialog}
                 />
               </div>
+            ) : viewMode === "grid" ? (
+              <RepoGrid
+                repos={displayedRepos}
+                loadingRepoId={loadingRepoId}
+                onFetch={actions.fetchRepo}
+                onRemove={handleRemove}
+                selectedCategoryId={state.filters.selectedCategoryId}
+                batchData={batchData}
+                onRemoveFromCategory={handleRemoveFromCategory}
+                onVisibleRangeChange={setVisibleRange}
+                isSelectionMode={selection.isActive}
+                selectedIds={selection.selectedIds}
+                onToggleSelection={selection.toggleSelection}
+              />
             ) : (
               <RepoList
                 repos={displayedRepos}
@@ -127,21 +222,30 @@ export function Watchlist() {
                 batchData={batchData}
                 onRemoveFromCategory={handleRemoveFromCategory}
                 onVisibleRangeChange={setVisibleRange}
+                isSelectionMode={selection.isActive}
+                selectedIds={selection.selectedIds}
+                onToggleSelection={selection.toggleSelection}
               />
             )}
           </div>
+
+          {selection.isActive && (
+            <BatchActionBar
+              selectedCount={selection.selectedCount}
+              isProcessing={batchActions.isProcessing}
+              onBatchAddToCategory={batchActions.batchAddToCategory}
+              onBatchRefresh={batchActions.batchRefresh}
+              onBatchRemove={batchActions.batchRemove}
+              onDone={handleBatchDone}
+            />
+          )}
         </div>
       </div>
 
       <AddRepoDialog
         isOpen={state.ui.dialog.isOpen}
         onClose={actions.closeDialog}
-        onAdd={async (input: string) => {
-          const result = await actions.addRepo(input);
-          if (result.success) {
-            actions.success(t.toast.repoAdded);
-          }
-        }}
+        onAdd={handleAddRepo}
         isLoading={state.loadingState.type === "adding"}
         error={state.ui.dialog.error}
       />

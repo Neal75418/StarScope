@@ -10,11 +10,21 @@ describe("Toolbar", () => {
     onRecalculateAll: vi.fn(),
     isRefreshing: false,
     isRecalculating: false,
-    selectedCategoryId: null,
+    selectedCategoryId: null as number | null,
     displayedCount: 10,
     totalCount: 10,
     searchQuery: "",
     onSearchChange: vi.fn(),
+    sortKey: "added_at" as const,
+    sortDirection: "desc" as const,
+    onSortChange: vi.fn(),
+    viewMode: "list" as const,
+    onViewModeChange: vi.fn(),
+    isSelectionMode: false,
+    onEnterSelectionMode: vi.fn(),
+    onExitSelectionMode: vi.fn(),
+    onSelectAll: vi.fn(),
+    selectedCount: 0,
   };
 
   beforeEach(() => {

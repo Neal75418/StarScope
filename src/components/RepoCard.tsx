@@ -31,6 +31,12 @@ interface RepoCardCategoryContext {
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
 }
 
+interface RepoCardSelectionState {
+  isSelectionMode: boolean;
+  isSelected: boolean;
+  onToggleSelection: (repoId: number) => void;
+}
+
 interface RepoCardProps {
   repo: RepoWithSignals;
   isLoading?: boolean;
@@ -38,6 +44,8 @@ interface RepoCardProps {
   preloadedData?: RepoCardPreloadedData;
   chartState?: RepoCardChartState;
   categoryContext?: RepoCardCategoryContext;
+  compact?: boolean;
+  selectionState?: RepoCardSelectionState;
 }
 
 export const RepoCard = memo(function RepoCard({
@@ -47,6 +55,8 @@ export const RepoCard = memo(function RepoCard({
   preloadedData,
   chartState,
   categoryContext,
+  compact,
+  selectionState,
 }: RepoCardProps) {
   const { badges, badgesLoading, activeSignalCount } = useRepoCardData(repo.id, preloadedData);
   // 圖表狀態：外部控制優先（虛擬滾動場景），否則使用內部狀態
@@ -80,8 +90,52 @@ export const RepoCard = memo(function RepoCard({
     [categoryContext?.selectedId, categoryContext?.onRemoveFromCategory, handleRemoveFromCategory]
   );
 
+  const handleCardClick = useCallback(() => {
+    if (selectionState?.isSelectionMode) {
+      selectionState.onToggleSelection(repo.id);
+    }
+  }, [selectionState, repo.id]);
+
+  const cardClassName = [
+    "repo-card",
+    compact ? "repo-card-compact" : "",
+    selectionState?.isSelectionMode ? "repo-card-selectable" : "",
+    selectionState?.isSelected ? "repo-card-selected" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (selectionState?.isSelectionMode && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        selectionState.onToggleSelection(repo.id);
+      }
+    },
+    [selectionState, repo.id]
+  );
+
   return (
-    <div className="repo-card">
+    <div
+      className={cardClassName}
+      {...(selectionState?.isSelectionMode
+        ? {
+            onClick: handleCardClick,
+            onKeyDown: handleKeyDown,
+            role: "button" as const,
+            tabIndex: 0,
+          }
+        : {})}
+    >
+      {selectionState?.isSelectionMode && (
+        <input
+          type="checkbox"
+          className="repo-card-checkbox"
+          checked={selectionState.isSelected}
+          onChange={() => selectionState.onToggleSelection(repo.id)}
+          data-testid={`repo-select-${repo.id}`}
+        />
+      )}
       <RepoCardHeader
         repo={repo}
         showChart={showChart}
@@ -103,14 +157,16 @@ export const RepoCard = memo(function RepoCard({
         badgesLoading={badgesLoading}
       />
 
-      <RepoCardStats repo={repo} />
+      {!compact && <RepoCardStats repo={repo} />}
 
-      <RepoCardPanels
-        repoId={repo.id}
-        showChart={showChart}
-        showSimilar={showSimilar}
-        onCloseSimilar={handleCloseSimilar}
-      />
+      {!compact && (
+        <RepoCardPanels
+          repoId={repo.id}
+          showChart={showChart}
+          showSimilar={showSimilar}
+          onCloseSimilar={handleCloseSimilar}
+        />
+      )}
     </div>
   );
 });

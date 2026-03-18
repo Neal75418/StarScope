@@ -22,6 +22,9 @@ export function RepoList({
   onRemoveFromCategory,
   batchData,
   onVisibleRangeChange,
+  isSelectionMode,
+  selectedIds,
+  onToggleSelection,
 }: {
   repos: RepoWithSignals[];
   loadingRepoId: number | null;
@@ -31,6 +34,9 @@ export function RepoList({
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
   batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
   onVisibleRangeChange: (range: { start: number; stop: number }) => void;
+  isSelectionMode?: boolean;
+  selectedIds?: Set<number>;
+  onToggleSelection?: (repoId: number) => void;
 }) {
   // 追蹤哪些 repo 的圖表已展開（提升到此層以控制虛擬滾動行高）
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
@@ -95,6 +101,15 @@ export function RepoList({
                   }
                 : undefined
             }
+            selectionState={
+              isSelectionMode && onToggleSelection
+                ? {
+                    isSelectionMode: true,
+                    isSelected: selectedIds?.has(repo.id) ?? false,
+                    onToggleSelection,
+                  }
+                : undefined
+            }
           />
         </div>
       );
@@ -109,6 +124,9 @@ export function RepoList({
       onRemoveFromCategory,
       expandedCharts,
       handleChartToggle,
+      isSelectionMode,
+      selectedIds,
+      onToggleSelection,
     ]
   );
 

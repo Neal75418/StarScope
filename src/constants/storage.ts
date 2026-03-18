@@ -13,4 +13,7 @@ export const STORAGE_KEYS = {
   RECENTLY_VIEWED: "starscope_recently_viewed",
   THEME: "starscope-theme",
   VIEW_MODE: "starscope_view_mode",
+  WATCHLIST_SORT: "starscope_watchlist_sort",
+  WATCHLIST_VIEW_MODE: "starscope_watchlist_view_mode",
+  WATCHLIST_SUMMARY_COLLAPSED: "starscope_watchlist_summary_collapsed",
 } as const;

@@ -12,11 +12,12 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import {
   CategoryAddForm,
   CategoryEditModal,
-  CategoryTreeNodeRenderer,
   CategorySidebarHeader,
   CategorySidebarLoading,
   CategorySidebarError,
 } from "./category-sidebar";
+import { DraggableCategoryList } from "./category-sidebar/DraggableCategoryList";
+import { useCategoryReorder } from "../hooks/useCategoryReorder";
 import { logger } from "../utils/logger";
 
 interface CategorySidebarProps {
@@ -35,11 +36,19 @@ export const CategorySidebar = memo(function CategorySidebar({
   const [editingCategory, setEditingCategory] = useState<CategoryTreeNode | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { tree, loading, error, handleCreateCategory, handleUpdateCategory, handleDeleteCategory } =
-    useCategoryTree(onCategoriesChange);
+  const {
+    tree,
+    loading,
+    error,
+    fetchCategories,
+    handleCreateCategory,
+    handleUpdateCategory,
+    handleDeleteCategory,
+  } = useCategoryTree(onCategoriesChange);
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
   const deleteConfirm = useDeleteConfirm();
+  const { reorder } = useCategoryReorder(tree, fetchCategories);
 
   const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
     e.stopPropagation();
@@ -126,18 +135,16 @@ export const CategorySidebar = memo(function CategorySidebar({
           <span className="category-name">{t.categories.allRepos}</span>
         </div>
 
-        {tree.map((node) => (
-          <CategoryTreeNodeRenderer
-            key={node.id}
-            node={node}
-            selectedCategoryId={selectedCategoryId}
-            isExpanded={isExpanded}
-            onSelect={onSelectCategory}
-            onToggleExpand={toggleExpanded}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        ))}
+        <DraggableCategoryList
+          tree={tree}
+          selectedCategoryId={selectedCategoryId}
+          isExpanded={isExpanded}
+          onSelect={onSelectCategory}
+          onToggleExpand={toggleExpanded}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onReorder={reorder}
+        />
 
         {tree.length === 0 && !showAddForm && (
           <div className="category-empty">{t.categories.empty}</div>

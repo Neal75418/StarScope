@@ -70,10 +70,69 @@ vi.mock("../../contexts/WatchlistContext", () => ({
 // noinspection JSUnusedGlobalSymbols — mock exports consumed by Watchlist component
 vi.mock("../../hooks/selectors/useWatchlistSelectors", () => ({
   useFilteredRepos: () => mockSelectors.displayedRepos,
+  useSortedFilteredRepos: () => mockSelectors.displayedRepos,
   useLoadingRepo: () => mockSelectors.loadingRepoId,
   useIsRefreshing: () => mockSelectors.isRefreshing,
   useIsRecalculating: () => mockSelectors.isRecalculating,
   useIsInitializing: () => mockSelectors.isInitializing,
+}));
+
+vi.mock("../../hooks/useWatchlistSort", () => ({
+  useWatchlistSort: () => ({
+    sortKey: "added_at",
+    sortDirection: "desc",
+    setSort: vi.fn(),
+    restoreSort: vi.fn(),
+  }),
+}));
+
+vi.mock("../../hooks/useWatchlistKeyboard", () => ({
+  useWatchlistKeyboard: vi.fn(),
+}));
+
+vi.mock("../../hooks/useWatchlistUrl", () => ({
+  useWatchlistUrl: () => ({ hasUrlParams: false }),
+}));
+
+vi.mock("../../hooks/useSelectionMode", () => ({
+  useSelectionMode: () => ({
+    isActive: false,
+    selectedIds: new Set(),
+    selectedCount: 0,
+    enter: vi.fn(),
+    exit: vi.fn(),
+    toggleSelection: vi.fn(),
+    selectAll: vi.fn(),
+    clearSelection: vi.fn(),
+  }),
+}));
+
+vi.mock("../../hooks/useWatchlistBatchActions", () => ({
+  useWatchlistBatchActions: () => ({
+    batchAddToCategory: vi.fn(),
+    batchRefresh: vi.fn(),
+    batchRemove: vi.fn(),
+    isProcessing: false,
+  }),
+}));
+
+vi.mock("../../hooks/useCategoryTree", () => ({
+  useCategoryTree: () => ({
+    tree: [],
+    loading: false,
+    error: null,
+    fetchCategories: vi.fn(),
+    handleCreateCategory: vi.fn(),
+    handleUpdateCategory: vi.fn(),
+    handleDeleteCategory: vi.fn(),
+  }),
+}));
+
+vi.mock("../../hooks/useViewMode", () => ({
+  useViewMode: () => ({
+    viewMode: "list",
+    setViewMode: vi.fn(),
+  }),
 }));
 
 vi.mock("../../hooks/useWindowedBatchRepoData", () => ({

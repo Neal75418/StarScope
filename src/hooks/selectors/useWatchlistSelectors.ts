@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { useWatchlistState } from "../../contexts/WatchlistContext";
 import type { RepoWithSignals } from "../../api/client";
 import { normalizeRepoName } from "../../utils/format";
+import type { WatchlistSortKey, SortDirection } from "../useWatchlistSort";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
@@ -38,6 +39,54 @@ export function useFilteredRepos(): RepoWithSignals[] {
 
     return result;
   }, [state.repos, categoryRepoIds, searchQuery]);
+}
+
+/**
+ * 篩選 + 排序後的 repos。
+ * 先套用 useFilteredRepos()，再按指定欄位排序。null 值永遠排最後。
+ */
+export function useSortedFilteredRepos(
+  sortKey: WatchlistSortKey,
+  sortDirection: SortDirection
+): RepoWithSignals[] {
+  const filtered = useFilteredRepos();
+
+  return useMemo(() => {
+    const multiplier = sortDirection === "asc" ? 1 : -1;
+
+    return [...filtered].sort((a, b) => {
+      const av = getSortValue(a, sortKey);
+      const bv = getSortValue(b, sortKey);
+
+      // null 永遠排最後
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+
+      if (typeof av === "string" && typeof bv === "string") {
+        return multiplier * av.localeCompare(bv);
+      }
+
+      return multiplier * ((av as number) - (bv as number));
+    });
+  }, [filtered, sortKey, sortDirection]);
+}
+
+function getSortValue(repo: RepoWithSignals, key: WatchlistSortKey): string | number | null {
+  switch (key) {
+    case "stars":
+      return repo.stars;
+    case "velocity":
+      return repo.velocity;
+    case "stars_delta_7d":
+      return repo.stars_delta_7d;
+    case "acceleration":
+      return repo.acceleration;
+    case "full_name":
+      return repo.full_name;
+    case "added_at":
+      return new Date(repo.added_at).getTime();
+  }
 }
 
 /**
