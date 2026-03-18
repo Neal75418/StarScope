@@ -590,6 +590,34 @@ export function getExportWatchlistCsvUrl(): string {
   return `${API_ENDPOINT}/export/watchlist.csv`;
 }
 
+/**
+ * 取得趨勢 JSON 的匯出下載 URL。
+ */
+export function getExportTrendsJsonUrl(
+  sortBy: string,
+  language?: string,
+  minStars?: number | null
+): string {
+  const params = new URLSearchParams({ sort_by: sortBy });
+  if (language) params.set("language", language);
+  if (minStars != null) params.set("min_stars", String(minStars));
+  return `${API_ENDPOINT}/export/trends.json?${params}`;
+}
+
+/**
+ * 取得趨勢 CSV 的匯出下載 URL。
+ */
+export function getExportTrendsCsvUrl(
+  sortBy: string,
+  language?: string,
+  minStars?: number | null
+): string {
+  const params = new URLSearchParams({ sort_by: sortBy });
+  if (language) params.set("language", language);
+  if (minStars != null) params.set("min_stars", String(minStars));
+  return `${API_ENDPOINT}/export/trends.csv?${params}`;
+}
+
 // ==================== GitHub 驗證 API 函式 ====================
 
 /**

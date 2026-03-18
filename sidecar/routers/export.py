@@ -6,16 +6,18 @@
 import csv
 import io
 import json
+from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session, aliased
 
 from db.database import get_db
 from constants import SignalType
-from db.models import Repo, RepoSnapshot
-from services.queries import build_snapshot_map, build_signal_map
+from db.models import Repo, RepoSnapshot, Signal
+from services.queries import build_snapshot_map, build_signal_map, build_stars_map
 from utils.time import utc_now
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -244,5 +246,149 @@ async def export_watchlist_csv(
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.csv"'
+        }
+    )
+
+
+# ──────────────────────────────────────────────────────────────
+# Trends Export
+# ──────────────────────────────────────────────────────────────
+
+TrendsSortBy = Literal[
+    "velocity", "stars_delta_7d", "stars_delta_30d",
+    "acceleration", "forks_delta_7d", "issues_delta_7d",
+]
+
+_SORT_SIGNAL_MAP: dict[str, str] = {
+    "velocity": SignalType.VELOCITY,
+    "stars_delta_7d": SignalType.STARS_DELTA_7D,
+    "stars_delta_30d": SignalType.STARS_DELTA_30D,
+    "acceleration": SignalType.ACCELERATION,
+    "forks_delta_7d": SignalType.FORKS_DELTA_7D,
+    "issues_delta_7d": SignalType.ISSUES_DELTA_7D,
+}
+
+
+def _query_trending_repos(
+    db: Session,
+    sort_by: str,
+    limit: int,
+    language: str | None,
+    min_stars: int | None,
+) -> list[dict]:
+    """查詢趨勢 repo 並回傳含訊號的 dict 列表（複用 trends 查詢邏輯）。"""
+    sort_signal_type = _SORT_SIGNAL_MAP.get(sort_by, SignalType.VELOCITY)
+
+    sort_signal = aliased(Signal)
+    query = (
+        db.query(Repo)
+        .outerjoin(
+            sort_signal,
+            (Repo.id == sort_signal.repo_id) &
+            (sort_signal.signal_type == sort_signal_type)
+        )
+    )
+
+    if language:
+        query = query.filter(func.lower(Repo.language) == language.lower())
+
+    if min_stars is not None:
+        query = query.filter(
+            db.query(RepoSnapshot.id)
+            .filter(
+                RepoSnapshot.repo_id == Repo.id,
+                RepoSnapshot.stars >= min_stars
+            ).exists()
+        )
+
+    repos = (
+        query
+        .order_by(desc(func.coalesce(sort_signal.value, 0)))
+        .limit(limit)
+        .all()
+    )
+
+    if not repos:
+        return []
+
+    repo_ids = [r.id for r in repos]
+    signals_map = build_signal_map(db, repo_ids)
+    stars_map = build_stars_map(db, repo_ids)
+
+    result = []
+    for rank, repo in enumerate(repos, start=1):
+        signals = signals_map.get(int(repo.id), {})
+        result.append({
+            "rank": rank,
+            "full_name": repo.full_name,
+            "owner": repo.owner,
+            "name": repo.name,
+            "url": repo.url,
+            "description": repo.description,
+            "language": repo.language,
+            "stars": stars_map.get(int(repo.id)),
+            "velocity": signals.get(SignalType.VELOCITY),
+            "stars_delta_7d": signals.get(SignalType.STARS_DELTA_7D),
+            "stars_delta_30d": signals.get(SignalType.STARS_DELTA_30D),
+            "acceleration": signals.get(SignalType.ACCELERATION),
+            "forks_delta_7d": signals.get(SignalType.FORKS_DELTA_7D),
+            "issues_delta_7d": signals.get(SignalType.ISSUES_DELTA_7D),
+        })
+    return result
+
+
+TRENDS_CSV_COLUMNS = [
+    "rank", "full_name", "owner", "name", "url", "language", "description",
+    "stars", "velocity", "stars_delta_7d", "stars_delta_30d",
+    "acceleration", "forks_delta_7d", "issues_delta_7d",
+]
+
+
+@router.get("/trends.json", response_class=StreamingResponse)
+async def export_trends_json(
+    sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
+    limit: int = Query(50, ge=1, le=200, description="Maximum results"),
+    language: str | None = Query(None, description="Filter by language"),
+    min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
+    db: Session = Depends(get_db),
+):
+    """匯出趨勢 repo 為 JSON。"""
+    repos = _query_trending_repos(db, sort_by, limit, language, min_stars)
+    data = {
+        "exported_at": utc_now().isoformat(),
+        "sort_by": sort_by,
+        "total": len(repos),
+        "repos": repos,
+    }
+    return StreamingResponse(
+        io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.json"'
+        }
+    )
+
+
+@router.get("/trends.csv", response_class=StreamingResponse)
+async def export_trends_csv(
+    sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
+    limit: int = Query(50, ge=1, le=200, description="Maximum results"),
+    language: str | None = Query(None, description="Filter by language"),
+    min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
+    db: Session = Depends(get_db),
+):
+    """匯出趨勢 repo 為 CSV。"""
+    repos = _query_trending_repos(db, sort_by, limit, language, min_stars)
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=TRENDS_CSV_COLUMNS, extrasaction="ignore")
+    writer.writeheader()
+    for repo_dict in repos:
+        writer.writerow(repo_dict)
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.csv"'
         }
     )

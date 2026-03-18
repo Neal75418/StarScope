@@ -21,12 +21,16 @@ export type SortOption =
 
 const EMPTY_TRENDS: TrendingRepo[] = [];
 
-export function useTrends() {
+interface UseTrendsOptions {
+  refetchInterval?: number | false;
+}
+
+export function useTrends(options?: UseTrendsOptions) {
   const [sortBy, setSortBy] = useState<SortOption>("velocity");
   const [languageFilter, setLanguageFilter] = useState<string>("");
   const [minStarsFilter, setMinStarsFilter] = useState<number | null>(null);
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: queryKeys.trends.list({
       sortBy,
       language: languageFilter || undefined,
@@ -39,6 +43,7 @@ export function useTrends() {
         language: languageFilter || undefined,
         minStars: minStarsFilter ?? undefined,
       }),
+    refetchInterval: options?.refetchInterval || false,
   });
 
   const trends = data?.repos ?? EMPTY_TRENDS;
@@ -64,5 +69,6 @@ export function useTrends() {
     setMinStarsFilter,
     availableLanguages,
     retry: useCallback(() => void refetch(), [refetch]),
+    dataUpdatedAt,
   };
 }

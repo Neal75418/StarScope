@@ -276,6 +276,51 @@ export const translations = {
         addToWatchlist: "+ Watchlist",
         inWatchlist: "In Watchlist",
       },
+      expand: {
+        description: "Description",
+        noDescription: "No description available.",
+        collapse: "Collapse",
+      },
+      viewMode: {
+        grid: "Grid",
+        list: "List",
+      },
+      export: {
+        button: "Export",
+        json: "Export JSON",
+        csv: "Export CSV",
+      },
+      batch: {
+        selected: "{count} selected",
+        addToWatchlist: "Add {count} to Watchlist",
+        adding: "Adding...",
+        cancel: "Cancel",
+        error: "Failed to add repos to watchlist",
+        partial: "Added {success} of {total} repos",
+      },
+      selection: {
+        enter: "Select",
+        exit: "Done",
+      },
+      breakouts: {
+        filter: "Breakouts Only",
+        more: "+{count} more",
+        types: {
+          breakout: "Breakout",
+          sudden_spike: "Spike",
+          rising_star: "Rising",
+          viral_hn: "HN Viral",
+          release_surge: "Release",
+        },
+      },
+      autoRefresh: {
+        off: "Off",
+        interval: "Auto-refresh",
+        lastUpdated: "Updated {time}",
+        justNow: "just now",
+        minutesAgo: "{min}m ago",
+        hoursAgo: "{hr}h ago",
+      },
     },
     // 對比頁面
     compare: {
@@ -976,6 +1021,51 @@ export const translations = {
         minStars: "最低星數",
         addToWatchlist: "+ 追蹤",
         inWatchlist: "已追蹤",
+      },
+      expand: {
+        description: "說明",
+        noDescription: "無可用說明。",
+        collapse: "收合",
+      },
+      viewMode: {
+        grid: "卡片",
+        list: "列表",
+      },
+      export: {
+        button: "匯出",
+        json: "匯出 JSON",
+        csv: "匯出 CSV",
+      },
+      batch: {
+        selected: "已選取 {count} 個",
+        addToWatchlist: "加入 {count} 個至追蹤清單",
+        adding: "加入中...",
+        cancel: "取消",
+        error: "加入追蹤清單失敗",
+        partial: "已加入 {success} / {total} 個儲存庫",
+      },
+      selection: {
+        enter: "選取",
+        exit: "完成",
+      },
+      breakouts: {
+        filter: "僅顯示突破",
+        more: "+{count} 個更多",
+        types: {
+          breakout: "爆發",
+          sudden_spike: "飆升",
+          rising_star: "新星",
+          viral_hn: "HN 熱門",
+          release_surge: "版本潮",
+        },
+      },
+      autoRefresh: {
+        off: "關閉",
+        interval: "自動重新整理",
+        lastUpdated: "{time} 更新",
+        justNow: "剛剛",
+        minutesAgo: "{min} 分鐘前",
+        hoursAgo: "{hr} 小時前",
       },
     },
     // 對比頁面

@@ -2,18 +2,27 @@
  * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
  */
 
-import { memo, useState, useMemo, useCallback } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
-import { TrendArrow } from "../components/TrendArrow";
+import { Fragment, useState, useMemo, useCallback, useEffect } from "react";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
-import { formatNumber, formatDelta } from "../utils/format";
+import { formatNumber } from "../utils/format";
 import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
 import { addRepo } from "../api/client";
 import { useWatchlistState } from "../contexts/WatchlistContext";
+import { useViewMode } from "../hooks/useViewMode";
+import { useSelectionMode } from "../hooks/useSelectionMode";
+import { STORAGE_KEYS } from "../constants/storage";
 import { logger } from "../utils/logger";
-import { safeOpenUrl } from "../utils/url";
+import { TrendRow } from "./trends/TrendRow";
+import { TrendExpandedRow } from "./trends/TrendExpandedRow";
+import { TrendGrid } from "./trends/TrendGrid";
+import { TrendsExportDropdown } from "./trends/TrendsExportDropdown";
+import { TrendsBatchAddBar } from "./trends/TrendsBatchAddBar";
+import { useTrendsKeyboard } from "../hooks/useTrendsKeyboard";
+import { useTrendsUrl } from "../hooks/useTrendsUrl";
+import type { TrendsUrlState } from "../hooks/useTrendsUrl";
+import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 
 const SORT_KEYS: SortOption[] = [
   "velocity",
@@ -26,71 +35,74 @@ const SORT_KEYS: SortOption[] = [
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
 
-const TrendRow = memo(function TrendRow({
-  repo,
-  isInWatchlist,
-  isAdding,
-  onAddToWatchlist,
+const REFRESH_INTERVALS: { label: string; value: number | false }[] = [
+  { label: "off", value: false },
+  { label: "5m", value: 5 * 60 * 1000 },
+  { label: "15m", value: 15 * 60 * 1000 },
+  { label: "30m", value: 30 * 60 * 1000 },
+];
+
+function getStoredRefreshInterval(): number | false {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEYS.TRENDS_AUTO_REFRESH);
+    if (stored) {
+      const num = Number(stored);
+      if (REFRESH_INTERVALS.some((r) => r.value === num)) return num;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+function formatTimeAgo(
+  timestamp: number,
+  t: { justNow: string; minutesAgo: string; hoursAgo: string }
+): string {
+  if (timestamp === 0) return "";
+  const diff = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (diff < 60) return t.justNow;
+  const min = Math.floor(diff / 60);
+  if (min < 60) return t.minutesAgo.replace("{min}", String(min));
+  const hr = Math.floor(min / 60);
+  return t.hoursAgo.replace("{hr}", String(hr));
+}
+
+/** 自管 tick 的子元件，避免 30s 間隔重渲整頁。 */
+function LastUpdatedIndicator({
+  dataUpdatedAt,
   t,
 }: {
-  repo: TrendingRepo;
-  isInWatchlist: boolean;
-  isAdding: boolean;
-  onAddToWatchlist: (repo: TrendingRepo) => void;
-  t: ReturnType<typeof useI18n>["t"];
+  dataUpdatedAt: number;
+  t: { lastUpdated: string; justNow: string; minutesAgo: string; hoursAgo: string };
 }) {
-  const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    await safeOpenUrl(repo.url);
-  };
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (dataUpdatedAt === 0) return;
+    const id = setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, [dataUpdatedAt]);
+
+  if (dataUpdatedAt === 0) return null;
 
   return (
-    <tr>
-      <td className="rank-col">
-        <span className="rank-badge">{repo.rank}</span>
-      </td>
-      <td className="repo-col">
-        <a href={repo.url} onClick={handleLinkClick} className="repo-link">
-          {repo.full_name}
-        </a>
-        {repo.language && <span className="repo-language">{repo.language}</span>}
-      </td>
-      <td className="stars-col">{formatNumber(repo.stars)}</td>
-      <td className="delta-col positive">{formatDelta(repo.stars_delta_7d)}</td>
-      <td className="delta-col positive">{formatDelta(repo.stars_delta_30d)}</td>
-      <td className="velocity-col">{repo.velocity !== null ? repo.velocity.toFixed(1) : "—"}</td>
-      <td className="trend-col">
-        <TrendArrow trend={repo.trend} />
-      </td>
-      <td
-        className={`delta-col ${(repo.forks_delta_7d ?? 0) > 0 ? "positive" : (repo.forks_delta_7d ?? 0) < 0 ? "negative" : ""}`}
-      >
-        {formatDelta(repo.forks_delta_7d)}
-      </td>
-      <td
-        className={`delta-col ${(repo.issues_delta_7d ?? 0) > 0 ? "negative" : (repo.issues_delta_7d ?? 0) < 0 ? "positive" : ""}`}
-      >
-        {formatDelta(repo.issues_delta_7d)}
-      </td>
-      <td className="action-col">
-        {isInWatchlist ? (
-          <span className="trends-in-watchlist">{t.trends.filters.inWatchlist}</span>
-        ) : (
-          <button
-            className="btn btn-sm btn-outline trends-add-btn"
-            onClick={() => onAddToWatchlist(repo)}
-            disabled={isAdding}
-          >
-            {t.trends.filters.addToWatchlist}
-          </button>
-        )}
-      </td>
-    </tr>
+    <span
+      className="trends-refresh-indicator"
+      data-testid="trends-last-updated"
+      role="status"
+      aria-live="polite"
+    >
+      {t.lastUpdated.replace("{time}", formatTimeAgo(dataUpdatedAt, t))}
+    </span>
   );
-});
+}
 
 export function Trends() {
   const { t } = useI18n();
+
+  // Auto-refresh 間隔
+  const [refreshInterval, setRefreshInterval] = useState<number | false>(getStoredRefreshInterval);
+
   const {
     trends,
     loading,
@@ -103,13 +115,95 @@ export function Trends() {
     setMinStarsFilter,
     availableLanguages,
     retry,
-  } = useTrends();
+    dataUpdatedAt,
+  } = useTrends({ refetchInterval: refreshInterval });
+
+  const handleRefreshIntervalChange = useCallback((value: string) => {
+    const num = value === "false" ? false : Number(value);
+    setRefreshInterval(num);
+    try {
+      if (num === false) {
+        localStorage.removeItem(STORAGE_KEYS.TRENDS_AUTO_REFRESH);
+      } else {
+        localStorage.setItem(STORAGE_KEYS.TRENDS_AUTO_REFRESH, String(num));
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // 視圖模式：List / Grid
+  const { viewMode, setViewMode } = useViewMode(STORAGE_KEYS.TRENDS_VIEW_MODE);
 
   // Watchlist 狀態 — 從 Context 讀取，避免重複 API 請求
   const watchlistState = useWatchlistState();
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // 展開狀態 — 同一時間只展開一行（僅 list 模式）
+  const [expandedRepoId, setExpandedRepoId] = useState<number | null>(null);
+
+  // 多選模式 — 批次加入 watchlist
+  const selection = useSelectionMode();
+
+  const selectedRepos = useMemo(
+    () => trends.filter((r) => selection.selectedIds.has(r.id)),
+    [trends, selection.selectedIds]
+  );
+
+  const handleSelectionDone = useCallback(() => {
+    selection.exit();
+    setExpandedRepoId(null);
+  }, [selection]);
+
+  // 鍵盤快捷鍵
+  const handleToggleViewMode = useCallback(() => {
+    setViewMode(viewMode === "list" ? "grid" : "list");
+  }, [viewMode, setViewMode]);
+
+  const handleEscape = useCallback(() => {
+    if (selection.isActive) {
+      selection.exit();
+    } else if (expandedRepoId !== null) {
+      setExpandedRepoId(null);
+    }
+  }, [selection, expandedRepoId]);
+
+  useTrendsKeyboard({
+    onRefresh: retry,
+    onToggleViewMode: handleToggleViewMode,
+    onSetSortBy: setSortBy,
+    onEscape: handleEscape,
+    enabled: !loading,
+  });
+
+  // URL 同步
+  const handleRestoreState = useCallback(
+    (state: TrendsUrlState) => {
+      setSortBy(state.sortBy);
+      setLanguageFilter(state.language);
+      setMinStarsFilter(state.minStars);
+    },
+    [setSortBy, setLanguageFilter, setMinStarsFilter]
+  );
+
+  useTrendsUrl({
+    sortBy,
+    language: languageFilter,
+    minStars: minStarsFilter,
+    onRestoreState: handleRestoreState,
+  });
+
+  // Breakout / Early Signal 偵測
+  const repoIds = useMemo(() => trends.map((r) => r.id), [trends]);
+  const { signalsByRepoId, reposWithBreakouts } = useTrendEarlySignals(repoIds);
+  const [showBreakoutsOnly, setShowBreakoutsOnly] = useState(false);
+
+  const displayedTrends = useMemo(
+    () => (showBreakoutsOnly ? trends.filter((r) => reposWithBreakouts.has(r.id)) : trends),
+    [trends, showBreakoutsOnly, reposWithBreakouts]
+  );
 
   const allWatchlistNames = useMemo(() => {
     const names = new Set(watchlistState.repos.map((r) => r.full_name.toLowerCase()));
@@ -129,6 +223,14 @@ export function Trends() {
     } finally {
       setAddingRepoId(null);
     }
+  }, []);
+
+  const handleToggleExpand = useCallback((repoId: number) => {
+    setExpandedRepoId((prev) => (prev === repoId ? null : repoId));
+  }, []);
+
+  const handleCloseExpand = useCallback(() => {
+    setExpandedRepoId(null);
   }, []);
 
   if (loading) {
@@ -273,10 +375,82 @@ export function Trends() {
             <option value="">{t.trends.filters.minStars}</option>
             {MIN_STARS_OPTIONS.map((n) => (
               <option key={n} value={n}>
-                ≥ {formatNumber(n)}
+                &ge; {formatNumber(n)}
               </option>
             ))}
           </select>
+
+          {reposWithBreakouts.size > 0 && (
+            <button
+              className={`btn btn-sm${showBreakoutsOnly ? " btn-primary" : ""}`}
+              onClick={() => setShowBreakoutsOnly((prev) => !prev)}
+              data-testid="trends-breakouts-filter"
+            >
+              {t.trends.breakouts.filter} ({reposWithBreakouts.size})
+            </button>
+          )}
+
+          <div className="view-mode-toggle" data-testid="view-mode-toggle">
+            <button
+              className={`view-mode-btn${viewMode === "list" ? " active" : ""}`}
+              onClick={() => setViewMode("list")}
+              aria-label={t.trends.viewMode.list}
+              title={t.trends.viewMode.list}
+            >
+              ☰
+            </button>
+            <button
+              className={`view-mode-btn${viewMode === "grid" ? " active" : ""}`}
+              onClick={() => setViewMode("grid")}
+              aria-label={t.trends.viewMode.grid}
+              title={t.trends.viewMode.grid}
+            >
+              ▦
+            </button>
+          </div>
+
+          {selection.isActive ? (
+            <button
+              className="btn btn-sm"
+              onClick={handleSelectionDone}
+              data-testid="trends-selection-exit"
+            >
+              {t.trends.selection.exit}
+            </button>
+          ) : (
+            <button
+              className="btn btn-sm"
+              onClick={selection.enter}
+              data-testid="trends-selection-enter"
+            >
+              {t.trends.selection.enter}
+            </button>
+          )}
+
+          <TrendsExportDropdown
+            sortBy={sortBy}
+            language={languageFilter}
+            minStars={minStarsFilter}
+          />
+
+          <div className="trends-refresh-controls" data-testid="trends-refresh-controls">
+            <select
+              className="trends-filter-select"
+              value={refreshInterval === false ? "false" : String(refreshInterval)}
+              onChange={(e) => handleRefreshIntervalChange(e.target.value)}
+              aria-label={t.trends.autoRefresh.interval}
+              data-testid="trends-refresh-select"
+            >
+              {REFRESH_INTERVALS.map((opt) => (
+                <option key={String(opt.value)} value={String(opt.value)}>
+                  {opt.value === false ? t.trends.autoRefresh.off : `${opt.label}`}
+                </option>
+              ))}
+            </select>
+            {refreshInterval !== false && (
+              <LastUpdatedIndicator dataUpdatedAt={dataUpdatedAt} t={t.trends.autoRefresh} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -284,15 +458,27 @@ export function Trends() {
         <div className="error-banner" role="alert">
           {addError}
           <button className="btn btn-sm" onClick={() => setAddError(null)}>
-            ✕
+            &times;
           </button>
         </div>
       )}
 
-      {trends.length === 0 ? (
+      {displayedTrends.length === 0 ? (
         <div className="empty-state" data-testid="empty-state">
           <p>{t.trends.empty}</p>
         </div>
+      ) : viewMode === "grid" ? (
+        <TrendGrid
+          trends={displayedTrends}
+          allWatchlistNames={allWatchlistNames}
+          addingRepoId={addingRepoId}
+          onAddToWatchlist={handleAddToWatchlist}
+          t={t}
+          isSelectionMode={selection.isActive}
+          selectedIds={selection.selectedIds}
+          onToggleSelection={selection.toggleSelection}
+          signalsByRepoId={signalsByRepoId}
+        />
       ) : (
         <div className="trends-table" data-testid="trends-table">
           <table>
@@ -311,19 +497,38 @@ export function Trends() {
               </tr>
             </thead>
             <tbody>
-              {trends.map((repo) => (
-                <TrendRow
-                  key={repo.id}
-                  repo={repo}
-                  isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
-                  isAdding={addingRepoId === repo.id}
-                  onAddToWatchlist={handleAddToWatchlist}
-                  t={t}
-                />
+              {displayedTrends.map((repo) => (
+                <Fragment key={repo.id}>
+                  <TrendRow
+                    repo={repo}
+                    isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
+                    isAdding={addingRepoId === repo.id}
+                    onAddToWatchlist={handleAddToWatchlist}
+                    isExpanded={expandedRepoId === repo.id}
+                    onToggleExpand={handleToggleExpand}
+                    t={t}
+                    isSelectionMode={selection.isActive}
+                    isSelected={selection.selectedIds.has(repo.id)}
+                    onToggleSelection={selection.toggleSelection}
+                    signals={signalsByRepoId[repo.id]}
+                  />
+                  {expandedRepoId === repo.id && (
+                    <TrendExpandedRow repo={repo} onClose={handleCloseExpand} />
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {selection.isActive && (
+        <TrendsBatchAddBar
+          selectedRepos={selectedRepos}
+          selectedCount={selection.selectedCount}
+          onDone={handleSelectionDone}
+          onError={setAddError}
+        />
       )}
     </AnimatedPage>
   );

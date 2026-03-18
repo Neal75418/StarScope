@@ -57,9 +57,12 @@ function createWrapper() {
 }
 
 /** Render hook and wait for initial loading to complete. */
-async function renderAndWaitForLoad(mockResponse = defaultResponse) {
+async function renderAndWaitForLoad(
+  mockResponse = defaultResponse,
+  options?: Parameters<typeof useTrends>[0]
+) {
   mockGetTrends.mockResolvedValue(mockResponse);
-  const utils = renderHook(() => useTrends(), { wrapper: createWrapper() });
+  const utils = renderHook(() => useTrends(options), { wrapper: createWrapper() });
   await waitFor(() => {
     expect(utils.result.current.loading).toBe(false);
   });
@@ -217,5 +220,47 @@ describe("useTrends", () => {
     });
 
     expect(result.current.trends).toHaveLength(1);
+  });
+
+  it("exposes dataUpdatedAt timestamp", async () => {
+    const { result } = await renderAndWaitForLoad();
+    expect(result.current.dataUpdatedAt).toBeGreaterThan(0);
+  });
+
+  it("accepts refetchInterval option", async () => {
+    const { result } = await renderAndWaitForLoad(defaultResponse, {
+      refetchInterval: 60000,
+    });
+    // Hook should still return data normally
+    expect(result.current.trends).toHaveLength(1);
+    expect(result.current.dataUpdatedAt).toBeGreaterThan(0);
+  });
+
+  it("accepts false refetchInterval", async () => {
+    const { result } = await renderAndWaitForLoad(defaultResponse, {
+      refetchInterval: false,
+    });
+    expect(result.current.trends).toHaveLength(1);
+  });
+
+  it("re-fetches after refetchInterval expires", async () => {
+    mockGetTrends.mockResolvedValue(defaultResponse);
+    const { result } = renderHook(() => useTrends({ refetchInterval: 100 }), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    const callsBefore = mockGetTrends.mock.calls.length;
+
+    // 等待 100ms refetchInterval 觸發第二次 fetch
+    await waitFor(
+      () => {
+        expect(mockGetTrends.mock.calls.length).toBeGreaterThan(callsBefore);
+      },
+      { timeout: 2000 }
+    );
   });
 });
