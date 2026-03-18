@@ -3,10 +3,14 @@
  */
 
 import { memo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { DiscoveryRepo } from "../../api/client";
 import { DiscoveryResultCard } from "./DiscoveryResultCard";
+import { GridIcon, ListIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import { normalizeRepoName } from "../../utils/format";
+import { useIntersectionObserver } from "../../hooks/useIntersectionObserver";
+import type { ViewMode } from "../../hooks/useViewMode";
 import styles from "./Discovery.module.css";
 
 export interface WatchlistSignal {
@@ -32,6 +36,10 @@ interface DiscoveryResultsProps {
   onToggleSelection?: (id: number) => void;
   onEnterSelectionMode?: () => void;
   onExitSelectionMode?: () => void;
+  /** 當 key 變更時觸發淡入動畫（sort/filter 切換） */
+  resultsKey?: string;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 }
 
 export const DiscoveryResults = memo(function DiscoveryResults({
@@ -52,8 +60,17 @@ export const DiscoveryResults = memo(function DiscoveryResults({
   onToggleSelection,
   onEnterSelectionMode,
   onExitSelectionMode,
+  resultsKey,
+  viewMode = "list",
+  onViewModeChange,
 }: DiscoveryResultsProps) {
   const { t } = useI18n();
+
+  // Infinite scroll：sentinel 進入視窗時自動載入下一頁
+  const { sentinelRef, isSupported: isIntersectionSupported } = useIntersectionObserver({
+    onIntersect: onLoadMore,
+    enabled: hasMore && !loading,
+  });
 
   // 錯誤狀態
   if (error) {
@@ -98,41 +115,80 @@ export const DiscoveryResults = memo(function DiscoveryResults({
         <span className={styles.resultsCount}>
           {t.discovery.results.replace("{count}", totalCount.toLocaleString())}
         </span>
-        {repos.length > 0 && onEnterSelectionMode && onExitSelectionMode && (
-          <button
-            type="button"
-            className={styles.selectionToggle}
-            onClick={isSelectionMode ? onExitSelectionMode : onEnterSelectionMode}
-          >
-            {isSelectionMode ? t.discovery.batchAdd.cancel : t.discovery.batchAdd.select}
-          </button>
-        )}
-      </div>
-
-      <div className={styles.resultsList}>
-        {repos.map((repo) => (
-          <DiscoveryResultCard
-            key={repo.id}
-            repo={repo}
-            isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
-            onAddToWatchlist={onAddToWatchlist}
-            isAdding={addingRepoId === repo.id}
-            signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
-            onView={onViewRepo}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedIds?.has(repo.id) ?? false}
-            onToggleSelection={onToggleSelection}
-          />
-        ))}
-      </div>
-
-      {hasMore && (
-        <div className={styles.loadMoreWrapper}>
-          <button className={styles.loadMoreButton} onClick={onLoadMore} disabled={loading}>
-            {loading ? t.discovery.searching : t.discovery.loadMore}
-          </button>
+        <div className={styles.resultsHeaderActions}>
+          {onViewModeChange && (
+            <div className={styles.viewModeToggle}>
+              <button
+                type="button"
+                className={`${styles.viewModeButton} ${viewMode === "list" ? styles.viewModeActive : ""}`}
+                onClick={() => onViewModeChange("list")}
+                aria-label={t.discovery.viewMode.list}
+                title={t.discovery.viewMode.list}
+              >
+                <ListIcon size={16} />
+              </button>
+              <button
+                type="button"
+                className={`${styles.viewModeButton} ${viewMode === "grid" ? styles.viewModeActive : ""}`}
+                onClick={() => onViewModeChange("grid")}
+                aria-label={t.discovery.viewMode.grid}
+                title={t.discovery.viewMode.grid}
+              >
+                <GridIcon size={16} />
+              </button>
+            </div>
+          )}
+          {repos.length > 0 && onEnterSelectionMode && onExitSelectionMode && (
+            <button
+              type="button"
+              className={styles.selectionToggle}
+              onClick={isSelectionMode ? onExitSelectionMode : onEnterSelectionMode}
+            >
+              {isSelectionMode ? t.discovery.batchAdd.cancel : t.discovery.batchAdd.select}
+            </button>
+          )}
         </div>
-      )}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={resultsKey ?? "results"}
+          className={`${styles.resultsList} ${viewMode === "grid" ? styles.resultsGrid : ""}`}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          {repos.map((repo) => (
+            <DiscoveryResultCard
+              key={repo.id}
+              repo={repo}
+              isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
+              onAddToWatchlist={onAddToWatchlist}
+              isAdding={addingRepoId === repo.id}
+              signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
+              onView={onViewRepo}
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedIds?.has(repo.id) ?? false}
+              onToggleSelection={onToggleSelection}
+              compact={viewMode === "grid"}
+            />
+          ))}
+        </motion.div>
+      </AnimatePresence>
+
+      {hasMore &&
+        (isIntersectionSupported ? (
+          <div ref={sentinelRef} className={styles.infiniteScrollSentinel}>
+            {loading && <div className={styles.spinner} />}
+          </div>
+        ) : (
+          <div className={styles.loadMoreWrapper}>
+            <button className={styles.loadMoreButton} onClick={onLoadMore} disabled={loading}>
+              {loading ? t.discovery.searching : t.discovery.loadMore}
+            </button>
+          </div>
+        ))}
     </div>
   );
 });

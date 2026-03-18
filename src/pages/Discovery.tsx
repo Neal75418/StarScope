@@ -2,12 +2,14 @@
  * Discovery 頁面，搜尋與探索 GitHub repo，支援關鍵字＋時間區間＋語言篩選。
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
 import { useSearchHistory } from "../hooks/useSearchHistory";
 import { useRecentlyViewed, RecentlyViewedRepo } from "../hooks/useRecentlyViewed";
 import { useSelectionMode } from "../hooks/useSelectionMode";
+import { useViewMode } from "../hooks/useViewMode";
+import { useDiscoveryUrl } from "../hooks/useDiscoveryUrl";
 import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
@@ -43,16 +45,49 @@ export function Discovery() {
   const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory();
   const { recentRepos, addToRecentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const selection = useSelectionMode();
+  const { viewMode, setViewMode } = useViewMode();
   const { repos: watchlist } = useWatchlistState();
   const { refreshAll: handleRefreshAll } = useWatchlistActions();
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
-  // Cold start：掛載時自動載入本週趨勢
+  // URL 同步：篩選條件 ↔ URL hash
+  const { hasUrlParams } = useDiscoveryUrl({
+    keyword: discovery.keyword,
+    period: discovery.period,
+    filters: discoveryFilters,
+    hasSearched: discovery.hasSearched,
+    onRestoreState: discovery.restoreState,
+  });
+
+  // Keyboard shortcut: "/" to focus search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Cold start：掛載時自動載入本週趨勢（URL 有參數時跳過）
   useOnceEffect(() => {
-    setPeriod("weekly");
+    if (!hasUrlParams) {
+      setPeriod("weekly");
+    }
   });
 
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
@@ -181,6 +216,17 @@ export function Discovery() {
     [discovery.repos, selection.selectedIds]
   );
 
+  // 排序/篩選切換時的動畫 key — loadMore 不會改變 key
+  const resultsKey = useMemo(
+    () =>
+      JSON.stringify({
+        q: discovery.keyword,
+        p: discovery.period,
+        f: discoveryFilters,
+      }),
+    [discovery.keyword, discovery.period, discoveryFilters]
+  );
+
   return (
     <AnimatedPage className="page">
       <header className="page-header">
@@ -195,6 +241,7 @@ export function Discovery() {
       />
 
       <DiscoverySearchBar
+        inputRef={searchInputRef}
         onSearch={handleSearch}
         loading={discovery.loading}
         initialQuery={discovery.keyword}
@@ -260,6 +307,9 @@ export function Discovery() {
         onToggleSelection={selection.toggleSelection}
         onEnterSelectionMode={selection.enter}
         onExitSelectionMode={selection.exit}
+        resultsKey={resultsKey}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       {selection.isActive && (

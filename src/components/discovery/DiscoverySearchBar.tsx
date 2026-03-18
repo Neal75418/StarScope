@@ -15,6 +15,7 @@ interface DiscoverySearchBarProps {
   onSelectHistory?: (query: string) => void;
   onRemoveHistory?: (query: string) => void;
   onClearHistory?: () => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 export const DiscoverySearchBar = memo(function DiscoverySearchBar({
@@ -25,6 +26,7 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
   onSelectHistory,
   onRemoveHistory,
   onClearHistory,
+  inputRef,
 }: DiscoverySearchBarProps) {
   const { t } = useI18n();
   const [query, setQuery] = useState(initialQuery);
@@ -99,6 +101,7 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
       <div className={styles.searchInputWrapper}>
         <SearchIcon size={18} className={styles.searchInputIcon} />
         <input
+          ref={inputRef}
           type="text"
           className={styles.searchInput}
           placeholder={t.discovery.searchPlaceholder}

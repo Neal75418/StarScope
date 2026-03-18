@@ -70,7 +70,7 @@ export const translations = {
     discovery: {
       title: "Discover",
       subtitle: "Search and explore GitHub repositories",
-      searchPlaceholder: "Search repositories...",
+      searchPlaceholder: "Search repositories... (Press /)",
       searching: "Searching...",
       addToWatchlist: "+ Watchlist",
       inWatchlist: "In Watchlist",
@@ -145,6 +145,10 @@ export const translations = {
         addToWatchlist: "Add {count} to Watchlist",
         adding: "Adding...",
         success: "Added {count}/{total} repositories",
+      },
+      viewMode: {
+        list: "List view",
+        grid: "Grid view",
       },
     },
     // 追蹤清單頁面
@@ -726,7 +730,7 @@ export const translations = {
     discovery: {
       title: "探索",
       subtitle: "搜尋和探索 GitHub 儲存庫",
-      searchPlaceholder: "搜尋儲存庫...",
+      searchPlaceholder: "搜尋儲存庫... (按 /)",
       searching: "搜尋中...",
       addToWatchlist: "+ 追蹤",
       inWatchlist: "已追蹤",
@@ -800,6 +804,10 @@ export const translations = {
         addToWatchlist: "加入 {count} 個到追蹤清單",
         adding: "新增中...",
         success: "已新增 {count}/{total} 個儲存庫",
+      },
+      viewMode: {
+        list: "列表檢視",
+        grid: "格狀檢視",
       },
     },
     // 追蹤清單頁面

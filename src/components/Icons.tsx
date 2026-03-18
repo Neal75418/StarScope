@@ -220,3 +220,21 @@ export function BellIcon({ size = 16, className, ariaLabel }: IconProps) {
     </svg>
   );
 }
+
+// Grid 檢視 icon (3×3 格狀)
+export function GridIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h2A1.5 1.5 0 0 1 6 2.5v2A1.5 1.5 0 0 1 4.5 6h-2A1.5 1.5 0 0 1 1 4.5Zm0 5A1.5 1.5 0 0 1 2.5 6h2A1.5 1.5 0 0 1 6 7.5v2A1.5 1.5 0 0 1 4.5 11h-2A1.5 1.5 0 0 1 1 9.5ZM6 2.5v2A.5.5 0 0 1 5.5 5h-2a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5Zm0 5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5ZM7 2.5A1.5 1.5 0 0 1 8.5 1h2A1.5 1.5 0 0 1 12 2.5v2A1.5 1.5 0 0 1 10.5 6h-2A1.5 1.5 0 0 1 7 4.5Zm0 5A1.5 1.5 0 0 1 8.5 6h2A1.5 1.5 0 0 1 12 7.5v2A1.5 1.5 0 0 1 10.5 11h-2A1.5 1.5 0 0 1 7 9.5ZM12 2.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5Zm0 5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5Z" />
+    </svg>
+  );
+}
+
+// List 檢視 icon (水平列表)
+export function ListIcon({ size = 16, className, ariaLabel }: IconProps) {
+  return (
+    <svg {...getSvgProps(size, className, ariaLabel)}>
+      <path d="M2 2h12a1 1 0 1 1 0 2H2a1 1 0 0 1 0-2Zm0 5h12a1 1 0 1 1 0 2H2a1 1 0 0 1 0-2Zm0 5h12a1 1 0 1 1 0 2H2a1 1 0 0 1 0-2Z" />
+    </svg>
+  );
+}

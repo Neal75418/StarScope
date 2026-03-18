@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Discovery } from "../Discovery";
 
@@ -71,8 +71,15 @@ vi.mock("../../components/motion", () => ({
 
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/discovery", () => ({
-  DiscoverySearchBar: ({ onSearch }: { onSearch: (q: string) => void }) => (
+  DiscoverySearchBar: ({
+    onSearch,
+    inputRef,
+  }: {
+    onSearch: (q: string) => void;
+    inputRef?: RefObject<HTMLInputElement | null>;
+  }) => (
     <input
+      ref={inputRef}
       data-testid="search-bar"
       placeholder="Search..."
       onChange={(e) => onSearch(e.target.value)}
@@ -349,5 +356,42 @@ describe("Discovery", () => {
     render(<Discovery />);
     await user.click(screen.getByTestId("remove-language"));
     expect(mockDiscoveryReturn.removeLanguage).toHaveBeenCalled();
+  });
+
+  describe("keyboard shortcut: /", () => {
+    it("focuses search input when / key is pressed", () => {
+      render(<Discovery />);
+      const searchInput = screen.getByTestId("search-bar");
+      expect(document.activeElement).not.toBe(searchInput);
+
+      fireEvent.keyDown(document, { key: "/" });
+      expect(document.activeElement).toBe(searchInput);
+    });
+
+    it("does not focus search when / is pressed inside an input", () => {
+      render(<Discovery />);
+      const searchInput = screen.getByTestId("search-bar");
+      searchInput.focus();
+
+      // pressing "/" inside input should not call preventDefault
+      fireEvent.keyDown(searchInput, { key: "/" });
+      // input should remain focused (normal behavior, not re-triggered)
+      expect(document.activeElement).toBe(searchInput);
+    });
+
+    it("does not focus search when modifier key is held", () => {
+      render(<Discovery />);
+      const searchInput = screen.getByTestId("search-bar");
+      expect(document.activeElement).not.toBe(searchInput);
+
+      fireEvent.keyDown(document, { key: "/", metaKey: true });
+      expect(document.activeElement).not.toBe(searchInput);
+
+      fireEvent.keyDown(document, { key: "/", ctrlKey: true });
+      expect(document.activeElement).not.toBe(searchInput);
+
+      fireEvent.keyDown(document, { key: "/", altKey: true });
+      expect(document.activeElement).not.toBe(searchInput);
+    });
   });
 });

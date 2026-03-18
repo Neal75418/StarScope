@@ -26,6 +26,8 @@ interface DiscoveryResultCardProps {
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelection?: (id: number) => void;
+  /** Grid 模式下啟用緊湊佈局 */
+  compact?: boolean;
 }
 
 export const DiscoveryResultCard = memo(function DiscoveryResultCard({
@@ -38,6 +40,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
   isSelectionMode = false,
   isSelected = false,
   onToggleSelection,
+  compact = false,
 }: DiscoveryResultCardProps) {
   const { t } = useI18n();
 
@@ -51,6 +54,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
     styles.resultCard,
     repo.archived ? styles.archivedCard : "",
     isSelected ? styles.selectedCard : "",
+    compact ? styles.compactCard : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -83,7 +87,11 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
         </button>
       </div>
 
-      {repo.description && <p className={styles.description}>{repo.description}</p>}
+      {repo.description && (
+        <p className={`${styles.description} ${compact ? styles.descriptionCompact : ""}`}>
+          {repo.description}
+        </p>
+      )}
 
       <div className={styles.cardMeta}>
         {repo.language && (
@@ -124,7 +132,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
         )}
       </div>
 
-      {repo.topics.length > 0 && (
+      {!compact && repo.topics.length > 0 && (
         <div className={styles.topics}>
           {repo.topics.slice(0, MAX_VISIBLE_TOPICS).map((topic) => (
             <span key={topic} className={styles.topic}>

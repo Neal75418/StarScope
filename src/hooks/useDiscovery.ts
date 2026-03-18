@@ -134,6 +134,16 @@ export function useDiscovery() {
     setFilters({ ...stateRef.current.filters, hideArchived: undefined });
   }, [setFilters]);
 
+  // 從 URL 恢復狀態（跳過 debounce 直接觸發搜尋）
+  const restoreState = useCallback(
+    (restored: { keyword: string; period: TrendingPeriod | undefined; filters: SearchFilters }) => {
+      setState({ ...restored, hasSearched: true });
+      clearTimeout(searchTimerRef.current);
+      void executeSearch(restored.keyword, restored.period, restored.filters, 1);
+    },
+    [executeSearch]
+  );
+
   return {
     repos,
     totalCount,
@@ -158,5 +168,6 @@ export function useDiscovery() {
     reset,
     loadMore,
     applySavedFilter: search,
+    restoreState,
   };
 }
