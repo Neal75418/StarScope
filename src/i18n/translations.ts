@@ -65,6 +65,38 @@ export const translations = {
         noHnMentions: "No HN mentions this week",
         loadError: "Failed to load weekly summary",
       },
+      portfolioHistory: {
+        title: "Portfolio Star History",
+        loadError: "Failed to load portfolio history",
+        noData: "Not enough data yet. Start tracking repos to see history.",
+      },
+      languageDistribution: {
+        title: "Language Distribution",
+        empty: "No language data available",
+      },
+      categorySummary: {
+        title: "Category Summary",
+        empty: "No categories with repos yet",
+        loadError: "Failed to load categories",
+      },
+      healthScore: {
+        title: "Portfolio Health",
+        noData: "Add repos to see health score",
+        activeAlerts: "Active Alerts",
+        withSignals: "With Signals",
+        highVelocity: "High Velocity",
+        stale: "Stale",
+        ratings: {
+          excellent: "Excellent",
+          good: "Good",
+          fair: "Fair",
+          poor: "Needs Attention",
+        },
+      },
+      widgetCustomizer: {
+        title: "Show / Hide Widgets",
+        customize: "Customize Dashboard",
+      },
     },
     // 探索頁面
     discovery: {
@@ -854,6 +886,38 @@ export const translations = {
         noData: "本週無變動",
         noHnMentions: "本週無 HN 提及",
         loadError: "載入週報摘要失敗",
+      },
+      portfolioHistory: {
+        title: "組合星數歷史",
+        loadError: "載入歷史資料失敗",
+        noData: "資料尚不足，請先追蹤 repo 以建立歷史記錄。",
+      },
+      languageDistribution: {
+        title: "語言分佈",
+        empty: "尚無語言資料",
+      },
+      categorySummary: {
+        title: "分類摘要",
+        empty: "尚無含 repo 的分類",
+        loadError: "載入分類失敗",
+      },
+      healthScore: {
+        title: "組合健康分數",
+        noData: "新增 repo 後即可查看健康分數",
+        activeAlerts: "活躍警報",
+        withSignals: "有訊號",
+        highVelocity: "高速成長",
+        stale: "停滯中",
+        ratings: {
+          excellent: "優秀",
+          good: "良好",
+          fair: "尚可",
+          poor: "需要關注",
+        },
+      },
+      widgetCustomizer: {
+        title: "顯示 / 隱藏區塊",
+        customize: "自訂儀表板",
       },
     },
     // 探索頁面

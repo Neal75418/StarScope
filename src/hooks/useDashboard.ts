@@ -17,6 +17,8 @@ import {
 import type { EarlySignal } from "../api/types";
 import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
+import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
+import type { HealthScoreInput } from "../components/dashboard/PortfolioHealthScore";
 
 const EMPTY_REPOS: RepoWithSignals[] = [];
 const EMPTY_ALERTS: TriggeredAlert[] = [];
@@ -31,7 +33,7 @@ export interface DashboardStats {
 
 export interface RecentActivity {
   id: string;
-  type: "repo_added" | "alert_triggered";
+  type: "repo_added" | "alert_triggered" | "early_signal_detected";
   title: string;
   description: string;
   timestamp: string;
@@ -53,10 +55,11 @@ export function useDashboard() {
     queryFn: () => listTriggeredAlerts(false, 50),
   });
 
+  // 取更多早期訊號（供 Recent Activity 使用，最多 20 筆）
   const signalsQuery = useQuery<EarlySignal[], Error>({
     queryKey: queryKeys.signals.dashboard(),
     queryFn: async () => {
-      const response = await listEarlySignals({ limit: 5 });
+      const response = await listEarlySignals({ limit: 20 });
       return response.signals;
     },
   });
@@ -110,7 +113,7 @@ export function useDashboard() {
     return { totalRepos, totalStars, weeklyStars, activeAlerts };
   }, [repos, alerts]);
 
-  // 從 repos 與 alerts 產生近期活動（只建立 top 10 的完整物件）
+  // 從 repos、alerts 與 earlySignals 產生近期活動（top 10）
   const recentActivity: RecentActivity[] = useMemo(() => {
     const sources: Array<{ ts: string; build: () => RecentActivity }> = [];
 
@@ -140,11 +143,24 @@ export function useDashboard() {
       });
     }
 
+    for (const signal of earlySignals) {
+      sources.push({
+        ts: signal.detected_at,
+        build: () => ({
+          id: `signal-${signal.id}`,
+          type: "early_signal_detected",
+          title: signal.repo_name,
+          description: signal.description,
+          timestamp: signal.detected_at,
+        }),
+      });
+    }
+
     return sources
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 10)
       .map((s) => s.build());
-  }, [repos, alerts]);
+  }, [repos, alerts, earlySignals]);
 
   // 計算 velocity 分佈供圖表使用
   const velocityDistribution = useMemo(() => {
@@ -165,17 +181,84 @@ export function useDashboard() {
     }));
   }, [repos]);
 
+  // 語言分佈（前 10 種具名語言 + Other，null 統一歸 Other）
+  const languageDistribution: LanguageSlice[] = useMemo(() => {
+    const langMap: Record<string, number> = {};
+    for (const repo of repos) {
+      const lang = repo.language ?? "Other";
+      langMap[lang] = (langMap[lang] ?? 0) + 1;
+    }
+    const sorted = Object.entries(langMap).sort((a, b) => b[1] - a[1]);
+
+    if (sorted.length <= 10) {
+      return sorted.map(([language, count]) => ({ language, count }));
+    }
+
+    // 超過 10 種時：前 9 筆保留，第 10 筆起（含已存在的 "Other"）全部合併為 "Other"
+    // 先把已在前 9 筆的 "Other"（若存在）單獨計算，避免重複 key
+    const top9Named = sorted.filter(([lang]) => lang !== "Other").slice(0, 9);
+    const explicitOther = langMap["Other"] ?? 0;
+    const overflowCount = sorted
+      .filter(([lang]) => lang !== "Other")
+      .slice(9)
+      .reduce((sum, [, c]) => sum + c, 0);
+    const combinedOther = explicitOther + overflowCount;
+
+    return [
+      ...top9Named.map(([language, count]) => ({ language, count })),
+      ...(combinedOther > 0 ? [{ language: "Other", count: combinedOther }] : []),
+    ];
+  }, [repos]);
+
+  // Portfolio 健康分數（0-100）
+  const healthScoreInput: HealthScoreInput = useMemo(() => {
+    const totalRepos = repos.length;
+    if (totalRepos === 0) {
+      return {
+        score: null,
+        activeAlerts: 0,
+        totalRepos: 0,
+        reposWithSignals: 0,
+        highVelocityRepos: 0,
+        staleRepos: 0,
+      };
+    }
+
+    const activeAlerts = alerts.filter((a) => !a.acknowledged).length;
+    const staleRepos = repos.filter((r) => (r.velocity ?? 0) <= 0).length;
+    const reposWithSignals = signalSummary?.repos_with_signals ?? 0;
+    const highVelocityRepos =
+      (velocityDistribution.find((d) => d.key === "high")?.count ?? 0) +
+      (velocityDistribution.find((d) => d.key === "veryHigh")?.count ?? 0);
+
+    const alertPenalty = Math.min(activeAlerts * 8, 40);
+    const stalePenalty = (staleRepos / totalRepos) * 25;
+    const signalBonus = (reposWithSignals / totalRepos) * 10;
+    const accelBonus = (highVelocityRepos / totalRepos) * 10;
+
+    const raw = 100 - alertPenalty - stalePenalty + signalBonus + accelBonus;
+    const score = Math.max(0, Math.min(100, Math.round(raw)));
+
+    return { score, activeAlerts, totalRepos, reposWithSignals, highVelocityRepos, staleRepos };
+  }, [repos, alerts, signalSummary, velocityDistribution]);
+
+  // Signal Spotlight 用的 earlySignals（取前 5 筆）
+  const spotlightSignals = useMemo(() => earlySignals.slice(0, 5), [earlySignals]);
+
   const refresh = useCallback(() => {
     void qc.invalidateQueries({ queryKey: queryKeys.repos.all });
     void qc.invalidateQueries({ queryKey: queryKeys.alerts.all });
     void qc.invalidateQueries({ queryKey: queryKeys.signals.all });
+    void qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
   }, [qc]);
 
   return {
     stats,
     recentActivity,
     velocityDistribution,
-    earlySignals,
+    languageDistribution,
+    healthScoreInput,
+    earlySignals: spotlightSignals,
     signalSummary,
     acknowledgeSignal: handleAcknowledgeSignal,
     isLoading,

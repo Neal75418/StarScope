@@ -57,6 +57,7 @@ import type {
   PersonalizedResponse,
   StarredReposResponse,
   BatchImportResult,
+  PortfolioHistoryResponse,
 } from "./types";
 
 export * from "./types";
@@ -812,10 +813,25 @@ export async function searchRepos(
 // ==================== 週報摘要 API 函式 ====================
 
 /**
- * 取得本週摘要資料。
+ * 取得摘要資料。
+ * @param days 涵蓋天數（7、14 或 30）
  */
-export async function getWeeklySummary(signal?: AbortSignal): Promise<WeeklySummaryResponse> {
-  return apiCall<WeeklySummaryResponse>(`/summary/weekly`, { signal });
+export async function getWeeklySummary(
+  days: number = 7,
+  signal?: AbortSignal
+): Promise<WeeklySummaryResponse> {
+  return apiCall<WeeklySummaryResponse>(`/summary/weekly?days=${days}`, { signal });
+}
+
+/**
+ * 取得所有追蹤 repo 的聚合星數歷史（用於 Dashboard Portfolio 圖表）。
+ * @param days 歷史天數（7-365）
+ */
+export async function getPortfolioHistory(
+  days: number = 30,
+  signal?: AbortSignal
+): Promise<PortfolioHistoryResponse> {
+  return apiCall<PortfolioHistoryResponse>(`/star-history/portfolio?days=${days}`, { signal });
 }
 
 // ==================== 對比模式 API 函式 ====================

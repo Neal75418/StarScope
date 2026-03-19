@@ -3,7 +3,7 @@ Weekly summary API endpoint.
 Provides aggregated weekly data for the Dashboard.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -47,14 +47,20 @@ class WeeklySummaryResponse(BaseModel):
 
 
 @router.get("/weekly", response_model=ApiResponse[WeeklySummaryResponse])
-async def weekly_summary(db: Session = Depends(get_db)) -> dict:
+async def weekly_summary(
+    days: int = Query(default=7, ge=7, le=30),
+    db: Session = Depends(get_db),
+) -> dict:
     """
-    取得本週摘要，包含：
-    - 所有 repo 本週新增 stars 總和
+    取得摘要，包含：
+    - 所有 repo 指定天數內新增 stars 總和
     - Top gainers / losers
-    - 本週觸發的警報與早期信號
+    - 指定期間觸發的警報與早期信號
     - HN 提及
     - 加速/減速 repo 統計
+
+    Args:
+        days: 摘要涵蓋的天數（預設 7 天，最多 30 天）
     """
-    data = get_weekly_summary(db)
+    data = get_weekly_summary(db, days=days)
     return success_response(data=data)

@@ -4,10 +4,11 @@ Star 歷史回填 API 端點。
 """
 
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -63,6 +64,61 @@ class StarHistoryResponse(BaseModel):
     history: list[StarHistoryPoint]
     is_backfilled: bool
     total_points: int
+
+
+class PortfolioHistoryPoint(BaseModel):
+    """Portfolio 歷史中的一個日期資料點。"""
+    date: date
+    total_stars: int
+    repo_count: int
+
+
+class PortfolioHistoryResponse(BaseModel):
+    """所有追蹤 repo 的聚合 star 歷史。"""
+    history: list[PortfolioHistoryPoint]
+    total_points: int
+    days: int
+
+
+# Portfolio 歷史端點（必須在 /{repo_id} 之前定義以避免路由衝突）
+@router.get("/portfolio", response_model=ApiResponse[PortfolioHistoryResponse])
+async def get_portfolio_history(
+    days: int = Query(default=30, ge=7, le=365),
+    db: Session = Depends(get_db),
+):
+    """
+    取得所有追蹤 repo 的聚合 star 歷史。
+    依日期分組加總 star 數，供 Dashboard Portfolio History 圖表使用。
+    """
+    today = utc_now().date()
+    cutoff = today - timedelta(days=days)
+
+    rows = (
+        db.query(
+            RepoSnapshot.snapshot_date,
+            func.sum(RepoSnapshot.stars).label("total_stars"),
+            func.count(func.distinct(RepoSnapshot.repo_id)).label("repo_count"),
+        )
+        .filter(RepoSnapshot.snapshot_date >= cutoff)
+        .group_by(RepoSnapshot.snapshot_date)
+        .order_by(RepoSnapshot.snapshot_date.asc())
+        .all()
+    )
+
+    history = [
+        PortfolioHistoryPoint(
+            date=row.snapshot_date,
+            total_stars=int(row.total_stars or 0),
+            repo_count=int(row.repo_count or 0),
+        )
+        for row in rows
+    ]
+
+    return success_response(data=PortfolioHistoryResponse(
+        history=history,
+        total_points=len(history),
+        days=days,
+    ))
 
 
 # 輔助函式

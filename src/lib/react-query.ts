@@ -97,7 +97,11 @@ export const queryKeys = {
     all: ["dashboard"] as const,
     stats: ["dashboard", "stats"] as const,
     health: ["dashboard", "health"] as const,
-    weeklySummary: () => [...queryKeys.dashboard.all, "weeklySummary"] as const,
+    weeklySummary: (days: number = 7) =>
+      [...queryKeys.dashboard.all, "weeklySummary", days] as const,
+    portfolioHistory: (days: number = 30) =>
+      [...queryKeys.dashboard.all, "portfolioHistory", days] as const,
+    categories: () => [...queryKeys.dashboard.all, "categories"] as const,
   },
 
   // Alerts

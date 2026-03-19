@@ -2,7 +2,7 @@
  * Dashboard 頁面，總覽追蹤中的 repo 與關鍵指標。
  */
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
@@ -10,6 +10,17 @@ import { Skeleton } from "../components/Skeleton";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
+import { VelocityChartRecharts } from "../components/dashboard/VelocityChartRecharts";
+import { LanguageDistribution } from "../components/dashboard/LanguageDistribution";
+import { PortfolioHistory } from "../components/dashboard/PortfolioHistory";
+import { CategorySummary } from "../components/dashboard/CategorySummary";
+import { PortfolioHealthScore } from "../components/dashboard/PortfolioHealthScore";
+import {
+  WidgetCustomizer,
+  WidgetVisibility,
+  loadWidgetVisibility,
+} from "../components/dashboard/WidgetCustomizer";
+import type { DashboardTimeRange } from "../api/types";
 
 // 單一統計卡片
 function StatCard({
@@ -59,39 +70,6 @@ const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) 
   );
 });
 
-// Velocity 分佈圖表
-const VelocityChart = memo(function VelocityChart({
-  data,
-}: {
-  data: { key: string; count: number }[];
-}) {
-  const { t } = useI18n();
-  const maxCount = Math.max(...data.map((d) => d.count), 1);
-
-  return (
-    <div className="dashboard-section">
-      <h3>{t.dashboard.velocityDistribution}</h3>
-      <div className="velocity-chart">
-        {data.map((item) => (
-          <div key={item.key} className="velocity-bar-container">
-            <div className="velocity-label">
-              {t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ??
-                item.key}
-            </div>
-            <div className="velocity-bar-wrapper">
-              <div
-                className="velocity-bar"
-                style={{ width: `${(item.count / maxCount) * 100}%` }}
-              />
-            </div>
-            <div className="velocity-count">{item.count}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-});
-
 // 近期活動列表
 const RecentActivityList = memo(function RecentActivityList({
   activities,
@@ -106,6 +84,8 @@ const RecentActivityList = memo(function RecentActivityList({
         return "+";
       case "alert_triggered":
         return "!";
+      case "early_signal_detected":
+        return "★";
       default:
         return "*";
     }
@@ -150,6 +130,8 @@ export function Dashboard() {
     stats,
     recentActivity,
     velocityDistribution,
+    languageDistribution,
+    healthScoreInput,
     earlySignals,
     signalSummary,
     acknowledgeSignal,
@@ -157,6 +139,12 @@ export function Dashboard() {
     error,
     refresh,
   } = useDashboard();
+
+  // Portfolio History 的時間範圍（獨立 state，不影響 WeeklySummary）
+  const [portfolioDays, setPortfolioDays] = useState<DashboardTimeRange>(30);
+
+  // 小工具顯示/隱藏
+  const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(loadWidgetVisibility);
 
   if (isLoading) {
     return (
@@ -180,20 +168,7 @@ export function Dashboard() {
           {/* Velocity 圖表骨架屏 */}
           <div className="dashboard-section">
             <Skeleton width={150} height={24} style={{ marginBottom: 16 }} />
-            <div className="velocity-chart">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="velocity-bar-container" style={{ gap: 8 }}>
-                  <Skeleton width={40} height={16} />
-                  <Skeleton
-                    width="100%"
-                    height={8}
-                    style={{ flex: 1, opacity: 0.3 }}
-                    variant="rounded"
-                  />
-                  <Skeleton width={20} height={16} />
-                </div>
-              ))}
-            </div>
+            <Skeleton width="100%" height={180} variant="rounded" />
           </div>
 
           {/* 活動列表骨架屏 */}
@@ -237,31 +212,65 @@ export function Dashboard() {
 
   return (
     <AnimatedPage className="page dashboard-page">
-      <header className="page-header">
-        <h1 data-testid="page-title">{t.dashboard.title}</h1>
-        <p className="subtitle">{t.dashboard.subtitle}</p>
+      <header className="page-header dashboard-page-header">
+        <div>
+          <h1 data-testid="page-title">{t.dashboard.title}</h1>
+          <p className="subtitle">{t.dashboard.subtitle}</p>
+        </div>
+        <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
 
       <FadeIn delay={0.1}>
         <StatsGrid stats={stats} />
       </FadeIn>
 
-      <FadeIn delay={0.15}>
-        <SignalSpotlight
-          signals={earlySignals}
-          summary={signalSummary}
-          onAcknowledge={acknowledgeSignal}
-        />
-      </FadeIn>
+      {/* 健康分數 */}
+      {widgetVisibility.portfolioHealth && (
+        <FadeIn delay={0.12}>
+          <PortfolioHealthScore input={healthScoreInput} />
+        </FadeIn>
+      )}
 
-      <FadeIn delay={0.18}>
-        <WeeklySummary />
-      </FadeIn>
+      {/* Signal Spotlight */}
+      {widgetVisibility.signalSpotlight && (
+        <FadeIn delay={0.15}>
+          <SignalSpotlight
+            signals={earlySignals}
+            summary={signalSummary}
+            onAcknowledge={acknowledgeSignal}
+          />
+        </FadeIn>
+      )}
 
+      {/* 週期摘要（固定 7 天，與 Portfolio History 時間範圍獨立） */}
+      {widgetVisibility.weeklySummary && (
+        <FadeIn delay={0.18}>
+          <WeeklySummary />
+        </FadeIn>
+      )}
+
+      {/* Portfolio 歷史（有自己的時間範圍選擇器） */}
+      {widgetVisibility.portfolioHistory && (
+        <FadeIn delay={0.2}>
+          <PortfolioHistory days={portfolioDays} onChangeDays={setPortfolioDays} />
+        </FadeIn>
+      )}
+
+      {/* Velocity 分佈 + 語言分佈（並排） */}
       <FadeIn delay={0.22}>
         <div className="dashboard-grid">
-          <VelocityChart data={velocityDistribution} />
-          <RecentActivityList activities={recentActivity} />
+          {widgetVisibility.velocityChart && <VelocityChartRecharts data={velocityDistribution} />}
+          {widgetVisibility.languageDistribution && (
+            <LanguageDistribution data={languageDistribution} />
+          )}
+        </div>
+      </FadeIn>
+
+      {/* 分類摘要 + 近期活動（並排） */}
+      <FadeIn delay={0.25}>
+        <div className="dashboard-grid">
+          {widgetVisibility.categorySummary && <CategorySummary />}
+          {widgetVisibility.recentActivity && <RecentActivityList activities={recentActivity} />}
         </div>
       </FadeIn>
     </AnimatedPage>

@@ -6,6 +6,7 @@
 import { memo, useCallback } from "react";
 import { useWeeklySummary } from "../../hooks/useWeeklySummary";
 import { useI18n } from "../../i18n";
+import type { DashboardTimeRange } from "../../api/types";
 import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import { TREND_ARROWS } from "../../constants/trends";
@@ -142,9 +143,13 @@ const HNMentionsList = memo(function HNMentionsList({
 
 // ==================== 主元件 ====================
 
-export const WeeklySummary = memo(function WeeklySummary() {
+interface WeeklySummaryProps {
+  days?: DashboardTimeRange;
+}
+
+export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySummaryProps) {
   const { t } = useI18n();
-  const { data, isLoading, error } = useWeeklySummary();
+  const { data, isLoading, error } = useWeeklySummary(days);
 
   if (isLoading) {
     return (

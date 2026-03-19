@@ -610,3 +610,21 @@ export interface ComparisonChartResponse {
 }
 
 export type ComparisonTimeRange = "7d" | "30d" | "90d" | "all";
+
+// ==================== Portfolio 歷史型別 ====================
+
+export interface PortfolioHistoryPoint {
+  date: string; // "YYYY-MM-DD"
+  total_stars: number;
+  repo_count: number;
+}
+
+export interface PortfolioHistoryResponse {
+  history: PortfolioHistoryPoint[];
+  total_points: number;
+  days: number;
+}
+
+// ==================== Dashboard 時間範圍 ====================
+
+export type DashboardTimeRange = 7 | 14 | 30;

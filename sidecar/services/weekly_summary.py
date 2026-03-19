@@ -227,22 +227,25 @@ def _count_acceleration(
     return accelerating, decelerating
 
 
-def get_weekly_summary(db: Session) -> dict[str, Any]:
+def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     """
-    Build a weekly summary covering the last 7 days.
+    Build a summary covering the last N days.
+
+    Args:
+        days: Number of days to cover (default 7).
 
     Returns a dict matching the WeeklySummaryResponse schema.
     """
     today = utc_today()
     period_end = today
-    period_start = today - timedelta(days=7)
+    period_start = today - timedelta(days=days)
     now = utc_now()
-    week_ago = now - timedelta(days=7)
+    week_ago = now - timedelta(days=days)
 
     # --- Total repos ---
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
-    # --- Stars delta per repo (latest snapshot vs 7-day-ago snapshot) ---
+    # --- Stars delta per repo (latest snapshot vs N-day-ago snapshot) ---
     latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start)
 
     # --- Signal map & repo info ---

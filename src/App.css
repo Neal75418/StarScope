@@ -4657,6 +4657,290 @@ a:focus-visible {
   padding: 40px 20px;
 }
 
+/* Early Signal 活動項目顏色 */
+.activity-early_signal_detected .activity-icon {
+  background-color: var(--attention-subtle, rgba(163, 113, 247, 0.15));
+  color: var(--attention-fg);
+}
+
+/* ==================== Dashboard Page Header ==================== */
+.dashboard-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* ==================== Dashboard Time Range Selector ==================== */
+.dashboard-time-range {
+  display: flex;
+  gap: 4px;
+}
+
+.time-range-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.time-range-btn:hover {
+  background: var(--bg-muted);
+  color: var(--fg-default);
+}
+
+.time-range-btn--active {
+  background: var(--accent-emphasis);
+  border-color: var(--accent-emphasis);
+  color: #ffffff;
+}
+
+/* ==================== Portfolio History ==================== */
+.portfolio-history-section {
+  margin-bottom: 0;
+}
+
+.portfolio-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.portfolio-history-header h3 {
+  margin-bottom: 0;
+}
+
+.portfolio-history-error,
+.portfolio-history-empty {
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 32px 20px;
+  font-size: 13px;
+}
+
+/* ==================== Language Distribution ==================== */
+.lang-dist-empty {
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 40px 20px;
+  font-size: 13px;
+}
+
+/* ==================== Category Summary ==================== */
+.category-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.category-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent-emphasis);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.category-summary-card:hover {
+  background: var(--bg-muted);
+}
+
+.category-summary-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.category-summary-info {
+  min-width: 0;
+}
+
+.category-summary-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-summary-count {
+  font-size: 11px;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+.category-summary-empty {
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 32px 20px;
+  font-size: 13px;
+}
+
+/* section-badge（分類數量標籤） */
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 8px;
+  background: var(--accent-emphasis);
+  color: #ffffff;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* ==================== Portfolio Health Score ==================== */
+.health-score-section {
+  margin-bottom: 0;
+}
+
+.health-score-body {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.health-gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.health-gauge {
+  display: block;
+}
+
+.health-rating {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.health-factors {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+
+.health-factor {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-default);
+  border-radius: var(--radius-sm);
+}
+
+.health-factor-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.health-factor-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.health-score-empty {
+  text-align: center;
+  color: var(--fg-muted);
+  padding: 32px 20px;
+  font-size: 13px;
+}
+
+/* ==================== Widget Customizer ==================== */
+.widget-customizer {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.widget-customizer-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.widget-customizer-btn:hover {
+  background: var(--bg-muted);
+  color: var(--fg-default);
+}
+
+.widget-customizer-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  min-width: 200px;
+  background: var(--bg-default);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 8px 0;
+}
+
+.widget-customizer-title {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-muted);
+}
+
+.widget-customizer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  font-size: 13px;
+  color: var(--fg-default);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.widget-customizer-item:hover {
+  background: var(--bg-muted);
+}
+
+.widget-customizer-item input[type="checkbox"] {
+  accent-color: var(--accent-emphasis);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
 /* ==================== Commit Activity Panel ==================== */
 .commit-activity-panel {
   background-color: var(--bg-default);
