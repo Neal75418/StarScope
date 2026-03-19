@@ -6273,3 +6273,267 @@ a:focus-visible {
 }
 
 /* 個人化推薦樣式已遷移至 Discovery.module.css */
+
+/* ==================== Settings 新增區塊樣式 ==================== */
+
+/* 通用設定區塊欄位 */
+.settings-field {
+  margin-bottom: 16px;
+}
+
+.settings-field-label {
+  display: block;
+  font-size: 13px;
+  color: var(--fg-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.settings-field-hint {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin-top: 4px;
+}
+
+.settings-radio-group {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.settings-interval-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-select {
+  padding: 6px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--fg-default);
+  font-size: 13px;
+  min-width: 160px;
+}
+
+.settings-number-input {
+  width: 100px;
+  padding: 6px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--fg-default);
+  font-size: 13px;
+}
+
+.settings-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Signal Thresholds */
+.signal-thresholds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+/* Data Management */
+.data-management-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.data-action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+}
+
+.data-action-card--danger {
+  border-color: rgba(248, 81, 73, 0.3);
+  background: rgba(248, 81, 73, 0.05);
+}
+
+.data-action-info {
+  flex: 1;
+}
+
+.data-action-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-default);
+}
+
+.data-action-desc {
+  font-size: 12px;
+  color: var(--fg-muted);
+  margin-top: 2px;
+}
+
+.data-action-warning {
+  font-size: 12px;
+  color: var(--warning-fg);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* About Section */
+.about-section h2 {
+  margin-bottom: 16px;
+}
+
+.about-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.about-logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.about-logo {
+  font-size: 28px;
+  color: var(--accent-fg);
+}
+
+.about-app-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--fg-default);
+}
+
+.about-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.about-label {
+  font-size: 13px;
+  color: var(--fg-muted);
+  min-width: 80px;
+}
+
+.about-value {
+  font-size: 13px;
+  color: var(--fg-default);
+  font-weight: 500;
+}
+
+.about-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.about-link {
+  font-size: 13px;
+  color: var(--accent-fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}
+
+/* Keyboard Shortcuts */
+.shortcut-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shortcut-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.shortcut-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.shortcut-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--fg-muted);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.shortcut-row td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-muted, var(--border-default));
+  vertical-align: middle;
+}
+
+.shortcut-keys-cell {
+  white-space: nowrap;
+  width: 120px;
+}
+
+.shortcut-action-cell {
+  color: var(--fg-default);
+}
+
+.shortcut-key {
+  display: inline-block;
+  padding: 2px 7px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--fg-default);
+  box-shadow: 0 1px 0 var(--border-default);
+}
+
+.shortcut-separator {
+  margin: 0 3px;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+
+/* Alert Rule description textarea */
+.alert-rule-description-textarea {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--fg-default);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.alert-rule-description-textarea:focus {
+  outline: none;
+  border-color: var(--accent-fg);
+}

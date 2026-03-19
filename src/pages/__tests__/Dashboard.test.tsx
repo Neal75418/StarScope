@@ -53,6 +53,15 @@ let mockDashboard: {
   stats: DashboardStats;
   recentActivity: RecentActivity[];
   velocityDistribution: { key: string; count: number }[];
+  languageDistribution: { language: string; count: number }[];
+  healthScoreInput: {
+    score: number | null;
+    activeAlerts: number;
+    totalRepos: number;
+    reposWithSignals: number;
+    highVelocityRepos: number;
+    staleRepos: number;
+  };
   earlySignals: EarlySignal[];
   signalSummary: SignalSummary | null;
   acknowledgeSignal: (id: number) => void;
@@ -81,6 +90,34 @@ vi.mock("../../components/dashboard/WeeklySummary", () => ({
   WeeklySummary: () => <div data-testid="weekly-summary" />,
 }));
 
+vi.mock("../../components/dashboard/VelocityChartRecharts", () => ({
+  VelocityChartRecharts: ({ data }: { data: { key: string; count: number }[] }) => (
+    <div data-testid="velocity-chart">
+      {data.map((d) => (
+        <span key={d.key} data-testid={`velocity-${d.key}`}>
+          {d.key}:{d.count}
+        </span>
+      ))}
+    </div>
+  ),
+}));
+
+vi.mock("../../components/dashboard/PortfolioHistory", () => ({
+  PortfolioHistory: () => <div data-testid="portfolio-history" />,
+}));
+
+vi.mock("../../components/dashboard/LanguageDistribution", () => ({
+  LanguageDistribution: () => <div data-testid="language-distribution" />,
+}));
+
+vi.mock("../../components/dashboard/CategorySummary", () => ({
+  CategorySummary: () => <div data-testid="category-summary" />,
+}));
+
+vi.mock("../../components/dashboard/PortfolioHealthScore", () => ({
+  PortfolioHealthScore: () => <div data-testid="portfolio-health-score" />,
+}));
+
 describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,6 +128,15 @@ describe("Dashboard", () => {
         { key: "low", count: 3 },
         { key: "medium", count: 5 },
       ],
+      languageDistribution: [],
+      healthScoreInput: {
+        score: 80,
+        activeAlerts: 2,
+        totalRepos: 10,
+        reposWithSignals: 3,
+        highVelocityRepos: 2,
+        staleRepos: 1,
+      },
       earlySignals: [],
       signalSummary: null,
       acknowledgeSignal: mockAcknowledgeSignal,
@@ -126,9 +172,9 @@ describe("Dashboard", () => {
 
   it("renders velocity distribution chart", () => {
     render(<Dashboard />);
-    expect(screen.getByText("Velocity Distribution")).toBeInTheDocument();
-    expect(screen.getByText("0-10")).toBeInTheDocument();
-    expect(screen.getByText("10-50")).toBeInTheDocument();
+    expect(screen.getByTestId("velocity-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("velocity-low")).toBeInTheDocument();
+    expect(screen.getByTestId("velocity-medium")).toBeInTheDocument();
   });
 
   it("renders recent activity section", () => {

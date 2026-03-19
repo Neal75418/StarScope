@@ -271,9 +271,10 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
         rule.name = update.name
     if update.description is not None:
         rule.description = update.description
-    if update.repo_id is not None:
-        # 更新前驗證 repo 是否存在
-        if update.repo_id:
+    # 使用 model_fields_set 判斷 repo_id 是否被明確設定（區分「未傳入」與「設為 null」）
+    if "repo_id" in update.model_fields_set:
+        if update.repo_id is not None:
+            # 驗證 repo 是否存在
             repo = db.query(Repo).filter(Repo.id == update.repo_id).first()
             if not repo:
                 raise HTTPException(status_code=404, detail=f"Repo not found: {update.repo_id}")

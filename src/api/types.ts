@@ -628,3 +628,32 @@ export interface PortfolioHistoryResponse {
 // ==================== Dashboard 時間範圍 ====================
 
 export type DashboardTimeRange = 7 | 14 | 30;
+
+// ==================== 應用程式設定型別 ====================
+
+export interface FetchIntervalResponse {
+  interval_minutes: number;
+}
+
+export interface SnapshotRetentionResponse {
+  retention_days: number;
+}
+
+export interface SignalThresholdsResponse {
+  rising_star_min_velocity: number;
+  sudden_spike_multiplier: number;
+  breakout_velocity_threshold: number;
+  viral_hn_min_score: number;
+}
+
+export interface SignalThresholdsUpdate {
+  rising_star_min_velocity?: number;
+  sudden_spike_multiplier?: number;
+  breakout_velocity_threshold?: number;
+  viral_hn_min_score?: number;
+}
+
+export interface ResetDataResponse {
+  status: string;
+  deleted_repos: number;
+}

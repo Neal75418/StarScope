@@ -58,6 +58,11 @@ import type {
   StarredReposResponse,
   BatchImportResult,
   PortfolioHistoryResponse,
+  FetchIntervalResponse,
+  SnapshotRetentionResponse,
+  SignalThresholdsResponse,
+  SignalThresholdsUpdate,
+  ResetDataResponse,
 } from "./types";
 
 export * from "./types";
@@ -864,4 +869,64 @@ export async function getPersonalizedRecommendations(
   signal?: AbortSignal
 ): Promise<PersonalizedResponse> {
   return apiCall<PersonalizedResponse>(`/recommendations/personalized?limit=${limit}`, { signal });
+}
+
+// ==================== 應用程式設定 API 函式 ====================
+
+export async function getFetchInterval(signal?: AbortSignal): Promise<FetchIntervalResponse> {
+  return apiCall<FetchIntervalResponse>("/settings/fetch-interval", { signal });
+}
+
+export async function updateFetchInterval(
+  intervalMinutes: number,
+  signal?: AbortSignal
+): Promise<FetchIntervalResponse> {
+  return apiCall<FetchIntervalResponse>("/settings/fetch-interval", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ interval_minutes: intervalMinutes }),
+    signal,
+  });
+}
+
+export async function getSnapshotRetention(
+  signal?: AbortSignal
+): Promise<SnapshotRetentionResponse> {
+  return apiCall<SnapshotRetentionResponse>("/settings/snapshot-retention", { signal });
+}
+
+export async function updateSnapshotRetention(
+  retentionDays: number,
+  signal?: AbortSignal
+): Promise<SnapshotRetentionResponse> {
+  return apiCall<SnapshotRetentionResponse>("/settings/snapshot-retention", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ retention_days: retentionDays }),
+    signal,
+  });
+}
+
+export async function getSignalThresholds(signal?: AbortSignal): Promise<SignalThresholdsResponse> {
+  return apiCall<SignalThresholdsResponse>("/settings/signal-thresholds", { signal });
+}
+
+export async function updateSignalThresholds(
+  updates: SignalThresholdsUpdate,
+  signal?: AbortSignal
+): Promise<SignalThresholdsResponse> {
+  return apiCall<SignalThresholdsResponse>("/settings/signal-thresholds", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+    signal,
+  });
+}
+
+export async function clearCache(signal?: AbortSignal): Promise<{ status: string }> {
+  return apiCall<{ status: string }>("/settings/clear-cache", { method: "POST", signal });
+}
+
+export async function resetAllData(signal?: AbortSignal): Promise<ResetDataResponse> {
+  return apiCall<ResetDataResponse>("/settings/reset-data", { method: "POST", signal });
 }

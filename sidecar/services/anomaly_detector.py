@@ -25,7 +25,7 @@ from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
-# 偵測門檻
+# 偵測門檻（可透過 app_settings 覆寫）
 RISING_STAR_MAX_STARS = 5000  # Max stars to be considered "rising"
 RISING_STAR_MIN_VELOCITY = 10  # Min velocity to be notable
 RISING_STAR_VELOCITY_RATIO = 0.01  # velocity/stars ratio threshold
@@ -36,6 +36,65 @@ SUDDEN_SPIKE_MIN_ABSOLUTE = 100  # Minimum absolute growth
 BREAKOUT_VELOCITY_THRESHOLD = 2  # Current week velocity must be > 2
 
 VIRAL_HN_MIN_SCORE = 100  # Minimum HN score to trigger
+
+# 預設門檻值（作為備用）
+_DEFAULT_THRESHOLDS = {
+    "rising_star_min_velocity": float(RISING_STAR_MIN_VELOCITY),
+    "sudden_spike_multiplier": float(SUDDEN_SPIKE_MULTIPLIER),
+    "breakout_velocity_threshold": float(BREAKOUT_VELOCITY_THRESHOLD),
+    "viral_hn_min_score": int(VIRAL_HN_MIN_SCORE),
+}
+
+
+def get_thresholds(db: "Session") -> dict:
+    """從 app_settings 讀取門檻設定，不存在則回傳預設值。"""
+    from db.models import AppSettingKey
+    from services.settings import get_setting
+
+    return {
+        "rising_star_min_velocity": float(
+            get_setting(AppSettingKey.SIGNAL_RISING_STAR_MIN_VELOCITY, db)
+            or _DEFAULT_THRESHOLDS["rising_star_min_velocity"]
+        ),
+        "sudden_spike_multiplier": float(
+            get_setting(AppSettingKey.SIGNAL_SUDDEN_SPIKE_MULTIPLIER, db)
+            or _DEFAULT_THRESHOLDS["sudden_spike_multiplier"]
+        ),
+        "breakout_velocity_threshold": float(
+            get_setting(AppSettingKey.SIGNAL_BREAKOUT_VELOCITY_THRESHOLD, db)
+            or _DEFAULT_THRESHOLDS["breakout_velocity_threshold"]
+        ),
+        "viral_hn_min_score": int(
+            get_setting(AppSettingKey.SIGNAL_VIRAL_HN_MIN_SCORE, db)
+            or _DEFAULT_THRESHOLDS["viral_hn_min_score"]
+        ),
+    }
+
+
+def save_thresholds(updates: dict, db: "Session") -> None:
+    """將門檻設定寫入 app_settings。"""
+    from db.models import AppSettingKey
+    from services.settings import set_setting
+
+    key_map = {
+        "rising_star_min_velocity": AppSettingKey.SIGNAL_RISING_STAR_MIN_VELOCITY,
+        "sudden_spike_multiplier": AppSettingKey.SIGNAL_SUDDEN_SPIKE_MULTIPLIER,
+        "breakout_velocity_threshold": AppSettingKey.SIGNAL_BREAKOUT_VELOCITY_THRESHOLD,
+        "viral_hn_min_score": AppSettingKey.SIGNAL_VIRAL_HN_MIN_SCORE,
+    }
+    for field, value in updates.items():
+        if field in key_map:
+            set_setting(key_map[field], str(value), db)
+
+
+def reload_thresholds_from_db(db: "Session") -> None:
+    """從 DB 重新載入門檻，更新此模組的全域變數（供排程器呼叫）。"""
+    global RISING_STAR_MIN_VELOCITY, SUDDEN_SPIKE_MULTIPLIER, BREAKOUT_VELOCITY_THRESHOLD, VIRAL_HN_MIN_SCORE
+    thresholds = get_thresholds(db)
+    RISING_STAR_MIN_VELOCITY = thresholds["rising_star_min_velocity"]
+    SUDDEN_SPIKE_MULTIPLIER = thresholds["sudden_spike_multiplier"]
+    BREAKOUT_VELOCITY_THRESHOLD = thresholds["breakout_velocity_threshold"]
+    VIRAL_HN_MIN_SCORE = thresholds["viral_hn_min_score"]
 
 # 嚴重度門檻（各偵測器）
 RISING_STAR_SEVERITY_HIGH = 50

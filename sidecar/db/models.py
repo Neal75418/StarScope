@@ -383,6 +383,15 @@ class AppSettingKey:
     """應用程式設定鍵常數。"""
     GITHUB_TOKEN = "github_token"
     GITHUB_USERNAME = "github_username"
+    # 排程設定
+    FETCH_INTERVAL_MINUTES = "fetch_interval_minutes"
+    # 快照保留
+    SNAPSHOT_RETENTION_DAYS = "snapshot_retention_days"
+    # Early Signal 偵測門檻
+    SIGNAL_RISING_STAR_MIN_VELOCITY = "signal_rising_star_min_velocity"
+    SIGNAL_SUDDEN_SPIKE_MULTIPLIER = "signal_sudden_spike_multiplier"
+    SIGNAL_BREAKOUT_VELOCITY_THRESHOLD = "signal_breakout_velocity_threshold"
+    SIGNAL_VIRAL_HN_MIN_SCORE = "signal_viral_hn_min_score"
 
 
 class AppSetting(Base):

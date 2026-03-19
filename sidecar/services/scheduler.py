@@ -175,6 +175,19 @@ async def _fetch_and_update_single_repo(
         return False
 
 
+def _cleanup_snapshots_job() -> None:
+    """快照清理工作，從 DB 讀取保留天數設定。"""
+    with get_db_session() as db:
+        try:
+            from db.models import AppSettingKey
+            from services.settings import get_setting
+            value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
+            retention_days = int(value) if value else 90
+        except Exception:
+            retention_days = 90
+    cleanup_old_snapshots(retention_days)
+
+
 async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
     """
     背景工作：抓取追蹤清單中所有 repo。
@@ -190,6 +203,13 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
 
     with get_db_session() as db:
         try:
+            # 在每次批次抓取前從 DB 重新載入 Early Signal 偵測門檻
+            try:
+                from services.anomaly_detector import reload_thresholds_from_db
+                reload_thresholds_from_db(db)
+            except Exception as e:
+                log.warning(f"[排程] [{job_id}] 重新載入偵測門檻失敗（使用預設值）: {e}")
+
             result = _build_need_fetch_query(db, skip_recent_minutes, log, job_id)
             if result is None:
                 return
@@ -395,12 +415,12 @@ def _register_cleanup_jobs(scheduler) -> None:
     """註冊清理工作（快照清理 + 資料庫備份）。"""
     from apscheduler.triggers.cron import CronTrigger
 
-    # 每日清理過期快照（保留 90 天）
+    # 每日清理過期快照（保留天數從 DB 設定讀取，預設 90 天）
     scheduler.add_job(
-        cleanup_old_snapshots,
+        _cleanup_snapshots_job,
         trigger=IntervalTrigger(hours=24),
         id="cleanup_old_snapshots",
-        name="Cleanup old snapshots (90d retention)",
+        name="Cleanup old snapshots (retention from DB)",
         replace_existing=True,
         max_instances=1,
     )
@@ -419,10 +439,22 @@ def _register_cleanup_jobs(scheduler) -> None:
 def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     """
     啟動背景排程器。
+    若 DB 中有儲存的排程間隔設定，優先使用 DB 值。
 
     Args:
-        fetch_interval_minutes: 資料抓取頻率（預設 60 分鐘）
+        fetch_interval_minutes: 資料抓取頻率預設值（DB 設定優先）
     """
+    # 從 DB 讀取排程間隔（若已設定則覆蓋參數）
+    try:
+        from db.models import AppSettingKey
+        from services.settings import get_setting
+        with get_db_session() as db:
+            stored = get_setting(AppSettingKey.FETCH_INTERVAL_MINUTES, db)
+            if stored:
+                fetch_interval_minutes = int(stored)
+    except Exception:
+        pass  # 使用參數預設值
+
     scheduler = get_scheduler()
 
     if scheduler.running:

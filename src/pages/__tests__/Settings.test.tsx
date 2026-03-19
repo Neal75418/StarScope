@@ -48,6 +48,13 @@ vi.mock("../../components/GitHubConnection", () => ({
 
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/settings", () => ({
+  AppearanceSection: () => <div data-testid="appearance-section">Appearance</div>,
+  DataManagementSection: () => <div data-testid="data-management-section">Data Management</div>,
+  AboutSection: () => <div data-testid="about-section">About</div>,
+  ScheduledRefreshSection: () => <div data-testid="scheduled-refresh-section">Refresh</div>,
+  SnapshotRetentionSection: () => <div data-testid="snapshot-retention-section">Retention</div>,
+  SignalThresholdsSection: () => <div data-testid="signal-thresholds-section">Thresholds</div>,
+  KeyboardShortcutsSection: () => <div data-testid="keyboard-shortcuts-section">Shortcuts</div>,
   ExportSection: () => <div data-testid="export-section">Export</div>,
   ImportSection: () => <div data-testid="import-section">Import</div>,
   AlertRuleForm: ({

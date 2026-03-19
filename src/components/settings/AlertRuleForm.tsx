@@ -89,6 +89,20 @@ export function AlertRuleForm({
 
       <div className="form-row">
         <div className="form-group">
+          <label htmlFor="alert-rule-description">{t.settings.alerts.form.description}</label>
+          <textarea
+            id="alert-rule-description"
+            value={rule.description ?? ""}
+            onChange={(e) => setRule({ ...rule, description: e.target.value || undefined })}
+            placeholder={t.settings.alerts.form.descriptionPlaceholder}
+            rows={2}
+            className="alert-rule-description-textarea"
+          />
+        </div>
+      </div>
+
+      <div className="form-row">
+        <div className="form-group">
           <label htmlFor="alert-rule-signal">{t.settings.alerts.form.condition}</label>
           <select
             id="alert-rule-signal"

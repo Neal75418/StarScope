@@ -128,7 +128,7 @@ describe("useDashboard", () => {
 
     expect(apiClient.getRepos).toHaveBeenCalled();
     expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50);
-    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 5 });
+    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 20 });
     expect(apiClient.getSignalSummary).toHaveBeenCalled();
 
     expect(result.current.error).toBeNull();

@@ -467,6 +467,8 @@ export const translations = {
         form: {
           name: "Alert Name",
           namePlaceholder: "e.g., Star Spike Alert",
+          description: "Description (optional)",
+          descriptionPlaceholder: "Describe when this alert should trigger...",
           condition: "Condition",
           operator: "Operator",
           threshold: "Threshold",
@@ -575,6 +577,57 @@ export const translations = {
         checkUpdates: "Check for Updates",
         github: "View on GitHub",
         license: "License",
+        mit: "MIT License",
+      },
+      scheduledRefresh: {
+        title: "Scheduled Refresh",
+        description: "Configure how often StarScope fetches updated data from GitHub.",
+        interval: "Fetch interval",
+        intervals: {
+          "60": "Every hour",
+          "360": "Every 6 hours",
+          "720": "Every 12 hours",
+          "1440": "Every 24 hours",
+        },
+        toast: {
+          saved: "Refresh interval updated",
+          error: "Failed to update refresh interval",
+        },
+      },
+      signalThresholds: {
+        title: "Early Signal Thresholds",
+        description:
+          "Adjust sensitivity of early signal detection. Lower values detect more signals.",
+        risingStar: "Rising Star — min velocity (stars/day)",
+        suddenSpike: "Sudden Spike — multiplier (vs. average)",
+        breakout: "Breakout — min velocity threshold",
+        viralHn: "Viral HN — min score",
+        reset: "Reset to Defaults",
+        toast: {
+          saved: "Signal thresholds updated",
+          error: "Failed to update thresholds",
+          reset: "Thresholds reset to defaults",
+        },
+      },
+      snapshotRetention: {
+        title: "Snapshot Retention",
+        description:
+          "How many days of snapshot history to keep. Older snapshots are automatically deleted.",
+        days: "Retain for (days)",
+        toast: {
+          saved: "Retention setting updated",
+          error: "Failed to update retention setting",
+        },
+      },
+      keyboardShortcuts: {
+        title: "Keyboard Shortcuts",
+        description: "Quick reference for keyboard shortcuts across all pages.",
+        shortcut: "Shortcut",
+        action: "Action",
+        global: "Global",
+        watchlist: "Watchlist",
+        discovery: "Discovery",
+        compare: "Compare",
       },
     },
     // 通知
@@ -1287,6 +1340,8 @@ export const translations = {
         form: {
           name: "警報名稱",
           namePlaceholder: "例：星星飆升警報",
+          description: "描述（選填）",
+          descriptionPlaceholder: "描述此警報的觸發條件...",
           condition: "條件",
           operator: "運算子",
           threshold: "閾值",
@@ -1394,6 +1449,55 @@ export const translations = {
         checkUpdates: "檢查更新",
         github: "在 GitHub 上查看",
         license: "授權條款",
+        mit: "MIT 授權",
+      },
+      scheduledRefresh: {
+        title: "定時更新",
+        description: "設定 StarScope 從 GitHub 抓取資料的頻率。",
+        interval: "抓取間隔",
+        intervals: {
+          "60": "每小時",
+          "360": "每 6 小時",
+          "720": "每 12 小時",
+          "1440": "每 24 小時",
+        },
+        toast: {
+          saved: "更新間隔已儲存",
+          error: "更新間隔儲存失敗",
+        },
+      },
+      signalThresholds: {
+        title: "早期訊號偵測門檻",
+        description: "調整早期訊號偵測的靈敏度。數值越低，偵測到的訊號越多。",
+        risingStar: "Rising Star — 最低 velocity（顆/天）",
+        suddenSpike: "Sudden Spike — 倍率（相對平均值）",
+        breakout: "Breakout — velocity 門檻",
+        viralHn: "Viral HN — 最低分數",
+        reset: "恢復預設值",
+        toast: {
+          saved: "偵測門檻已更新",
+          error: "偵測門檻更新失敗",
+          reset: "偵測門檻已恢復預設值",
+        },
+      },
+      snapshotRetention: {
+        title: "快照保留期限",
+        description: "設定保留多少天的快照歷史。舊快照會自動刪除。",
+        days: "保留天數",
+        toast: {
+          saved: "保留設定已儲存",
+          error: "保留設定儲存失敗",
+        },
+      },
+      keyboardShortcuts: {
+        title: "鍵盤快捷鍵",
+        description: "各頁面鍵盤快捷鍵速查表。",
+        shortcut: "快捷鍵",
+        action: "動作",
+        global: "全域",
+        watchlist: "追蹤清單",
+        discovery: "探索",
+        compare: "對比",
       },
     },
     // 通知

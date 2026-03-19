@@ -1,5 +1,5 @@
 /**
- * 設定頁面，匯出資料與管理警示規則。
+ * 設定頁面，管理外觀、資料、排程、警示規則等設定。
  */
 
 import { useState } from "react";
@@ -7,7 +7,19 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
 import { AnimatedPage } from "../components/motion";
-import { ExportSection, ImportSection, AlertRuleForm, AlertRuleList } from "../components/settings";
+import {
+  ExportSection,
+  ImportSection,
+  AlertRuleForm,
+  AlertRuleList,
+  AppearanceSection,
+  DataManagementSection,
+  AboutSection,
+  ScheduledRefreshSection,
+  SnapshotRetentionSection,
+  SignalThresholdsSection,
+  KeyboardShortcutsSection,
+} from "../components/settings";
 import { useAlertRules } from "../hooks/useAlertRules";
 import { useNotifications } from "../hooks/useNotifications";
 import { useI18n } from "../i18n";
@@ -30,6 +42,15 @@ export function Settings() {
 
   const handleAlertFormSubmit = isAlertEditMode ? alerts.handleUpdate : alerts.handleCreate;
 
+  // DataManagementSection 的 toast 介接
+  const handleDataToast = (message: string, type?: "success" | "error") => {
+    if (type === "error") {
+      toast.error(message);
+    } else {
+      toast.success(message);
+    }
+  };
+
   if (alerts.isLoading) {
     return (
       <div className="page">
@@ -45,13 +66,29 @@ export function Settings() {
         <p className="subtitle">{t.settings.subtitle}</p>
       </header>
 
+      {/* 外觀設定 */}
+      <AppearanceSection />
+
+      {/* GitHub 連線 */}
       <section className="settings-section" data-testid="github-section">
         <GitHubConnection />
       </section>
 
+      {/* 定時更新 */}
+      <ScheduledRefreshSection onToast={handleDataToast} />
+
+      {/* 快照保留期限 */}
+      <SnapshotRetentionSection onToast={handleDataToast} />
+
+      {/* Early Signal 偵測門檻 */}
+      <SignalThresholdsSection onToast={handleDataToast} />
+
       <ExportSection />
 
       <ImportSection />
+
+      {/* 資料管理 */}
+      <DataManagementSection onToast={handleDataToast} />
 
       <section className="settings-section" data-testid="alerts-section">
         <div className="settings-section-header">
@@ -125,6 +162,12 @@ export function Settings() {
           onDelete={alerts.openDeleteConfirm}
         />
       </section>
+
+      {/* 鍵盤快捷鍵 */}
+      <KeyboardShortcutsSection />
+
+      {/* 關於 */}
+      <AboutSection />
 
       <ConfirmDialog
         isOpen={alerts.deleteConfirm.isOpen}

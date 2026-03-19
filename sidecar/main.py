@@ -26,7 +26,7 @@ from db.database import get_app_data_dir
 from logging_config import setup_logging
 from middleware import LoggingMiddleware
 from middleware.rate_limit import limiter
-from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison
+from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, commit_activity, languages, star_history, weekly_summary, comparison, app_settings
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
@@ -254,6 +254,7 @@ for _module in [
     health, repos, alerts, trends, context, charts,
     recommendations, categories, early_signals, export, github_auth,
     discovery, commit_activity, languages, star_history, weekly_summary, comparison,
+    app_settings,
 ]:
     app.include_router(_module.router)
 
