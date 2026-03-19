@@ -96,8 +96,6 @@ export interface ContextSignal {
   score: number | null;
   comment_count: number | null;
   author: string | null;
-  version_tag: string | null;
-  is_prerelease: boolean | null;
   published_at: string | null;
   fetched_at: string;
 }

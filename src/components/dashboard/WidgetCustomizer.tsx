@@ -26,8 +26,8 @@ const DEFAULT_VISIBILITY: WidgetVisibility = {
   weeklySummary: true,
   portfolioHistory: true,
   velocityChart: true,
-  languageDistribution: true,
-  categorySummary: true,
+  languageDistribution: false,
+  categorySummary: false,
   recentActivity: true,
 };
 

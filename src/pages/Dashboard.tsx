@@ -256,23 +256,29 @@ export function Dashboard() {
         </FadeIn>
       )}
 
-      {/* Velocity 分佈 + 語言分佈（並排） */}
-      <FadeIn delay={0.22}>
-        <div className="dashboard-grid">
-          {widgetVisibility.velocityChart && <VelocityChartRecharts data={velocityDistribution} />}
-          {widgetVisibility.languageDistribution && (
-            <LanguageDistribution data={languageDistribution} />
-          )}
-        </div>
-      </FadeIn>
+      {/* Velocity 分佈 + 語言分佈（並排，至少一個可見才渲染） */}
+      {(widgetVisibility.velocityChart || widgetVisibility.languageDistribution) && (
+        <FadeIn delay={0.22}>
+          <div className="dashboard-grid">
+            {widgetVisibility.velocityChart && (
+              <VelocityChartRecharts data={velocityDistribution} />
+            )}
+            {widgetVisibility.languageDistribution && (
+              <LanguageDistribution data={languageDistribution} />
+            )}
+          </div>
+        </FadeIn>
+      )}
 
-      {/* 分類摘要 + 近期活動（並排） */}
-      <FadeIn delay={0.25}>
-        <div className="dashboard-grid">
-          {widgetVisibility.categorySummary && <CategorySummary />}
-          {widgetVisibility.recentActivity && <RecentActivityList activities={recentActivity} />}
-        </div>
-      </FadeIn>
+      {/* 分類摘要 + 近期活動（並排，至少一個可見才渲染） */}
+      {(widgetVisibility.categorySummary || widgetVisibility.recentActivity) && (
+        <FadeIn delay={0.25}>
+          <div className="dashboard-grid">
+            {widgetVisibility.categorySummary && <CategorySummary />}
+            {widgetVisibility.recentActivity && <RecentActivityList activities={recentActivity} />}
+          </div>
+        </FadeIn>
+      )}
     </AnimatedPage>
   );
 }

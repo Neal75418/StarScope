@@ -566,6 +566,7 @@ export const translations = {
         resetData: "Reset All Data",
         resetDataDesc: "Delete all local data including watchlist",
         resetWarning: "This action cannot be undone.",
+        dangerZone: "Danger Zone",
         toast: {
           cacheCleared: "Cache cleared",
           dataReset: "All data has been reset",
@@ -1438,6 +1439,7 @@ export const translations = {
         resetData: "重置所有資料",
         resetDataDesc: "刪除所有本地資料（包括追蹤清單）",
         resetWarning: "此操作無法復原。",
+        dangerZone: "危險操作",
         toast: {
           cacheCleared: "快取已清除",
           dataReset: "所有資料已重置",

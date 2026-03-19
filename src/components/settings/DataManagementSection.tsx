@@ -70,20 +70,23 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
             </button>
           </div>
 
-          {/* 重置所有資料 */}
-          <div className="data-action-card data-action-card--danger">
-            <div className="data-action-info">
-              <div className="data-action-title">{t.settings.data.resetData}</div>
-              <div className="data-action-desc">{t.settings.data.resetDataDesc}</div>
-              <div className="data-action-warning">{t.settings.data.resetWarning}</div>
+          {/* 危險操作區 */}
+          <div className="danger-zone">
+            <div className="danger-zone-label">{t.settings.data.dangerZone}</div>
+            <div className="data-action-card data-action-card--danger">
+              <div className="data-action-info">
+                <div className="data-action-title">{t.settings.data.resetData}</div>
+                <div className="data-action-desc">{t.settings.data.resetDataDesc}</div>
+                <div className="data-action-warning">{t.settings.data.resetWarning}</div>
+              </div>
+              <button
+                className="btn btn-danger"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={isResetting}
+              >
+                {isResetting ? `${t.settings.data.resetData}...` : t.settings.data.resetData}
+              </button>
             </div>
-            <button
-              className="btn btn-danger"
-              onClick={() => setShowResetConfirm(true)}
-              disabled={isResetting}
-            >
-              {isResetting ? `${t.settings.data.resetData}...` : t.settings.data.resetData}
-            </button>
           </div>
         </div>
       </section>

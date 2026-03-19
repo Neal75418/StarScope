@@ -8,11 +8,9 @@ import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
 import { AnimatedPage } from "../components/motion";
 import {
-  ExportSection,
   ImportSection,
   AlertRuleForm,
   AlertRuleList,
-  AppearanceSection,
   DataManagementSection,
   AboutSection,
   ScheduledRefreshSection,
@@ -59,6 +57,18 @@ export function Settings() {
     );
   }
 
+  const navItems = [
+    { id: "github", label: t.settings.github.title },
+    { id: "scheduled-refresh", label: t.settings.scheduledRefresh.title },
+    { id: "snapshot-retention", label: t.settings.snapshotRetention.title },
+    { id: "signal-thresholds", label: t.settings.signalThresholds.title },
+    { id: "import", label: t.settings.import.title },
+    { id: "data-management", label: t.settings.data.title },
+    { id: "alerts", label: t.settings.alerts.title },
+    { id: "keyboard-shortcuts", label: t.settings.keyboardShortcuts.title },
+    { id: "about", label: t.settings.about.title },
+  ];
+
   return (
     <AnimatedPage className="page">
       <header className="page-header">
@@ -66,108 +76,133 @@ export function Settings() {
         <p className="subtitle">{t.settings.subtitle}</p>
       </header>
 
-      {/* 外觀設定 */}
-      <AppearanceSection />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {navItems.map(({ id, label }) => (
+            <a key={id} href={`#${id}`} className="settings-nav-item">
+              {label}
+            </a>
+          ))}
+        </nav>
 
-      {/* GitHub 連線 */}
-      <section className="settings-section" data-testid="github-section">
-        <GitHubConnection />
-      </section>
+        <div className="settings-content">
+          {/* GitHub 連線 */}
+          <section id="github" className="settings-section" data-testid="github-section">
+            <GitHubConnection />
+          </section>
 
-      {/* 定時更新 */}
-      <ScheduledRefreshSection onToast={handleDataToast} />
-
-      {/* 快照保留期限 */}
-      <SnapshotRetentionSection onToast={handleDataToast} />
-
-      {/* Early Signal 偵測門檻 */}
-      <SignalThresholdsSection onToast={handleDataToast} />
-
-      <ExportSection />
-
-      <ImportSection />
-
-      {/* 資料管理 */}
-      <DataManagementSection onToast={handleDataToast} />
-
-      <section className="settings-section" data-testid="alerts-section">
-        <div className="settings-section-header">
-          <div>
-            <h2>{t.settings.alerts.title}</h2>
-            <p className="settings-description">
-              {alerts.rules.length === 0 ? t.settings.alerts.noAlerts : ""}
-            </p>
+          {/* 定時更新 */}
+          <div id="scheduled-refresh">
+            <ScheduledRefreshSection onToast={handleDataToast} />
           </div>
-          <div className="settings-section-actions">
-            {!isAlertFormVisible && (
-              <>
-                <button
-                  className="btn"
-                  onClick={() => void alerts.handleCheckNow()}
-                  disabled={alerts.isSubmitting}
-                  title={t.settings.alerts.checkNow ?? "Check alerts now"}
-                >
-                  {t.settings.alerts.checkNow ?? "Check Now"}
-                </button>
-                <button className="btn btn-primary" onClick={() => setShowAddAlert(true)}>
-                  {t.settings.alerts.create}
-                </button>
-              </>
+
+          {/* 快照保留期限 */}
+          <div id="snapshot-retention">
+            <SnapshotRetentionSection onToast={handleDataToast} />
+          </div>
+
+          {/* Early Signal 偵測門檻 */}
+          <div id="signal-thresholds">
+            <SignalThresholdsSection onToast={handleDataToast} />
+          </div>
+
+          {/* 匯入 */}
+          <div id="import">
+            <ImportSection />
+          </div>
+
+          {/* 資料管理 */}
+          <div id="data-management">
+            <DataManagementSection onToast={handleDataToast} />
+          </div>
+
+          {/* 警示規則 */}
+          <section id="alerts" className="settings-section" data-testid="alerts-section">
+            <div className="settings-section-header">
+              <div>
+                <h2>{t.settings.alerts.title}</h2>
+                <p className="settings-description">
+                  {alerts.rules.length === 0 ? t.settings.alerts.noAlerts : ""}
+                </p>
+              </div>
+              <div className="settings-section-actions">
+                {!isAlertFormVisible && (
+                  <>
+                    <button
+                      className="btn"
+                      onClick={() => void alerts.handleCheckNow()}
+                      disabled={alerts.isSubmitting}
+                      title={t.settings.alerts.checkNow ?? "Check alerts now"}
+                    >
+                      {t.settings.alerts.checkNow ?? "Check Now"}
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setShowAddAlert(true)}>
+                      {t.settings.alerts.create}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* OS 通知設定 */}
+            <div className="os-notification-settings">
+              <h3>{t.settings.osNotification.title}</h3>
+              <p className="os-notification-desc">
+                {osNotification.isGranted
+                  ? t.settings.osNotification.enabledDesc
+                  : t.settings.osNotification.disabledDesc}
+              </p>
+              <div className="os-notification-actions">
+                {osNotification.isLoading ? (
+                  <span className="os-notification-status">
+                    {t.settings.osNotification.checking}
+                  </span>
+                ) : osNotification.isGranted ? (
+                  <span className="os-notification-status enabled">
+                    {`✓ ${t.settings.osNotification.enabled}`}
+                  </span>
+                ) : (
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => void osNotification.requestPermission()}
+                  >
+                    {t.settings.osNotification.enable}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {isAlertFormVisible && (
+              <AlertRuleForm
+                initialData={alerts.editingRuleData ?? alerts.initialAlertRule}
+                signalTypes={alerts.signalTypes}
+                repos={alerts.repos}
+                isSubmitting={alerts.isSubmitting}
+                isEditMode={isAlertEditMode}
+                onSubmit={handleAlertFormSubmit}
+                onCancel={handleCancelAlertForm}
+              />
             )}
+
+            <AlertRuleList
+              rules={alerts.rules}
+              onToggle={alerts.handleToggle}
+              onEdit={alerts.handleEdit}
+              onDelete={alerts.openDeleteConfirm}
+            />
+          </section>
+
+          {/* 鍵盤快捷鍵 */}
+          <div id="keyboard-shortcuts">
+            <KeyboardShortcutsSection />
+          </div>
+
+          {/* 關於 */}
+          <div id="about">
+            <AboutSection />
           </div>
         </div>
-
-        {/* OS 通知設定 */}
-        <div className="os-notification-settings">
-          <h3>{t.settings.osNotification.title}</h3>
-          <p className="os-notification-desc">
-            {osNotification.isGranted
-              ? t.settings.osNotification.enabledDesc
-              : t.settings.osNotification.disabledDesc}
-          </p>
-          <div className="os-notification-actions">
-            {osNotification.isLoading ? (
-              <span className="os-notification-status">{t.settings.osNotification.checking}</span>
-            ) : osNotification.isGranted ? (
-              <span className="os-notification-status enabled">
-                {`✓ ${t.settings.osNotification.enabled}`}
-              </span>
-            ) : (
-              <button
-                className="btn btn-sm"
-                onClick={() => void osNotification.requestPermission()}
-              >
-                {t.settings.osNotification.enable}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {isAlertFormVisible && (
-          <AlertRuleForm
-            initialData={alerts.editingRuleData ?? alerts.initialAlertRule}
-            signalTypes={alerts.signalTypes}
-            repos={alerts.repos}
-            isSubmitting={alerts.isSubmitting}
-            isEditMode={isAlertEditMode}
-            onSubmit={handleAlertFormSubmit}
-            onCancel={handleCancelAlertForm}
-          />
-        )}
-
-        <AlertRuleList
-          rules={alerts.rules}
-          onToggle={alerts.handleToggle}
-          onEdit={alerts.handleEdit}
-          onDelete={alerts.openDeleteConfirm}
-        />
-      </section>
-
-      {/* 鍵盤快捷鍵 */}
-      <KeyboardShortcutsSection />
-
-      {/* 關於 */}
-      <AboutSection />
+      </div>
 
       <ConfirmDialog
         isOpen={alerts.deleteConfirm.isOpen}

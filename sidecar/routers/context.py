@@ -103,8 +103,7 @@ async def get_context_signals(
     query = db.query(ContextSignal).filter(ContextSignal.repo_id == repo_id)
 
     if signal_type:
-        # 驗證訊號類型 — 目前僅支援 HN
-        valid_types = [ContextSignalType.HACKER_NEWS]
+        valid_types = list(ContextSignalType)
         if signal_type not in valid_types:
             raise HTTPException(
                 status_code=400,
