@@ -71,7 +71,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
   };
 
   const getValue = (key: ThresholdKey): string => {
-    if (draft[key] !== undefined) return draft[key]!;
+    if (draft[key] !== undefined) return draft[key] ?? "";
     return String(current[key]);
   };
 

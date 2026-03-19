@@ -31,7 +31,7 @@ function CategoryCard({ category }: CategoryCardProps) {
   return (
     <div
       className="category-summary-card"
-      style={hasColor ? { borderLeftColor: category.color! } : undefined}
+      style={hasColor ? { borderLeftColor: category.color ?? undefined } : undefined}
     >
       <div className="category-summary-icon">{category.icon ?? "📁"}</div>
       <div className="category-summary-info">
