@@ -32,6 +32,8 @@ import {
   acknowledgeSignal,
   getExportWatchlistJsonUrl,
   getExportWatchlistCsvUrl,
+  getExportTrendsJsonUrl,
+  getExportTrendsCsvUrl,
   initiateDeviceFlow,
   pollAuthorization,
   getGitHubConnectionStatus,
@@ -44,6 +46,16 @@ import {
   acknowledgeAllTriggeredAlerts,
   checkAlerts,
   listSignalTypes,
+  getFetchInterval,
+  updateFetchInterval,
+  getSnapshotRetention,
+  updateSnapshotRetention,
+  getSignalThresholds,
+  updateSignalThresholds,
+  clearCache,
+  resetAllData,
+  getWeeklySummary,
+  getPortfolioHistory,
 } from "../client";
 
 // Mock fetch globally
@@ -592,6 +604,39 @@ describe("API Client", () => {
       const url = getExportWatchlistCsvUrl();
       expect(url).toContain("/export/watchlist.csv");
     });
+
+    it("getExportTrendsJsonUrl builds URL with sort param", () => {
+      const url = getExportTrendsJsonUrl("stars");
+      expect(url).toContain("/export/trends.json");
+      expect(url).toContain("sort_by=stars");
+    });
+
+    it("getExportTrendsJsonUrl includes language filter", () => {
+      const url = getExportTrendsJsonUrl("stars", "TypeScript");
+      expect(url).toContain("language=TypeScript");
+    });
+
+    it("getExportTrendsJsonUrl includes min_stars filter", () => {
+      const url = getExportTrendsJsonUrl("stars", undefined, 500);
+      expect(url).toContain("min_stars=500");
+    });
+
+    it("getExportTrendsJsonUrl omits min_stars when null", () => {
+      const url = getExportTrendsJsonUrl("stars", undefined, null);
+      expect(url).not.toContain("min_stars");
+    });
+
+    it("getExportTrendsCsvUrl builds URL with sort param", () => {
+      const url = getExportTrendsCsvUrl("velocity");
+      expect(url).toContain("/export/trends.csv");
+      expect(url).toContain("sort_by=velocity");
+    });
+
+    it("getExportTrendsCsvUrl includes language and min_stars", () => {
+      const url = getExportTrendsCsvUrl("stars", "Python", 1000);
+      expect(url).toContain("language=Python");
+      expect(url).toContain("min_stars=1000");
+    });
   });
 
   // GitHub Auth tests
@@ -964,6 +1009,171 @@ describe("API Client", () => {
 
       const result = await listSignalTypes();
       expect(result).toHaveLength(1);
+    });
+  });
+
+  // ==================== 應用程式設定 API ====================
+
+  describe("Settings API functions", () => {
+    it("getFetchInterval returns interval", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { interval_minutes: 360 } }),
+      });
+      const result = await getFetchInterval();
+      expect(result).toEqual({ interval_minutes: 360 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/settings/fetch-interval"),
+        expect.any(Object)
+      );
+    });
+
+    it("updateFetchInterval sends PUT with interval", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { interval_minutes: 720 } }),
+      });
+      const result = await updateFetchInterval(720);
+      expect(result).toEqual({ interval_minutes: 720 });
+      const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(opts.method).toBe("PUT");
+      expect(opts.body).toContain('"interval_minutes":720');
+    });
+
+    it("getSnapshotRetention returns retention days", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { retention_days: 90 } }),
+      });
+      const result = await getSnapshotRetention();
+      expect(result).toEqual({ retention_days: 90 });
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/settings/snapshot-retention"),
+        expect.any(Object)
+      );
+    });
+
+    it("updateSnapshotRetention sends PUT with days", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { retention_days: 180 } }),
+      });
+      const result = await updateSnapshotRetention(180);
+      expect(result).toEqual({ retention_days: 180 });
+      const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(opts.method).toBe("PUT");
+      expect(opts.body).toContain('"retention_days":180');
+    });
+
+    it("getSignalThresholds returns thresholds", async () => {
+      const thresholds = {
+        rising_star_min_velocity: 10,
+        sudden_spike_multiplier: 3,
+        breakout_velocity_threshold: 2,
+        viral_hn_min_score: 100,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: thresholds }),
+      });
+      const result = await getSignalThresholds();
+      expect(result).toEqual(thresholds);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/settings/signal-thresholds"),
+        expect.any(Object)
+      );
+    });
+
+    it("updateSignalThresholds sends PUT with updates", async () => {
+      const updated = {
+        rising_star_min_velocity: 15,
+        sudden_spike_multiplier: 3,
+        breakout_velocity_threshold: 2,
+        viral_hn_min_score: 100,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: updated }),
+      });
+      const result = await updateSignalThresholds({ rising_star_min_velocity: 15 });
+      expect(result).toEqual(updated);
+      const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(opts.method).toBe("PUT");
+    });
+
+    it("clearCache sends POST and returns status", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { status: "ok" } }),
+      });
+      const result = await clearCache();
+      expect(result).toEqual({ status: "ok" });
+      const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/settings/clear-cache");
+      expect(opts.method).toBe("POST");
+    });
+
+    it("resetAllData sends POST and returns counts", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { status: "reset", deleted_repos: 5 } }),
+      });
+      const result = await resetAllData();
+      expect(result).toEqual({ status: "reset", deleted_repos: 5 });
+      const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/settings/reset-data");
+      expect(opts.method).toBe("POST");
+    });
+  });
+
+  // ==================== Dashboard 新增 API ====================
+
+  describe("getWeeklySummary", () => {
+    it("uses default days=7", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ weeks: [] }),
+      });
+      await getWeeklySummary();
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining("days=7"), expect.any(Object));
+    });
+
+    it("passes custom days", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ weeks: [] }),
+      });
+      await getWeeklySummary(30);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("days=30"),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe("getPortfolioHistory", () => {
+    it("uses default days=30", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ history: [] }),
+      });
+      await getPortfolioHistory();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("portfolio?days=30"),
+        expect.any(Object)
+      );
+    });
+
+    it("passes custom days", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ history: [] }),
+      });
+      await getPortfolioHistory(90);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("portfolio?days=90"),
+        expect.any(Object)
+      );
     });
   });
 });
