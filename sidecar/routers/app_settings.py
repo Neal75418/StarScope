@@ -3,6 +3,8 @@
 管理排程間隔、快照保留天數、Early Signal 偵測門檻等可設定參數。
 """
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
@@ -18,6 +20,7 @@ from schemas.response import ApiResponse, success_response
 from services.settings import get_setting, set_setting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
+logger = logging.getLogger(__name__)
 
 # 允許的排程間隔（分鐘）
 ALLOWED_FETCH_INTERVALS = {60, 360, 720, 1440}
@@ -70,6 +73,20 @@ class SignalThresholdsUpdate(BaseModel):
     breakout_velocity_threshold: float | None = None
     viral_hn_min_score: int | None = None
 
+    @field_validator("rising_star_min_velocity", "sudden_spike_multiplier", "breakout_velocity_threshold")
+    @classmethod
+    def validate_positive_float(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("must be greater than 0")
+        return v
+
+    @field_validator("viral_hn_min_score")
+    @classmethod
+    def validate_positive_int(cls, v: int | None) -> int | None:
+        if v is not None and v <= 0:
+            raise ValueError("must be greater than 0")
+        return v
+
 
 class ResetDataResponse(BaseModel):
     status: str
@@ -111,9 +128,9 @@ async def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends
                     start_date=utc_now() + timedelta(minutes=1),
                 ),
             )
-    except Exception:
-        # 排程器更新失敗不影響設定儲存
-        pass
+    except Exception as e:
+        # 排程器更新失敗不影響設定儲存，但記錄警告
+        logger.warning("排程器更新失敗，將於下次重啟後生效: %s", e)
 
     return success_response(data=FetchIntervalResponse(interval_minutes=body.interval_minutes))
 
