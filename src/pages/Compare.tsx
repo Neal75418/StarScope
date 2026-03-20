@@ -441,7 +441,14 @@ export function Compare() {
                         yAxisId={showGrowthRate ? "main" : undefined}
                       />
                     ))}
-                    {showBrush && <Brush dataKey="date" height={30} stroke="var(--accent-fg)" />}
+                    {showBrush && (
+                      <Brush
+                        dataKey="date"
+                        height={30}
+                        stroke="var(--accent-fg)"
+                        fill="var(--bg-subtle)"
+                      />
+                    )}
                   </LineChart>
                 ) : (
                   <AreaChart data={chartDataWithGrowth}>
@@ -505,7 +512,14 @@ export function Compare() {
                         yAxisId={showGrowthRate ? "main" : undefined}
                       />
                     ))}
-                    {showBrush && <Brush dataKey="date" height={30} stroke="var(--accent-fg)" />}
+                    {showBrush && (
+                      <Brush
+                        dataKey="date"
+                        height={30}
+                        stroke="var(--accent-fg)"
+                        fill="var(--bg-subtle)"
+                      />
+                    )}
                   </AreaChart>
                 )}
               </ResponsiveContainer>

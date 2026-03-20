@@ -724,10 +724,10 @@ body {
 .page-header h1 {
   font-size: clamp(1.4rem, 2.5vw, 2rem);
   font-weight: 700;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin-bottom: 12px;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, var(--fg-on-emphasis) 0%, var(--fg-muted) 100%);
+  background: linear-gradient(135deg, var(--fg-default) 0%, var(--fg-muted) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1142,6 +1142,10 @@ body {
   margin-bottom: 16px;
   line-height: 1.5;
   font-size: 14px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 /* Repo Stats */
@@ -1199,7 +1203,7 @@ body {
 .dialog h2 {
   margin-bottom: 8px;
   font-size: 1.25rem;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
 }
 
 .dialog p {
@@ -1284,7 +1288,7 @@ body {
 
 .sort-tab.active {
   background-color: var(--bg-default);
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1430,8 +1434,15 @@ body {
   overflow: hidden;
 }
 
-.repo-card-compact .repo-actions {
+.repo-card-compact .repo-header {
   flex-wrap: wrap;
+  gap: 6px;
+}
+
+.repo-card-compact .repo-actions {
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
 }
 
 /* Status Tags */
@@ -1635,6 +1646,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background-color: var(--bg-subtle);
+  white-space: nowrap;
 }
 
 .trends-table tbody tr:hover {
@@ -2745,7 +2757,7 @@ body {
 .health-panel-header h3 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin: 0 0 4px 0;
 }
 
@@ -2795,7 +2807,7 @@ body {
 .overall-number {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   line-height: 1;
 }
 
@@ -2980,7 +2992,7 @@ body {
 .signals-summary-value {
   font-size: 24px;
   font-weight: 700;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   line-height: 1;
 }
 
@@ -3116,7 +3128,7 @@ body {
 .signal-repo {
   font-size: 15px;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin-bottom: 4px;
 }
 
@@ -3994,7 +4006,7 @@ body {
 
 .dialog-header h2 {
   margin: 0;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
 }
 
 .dialog-footer {
@@ -4304,7 +4316,7 @@ a:focus-visible {
 .github-connection .section-header h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin: 0 0 16px;
 }
 
@@ -5068,7 +5080,7 @@ a:focus-visible {
 .commit-activity-header h3 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin: 0 0 4px 0;
 }
 
@@ -5124,7 +5136,7 @@ a:focus-visible {
 .commit-stats .stat-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
 }
 
 .commit-stats .stat-label {
@@ -5258,7 +5270,7 @@ a:focus-visible {
 .languages-header h3 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   margin: 0 0 4px 0;
 }
 
@@ -5314,7 +5326,7 @@ a:focus-visible {
 .languages-stats .stat-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
 }
 
 .languages-stats .stat-label {
@@ -5367,7 +5379,7 @@ a:focus-visible {
 
 .language-name {
   font-weight: 500;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
 }
 
 .language-stats {
@@ -5378,7 +5390,7 @@ a:focus-visible {
 
 .language-percentage {
   font-weight: 600;
-  color: var(--fg-on-emphasis);
+  color: var(--fg-default);
   min-width: 50px;
   text-align: right;
 }

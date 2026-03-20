@@ -923,5 +923,10 @@ export async function clearCache(signal?: AbortSignal): Promise<{ status: string
 }
 
 export async function resetAllData(signal?: AbortSignal): Promise<ResetDataResponse> {
-  return apiCall<ResetDataResponse>("/settings/reset-data", { method: "POST", signal });
+  return apiCall<ResetDataResponse>("/settings/reset-data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirm: "RESET" }),
+    signal,
+  });
 }

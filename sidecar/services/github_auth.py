@@ -185,7 +185,6 @@ class GitHubAuthService:
 
             return {
                 "status": "success",
-                "access_token": access_token,
                 "username": username,
             }
 

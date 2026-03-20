@@ -121,9 +121,6 @@ export function Settings() {
             <div className="settings-section-header">
               <div>
                 <h2>{t.settings.alerts.title}</h2>
-                <p className="settings-description">
-                  {alerts.rules.length === 0 ? t.settings.alerts.noAlerts : ""}
-                </p>
               </div>
               <div className="settings-section-actions">
                 {!isAlertFormVisible && (

@@ -30,11 +30,16 @@ export function useStarredImport() {
   const starredRepos = useMemo(() => starredData?.repos ?? [], [starredData]);
 
   const fetchStarred = useCallback(() => {
-    setFetchEnabled(true);
     setResult(null);
     setSelectedRepos(new Set());
-    void refetch();
-  }, [refetch]);
+    if (fetchEnabled) {
+      // 已啟用過 — 直接 refetch 以支援重複觸發
+      void refetch();
+    } else {
+      // 首次啟用 — React Query 會在 enabled 變 true 後自動 fetch
+      setFetchEnabled(true);
+    }
+  }, [fetchEnabled, refetch]);
 
   const toggleRepo = useCallback((fullName: string) => {
     setSelectedRepos((prev) => {

@@ -63,7 +63,21 @@ fn retry_delay_ms(attempt: u32, initial_delay_ms: u64) -> u64 {
 
 /// 啟動 Python sidecar，失敗時以 exponential backoff 重試，最終優雅降級。
 /// 透過 `Command::env()` 傳遞 app data dir，避免在多執行緒環境呼叫 `std::env::set_var`。
+/// 在背景執行緒中執行，避免阻塞 UI 主執行緒。
 fn start_sidecar(app: &App) {
+    // 先註冊空的 SidecarState，讓其他元件可以安全存取
+    app.manage(SidecarState {
+        child: Mutex::new(None),
+    });
+
+    let app_handle = app.app_handle().clone();
+    std::thread::spawn(move || {
+        start_sidecar_with_retry(&app_handle);
+    });
+}
+
+/// 在背景執行緒中以 exponential backoff 重試啟動 sidecar。
+fn start_sidecar_with_retry(app: &AppHandle) {
     for attempt in 0..=MAX_RETRIES {
         // 每次重試都重建 Command，因為 spawn() 會 consume self。
         let mut cmd = match app.shell().sidecar("starscope-sidecar") {
@@ -71,9 +85,6 @@ fn start_sidecar(app: &App) {
             Err(e) => {
                 // 找不到 binary 表示檔案不存在，重試無意義。
                 warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
-                app.manage(SidecarState {
-                    child: Mutex::new(None),
-                });
                 return;
             }
         };
@@ -89,9 +100,9 @@ fn start_sidecar(app: &App) {
                 if attempt > 0 {
                     info!("Sidecar 在第 {attempt} 次重試後啟動成功");
                 }
-                app.manage(SidecarState {
-                    child: Mutex::new(Some(child)),
-                });
+                if let Ok(mut guard) = app.state::<SidecarState>().child.lock() {
+                    *guard = Some(child);
+                }
                 return;
             }
             Err(e) => {
@@ -113,10 +124,6 @@ fn start_sidecar(app: &App) {
             }
         }
     }
-
-    app.manage(SidecarState {
-        child: Mutex::new(None),
-    });
 }
 
 #[cfg(test)]

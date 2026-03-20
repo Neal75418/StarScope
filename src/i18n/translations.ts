@@ -469,8 +469,11 @@ export const translations = {
           enabled: "Enabled",
         },
         conditions: {
-          velocity_above: "Velocity above",
-          stars_delta_above: "Stars delta above",
+          stars_delta_7d: "7-Day Star Delta",
+          stars_delta_30d: "30-Day Star Delta",
+          velocity: "Star Velocity",
+          acceleration: "Acceleration",
+          trend: "Trend",
         },
         status: {
           enabled: "Enabled",
@@ -1334,8 +1337,11 @@ export const translations = {
           enabled: "啟用",
         },
         conditions: {
-          velocity_above: "成長速度超過",
-          stars_delta_above: "星星變化超過",
+          stars_delta_7d: "7天星星變化",
+          stars_delta_30d: "30天星星變化",
+          velocity: "成長速度",
+          acceleration: "加速度",
+          trend: "趨勢",
         },
         status: {
           enabled: "已啟用",

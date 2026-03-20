@@ -86,9 +86,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     // 合併錯誤來源
     const queryError = healthQuery.error ?? reposQuery.error;
     const mergedError =
-      reducerState.error ??
-      (!isConnected && !healthQuery.isLoading ? t.watchlist.connection.message : null) ??
-      (queryError instanceof Error ? queryError.message : null);
+      reducerState.error ?? (queryError instanceof Error ? queryError.message : null);
 
     return {
       ...reducerState,
@@ -105,7 +103,6 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     healthQuery.isLoading,
     healthQuery.error,
     isConnected,
-    t,
   ]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
@@ -230,6 +227,8 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       confirmRemove: async () => {
         const { repoId } = stateRef.current.ui.removeConfirm;
         if (repoId === null) return;
+
+        dispatch({ type: "REMOVE_REPO_START", payload: { repoId } });
 
         try {
           await removeRepo(repoId);

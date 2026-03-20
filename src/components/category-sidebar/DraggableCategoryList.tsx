@@ -21,6 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { CategoryTreeNode } from "../../api/client";
+import { useI18n } from "../../i18n";
 import { CategoryTreeNodeRenderer } from "./CategoryTreeNodeRenderer";
 
 interface DraggableCategoryListProps {
@@ -43,6 +44,7 @@ function SortableCategoryNode({
   onEdit,
   onDelete,
 }: Omit<DraggableCategoryListProps, "tree" | "onReorder"> & { node: CategoryTreeNode }) {
+  const { t } = useI18n();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: node.id,
   });
@@ -59,8 +61,8 @@ function SortableCategoryNode({
         <button
           className="category-drag-handle"
           {...listeners}
-          aria-label="Drag to reorder"
-          title="Drag to reorder"
+          aria-label={t.categories.dragToReorder}
+          title={t.categories.dragToReorder}
           type="button"
         >
           ⠿

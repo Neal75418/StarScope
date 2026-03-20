@@ -71,10 +71,14 @@ def get_db():
     """
     FastAPI 路由的依賴注入。
     產出資料庫 session 並確保使用後關閉。
+    例外時先 rollback 再關閉，避免依賴 SQLAlchemy 內部 close 行為。
     """
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -84,10 +88,14 @@ def get_db_session():
     """
     背景任務用的 context manager。
     FastAPI 路由請用 get_db() 依賴注入。
+    例外時先 rollback 再關閉，與 get_db() 保持一致。
     """
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 

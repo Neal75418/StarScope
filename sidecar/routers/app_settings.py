@@ -88,6 +88,17 @@ class SignalThresholdsUpdate(BaseModel):
         return v
 
 
+class ResetDataConfirmation(BaseModel):
+    confirm: str
+
+    @field_validator("confirm")
+    @classmethod
+    def validate_confirm(cls, v: str) -> str:
+        if v != "RESET":
+            raise ValueError("confirm must be 'RESET'")
+        return v
+
+
 class ResetDataResponse(BaseModel):
     status: str
     deleted_repos: int
@@ -187,10 +198,11 @@ async def clear_cache():
 # --- 重設所有資料 ---
 
 @router.post("/reset-data", response_model=ApiResponse[ResetDataResponse])
-async def reset_all_data(db: Session = Depends(get_db)):
+async def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_db)):
     """
     刪除所有追蹤資料（repos、快照、訊號、警報等）。
     保留 GitHub 憑證與應用程式設定。
+    需要 body {"confirm": "RESET"} 以防止意外呼叫。
     """
     # 計算刪除前的 repo 數量
     repo_count = db.query(Repo).count()

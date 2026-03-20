@@ -384,7 +384,7 @@ class AnomalyDetector:
             repo_id=repo.id,
             signal_type=EarlySignalType.VIRAL_HN,
             severity=severity,
-            description=f"Viral on HN: \"{hn_signal.title[:50]}...\" ({hn_signal.score} points)",
+            description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
             # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),

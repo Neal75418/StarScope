@@ -70,12 +70,9 @@ def setup_query_logging(engine: Engine, enable: bool = True):
         # 在連線上儲存開始時間
         conn.info.setdefault("query_start_time", []).append(time.perf_counter())
 
-        # 記錄查詢（DEBUG 級別）
+        # 記錄查詢（DEBUG 級別，不記錄參數避免洩漏敏感資料）
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(
-                f"Executing SQL:\n{statement}\n"
-                f"Parameters: {parameters}"
-            )
+            logger.debug(f"Executing SQL:\n{statement}")
 
     @event.listens_for(engine, "after_cursor_execute")
     def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
@@ -84,17 +81,16 @@ def setup_query_logging(engine: Engine, enable: bool = True):
         start_time = conn.info["query_start_time"].pop(-1)
         elapsed = time.perf_counter() - start_time
 
-        # 更新統計（thread-safe）
+        # 更新統計（thread-safe，單一 lock 區塊避免 race window）
+        is_slow = elapsed > SLOW_QUERY_THRESHOLD
         with _query_stats_lock:
             _query_stats["total_queries"] += 1
             _query_stats["total_time"] += elapsed
-
-        # 記錄慢查詢
-        if elapsed > SLOW_QUERY_THRESHOLD:
-            with _query_stats_lock:
+            if is_slow:
                 _query_stats["slow_queries"] += 1
 
-            # 截斷長查詢語句
+        # 記錄慢查詢（不記錄參數，避免洩漏敏感資料）
+        if is_slow:
             statement_preview = statement[:500]
             if len(statement) > 500:
                 statement_preview += "..."
@@ -102,7 +98,6 @@ def setup_query_logging(engine: Engine, enable: bool = True):
             logger.warning(
                 f"⚠️  Slow query detected ({elapsed:.3f}s):\n"
                 f"Statement: {statement_preview}\n"
-                f"Parameters: {parameters}\n"
                 f"Total queries: {_query_stats['total_queries']}, "
                 f"Slow queries: {_query_stats['slow_queries']}"
             )

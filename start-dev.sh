@@ -39,13 +39,20 @@ SIDECAR_PID=$!
 
 # Wait for sidecar to be ready
 echo "Waiting for sidecar to start..."
+SIDECAR_READY=false
 for _ in {1..10}; do
     if curl -s http://127.0.0.1:8008/api/health > /dev/null 2>&1; then
         echo "Sidecar is ready!"
+        SIDECAR_READY=true
         break
     fi
     sleep 1
 done
+
+if [ "$SIDECAR_READY" = false ]; then
+    echo "Error: Sidecar failed to start within 10 seconds"
+    exit 1
+fi
 
 # Start Tauri dev
 echo "[2/2] Starting Tauri GUI..."

@@ -38,7 +38,7 @@ def _is_in_cooldown(db: Session, rule_id: int, repo_id: int) -> bool:
     if not recent_trigger:
         return False
 
-    time_diff = utc_now() - recent_trigger.triggered_at
+    time_diff = utc_now().replace(tzinfo=None) - recent_trigger.triggered_at
     return time_diff.total_seconds() < ALERT_COOLDOWN_SECONDS
 
 
@@ -53,7 +53,7 @@ def _create_triggered_alert(
         rule_id=rule.id,
         repo_id=repo.id,
         signal_value=signal_value,
-        triggered_at=utc_now(),
+        triggered_at=utc_now().replace(tzinfo=None),
     )
     db.add(triggered)
     db.flush()

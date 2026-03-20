@@ -55,8 +55,8 @@ export function useNotificationPolling(
     staleTime: 0,
     // 不使用全域預設的 retry，避免輪詢失敗時重複
     retry: false,
-    // 不使用 refetchOnWindowFocus（改用 visibility listener）
-    refetchOnWindowFocus: true,
+    // 不使用 refetchOnWindowFocus（改用 visibility-based refetchInterval）
+    refetchOnWindowFocus: false,
   });
 
   // 當 query 資料更新時，處理合併與 OS 通知（useEffect 避免 render 階段副作用）

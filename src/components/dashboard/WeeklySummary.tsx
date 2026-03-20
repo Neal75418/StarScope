@@ -121,7 +121,7 @@ const HNMentionsList = memo(function HNMentionsList({
         <div className="weekly-hn-grid">
           {mentions.slice(0, MAX_HN_MENTIONS_DISPLAY).map((m) => (
             <div
-              key={m.hn_url || `${m.repo_name}-${m.hn_title}`}
+              key={`${m.repo_name}-${m.hn_url}-${m.hn_title}`}
               role="link"
               tabIndex={0}
               className="weekly-hn-item"

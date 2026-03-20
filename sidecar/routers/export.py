@@ -351,7 +351,6 @@ async def export_trends_csv(
 
 def _parse_repo_ids(repo_ids_str: str) -> list[int]:
     """Parse and validate comma-separated repo IDs string."""
-    from datetime import timedelta  # noqa: F811 — local to avoid circular at module level
     ids = [int(x) for x in repo_ids_str.split(",") if x.strip().isdigit()]
     # Deduplicate while preserving order
     seen: set[int] = set()

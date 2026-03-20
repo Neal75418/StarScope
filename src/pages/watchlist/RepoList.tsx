@@ -7,7 +7,7 @@ import type { useWindowedBatchRepoData } from "../../hooks/useWindowedBatchRepoD
 
 // 虛擬滾動常數
 const REPO_CARD_GAP = 16;
-const COLLAPSED_ITEM_SIZE = 280 + REPO_CARD_GAP; // 收合狀態：卡片 280px + 間距
+const COLLAPSED_ITEM_SIZE = 220 + REPO_CARD_GAP; // 收合狀態：卡片 ≤2行描述 ~218px + 安全邊距 + 間距
 const CHART_EXTRA_HEIGHT = 300; // 圖表展開額外高度（chart 180px + controls + padding + backfill）
 const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
 // 穩定的空物件引用，避免觸發不必要的重新渲染
