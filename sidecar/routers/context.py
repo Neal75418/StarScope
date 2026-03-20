@@ -26,8 +26,9 @@ def _is_recent(published_at: datetime | None, recent_threshold: datetime) -> boo
     """檢查 datetime 是否為近期，處理無時區的 datetime。"""
     if not published_at:
         return False
-    if published_at.tzinfo is None:
-        published_at = published_at.replace(tzinfo=timezone.utc)
+    # 統一為 naive datetime 比較（SQLite 儲存 naive UTC）
+    if published_at.tzinfo is not None:
+        published_at = published_at.replace(tzinfo=None)
     return published_at > recent_threshold
 
 

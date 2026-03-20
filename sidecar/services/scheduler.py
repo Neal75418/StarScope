@@ -106,8 +106,7 @@ def _build_need_fetch_query(
         ``(need_fetch_query, total_count, skipped_count)`` 或
         ``None``（當監控清單為空時）。
     """
-    # 使用 naive datetime 與 DB 值比較（SQLite 儲存 naive datetime）
-    recent_threshold = (utc_now() - timedelta(minutes=skip_recent_minutes)).replace(tzinfo=None)
+    recent_threshold = utc_now() - timedelta(minutes=skip_recent_minutes)
 
     # 子查詢：近期已抓取的 repo ID（將被跳過）
     recently_fetched_ids = (

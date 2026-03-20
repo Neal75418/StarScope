@@ -20,19 +20,14 @@ class TestTimeUtils:
         result = utc_now()
         assert isinstance(result, datetime)
 
-    def test_utc_now_is_timezone_aware(self):
-        """Test that utc_now returns timezone-aware datetime."""
+    def test_utc_now_is_naive(self):
+        """Test that utc_now returns naive datetime (no tzinfo) for SQLite compatibility."""
         result = utc_now()
-        assert result.tzinfo is not None
-
-    def test_utc_now_is_utc(self):
-        """Test that utc_now returns UTC timezone."""
-        result = utc_now()
-        assert result.tzinfo == timezone.utc
+        assert result.tzinfo is None
 
     def test_utc_now_is_recent(self):
         """Test that utc_now returns current time."""
-        before = datetime.now(timezone.utc)
+        before = datetime.now(timezone.utc).replace(tzinfo=None)
         result = utc_now()
-        after = datetime.now(timezone.utc)
+        after = datetime.now(timezone.utc).replace(tzinfo=None)
         assert before <= result <= after

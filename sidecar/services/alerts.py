@@ -39,7 +39,7 @@ def _is_in_cooldown(db: Session, rule_id: int, repo_id: int) -> bool:
     if not recent_trigger:
         return False
 
-    time_diff = utc_now().replace(tzinfo=None) - recent_trigger.triggered_at
+    time_diff = utc_now() - recent_trigger.triggered_at
     return time_diff.total_seconds() < ALERT_COOLDOWN_SECONDS
 
 
@@ -54,7 +54,7 @@ def _create_triggered_alert(
         rule_id=rule.id,
         repo_id=repo.id,
         signal_value=signal_value,
-        triggered_at=utc_now().replace(tzinfo=None),
+        triggered_at=utc_now(),
     )
     db.add(triggered)
     db.flush()
@@ -170,7 +170,7 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
             signal_lookup[key] = s
 
     # 批次預載冷卻狀態（一次查詢取代 R×M 次）
-    cutoff = utc_now().replace(tzinfo=None) - timedelta(seconds=ALERT_COOLDOWN_SECONDS)
+    cutoff = utc_now() - timedelta(seconds=ALERT_COOLDOWN_SECONDS)
     recent_triggers = db.query(
         TriggeredAlert.rule_id, TriggeredAlert.repo_id
     ).filter(TriggeredAlert.triggered_at >= cutoff).all()
@@ -266,7 +266,7 @@ def acknowledge_alert(db: Session, alert_id: int) -> bool:
     alert = db.query(TriggeredAlert).filter(TriggeredAlert.id == alert_id).first()
     if alert:
         alert.acknowledged = True
-        alert.acknowledged_at = utc_now().replace(tzinfo=None)
+        alert.acknowledged_at = utc_now()
         db.commit()
         return True
     return False
@@ -287,7 +287,7 @@ def acknowledge_all_alerts(db: Session) -> int:
         .filter(TriggeredAlert.acknowledged.is_(False))
         .update({
             TriggeredAlert.acknowledged: True,
-            TriggeredAlert.acknowledged_at: utc_now().replace(tzinfo=None),
+            TriggeredAlert.acknowledged_at: utc_now(),
         })
     )
     db.commit()
