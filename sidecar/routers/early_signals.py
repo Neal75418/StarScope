@@ -115,7 +115,7 @@ async def list_early_signals(
 
     if not include_expired:
         query = query.filter(
-            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now())
+            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now().replace(tzinfo=None))
         )
 
     # noinspection PyTypeChecker
@@ -156,7 +156,7 @@ async def get_repo_signals(
 
     if not include_expired:
         query = query.filter(
-            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now())
+            (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > utc_now().replace(tzinfo=None))
         )
 
     # noinspection PyTypeChecker
@@ -180,7 +180,7 @@ async def get_signal_summary(
     """
     取得活躍訊號的摘要統計。
     """
-    now = utc_now()
+    now = utc_now().replace(tzinfo=None)
 
     # 活躍訊號（未確認、未過期）
     active_query = db.query(EarlySignal).filter(
@@ -238,7 +238,7 @@ async def acknowledge_signal(
         raise HTTPException(status_code=404, detail="Signal not found")
 
     signal.acknowledged = True
-    signal.acknowledged_at = utc_now()
+    signal.acknowledged_at = utc_now().replace(tzinfo=None)
     db.commit()
 
     return success_response(
@@ -261,7 +261,7 @@ async def acknowledge_all_signals(
     if signal_type:
         query = query.filter(EarlySignal.signal_type == signal_type)
 
-    now = utc_now()
+    now = utc_now().replace(tzinfo=None)
     count = query.update({
         EarlySignal.acknowledged: True,
         EarlySignal.acknowledged_at: now,
@@ -341,7 +341,7 @@ async def get_repo_signals_batch(
             message="No repositories requested"
         )
 
-    now = utc_now()
+    now = utc_now().replace(tzinfo=None)
     # noinspection PyTypeChecker
     signals: list[EarlySignal] = db.query(EarlySignal).options(
         joinedload(EarlySignal.repo)

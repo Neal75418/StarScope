@@ -241,7 +241,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     today = utc_today()
     period_end = today
     period_start = today - timedelta(days=days)
-    now = utc_now()
+    now = utc_now().replace(tzinfo=None)
     week_ago = now - timedelta(days=days)
 
     # --- Total repos ---

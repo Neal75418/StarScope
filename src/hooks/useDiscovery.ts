@@ -74,7 +74,7 @@ export function useDiscovery() {
     }) => {
       const cur = stateRef.current;
       const newKeyword = updates.keyword ?? cur.keyword;
-      const newPeriod = updates.period !== undefined ? updates.period : cur.period;
+      const newPeriod = "period" in updates ? updates.period : cur.period;
       const newFilters = updates.filters ?? cur.filters;
       search(newKeyword, newPeriod, newFilters);
     },

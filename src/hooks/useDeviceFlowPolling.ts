@@ -43,6 +43,10 @@ export function useDeviceFlowPolling({
 
   // 從 usePollingRefs 內聯的清理函數
   const stopPolling = useCallback(() => {
+    if (initialDelayRef.current !== null) {
+      clearTimeout(initialDelayRef.current);
+      initialDelayRef.current = null;
+    }
     if (pollIntervalRef.current) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;

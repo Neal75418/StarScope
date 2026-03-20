@@ -125,7 +125,7 @@ def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
     return db.query(EarlySignal).filter(
         EarlySignal.repo_id == repo_id,
         EarlySignal.signal_type == signal_type,
-        EarlySignal.expires_at > utc_now(),
+        EarlySignal.expires_at > utc_now().replace(tzinfo=None),
         EarlySignal.acknowledged.is_(False)
     ).first() is not None
 
@@ -135,7 +135,7 @@ def _build_active_signals_set(db: Session) -> set[tuple[int, str]]:
     rows = db.query(
         EarlySignal.repo_id, EarlySignal.signal_type
     ).filter(
-        EarlySignal.expires_at > utc_now(),
+        EarlySignal.expires_at > utc_now().replace(tzinfo=None),
         EarlySignal.acknowledged.is_(False)
     ).all()
     return {(int(row[0]), row[1]) for row in rows}
@@ -221,8 +221,8 @@ class AnomalyDetector:
             # noinspection PyTypeChecker
             star_count=int(stars),
             percentile_rank=float(percentile),
-            detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=7),
+            detected_at=utc_now().replace(tzinfo=None),
+            expires_at=utc_now().replace(tzinfo=None) + timedelta(days=7),
         )
 
     @staticmethod
@@ -300,8 +300,8 @@ class AnomalyDetector:
             description=f"Sudden spike: +{latest_delta:,} stars today (vs avg {avg_delta:.0f}/day)",
             velocity_value=float(latest_delta),
             star_count=latest_stars if latest_stars else None,
-            detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=3),  # Short-lived signal
+            detected_at=utc_now().replace(tzinfo=None),
+            expires_at=utc_now().replace(tzinfo=None) + timedelta(days=3),  # Short-lived signal
         )
 
     @staticmethod
@@ -350,8 +350,8 @@ class AnomalyDetector:
             description=f"Breakout: velocity went from {prev_weeks_velocity:.1f} to {current_weekly_velocity:.1f} stars/day",
             velocity_value=float(current_weekly_velocity),
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
-            detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=7),
+            detected_at=utc_now().replace(tzinfo=None),
+            expires_at=utc_now().replace(tzinfo=None) + timedelta(days=7),
         )
 
     @staticmethod
@@ -366,7 +366,7 @@ class AnomalyDetector:
         條件：48 小時內 HN 貼文分數 >= 100
         """
         _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
-        cutoff = utc_now() - timedelta(hours=48)
+        cutoff = utc_now().replace(tzinfo=None) - timedelta(hours=48)
 
         hn_signal = db.query(ContextSignal).filter(
             ContextSignal.repo_id == repo.id,
@@ -393,8 +393,8 @@ class AnomalyDetector:
             description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
             # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
-            detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=3),
+            detected_at=utc_now().replace(tzinfo=None),
+            expires_at=utc_now().replace(tzinfo=None) + timedelta(days=3),
         )
 
     @staticmethod
@@ -418,8 +418,8 @@ class AnomalyDetector:
             description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
             # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
-            detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=3),
+            detected_at=utc_now().replace(tzinfo=None),
+            expires_at=utc_now().replace(tzinfo=None) + timedelta(days=3),
         )
 
     @staticmethod
@@ -569,7 +569,7 @@ class AnomalyDetector:
         active_signals = _build_active_signals_set(db)
 
         # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）
-        cutoff_hn = utc_now() - timedelta(hours=48)
+        cutoff_hn = utc_now().replace(tzinfo=None) - timedelta(hours=48)
         hn_signals_raw = db.query(ContextSignal).filter(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
             ContextSignal.fetched_at >= cutoff_hn,
