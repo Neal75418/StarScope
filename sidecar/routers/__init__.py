@@ -17,6 +17,7 @@ from . import languages
 from . import star_history
 from . import weekly_summary
 from . import comparison
+from . import app_settings
 
 __all__ = [
     "health",
@@ -36,4 +37,5 @@ __all__ = [
     "star_history",
     "weekly_summary",
     "comparison",
+    "app_settings",
 ]
