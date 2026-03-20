@@ -76,7 +76,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
   return (
     <div className="github-status connected">
       <div className="status-icon">
-        <span className="icon-connected">OK</span>
+        <span className="icon-connected">✓</span>
       </div>
       <div className="status-content">
         <div className="status-text">
@@ -109,7 +109,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
           disabled={isRefreshing}
           title={t.githubConnection.refresh}
         >
-          {isRefreshing ? "..." : "↻"}
+          {isRefreshing ? "⟳" : "↻"}
         </button>
         <button onClick={onDisconnect} className="btn btn-danger">
           {t.githubConnection.disconnect}

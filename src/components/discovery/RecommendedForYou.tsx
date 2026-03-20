@@ -187,6 +187,8 @@ export const RecommendedForYou = memo(function RecommendedForYou({
         <button
           className={`btn btn-sm ${styles.recToggle}`}
           onClick={() => setCollapsed((prev) => !prev)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? t.categories.expand : t.categories.collapse}
         >
           {collapsed ? "▼" : "▲"}
         </button>

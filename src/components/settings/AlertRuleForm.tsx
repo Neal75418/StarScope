@@ -42,11 +42,13 @@ export function AlertRuleForm({
   const [rule, setRule] = useState<AlertRuleCreate>(initialData);
   const [applyToAll, setApplyToAll] = useState(initialData.repo_id === undefined);
   const { validate } = useAlertRuleFormValidation(rule, applyToAll);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // initialData 變更時重設表單（編輯模式用）
   useEffect(() => {
     setRule(initialData);
     setApplyToAll(initialData.repo_id === undefined);
+    setValidationError(null);
   }, [initialData]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -54,8 +56,10 @@ export function AlertRuleForm({
 
     const validationResult = validate();
     if (!validationResult.valid) {
+      setValidationError(validationResult.error ?? t.common.error);
       return;
     }
+    setValidationError(null);
 
     const ruleData: AlertRuleCreate = {
       ...rule,
@@ -198,9 +202,15 @@ export function AlertRuleForm({
         </label>
       </div>
 
+      {validationError && (
+        <div className="form-error" role="alert">
+          {validationError}
+        </div>
+      )}
+
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-          {(isEditMode ? t.common.save : t.settings.alerts.create) + (isSubmitting ? "..." : "")}
+          {isSubmitting ? t.common.loading : isEditMode ? t.common.save : t.settings.alerts.create}
         </button>
         <button type="button" className="btn" onClick={onCancel}>
           {t.common.cancel}

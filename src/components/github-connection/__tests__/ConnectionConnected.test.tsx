@@ -148,8 +148,8 @@ describe("ConnectionConnected", () => {
     fireEvent.click(refreshBtn);
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
-    // During refresh, button shows "..."
-    expect(refreshBtn.textContent).toBe("...");
+    // During refresh, button shows spinning icon
+    expect(refreshBtn.textContent).toBe("⟳");
     expect(refreshBtn).toBeDisabled();
 
     await act(async () => {

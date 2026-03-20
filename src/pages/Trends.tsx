@@ -309,13 +309,15 @@ export function Trends() {
 
   if (error) {
     return (
-      <div className="error-container">
-        <h2>{t.trends.loadingError}</h2>
-        <p>{error}</p>
-        <button className="btn btn-primary" onClick={retry}>
-          {t.trends.retry}
-        </button>
-      </div>
+      <AnimatedPage className="page">
+        <div className="error-container">
+          <h2>{t.trends.loadingError}</h2>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={retry}>
+            {t.trends.retry}
+          </button>
+        </div>
+      </AnimatedPage>
     );
   }
 

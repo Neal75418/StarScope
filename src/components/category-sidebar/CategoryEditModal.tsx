@@ -53,9 +53,10 @@ export function CategoryEditModal({
         onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="category-edit-modal-title"
       >
         <div className="modal-header">
-          <h3>{t.categories.editCategory}</h3>
+          <h3 id="category-edit-modal-title">{t.categories.editCategory}</h3>
           <button className="modal-close" onClick={onClose}>
             &times;
           </button>

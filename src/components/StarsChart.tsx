@@ -110,7 +110,14 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   }
 
   if (error) {
-    return <div className="chart-error">{error}</div>;
+    return (
+      <div className="chart-error">
+        {error}
+        <button className="btn btn-sm" onClick={() => void refetch()} style={{ marginLeft: 8 }}>
+          {t.common.retry}
+        </button>
+      </div>
+    );
   }
 
   if (data.length < 2) {

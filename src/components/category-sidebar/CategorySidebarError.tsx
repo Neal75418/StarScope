@@ -6,9 +6,10 @@ import { useI18n } from "../../i18n";
 
 interface CategorySidebarErrorProps {
   error: string;
+  onRetry?: () => void;
 }
 
-export function CategorySidebarError({ error }: CategorySidebarErrorProps) {
+export function CategorySidebarError({ error, onRetry }: CategorySidebarErrorProps) {
   const { t } = useI18n();
 
   return (
@@ -16,7 +17,14 @@ export function CategorySidebarError({ error }: CategorySidebarErrorProps) {
       <div className="category-sidebar-header">
         <h3>{t.categories.title}</h3>
       </div>
-      <div className="category-sidebar-error">{error}</div>
+      <div className="category-sidebar-error">
+        {error}
+        {onRetry && (
+          <button className="btn btn-sm" onClick={onRetry} style={{ marginTop: 8 }}>
+            {t.common.retry}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

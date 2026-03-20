@@ -307,7 +307,7 @@ describe("Watchlist", () => {
     mockState.error = "Something went wrong";
     render(<Watchlist />);
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
-    await user.click(screen.getByText("x"));
+    await user.click(screen.getByLabelText("Close"));
     expect(mockClearError).toHaveBeenCalled();
   });
 

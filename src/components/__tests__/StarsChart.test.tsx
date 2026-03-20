@@ -100,10 +100,11 @@ describe("StarsChart", () => {
     renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeInTheDocument();
+      expect(screen.getByText("Network error", { exact: false })).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Network error")).toHaveClass("chart-error");
+    // 驗證 retry 按鈕存在
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
   it("shows empty state when data has less than 2 points", async () => {

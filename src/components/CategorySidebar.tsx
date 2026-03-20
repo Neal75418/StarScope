@@ -104,7 +104,7 @@ export const CategorySidebar = memo(function CategorySidebar({
   }
 
   if (error) {
-    return <CategorySidebarError error={error} />;
+    return <CategorySidebarError error={error} onRetry={fetchCategories} />;
   }
 
   return (

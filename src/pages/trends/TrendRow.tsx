@@ -90,8 +90,16 @@ export const TrendRow = memo(function TrendRow({
         {signals && signals.length > 0 && <BreakoutBadge signals={signals} />}
       </td>
       <td className="stars-col">{formatNumber(repo.stars)}</td>
-      <td className="delta-col positive">{formatDelta(repo.stars_delta_7d)}</td>
-      <td className="delta-col positive">{formatDelta(repo.stars_delta_30d)}</td>
+      <td
+        className={`delta-col ${(repo.stars_delta_7d ?? 0) > 0 ? "positive" : (repo.stars_delta_7d ?? 0) < 0 ? "negative" : ""}`}
+      >
+        {formatDelta(repo.stars_delta_7d)}
+      </td>
+      <td
+        className={`delta-col ${(repo.stars_delta_30d ?? 0) > 0 ? "positive" : (repo.stars_delta_30d ?? 0) < 0 ? "negative" : ""}`}
+      >
+        {formatDelta(repo.stars_delta_30d)}
+      </td>
       <td className="velocity-col">{formatVelocity(repo.velocity)}</td>
       <td className="trend-col">
         <TrendArrow trend={repo.trend} />
