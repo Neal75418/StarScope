@@ -82,6 +82,110 @@ describe("queryKeys", () => {
     it("generates health key", () => {
       expect(queryKeys.dashboard.health).toEqual(["dashboard", "health"]);
     });
+
+    it("generates weeklySummary key", () => {
+      expect(queryKeys.dashboard.weeklySummary(7)).toEqual(["dashboard", "weeklySummary", 7]);
+    });
+
+    it("generates portfolioHistory key", () => {
+      expect(queryKeys.dashboard.portfolioHistory(30)).toEqual([
+        "dashboard",
+        "portfolioHistory",
+        30,
+      ]);
+    });
+
+    it("generates categories key", () => {
+      expect(queryKeys.dashboard.categories()).toEqual(["dashboard", "categories"]);
+    });
+  });
+
+  describe("comparison", () => {
+    it("generates chart key", () => {
+      expect(queryKeys.comparison.chart([1, 2], "30d", false)).toEqual([
+        "comparison",
+        "chart",
+        [1, 2],
+        "30d",
+        false,
+      ]);
+    });
+  });
+
+  describe("recommendations", () => {
+    it("generates personalized key", () => {
+      expect(queryKeys.recommendations.personalized(10)).toEqual([
+        "recommendations",
+        "personalized",
+        10,
+      ]);
+    });
+  });
+
+  describe("notifications", () => {
+    it("generates polling key", () => {
+      expect(queryKeys.notifications.polling()).toEqual(["notifications", "polling"]);
+    });
+  });
+
+  describe("backfill", () => {
+    it("generates status key", () => {
+      expect(queryKeys.backfill.status(1)).toEqual(["backfill", "status", 1]);
+    });
+  });
+
+  describe("similarRepos", () => {
+    it("generates list key", () => {
+      expect(queryKeys.similarRepos.list(1, 10)).toEqual(["similarRepos", "list", 1, 10]);
+    });
+  });
+
+  describe("connection", () => {
+    it("generates status key", () => {
+      expect(queryKeys.connection.status()).toEqual(["connection", "status"]);
+    });
+  });
+
+  describe("starsChart", () => {
+    it("generates data key", () => {
+      expect(queryKeys.starsChart.data(1, "30d")).toEqual(["starsChart", "data", 1, "30d"]);
+    });
+  });
+
+  describe("summaries", () => {
+    it("generates generic key", () => {
+      expect(queryKeys.summaries.generic("commit", 1)).toEqual(["summaries", "commit", 1]);
+    });
+  });
+
+  describe("repoCard", () => {
+    it("generates badges key", () => {
+      expect(queryKeys.repoCard.badges(1)).toEqual(["repoCard", "badges", 1]);
+    });
+
+    it("generates signals key", () => {
+      expect(queryKeys.repoCard.signals(1)).toEqual(["repoCard", "signals", 1]);
+    });
+  });
+
+  describe("alertRuleData", () => {
+    it("generates rules key", () => {
+      expect(queryKeys.alertRuleData.rules()).toEqual(["alertRuleData", "rules"]);
+    });
+
+    it("generates signalTypes key", () => {
+      expect(queryKeys.alertRuleData.signalTypes()).toEqual(["alertRuleData", "signalTypes"]);
+    });
+
+    it("generates repos key", () => {
+      expect(queryKeys.alertRuleData.repos()).toEqual(["alertRuleData", "repos"]);
+    });
+  });
+
+  describe("repos extended", () => {
+    it("generates starred key", () => {
+      expect(queryKeys.repos.starred()).toEqual(["repos", "starred"]);
+    });
   });
 });
 

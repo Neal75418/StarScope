@@ -3,7 +3,14 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatNumber, formatDelta, formatVelocity, formatChartDate } from "../format";
+import {
+  formatNumber,
+  formatDelta,
+  formatVelocity,
+  formatChartDate,
+  formatTimeAgo,
+  formatRelativeTime,
+} from "../format";
 
 describe("formatNumber", () => {
   it("formats null as dash", () => {
@@ -98,5 +105,65 @@ describe("formatChartDate", () => {
   it("formats ISO datetime string to M/D format", () => {
     expect(formatChartDate("2024-01-15T12:30:00Z")).toBe("1/15");
     expect(formatChartDate("2024-06-01T00:00:00Z")).toBe("6/1");
+  });
+});
+
+describe("formatTimeAgo", () => {
+  it("returns '—' for invalid date string", () => {
+    expect(formatTimeAgo("not-a-date")).toBe("—");
+    expect(formatTimeAgo("")).toBe("—");
+  });
+
+  it("returns 'today' for current date", () => {
+    const now = new Date().toISOString();
+    expect(formatTimeAgo(now)).toBe("today");
+  });
+
+  it("returns '1d ago' for yesterday", () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString();
+    expect(formatTimeAgo(yesterday)).toBe("1d ago");
+  });
+
+  it("returns days for dates within 30 days", () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
+    expect(formatTimeAgo(fiveDaysAgo)).toBe("5d ago");
+  });
+
+  it("returns months for dates within a year", () => {
+    const twoMonthsAgo = new Date(Date.now() - 60 * 86400000).toISOString();
+    expect(formatTimeAgo(twoMonthsAgo)).toBe("2mo ago");
+  });
+
+  it("returns years for dates over a year", () => {
+    const twoYearsAgo = new Date(Date.now() - 730 * 86400000).toISOString();
+    expect(formatTimeAgo(twoYearsAgo)).toBe("2y ago");
+  });
+});
+
+describe("formatRelativeTime", () => {
+  it("returns empty string for null", () => {
+    expect(formatRelativeTime(null)).toBe("");
+  });
+
+  it("returns dash for invalid date string", () => {
+    expect(formatRelativeTime("invalid")).toBe("—");
+  });
+
+  it("returns default justNow for recent date", () => {
+    expect(formatRelativeTime(new Date())).toBe("<1m");
+  });
+
+  it("returns custom justNowText", () => {
+    expect(formatRelativeTime(new Date(), { justNowText: "just now" })).toBe("just now");
+  });
+
+  it("returns relative time with suffix", () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000);
+    expect(formatRelativeTime(fiveDaysAgo, { suffix: " ago" })).toBe("5d ago");
+  });
+
+  it("returns relative time without suffix by default", () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 86400000);
+    expect(formatRelativeTime(fiveDaysAgo)).toBe("5d");
   });
 });
