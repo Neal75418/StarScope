@@ -9,7 +9,7 @@ import math
 import threading
 
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from db.models import Repo, SimilarRepo
 from services.queries import build_stars_map, build_signal_map
@@ -268,7 +268,9 @@ class RecommenderService:
         查詢指定 repo 的相似 repo。
         回傳 similar_repos 表中的快取結果，含各維度分數。
         """
-        similar_entries = db.query(SimilarRepo).filter(
+        similar_entries = db.query(SimilarRepo).options(
+            joinedload(SimilarRepo.similar)
+        ).filter(
             SimilarRepo.repo_id == repo_id
         ).order_by(
             SimilarRepo.similarity_score.desc()
@@ -498,9 +500,10 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
     watchlist_ids: set[int] = {int(r.id) for r in all_repos}
     repo_name_map: dict[int, str] = {int(r.id): str(r.full_name) for r in all_repos}
 
-    # 查詢所有相似 repo 配對
+    # 查詢所有相似 repo 配對（joinedload 避免 N+1 lazy load）
     similar_entries = (
         db.query(SimilarRepo)
+        .options(joinedload(SimilarRepo.similar))
         .filter(SimilarRepo.repo_id.in_(watchlist_ids))
         .order_by(SimilarRepo.similarity_score.desc())
         .all()

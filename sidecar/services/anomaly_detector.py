@@ -254,13 +254,18 @@ class AnomalyDetector:
         偵測突然暴漲模式。
         條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
         """
-        _ = snapshot_map  # 由呼叫端傳入，本偵測器直接查詢快照
         _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
 
-        # 取得近期快照
-        snapshots = db.query(RepoSnapshot).filter(
-            RepoSnapshot.repo_id == repo.id
-        ).order_by(RepoSnapshot.snapshot_date.desc()).limit(30).all()
+        # 優先使用預載的快照序列（由 detect_all 批次載入），避免 N+1
+        if snapshot_map and repo.id in snapshot_map:
+            snapshots = snapshot_map[repo.id]
+            # snapshot_map 可能是 {repo_id: single_snapshot} 或 {repo_id: list}
+            if not isinstance(snapshots, list):
+                snapshots = [snapshots]
+        else:
+            snapshots = db.query(RepoSnapshot).filter(
+                RepoSnapshot.repo_id == repo.id
+            ).order_by(RepoSnapshot.snapshot_date.desc()).limit(30).all()
 
         if len(snapshots) < 2:
             return None
@@ -399,6 +404,7 @@ class AnomalyDetector:
         signal_map: dict[int, dict[str, float]] | None = None,
         velocity_values: list[float] | None = None,
         active_signals: set[tuple[int, str]] | None = None,
+        recent_snapshots_map: dict[int, list["RepoSnapshot"]] | None = None,
     ) -> list["EarlySignal"]:
         """
         對單一 repo 執行所有偵測演算法。
@@ -429,9 +435,19 @@ class AnomalyDetector:
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
 
-        # 其餘偵測器不需要 velocity_values
+        # detect_sudden_spike 需要 30 天快照序列
+        try:
+            spike_snap_map = recent_snapshots_map if recent_snapshots_map else snapshot_map
+            signal = AnomalyDetector.detect_sudden_spike(
+                repo, db, snapshot_map=spike_snap_map, signal_map=signal_map
+            )
+            if signal and not _is_active(signal.signal_type):
+                signals.append(signal)
+        except SQLAlchemyError as e:
+            logger.error(f"[異常偵測] {repo.full_name} sudden_spike 錯誤: {e}", exc_info=True)
+
+        # 其餘偵測器使用單筆 snapshot_map
         other_detectors = [
-            AnomalyDetector.detect_sudden_spike,
             AnomalyDetector.detect_breakout,
             AnomalyDetector.detect_viral_hn,
         ]
@@ -478,8 +494,26 @@ class AnomalyDetector:
         # 預載快照與訊號資料，避免 N+1 查詢
         # noinspection PyTypeChecker
         repo_ids: list[int] = [r.id for r in repos]
-        snapshot_map = build_snapshot_map(db, repo_ids)
         signal_map = build_signal_map(db, repo_ids)
+
+        # 批次預載所有 repo 近 30 天快照（供 detect_sudden_spike 使用）
+        # 同時從中取最新一筆作為 snapshot_map（供其他偵測器使用）
+        all_recent_snapshots = (
+            db.query(RepoSnapshot)
+            .filter(RepoSnapshot.repo_id.in_(repo_ids))
+            .order_by(RepoSnapshot.repo_id, RepoSnapshot.snapshot_date.desc())
+            .all()
+        )
+        # recent_snapshots_map: {repo_id: [snapshot_desc_ordered, ...]}（最多 30 筆）
+        recent_snapshots_map: dict[int, list[RepoSnapshot]] = {}
+        for snap in all_recent_snapshots:
+            lst = recent_snapshots_map.setdefault(snap.repo_id, [])
+            if len(lst) < 30:
+                lst.append(snap)
+        # snapshot_map 保留原始介面（最新一筆），供 rising_star/breakout/viral_hn 使用
+        snapshot_map: dict[int, RepoSnapshot] = {
+            rid: snaps[0] for rid, snaps in recent_snapshots_map.items() if snaps
+        }
 
         # 預載並排序所有 velocity 值，供 rising_star 百分位計算（1 次查詢取代 2N 次）
         rows = db.query(Signal.value).filter(
@@ -501,6 +535,7 @@ class AnomalyDetector:
                     signal_map=signal_map,
                     velocity_values=velocity_values,
                     active_signals=active_signals,
+                    recent_snapshots_map=recent_snapshots_map,
                 )
                 all_signals.extend(signals)
             except Exception as e:  # 單一 repo 偵測失敗不應中斷整個批次

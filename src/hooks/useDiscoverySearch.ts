@@ -30,10 +30,14 @@ export function useDiscoverySearch() {
   // 驅動 query key 的搜尋參數；null = 尚未搜尋
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
 
-  const queryKey = queryKeys.discovery.search({
-    query: searchParams?.query ?? "",
-    filters: (searchParams?.filters ?? {}) as Record<string, unknown>,
-  });
+  const queryKey = useMemo(
+    () =>
+      queryKeys.discovery.search({
+        query: searchParams?.query ?? "",
+        filters: (searchParams?.filters ?? {}) as Record<string, unknown>,
+      }),
+    [searchParams]
+  );
 
   const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery<
     SearchResult,
