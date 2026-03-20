@@ -185,10 +185,8 @@ vi.mock("../../components/discovery", () => ({
       ))}
     </div>
   ),
-  SavedFilters: () => <div data-testid="saved-filters" />,
   RecommendedForYou: () => null,
   QuickPicks: () => <div data-testid="quick-picks" />,
-  RecentlyViewed: () => <div data-testid="recently-viewed" />,
   BatchAddBar: () => null,
 }));
 
@@ -209,7 +207,6 @@ describe("Discovery", () => {
       setKeyword: vi.fn(),
       setPeriod: vi.fn(),
       setFilters: vi.fn(),
-      applySavedFilter: vi.fn(),
       removeKeyword: vi.fn(),
       removePeriod: vi.fn(),
       removeLanguage: vi.fn(),
@@ -234,7 +231,6 @@ describe("Discovery", () => {
     expect(screen.getByTestId("trending-filters")).toBeInTheDocument();
     expect(screen.getByTestId("active-filters")).toBeInTheDocument();
     expect(screen.getByTestId("discovery-filters")).toBeInTheDocument();
-    expect(screen.getByTestId("saved-filters")).toBeInTheDocument();
   });
 
   it("shows initial state before search", () => {

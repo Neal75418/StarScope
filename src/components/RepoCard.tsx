@@ -62,8 +62,6 @@ export const RepoCard = memo(function RepoCard({
   // 圖表狀態：外部控制優先（虛擬滾動場景），否則使用內部狀態
   const [internalShowChart, setInternalShowChart] = useState(false);
   const showChart = chartState?.expanded ?? internalShowChart;
-  const [showSimilar, setShowSimilar] = useState(false);
-
   // Memoize handler 以避免 memoized 子元件不必要的 re-render
   const handleToggleChart = useCallback(() => {
     if (chartState?.onToggle) {
@@ -72,7 +70,6 @@ export const RepoCard = memo(function RepoCard({
       setInternalShowChart((prev) => !prev);
     }
   }, [chartState, repo.id]);
-  const handleToggleSimilar = useCallback(() => setShowSimilar((prev) => !prev), []);
   const handleFetch = useCallback(() => handlers.onFetch(repo.id), [handlers, repo.id]);
   const handleRemove = useCallback(() => handlers.onRemove(repo.id), [handlers, repo.id]);
   const handleRemoveFromCategory = useCallback(
@@ -81,7 +78,6 @@ export const RepoCard = memo(function RepoCard({
       categoryContext.onRemoveFromCategory?.(categoryContext.selectedId, repo.id),
     [categoryContext, repo.id]
   );
-  const handleCloseSimilar = useCallback(() => setShowSimilar(false), []);
   const stableOnRemoveFromCategory = useMemo(
     () =>
       categoryContext?.selectedId && categoryContext.onRemoveFromCategory
@@ -139,12 +135,10 @@ export const RepoCard = memo(function RepoCard({
       <RepoCardHeader
         repo={repo}
         showChart={showChart}
-        showSimilar={showSimilar}
         isLoading={isLoading}
         selectedCategoryId={categoryContext?.selectedId}
         activeSignalCount={activeSignalCount}
         onToggleChart={handleToggleChart}
-        onToggleSimilar={handleToggleSimilar}
         onFetch={handleFetch}
         onRemove={handleRemove}
         onRemoveFromCategory={stableOnRemoveFromCategory}
@@ -159,14 +153,7 @@ export const RepoCard = memo(function RepoCard({
 
       {!compact && <RepoCardStats repo={repo} />}
 
-      {!compact && (
-        <RepoCardPanels
-          repoId={repo.id}
-          showChart={showChart}
-          showSimilar={showSimilar}
-          onCloseSimilar={handleCloseSimilar}
-        />
-      )}
+      {!compact && <RepoCardPanels repoId={repo.id} showChart={showChart} />}
     </div>
   );
 });

@@ -8,14 +8,6 @@ vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
 }));
 
-vi.mock("../../CommitActivityBadge", () => ({
-  CommitActivityBadge: () => <span data-testid="commit-badge" />,
-}));
-
-vi.mock("../../LanguagesBadge", () => ({
-  LanguagesBadge: () => <span data-testid="languages-badge" />,
-}));
-
 function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
   return {
     id: 1,
@@ -47,10 +39,8 @@ describe("RepoCardHeader", () => {
   const defaultProps = {
     repo: makeRepo(),
     showChart: false,
-    showSimilar: false,
     isLoading: false,
     onToggleChart: vi.fn(),
-    onToggleSimilar: vi.fn(),
     onFetch: vi.fn(),
     onRemove: vi.fn(),
   };
@@ -70,13 +60,11 @@ describe("RepoCardHeader", () => {
 
   it("displays languages badge component", () => {
     render(<RepoCardHeader {...defaultProps} />);
-    expect(screen.getByTestId("languages-badge")).toBeInTheDocument();
   });
 
-  it("renders all action buttons", () => {
+  it("renders action buttons", () => {
     render(<RepoCardHeader {...defaultProps} />);
     expect(screen.getByTitle("Chart")).toBeInTheDocument();
-    expect(screen.getByTitle("Similar")).toBeInTheDocument();
     expect(screen.getByTitle("Refresh")).toBeInTheDocument();
     expect(screen.getByTitle("Remove")).toBeInTheDocument();
   });
@@ -125,13 +113,6 @@ describe("RepoCardHeader", () => {
     await user.click(link);
 
     expect(openUrl).toHaveBeenCalledWith("https://github.com/facebook/react");
-  });
-
-  it("calls onToggleSimilar when similar button clicked", async () => {
-    const user = userEvent.setup();
-    render(<RepoCardHeader {...defaultProps} />);
-    await user.click(screen.getByTitle("Similar"));
-    expect(defaultProps.onToggleSimilar).toHaveBeenCalled();
   });
 
   it("calls onRemove when remove button clicked", async () => {

@@ -16,7 +16,6 @@ import {
   ScheduledRefreshSection,
   SnapshotRetentionSection,
   SignalThresholdsSection,
-  KeyboardShortcutsSection,
 } from "../components/settings";
 import { useAlertRules } from "../hooks/useAlertRules";
 import { useOSNotification } from "../hooks/useOSNotification";
@@ -65,7 +64,6 @@ export function Settings() {
     { id: "import", label: t.settings.import.title },
     { id: "data-management", label: t.settings.data.title },
     { id: "alerts", label: t.settings.alerts.title },
-    { id: "keyboard-shortcuts", label: t.settings.keyboardShortcuts.title },
     { id: "about", label: t.settings.about.title },
   ];
 
@@ -188,11 +186,6 @@ export function Settings() {
               onDelete={alerts.openDeleteConfirm}
             />
           </section>
-
-          {/* 鍵盤快捷鍵 */}
-          <div id="keyboard-shortcuts">
-            <KeyboardShortcutsSection />
-          </div>
 
           {/* 關於 */}
           <div id="about">

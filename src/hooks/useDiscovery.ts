@@ -163,7 +163,6 @@ export function useDiscovery() {
     removeHideArchived,
     reset,
     loadMore: fetchMore,
-    applySavedFilter: search,
     restoreState,
   };
 }

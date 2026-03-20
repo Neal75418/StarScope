@@ -5,11 +5,8 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
-import { useSearchHistory } from "../hooks/useSearchHistory";
-import { useRecentlyViewed, RecentlyViewedRepo } from "../hooks/useRecentlyViewed";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useViewMode } from "../hooks/useViewMode";
-import { useDiscoveryUrl } from "../hooks/useDiscoveryUrl";
 import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
@@ -24,10 +21,8 @@ import {
   ActiveFilters,
   DiscoveryFilters,
   DiscoveryResults,
-  SavedFilters,
   RecommendedForYou,
   QuickPicks,
-  RecentlyViewed,
   BatchAddBar,
 } from "../components/discovery";
 
@@ -42,8 +37,6 @@ export function Discovery() {
     filters: discoveryFilters,
     reset: resetDiscovery,
   } = discovery;
-  const { history, addToHistory, removeFromHistory, clearHistory } = useSearchHistory();
-  const { recentRepos, addToRecentlyViewed, clearRecentlyViewed } = useRecentlyViewed();
   const selection = useSelectionMode();
   const { viewMode, setViewMode } = useViewMode();
   const { repos: watchlist } = useWatchlistState();
@@ -53,15 +46,6 @@ export function Discovery() {
   const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
-
-  // URL 同步：篩選條件 ↔ URL hash
-  const { hasUrlParams } = useDiscoveryUrl({
-    keyword: discovery.keyword,
-    period: discovery.period,
-    filters: discoveryFilters,
-    hasSearched: discovery.hasSearched,
-    onRestoreState: discovery.restoreState,
-  });
 
   // Keyboard shortcut: "/" to focus search
   useEffect(() => {
@@ -83,11 +67,9 @@ export function Discovery() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Cold start：掛載時自動載入本週趨勢（URL 有參數時跳過）
+  // Cold start：掛載時自動載入本週趨勢
   useOnceEffect(() => {
-    if (!hasUrlParams) {
-      setPeriod("weekly");
-    }
+    setPeriod("weekly");
   });
 
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
@@ -123,13 +105,11 @@ export function Discovery() {
     [t.discovery.trending]
   );
 
-  // 搜尋並記錄歷史（也用於從歷史選擇搜尋）
   const handleSearch = useCallback(
     (keyword: string) => {
       setKeyword(keyword);
-      addToHistory(keyword);
     },
-    [setKeyword, addToHistory]
+    [setKeyword]
   );
 
   // Quick pick：語言
@@ -185,23 +165,6 @@ export function Discovery() {
     [doAddToWatchlist]
   );
 
-  // 點擊 repo link 時記錄到 recently viewed
-  const handleViewRepo = useCallback(
-    (repo: DiscoveryRepo) => {
-      const viewed: RecentlyViewedRepo = {
-        id: repo.id,
-        full_name: repo.full_name,
-        owner: repo.owner,
-        name: repo.name,
-        language: repo.language,
-        stars: repo.stars,
-        owner_avatar_url: repo.owner_avatar_url,
-      };
-      addToRecentlyViewed(viewed);
-    },
-    [addToRecentlyViewed]
-  );
-
   // Batch add：收集已選 repo 的 { owner, name }
   const selectedReposForBatch = useMemo(
     () =>
@@ -240,27 +203,15 @@ export function Discovery() {
         onSearch={handleSearch}
         loading={discovery.loading}
         initialQuery={discovery.keyword}
-        searchHistory={history}
-        onSelectHistory={handleSearch}
-        onRemoveHistory={removeFromHistory}
-        onClearHistory={clearHistory}
       />
 
       <div className="discovery-toolbar">
         <TrendingFilters onSelectPeriod={discovery.setPeriod} activePeriod={discovery.period} />
-        <SavedFilters
-          currentQuery={discovery.keyword}
-          currentPeriod={discovery.period}
-          currentFilters={discovery.filters}
-          onApply={discovery.applySavedFilter}
-        />
       </div>
 
       {!discovery.hasSearched && (
         <QuickPicks onSelectLanguage={handleQuickLanguage} onSelectTopic={handleQuickTopic} />
       )}
-
-      <RecentlyViewed repos={recentRepos} onClear={clearRecentlyViewed} />
 
       <ActiveFilters
         keyword={discovery.keyword || undefined}
@@ -296,7 +247,6 @@ export function Discovery() {
         onLoadMore={discovery.loadMore}
         addingRepoId={addingRepoId}
         hasSearched={discovery.hasSearched}
-        onViewRepo={handleViewRepo}
         isSelectionMode={selection.isActive}
         selectedIds={selection.selectedIds}
         onToggleSelection={selection.toggleSelection}

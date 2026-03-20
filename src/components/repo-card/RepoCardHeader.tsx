@@ -6,20 +6,16 @@ import { memo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { safeOpenUrl } from "../../utils/url";
 import { RepoWithSignals } from "../../api/client";
-import { CommitActivityBadge } from "../CommitActivityBadge";
-import { LanguagesBadge } from "../LanguagesBadge";
 import { LinkExternalIcon } from "../Icons";
 import { useI18n, interpolate } from "../../i18n";
 
 export interface RepoCardHeaderProps {
   repo: RepoWithSignals;
   showChart: boolean;
-  showSimilar: boolean;
   isLoading?: boolean;
   selectedCategoryId?: number | null;
   activeSignalCount?: number;
   onToggleChart: () => void;
-  onToggleSimilar: () => void;
   onFetch: () => void;
   onRemove: () => void;
   onRemoveFromCategory?: () => void;
@@ -28,12 +24,10 @@ export interface RepoCardHeaderProps {
 export const RepoCardHeader = memo(function RepoCardHeader({
   repo,
   showChart,
-  showSimilar,
   isLoading,
   selectedCategoryId,
   activeSignalCount = 0,
   onToggleChart,
-  onToggleSimilar,
   onFetch,
   onRemove,
   onRemoveFromCategory,
@@ -52,8 +46,6 @@ export const RepoCardHeader = memo(function RepoCardHeader({
           {repo.full_name}
           <LinkExternalIcon size={14} />
         </a>
-        <LanguagesBadge repoId={repo.id} />
-        <CommitActivityBadge repoId={repo.id} />
         {activeSignalCount > 0 && (
           <span
             className="signal-badge"
@@ -71,14 +63,6 @@ export const RepoCardHeader = memo(function RepoCardHeader({
           aria-label={showChart ? `${t.repo.hide} chart` : t.repo.chart}
         >
           {showChart ? t.repo.hide : t.repo.chart}
-        </button>
-        <button
-          onClick={onToggleSimilar}
-          className={`btn btn-sm ${showSimilar ? "active" : ""}`}
-          title={t.repo.similar}
-          aria-label={t.repo.similar}
-        >
-          {t.repo.similar}
         </button>
         <button
           onClick={onFetch}

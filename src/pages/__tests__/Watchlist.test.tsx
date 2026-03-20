@@ -86,14 +86,6 @@ vi.mock("../../hooks/useWatchlistSort", () => ({
   }),
 }));
 
-vi.mock("../../hooks/useWatchlistKeyboard", () => ({
-  useWatchlistKeyboard: vi.fn(),
-}));
-
-vi.mock("../../hooks/useWatchlistUrl", () => ({
-  useWatchlistUrl: () => ({ hasUrlParams: false }),
-}));
-
 vi.mock("../../hooks/useSelectionMode", () => ({
   useSelectionMode: () => ({
     isActive: false,

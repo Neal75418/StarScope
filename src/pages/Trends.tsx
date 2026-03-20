@@ -19,9 +19,6 @@ import { TrendExpandedRow } from "./trends/TrendExpandedRow";
 import { TrendGrid } from "./trends/TrendGrid";
 import { TrendsExportDropdown } from "./trends/TrendsExportDropdown";
 import { TrendsBatchAddBar } from "./trends/TrendsBatchAddBar";
-import { useTrendsKeyboard } from "../hooks/useTrendsKeyboard";
-import { useTrendsUrl } from "../hooks/useTrendsUrl";
-import type { TrendsUrlState } from "../hooks/useTrendsUrl";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 
 const SORT_KEYS: SortOption[] = [
@@ -156,44 +153,6 @@ export function Trends() {
     selection.exit();
     setExpandedRepoId(null);
   }, [selection]);
-
-  // 鍵盤快捷鍵
-  const handleToggleViewMode = useCallback(() => {
-    setViewMode(viewMode === "list" ? "grid" : "list");
-  }, [viewMode, setViewMode]);
-
-  const handleEscape = useCallback(() => {
-    if (selection.isActive) {
-      selection.exit();
-    } else if (expandedRepoId !== null) {
-      setExpandedRepoId(null);
-    }
-  }, [selection, expandedRepoId]);
-
-  useTrendsKeyboard({
-    onRefresh: retry,
-    onToggleViewMode: handleToggleViewMode,
-    onSetSortBy: setSortBy,
-    onEscape: handleEscape,
-    enabled: !loading,
-  });
-
-  // URL 同步
-  const handleRestoreState = useCallback(
-    (state: TrendsUrlState) => {
-      setSortBy(state.sortBy);
-      setLanguageFilter(state.language);
-      setMinStarsFilter(state.minStars);
-    },
-    [setSortBy, setLanguageFilter, setMinStarsFilter]
-  );
-
-  useTrendsUrl({
-    sortBy,
-    language: languageFilter,
-    minStars: minStarsFilter,
-    onRestoreState: handleRestoreState,
-  });
 
   // Breakout / Early Signal 偵測
   const repoIds = useMemo(() => trends.map((r) => r.id), [trends]);

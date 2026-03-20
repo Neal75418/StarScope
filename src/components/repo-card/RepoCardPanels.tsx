@@ -1,23 +1,18 @@
 /**
- * Repo 卡片可展開面板（圖表、相似 repo）。
+ * Repo 卡片可展開面板（圖表）。
  */
 
 import { memo } from "react";
 import { StarsChart } from "../StarsChart";
-import { SimilarRepos } from "../SimilarRepos";
 
 interface RepoCardPanelsProps {
   repoId: number;
   showChart: boolean;
-  showSimilar: boolean;
-  onCloseSimilar: () => void;
 }
 
 export const RepoCardPanels = memo(function RepoCardPanels({
   repoId,
   showChart,
-  showSimilar,
-  onCloseSimilar,
 }: RepoCardPanelsProps) {
   return (
     <>
@@ -26,8 +21,6 @@ export const RepoCardPanels = memo(function RepoCardPanels({
           <StarsChart repoId={repoId} />
         </div>
       )}
-
-      {showSimilar && <SimilarRepos repoId={repoId} onClose={onCloseSimilar} />}
     </>
   );
 });

@@ -79,14 +79,6 @@ vi.mock("../../hooks/useClickOutside", () => ({
   useClickOutside: vi.fn(),
 }));
 
-vi.mock("../../hooks/useTrendsKeyboard", () => ({
-  useTrendsKeyboard: vi.fn(),
-}));
-
-vi.mock("../../hooks/useTrendsUrl", () => ({
-  useTrendsUrl: vi.fn().mockReturnValue({ hasUrlParams: false }),
-}));
-
 const mockNavigateTo = vi.fn();
 vi.mock("../../contexts/NavigationContext", () => ({
   useNavigation: () => ({

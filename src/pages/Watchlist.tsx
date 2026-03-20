@@ -21,8 +21,6 @@ import { useCategoryOperations } from "../hooks/useCategoryOperations";
 import { useWatchlistSort } from "../hooks/useWatchlistSort";
 import { useViewMode } from "../hooks/useViewMode";
 import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
-import { useWatchlistKeyboard } from "../hooks/useWatchlistKeyboard";
-import { useWatchlistUrl } from "../hooks/useWatchlistUrl";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useWatchlistBatchActions } from "../hooks/useWatchlistBatchActions";
 import { STORAGE_KEYS } from "../constants/storage";
@@ -45,30 +43,10 @@ export function Watchlist() {
   const actions = useWatchlistActions();
 
   // 排序 + 檢視模式 hooks
-  const { sortKey, sortDirection, setSort, restoreSort } = useWatchlistSort();
+  const { sortKey, sortDirection, setSort } = useWatchlistSort();
   const { viewMode, setViewMode } = useViewMode(STORAGE_KEYS.WATCHLIST_VIEW_MODE);
 
-  // 鍵盤快捷鍵 + URL 同步
   const searchInputRef = useRef<HTMLInputElement>(null);
-  useWatchlistKeyboard({
-    searchInputRef,
-    onRefreshAll: actions.refreshAll,
-    onAddRepo: actions.openDialog,
-  });
-  useWatchlistUrl({
-    categoryId: state.filters.selectedCategoryId,
-    searchQuery: state.filters.searchQuery,
-    sortKey,
-    sortDirection,
-    onRestoreState: useCallback(
-      (restored) => {
-        actions.setCategory(restored.categoryId);
-        actions.setSearchQuery(restored.searchQuery);
-        restoreSort(restored.sortKey, restored.sortDirection);
-      },
-      [actions, restoreSort]
-    ),
-  });
 
   // Selector hooks - 精準訂閱，減少 re-render
   const displayedRepos = useSortedFilteredRepos(sortKey, sortDirection);
