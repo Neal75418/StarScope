@@ -59,7 +59,7 @@ def calculate_delta(
     days: int,
     db: Session,
     field: str = "stars",
-    snap_by_date: dict | None = None,
+    snap_by_date: dict[date, "RepoSnapshot"] | None = None,
 ) -> float | None:
     """
     計算指定天數的指標差值。
@@ -87,7 +87,9 @@ def calculate_delta(
     return float(getattr(current_snapshot, field) - getattr(past_snapshot, field))
 
 
-def _find_snapshot(snap_by_date: dict, target_date: date) -> "RepoSnapshot | None":
+def _find_snapshot(
+    snap_by_date: dict[date, "RepoSnapshot"], target_date: date
+) -> "RepoSnapshot | None":
     """從預載的快照 dict 找到最接近 target_date 的快照（等於或更早）。"""
     snap = snap_by_date.get(target_date)
     if snap:
@@ -105,7 +107,7 @@ def calculate_velocity(
     repo_id: int,
     db: Session,
     days: int = 7,
-    snap_by_date: dict | None = None,
+    snap_by_date: dict[date, "RepoSnapshot"] | None = None,
 ) -> float | None:
     """
     計算指定期間的 velocity（每日 star 數）。
@@ -120,7 +122,7 @@ def calculate_velocity(
 def calculate_acceleration(
     repo_id: int,
     db: Session,
-    snap_by_date: dict | None = None,
+    snap_by_date: dict[date, "RepoSnapshot"] | None = None,
 ) -> float | None:
     """
     計算 acceleration（velocity 的變化率）。

@@ -249,19 +249,19 @@ class AnomalyDetector:
         db: Session,
         snapshot_map: dict[int, "RepoSnapshot"] | None = None,
         signal_map: dict[int, dict[str, float]] | None = None,
+        recent_snapshots: list["RepoSnapshot"] | None = None,
     ) -> "EarlySignal | None":
         """
         偵測突然暴漲模式。
         條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
+        recent_snapshots: 預載的近 30 天快照（desc），避免 N+1 查詢。
         """
-        _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
+        _ = snapshot_map  # 由呼叫端傳入，本偵測器不使用
+        _ = signal_map
 
         # 優先使用預載的快照序列（由 detect_all 批次載入），避免 N+1
-        if snapshot_map and repo.id in snapshot_map:
-            snapshots = snapshot_map[repo.id]
-            # snapshot_map 可能是 {repo_id: single_snapshot} 或 {repo_id: list}
-            if not isinstance(snapshots, list):
-                snapshots = [snapshots]
+        if recent_snapshots is not None:
+            snapshots = recent_snapshots
         else:
             snapshots = db.query(RepoSnapshot).filter(
                 RepoSnapshot.repo_id == repo.id
@@ -463,9 +463,10 @@ class AnomalyDetector:
 
         # detect_sudden_spike 需要 30 天快照序列
         try:
-            spike_snap_map = recent_snapshots_map if recent_snapshots_map else snapshot_map
+            repo_recent = recent_snapshots_map.get(repo.id) if recent_snapshots_map else None
             signal = AnomalyDetector.detect_sudden_spike(
-                repo, db, snapshot_map=spike_snap_map, signal_map=signal_map
+                repo, db, snapshot_map=snapshot_map, signal_map=signal_map,
+                recent_snapshots=repo_recent,
             )
             if signal and not _is_active(signal.signal_type):
                 signals.append(signal)
