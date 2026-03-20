@@ -27,7 +27,6 @@ from services.scheduler import (
     check_alerts_job,
     fetch_context_signals_job,
     trigger_fetch_now,
-    get_scheduler_status,
     cleanup_old_snapshots,
     backup_job,
     _track_repo_failure,
@@ -55,21 +54,6 @@ class TestGetScheduler:
         s1 = get_scheduler()
         s2 = get_scheduler()
         assert s1 is s2
-
-
-class TestGetSchedulerStatus:
-    """Tests for get_scheduler_status function."""
-
-    def test_returns_status_dict(self):
-        """Test returns status dictionary."""
-        import services.scheduler as scheduler_module
-        scheduler_module._scheduler = None
-
-        status = get_scheduler_status()
-
-        assert "running" in status
-        assert "jobs" in status
-        assert isinstance(status["jobs"], list)
 
 
 class TestFetchAllReposJob:

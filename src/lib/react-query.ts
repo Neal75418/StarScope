@@ -73,8 +73,6 @@ export const queryKeys = {
   // Discovery
   discovery: {
     all: ["discovery"] as const,
-    categories: () => [...queryKeys.discovery.all, "categories"] as const,
-    trending: () => [...queryKeys.discovery.all, "trending"] as const,
     search: (params: { query: string; filters: Record<string, unknown> }) =>
       [...queryKeys.discovery.all, "search", params] as const,
   },
@@ -82,7 +80,6 @@ export const queryKeys = {
   // GitHub Auth
   githubAuth: {
     status: ["githubAuth", "status"] as const,
-    rateLimit: ["githubAuth", "rateLimit"] as const,
   },
 
   // Trends
@@ -95,7 +92,6 @@ export const queryKeys = {
   // Dashboard
   dashboard: {
     all: ["dashboard"] as const,
-    stats: ["dashboard", "stats"] as const,
     health: ["dashboard", "health"] as const,
     weeklySummary: (days: number = 7) =>
       [...queryKeys.dashboard.all, "weeklySummary", days] as const,

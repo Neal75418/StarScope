@@ -491,24 +491,6 @@ def stop_scheduler() -> None:
         logger.info("[排程] 排程器已停止")
 
 
-def get_scheduler_status() -> dict:
-    """取得目前排程器狀態。"""
-    scheduler = get_scheduler()
-
-    jobs = []
-    for job in scheduler.get_jobs():
-        jobs.append({
-            "id": job.id,
-            "name": job.name,
-            "next_run": job.next_run_time.isoformat() if job.next_run_time else None,
-        })
-
-    return {
-        "running": scheduler.running,
-        "jobs": jobs,
-    }
-
-
 async def trigger_fetch_now() -> None:
     """手動觸發立即抓取所有 repo 與情境訊號。"""
     logger.info("[排程] 手動抓取已觸發")

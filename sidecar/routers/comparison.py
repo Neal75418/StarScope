@@ -10,7 +10,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 
-from constants import SignalType, TimeRange
+from constants import SignalType
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response

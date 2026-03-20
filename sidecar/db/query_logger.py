@@ -10,8 +10,8 @@
 import logging
 import threading
 import time
-from typing import Any
-from contextlib import contextmanager
+
+
 
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -28,23 +28,6 @@ _query_stats = {
     "slow_queries": 0,
     "total_time": 0.0,
 }
-
-
-class QueryTimer:
-    """查詢計時器，用於追蹤單一查詢的執行時間"""
-
-    def __init__(self):
-        self.start_time: float = 0.0
-        self.query_count: int = 0
-
-    def start(self):
-        """開始計時"""
-        self.start_time = time.perf_counter()
-        self.query_count += 1
-
-    def elapsed(self) -> float:
-        """返回經過的時間（秒）"""
-        return time.perf_counter() - self.start_time
 
 
 def setup_query_logging(engine: Engine, enable: bool = True):
@@ -111,67 +94,3 @@ def setup_query_logging(engine: Engine, enable: bool = True):
     logger.info("Database query logging enabled (slow query threshold: %.1fs)", SLOW_QUERY_THRESHOLD)
 
 
-def get_query_stats() -> dict[str, Any]:
-    """
-    取得查詢統計資訊。
-
-    Returns:
-        包含查詢統計的字典
-
-    Example:
-        >>> stats = get_query_stats()
-        >>> print(f"Total queries: {stats['total_queries']}")
-        >>> print(f"Slow queries: {stats['slow_queries']}")
-        >>> print(f"Average time: {stats['avg_time']:.3f}s")
-    """
-    with _query_stats_lock:
-        total = _query_stats["total_queries"]
-        slow = _query_stats["slow_queries"]
-        total_time = _query_stats["total_time"]
-
-    avg_time = total_time / total if total > 0 else 0.0
-
-    return {
-        "total_queries": total,
-        "slow_queries": slow,
-        "total_time": total_time,
-        "avg_time": avg_time,
-        "slow_query_ratio": slow / total if total > 0 else 0.0,
-    }
-
-
-def reset_query_stats():
-    """重置查詢統計"""
-    with _query_stats_lock:
-        _query_stats["total_queries"] = 0
-        _query_stats["slow_queries"] = 0
-        _query_stats["total_time"] = 0.0
-
-
-@contextmanager
-def log_query_stats(label: str = "Operation"):
-    """
-    Context manager 用於記錄區塊內的查詢統計。
-
-    Args:
-        label: 操作標籤
-
-    Example:
-        >>> with log_query_stats("Fetch all repos"):
-        ...     repos = db.query(Repo).all()
-        >>> # 會自動記錄該操作的查詢統計
-    """
-    # 取得初始統計
-    initial_stats = get_query_stats().copy()
-
-    yield
-
-    # 計算差異
-    final_stats = get_query_stats()
-    query_count = final_stats["total_queries"] - initial_stats["total_queries"]
-    elapsed = final_stats["total_time"] - initial_stats["total_time"]
-
-    logger.info(
-        f"[{label}] Executed {query_count} queries in {elapsed:.3f}s "
-        f"(avg: {elapsed/query_count:.3f}s)" if query_count > 0 else f"[{label}] No queries executed"
-    )

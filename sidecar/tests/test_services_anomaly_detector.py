@@ -7,11 +7,13 @@ from datetime import date, timedelta
 from db.models import (
     RepoSnapshot,
     Signal,
-    SignalType,
     EarlySignal,
+    ContextSignal,
+)
+from constants import (
+    SignalType,
     EarlySignalType,
     EarlySignalSeverity,
-    ContextSignal,
     ContextSignalType,
 )
 from services.anomaly_detector import (

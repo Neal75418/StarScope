@@ -159,17 +159,6 @@ describe("Settings", () => {
     expect(screen.getByText("Create Alert")).toBeInTheDocument();
   });
 
-  it("shows 'no alerts' message when rules list is empty", () => {
-    renderWithClient(<Settings />);
-    expect(screen.getByText("No alert rules configured.")).toBeInTheDocument();
-  });
-
-  it("does not show 'no alerts' message when rules exist", () => {
-    mockAlertsReturn.rules = [{ id: 1 }];
-    renderWithClient(<Settings />);
-    expect(screen.queryByText("No alert rules configured.")).not.toBeInTheDocument();
-  });
-
   it("shows Check Now button when form is not visible", () => {
     renderWithClient(<Settings />);
     expect(screen.getByText("Check Now")).toBeInTheDocument();

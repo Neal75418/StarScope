@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { SimilarRepos, SimilarReposButton } from "../SimilarRepos";
+import { SimilarRepos } from "../SimilarRepos";
 import * as apiClient from "../../api/client";
 import { createTestQueryClient } from "../../lib/react-query";
 
@@ -171,49 +171,5 @@ describe("SimilarRepos", () => {
       await user.click(link);
       expect(openUrl).toHaveBeenCalledWith("https://github.com/vuejs/vue");
     });
-  });
-});
-
-describe("SimilarReposButton", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(apiClient.getSimilarRepos).mockResolvedValue({ repo_id: 1, total: 0, similar: [] });
-  });
-
-  it("renders button with text", () => {
-    renderWithClient(<SimilarReposButton repoId={1} />);
-
-    expect(screen.getByText("Similar")).toBeInTheDocument();
-  });
-
-  it("toggles panel visibility on click", async () => {
-    const user = userEvent.setup();
-    renderWithClient(<SimilarReposButton repoId={1} />);
-
-    // Click to show panel
-    await user.click(screen.getByText("Similar"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Similar Repos")).toBeInTheDocument();
-    });
-
-    // Click again to hide
-    await user.click(screen.getByText("Similar"));
-
-    await waitFor(() => {
-      expect(screen.queryByText("Similar Repos")).not.toBeInTheDocument();
-    });
-  });
-
-  it("shows active class when panel is open", async () => {
-    const user = userEvent.setup();
-    renderWithClient(<SimilarReposButton repoId={1} />);
-
-    const button = screen.getByText("Similar");
-    expect(button).not.toHaveClass("active");
-
-    await user.click(button);
-
-    expect(button).toHaveClass("active");
   });
 });

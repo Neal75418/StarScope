@@ -11,12 +11,7 @@ from datetime import datetime, date
 from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
-# IDE 可能顯示警告 — 路徑在 main.py 中透過 sys.path 於執行時解析
-from utils.time import utc_now  # noqa: F401
-from constants import (  # noqa: F401
-    SignalType, AlertOperator, ContextSignalType,
-    EarlySignalType, EarlySignalSeverity,
-)
+from utils.time import utc_now  # noqa: F401 — 用於 mapped_column default/onupdate callable
 
 # 避免程式碼重複警告的常數
 CASCADE_DELETE_ORPHAN = "all, delete-orphan"

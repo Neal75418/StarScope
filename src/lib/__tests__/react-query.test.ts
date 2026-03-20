@@ -65,14 +65,6 @@ describe("queryKeys", () => {
   });
 
   describe("discovery", () => {
-    it("generates categories key", () => {
-      expect(queryKeys.discovery.categories()).toEqual(["discovery", "categories"]);
-    });
-
-    it("generates trending key", () => {
-      expect(queryKeys.discovery.trending()).toEqual(["discovery", "trending"]);
-    });
-
     it("generates search key with params", () => {
       expect(
         queryKeys.discovery.search({ query: "react", filters: { language: "TypeScript" } })
@@ -84,17 +76,9 @@ describe("queryKeys", () => {
     it("generates status key", () => {
       expect(queryKeys.githubAuth.status).toEqual(["githubAuth", "status"]);
     });
-
-    it("generates rateLimit key", () => {
-      expect(queryKeys.githubAuth.rateLimit).toEqual(["githubAuth", "rateLimit"]);
-    });
   });
 
   describe("dashboard", () => {
-    it("generates stats key", () => {
-      expect(queryKeys.dashboard.stats).toEqual(["dashboard", "stats"]);
-    });
-
     it("generates health key", () => {
       expect(queryKeys.dashboard.health).toEqual(["dashboard", "health"]);
     });

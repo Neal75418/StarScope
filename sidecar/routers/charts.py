@@ -56,6 +56,8 @@ async def get_stars_chart(
         TimeRange.MONTH: 30,
         TimeRange.QUARTER: 90,
     }
+    if time_range not in days_map:
+        raise HTTPException(status_code=400, detail=f"Unsupported time_range: {time_range}")
     days = days_map[time_range]
     start_date = utc_today() - timedelta(days=days)
 

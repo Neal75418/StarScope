@@ -3,7 +3,7 @@
  * LanguagesBadge 需要 bg + text，LanguagesPanel 僅需 bg。
  */
 
-export const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {
+const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {
   TypeScript: { bg: "#3178c6", text: "#ffffff" },
   JavaScript: { bg: "#f1e05a", text: "#000000" },
   Python: { bg: "#3572A5", text: "#ffffff" },

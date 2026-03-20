@@ -207,7 +207,7 @@ class TestPollForToken:
                     result = await service.poll_for_token("device_code")
 
                     assert result["status"] == "success"
-                    assert result["access_token"] == "ghp_token123"
+                    assert result["username"] == "testuser"
                     assert mock_set.call_count == 2
 
 

@@ -207,20 +207,20 @@ class TestResetAllData:
     """Tests for POST /api/settings/reset-data."""
 
     def test_resets_empty_db(self, client):
-        resp = client.post("/api/settings/reset-data")
+        resp = client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert resp.status_code == 200
         assert resp.json()["data"]["status"] == "reset"
         assert resp.json()["data"]["deleted_repos"] == 0
 
     def test_deletes_repos_and_returns_count(self, client, test_db, mock_repo):
-        resp = client.post("/api/settings/reset-data")
+        resp = client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert resp.status_code == 200
         assert resp.json()["data"]["deleted_repos"] == 1
         assert test_db.query(Repo).count() == 0
 
     def test_deletes_related_data(self, client, test_db, mock_repo_with_snapshots):
         repo, snapshots = mock_repo_with_snapshots
-        resp = client.post("/api/settings/reset-data")
+        resp = client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert resp.status_code == 200
         assert test_db.query(RepoSnapshot).count() == 0
         assert test_db.query(Repo).count() == 0
@@ -229,5 +229,5 @@ class TestResetAllData:
         setting = AppSetting(key=AppSettingKey.FETCH_INTERVAL_MINUTES, value="720")
         test_db.add(setting)
         test_db.commit()
-        client.post("/api/settings/reset-data")
+        client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert test_db.query(AppSetting).filter_by(key=AppSettingKey.FETCH_INTERVAL_MINUTES).count() == 1
