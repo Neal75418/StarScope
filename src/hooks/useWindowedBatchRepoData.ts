@@ -157,16 +157,33 @@ export function useWindowedBatchRepoData(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
 
-  // 合併成最終的 dataMap
+  // 合併成最終的 dataMap（增量更新：只替換真正有變化的 entry，穩定 reference）
+  const prevDataMapRef = useRef<Record<number, BatchRepoData>>({});
+
   const dataMap = useMemo(() => {
+    const prev = prevDataMapRef.current;
+    let changed = false;
     const result: Record<number, BatchRepoData> = {};
+
     for (const id of allRepoIds) {
       const key = String(id);
-      result[id] = {
-        badges: badgesMap[key]?.badges ?? EMPTY_BADGES,
-        signals: signalsMap[key]?.signals ?? EMPTY_SIGNALS,
-      };
+      const newBadges = badgesMap[key]?.badges ?? EMPTY_BADGES;
+      const newSignals = signalsMap[key]?.signals ?? EMPTY_SIGNALS;
+      const existing = prev[id];
+
+      if (existing && existing.badges === newBadges && existing.signals === newSignals) {
+        result[id] = existing;
+      } else {
+        result[id] = { badges: newBadges, signals: newSignals };
+        changed = true;
+      }
     }
+
+    if (!changed && Object.keys(prev).length === allRepoIds.length) {
+      return prev;
+    }
+
+    prevDataMapRef.current = result;
     return result;
   }, [allRepoIds, badgesMap, signalsMap]);
 
