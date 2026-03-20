@@ -5,7 +5,7 @@
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -109,7 +109,7 @@ class RepoCategoryItem(BaseModel):
     name: str
     icon: str | None
     color: str | None
-    added_at: str | None
+    added_at: datetime | None
 
 
 class RepoCategoriesResponse(BaseModel):
@@ -239,7 +239,7 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 @router.get("/", response_model=ApiResponse[CategoryListResponse])
 async def list_categories(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -250,8 +250,6 @@ async def list_categories(
         limit: 回傳的最大紀錄數（預設 100，上限 500）
         db: 資料庫 session
     """
-    # 限制上限以防止過量資料擷取
-    limit = min(limit, 500)
 
     # 取得總數
     total = db.query(Category).count()
@@ -411,7 +409,7 @@ async def delete_category(
 async def get_category_repos(
     category_id: int,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -423,9 +421,6 @@ async def get_category_repos(
         limit: 回傳的最大紀錄數（預設 100，上限 500）
         db: 資料庫 session
     """
-    # 限制上限以防止過量資料擷取
-    limit = min(limit, 500)
-
     category = _get_category_or_404(category_id, db)
 
     # 取得總數
@@ -538,7 +533,7 @@ async def get_repo_categories(
             name=rc.category.name,
             icon=rc.category.icon,
             color=rc.category.color,
-            added_at=rc.added_at.isoformat() if rc.added_at else None,
+            added_at=rc.added_at,
         )
         for rc in repo_categories
     ]

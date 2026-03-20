@@ -282,7 +282,7 @@ describe("Trends", () => {
   it("shows formatted velocity for non-null value", () => {
     mockTrendsReturn.trends = [makeTrending({ velocity: 71.4 })];
     renderTrends();
-    expect(screen.getByText("71.4")).toBeInTheDocument();
+    expect(screen.getByText("71.4/day")).toBeInTheDocument();
   });
 
   it("shows 'In Watchlist' for repos already tracked", () => {

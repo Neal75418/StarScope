@@ -163,13 +163,13 @@ export function ImportSection() {
       </div>
 
       {/* 從 GitHub Stars 匯入 */}
-      <div className="import-form" style={{ marginBottom: "1.5rem" }}>
+      <div className="import-form import-form--mb">
         <div className="import-method">
           <label className="import-label">{t.settings.import.starredImport.title}</label>
           <p className="import-hint">{t.settings.import.starredImport.description}</p>
 
           {!isConnected ? (
-            <p className="import-hint" style={{ color: "var(--color-warning)" }}>
+            <p className="import-hint import-hint--warning">
               {t.settings.import.starredImport.notConnected}
             </p>
           ) : !starred.hasFetched ? (
@@ -188,7 +188,7 @@ export function ImportSection() {
             <p className="import-hint">{t.settings.import.starredImport.noNew}</p>
           ) : (
             <>
-              <div className="import-actions" style={{ marginBottom: "0.75rem" }}>
+              <div className="import-actions import-actions--mb">
                 <button className="btn btn-sm" onClick={starred.selectAll}>
                   {t.settings.import.starredImport.selectAll}
                 </button>
@@ -199,21 +199,9 @@ export function ImportSection() {
                   {starred.selectedRepos.size} {t.settings.import.starredImport.selected}
                 </span>
               </div>
-              <div
-                className="import-preview-list"
-                style={{ maxHeight: "300px", overflowY: "auto" }}
-              >
+              <div className="import-preview-list import-preview-list--tall">
                 {starred.starredRepos.map((repo) => (
-                  <label
-                    key={repo.full_name}
-                    className="import-item"
-                    style={{
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
+                  <label key={repo.full_name} className="import-item import-item--selectable">
                     <input
                       type="checkbox"
                       checked={starred.selectedRepos.has(repo.full_name)}
@@ -221,17 +209,15 @@ export function ImportSection() {
                     />
                     <span className="import-item-name">{repo.full_name}</span>
                     {repo.language && (
-                      <span className="import-hint" style={{ fontSize: "0.75rem" }}>
-                        {repo.language}
-                      </span>
+                      <span className="import-hint import-hint--small">{repo.language}</span>
                     )}
-                    <span className="import-hint" style={{ fontSize: "0.75rem" }}>
+                    <span className="import-hint import-hint--small">
                       ★ {repo.stars.toLocaleString()}
                     </span>
                   </label>
                 ))}
               </div>
-              <div className="import-actions" style={{ marginTop: "0.75rem" }}>
+              <div className="import-actions import-actions--mt">
                 <button
                   className="btn btn-primary"
                   onClick={() => void starred.startImport()}
@@ -250,17 +236,17 @@ export function ImportSection() {
           )}
 
           {starred.error && (
-            <div className="import-error" role="alert" style={{ marginTop: "0.5rem" }}>
+            <div className="import-error import-error--mt" role="alert">
               {starred.error}
             </div>
           )}
           {starred.importError && (
-            <div className="import-error" role="alert" style={{ marginTop: "0.5rem" }}>
+            <div className="import-error import-error--mt" role="alert">
               {starred.importError}
             </div>
           )}
           {starred.result && (
-            <div className="import-actions" style={{ marginTop: "0.75rem" }}>
+            <div className="import-actions import-actions--mt">
               <button className="btn btn-primary" onClick={starred.reset}>
                 {t.settings.import.importMore}
               </button>

@@ -97,10 +97,6 @@ export function useDiscovery() {
     [updateSearchParams]
   );
 
-  const loadMore = useCallback(() => {
-    fetchMore();
-  }, [fetchMore]);
-
   const reset = useCallback(() => {
     clearTimeout(searchTimerRef.current);
     setState(INITIAL_STATE);
@@ -166,7 +162,7 @@ export function useDiscovery() {
     removeLicense,
     removeHideArchived,
     reset,
-    loadMore,
+    loadMore: fetchMore,
     applySavedFilter: search,
     restoreState,
   };

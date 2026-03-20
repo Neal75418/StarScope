@@ -69,6 +69,8 @@ export const translations = {
         title: "Portfolio Star History",
         loadError: "Failed to load portfolio history",
         noData: "Not enough data yet. Start tracking repos to see history.",
+        stars: "stars",
+        reposTracked: "repos tracked",
       },
       languageDistribution: {
         title: "Language Distribution",
@@ -78,6 +80,10 @@ export const translations = {
         title: "Category Summary",
         empty: "No categories with repos yet",
         loadError: "Failed to load categories",
+        repos: "repos",
+      },
+      velocityChart: {
+        repos: "repos",
       },
       healthScore: {
         title: "Portfolio Health",
@@ -423,21 +429,6 @@ export const translations = {
       title: "Settings",
       subtitle: "Manage connections, export data, and configure notifications",
       loading: "Loading...",
-      github: {
-        title: "GitHub Connection",
-        connected: "Connected as",
-        notConnected: "Not connected",
-        connect: "Connect GitHub",
-        disconnect: "Disconnect",
-        rateLimit: "API Rate Limit",
-        rateLimitUsed: "{used} / {limit}",
-        token: "Personal Access Token",
-        tokenPlaceholder: "ghp_xxxxxxxxxxxx",
-        tokenHint: "Create a token with 'repo' scope at GitHub Settings > Developer settings",
-        testConnection: "Test Connection",
-        connectionSuccess: "Connection successful",
-        connectionFailed: "Connection failed",
-      },
       appearance: {
         title: "Appearance",
         theme: "Theme",
@@ -945,6 +936,8 @@ export const translations = {
         title: "組合星數歷史",
         loadError: "載入歷史資料失敗",
         noData: "資料尚不足，請先追蹤 repo 以建立歷史記錄。",
+        stars: "顆星",
+        reposTracked: "個 repo 追蹤中",
       },
       languageDistribution: {
         title: "語言分佈",
@@ -954,6 +947,10 @@ export const translations = {
         title: "分類摘要",
         empty: "尚無含 repo 的分類",
         loadError: "載入分類失敗",
+        repos: "個 repo",
+      },
+      velocityChart: {
+        repos: "個 repo",
       },
       healthScore: {
         title: "組合健康分數",
@@ -1298,21 +1295,6 @@ export const translations = {
       title: "設定",
       subtitle: "管理連線、匯出資料和設定通知",
       loading: "載入中...",
-      github: {
-        title: "GitHub 連線",
-        connected: "已連接",
-        notConnected: "未連接",
-        connect: "連接 GitHub",
-        disconnect: "中斷連接",
-        rateLimit: "API 配額",
-        rateLimitUsed: "{used} / {limit}",
-        token: "個人存取權杖",
-        tokenPlaceholder: "ghp_xxxxxxxxxxxx",
-        tokenHint: "在 GitHub 設定 > 開發者設定中建立具有「repo」權限的權杖",
-        testConnection: "測試連線",
-        connectionSuccess: "連線成功",
-        connectionFailed: "連線失敗",
-      },
       appearance: {
         title: "外觀",
         theme: "主題",

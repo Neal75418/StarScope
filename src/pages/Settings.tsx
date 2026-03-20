@@ -58,7 +58,7 @@ export function Settings() {
   }
 
   const navItems = [
-    { id: "github", label: t.settings.github.title },
+    { id: "github", label: t.githubConnection.title },
     { id: "scheduled-refresh", label: t.settings.scheduledRefresh.title },
     { id: "snapshot-retention", label: t.settings.snapshotRetention.title },
     { id: "signal-thresholds", label: t.settings.signalThresholds.title },

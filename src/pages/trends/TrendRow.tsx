@@ -5,7 +5,7 @@
 import { memo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../../components/TrendArrow";
-import { formatNumber, formatDelta } from "../../utils/format";
+import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import type { useI18n } from "../../i18n";
 import type { TrendingRepo } from "../../api/client";
@@ -92,9 +92,7 @@ export const TrendRow = memo(function TrendRow({
       <td className="stars-col">{formatNumber(repo.stars)}</td>
       <td className="delta-col positive">{formatDelta(repo.stars_delta_7d)}</td>
       <td className="delta-col positive">{formatDelta(repo.stars_delta_30d)}</td>
-      <td className="velocity-col">
-        {repo.velocity !== null ? repo.velocity.toFixed(1) : "\u2014"}
-      </td>
+      <td className="velocity-col">{formatVelocity(repo.velocity)}</td>
       <td className="trend-col">
         <TrendArrow trend={repo.trend} />
       </td>

@@ -35,6 +35,7 @@ interface TooltipPayload {
 }
 
 function VelocityTooltip({ active, payload }: TooltipPayload) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const { count } = payload[0].payload;
   return (
@@ -48,7 +49,7 @@ function VelocityTooltip({ active, payload }: TooltipPayload) {
         color: "var(--fg-default)",
       }}
     >
-      <strong>{count}</strong> repos
+      <strong>{count}</strong> {t.dashboard.velocityChart.repos}
     </div>
   );
 }

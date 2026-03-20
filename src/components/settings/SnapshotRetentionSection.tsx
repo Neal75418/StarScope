@@ -37,18 +37,15 @@ export function SnapshotRetentionSection({ onToast }: SnapshotRetentionSectionPr
     },
   });
 
+  const parsedDays = inputDays !== null ? parseInt(inputDays, 10) : NaN;
+  const isValid =
+    !isNaN(parsedDays) && parsedDays >= 30 && parsedDays <= 730 && parsedDays !== currentDays;
+
   const handleSave = () => {
-    const days = parseInt(inputDays ?? "") || currentDays;
-    if (days >= 30 && days <= 730 && days !== currentDays) {
-      mutation.mutate(days);
+    if (isValid) {
+      mutation.mutate(parsedDays);
     }
   };
-
-  const isValid =
-    inputDays !== null &&
-    parseInt(inputDays) >= 30 &&
-    parseInt(inputDays) <= 730 &&
-    parseInt(inputDays) !== currentDays;
 
   return (
     <section className="settings-section" data-testid="snapshot-retention-section">

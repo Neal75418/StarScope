@@ -48,7 +48,7 @@ class Repo(Base):
     topics: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # GitHub topics 的 JSON 陣列
 
     # 時間戳記
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)  # GitHub 建立日期
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # GitHub 建立日期
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)  # 加入追蹤清單的時間
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 

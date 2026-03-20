@@ -28,6 +28,7 @@ interface TooltipPayload {
 }
 
 function PortfolioTooltip({ active, label, payload }: TooltipPayload) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   return (
     <div
@@ -42,10 +43,10 @@ function PortfolioTooltip({ active, label, payload }: TooltipPayload) {
     >
       <div style={{ color: "var(--fg-muted)", marginBottom: 4 }}>{label}</div>
       <div>
-        <strong>{formatNumber(payload[0].value)}</strong> stars
+        <strong>{formatNumber(payload[0].value)}</strong> {t.dashboard.portfolioHistory.stars}
       </div>
       <div style={{ color: "var(--fg-muted)", fontSize: 11 }}>
-        {payload[0].payload.repo_count} repos tracked
+        {payload[0].payload.repo_count} {t.dashboard.portfolioHistory.reposTracked}
       </div>
     </div>
   );

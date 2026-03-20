@@ -82,7 +82,7 @@ describe("TrendExpandedRow", () => {
   it("renders metric chips", () => {
     renderInTable(<TrendExpandedRow repo={makeTrending()} onClose={vi.fn()} />);
     expect(screen.getByText("200.0K")).toBeInTheDocument();
-    expect(screen.getByText("71.4")).toBeInTheDocument();
+    expect(screen.getByText("71.4/day")).toBeInTheDocument();
   });
 
   it("calls onClose when close button is clicked", async () => {

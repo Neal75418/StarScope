@@ -148,11 +148,6 @@ export function Discovery() {
     [discoveryFilters, setFilters]
   );
 
-  // 清除所有篩選條件
-  const handleClearAll = useCallback(() => {
-    resetDiscovery();
-  }, [resetDiscovery]);
-
   // 將 repo 加入 watchlist（共用邏輯）
   const doAddToWatchlist = useCallback(
     async (owner: string, name: string, fullName: string, id: number) => {
@@ -284,7 +279,7 @@ export function Discovery() {
         onRemoveMaxStars={discovery.removeMaxStars}
         onRemoveLicense={discovery.removeLicense}
         onRemoveHideArchived={discovery.removeHideArchived}
-        onClearAll={handleClearAll}
+        onClearAll={resetDiscovery}
       />
 
       <DiscoveryFilters filters={discovery.filters} onFiltersChange={discovery.setFilters} />

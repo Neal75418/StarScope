@@ -39,7 +39,7 @@ export function useAlertRuleData(toast: Toast) {
   });
 
   const reposQuery = useQuery<RepoWithSignals[], Error>({
-    queryKey: queryKeys.alertRuleData.repos(),
+    queryKey: queryKeys.repos.lists(),
     queryFn: async () => {
       const response = await getRepos();
       return response.repos;

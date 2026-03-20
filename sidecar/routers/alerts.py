@@ -20,6 +20,9 @@ from services.alerts import (
 )
 
 # 從 model 常數衍生的 Literal 型別 — Pydantic 自動驗證。
+# 注意：這是 SignalType 的子集（僅包含與 repo 相關的指標），
+# 刻意排除 forks_delta_7d/30d 與 issues_delta_7d/30d，因為這些指標
+# 目前不適合作為警報觸發條件。
 ValidSignalType = Literal[
     "stars_delta_7d", "stars_delta_30d", "velocity", "acceleration", "trend"
 ]

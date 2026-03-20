@@ -27,6 +27,7 @@ interface CategoryCardProps {
 }
 
 function CategoryCard({ category }: CategoryCardProps) {
+  const { t } = useI18n();
   const hasColor = Boolean(category.color);
   return (
     <div
@@ -36,7 +37,9 @@ function CategoryCard({ category }: CategoryCardProps) {
       <div className="category-summary-icon">{category.icon ?? "📁"}</div>
       <div className="category-summary-info">
         <div className="category-summary-name">{category.name}</div>
-        <div className="category-summary-count">{category.repo_count} repos</div>
+        <div className="category-summary-count">
+          {category.repo_count} {t.dashboard.categorySummary.repos}
+        </div>
       </div>
     </div>
   );

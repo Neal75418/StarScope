@@ -249,7 +249,6 @@ export async function getContextBadgesBatch(
     "/context/badges/batch",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ repo_ids: repoIds }),
     }
   );
@@ -532,7 +531,6 @@ export async function getRepoSignalsBatch(
     "/early-signals/batch",
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ repo_ids: repoIds }),
     }
   );
@@ -883,7 +881,6 @@ export async function updateFetchInterval(
 ): Promise<FetchIntervalResponse> {
   return apiCall<FetchIntervalResponse>("/settings/fetch-interval", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ interval_minutes: intervalMinutes }),
     signal,
   });
@@ -901,7 +898,6 @@ export async function updateSnapshotRetention(
 ): Promise<SnapshotRetentionResponse> {
   return apiCall<SnapshotRetentionResponse>("/settings/snapshot-retention", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ retention_days: retentionDays }),
     signal,
   });
@@ -917,7 +913,6 @@ export async function updateSignalThresholds(
 ): Promise<SignalThresholdsResponse> {
   return apiCall<SignalThresholdsResponse>("/settings/signal-thresholds", {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
     signal,
   });

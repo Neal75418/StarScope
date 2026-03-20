@@ -4,17 +4,16 @@ Provides multi-repo star trend data for side-by-side comparison.
 """
 
 from datetime import date, timedelta
-from enum import Enum
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 
+from constants import SignalType, TimeRange
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
-from constants import SignalType
 from services.queries import build_signal_map, build_snapshot_map
 from utils.time import utc_today
 
@@ -31,13 +30,6 @@ PALETTE = [
     "#ca8a04",  # yellow
     "#e11d48",  # rose
 ]
-
-
-class TimeRange(str, Enum):
-    WEEK = "7d"
-    MONTH = "30d"
-    QUARTER = "90d"
-    ALL = "all"
 
 
 class ComparisonRequest(BaseModel):

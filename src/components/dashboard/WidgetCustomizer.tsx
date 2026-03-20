@@ -3,8 +3,9 @@
  * 允許使用者顯示/隱藏各個 Dashboard 區塊，設定持久化至 localStorage。
  */
 
-import { memo, useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef } from "react";
 import { useI18n } from "../../i18n";
+import { useClickOutside } from "../../hooks/useClickOutside";
 
 export type WidgetId =
   | "portfolioHealth"
@@ -61,16 +62,7 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
   const ref = useRef<HTMLDivElement>(null);
 
   // 點擊外部關閉
-  useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  useClickOutside(ref, () => setOpen(false), open);
 
   const toggle = useCallback(
     (id: WidgetId) => {

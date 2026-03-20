@@ -2,19 +2,15 @@
 趨勢 API 端點，依各種指標排序檢視 repo。
 """
 
-from typing import cast
 from enum import Enum
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import desc, func
-from sqlalchemy.sql.elements import ColumnElement
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from db.database import get_db
 from constants import SignalType
-from db.models import Repo, RepoSnapshot, Signal
-from services.queries import build_signal_map, build_stars_map
+from services.queries import build_signal_map, build_stars_map, query_trending_repos
 from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/trends", tags=["trends"])
@@ -62,17 +58,6 @@ class TrendsResponse(BaseModel):
     sort_by: str
 
 
-def _get_signal_type_for_sort(sort_by: SortBy) -> str:
-    """將 SortBy enum 映射為 SignalType。"""
-    return {
-        SortBy.VELOCITY: SignalType.VELOCITY,
-        SortBy.STARS_DELTA_7D: SignalType.STARS_DELTA_7D,
-        SortBy.STARS_DELTA_30D: SignalType.STARS_DELTA_30D,
-        SortBy.ACCELERATION: SignalType.ACCELERATION,
-        SortBy.FORKS_DELTA_7D: SignalType.FORKS_DELTA_7D,
-        SortBy.ISSUES_DELTA_7D: SignalType.ISSUES_DELTA_7D,
-    }[sort_by]
-
 
 @router.get("/", response_model=ApiResponse[TrendsResponse])
 async def get_trends(
@@ -91,45 +76,7 @@ async def get_trends(
     - stars_delta_30d: 30 天內增加的 star 數
     - acceleration: velocity 的變化率
     """
-    # 將 sort_by 映射為訊號類型
-    sort_signal_type = _get_signal_type_for_sort(sort_by)
-
-    # 為排序訊號建立別名以啟用 LEFT JOIN
-    sort_signal = aliased(Signal)
-    sort_value = cast(ColumnElement, cast(object, sort_signal.value)).label("sort_value")
-
-    # 在 SQL 中查詢 repo 並排序、限制
-    # 避免將所有 repo 載入記憶體
-    # noinspection PyTypeChecker
-    query = (
-        db.query(Repo, sort_value)
-        .outerjoin(
-            sort_signal,
-            (Repo.id == sort_signal.repo_id) &
-            (sort_signal.signal_type == sort_signal_type)
-        )
-    )
-
-    # 語言篩選
-    if language:
-        query = query.filter(func.lower(Repo.language) == language.lower())
-
-    # 最低 star 數篩選（透過最新快照的 stars 欄位）
-    if min_stars is not None:
-        query = query.filter(
-            db.query(RepoSnapshot.id)
-            .filter(
-                RepoSnapshot.repo_id == Repo.id,
-                RepoSnapshot.stars >= min_stars
-            ).exists()
-        )
-
-    results = (
-        query
-        .order_by(desc(func.coalesce(sort_signal.value, 0)))
-        .limit(limit)
-        .all()
-    )
+    results = query_trending_repos(db, sort_by.value, limit, language, min_stars)
 
     if not results:
         empty_response = TrendsResponse(repos=[], total=0, sort_by=sort_by.value)
@@ -138,16 +85,12 @@ async def get_trends(
             message=f"No trending repositories found (sorted by {sort_by.value})"
         )
 
-    # 取得 repo ID 以批次抓取剩餘資料
-    repo_ids = [repo.id for repo, _ in results]
-
-    # 僅為限制後的結果集批次抓取訊號與 star 數
+    repo_ids = [repo.id for repo in results]
     signal_map = build_signal_map(db, repo_ids)
     stars_map = build_stars_map(db, repo_ids)
 
-    # 建立含排名的回應
     trending_repos = []
-    for rank, (repo, _) in enumerate(results, start=1):
+    for rank, repo in enumerate(results, start=1):
         signals = signal_map.get(int(repo.id), {})
         trend_val = signals.get(SignalType.TREND)
 

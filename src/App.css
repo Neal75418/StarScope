@@ -3594,6 +3594,38 @@ body {
   gap: 8px;
 }
 
+.import-form--mb {
+  margin-bottom: 1.5rem;
+}
+
+.import-hint--warning {
+  color: var(--warning-fg);
+}
+
+.import-hint--small {
+  font-size: 0.75rem;
+}
+
+.import-actions--mb {
+  margin-bottom: 0.75rem;
+}
+
+.import-actions--mt {
+  margin-top: 0.75rem;
+}
+
+.import-preview-list--tall {
+  max-height: 300px;
+}
+
+.import-item--selectable {
+  cursor: pointer;
+}
+
+.import-error--mt {
+  margin-top: 0.5rem;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

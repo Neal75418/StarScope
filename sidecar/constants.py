@@ -85,3 +85,11 @@ class EarlySignalSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class TimeRange(StrEnum):
+    """圖表的時間範圍選項（charts 與 comparison 共用）。"""
+    WEEK = "7d"
+    MONTH = "30d"
+    QUARTER = "90d"
+    ALL = "all"

@@ -5,6 +5,7 @@
 
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from middleware.rate_limit import limiter
@@ -207,7 +208,6 @@ async def get_recommendation_stats(
     total_similarities = db.query(SimilarRepo).count()
 
     # 平均相似度分數
-    from sqlalchemy import func
     avg_score = db.query(func.avg(SimilarRepo.similarity_score)).scalar() or 0.0
 
     # 至少有一個相似 repo 的 repo

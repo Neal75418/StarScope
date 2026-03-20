@@ -11,13 +11,12 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import desc, func
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from db.database import get_db
 from constants import SignalType
-from db.models import Repo, RepoSnapshot, Signal
-from services.queries import build_snapshot_map, build_signal_map, build_stars_map
+from db.models import Repo, RepoSnapshot
+from services.queries import build_snapshot_map, build_signal_map, build_stars_map, query_trending_repos
 from utils.time import utc_now, utc_today
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -259,66 +258,19 @@ TrendsSortBy = Literal[
     "acceleration", "forks_delta_7d", "issues_delta_7d",
 ]
 
-_SORT_SIGNAL_MAP: dict[str, str] = {
-    "velocity": SignalType.VELOCITY,
-    "stars_delta_7d": SignalType.STARS_DELTA_7D,
-    "stars_delta_30d": SignalType.STARS_DELTA_30D,
-    "acceleration": SignalType.ACCELERATION,
-    "forks_delta_7d": SignalType.FORKS_DELTA_7D,
-    "issues_delta_7d": SignalType.ISSUES_DELTA_7D,
-}
 
-
-def _query_trending_repos(
+def _build_trending_repo_dicts(
+    repos: list,
     db: Session,
-    sort_by: str,
-    limit: int,
-    language: str | None,
-    min_stars: int | None,
 ) -> list[dict]:
-    """查詢趨勢 repo 並回傳含訊號的 dict 列表（複用 trends 查詢邏輯）。"""
-    sort_signal_type = _SORT_SIGNAL_MAP.get(sort_by, SignalType.VELOCITY)
-
-    sort_signal = aliased(Signal)
-    query = (
-        db.query(Repo)
-        .outerjoin(
-            sort_signal,
-            (Repo.id == sort_signal.repo_id) &
-            (sort_signal.signal_type == sort_signal_type)
-        )
-    )
-
-    if language:
-        query = query.filter(func.lower(Repo.language) == language.lower())
-
-    if min_stars is not None:
-        query = query.filter(
-            db.query(RepoSnapshot.id)
-            .filter(
-                RepoSnapshot.repo_id == Repo.id,
-                RepoSnapshot.stars >= min_stars
-            ).exists()
-        )
-
-    repos = (
-        query
-        .order_by(desc(func.coalesce(sort_signal.value, 0)))
-        .limit(limit)
-        .all()
-    )
-
+    """Repos 列表 → 含訊號的 dict 列表（供 JSON/CSV 匯出）。"""
     if not repos:
         return []
-
     repo_ids = [r.id for r in repos]
     signals_map = build_signal_map(db, repo_ids)
     stars_map = build_stars_map(db, repo_ids)
-
-    result = []
-    for rank, repo in enumerate(repos, start=1):
-        signals = signals_map.get(int(repo.id), {})
-        result.append({
+    return [
+        {
             "rank": rank,
             "full_name": repo.full_name,
             "owner": repo.owner,
@@ -327,14 +279,15 @@ def _query_trending_repos(
             "description": repo.description,
             "language": repo.language,
             "stars": stars_map.get(int(repo.id)),
-            "velocity": signals.get(SignalType.VELOCITY),
-            "stars_delta_7d": signals.get(SignalType.STARS_DELTA_7D),
-            "stars_delta_30d": signals.get(SignalType.STARS_DELTA_30D),
-            "acceleration": signals.get(SignalType.ACCELERATION),
-            "forks_delta_7d": signals.get(SignalType.FORKS_DELTA_7D),
-            "issues_delta_7d": signals.get(SignalType.ISSUES_DELTA_7D),
-        })
-    return result
+            "velocity": signals_map.get(int(repo.id), {}).get(SignalType.VELOCITY),
+            "stars_delta_7d": signals_map.get(int(repo.id), {}).get(SignalType.STARS_DELTA_7D),
+            "stars_delta_30d": signals_map.get(int(repo.id), {}).get(SignalType.STARS_DELTA_30D),
+            "acceleration": signals_map.get(int(repo.id), {}).get(SignalType.ACCELERATION),
+            "forks_delta_7d": signals_map.get(int(repo.id), {}).get(SignalType.FORKS_DELTA_7D),
+            "issues_delta_7d": signals_map.get(int(repo.id), {}).get(SignalType.ISSUES_DELTA_7D),
+        }
+        for rank, repo in enumerate(repos, start=1)
+    ]
 
 
 TRENDS_CSV_COLUMNS = [
@@ -353,7 +306,7 @@ async def export_trends_json(
     db: Session = Depends(get_db),
 ):
     """匯出趨勢 repo 為 JSON。"""
-    repos = _query_trending_repos(db, sort_by, limit, language, min_stars)
+    repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     data = {
         "exported_at": utc_now().isoformat(),
         "sort_by": sort_by,
@@ -378,7 +331,7 @@ async def export_trends_csv(
     db: Session = Depends(get_db),
 ):
     """匯出趨勢 repo 為 CSV。"""
-    repos = _query_trending_repos(db, sort_by, limit, language, min_stars)
+    repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=TRENDS_CSV_COLUMNS, extrasaction="ignore")
     writer.writeheader()

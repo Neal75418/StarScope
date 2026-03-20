@@ -5,7 +5,7 @@
 import { memo } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../../components/TrendArrow";
-import { formatNumber, formatDelta } from "../../utils/format";
+import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import type { useI18n } from "../../i18n";
 import { useNavigation } from "../../contexts/NavigationContext";
@@ -98,9 +98,7 @@ export const TrendCard = memo(function TrendCard({
         </div>
         <div className="trend-card-metric">
           <span className="trend-card-metric-label">{t.trends.columns.velocity}</span>
-          <span className="trend-card-metric-value">
-            {repo.velocity !== null ? repo.velocity.toFixed(1) : "\u2014"}
-          </span>
+          <span className="trend-card-metric-value">{formatVelocity(repo.velocity)}</span>
         </div>
         <div className="trend-card-metric">
           <span className="trend-card-metric-label">{t.trends.columns.delta7d}</span>

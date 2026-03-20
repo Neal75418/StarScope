@@ -5,10 +5,12 @@
 import { memo } from "react";
 import { StarsChart } from "../../components/StarsChart";
 import { TrendArrow } from "../../components/TrendArrow";
-import { formatNumber, formatDelta } from "../../utils/format";
+import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
 import { useI18n } from "../../i18n";
 import { useNavigation } from "../../contexts/NavigationContext";
 import type { TrendingRepo } from "../../api/client";
+
+const TREND_TABLE_COLUMNS = 10;
 
 interface TrendExpandedRowProps {
   repo: TrendingRepo;
@@ -24,7 +26,7 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
 
   return (
     <tr className="trend-expanded-row" data-testid={`trend-expanded-${repo.id}`}>
-      <td colSpan={10}>
+      <td colSpan={TREND_TABLE_COLUMNS}>
         <div className="trend-expanded-panel">
           <div className="trend-expanded-header">
             <h3 className="trend-expanded-title">{repo.full_name}</h3>
@@ -58,9 +60,7 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.velocity}</span>
-              <span className="trend-metric-value">
-                {repo.velocity !== null ? repo.velocity.toFixed(1) : "\u2014"}
-              </span>
+              <span className="trend-metric-value">{formatVelocity(repo.velocity)}</span>
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.delta7d}</span>

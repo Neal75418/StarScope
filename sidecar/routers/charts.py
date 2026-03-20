@@ -4,26 +4,19 @@
 """
 
 from datetime import date, timedelta
-from enum import Enum
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 
+from constants import TimeRange
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
 from utils.time import utc_today
 
 router = APIRouter(prefix="/api/charts", tags=["charts"])
-
-
-class TimeRange(str, Enum):
-    """圖表的時間範圍選項。"""
-    WEEK = "7d"
-    MONTH = "30d"
-    QUARTER = "90d"
 
 
 class ChartDataPoint(BaseModel):

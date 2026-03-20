@@ -5,11 +5,65 @@ Centralizes common query patterns to avoid code duplication.
 
 from __future__ import annotations
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session, Query
+from sqlalchemy import desc, func
+from sqlalchemy.orm import Session, Query, aliased
 from sqlalchemy.sql.selectable import Subquery
 
-from db.models import Signal, RepoSnapshot
+from constants import SignalType
+from db.models import Signal, RepoSnapshot, Repo
+
+# 排序欄位 → SignalType 的映射（trends 與 export 共用）
+TREND_SORT_SIGNAL_MAP: dict[str, str] = {
+    "velocity": SignalType.VELOCITY,
+    "stars_delta_7d": SignalType.STARS_DELTA_7D,
+    "stars_delta_30d": SignalType.STARS_DELTA_30D,
+    "acceleration": SignalType.ACCELERATION,
+    "forks_delta_7d": SignalType.FORKS_DELTA_7D,
+    "issues_delta_7d": SignalType.ISSUES_DELTA_7D,
+}
+
+
+def query_trending_repos(
+    db: Session,
+    sort_by: str,
+    limit: int,
+    language: str | None,
+    min_stars: int | None,
+) -> list[Repo]:
+    """
+    查詢並回傳依指定訊號排序的趨勢 repo 列表。
+    供 trends 與 export 路由共用，避免重複的 JOIN / filter 邏輯。
+    """
+    sort_signal_type = TREND_SORT_SIGNAL_MAP.get(sort_by, SignalType.VELOCITY)
+    sort_signal = aliased(Signal)
+
+    query = (
+        db.query(Repo)
+        .outerjoin(
+            sort_signal,
+            (Repo.id == sort_signal.repo_id) &
+            (sort_signal.signal_type == sort_signal_type)
+        )
+    )
+
+    if language:
+        query = query.filter(func.lower(Repo.language) == language.lower())
+
+    if min_stars is not None:
+        query = query.filter(
+            db.query(RepoSnapshot.id)
+            .filter(
+                RepoSnapshot.repo_id == Repo.id,
+                RepoSnapshot.stars >= min_stars
+            ).exists()
+        )
+
+    return (
+        query
+        .order_by(desc(func.coalesce(sort_signal.value, 0)))
+        .limit(limit)
+        .all()
+    )
 
 
 def build_signal_map(
