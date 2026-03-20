@@ -4,7 +4,7 @@ Tests for services/alerts.py - Alert checking service.
 
 import pytest
 from constants import AlertOperator
-from db.models import AlertRule, TriggeredAlert, Signal
+from db.models import AlertRule, TriggeredAlert, Signal, Repo
 from services.alerts import (
     evaluate_condition,
     check_rule_for_repo,
@@ -111,7 +111,7 @@ class TestCreateTriggeredAlert:
 
 
 class TestGetReposForRule:
-    """Tests for _get_repos_for_rule function."""
+    """Tests for _get_repos_for_rule_from_map function."""
 
     def test_specific_repo(self, test_db, mock_repo):
         """Test getting specific repo for rule."""
@@ -126,7 +126,9 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = alerts_module._get_repos_for_rule(test_db, rule)
+        all_repos = test_db.query(Repo).all()
+        repo_map = {r.id: r for r in all_repos}
+        repos = alerts_module._get_repos_for_rule_from_map(rule, repo_map, all_repos)
         assert len(repos) == 1
         assert repos[0].id == mock_repo.id
 
@@ -143,7 +145,9 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = alerts_module._get_repos_for_rule(test_db, rule)
+        all_repos = test_db.query(Repo).all()
+        repo_map = {r.id: r for r in all_repos}
+        repos = alerts_module._get_repos_for_rule_from_map(rule, repo_map, all_repos)
         assert len(repos) == 3
 
     def test_nonexistent_repo(self, test_db):
@@ -159,7 +163,9 @@ class TestGetReposForRule:
         test_db.add(rule)
         test_db.commit()
 
-        repos = alerts_module._get_repos_for_rule(test_db, rule)
+        all_repos = test_db.query(Repo).all()
+        repo_map = {r.id: r for r in all_repos}
+        repos = alerts_module._get_repos_for_rule_from_map(rule, repo_map, all_repos)
         assert repos == []
 
 

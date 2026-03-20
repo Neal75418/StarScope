@@ -2,7 +2,7 @@
  * 應用程式 header，含導覽列、主題切換、語言切換與通知中心。
  */
 
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import {
   StarIcon,
   SearchIcon,
@@ -60,8 +60,8 @@ export function AppHeader({
   onLanguageToggle,
   t,
 }: AppHeaderProps) {
-  const navItems = buildNavItems(t, 16);
-  const mobileNavItems = buildNavItems(t, 20, true);
+  const navItems = useMemo(() => buildNavItems(t, 16), [t]);
+  const mobileNavItems = useMemo(() => buildNavItems(t, 20, true), [t]);
   const isDark = theme === "dark";
   const isEnglish = language === "en";
   const isOnline = useOnlineStatus();

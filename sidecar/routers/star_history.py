@@ -373,7 +373,7 @@ async def get_star_history(
 
     snapshots = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id
-    ).order_by(RepoSnapshot.snapshot_date.asc()).all()
+    ).order_by(RepoSnapshot.snapshot_date.asc()).limit(5000).all()
 
     # noinspection PyTypeChecker
     history = [

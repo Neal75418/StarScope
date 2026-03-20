@@ -58,18 +58,24 @@ def calculate_delta(
     repo_id: int,
     days: int,
     db: Session,
-    field: str = "stars"
+    field: str = "stars",
+    snap_by_date: dict | None = None,
 ) -> float | None:
     """
     計算指定天數的指標差值。
     field 可為 "stars"、"forks"、"open_issues"。
     資料不足時回傳 None。
+    snap_by_date: 預載的快照 dict（date → RepoSnapshot），避免重複 DB 查詢。
     """
     today = utc_today()
     past_date = today - timedelta(days=days)
 
-    current_snapshot = get_snapshot_for_date(repo_id, today, db)
-    past_snapshot = get_snapshot_for_date(repo_id, past_date, db)
+    if snap_by_date is not None:
+        current_snapshot = _find_snapshot(snap_by_date, today)
+        past_snapshot = _find_snapshot(snap_by_date, past_date)
+    else:
+        current_snapshot = get_snapshot_for_date(repo_id, today, db)
+        past_snapshot = get_snapshot_for_date(repo_id, past_date, db)
 
     if not current_snapshot or not past_snapshot:
         return None
@@ -81,15 +87,30 @@ def calculate_delta(
     return float(getattr(current_snapshot, field) - getattr(past_snapshot, field))
 
 
+def _find_snapshot(snap_by_date: dict, target_date: date) -> "RepoSnapshot | None":
+    """從預載的快照 dict 找到最接近 target_date 的快照（等於或更早）。"""
+    snap = snap_by_date.get(target_date)
+    if snap:
+        return snap
+    # 向前搜尋最接近的快照（最多 7 天）
+    for offset in range(1, 8):
+        earlier = target_date - timedelta(days=offset)
+        snap = snap_by_date.get(earlier)
+        if snap:
+            return snap
+    return None
+
+
 def calculate_velocity(
     repo_id: int,
     db: Session,
-    days: int = 7
+    days: int = 7,
+    snap_by_date: dict | None = None,
 ) -> float | None:
     """
     計算指定期間的 velocity（每日 star 數）。
     """
-    delta = calculate_delta(repo_id, days, db)
+    delta = calculate_delta(repo_id, days, db, snap_by_date=snap_by_date)
     if delta is None:
         return None
 
@@ -98,7 +119,8 @@ def calculate_velocity(
 
 def calculate_acceleration(
     repo_id: int,
-    db: Session
+    db: Session,
+    snap_by_date: dict | None = None,
 ) -> float | None:
     """
     計算 acceleration（velocity 的變化率）。
@@ -108,12 +130,14 @@ def calculate_acceleration(
     one_week_ago = today - timedelta(days=7)
     two_weeks_ago = today - timedelta(days=14)
 
-    # 本週的 velocity
-    current_snapshot = get_snapshot_for_date(repo_id, today, db)
-    week_ago_snapshot = get_snapshot_for_date(repo_id, one_week_ago, db)
-
-    # 上週的 velocity
-    two_week_ago_snapshot = get_snapshot_for_date(repo_id, two_weeks_ago, db)
+    if snap_by_date is not None:
+        current_snapshot = _find_snapshot(snap_by_date, today)
+        week_ago_snapshot = _find_snapshot(snap_by_date, one_week_ago)
+        two_week_ago_snapshot = _find_snapshot(snap_by_date, two_weeks_ago)
+    else:
+        current_snapshot = get_snapshot_for_date(repo_id, today, db)
+        week_ago_snapshot = get_snapshot_for_date(repo_id, one_week_ago, db)
+        two_week_ago_snapshot = get_snapshot_for_date(repo_id, two_weeks_ago, db)
 
     if not all([current_snapshot, week_ago_snapshot, two_week_ago_snapshot]):
         return None
@@ -172,21 +196,34 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
     """
     計算 repo 的所有訊號並儲存至資料庫。
     回傳訊號值的字典。
+    預載所有需要的快照（1 次查詢取代原本 15+ 次）。
     """
     signals = {}
 
-    # 計算各項訊號
-    delta_7d = calculate_delta(repo_id, 7, db)
-    delta_30d = calculate_delta(repo_id, 30, db)
-    velocity = calculate_velocity(repo_id, db)
-    acceleration = calculate_acceleration(repo_id, db)
+    # 預載此 repo 近 31 天的所有快照（一次查詢）
+    today = utc_today()
+    snapshots = (
+        db.query(RepoSnapshot)
+        .filter(
+            RepoSnapshot.repo_id == repo_id,
+            RepoSnapshot.snapshot_date >= today - timedelta(days=31),
+        )
+        .all()
+    )
+    snap_by_date = {s.snapshot_date: s for s in snapshots}
+
+    # 計算各項訊號（使用預載快照，無額外 DB 查詢）
+    delta_7d = calculate_delta(repo_id, 7, db, snap_by_date=snap_by_date)
+    delta_30d = calculate_delta(repo_id, 30, db, snap_by_date=snap_by_date)
+    velocity = calculate_velocity(repo_id, db, snap_by_date=snap_by_date)
+    acceleration = calculate_acceleration(repo_id, db, snap_by_date=snap_by_date)
     trend = calculate_trend(velocity, acceleration)
 
     # Fork 與 Issue 差值
-    forks_delta_7d = calculate_delta(repo_id, 7, db, "forks")
-    forks_delta_30d = calculate_delta(repo_id, 30, db, "forks")
-    issues_delta_7d = calculate_delta(repo_id, 7, db, "open_issues")
-    issues_delta_30d = calculate_delta(repo_id, 30, db, "open_issues")
+    forks_delta_7d = calculate_delta(repo_id, 7, db, "forks", snap_by_date=snap_by_date)
+    forks_delta_30d = calculate_delta(repo_id, 30, db, "forks", snap_by_date=snap_by_date)
+    issues_delta_7d = calculate_delta(repo_id, 7, db, "open_issues", snap_by_date=snap_by_date)
+    issues_delta_30d = calculate_delta(repo_id, 30, db, "open_issues", snap_by_date=snap_by_date)
 
     # 儲存訊號
     signal_values = [

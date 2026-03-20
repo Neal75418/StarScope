@@ -42,7 +42,7 @@ export function useRepoCardData(repoId: number, preloaded?: PreloadedData): UseR
       return response.badges;
     },
     initialData: preloaded?.badges,
-    enabled: preloaded?.badges === undefined || isRefreshingContext === false,
+    enabled: preloaded?.badges === undefined || isRefreshingContext,
   });
 
   const signalsQuery = useQuery<EarlySignal[], Error>({

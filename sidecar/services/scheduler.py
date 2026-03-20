@@ -117,21 +117,20 @@ def _build_need_fetch_query(
         .subquery()
     )
 
-    # 計算需抓取的 repo 數量
+    # 建構需抓取的 repo 查詢（跳過近期已抓取的）
     need_fetch_query = (
         db.query(Repo)
         .filter(Repo.id.notin_(db.query(recently_fetched_ids.c.repo_id)))
     )
 
     total_count = db.query(func.count(Repo.id)).scalar() or 0
-    need_fetch_count = need_fetch_query.count()
-    skipped_count = total_count - need_fetch_count
 
     if total_count == 0:
         log.info(f"[排程] [{job_id}] 監控清單無 repo，跳過抓取")
         return None
 
-    return need_fetch_query, total_count, skipped_count
+    # skipped_count 在 job 完成後從結果反推，避免額外的 COUNT 查詢
+    return need_fetch_query, total_count, 0
 
 
 async def _fetch_and_update_single_repo(
@@ -213,21 +212,20 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
             result = _build_need_fetch_query(db, skip_recent_minutes, log, job_id)
             if result is None:
                 return
-            need_fetch_query, total_count, skipped_count = result
+            need_fetch_query, total_count, _ = result
 
             success_count = 0
             error_count = 0
 
-            if skipped_count > 0:
-                log.debug(f"[排程] [{job_id}] 跳過 {skipped_count} 個近期已抓取的 repo")
-
             # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
-            # 避免一次性載入所有 repo 到記憶體
             for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
                 if await _fetch_and_update_single_repo(repo, db, log, job_id):
                     success_count += 1
                 else:
                     error_count += 1
+
+            # skipped_count 從結果反推，避免額外 COUNT 查詢
+            skipped_count = total_count - success_count - error_count
 
             log.info(
                 f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"

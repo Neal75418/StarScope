@@ -2,7 +2,7 @@
  * 通知中心：整合儲存、輪詢與操作邏輯。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
@@ -53,7 +53,7 @@ export function useNotifications() {
     { markIdAsRead, markIdsAsRead }
   );
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   return {
     notifications,

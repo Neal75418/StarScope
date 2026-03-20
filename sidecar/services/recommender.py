@@ -110,6 +110,37 @@ def _upsert_similar_repo(
         db.add(similar)
 
 
+def _upsert_similar_repo_cached(
+    db: Session,
+    repo_id: int,
+    similar_repo_id: int,
+    score: float,
+    shared: list[str],
+    same_lang: bool,
+    existing_map: dict[int, "SimilarRepo"],
+) -> None:
+    """使用預載的 existing_map 新增或更新相似 repo 紀錄（無額外 DB 查詢）。"""
+    now = utc_now()
+    existing = existing_map.get(similar_repo_id)
+
+    if existing:
+        existing.similarity_score = score
+        existing.shared_topics = json.dumps(shared) if shared else None
+        existing.same_language = same_lang
+        existing.calculated_at = now
+    else:
+        similar = SimilarRepo(
+            repo_id=repo_id,
+            similar_repo_id=similar_repo_id,
+            similarity_score=score,
+            shared_topics=json.dumps(shared) if shared else None,
+            same_language=same_lang,
+            calculated_at=now,
+        )
+        db.add(similar)
+        existing_map[similar_repo_id] = similar
+
+
 def _parse_shared_topics(json_str: str | None) -> list[str]:
     """解析共同 topics 的 JSON 字串。"""
     if not json_str:
@@ -326,6 +357,12 @@ class RecommenderService:
         stars_map = build_stars_map(db, all_ids)
         repo_stars = stars_map.get(repo_id)
 
+        # 預載此 repo 的所有現有 SimilarRepo（1 次查詢取代 N 次）
+        existing_records = db.query(SimilarRepo).filter(
+            SimilarRepo.repo_id == repo_id
+        ).all()
+        existing_map = {int(r.similar_repo_id): r for r in existing_records}
+
         count = 0
         for other in other_repos:
             # noinspection PyTypeChecker
@@ -338,7 +375,9 @@ class RecommenderService:
             )
 
             if score >= MIN_SIMILARITY_THRESHOLD:
-                _upsert_similar_repo(db, repo_id, other_id, score, shared, same_lang)
+                _upsert_similar_repo_cached(
+                    db, repo_id, other_id, score, shared, same_lang, existing_map
+                )
                 count += 1
 
         db.commit()

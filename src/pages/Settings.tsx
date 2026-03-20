@@ -19,7 +19,7 @@ import {
   KeyboardShortcutsSection,
 } from "../components/settings";
 import { useAlertRules } from "../hooks/useAlertRules";
-import { useNotifications } from "../hooks/useNotifications";
+import { useOSNotification } from "../hooks/useOSNotification";
 import { useI18n } from "../i18n";
 
 export function Settings() {
@@ -27,7 +27,7 @@ export function Settings() {
   const toast = useToast();
   const [showAddAlert, setShowAddAlert] = useState(false);
   const alerts = useAlertRules(toast);
-  const { osNotification } = useNotifications();
+  const osNotification = useOSNotification();
 
   // 警示表單狀態
   const isAlertFormVisible = showAddAlert || alerts.editingRule !== null;
@@ -161,7 +161,7 @@ export function Settings() {
                 ) : (
                   <button
                     className="btn btn-sm"
-                    onClick={() => void osNotification.requestPermission()}
+                    onClick={() => void osNotification.requestNotificationPermission()}
                   >
                     {t.settings.osNotification.enable}
                   </button>

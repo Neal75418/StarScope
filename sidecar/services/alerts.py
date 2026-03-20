@@ -2,6 +2,7 @@
 
 import logging
 import operator as op
+from datetime import timedelta
 from typing import Callable
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -134,6 +135,7 @@ def check_rule_for_repo(
 def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
     """
     檢查所有啟用的警報規則並觸發匹配者。
+    使用批次預載避免 N+1 查詢。
 
     Args:
         db: 資料庫 session
@@ -151,8 +153,40 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
         logger.debug("[警報] 無啟用的警報規則")
         return triggered_alerts
 
+    # 批次預載所有 repo（全域規則需要）
+    # noinspection PyTypeChecker
+    all_repos: list[Repo] = db.query(Repo).all()
+    repo_map: dict[int, Repo] = {r.id: r for r in all_repos}
+
+    # 批次預載所有相關 Signal（一次查詢取代 R×M 次）
+    signal_types = {r.signal_type for r in rules}
+    all_signals = db.query(Signal).filter(Signal.signal_type.in_(signal_types)).all()
+    # signal_lookup: {(repo_id, signal_type): Signal}
+    signal_lookup: dict[tuple[int, str], Signal] = {}
+    for s in all_signals:
+        key = (s.repo_id, s.signal_type)
+        existing = signal_lookup.get(key)
+        if existing is None or s.calculated_at > existing.calculated_at:
+            signal_lookup[key] = s
+
+    # 批次預載冷卻狀態（一次查詢取代 R×M 次）
+    cutoff = utc_now().replace(tzinfo=None) - timedelta(seconds=ALERT_COOLDOWN_SECONDS)
+    recent_triggers = db.query(
+        TriggeredAlert.rule_id, TriggeredAlert.repo_id
+    ).filter(TriggeredAlert.triggered_at >= cutoff).all()
+    in_cooldown: set[tuple[int, int]] = {(r.rule_id, r.repo_id) for r in recent_triggers}
+
     for rule in rules:
-        triggered_alerts.extend(_check_rule_alerts(db, rule))
+        try:
+            repos = _get_repos_for_rule_from_map(rule, repo_map, all_repos)
+            for repo in repos:
+                triggered = _check_rule_batch(
+                    db, rule, repo, signal_lookup, in_cooldown
+                )
+                if triggered:
+                    triggered_alerts.append(triggered)
+        except SQLAlchemyError as e:
+            logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
 
     if triggered_alerts:
         db.commit()
@@ -160,35 +194,44 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
     return triggered_alerts
 
 
-def _check_rule_alerts(db: Session, rule: "AlertRule") -> list["TriggeredAlert"]:
-    """針對適用的 repo 檢查單一規則。"""
-    alerts: list["TriggeredAlert"] = []
-
-    try:
-        repos = _get_repos_for_rule(db, rule)
-        for repo in repos:
-            triggered = check_rule_for_repo(db, rule, repo)
-            if triggered:
-                alerts.append(triggered)
-    except SQLAlchemyError as e:
-        logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
-
-    return alerts
-
-
-def _get_repos_for_rule(db: Session, rule: "AlertRule") -> list["Repo"]:
-    """取得規則適用的 repo。"""
+def _get_repos_for_rule_from_map(
+    rule: "AlertRule",
+    repo_map: dict[int, "Repo"],
+    all_repos: list["Repo"],
+) -> list["Repo"]:
+    """從預載的 repo map 取得規則適用的 repo（無 DB 查詢）。"""
     if rule.repo_id:
-        # 針對特定 repo 的規則
-        repo = db.query(Repo).filter(Repo.id == rule.repo_id).first()
+        repo = repo_map.get(rule.repo_id)
         return [repo] if repo else []
-    # 針對所有 repo 的規則
-    # noinspection PyTypeChecker
-    all_repos: list[Repo] = db.query(Repo).all()
     return all_repos
 
 
-def get_unacknowledged_alerts(db: Session) -> list[TriggeredAlert]:
+def _check_rule_batch(
+    db: Session,
+    rule: "AlertRule",
+    repo: "Repo",
+    signal_lookup: dict[tuple[int, str], "Signal"],
+    in_cooldown: set[tuple[int, int]],
+) -> "TriggeredAlert | None":
+    """使用預載資料檢查單一規則-repo 組合（無額外 DB 查詢）。"""
+    signal = signal_lookup.get((repo.id, rule.signal_type))
+    if signal is None:
+        return None
+
+    signal_value = float(signal.value)
+    threshold = float(rule.threshold)
+
+    if not evaluate_condition(signal_value, rule.operator, threshold):
+        return None
+
+    if (rule.id, repo.id) in in_cooldown:
+        logger.debug(f"[警報] {repo.full_name} 近期已觸發過警報")
+        return None
+
+    return _create_triggered_alert(db, rule, repo, signal_value)
+
+
+def get_unacknowledged_alerts(db: Session, limit: int = 500) -> list[TriggeredAlert]:
     """
     取得所有未確認（未檢視）的警報。
 
@@ -203,6 +246,7 @@ def get_unacknowledged_alerts(db: Session) -> list[TriggeredAlert]:
         db.query(TriggeredAlert)
         .filter(TriggeredAlert.acknowledged.is_(False))
         .order_by(TriggeredAlert.triggered_at.desc())
+        .limit(limit)
         .all()
     )
     return alerts
