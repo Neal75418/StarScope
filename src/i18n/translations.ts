@@ -248,6 +248,7 @@ export const translations = {
         addToCategory: "Add to Category",
         refresh: "Refresh",
         remove: "Remove",
+        confirmRemove: "Remove {count} selected repos? This cannot be undone.",
         processing: "Processing...",
         done: "Batch operation completed",
       },
@@ -628,6 +629,7 @@ export const translations = {
     // 通知
     notifications: {
       title: "Notifications",
+      osTitle: "StarScope Alert",
       empty: "No notifications",
       unread: "unread",
       markAllRead: "Mark all as read",
@@ -1117,6 +1119,7 @@ export const translations = {
         addToCategory: "加入分類",
         refresh: "刷新",
         remove: "移除",
+        confirmRemove: "確定要移除 {count} 個已選的 repo 嗎？此操作無法復原。",
         processing: "處理中...",
         done: "批次操作完成",
       },
@@ -1493,6 +1496,7 @@ export const translations = {
     // 通知
     notifications: {
       title: "通知",
+      osTitle: "StarScope 警示",
       empty: "沒有通知",
       unread: "未讀",
       markAllRead: "全部標為已讀",

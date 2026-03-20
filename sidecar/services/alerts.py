@@ -266,7 +266,7 @@ def acknowledge_alert(db: Session, alert_id: int) -> bool:
     alert = db.query(TriggeredAlert).filter(TriggeredAlert.id == alert_id).first()
     if alert:
         alert.acknowledged = True
-        alert.acknowledged_at = utc_now()
+        alert.acknowledged_at = utc_now().replace(tzinfo=None)
         db.commit()
         return True
     return False
@@ -287,7 +287,7 @@ def acknowledge_all_alerts(db: Session) -> int:
         .filter(TriggeredAlert.acknowledged.is_(False))
         .update({
             TriggeredAlert.acknowledged: True,
-            TriggeredAlert.acknowledged_at: utc_now(),
+            TriggeredAlert.acknowledged_at: utc_now().replace(tzinfo=None),
         })
     )
     db.commit()

@@ -51,12 +51,26 @@ describe("BatchActionBar", () => {
     expect(defaultProps.onBatchRefresh).toHaveBeenCalled();
   });
 
-  it("calls onBatchRemove and onDone when remove clicked", async () => {
+  it("calls onBatchRemove and onDone when remove clicked and confirmed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<BatchActionBar {...defaultProps} />);
 
     await user.click(screen.getByTestId("batch-remove"));
+    expect(window.confirm).toHaveBeenCalled();
     expect(defaultProps.onBatchRemove).toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+
+  it("does not call onBatchRemove when remove cancelled", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<BatchActionBar {...defaultProps} />);
+
+    await user.click(screen.getByTestId("batch-remove"));
+    expect(window.confirm).toHaveBeenCalled();
+    expect(defaultProps.onBatchRemove).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
   });
 
   it("shows category picker when add-to-category clicked", async () => {

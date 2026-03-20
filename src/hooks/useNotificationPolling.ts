@@ -37,6 +37,8 @@ export function useNotificationPolling(
   setNotificationsRef.current = setNotifications;
   const osNotificationSenderRef = useRef(osNotificationSender);
   osNotificationSenderRef.current = osNotificationSender;
+  const tRef = useRef(t);
+  tRef.current = t;
 
   const query = useQuery<Notification[], Error>({
     queryKey: queryKeys.notifications.polling(),
@@ -75,7 +77,7 @@ export function useNotificationPolling(
       for (const notification of notificationsToSend) {
         void sender
           .sendOSNotification({
-            title: "StarScope 警示",
+            title: tRef.current.notifications.osTitle,
             body: notification.message,
           })
           .catch((err: unknown) => {

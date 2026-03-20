@@ -94,7 +94,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"[GitHub 驗證] Device flow 啟動失敗: {response.text}", exc_info=True)
+                logger.error(f"[GitHub 驗證] Device flow 啟動失敗: {response.text}", )
                 raise GitHubAuthError(
                     f"Failed to initiate device flow: {response.status_code}"
                 )
@@ -124,7 +124,7 @@ class GitHubAuthService:
         logger.info(f"[GitHub 驗證] 正在輪詢 token，device_code: {device_code[:8]}...")
 
         if not self.client_id:
-            logger.error("[GitHub 驗證] 未設定 Client ID", exc_info=True)
+            logger.error("[GitHub 驗證] 未設定 Client ID", )
             return {"status": "error", "error": "Client ID not configured"}
 
         async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
@@ -139,7 +139,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"[GitHub 驗證] 輪詢失敗: HTTP {response.status_code}", exc_info=True)
+                logger.error(f"[GitHub 驗證] 輪詢失敗: HTTP {response.status_code}", )
                 return {"status": "error", "error": f"HTTP {response.status_code}"}
 
             data = response.json()
@@ -162,7 +162,7 @@ class GitHubAuthService:
                 logger.warning("[GitHub 驗證] 使用者拒絕授權")
                 return {"status": "error", "error": "User denied access"}
             elif error:
-                logger.error(f"[GitHub 驗證] 未知錯誤: {error}", exc_info=True)
+                logger.error(f"[GitHub 驗證] 未知錯誤: {error}", )
                 return {"status": "error", "error": error}
 
             # 成功！已取得 access token

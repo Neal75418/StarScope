@@ -267,7 +267,8 @@ class AnomalyDetector:
                 RepoSnapshot.repo_id == repo.id
             ).order_by(RepoSnapshot.snapshot_date.desc()).limit(30).all()
 
-        if len(snapshots) < 2:
+        if len(snapshots) < 3:
+            # 至少需要 3 筆快照才能計算歷史平均；2 筆只有 1 個 delta，無法比較
             return None
 
         # 計算每日差值
@@ -322,10 +323,10 @@ class AnomalyDetector:
         if delta_7d_val is None or delta_30d_val is None:
             return None
 
-        current_weekly_velocity = delta_7d_val / 7 if delta_7d_val else 0
+        current_weekly_velocity = delta_7d_val / 7
 
-        # 從 30 天 delta 估算上週 velocity
-        prev_weeks_velocity = (delta_30d_val - delta_7d_val) / 23 if delta_30d_val else 0
+        # 從 30 天 delta 估算上週 velocity（delta_7d_val/delta_30d_val 已由上方 guard 排除 None）
+        prev_weeks_velocity = (delta_30d_val - delta_7d_val) / 23
 
         # 檢查 breakout 條件
         is_breakout = (
@@ -602,10 +603,15 @@ class AnomalyDetector:
 
 def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int:
     """將偵測到的 signals 寫入 DB。"""
-    for s in signals:
-        db.add(s)
-    db.commit()
-    return len(signals)
+    try:
+        for s in signals:
+            db.add(s)
+        db.commit()
+        return len(signals)
+    except SQLAlchemyError as e:
+        db.rollback()
+        logger.error(f"[異常偵測] 儲存 signals 失敗: {e}", exc_info=True)
+        return 0
 
 
 # 模組層級 singleton

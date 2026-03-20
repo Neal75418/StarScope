@@ -117,11 +117,12 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     try:
         hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
         hn_count = _store_hn_signals(repo.id, hn_stories, db) if hn_stories else 0
+        db.commit()
     except SQLAlchemyError as e:
+        db.rollback()
         logger.warning(f"[上下文] {repo.full_name} HN 訊號儲存失敗: {e}")
         hn_count = 0
 
-    db.commit()
     return hn_count
 
 

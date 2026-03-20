@@ -2,9 +2,11 @@
  * 批次操作列：固定底部，顯示批次加入分類、刷新、移除操作。
  */
 
-import { useState, useCallback, useMemo, memo } from "react";
+import { useState, useCallback, useMemo, useRef, memo } from "react";
 import { useI18n, interpolate } from "../../i18n";
 import { useCategoryTree } from "../../hooks/useCategoryTree";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 interface BatchActionBarProps {
   selectedCount: number;
@@ -26,6 +28,10 @@ export const BatchActionBar = memo(function BatchActionBar({
   const { t } = useI18n();
   const { tree } = useCategoryTree();
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const closePicker = useCallback(() => setShowCategoryPicker(false), []);
+  useClickOutside(pickerRef, closePicker, showCategoryPicker);
+  useEscapeKey(closePicker, showCategoryPicker);
 
   const handleAddToCategory = useCallback(
     async (categoryId: number) => {
@@ -42,9 +48,13 @@ export const BatchActionBar = memo(function BatchActionBar({
   }, [onBatchRefresh, onDone]);
 
   const handleRemove = useCallback(async () => {
+    const confirmed = window.confirm(
+      interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })
+    );
+    if (!confirmed) return;
     await onBatchRemove();
     onDone();
-  }, [onBatchRemove, onDone]);
+  }, [onBatchRemove, onDone, t, selectedCount]);
 
   // 攤平所有分類（包含子分類），memoize 避免每次 render 重建
   const flatCategories = useMemo(() => {
@@ -68,7 +78,7 @@ export const BatchActionBar = memo(function BatchActionBar({
       </span>
 
       <div className="batch-actions">
-        <div className="batch-category-wrapper">
+        <div className="batch-category-wrapper" ref={pickerRef}>
           <button
             className="btn btn-sm"
             onClick={() => setShowCategoryPicker((prev) => !prev)}

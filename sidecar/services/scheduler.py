@@ -182,7 +182,8 @@ def _cleanup_snapshots_job() -> None:
             from services.settings import get_setting
             value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
             retention_days = int(value) if value else 90
-        except Exception:
+        except Exception as e:
+            logger.warning(f"[排程] 讀取快照保留天數失敗（使用預設值 90 天）: {e}")
             retention_days = 90
     cleanup_old_snapshots(retention_days)
 
