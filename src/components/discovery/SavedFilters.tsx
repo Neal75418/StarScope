@@ -134,8 +134,8 @@ export function SavedFilters({
   }, []);
 
   const handleSave = useCallback(() => {
-    if (hasActiveFilters) {
-      saveFilter(newName, currentQuery, currentPeriod, currentFilters);
+    if (hasActiveFilters && newName.trim()) {
+      saveFilter(newName.trim(), currentQuery, currentPeriod, currentFilters);
       setIsSaving(false);
       setNewName("");
     }
@@ -205,6 +205,7 @@ export function SavedFilters({
                     <button
                       className="btn btn-small btn-primary"
                       onClick={handleSave}
+                      disabled={!newName.trim()}
                       aria-label={t.common.save}
                     >
                       <CheckIcon size={14} />

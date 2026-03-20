@@ -88,6 +88,7 @@ export function ComparePresetsDropdown({
               <button
                 className="btn btn-sm"
                 onClick={handleSave}
+                disabled={!saveName.trim()}
                 data-testid="compare-presets-save-btn"
               >
                 {t.compare.presets.saveCurrent}

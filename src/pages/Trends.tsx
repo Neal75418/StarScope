@@ -459,7 +459,11 @@ export function Trends() {
       {addError && (
         <div className="error-banner" role="alert">
           {addError}
-          <button className="btn btn-sm" onClick={() => setAddError(null)}>
+          <button
+            className="btn btn-sm"
+            onClick={() => setAddError(null)}
+            aria-label={t.common.close}
+          >
             &times;
           </button>
         </div>

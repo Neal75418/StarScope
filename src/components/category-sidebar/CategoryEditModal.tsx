@@ -64,8 +64,9 @@ export function CategoryEditModal({
         <form onSubmit={handleSubmit}>
           <div className="modal-content">
             <div className="form-group">
-              <label>{t.categories.form.name}</label>
+              <label htmlFor="category-edit-name">{t.categories.form.name}</label>
               <input
+                id="category-edit-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -75,8 +76,9 @@ export function CategoryEditModal({
               />
             </div>
             <div className="form-group">
-              <label>{t.categories.form.description}</label>
+              <label htmlFor="category-edit-desc">{t.categories.form.description}</label>
               <input
+                id="category-edit-desc"
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -85,8 +87,9 @@ export function CategoryEditModal({
             </div>
             <div className="form-row">
               <div className="form-group">
-                <label>{t.categories.form.icon}</label>
+                <label htmlFor="category-edit-icon">{t.categories.form.icon}</label>
                 <input
+                  id="category-edit-icon"
                   type="text"
                   value={icon}
                   onChange={(e) => setIcon(e.target.value)}
@@ -95,8 +98,9 @@ export function CategoryEditModal({
                 />
               </div>
               <div className="form-group">
-                <label>{t.categories.form.color}</label>
+                <label htmlFor="category-edit-color">{t.categories.form.color}</label>
                 <input
+                  id="category-edit-color"
                   type="color"
                   value={color || "#000000"}
                   onChange={(e) => setColor(e.target.value)}
@@ -108,7 +112,7 @@ export function CategoryEditModal({
             <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
               {isSubmitting ? t.categories.saving : t.categories.save}
             </button>
-            <button type="button" className="btn" onClick={onClose}>
+            <button type="button" className="btn" onClick={onClose} disabled={isSubmitting}>
               {t.common.cancel}
             </button>
           </div>

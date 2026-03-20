@@ -69,6 +69,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
             className={styles.selectionCheckbox}
             checked={isSelected}
             onChange={() => onToggleSelection?.(repo.id)}
+            aria-label={`Select ${repo.full_name}`}
           />
         )}
         {repo.owner_avatar_url && (

@@ -108,6 +108,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
           className="btn btn-secondary"
           disabled={isRefreshing}
           title={t.githubConnection.refresh}
+          aria-label={t.githubConnection.refresh}
         >
           {isRefreshing ? "⟳" : "↻"}
         </button>
