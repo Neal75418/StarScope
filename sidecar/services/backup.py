@@ -7,7 +7,7 @@
 - 備份壓縮
 """
 
-import shutil
+import sqlite3
 import logging
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -56,9 +56,17 @@ class BackupService:
             backup_filename = f"{self.db_path.stem}_{timestamp}.db"
             backup_path = self.backup_dir / backup_filename
 
-            # 複製資料庫檔案
+            # 使用 SQLite Online Backup API，安全處理 WAL 模式
             logger.info(f"Creating database backup: {backup_path}")
-            shutil.copy2(self.db_path, backup_path)
+            src = sqlite3.connect(str(self.db_path))
+            try:
+                dst = sqlite3.connect(str(backup_path))
+                try:
+                    src.backup(dst)
+                finally:
+                    dst.close()
+            finally:
+                src.close()
 
             # 驗證備份檔案
             if not backup_path.exists() or backup_path.stat().st_size == 0:

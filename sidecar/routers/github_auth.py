@@ -97,17 +97,20 @@ async def poll_authorization(request: PollRequestModel) -> dict:
     - "expired": Device code 已過期，需重新啟動流程
     - "error": 發生錯誤，檢查 error 欄位
     """
-    auth_service = get_github_auth_service()
-    result = await auth_service.poll_for_token(request.device_code)
+    try:
+        auth_service = get_github_auth_service()
+        result = await auth_service.poll_for_token(request.device_code)
 
-    poll_data = PollResponseModel(
-        status=result["status"],
-        username=result.get("username"),
-        error=result.get("error"),
-        slow_down=result.get("slow_down"),
-        interval=result.get("interval"),
-    )
-    return success_response(data=poll_data)
+        poll_data = PollResponseModel(
+            status=result["status"],
+            username=result.get("username"),
+            error=result.get("error"),
+            slow_down=result.get("slow_down"),
+            interval=result.get("interval"),
+        )
+        return success_response(data=poll_data)
+    except GitHubAuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/status", response_model=ApiResponse[ConnectionStatusModel])

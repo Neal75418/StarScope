@@ -3,7 +3,7 @@
  * 使用 React Query 的 refetchInterval 管理輪詢，visibility 不可見時暫停。
  */
 
-import { useCallback, useRef, Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useRef, Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTriggeredAlerts } from "../api/client";
 import {
@@ -59,11 +59,10 @@ export function useNotificationPolling(
     refetchOnWindowFocus: true,
   });
 
-  // 當 query 資料更新時，處理合併與 OS 通知
-  const prevDataRef = useRef<Notification[] | undefined>(undefined);
-  if (query.data && query.data !== prevDataRef.current) {
+  // 當 query 資料更新時，處理合併與 OS 通知（useEffect 避免 render 階段副作用）
+  useEffect(() => {
+    if (!query.data) return;
     const newNotifications = query.data;
-    prevDataRef.current = query.data;
 
     // 發送 OS 通知（對比新增的）
     const sender = osNotificationSenderRef.current;
@@ -97,7 +96,7 @@ export function useNotificationPolling(
       notificationsRef.current = updated;
       return updated;
     });
-  }
+  }, [query.data]);
 
   const refresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.polling() });

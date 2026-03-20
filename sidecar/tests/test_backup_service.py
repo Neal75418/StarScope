@@ -1,5 +1,6 @@
 """Tests for services/backup.py — BackupService & backup_database."""
 
+import sqlite3
 import time
 from pathlib import Path
 
@@ -10,9 +11,13 @@ from services.backup import BackupService, backup_database
 
 @pytest.fixture
 def temp_db(tmp_path):
-    """建立一個臨時 DB 檔案用於測試。"""
+    """建立一個真實 SQLite DB 用於測試（sqlite3.backup() 需要有效的 SQLite 檔案）。"""
     db_file = tmp_path / "test.db"
-    db_file.write_text("fake-database-content")
+    conn = sqlite3.connect(str(db_file))
+    conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, value TEXT)")
+    conn.execute("INSERT INTO test VALUES (1, 'hello')")
+    conn.commit()
+    conn.close()
     return db_file
 
 
@@ -66,10 +71,13 @@ class TestCreateBackup:
         assert result.name.endswith(".db")
 
     def test_backup_content_matches(self, service, temp_db):
-        """備份內容應與原始 DB 一致。"""
+        """備份內容應與原始 DB 一致（透過 sqlite3 查詢驗證）。"""
         result = service.create_backup()
 
-        assert result.read_text() == temp_db.read_text()
+        conn = sqlite3.connect(str(result))
+        rows = conn.execute("SELECT id, value FROM test").fetchall()
+        conn.close()
+        assert rows == [(1, "hello")]
 
     def test_multiple_backups_unique_names(self, service):
         """多次備份應產生不同檔案名稱。"""
