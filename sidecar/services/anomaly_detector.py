@@ -397,6 +397,31 @@ class AnomalyDetector:
         )
 
     @staticmethod
+    def _build_viral_hn_signal(
+        repo: "Repo",
+        db: Session,
+        hn_signal: "ContextSignal",
+        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
+    ) -> "EarlySignal":
+        """從預載的 HN 訊號建立 EarlySignal（無 DB 查詢）。"""
+        # noinspection PyTypeChecker
+        severity = _determine_severity(
+            hn_signal.score, VIRAL_HN_SEVERITY_HIGH, VIRAL_HN_SEVERITY_MEDIUM
+        )
+        repo_id: int = repo.id
+        snapshot = get_snapshot_for_repo(repo_id, db, snapshot_map)
+        return EarlySignal(
+            repo_id=repo.id,
+            signal_type=EarlySignalType.VIRAL_HN,
+            severity=severity,
+            description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
+            # noinspection PyTypeChecker
+            star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
+            detected_at=utc_now(),
+            expires_at=utc_now() + timedelta(days=3),
+        )
+
+    @staticmethod
     def detect_all_for_repo(
         repo: "Repo",
         db: Session,
@@ -405,6 +430,7 @@ class AnomalyDetector:
         velocity_values: list[float] | None = None,
         active_signals: set[tuple[int, str]] | None = None,
         recent_snapshots_map: dict[int, list["RepoSnapshot"]] | None = None,
+        hn_signal_map: dict[int, "ContextSignal"] | None = None,
     ) -> list["EarlySignal"]:
         """
         對單一 repo 執行所有偵測演算法。
@@ -446,19 +472,34 @@ class AnomalyDetector:
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} sudden_spike 錯誤: {e}", exc_info=True)
 
-        # 其餘偵測器使用單筆 snapshot_map
-        other_detectors = [
-            AnomalyDetector.detect_breakout,
-            AnomalyDetector.detect_viral_hn,
-        ]
+        # detect_breakout 使用單筆 snapshot_map
+        try:
+            signal = AnomalyDetector.detect_breakout(
+                repo, db, snapshot_map=snapshot_map, signal_map=signal_map
+            )
+            if signal and not _is_active(signal.signal_type):
+                signals.append(signal)
+        except SQLAlchemyError as e:
+            logger.error(f"[異常偵測] {repo.full_name} breakout 錯誤: {e}", exc_info=True)
 
-        for detector in other_detectors:
-            try:
-                signal = detector(repo, db, snapshot_map=snapshot_map, signal_map=signal_map)
+        # detect_viral_hn：優先使用預載的 HN 訊號，避免 N+1
+        try:
+            if hn_signal_map is not None:
+                hn_signal = hn_signal_map.get(repo.id)
+                if hn_signal:
+                    signal = AnomalyDetector._build_viral_hn_signal(
+                        repo, db, hn_signal, snapshot_map
+                    )
+                    if signal and not _is_active(signal.signal_type):
+                        signals.append(signal)
+            else:
+                signal = AnomalyDetector.detect_viral_hn(
+                    repo, db, snapshot_map=snapshot_map, signal_map=signal_map
+                )
                 if signal and not _is_active(signal.signal_type):
                     signals.append(signal)
-            except SQLAlchemyError as e:
-                logger.error(f"[異常偵測] {repo.full_name} 偵測器錯誤: {e}", exc_info=True)
+        except SQLAlchemyError as e:
+            logger.error(f"[異常偵測] {repo.full_name} viral_hn 錯誤: {e}", exc_info=True)
 
         return signals
 
@@ -525,6 +566,19 @@ class AnomalyDetector:
         # 預載所有 active early signals，避免 detect_all_for_repo 中的 N+1 查詢
         active_signals = _build_active_signals_set(db)
 
+        # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）
+        cutoff_hn = utc_now() - timedelta(hours=48)
+        hn_signals_raw = db.query(ContextSignal).filter(
+            ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
+            ContextSignal.fetched_at >= cutoff_hn,
+            ContextSignal.score >= VIRAL_HN_MIN_SCORE,
+        ).order_by(ContextSignal.score.desc()).all()
+        # hn_signal_map: {repo_id: highest_score_hn_signal}
+        hn_signal_map: dict[int, ContextSignal] = {}
+        for hn in hn_signals_raw:
+            if hn.repo_id not in hn_signal_map:
+                hn_signal_map[hn.repo_id] = hn
+
         all_signals: list["EarlySignal"] = []
 
         for repo in repos:
@@ -536,6 +590,7 @@ class AnomalyDetector:
                     velocity_values=velocity_values,
                     active_signals=active_signals,
                     recent_snapshots_map=recent_snapshots_map,
+                    hn_signal_map=hn_signal_map,
                 )
                 all_signals.extend(signals)
             except Exception as e:  # 單一 repo 偵測失敗不應中斷整個批次

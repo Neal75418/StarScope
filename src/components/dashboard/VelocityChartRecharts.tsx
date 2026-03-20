@@ -3,7 +3,7 @@
  * 取代原本純 CSS 實作，支援 hover tooltip 與動畫效果。
  */
 
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -59,11 +59,16 @@ export const VelocityChartRecharts = memo(function VelocityChartRecharts({
 }: VelocityBarProps) {
   const { t } = useI18n();
 
-  const chartData = data.map((item) => ({
-    ...item,
-    label:
-      t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ?? item.key,
-  }));
+  const chartData = useMemo(
+    () =>
+      data.map((item) => ({
+        ...item,
+        label:
+          t.dashboard.velocityRanges[item.key as keyof typeof t.dashboard.velocityRanges] ??
+          item.key,
+      })),
+    [data, t]
+  );
 
   return (
     <div className="dashboard-section">
