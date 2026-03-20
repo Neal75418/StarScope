@@ -13,7 +13,6 @@ from middleware.rate_limit import limiter
 from db.database import get_db
 from db.models import Repo, SimilarRepo
 from services.recommender import (
-    find_similar_repos,
     calculate_repo_similarities,
     recalculate_all_similarities,
     get_personalized_recommendations,
@@ -22,28 +21,6 @@ from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
-
-# 回應 schema
-class SimilarRepoResponse(BaseModel):
-    """相似 repo 的 schema。"""
-    repo_id: int
-    full_name: str
-    description: str | None
-    language: str | None
-    url: str
-    similarity_score: float
-    shared_topics: list[str]
-    same_language: bool
-    topic_score: float | None = None
-    language_score: float | None = None
-    magnitude_score: float | None = None
-
-
-class SimilarReposResponse(BaseModel):
-    """相似 repo 列表的回應。"""
-    repo_id: int
-    similar: list[SimilarRepoResponse]
-    total: int
 
 
 class CalculateSimilaritiesResponse(BaseModel):
@@ -92,34 +69,6 @@ class RecommendationStatsResponse(BaseModel):
 
 
 # 端點
-@router.get("/similar/{repo_id}", response_model=ApiResponse[SimilarReposResponse])
-async def get_similar_repos(
-    repo_id: int,
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of similar repos to return"),
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    取得指定 repo 的相似 repo。
-    回傳追蹤清單中基於 topics 與語言最相似的 repo。
-    """
-    repo = db.query(Repo).filter(Repo.id == repo_id).first()
-    if not repo:
-        raise HTTPException(status_code=404, detail="Repository not found")
-
-    similar = find_similar_repos(repo_id, db, limit)
-
-    similar_response = SimilarReposResponse(
-        repo_id=repo_id,
-        similar=[SimilarRepoResponse(**s) for s in similar],
-        total=len(similar),
-    )
-
-    return success_response(
-        data=similar_response,
-        message=f"Found {len(similar)} similar repositories"
-    )
-
-
 @router.post("/repo/{repo_id}/calculate", response_model=ApiResponse[CalculateSimilaritiesResponse])
 async def calculate_similarities_for_repo(
     repo_id: int,
