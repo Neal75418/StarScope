@@ -1739,7 +1739,7 @@ export const translations = {
     },
     // 相對時間
     relativeTime: {
-      justNow: "剛才",
+      justNow: "剛剛",
       hoursAgo: "{hours} 小時前",
       daysAgo: "{days} 天前",
     },

@@ -114,7 +114,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|-------------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
 | `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 49 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `hooks/`        | 68 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
@@ -133,7 +133,8 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 檔案                | 說明                  |
 |-------------------|---------------------|
-| `src/main.rs`     | Rust 進入點、系統匣、IPC 命令 |
+| `src/main.rs`     | Rust 進入點（呼叫 lib.rs）  |
+| `src/lib.rs`      | Sidecar 管理、系統匣、視窗控制 |
 | `tauri.conf.json` | Tauri 設定、CSP、視窗設定   |
 
 ---
@@ -226,9 +227,10 @@ PORT=8008
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
 | `export`          | `/api/export`          | Watchlist JSON/CSV 匯出                 |
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
+| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理            |
 | `health`          | `/api`                 | 健康檢查                                  |
 
-> 共 17 個路由模組、67 個端點
+> 共 18 個路由模組
 
 ---
 

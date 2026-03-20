@@ -160,6 +160,11 @@ class AlertRule(Base):
     repo: Mapped["Repo | None"] = relationship("Repo")
     triggered_alerts: Mapped[list["TriggeredAlert"]] = relationship("TriggeredAlert", back_populates="rule", cascade=CASCADE_DELETE_ORPHAN)
 
+    # 索引
+    __table_args__ = (
+        Index("ix_alert_rules_repo_id", "repo_id"),
+    )
+
     def __repr__(self) -> str:
         target = self.repo.full_name if self.repo else "all repos"
         return f"<AlertRule {self.name}: {self.signal_type} {self.operator} {self.threshold} for {target}>"
@@ -190,6 +195,7 @@ class TriggeredAlert(Base):
         Index("ix_triggered_alerts_rule", "rule_id"),
         Index("ix_triggered_alerts_repo", "repo_id"),
         Index("ix_triggered_alerts_time", "triggered_at"),
+        Index("ix_triggered_alerts_ack_time", "acknowledged", "triggered_at"),
     )
 
     def __repr__(self) -> str:
@@ -366,6 +372,7 @@ class EarlySignal(Base):
         Index("ix_early_signals_detected", "detected_at"),
         Index("ix_early_signals_severity", "severity"),
         Index("ix_early_signals_filter", "repo_id", "signal_type", "acknowledged"),  # 用於篩選查詢
+        Index("ix_early_signals_active", "acknowledged", "expires_at"),  # 用於活躍訊號批次查詢
     )
 
     def __repr__(self) -> str:
