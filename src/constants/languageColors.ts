@@ -1,6 +1,5 @@
 /**
  * GitHub 語言顏色 — 唯一事實來源。
- * LanguagesBadge 需要 bg + text，LanguagesPanel 僅需 bg。
  */
 
 const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {

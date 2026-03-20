@@ -222,26 +222,6 @@ export class ApiError extends Error {
 
 // ==================== 推薦系統型別 ====================
 
-export interface SimilarRepo {
-  repo_id: number;
-  full_name: string;
-  description: string | null;
-  language: string | null;
-  url: string;
-  similarity_score: number;
-  shared_topics: string[];
-  same_language: boolean;
-  topic_score?: number;
-  language_score?: number;
-  magnitude_score?: number;
-}
-
-export interface SimilarReposResponse {
-  repo_id: number;
-  similar: SimilarRepo[];
-  total: number;
-}
-
 export interface CalculateSimilaritiesResponse {
   repo_id: number;
   similarities_found: number;

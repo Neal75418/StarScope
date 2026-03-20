@@ -14,7 +14,6 @@ import {
   getContextBadges,
   getContextSignals,
   getStarsChart,
-  getSimilarRepos,
   getCategoryTree,
   createCategory,
   deleteCategory,
@@ -364,20 +363,6 @@ describe("API Client", () => {
         expect((e as ApiError).detail).toContain("Network error");
         expect((e as ApiError).detail).toContain("Unknown");
       }
-    });
-  });
-
-  // Similar repos tests
-  describe("getSimilarRepos", () => {
-    it("returns similar repos", async () => {
-      const mockResponse = { repo_id: 1, similar: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getSimilarRepos(1);
-      expect(result.repo_id).toBe(1);
     });
   });
 

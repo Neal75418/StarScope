@@ -1,6 +1,5 @@
 /**
- * 共用狀態徽章元件（載入中、錯誤、空白），
- * 用於 CommitActivityBadge 和 LanguagesBadge 等徽章元件。
+ * 共用狀態徽章元件（載入中、錯誤、空白）。
  */
 
 interface StatusBadgeProps {
