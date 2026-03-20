@@ -43,7 +43,7 @@ export function CategoryEditModal({
     }
   };
 
-  useEscapeKey(onClose);
+  useEscapeKey(onClose, !isSubmitting);
 
   return (
     <div className="modal-overlay" onClick={onClose} role="presentation">

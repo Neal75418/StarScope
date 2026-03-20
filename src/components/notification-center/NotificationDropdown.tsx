@@ -29,7 +29,7 @@ export function NotificationDropdown({
   const showFooter = !isEmpty;
 
   return (
-    <div className="notification-dropdown" role="menu">
+    <div className="notification-dropdown" role="region" aria-label={t.notifications.title}>
       <div className="notification-header">
         <span className="notification-header-title">{t.notifications.title}</span>
         {unreadCount > 0 && (

@@ -64,13 +64,17 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.delta7d}</span>
-              <span className="trend-metric-value positive">
+              <span
+                className={`trend-metric-value ${(repo.stars_delta_7d ?? 0) > 0 ? "positive" : (repo.stars_delta_7d ?? 0) < 0 ? "negative" : ""}`}
+              >
                 {formatDelta(repo.stars_delta_7d)}
               </span>
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.delta30d}</span>
-              <span className="trend-metric-value positive">
+              <span
+                className={`trend-metric-value ${(repo.stars_delta_30d ?? 0) > 0 ? "positive" : (repo.stars_delta_30d ?? 0) < 0 ? "negative" : ""}`}
+              >
                 {formatDelta(repo.stars_delta_30d)}
               </span>
             </div>

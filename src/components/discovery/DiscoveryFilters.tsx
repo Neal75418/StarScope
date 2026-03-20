@@ -104,6 +104,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
         className={styles.filterSelect}
         value={filters.language || ""}
         onChange={(e) => onFiltersChange({ ...filters, language: e.target.value || undefined })}
+        aria-label={t.discovery.filters.allLanguages}
       >
         {LANGUAGES.map((lang) => (
           <option key={lang.value} value={lang.value}>
@@ -116,6 +117,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
         className={styles.filterSelect}
         value={filters.license || ""}
         onChange={(e) => onFiltersChange({ ...filters, license: e.target.value || undefined })}
+        aria-label={t.discovery.filters.allLicenses}
       >
         {LICENSES.map((lic) => (
           <option key={lic.value} value={lic.value}>
@@ -129,6 +131,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
           className={styles.filterSelect}
           value={filters.sort || "stars"}
           onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as SortOption })}
+          aria-label={t.discovery.filters.sortByStars}
         >
           {SORT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -154,6 +157,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
           const val = Number(e.target.value);
           onFiltersChange({ ...filters, minStars: val || undefined });
         }}
+        aria-label={t.discovery.filters.minStars}
       >
         {MIN_STARS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -171,6 +175,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
           const val = Number(e.target.value);
           onFiltersChange({ ...filters, maxStars: val || undefined });
         }}
+        aria-label={t.discovery.filters.maxStars}
       >
         {MAX_STARS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>

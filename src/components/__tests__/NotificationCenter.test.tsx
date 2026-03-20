@@ -95,13 +95,13 @@ describe("NotificationCenter", () => {
     mockReturnValue.notifications = [makeNotification()];
     mockReturnValue.unreadCount = 1;
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getByRole("region")).toBeInTheDocument();
     expect(screen.getByText("Star spike")).toBeInTheDocument();
   });
 
   it("does not show dropdown when isOpen is false", () => {
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.queryByRole("region")).not.toBeInTheDocument();
   });
 
   it("shows empty message when no notifications and open", () => {
