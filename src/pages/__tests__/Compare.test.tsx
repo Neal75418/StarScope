@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Compare } from "../Compare";
 import type { ReactNode } from "react";
 import type { ComparisonRepoData, ChartDataPoint, RepoWithSignals } from "../../api/types";
-import { useCompareKeyboard } from "../../hooks/useCompareKeyboard";
-import { useCompareUrl } from "../../hooks/useCompareUrl";
 
 // ==================== Mocks ====================
 
@@ -27,26 +25,12 @@ vi.mock("../../hooks/useReposQuery", () => ({
   useReposQuery: () => ({ data: mockRepos, isLoading: false, error: null }),
 }));
 
-vi.mock("../../hooks/useCompareKeyboard", () => ({
-  useCompareKeyboard: vi.fn(),
-}));
-
-vi.mock("../../hooks/useCompareUrl", () => ({
-  useCompareUrl: vi.fn(() => ({ hasUrlParams: false })),
-}));
-
 vi.mock("../../hooks/useTrendEarlySignals", () => ({
   useTrendEarlySignals: () => ({
     signalsByRepoId: {},
     loading: false,
     reposWithBreakouts: new Set<number>(),
   }),
-}));
-
-let mockCrossoverReturn: { date: string; value: number; repoAName: string; repoBName: string }[] =
-  [];
-vi.mock("../../hooks/useCrossoverPoints", () => ({
-  useCrossoverPoints: () => mockCrossoverReturn,
 }));
 
 let mockNavigationState: Record<string, unknown> | null = null;
@@ -162,7 +146,6 @@ vi.mock("recharts", () => ({
   Tooltip: () => null,
   Legend: () => null,
   Brush: () => <div data-testid="chart-brush" />,
-  ReferenceDot: () => <div data-testid="crossover-dot" />,
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
@@ -235,8 +218,6 @@ describe("Compare", () => {
     };
     // Reset localStorage
     localStorage.removeItem("starscope-compare-repos");
-    localStorage.removeItem("starscope_compare_presets");
-    mockCrossoverReturn = [];
   });
 
   it("renders page title and subtitle", () => {
@@ -443,34 +424,6 @@ describe("Compare", () => {
 
   // ==================== Phase 3 Tests ====================
 
-  it("shows export dropdown when >= 2 repos selected", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: undefined,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-    expect(screen.getByTestId("compare-export-btn")).toBeInTheDocument();
-  });
-
-  it("opens export menu on click", async () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: undefined,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    await userEvent.click(screen.getByTestId("compare-export-btn"));
-    expect(screen.getByTestId("compare-export-menu")).toBeInTheDocument();
-    expect(screen.getByText("Download JSON")).toBeInTheDocument();
-    expect(screen.getByText("Download CSV")).toBeInTheDocument();
-  });
-
   // ==================== Phase 4 Tests ====================
 
   it("renders DiffSummaryPanel when data is available", () => {
@@ -492,37 +445,6 @@ describe("Compare", () => {
     expect(screen.getByText("Summary")).toBeInTheDocument();
   });
 
-  it("renders CorrelationMatrix when data has enough points", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    const points = Array.from({ length: 10 }, (_, i) =>
-      makeDataPoint({
-        date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-        stars: 100 + i * 10,
-        forks: 10 + i,
-      })
-    );
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react", data_points: points }),
-          makeComparisonRepo({
-            repo_id: 2,
-            repo_name: "vuejs/vue",
-            color: "#dc2626",
-            data_points: points,
-          }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-    expect(screen.getByTestId("correlation-matrix")).toBeInTheDocument();
-    expect(screen.getByText("Correlation Matrix")).toBeInTheDocument();
-  });
-
   // ==================== Phase 5 Tests ====================
 
   it("consumes preselectedIds from NavigationContext on mount", () => {
@@ -541,62 +463,6 @@ describe("Compare", () => {
     localStorage.setItem("starscope-compare-repos", "not-valid-json!!!");
     render(<Compare />);
     expect(screen.getByText("Select at least 2 repos")).toBeInTheDocument();
-  });
-
-  it("toggles log scale checkbox", async () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react" }),
-          makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-    const checkbox = screen.getByTestId("compare-log-scale");
-    expect(checkbox).not.toBeChecked();
-    await userEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
-  });
-
-  it("toggles growth rate and computes growth data", async () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    const points = Array.from({ length: 10 }, (_, i) =>
-      makeDataPoint({
-        date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-        stars: 100 + i * 10,
-        forks: 10 + i,
-      })
-    );
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react", data_points: points }),
-          makeComparisonRepo({
-            repo_id: 2,
-            repo_name: "vuejs/vue",
-            color: "#dc2626",
-            data_points: points,
-          }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-    const checkbox = screen.getByTestId("compare-growth-rate");
-    await userEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
-    // Growth rate enabled → additional growth Line elements render
-    const lines = screen.getAllByTestId("chart-line");
-    expect(lines.length).toBeGreaterThan(2);
   });
 
   it("switches to Issues metric", async () => {
@@ -631,189 +497,5 @@ describe("Compare", () => {
     render(<Compare />);
     await userEvent.click(screen.getByText("Issues"));
     expect(screen.getByTestId("line-chart")).toBeInTheDocument();
-  });
-
-  it("renders share and presets buttons in controls", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: undefined,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-    expect(screen.getByTestId("compare-share-btn")).toBeInTheDocument();
-    expect(screen.getByTestId("compare-presets-btn")).toBeInTheDocument();
-  });
-
-  it("exercises keyboard hook callbacks", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react" }),
-          makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    const kbCalls = vi.mocked(useCompareKeyboard).mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const args = kbCalls[kbCalls.length - 1][0] as any;
-
-    act(() => {
-      args.onToggleNormalize();
-      args.onToggleLogScale();
-      args.onToggleGrowthRate();
-      args.onDownload();
-      args.onEscape();
-    });
-
-    expect(screen.getByTestId("compare-log-scale")).toBeChecked();
-    expect(screen.getByTestId("compare-growth-rate")).toBeChecked();
-  });
-
-  it("restores state via useCompareUrl onRestoreState", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: undefined,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    const urlCalls = vi.mocked(useCompareUrl).mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { onRestoreState } = urlCalls[urlCalls.length - 1][0] as any;
-
-    act(() => {
-      onRestoreState({
-        repoIds: [2, 3],
-        timeRange: "7d",
-        normalize: true,
-        metric: "forks",
-        chartType: "area",
-        logScale: true,
-        showGrowthRate: true,
-      });
-    });
-
-    // Controls should still render (2+ repos selected)
-    expect(screen.getByText("7d")).toBeInTheDocument();
-  });
-
-  it("renders area chart with growth, log scale, crossovers, and brush", async () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    const points = Array.from({ length: 20 }, (_, i) =>
-      makeDataPoint({
-        date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-        stars: 100 + i * 10,
-        forks: 10 + i,
-        open_issues: 5 + i,
-      })
-    );
-    mockCrossoverReturn = [
-      { date: "2024-01-05", value: 140, repoAName: "facebook/react", repoBName: "vuejs/vue" },
-    ];
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react", data_points: points }),
-          makeComparisonRepo({
-            repo_id: 2,
-            repo_name: "vuejs/vue",
-            color: "#dc2626",
-            data_points: points,
-          }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    // Switch to area chart
-    await userEvent.click(screen.getByText("Area"));
-    // Enable growth rate
-    await userEvent.click(screen.getByTestId("compare-growth-rate"));
-    // Enable log scale
-    await userEvent.click(screen.getByTestId("compare-log-scale"));
-
-    expect(screen.getByTestId("area-chart")).toBeInTheDocument();
-    expect(screen.getByTestId("compare-growth-rate")).toBeChecked();
-    expect(screen.getByTestId("compare-log-scale")).toBeChecked();
-    // 20 data points > 14 → brush renders
-    expect(screen.getByTestId("chart-brush")).toBeInTheDocument();
-    // Crossover dot renders
-    expect(screen.getByTestId("crossover-dot")).toBeInTheDocument();
-  });
-
-  it("renders line chart with crossovers and brush", () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    const points = Array.from({ length: 20 }, (_, i) =>
-      makeDataPoint({
-        date: `2024-01-${String(i + 1).padStart(2, "0")}`,
-        stars: 100 + i * 10,
-        forks: 10 + i,
-      })
-    );
-    mockCrossoverReturn = [
-      { date: "2024-01-05", value: 140, repoAName: "facebook/react", repoBName: "vuejs/vue" },
-    ];
-    mockComparisonReturn = {
-      data: {
-        repos: [
-          makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react", data_points: points }),
-          makeComparisonRepo({
-            repo_id: 2,
-            repo_name: "vuejs/vue",
-            color: "#dc2626",
-            data_points: points,
-          }),
-        ],
-        time_range: "30d",
-      },
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
-    expect(screen.getByTestId("chart-brush")).toBeInTheDocument();
-    expect(screen.getByTestId("crossover-dot")).toBeInTheDocument();
-  });
-
-  it("applies a preset via ComparePresetsDropdown", async () => {
-    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
-    mockComparisonReturn = {
-      data: undefined,
-      isLoading: false,
-      error: null,
-      refetch: mockRefetch,
-    };
-    render(<Compare />);
-
-    // Open presets dropdown, save a preset, then apply it
-    await userEvent.click(screen.getByTestId("compare-presets-btn"));
-    await userEvent.type(screen.getByTestId("compare-presets-name-input"), "My Preset");
-    await userEvent.click(screen.getByTestId("compare-presets-save-btn"));
-
-    // Preset should appear in list
-    expect(screen.getByText("My Preset")).toBeInTheDocument();
-
-    // Click preset to apply it
-    await userEvent.click(screen.getByText("My Preset"));
-
-    // Dropdown should close after applying
-    expect(screen.queryByTestId("compare-presets-menu")).not.toBeInTheDocument();
   });
 });

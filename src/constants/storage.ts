@@ -18,5 +18,4 @@ export const STORAGE_KEYS = {
   WATCHLIST_SUMMARY_COLLAPSED: "starscope_watchlist_summary_collapsed",
   TRENDS_VIEW_MODE: "starscope_trends_view_mode",
   TRENDS_AUTO_REFRESH: "starscope_trends_auto_refresh",
-  COMPARE_PRESETS: "starscope_compare_presets",
 } as const;

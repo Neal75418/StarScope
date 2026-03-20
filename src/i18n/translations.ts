@@ -375,10 +375,6 @@ export const translations = {
       noData: "No data available for selected time range",
       retry: "Retry",
       download: "Download PNG",
-      logScale: "Log Scale",
-      share: "Share Link",
-      shareCopied: "Copied!",
-      growthRate: "Growth Rate",
       metric: {
         stars: "Stars",
         forks: "Forks",
@@ -387,18 +383,6 @@ export const translations = {
       chartType: {
         line: "Line",
         area: "Area",
-      },
-      export: {
-        button: "Export",
-        json: "Download JSON",
-        csv: "Download CSV",
-      },
-      presets: {
-        title: "Presets",
-        saveCurrent: "Save Current",
-        namePlaceholder: "Preset name...",
-        empty: "No saved presets",
-        delete: "Delete",
       },
       columns: {
         repo: "Repository",
@@ -417,12 +401,6 @@ export const translations = {
         gap: "Star Gap",
         closing: "Closing",
         widening: "Widening",
-      },
-      correlation: {
-        title: "Correlation Matrix",
-      },
-      crossover: {
-        title: "Crossover",
       },
     },
     // 設定頁面
@@ -1246,10 +1224,6 @@ export const translations = {
       noData: "所選時間範圍內無資料",
       retry: "重試",
       download: "下載 PNG",
-      logScale: "對數刻度",
-      share: "分享連結",
-      shareCopied: "已複製！",
-      growthRate: "成長率",
       metric: {
         stars: "星數",
         forks: "Fork 數",
@@ -1258,18 +1232,6 @@ export const translations = {
       chartType: {
         line: "折線",
         area: "面積",
-      },
-      export: {
-        button: "匯出",
-        json: "下載 JSON",
-        csv: "下載 CSV",
-      },
-      presets: {
-        title: "預設",
-        saveCurrent: "儲存目前設定",
-        namePlaceholder: "預設名稱...",
-        empty: "尚無儲存的預設",
-        delete: "刪除",
       },
       columns: {
         repo: "儲存庫",
@@ -1288,12 +1250,6 @@ export const translations = {
         gap: "星數差距",
         closing: "追趕中",
         widening: "拉開中",
-      },
-      correlation: {
-        title: "相關性矩陣",
-      },
-      crossover: {
-        title: "交叉點",
       },
     },
     // 設定頁面
