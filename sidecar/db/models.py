@@ -202,7 +202,6 @@ class TriggeredAlert(Base):
         return f"<TriggeredAlert rule_id={self.rule_id} repo_id={self.repo_id} value={self.signal_value}>"
 
 
-
 class ContextSignal(Base):
     """
     repo 的外部情境訊號。
@@ -331,7 +330,6 @@ class RepoCategory(Base):
 
     def __repr__(self) -> str:
         return f"<RepoCategory repo_id={self.repo_id} category_id={self.category_id}>"
-
 
 
 class EarlySignal(Base):

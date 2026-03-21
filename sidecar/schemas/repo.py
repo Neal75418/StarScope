@@ -54,7 +54,7 @@ class RepoCreate(BaseModel):
         if v is None:
             return None
         v = v.strip()
-        # Accept various GitHub URL formats
+        # 接受各種 GitHub URL 格式
         patterns = [
             r"https?://github\.com/([^/]+)/([^/]+)/?.*",
             r"github\.com/([^/]+)/([^/]+)/?.*",

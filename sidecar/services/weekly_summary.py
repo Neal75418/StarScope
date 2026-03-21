@@ -31,7 +31,7 @@ def _fetch_snapshot_deltas(
     Returns:
         ``(latest_map, old_map, repo_deltas, total_new_stars)``
     """
-    # Subquery: latest snapshot per repo
+    # 子查詢：每個 repo 的最新快照
     latest_sub = (
         db.query(
             RepoSnapshot.repo_id,
@@ -50,7 +50,7 @@ def _fetch_snapshot_deltas(
         .all()
     )
 
-    # Subquery: snapshot closest to 7 days ago per repo
+    # 子查詢：每個 repo 最接近 7 天前的快照
     old_sub = (
         db.query(
             RepoSnapshot.repo_id,
@@ -73,7 +73,7 @@ def _fetch_snapshot_deltas(
     latest_map: dict[int, int] = {s.repo_id: s.stars for s in latest_snapshots}
     old_map: dict[int, int] = {s.repo_id: s.stars for s in old_snapshots}
 
-    # Per-repo delta
+    # 每個 repo 的星數差值
     repo_deltas: dict[int, int] = {}
     for repo_id, current_stars in latest_map.items():
         old_stars = old_map.get(repo_id)

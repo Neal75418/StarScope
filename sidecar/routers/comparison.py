@@ -122,7 +122,7 @@ async def comparison_chart(
     for s in all_snapshots:
         snapshots_by_repo[s.repo_id].append(s)
 
-    # Pre-fetch signals and latest snapshots
+    # 預載信號與最新快照
     signal_map = build_signal_map(db, req.repo_ids)
     latest_map = build_snapshot_map(db, req.repo_ids)
 

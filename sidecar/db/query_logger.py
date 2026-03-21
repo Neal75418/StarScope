@@ -12,7 +12,6 @@ import threading
 import time
 
 
-
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
