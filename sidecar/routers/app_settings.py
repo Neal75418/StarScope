@@ -4,12 +4,14 @@
 """
 
 import logging
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from db.database import get_db
+from db.database import get_db, DATABASE_URL
 from db.models import (
     AppSettingKey,
     Repo, RepoSnapshot, Signal, AlertRule, TriggeredAlert,
@@ -193,6 +195,44 @@ async def clear_cache():
     清除後端快取（目前為 no-op，實際快取清除由前端 React Query invalidation 執行）。
     """
     return success_response(data={"status": "ok"})
+
+
+# --- 診斷資訊 ---
+
+class DiagnosticsResponse(BaseModel):
+    """系統診斷資訊。"""
+    version: str
+    db_path: str
+    db_size_mb: float
+    total_repos: int
+    total_snapshots: int
+    last_snapshot_at: str | None
+    uptime_seconds: float
+
+
+import time as _time
+_START_TIME = _time.monotonic()
+
+
+@router.get("/diagnostics", response_model=ApiResponse[DiagnosticsResponse])
+async def get_diagnostics(db: Session = Depends(get_db)):
+    """取得系統診斷資訊：版本、資料庫狀態、最後同步時間。"""
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    db_size = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0
+
+    total_repos = db.query(func.count(Repo.id)).scalar() or 0
+    total_snapshots = db.query(func.count(RepoSnapshot.id)).scalar() or 0
+    last_snapshot = db.query(func.max(RepoSnapshot.snapshot_date)).scalar()
+
+    return success_response(data=DiagnosticsResponse(
+        version="0.4.0",
+        db_path=db_path,
+        db_size_mb=round(db_size, 2),
+        total_repos=total_repos,
+        total_snapshots=total_snapshots,
+        last_snapshot_at=last_snapshot.isoformat() if last_snapshot else None,
+        uptime_seconds=round(_time.monotonic() - _START_TIME, 1),
+    ))
 
 
 # --- 重設所有資料 ---

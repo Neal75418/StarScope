@@ -536,6 +536,17 @@ export const translations = {
           dataReset: "All data has been reset",
         },
       },
+      diagnostics: {
+        title: "Diagnostics",
+        description: "Sidecar status and database info",
+        version: "Version",
+        uptime: "Uptime",
+        dbSize: "Database Size",
+        totalRepos: "Tracked Repos",
+        totalSnapshots: "Snapshots",
+        lastSync: "Last Sync",
+        dbPath: "Database Path",
+      },
       about: {
         title: "About",
         version: "Version",
@@ -620,6 +631,9 @@ export const translations = {
       dismiss: "Dismiss",
       skipToContent: "Skip to content",
       offline: "Offline",
+      lastUpdated: "Updated",
+      syncing: "Syncing...",
+      refresh: "Refresh",
     },
     // 對話框
     dialog: {
@@ -1316,6 +1330,17 @@ export const translations = {
           dataReset: "所有資料已重置",
         },
       },
+      diagnostics: {
+        title: "系統診斷",
+        description: "Sidecar 狀態與資料庫資訊",
+        version: "版本",
+        uptime: "運行時間",
+        dbSize: "資料庫大小",
+        totalRepos: "追蹤 Repo",
+        totalSnapshots: "快照數量",
+        lastSync: "最後同步",
+        dbPath: "資料庫路徑",
+      },
       about: {
         title: "關於",
         version: "版本",
@@ -1398,6 +1423,9 @@ export const translations = {
       dismiss: "關閉",
       skipToContent: "跳至主要內容",
       offline: "離線",
+      lastUpdated: "最後更新",
+      syncing: "同步中...",
+      refresh: "重新整理",
     },
     // 對話框
     dialog: {

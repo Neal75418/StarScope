@@ -5197,3 +5197,67 @@ a:focus-visible {
   outline: none;
   border-color: var(--accent-fg);
 }
+
+/* Data Freshness Bar */
+.data-freshness-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+
+.freshness-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.freshness-offline {
+  color: var(--warning-fg);
+  font-weight: 600;
+}
+
+.freshness-syncing {
+  color: var(--accent-fg);
+}
+
+.freshness-refresh {
+  padding: 2px 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Diagnostics Grid */
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.diagnostics-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.diagnostics-label {
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-weight: 500;
+}
+
+.diagnostics-value {
+  font-size: 14px;
+  color: var(--fg-default);
+  font-weight: 600;
+}
+
+.diagnostics-path {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 400;
+  word-break: break-all;
+  grid-column: 1 / -1;
+}

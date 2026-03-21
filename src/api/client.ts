@@ -57,6 +57,7 @@ import type {
   SnapshotRetentionResponse,
   SignalThresholdsResponse,
   SignalThresholdsUpdate,
+  DiagnosticsResponse,
   ResetDataResponse,
 } from "./types";
 
@@ -851,6 +852,11 @@ export async function updateSignalThresholds(
 /** 清除後端快取。 */
 export async function clearCache(signal?: AbortSignal): Promise<{ status: string }> {
   return apiCall<{ status: string }>("/settings/clear-cache", { method: "POST", signal });
+}
+
+/** 取得系統診斷資訊。 */
+export async function getDiagnostics(signal?: AbortSignal): Promise<DiagnosticsResponse> {
+  return apiCall<DiagnosticsResponse>("/settings/diagnostics", { signal });
 }
 
 /** 重設所有追蹤資料（需確認）。 */

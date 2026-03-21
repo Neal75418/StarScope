@@ -1,6 +1,6 @@
 /**
  * 通知輪詢邏輯，定時取得已觸發警報。
- * 使用 React Query 的 refetchInterval 管理輪詢，visibility 不可見時暫停。
+ * 使用 React Query + useSmartInterval 管理輪詢（visibility + online aware）。
  */
 
 import { useCallback, useEffect, useRef, Dispatch, SetStateAction } from "react";
@@ -16,6 +16,7 @@ import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "..
 import { logger } from "../utils/logger";
 import { queryKeys } from "../lib/react-query";
 import { useI18n } from "../i18n";
+import { useSmartInterval } from "./useSmartInterval";
 
 interface OSNotificationSender {
   sendOSNotification: (options: { title: string; body: string }) => Promise<void>;
@@ -40,24 +41,21 @@ export function useNotificationPolling(
   const tRef = useRef(t);
   tRef.current = t;
 
+  const smartInterval = useSmartInterval(NOTIFICATION_POLL_INTERVAL_MS);
+
   const query = useQuery<Notification[], Error>({
     queryKey: queryKeys.notifications.polling(),
     queryFn: async () => {
       const alerts = await listTriggeredAlerts(false, 50);
       return sortNotifications(alertsToNotifications(alerts, readIdsRef.current));
     },
-    // 輪詢間隔：頁面不可見時停止
-    refetchInterval: () => {
-      if (typeof document !== "undefined" && document.hidden) {
-        return false;
-      }
-      return NOTIFICATION_POLL_INTERVAL_MS;
-    },
+    // 智慧輪詢：visibility + online aware
+    refetchInterval: smartInterval,
     // 資料立即視為過期，確保每次 interval 都觸發 refetch
     staleTime: 0,
     // 不使用全域預設的 retry，避免輪詢失敗時重複
     retry: false,
-    // 不使用 refetchOnWindowFocus（改用 visibility-based refetchInterval）
+    // 不使用 refetchOnWindowFocus（改用 smartInterval 管理）
     refetchOnWindowFocus: false,
   });
 

@@ -7,6 +7,7 @@ import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
+import { DataFreshnessBar } from "../components/DataFreshnessBar";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
@@ -136,6 +137,8 @@ export function Dashboard() {
     signalSummary,
     acknowledgeSignal,
     isLoading,
+    isFetching,
+    dataUpdatedAt,
     error,
     refresh,
   } = useDashboard();
@@ -219,6 +222,8 @@ export function Dashboard() {
         </div>
         <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
+
+      <DataFreshnessBar dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} onRefresh={refresh} />
 
       <FadeIn delay={0.1}>
         <StatsGrid stats={stats} />

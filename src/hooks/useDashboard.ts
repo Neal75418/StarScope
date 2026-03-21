@@ -262,6 +262,8 @@ export function useDashboard() {
     signalSummary,
     acknowledgeSignal: handleAcknowledgeSignal,
     isLoading,
+    isFetching: reposQuery.isFetching || alertsQuery.isFetching,
+    dataUpdatedAt: reposQuery.dataUpdatedAt,
     error,
     refresh,
   };

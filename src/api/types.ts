@@ -609,6 +609,16 @@ export interface SignalThresholdsUpdate {
   viral_hn_min_score?: number;
 }
 
+export interface DiagnosticsResponse {
+  version: string;
+  db_path: string;
+  db_size_mb: number;
+  total_repos: number;
+  total_snapshots: number;
+  last_snapshot_at: string | null;
+  uptime_seconds: number;
+}
+
 export interface ResetDataResponse {
   status: string;
   deleted_repos: number;

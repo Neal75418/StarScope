@@ -11,6 +11,7 @@ import {
   DEVICE_FLOW_INITIAL_DELAY_MS,
 } from "../constants/api";
 import { logger } from "../utils/logger";
+import { useOnlineStatus } from "./useOnlineStatus";
 
 interface UseDeviceFlowPollingOptions {
   onSuccess: (status: GitHubConnectionStatus) => void;
@@ -32,8 +33,10 @@ export function useDeviceFlowPolling({
   setPollStatus,
 }: UseDeviceFlowPollingOptions): UseDeviceFlowPollingResult {
   const { t } = useI18n();
+  const isOnline = useOnlineStatus();
+  const isOnlineRef = useRef(isOnline);
+  isOnlineRef.current = isOnline;
 
-  // 從 usePollingRefs 內聯的邏輯
   const pollIntervalRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
   const currentIntervalRef = useRef<number>(10); // 預設輪詢間隔
@@ -104,6 +107,13 @@ export function useDeviceFlowPolling({
       }, expiresIn * 1000);
 
       const doPoll = async () => {
+        // 頁面不可見或離線時跳過本次輪詢
+        if (typeof document !== "undefined" && document.hidden) return;
+        if (!isOnlineRef.current) {
+          setPollStatus(t.githubConnection.status.networkError);
+          return;
+        }
+
         try {
           setPollStatus(
             interpolate(t.githubConnection.status.checking, {

@@ -17,6 +17,7 @@ import {
   SnapshotRetentionSection,
   SignalThresholdsSection,
 } from "../components/settings";
+import { DiagnosticsSection } from "../components/settings/DiagnosticsSection";
 import { useAlertRules } from "../hooks/useAlertRules";
 import { useOSNotification } from "../hooks/useOSNotification";
 import { useI18n } from "../i18n";
@@ -64,6 +65,7 @@ export function Settings() {
     { id: "import", label: t.settings.import.title },
     { id: "data-management", label: t.settings.data.title },
     { id: "alerts", label: t.settings.alerts.title },
+    { id: "diagnostics", label: t.settings.diagnostics?.title ?? "系統診斷" },
     { id: "about", label: t.settings.about.title },
   ];
 
@@ -186,6 +188,11 @@ export function Settings() {
               onDelete={alerts.openDeleteConfirm}
             />
           </section>
+
+          {/* 系統診斷 */}
+          <div id="diagnostics">
+            <DiagnosticsSection />
+          </div>
 
           {/* 關於 */}
           <div id="about">
