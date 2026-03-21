@@ -9,6 +9,40 @@
 
 ## [Unreleased]
 
+### 重構與變更
+
+- **功能瘦身** — 移除 ~10,000 行過度設計的功能（Similar Repos、Commit Activity、Languages Panel、Compare 7 個子功能、Saved Filters、Search History、Recently Viewed 等），聚焦核心價值
+- **CSS 技術債清理** — 移除 1,500+ 行死碼（App.css + Discovery.module.css），修復 4 個未定義 CSS 變數（`--accent-primary`、`--color-danger`、`--done-subtle`、`--done-fg`），消除所有多餘 `var()` fallback
+- **Section comment 風格統一** — CSS 15 處 + TS 19 處裝飾式註解統一為簡潔格式
+- **Orphan comment 清理** — 移除功能瘦身後殘留的 7 個空 section 註解
+- **Husky v9 適配** — 移除 deprecated `. husky.sh` sourcing，修復 `core.hooksPath` 錯誤配置
+- **Python 死碼清理** — 移除未使用的 `ErrorCode` schema、`pandas` 依賴（~30MB）
+- **日誌語言統一** — database.py 英文日誌改為繁體中文，query logger INFO → DEBUG 降噪
+
+### 問題修正
+
+- 修復 SQLAlchemy SAWarning：`subquery()` → `select()` 消除 "Coercing Subquery" 警告
+- 修復 `utc_now()` 時區一致性：回傳 naive datetime 消除 aware/naive 不匹配
+- 修復 6 個 hardcoded `#fff`/`#ffffff` → `var(--fg-on-emphasis)` 確保主題一致性
+- 修復 `btn-outline`/`btn-ghost` CSS 定義缺失（TSX 使用但 CSS 無對應樣式）
+- 修復 `index.html` Vite 預設值：favicon → StarScope icon、title → "StarScope"
+
+### 效能優化
+
+- **N+1 查詢消除** — alerts、analyzer、anomaly_detector、recommender 全面批次預載
+- **資料庫索引** — 新增 3 個索引（alert_rules_repo_id、triggered_alerts_ack_time、early_signals_active）
+- **CI 加速** — 3 jobs 平行化，CI 時間 3m23s → 2m12s（-34%）
+
+### 測試
+
+- **E2E 測試** — 從零建立 18 個 Playwright 測試案例（導航、Watchlist CRUD、Discovery 搜尋）
+- **覆蓋率補強** — 新增 33 個前端測試，當前 1,062 前端 + 496 後端 = 1,558 個測試
+
+### 文件
+
+- README.md、CLAUDE.md、CONTRIBUTING.md 同步至實際代碼結構
+- package.json 補充 description、license、author、repository 欄位
+
 ---
 
 ## [0.4.0] — 2026-03-12
