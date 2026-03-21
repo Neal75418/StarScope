@@ -85,9 +85,9 @@ def setup_query_logging(engine: Engine, enable: bool = True):
                 f"Slow queries: {_query_stats['slow_queries']}"
             )
 
-        # 記錄所有查詢時間（INFO 級別）
-        elif logger.isEnabledFor(logging.INFO):
-            logger.info(f"[查詢日誌] 查詢完成 ({elapsed:.3f}s)")
+        # 記錄正常查詢時間（DEBUG 級別，避免 INFO 刷屏）
+        elif logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"[查詢日誌] 查詢完成 ({elapsed:.3f}s)")
 
     # PRAGMA 設定已統一在 database.py set_sqlite_pragma 中管理
 
