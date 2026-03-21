@@ -8,7 +8,7 @@ T = TypeVar("T")
 
 
 class PaginationInfo(BaseModel):
-    """Pagination metadata for list responses."""
+    """列表回應的分頁資訊。"""
     page: int = Field(1, ge=1, description="Current page number")
     per_page: int = Field(20, ge=1, le=100, description="Items per page")
     total: int = Field(0, ge=0, description="Total number of items")
@@ -57,7 +57,7 @@ class ApiResponse(BaseModel, Generic[T]):
 
 
 class ErrorDetail(BaseModel):
-    """Structured error information."""
+    """結構化錯誤資訊。"""
     code: str = Field(..., description="Error code for programmatic handling")
     details: Any | None = Field(None, description="Additional error details")
 
@@ -94,9 +94,9 @@ def success_response(
     return response
 
 
-# Status response for simple operations
+# 簡單操作的狀態回應
 class StatusResponse(BaseModel):
-    """Simple status response for operations like delete, acknowledge, etc."""
+    """簡單操作（刪除、確認等）的狀態回應。"""
     status: str = "ok"
     message: str | None = None
     id: int | None = None

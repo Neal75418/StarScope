@@ -20,6 +20,7 @@ interface ToastProps {
   duration?: number;
 }
 
+/** 預設顯示 4 秒 */
 export function Toast({ toast, onDismiss, duration = 4000 }: ToastProps) {
   const { t } = useI18n();
 

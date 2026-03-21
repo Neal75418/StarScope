@@ -26,7 +26,7 @@ class DiscoveryRepo(BaseModel):
 
 
 class SearchResponse(BaseModel):
-    """Response from GitHub repository search."""
+    """GitHub 儲存庫搜尋回應。"""
 
     repos: list[DiscoveryRepo] = Field(description="List of matching repositories")
     total_count: int = Field(description="Total number of results (may exceed returned items)")

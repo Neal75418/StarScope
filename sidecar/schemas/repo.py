@@ -1,8 +1,9 @@
 """Repo 相關 API 端點的 Pydantic schemas。"""
 
-from datetime import datetime
-from pydantic import BaseModel, Field, field_validator, model_validator
 import re
+from datetime import datetime
+
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from constants import (
     GITHUB_USERNAME_PATTERN,
@@ -13,15 +14,15 @@ from constants import (
 
 
 class RepoCreate(BaseModel):
-    """Schema for creating a new repo in watchlist."""
+    """建立新 Repo 的請求 schema。"""
     owner: str | None = Field(None, max_length=MAX_OWNER_LENGTH)
     name: str | None = Field(None, max_length=MAX_REPO_NAME_LENGTH)
-    url: str | None = None  # Alternative: provide full GitHub URL
+    url: str | None = None  # 替代方式：提供完整 GitHub URL
 
     @field_validator("owner")
     @classmethod
     def validate_owner(cls, v: str | None) -> str | None:
-        """Validate GitHub username format."""
+        """驗證 GitHub 使用者名稱格式。"""
         if v is None:
             return None
         v = v.strip()
@@ -35,7 +36,7 @@ class RepoCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
-        """Validate GitHub repository name format."""
+        """驗證 GitHub 儲存庫名稱格式。"""
         if v is None:
             return None
         v = v.strip()
@@ -49,7 +50,7 @@ class RepoCreate(BaseModel):
     @field_validator("url")
     @classmethod
     def parse_github_url(cls, v: str | None) -> str | None:
-        """Validate and normalize GitHub URL."""
+        """驗證並正規化 GitHub URL。"""
         if v is None:
             return None
         v = v.strip()
@@ -66,7 +67,7 @@ class RepoCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_input(self) -> "RepoCreate":
-        """Ensure either owner+name or url is provided."""
+        """確保提供 owner+name 或 url 其一。"""
         has_owner_name = self.owner is not None and self.name is not None
         has_url = self.url is not None
         if not has_owner_name and not has_url:
@@ -74,7 +75,7 @@ class RepoCreate(BaseModel):
         return self
 
     def get_owner_name(self) -> tuple[str, str]:
-        """Extract owner and name from the input."""
+        """從輸入中提取 owner 和 name。"""
         if self.owner and self.name:
             return self.owner, self.name
         if self.url:
@@ -85,7 +86,7 @@ class RepoCreate(BaseModel):
 
 
 class RepoResponse(BaseModel):
-    """Schema for a repo response."""
+    """Repo 回應 schema。"""
     id: int
     owner: str
     name: str
@@ -100,15 +101,15 @@ class RepoResponse(BaseModel):
 
 
 class RepoWithSignals(RepoResponse):
-    """Schema for a repo with its latest signals."""
-    # Current stats (from latest snapshot)
+    """Repo 含最新信號的回應 schema。"""
+    # 當前統計（來自最新快照）
     stars: int | None = None
     forks: int | None = None
 
-    # Signals
+    # 信號
     stars_delta_7d: float | None = None
     stars_delta_30d: float | None = None
-    velocity: float | None = None  # stars per day
+    velocity: float | None = None  # 每日星數
     acceleration: float | None = None
     trend: int | None = None  # -1, 0, 1
 
@@ -118,12 +119,12 @@ class RepoWithSignals(RepoResponse):
     issues_delta_7d: float | None = None
     issues_delta_30d: float | None = None
 
-    # Latest snapshot date
+    # 最新快照日期
     last_fetched: datetime | None = None
 
 
 class RepoListResponse(BaseModel):
-    """Schema for listing repos."""
+    """Repo 列表回應 schema。"""
     repos: list[RepoWithSignals]
     total: int
     page: int | None = None

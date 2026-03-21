@@ -6,8 +6,9 @@ GitHub Device Flow 驗證服務。
 import logging
 import os
 import threading
-import httpx
 from dataclasses import dataclass
+
+import httpx
 
 from db.models import AppSettingKey
 from services.settings import get_setting, set_setting, delete_setting

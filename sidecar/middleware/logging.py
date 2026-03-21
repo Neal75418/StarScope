@@ -86,9 +86,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
             return response
 
-        except Exception as exc:
+        except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            self._log_error(request, request_id, duration_ms, exc)
+            self._log_error(request, request_id, duration_ms, e)
             raise
 
     @staticmethod
@@ -196,19 +196,19 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request: Request,
         request_id: str,
         duration_ms: float,
-        exc: Exception,
+        e: Exception,
     ) -> None:
         """記錄錯誤詳情與例外資訊。"""
         logger.error(
             f"[{request_id}] <-- {request.method} {request.url.path} "
-            f"錯誤 ({duration_ms:.2f}ms): {exc}",
+            f"錯誤 ({duration_ms:.2f}ms): {e}",
             extra={
                 "request_id": request_id,
                 "method": request.method,
                 "path": request.url.path,
                 "duration_ms": round(duration_ms, 2),
-                "error": str(exc),
-                "error_type": type(exc).__name__,
+                "error": str(e),
+                "error_type": type(e).__name__,
             },
             exc_info=True,
         )
