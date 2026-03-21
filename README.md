@@ -47,8 +47,7 @@ mindmap
       Velocity / Acceleration 分析
       7/30/90 天趨勢偵測
       Star 歷史回填
-      Commit 活動追蹤
-      語言分佈分析
+      語言分佈
     警報與通知
       自訂警報規則
       應用內通知中心

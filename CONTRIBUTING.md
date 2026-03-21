@@ -53,6 +53,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 ## 🔄 開發流程
 
 ```mermaid
+%%{init: {'theme': 'dark'}}%%
 graph LR
     A["🌿 建立分支"] --> B["💻 開發"]
     B --> C["🧪 測試"]

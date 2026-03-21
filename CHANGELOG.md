@@ -18,6 +18,7 @@
 - **Husky v9 適配** — 移除 deprecated `. husky.sh` sourcing，修復 `core.hooksPath` 錯誤配置
 - **Python 死碼清理** — 移除未使用的 `ErrorCode` schema、`pandas` 依賴（~30MB）
 - **日誌語言統一** — database.py 英文日誌改為繁體中文，query logger INFO → DEBUG 降噪
+- **代碼風格統一（7 輪 review）** — 101 處修復：英文 comment/docstring 全面翻譯為繁中、`catch (err)` / `except as e` 統一、import 順序標準化、logger `[模組名]` prefix 補齊、`%` formatting → f-string、PEP 8 blank lines
 
 ### 問題修正
 
