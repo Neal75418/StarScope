@@ -1501,7 +1501,7 @@ body {
 }
 
 .repo-card-selected {
-  outline: 2px solid var(--accent-primary, #58a6ff);
+  outline: 2px solid var(--accent-fg);
   outline-offset: -2px;
 }
 
@@ -2458,7 +2458,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-danger, #f85149);
+  color: var(--danger-fg);
   margin-bottom: 12px;
 }
 
@@ -3585,8 +3585,8 @@ a:focus-visible {
 
 .device-code-warning {
   font-size: 12px;
-  color: var(--warning-fg, #f59e0b);
-  background: var(--warning-subtle, rgba(245, 158, 11, 0.1));
+  color: var(--warning-fg);
+  background: var(--warning-subtle);
   padding: 8px 12px;
   border-radius: var(--radius-md);
   margin-bottom: 16px;
@@ -3812,7 +3812,7 @@ a:focus-visible {
 
 /* Early Signal 活動項目顏色 */
 .activity-early_signal_detected .activity-icon {
-  background-color: var(--attention-subtle, rgba(163, 113, 247, 0.15));
+  background-color: var(--attention-subtle);
   color: var(--attention-fg);
 }
 
@@ -4157,8 +4157,8 @@ a:focus-visible {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  background-color: var(--warning-subtle, rgba(245, 158, 11, 0.15));
-  color: var(--warning-fg, #d97706);
+  background-color: var(--warning-subtle);
+  color: var(--warning-fg);
   white-space: nowrap;
 }
 

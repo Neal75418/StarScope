@@ -117,4 +117,4 @@ def init_db():
             from .query_logger import setup_query_logging
             setup_query_logging(engine, enable=True)
         except ImportError:
-            logger.warning("Query logger not available, skipping query logging setup")
+            logger.warning("[查詢日誌] 模組不可用，跳過查詢日誌設定")
