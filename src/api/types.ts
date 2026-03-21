@@ -32,6 +32,9 @@ export interface RepoWithSignals {
 export interface RepoListResponse {
   repos: RepoWithSignals[];
   total: number;
+  page: number | null;
+  per_page: number | null;
+  total_pages: number | null;
 }
 
 export interface RepoCreate {
@@ -166,10 +169,32 @@ export interface StarsChartResponse {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    public detail: string
+    public detail: string,
+    public code: string | null = null,
+    public details: unknown = null
   ) {
     super(detail);
     this.name = "ApiError";
+  }
+
+  /** 判斷是否為特定錯誤碼。 */
+  is(errorCode: string): boolean {
+    return this.code === errorCode;
+  }
+
+  /** 判斷是否為速率限制錯誤。 */
+  get isRateLimited(): boolean {
+    return this.status === 429 || this.code === "RATE_LIMITED";
+  }
+
+  /** 判斷是否為 Not Found 錯誤。 */
+  get isNotFound(): boolean {
+    return this.status === 404 || this.code === "NOT_FOUND";
+  }
+
+  /** 判斷是否為可重試的伺服器錯誤。 */
+  get isRetryable(): boolean {
+    return this.status >= 500 || this.code === "EXTERNAL_API_ERROR";
   }
 }
 

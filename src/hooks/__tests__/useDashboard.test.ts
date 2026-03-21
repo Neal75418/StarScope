@@ -93,6 +93,9 @@ function setupDefaultMocks() {
   vi.mocked(apiClient.getRepos).mockResolvedValue({
     repos: [makeRepo()],
     total: 1,
+    page: null,
+    per_page: null,
+    total_pages: null,
   });
   vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([makeAlert()]);
   vi.mocked(apiClient.listEarlySignals).mockResolvedValue({
@@ -153,7 +156,13 @@ describe("useDashboard", () => {
       makeRepo({ id: 1, stars: 100000, stars_delta_7d: 50 }),
       makeRepo({ id: 2, stars: 200000, stars_delta_7d: 150, full_name: "vuejs/vue" }),
     ];
-    vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: 2 });
+    vi.mocked(apiClient.getRepos).mockResolvedValue({
+      repos,
+      total: 2,
+      page: null,
+      per_page: null,
+      total_pages: null,
+    });
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([
       makeAlert({ id: 1, acknowledged: false }),
       makeAlert({ id: 2, acknowledged: true }),
@@ -175,6 +184,9 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos: [makeRepo({ stars: null, stars_delta_7d: null })],
       total: 1,
+      page: null,
+      per_page: null,
+      total_pages: null,
     });
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
@@ -202,7 +214,13 @@ describe("useDashboard", () => {
         triggered_at: `2024-01-${String(i + 10).padStart(2, "0")}T00:00:00Z`,
       })
     );
-    vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: 8 });
+    vi.mocked(apiClient.getRepos).mockResolvedValue({
+      repos,
+      total: 8,
+      page: null,
+      per_page: null,
+      total_pages: null,
+    });
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue(alerts);
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
@@ -230,7 +248,13 @@ describe("useDashboard", () => {
       makeRepo({ id: 6, velocity: 150 }),
       makeRepo({ id: 7, velocity: null }),
     ];
-    vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: 7 });
+    vi.mocked(apiClient.getRepos).mockResolvedValue({
+      repos,
+      total: 7,
+      page: null,
+      per_page: null,
+      total_pages: null,
+    });
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 

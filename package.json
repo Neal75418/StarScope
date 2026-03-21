@@ -30,6 +30,8 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:chromium": "playwright test --project=chromium",
     "generate:types": "openapi-typescript http://localhost:8008/api/openapi.json -o src/api/types.generated.ts",
+    "check:api-drift": "bash scripts/check-api-drift.sh",
+    "check:bundle-size": "bash scripts/check-bundle-size.sh",
     "prepare": "husky"
   },
   "dependencies": {

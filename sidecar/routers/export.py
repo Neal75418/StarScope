@@ -147,23 +147,7 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
     responses={
         200: {
             "description": "JSON 格式的 watchlist 匯出",
-            "content": {
-                "application/json": {
-                    "schema": WatchlistExportResponse.model_json_schema(),
-                    "example": {
-                        "exported_at": "2024-01-15T12:00:00Z",
-                        "total": 42,
-                        "repos": [
-                            {
-                                "id": 1,
-                                "full_name": "torvalds/linux",
-                                "stars": 150000,
-                                "velocity": 100.0,
-                            }
-                        ]
-                    }
-                }
-            }
+            "model": WatchlistExportResponse,
         }
     }
 )

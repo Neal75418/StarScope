@@ -118,10 +118,14 @@ async function doFetch<T>(
   // 已遷移的端點回傳 {success, data, message, error} 結構
   if (json && typeof json === "object" && "success" in json && "data" in json) {
     if (!json.success) {
-      throw new ApiError(
-        response.status,
-        json.error || json.message || API_ERROR_MESSAGES.REQUEST_FAILED
-      );
+      const errorObj = json.error;
+      const message =
+        typeof errorObj === "object" && errorObj?.code
+          ? json.message || errorObj.code
+          : errorObj || json.message || API_ERROR_MESSAGES.REQUEST_FAILED;
+      const code = typeof errorObj === "object" && errorObj?.code ? errorObj.code : null;
+      const details = typeof errorObj === "object" && errorObj?.details ? errorObj.details : null;
+      throw new ApiError(response.status, String(message), code, details);
     }
     return json.data as T;
   }
