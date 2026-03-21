@@ -16,7 +16,7 @@ if [ -z "$SCHEMA" ]; then
 fi
 
 # 要檢查的關鍵 schema 名稱
-SCHEMAS="RepoWithSignals RepoListResponse BackfillStatus BackfillResult StarHistoryResponse StarsChartResponse ContextBadgesResponse ContextSignalsResponse EarlySignalResponse TrendsResponse ComparisonChartResponse WeeklySummaryResponse PortfolioHistoryResponse DiscoveryRepo SearchResponse"
+SCHEMAS="RepoWithSignals RepoListResponse BackfillStatus BackfillResult StarHistoryResponse StarsChartResponse ContextBadgesResponse ContextSignalsResponse TrendsResponse ComparisonChartResponse WeeklySummaryResponse PortfolioHistoryResponse DiscoveryRepo SearchResponse"
 
 for schema_name in $SCHEMAS; do
   # 從 OpenAPI 取得後端欄位
@@ -32,14 +32,23 @@ for p in props: print(p)
     continue
   fi
 
-  # 檢查前端是否有對應的 interface
-  if ! grep -q "interface $schema_name\b\|type $schema_name\b" "$TYPES_FILE" 2>/dev/null; then
-    # 部分 schema 名稱在前端不同（如 EarlySignalResponse → EarlySignal）
+  # 提取前端 interface 的 body（從 interface 宣告到下一個 export 或空行+非縮排行）
+  INTERFACE_BODY=$(python3 -c "
+import re, sys
+content = open('$TYPES_FILE').read()
+# 匹配 'export interface SchemaName {' 到對應的 '}'
+pattern = r'export interface $schema_name\s*\{([^}]*)\}'
+match = re.search(pattern, content, re.DOTALL)
+if match:
+    print(match.group(1))
+" 2>/dev/null)
+
+  if [ -z "$INTERFACE_BODY" ]; then
     continue
   fi
 
   for field in $BACKEND_FIELDS; do
-    if ! grep -q "$field" "$TYPES_FILE" 2>/dev/null; then
+    if ! echo "$INTERFACE_BODY" | grep -q "$field" 2>/dev/null; then
       echo "❌ DRIFT: 後端 $schema_name.$field 在前端未定義"
       DRIFT=1
     fi

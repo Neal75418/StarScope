@@ -93,9 +93,6 @@ function setupDefaultMocks() {
   vi.mocked(apiClient.getRepos).mockResolvedValue({
     repos: [makeRepo()],
     total: 1,
-    page: null,
-    per_page: null,
-    total_pages: null,
   });
   vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([makeAlert()]);
   vi.mocked(apiClient.listEarlySignals).mockResolvedValue({
@@ -159,9 +156,6 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos,
       total: 2,
-      page: null,
-      per_page: null,
-      total_pages: null,
     });
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([
       makeAlert({ id: 1, acknowledged: false }),
@@ -184,9 +178,6 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos: [makeRepo({ stars: null, stars_delta_7d: null })],
       total: 1,
-      page: null,
-      per_page: null,
-      total_pages: null,
     });
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
@@ -217,9 +208,6 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos,
       total: 8,
-      page: null,
-      per_page: null,
-      total_pages: null,
     });
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue(alerts);
 
@@ -251,9 +239,6 @@ describe("useDashboard", () => {
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos,
       total: 7,
-      page: null,
-      per_page: null,
-      total_pages: null,
     });
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });

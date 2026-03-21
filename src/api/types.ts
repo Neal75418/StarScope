@@ -32,9 +32,9 @@ export interface RepoWithSignals {
 export interface RepoListResponse {
   repos: RepoWithSignals[];
   total: number;
-  page: number | null;
-  per_page: number | null;
-  total_pages: number | null;
+  page?: number | null;
+  per_page?: number | null;
+  total_pages?: number | null;
 }
 
 export interface RepoCreate {

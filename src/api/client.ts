@@ -119,13 +119,16 @@ async function doFetch<T>(
   if (json && typeof json === "object" && "success" in json && "data" in json) {
     if (!json.success) {
       const errorObj = json.error;
+      const isStructured = typeof errorObj === "object" && errorObj !== null;
+      const code = isStructured && errorObj.code ? String(errorObj.code) : null;
+      const details = isStructured && errorObj.details != null ? errorObj.details : null;
+      // 訊息優先順序：json.message > errorObj.code > 字串型 errorObj > fallback
       const message =
-        typeof errorObj === "object" && errorObj?.code
-          ? json.message || errorObj.code
-          : errorObj || json.message || API_ERROR_MESSAGES.REQUEST_FAILED;
-      const code = typeof errorObj === "object" && errorObj?.code ? errorObj.code : null;
-      const details = typeof errorObj === "object" && errorObj?.details ? errorObj.details : null;
-      throw new ApiError(response.status, String(message), code, details);
+        json.message ||
+        (isStructured ? errorObj.code : null) ||
+        (typeof errorObj === "string" ? errorObj : null) ||
+        API_ERROR_MESSAGES.REQUEST_FAILED;
+      throw new ApiError(response.status, message, code, details);
     }
     return json.data as T;
   }

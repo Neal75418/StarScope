@@ -8,7 +8,13 @@ BUDGET_KB=400  # gzipped JS 總大小上限（KB）
 
 # 建置
 echo "📦 建置前端..."
-npm run build --silent 2>/dev/null
+npm run build --silent
+
+# 驗證產出檔案存在
+if [ ! -d dist/assets ] || [ -z "$(find dist/assets -name '*.js' 2>/dev/null)" ]; then
+  echo "❌ dist/assets 中找不到 JS 檔案，建置可能失敗"
+  exit 1
+fi
 
 # 計算 JS gzipped 總大小
 TOTAL=$(find dist/assets -name '*.js' -exec gzip -c {} \; | wc -c | awk '{printf "%.1f", $1/1024}')
