@@ -34,13 +34,13 @@ __all__ = [
     "StarredReposResponse",
     "BatchRepoCreate",
     "BatchImportResult",
-    # Response schemas
+    # 回應 schemas
     "ApiResponse",
     "PaginationInfo",
     "ErrorDetail",
     "StatusResponse",
     "success_response",
-    # Discovery schemas
+    # 探索 schemas
     "DiscoveryRepo",
     "SearchResponse",
 ]

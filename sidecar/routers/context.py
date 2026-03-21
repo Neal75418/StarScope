@@ -62,7 +62,7 @@ class ContextBadge(BaseModel):
     label: str  # "HN: 150 pts"
     url: str
     score: int | None
-    is_recent: bool  # Published within last 7 days
+    is_recent: bool  # 7 天內發布
 
 
 class ContextBadgesResponse(BaseModel):

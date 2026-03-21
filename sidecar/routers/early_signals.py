@@ -120,7 +120,7 @@ async def list_early_signals(
 
     # noinspection PyTypeChecker
     signals: list[EarlySignal] = query.order_by(
-        _SEVERITY_ORDER,  # High severity first
+        _SEVERITY_ORDER,  # 高嚴重度優先
         EarlySignal.detected_at.desc()
     ).limit(limit).all()
 

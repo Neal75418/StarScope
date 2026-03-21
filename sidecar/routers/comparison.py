@@ -99,7 +99,7 @@ async def comparison_chart(
     if missing:
         raise HTTPException(status_code=404, detail=f"Repos not found: {missing}")
 
-    # Calculate date range
+    # 計算日期範圍
     days_map = {"7d": 7, "30d": 30, "90d": 90}
     today = utc_today()
     if req.time_range == "all":
@@ -107,7 +107,7 @@ async def comparison_chart(
     else:
         start_date = today - timedelta(days=days_map[req.time_range])
 
-    # Fetch snapshots for all repos in one query
+    # 一次查詢取得所有 repo 的快照
     snapshot_query = (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id.in_(req.repo_ids))
@@ -117,7 +117,7 @@ async def comparison_chart(
     snapshot_query = snapshot_query.order_by(asc(RepoSnapshot.snapshot_date))
     all_snapshots = snapshot_query.all()
 
-    # Group by repo_id
+    # 依 repo_id 分組
     snapshots_by_repo: dict[int, list[RepoSnapshot]] = {rid: [] for rid in req.repo_ids}
     for s in all_snapshots:
         snapshots_by_repo[s.repo_id].append(s)

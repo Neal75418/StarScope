@@ -203,7 +203,7 @@ def _create_snapshots_from_history(
                 snapshot = RepoSnapshot(
                     repo_id=repo_id,
                     stars=stars,
-                    forks=0,  # Unknown for historical data
+                    forks=0,  # 歷史資料無此欄位
                     watchers=0,
                     open_issues=0,
                     snapshot_date=snapshot_date,
@@ -243,7 +243,7 @@ async def get_backfill_status(
     ).count()
 
     can_backfill = current_stars <= MAX_STARS_FOR_BACKFILL
-    has_data = snapshot_count > 1  # More than just today's snapshot
+    has_data = snapshot_count > 1  # 不只有今天的快照
 
     if can_backfill:
         message = "Repository is eligible for star history backfill."
