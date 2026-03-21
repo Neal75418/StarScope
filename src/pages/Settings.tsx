@@ -79,9 +79,13 @@ export function Settings() {
       <div className="settings-layout">
         <nav className="settings-nav" aria-label="Settings sections">
           {navItems.map(({ id, label }) => (
-            <a key={id} href={`#${id}`} className="settings-nav-item">
+            <button
+              key={id}
+              className="settings-nav-item"
+              onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
+            >
               {label}
-            </a>
+            </button>
           ))}
         </nav>
 

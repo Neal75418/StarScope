@@ -91,7 +91,7 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-row">
-        <div className="toolbar-search">
+        <div className="toolbar-search" role="search">
           <input
             ref={searchInputRef}
             type="text"
@@ -188,14 +188,15 @@ export function Toolbar({
 
       <div className="toolbar-sort-row" data-testid="sort-tabs">
         <span className="sort-label">{t.watchlist.sort.label}</span>
-        <div className="sort-tabs">
+        <div className="sort-tabs" role="tablist" aria-label={t.watchlist.sort.label}>
           {SORT_OPTIONS.map((key) => (
             <button
               key={key}
+              role="tab"
               className={`sort-tab${sortKey === key ? " active" : ""}`}
               onClick={() => onSortChange(key)}
               data-testid={`sort-tab-${key}`}
-              aria-pressed={sortKey === key}
+              aria-selected={sortKey === key}
             >
               {sortLabels[key]}
               {sortKey === key && (

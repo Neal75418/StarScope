@@ -112,7 +112,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
   return (
     <div className={styles.results}>
       <div className={styles.resultsHeader}>
-        <span className={styles.resultsCount}>
+        <span className={styles.resultsCount} role="status" aria-live="polite">
           {t.discovery.results.replace("{count}", totalCount.toLocaleString())}
         </span>
         <div className={styles.resultsHeaderActions}>

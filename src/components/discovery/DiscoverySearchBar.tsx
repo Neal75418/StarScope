@@ -39,7 +39,12 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
   );
 
   return (
-    <form className={styles.searchBar} onSubmit={handleSubmit} data-testid="discovery-search-bar">
+    <form
+      className={styles.searchBar}
+      onSubmit={handleSubmit}
+      data-testid="discovery-search-bar"
+      role="search"
+    >
       <div className={styles.searchInputWrapper}>
         <SearchIcon size={18} className={styles.searchInputIcon} />
         <input
