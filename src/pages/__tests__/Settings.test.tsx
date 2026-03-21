@@ -41,6 +41,14 @@ vi.mock("../../components/ConfirmDialog", () => ({
     ) : null,
 }));
 
+vi.mock("../../hooks/useOSNotification", () => ({
+  useOSNotification: () => ({
+    sendOSNotification: vi.fn(),
+    isGranted: false,
+    requestPermission: vi.fn(),
+  }),
+}));
+
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/GitHubConnection", () => ({
   GitHubConnection: () => <div data-testid="github-connection">GitHub Connection</div>,

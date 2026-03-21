@@ -44,7 +44,7 @@ export function useDeviceFlowPolling({
   const codeRef = useRef<string>("");
   const initialDelayRef = useRef<number | null>(null);
 
-  // 從 usePollingRefs 內聯的清理函數
+  // 清理所有 timers
   const stopPolling = useCallback(() => {
     if (initialDelayRef.current !== null) {
       clearTimeout(initialDelayRef.current);
