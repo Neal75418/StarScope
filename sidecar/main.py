@@ -121,7 +121,7 @@ app = FastAPI(
     - 背景排程器每小時自動更新所有追蹤專案
     - 支援手動觸發更新 (`POST /api/repos/{id}/fetch`)
     """,
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
     # OpenAPI 配置
     docs_url="/api/docs",
