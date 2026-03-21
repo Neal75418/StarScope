@@ -114,7 +114,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|-------------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
 | `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 68 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `hooks/`        | 53 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
@@ -124,7 +124,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 目錄             | 說明                                                  |
 |----------------|-----------------------------------------------------|
-| `routers/`     | FastAPI 路由（17 個模組：repos、alerts、trends、categories 等） |
+| `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
 | `services/`    | 業務邏輯（15 個服務：analyzer、scheduler、recommender 等）       |
 | `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）         |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`                  |
@@ -220,8 +220,6 @@ PORT=8008
 | `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
 | `recommendations` | `/api/recommendations` | 相似 repo、相似度計算、recalculate             |
 | `discovery`       | `/api/discovery`       | GitHub 搜尋（rate limited 30/min）        |
-| `commit_activity` | `/api/commit-activity` | Commit 活動資料與摘要                        |
-| `languages`       | `/api/languages`       | 程式語言分佈與摘要                             |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
 | `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
@@ -230,7 +228,7 @@ PORT=8008
 | `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理            |
 | `health`          | `/api`                 | 健康檢查                                  |
 
-> 共 18 個路由模組
+> 共 16 個路由模組
 
 ---
 

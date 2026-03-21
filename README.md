@@ -203,7 +203,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   49 個 Custom Hooks
+│   ├── hooks/                     #   53 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -227,7 +227,7 @@ StarScope/
 │
 ├── sidecar/                       # Python 資料引擎
 │   ├── main.py                    #   FastAPI 入口（port 8008）
-│   ├── routers/                   #   17 個路由模組（67 個端點）
+│   ├── routers/                   #   16 個路由模組
 │   ├── services/                  #   15 個業務邏輯服務
 │   ├── schemas/                   #   Pydantic 資料模型
 │   ├── db/                        #   SQLite + SQLAlchemy（13 張表）
@@ -244,7 +244,7 @@ StarScope/
 ## 🔌 API 端點
 
 所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
-共 **17 個路由模組**、**67 個端點**：
+共 **16 個路由模組**：
 
 | 路由模組              | 前綴                     | 說明                                    |
 |-------------------|------------------------|---------------------------------------|
@@ -257,8 +257,6 @@ StarScope/
 | `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
 | `recommendations` | `/api/recommendations` | 相似 repo 推薦、相似度計算                      |
 | `discovery`       | `/api/discovery`       | GitHub 搜尋（限速 30/min）                  |
-| `commit_activity` | `/api/commit-activity` | Commit 活動與摘要                          |
-| `languages`       | `/api/languages`       | 程式語言分佈                                |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
 | `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
