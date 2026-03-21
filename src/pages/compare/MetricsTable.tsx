@@ -1,3 +1,7 @@
+/**
+ * Compare 頁面的指標對比表格，顯示各 repo 的 stars、delta、velocity 等數據。
+ */
+
 import { useMemo, memo } from "react";
 import { useI18n } from "../../i18n";
 import type { ComparisonRepoData, EarlySignal } from "../../api/types";

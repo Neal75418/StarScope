@@ -47,7 +47,7 @@ export function Discovery() {
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
-  // Keyboard shortcut: "/" to focus search
+  // 鍵盤快捷鍵：「/」聚焦搜尋框
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (

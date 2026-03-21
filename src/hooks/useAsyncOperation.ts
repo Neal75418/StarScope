@@ -1,5 +1,5 @@
 /**
- * 通用非同步操作封裝，含 loading 與 toast 通知。
+ * 通用非同步操作封裝，自動管理 loading 狀態並顯示 toast 通知。
  */
 
 import { useState, useCallback } from "react";

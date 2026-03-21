@@ -1,6 +1,4 @@
-"""
-Pydantic schemas for Discovery (GitHub Search) API.
-"""
+"""Discovery（GitHub 搜尋）API 的 Pydantic schemas。"""
 
 from pydantic import BaseModel, Field
 

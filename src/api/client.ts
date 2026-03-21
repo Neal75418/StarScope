@@ -828,10 +828,12 @@ export async function getPersonalizedRecommendations(
 
 // ==================== 應用程式設定 API 函式 ====================
 
+/** 取得定時更新間隔設定。 */
 export async function getFetchInterval(signal?: AbortSignal): Promise<FetchIntervalResponse> {
   return apiCall<FetchIntervalResponse>("/settings/fetch-interval", { signal });
 }
 
+/** 更新定時更新間隔設定。 */
 export async function updateFetchInterval(
   intervalMinutes: number,
   signal?: AbortSignal
@@ -843,12 +845,14 @@ export async function updateFetchInterval(
   });
 }
 
+/** 取得快照保留天數設定。 */
 export async function getSnapshotRetention(
   signal?: AbortSignal
 ): Promise<SnapshotRetentionResponse> {
   return apiCall<SnapshotRetentionResponse>("/settings/snapshot-retention", { signal });
 }
 
+/** 更新快照保留天數設定。 */
 export async function updateSnapshotRetention(
   retentionDays: number,
   signal?: AbortSignal
@@ -860,10 +864,12 @@ export async function updateSnapshotRetention(
   });
 }
 
+/** 取得信號偵測門檻設定。 */
 export async function getSignalThresholds(signal?: AbortSignal): Promise<SignalThresholdsResponse> {
   return apiCall<SignalThresholdsResponse>("/settings/signal-thresholds", { signal });
 }
 
+/** 更新信號偵測門檻設定。 */
 export async function updateSignalThresholds(
   updates: SignalThresholdsUpdate,
   signal?: AbortSignal
@@ -875,10 +881,12 @@ export async function updateSignalThresholds(
   });
 }
 
+/** 清除後端快取。 */
 export async function clearCache(signal?: AbortSignal): Promise<{ status: string }> {
   return apiCall<{ status: string }>("/settings/clear-cache", { method: "POST", signal });
 }
 
+/** 重設所有追蹤資料（需確認）。 */
 export async function resetAllData(signal?: AbortSignal): Promise<ResetDataResponse> {
   return apiCall<ResetDataResponse>("/settings/reset-data", {
     method: "POST",

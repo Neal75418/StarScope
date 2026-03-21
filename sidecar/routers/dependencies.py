@@ -1,3 +1,5 @@
+"""共用路由依賴注入（驗證、取得 Repo 等）。"""
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 

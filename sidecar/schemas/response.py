@@ -1,6 +1,4 @@
-"""
-Unified API response schemas for consistent response formatting.
-"""
+"""統一 API 回應 schemas，確保回應格式一致。"""
 
 from typing import TypeVar, Generic, Any
 from pydantic import BaseModel, Field

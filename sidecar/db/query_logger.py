@@ -44,7 +44,7 @@ def setup_query_logging(engine: Engine, enable: bool = True):
         >>> setup_query_logging(engine)
     """
     if not enable:
-        logger.info("Query logging disabled")
+        logger.info("[查詢日誌] 查詢日誌已停用")
         return
 
     @event.listens_for(engine, "before_cursor_execute")
@@ -55,7 +55,7 @@ def setup_query_logging(engine: Engine, enable: bool = True):
 
         # 記錄查詢（DEBUG 級別，不記錄參數避免洩漏敏感資料）
         if logger.isEnabledFor(logging.DEBUG):
-            logger.debug(f"Executing SQL:\n{statement}")
+            logger.debug(f"[查詢日誌] 執行 SQL:\n{statement}")
 
     @event.listens_for(engine, "after_cursor_execute")
     def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
@@ -79,7 +79,7 @@ def setup_query_logging(engine: Engine, enable: bool = True):
                 statement_preview += "..."
 
             logger.warning(
-                f"⚠️  Slow query detected ({elapsed:.3f}s):\n"
+                f"[查詢日誌] 慢查詢偵測 ({elapsed:.3f}s):\n"
                 f"Statement: {statement_preview}\n"
                 f"Total queries: {_query_stats['total_queries']}, "
                 f"Slow queries: {_query_stats['slow_queries']}"
@@ -87,10 +87,10 @@ def setup_query_logging(engine: Engine, enable: bool = True):
 
         # 記錄所有查詢時間（INFO 級別）
         elif logger.isEnabledFor(logging.INFO):
-            logger.info(f"Query completed in {elapsed:.3f}s")
+            logger.info(f"[查詢日誌] 查詢完成 ({elapsed:.3f}s)")
 
     # PRAGMA 設定已統一在 database.py set_sqlite_pragma 中管理
 
-    logger.info("Database query logging enabled (slow query threshold: %.1fs)", SLOW_QUERY_THRESHOLD)
+    logger.info(f"[查詢日誌] 資料庫查詢日誌已啟用（慢查詢閾值: {SLOW_QUERY_THRESHOLD:.1f}s）")
 
 

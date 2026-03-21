@@ -57,7 +57,7 @@ class BackupService:
             backup_path = self.backup_dir / backup_filename
 
             # 使用 SQLite Online Backup API，安全處理 WAL 模式
-            logger.info(f"Creating database backup: {backup_path}")
+            logger.info(f"[備份] 建立資料庫備份: {backup_path}")
             src = sqlite3.connect(str(self.db_path))
             try:
                 dst = sqlite3.connect(str(backup_path))
@@ -70,14 +70,14 @@ class BackupService:
 
             # 驗證備份檔案
             if not backup_path.exists() or backup_path.stat().st_size == 0:
-                logger.error(f"Backup verification failed: {backup_path}")
+                logger.error(f"[備份] 備份驗證失敗: {backup_path}")
                 return None
 
-            logger.info(f"Backup created successfully: {backup_path} ({backup_path.stat().st_size} bytes)")
+            logger.info(f"[備份] 備份建立成功: {backup_path} ({backup_path.stat().st_size} bytes)")
             return backup_path
 
         except OSError as e:
-            logger.error(f"Failed to create backup: {e}", exc_info=True)
+            logger.error(f"[備份] 備份建立失敗: {e}", exc_info=True)
             return None
 
     def cleanup_old_backups(self, retention_days: int = 7) -> int:
@@ -106,19 +106,19 @@ class BackupService:
                 file_mtime = datetime.fromtimestamp(backup_file.stat().st_mtime, tz=timezone.utc)
 
                 if file_mtime < cutoff_date:
-                    logger.info(f"Removing old backup: {backup_file} (age: {datetime.now(timezone.utc) - file_mtime})")
+                    logger.info(f"[備份] 移除舊備份: {backup_file} (age: {datetime.now(timezone.utc) - file_mtime})")
                     backup_file.unlink()
                     deleted_count += 1
 
             if deleted_count > 0:
-                logger.info(f"Cleaned up {deleted_count} old backup(s)")
+                logger.info(f"[備份] 清理了 {deleted_count} 個舊備份")
             else:
-                logger.debug("No old backups to clean up")
+                logger.debug("[備份] 無需清理舊備份")
 
             return deleted_count
 
         except OSError as e:
-            logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
+            logger.error(f"[備份] 清理舊備份失敗: {e}", exc_info=True)
             return 0
 
 

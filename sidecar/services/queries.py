@@ -1,6 +1,6 @@
 """
-Shared database query utilities.
-Centralizes common query patterns to avoid code duplication.
+共用資料庫查詢工具。
+集中管理常見查詢模式，避免程式碼重複。
 """
 
 from __future__ import annotations
@@ -71,11 +71,11 @@ def build_signal_map(
     repo_ids: list[int] | None = None
 ) -> dict[int, dict[str, float]]:
     """
-    Pre-fetch signals and group by repo_id.
+    預先載入 signals 並依 repo_id 分組。
 
     Args:
-        db: Database session
-        repo_ids: Optional list of repo IDs to filter. If None, fetches all.
+        db: 資料庫 session
+        repo_ids: 可選的 repo ID 列表。為 None 時載入全部。
 
     Returns:
         {repo_id: {signal_type: value}}
@@ -105,15 +105,15 @@ def _build_latest_snapshot_subquery(
     repo_ids: list[int] | None = None
 ) -> Subquery | None:
     """
-    Build subquery to get max snapshot_date per repo.
-    Shared helper to avoid code duplication.
+    建立子查詢，取得每個 repo 的最新 snapshot_date。
+    共用輔助函式，避免程式碼重複。
 
     Args:
-        db: Database session
-        repo_ids: Optional list of repo IDs to filter.
+        db: 資料庫 session
+        repo_ids: 可選的 repo ID 列表。
 
     Returns:
-        SQLAlchemy subquery for latest snapshot dates
+        最新快照日期的 SQLAlchemy 子查詢
     """
     subq_query: Query = db.query(
         RepoSnapshot.repo_id,
@@ -133,11 +133,11 @@ def build_snapshot_map(
     repo_ids: list[int] | None = None
 ) -> dict[int, RepoSnapshot]:
     """
-    Pre-fetch latest snapshots for repos in a single query.
+    以單一查詢預先載入各 repo 的最新快照。
 
     Args:
-        db: Database session
-        repo_ids: Optional list of repo IDs to filter. If None, fetches all.
+        db: 資料庫 session
+        repo_ids: 可選的 repo ID 列表。為 None 時載入全部。
 
     Returns:
         {repo_id: RepoSnapshot}
@@ -168,11 +168,11 @@ def build_stars_map(
     repo_ids: list[int] | None = None
 ) -> dict[int, int]:
     """
-    Pre-fetch latest snapshot stars for repos.
+    預先載入各 repo 最新快照的星數。
 
     Args:
-        db: Database session
-        repo_ids: Optional list of repo IDs to filter. If None, fetches all.
+        db: 資料庫 session
+        repo_ids: 可選的 repo ID 列表。為 None 時載入全部。
 
     Returns:
         {repo_id: stars}

@@ -1,3 +1,7 @@
+/**
+ * Dashboard 的早期信號聚光燈 Widget，顯示活躍的異常偵測訊號摘要。
+ */
+
 import { memo, useMemo } from "react";
 import { useI18n } from "../../i18n";
 import { EarlySignal, SignalSummary } from "../../api/client";

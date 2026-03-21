@@ -170,19 +170,22 @@ export function Trends() {
     return names;
   }, [watchlistState.repos, locallyAdded]);
 
-  const handleAddToWatchlist = useCallback(async (repo: TrendingRepo) => {
-    setAddingRepoId(repo.id);
-    setAddError(null);
-    try {
-      await addRepo({ owner: repo.owner, name: repo.name });
-      setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
-    } catch (err) {
-      logger.error("[Trends] 加入追蹤失敗:", err);
-      setAddError(`Failed to add ${repo.full_name}`);
-    } finally {
-      setAddingRepoId(null);
-    }
-  }, []);
+  const handleAddToWatchlist = useCallback(
+    async (repo: TrendingRepo) => {
+      setAddingRepoId(repo.id);
+      setAddError(null);
+      try {
+        await addRepo({ owner: repo.owner, name: repo.name });
+        setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
+      } catch (err) {
+        logger.error("[Trends] 加入追蹤失敗:", err);
+        setAddError(`${t.common.error}: ${repo.full_name}`);
+      } finally {
+        setAddingRepoId(null);
+      }
+    },
+    [t]
+  );
 
   const handleToggleExpand = useCallback((repoId: number) => {
     setExpandedRepoId((prev) => (prev === repoId ? null : repoId));

@@ -76,7 +76,7 @@ export function ActiveFilters({
     return null;
   }
 
-  // Build star label: range, min-only, or max-only
+  // 建立星數標籤：範圍、僅最小值、或僅最大值
   const starLabel =
     minStars && maxStars
       ? `\u2605 ${minStars.toLocaleString()} - ${maxStars.toLocaleString()}`

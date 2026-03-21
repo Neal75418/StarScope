@@ -1,3 +1,8 @@
+/**
+ * 通知轉換與合併輔助函式。
+ * 將已觸發警報轉為通知格式，並管理已讀狀態合併。
+ */
+
 import { TriggeredAlert } from "../api/client";
 import { Notification } from "../hooks/useNotifications";
 

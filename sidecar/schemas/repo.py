@@ -1,6 +1,4 @@
-"""
-Pydantic schemas for Repo-related API endpoints.
-"""
+"""Repo 相關 API 端點的 Pydantic schemas。"""
 
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator

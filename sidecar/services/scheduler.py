@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import uuid
 from contextlib import contextmanager
@@ -28,7 +29,6 @@ from services.github import fetch_repo_data, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
 from utils.time import utc_now
-import os
 
 logger = logging.getLogger(__name__)
 

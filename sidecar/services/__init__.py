@@ -1,4 +1,4 @@
-# Services package
+"""服務套件。"""
 from .github import GitHubService
 from .analyzer import calculate_signals
 

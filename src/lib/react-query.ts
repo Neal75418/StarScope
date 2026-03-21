@@ -43,7 +43,7 @@ export const queryClient = new QueryClient({
  * 提供型別安全的查詢 key 生成器，避免魔術字串。
  */
 export const queryKeys = {
-  // Repos
+  // 儲存庫
   repos: {
     all: ["repos"] as const,
     lists: () => [...queryKeys.repos.all, "list"] as const,
@@ -54,7 +54,7 @@ export const queryKeys = {
     starred: () => [...queryKeys.repos.all, "starred"] as const,
   },
 
-  // Early Signals
+  // 早期信號
   signals: {
     all: ["signals"] as const,
     lists: () => [...queryKeys.signals.all, "list"] as const,
@@ -64,32 +64,32 @@ export const queryKeys = {
     summary: () => [...queryKeys.signals.all, "summary"] as const,
   },
 
-  // Context Badges
+  // 情境徽章
   contextBadges: {
     all: ["contextBadges"] as const,
     batch: (repoIds: number[]) => [...queryKeys.contextBadges.all, "batch", repoIds] as const,
   },
 
-  // Discovery
+  // 探索
   discovery: {
     all: ["discovery"] as const,
     search: (params: { query: string; filters: Record<string, unknown> }) =>
       [...queryKeys.discovery.all, "search", params] as const,
   },
 
-  // GitHub Auth
+  // GitHub 認證
   githubAuth: {
     status: ["githubAuth", "status"] as const,
   },
 
-  // Trends
+  // 趨勢
   trends: {
     all: ["trends"] as const,
     list: (filters: { sortBy?: string; language?: string; minStars?: number | null } = {}) =>
       [...queryKeys.trends.all, "list", filters] as const,
   },
 
-  // Dashboard
+  // 儀表板
   dashboard: {
     all: ["dashboard"] as const,
     health: ["dashboard", "health"] as const,
@@ -100,7 +100,7 @@ export const queryKeys = {
     categories: () => [...queryKeys.dashboard.all, "categories"] as const,
   },
 
-  // Alerts
+  // 警報
   alerts: {
     all: ["alerts"] as const,
     rules: () => [...queryKeys.alerts.all, "rules"] as const,
@@ -108,67 +108,67 @@ export const queryKeys = {
     signalTypes: () => [...queryKeys.alerts.all, "signalTypes"] as const,
   },
 
-  // Comparison
+  // 對比
   comparison: {
     all: ["comparison"] as const,
     chart: (repoIds: number[], timeRange: string, normalize: boolean) =>
       [...queryKeys.comparison.all, "chart", repoIds, timeRange, normalize] as const,
   },
 
-  // Recommendations
+  // 推薦
   recommendations: {
     all: ["recommendations"] as const,
     personalized: (limit: number) =>
       [...queryKeys.recommendations.all, "personalized", limit] as const,
   },
 
-  // Notifications
+  // 通知
   notifications: {
     all: ["notifications"] as const,
     polling: () => [...queryKeys.notifications.all, "polling"] as const,
   },
 
-  // Backfill
+  // 回填
   backfill: {
     all: ["backfill"] as const,
     status: (repoId: number) => [...queryKeys.backfill.all, "status", repoId] as const,
   },
 
-  // Similar Repos
+  // 相似儲存庫
   similarRepos: {
     all: ["similarRepos"] as const,
     list: (repoId: number, limit: number) =>
       [...queryKeys.similarRepos.all, "list", repoId, limit] as const,
   },
 
-  // Connection
+  // 連線
   connection: {
     all: ["connection"] as const,
     status: () => [...queryKeys.connection.all, "status"] as const,
   },
 
-  // Stars Chart
+  // 星數圖表
   starsChart: {
     all: ["starsChart"] as const,
     data: (repoId: number, timeRange: string) =>
       [...queryKeys.starsChart.all, "data", repoId, timeRange] as const,
   },
 
-  // Summaries
+  // 摘要
   summaries: {
     all: ["summaries"] as const,
     generic: (logPrefix: string, repoId: number) =>
       [...queryKeys.summaries.all, logPrefix, repoId] as const,
   },
 
-  // Repo Card Data
+  // Repo 卡片資料
   repoCard: {
     all: ["repoCard"] as const,
     badges: (repoId: number) => [...queryKeys.repoCard.all, "badges", repoId] as const,
     signals: (repoId: number) => [...queryKeys.repoCard.all, "signals", repoId] as const,
   },
 
-  // Alert Rule Data
+  // 警報規則資料
   alertRuleData: {
     all: ["alertRuleData"] as const,
     rules: () => [...queryKeys.alertRuleData.all, "rules"] as const,

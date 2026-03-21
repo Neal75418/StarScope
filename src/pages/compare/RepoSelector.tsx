@@ -1,3 +1,7 @@
+/**
+ * Compare 頁面的 Repo 選擇器元件，可搜尋並多選 watchlist 中的 repo。
+ */
+
 import { useState, useMemo, memo, useImperativeHandle, forwardRef } from "react";
 import type { Ref } from "react";
 import { useI18n } from "../../i18n";
