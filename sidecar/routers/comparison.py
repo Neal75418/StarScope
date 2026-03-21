@@ -1,6 +1,6 @@
 """
-Comparison chart API endpoint.
-Provides multi-repo star trend data for side-by-side comparison.
+對比圖表 API 端點。
+提供多 Repo 星數趨勢資料，用於並排比較。
 """
 
 from datetime import date, timedelta
@@ -19,16 +19,16 @@ from utils.time import utc_today
 
 router = APIRouter(prefix="/api/comparison", tags=["comparison"])
 
-# Pre-defined color palette for chart lines
+# 圖表線條預設色板
 PALETTE = [
-    "#2563eb",  # blue
-    "#dc2626",  # red
-    "#16a34a",  # green
-    "#ea580c",  # orange
-    "#9333ea",  # purple
-    "#0891b2",  # cyan
-    "#ca8a04",  # yellow
-    "#e11d48",  # rose
+    "#2563eb",  # 藍
+    "#dc2626",  # 紅
+    "#16a34a",  # 綠
+    "#ea580c",  # 橙
+    "#9333ea",  # 紫
+    "#0891b2",  # 青
+    "#ca8a04",  # 黃
+    "#e11d48",  # 玫瑰
 ]
 
 
@@ -92,7 +92,7 @@ async def comparison_chart(
     取得多個 repo 的對比圖表資料。
     支援 2-5 個 repo，可選正規化為百分比變化。
     """
-    # Verify all repos exist
+    # 驗證所有 repo 存在
     repos = db.query(Repo).filter(Repo.id.in_(req.repo_ids)).all()
     repo_map = {r.id: r for r in repos}
     missing = [rid for rid in req.repo_ids if rid not in repo_map]

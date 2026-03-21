@@ -22,7 +22,7 @@ from utils.time import utc_now, utc_today
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
-# Response Models for OpenAPI documentation
+# OpenAPI 文件用回應模型
 class ExportedRepo(BaseModel):
     """匯出的 Repo 資料結構（包含訊號）。"""
     id: int = Field(..., description="Repo ID")
@@ -250,7 +250,7 @@ async def export_watchlist_csv(
 
 
 # ──────────────────────────────────────────────────────────────
-# Trends Export
+# 趨勢匯出
 # ──────────────────────────────────────────────────────────────
 
 TrendsSortBy = Literal[
