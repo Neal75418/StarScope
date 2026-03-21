@@ -262,6 +262,7 @@ StarScope/
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
 | `export`          | `/api/export`          | Watchlist JSON / CSV 匯出               |
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
+| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理            |
 | `health`          | `/api`                 | 健康檢查                                  |
 
 > 📖 完整 API 文件可在開發模式下存取：`http://localhost:8008/api/docs`（Swagger）/ `http://localhost:8008/api/redoc`（ReDoc）
