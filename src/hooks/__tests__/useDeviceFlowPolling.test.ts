@@ -9,6 +9,11 @@ vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
+let mockOnline = true;
+vi.mock("../useOnlineStatus", () => ({
+  useOnlineStatus: () => mockOnline,
+}));
+
 import { pollAuthorization } from "../../api/client";
 import { useDeviceFlowPolling } from "../useDeviceFlowPolling";
 
@@ -20,13 +25,22 @@ describe("useDeviceFlowPolling", () => {
   const onExpired = vi.fn<() => void>();
   const setPollStatus = vi.fn<(status: string) => void>();
 
+  const originalHidden = document.hidden;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
+    mockOnline = true;
+    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, "hidden", {
+      value: originalHidden,
+      writable: true,
+      configurable: true,
+    });
   });
 
   function renderPolling() {
@@ -154,5 +168,58 @@ describe("useDeviceFlowPolling", () => {
 
     // After initial delay, polling should use >= 10 second interval
     expect(setPollStatus).toHaveBeenCalled();
+  });
+
+  it("skips poll when document is hidden", async () => {
+    mockPollAuth.mockResolvedValue({ status: "pending" });
+    const { result } = renderPolling();
+
+    await act(async () => {
+      result.current.startPolling("code", 5, 60);
+    });
+
+    // 讓 initial delay 觸發
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    const callsBefore = mockPollAuth.mock.calls.length;
+
+    // 設定頁面為隱藏，再觸發一次 interval
+    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // 隱藏期間不應有新的 poll 呼叫
+    expect(mockPollAuth.mock.calls.length).toBe(callsBefore);
+
+    result.current.stopPolling();
+  });
+
+  it("skips poll and sets networkError when offline", async () => {
+    mockPollAuth.mockResolvedValue({ status: "pending" });
+    const { result, rerender } = renderPolling();
+
+    await act(async () => {
+      result.current.startPolling("code", 5, 60);
+    });
+
+    // 先讓 initial delay 觸發一次正常 poll
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    const callsBefore = mockPollAuth.mock.calls.length;
+
+    // 切換為離線並 rerender 讓 ref 更新
+    mockOnline = false;
+    rerender();
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // 離線期間不應有新的 poll 呼叫
+    expect(mockPollAuth.mock.calls.length).toBe(callsBefore);
+
+    result.current.stopPolling();
   });
 });
