@@ -1464,7 +1464,7 @@ body {
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+  box-shadow: var(--shadow-md);
   z-index: 20;
 }
 
@@ -1968,8 +1968,8 @@ body {
 }
 
 .breakout-badge-release_surge {
-  background-color: var(--done-subtle, var(--accent-subtle));
-  color: var(--done-fg, var(--accent-fg));
+  background-color: var(--accent-subtle);
+  color: var(--accent-fg);
 }
 
 .breakout-badge-more {

@@ -17,7 +17,7 @@ from typing import Optional
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from sqlalchemy import create_engine, func
+from sqlalchemy import create_engine, func, select as sa_select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query, Session
 
@@ -318,9 +318,8 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
 
             # 子查詢：每個 repo 的最新快照 ID（絕不刪除）
             latest_ids = (
-                db.query(func.max(RepoSnapshot.id))
+                sa_select(func.max(RepoSnapshot.id))
                 .group_by(RepoSnapshot.repo_id)
-                .subquery()
             )
 
             # 刪除過期快照，但保留每個 repo 的最新一筆
