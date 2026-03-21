@@ -65,7 +65,7 @@ export function Settings() {
     { id: "import", label: t.settings.import.title },
     { id: "data-management", label: t.settings.data.title },
     { id: "alerts", label: t.settings.alerts.title },
-    { id: "diagnostics", label: t.settings.diagnostics?.title ?? "系統診斷" },
+    { id: "diagnostics", label: t.settings.diagnostics.title },
     { id: "about", label: t.settings.about.title },
   ];
 

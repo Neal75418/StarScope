@@ -43,6 +43,8 @@ export function useSmartIntervalCallback(callback: (() => void) | null, interval
   const isOnline = useOnlineStatus();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
+  const isOnlineRef = useRef(isOnline);
+  isOnlineRef.current = isOnline;
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function useSmartIntervalCallback(callback: (() => void) | null, interval
 
     const shouldRun = () => {
       if (typeof document !== "undefined" && document.hidden) return false;
-      if (!isOnline) return false;
+      if (!isOnlineRef.current) return false;
       return true;
     };
 
@@ -67,5 +69,5 @@ export function useSmartIntervalCallback(callback: (() => void) | null, interval
         clearInterval(intervalRef.current);
       }
     };
-  }, [intervalMs, isOnline]);
+  }, [intervalMs]);
 }

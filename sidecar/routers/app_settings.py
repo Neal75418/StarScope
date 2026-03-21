@@ -5,6 +5,7 @@
 
 import logging
 import os
+import time as _time
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -23,6 +24,7 @@ from services.settings import get_setting, set_setting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 logger = logging.getLogger(__name__)
+_START_TIME = _time.monotonic()
 
 # 允許的排程間隔（分鐘）
 ALLOWED_FETCH_INTERVALS = {60, 360, 720, 1440}
@@ -210,15 +212,14 @@ class DiagnosticsResponse(BaseModel):
     uptime_seconds: float
 
 
-import time as _time
-_START_TIME = _time.monotonic()
-
-
 @router.get("/diagnostics", response_model=ApiResponse[DiagnosticsResponse])
 async def get_diagnostics(db: Session = Depends(get_db)):
     """取得系統診斷資訊：版本、資料庫狀態、最後同步時間。"""
-    db_path = DATABASE_URL.replace("sqlite:///", "")
-    db_size = os.path.getsize(db_path) / (1024 * 1024) if os.path.exists(db_path) else 0
+    db_path_abs = DATABASE_URL.replace("sqlite:///", "")
+    db_size = os.path.getsize(db_path_abs) / (1024 * 1024) if os.path.exists(db_path_abs) else 0
+    # 顯示相對路徑（隱藏使用者名稱）
+    home = os.path.expanduser("~")
+    db_path_display = db_path_abs.replace(home, "~") if db_path_abs.startswith(home) else db_path_abs
 
     total_repos = db.query(func.count(Repo.id)).scalar() or 0
     total_snapshots = db.query(func.count(RepoSnapshot.id)).scalar() or 0
@@ -226,7 +227,7 @@ async def get_diagnostics(db: Session = Depends(get_db)):
 
     return success_response(data=DiagnosticsResponse(
         version="0.4.0",
-        db_path=db_path,
+        db_path=db_path_display,
         db_size_mb=round(db_size, 2),
         total_repos=total_repos,
         total_snapshots=total_snapshots,

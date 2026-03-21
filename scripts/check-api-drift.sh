@@ -19,29 +19,31 @@ fi
 SCHEMAS="RepoWithSignals RepoListResponse BackfillStatus BackfillResult StarHistoryResponse StarsChartResponse ContextBadgesResponse ContextSignalsResponse TrendsResponse ComparisonChartResponse WeeklySummaryResponse PortfolioHistoryResponse DiscoveryRepo SearchResponse"
 
 for schema_name in $SCHEMAS; do
-  # 從 OpenAPI 取得後端欄位
+  # 從 OpenAPI 取得後端欄位（透過 sys.argv 傳遞，避免 shell injection）
   BACKEND_FIELDS=$(echo "$SCHEMA" | python3 -c "
 import json, sys
+name = sys.argv[1]
 spec = json.load(sys.stdin)
-schema = spec.get('components', {}).get('schemas', {}).get('$schema_name', {})
+schema = spec.get('components', {}).get('schemas', {}).get(name, {})
 props = sorted(schema.get('properties', {}).keys())
 for p in props: print(p)
-" 2>/dev/null)
+" "$schema_name" 2>/dev/null)
 
   if [ -z "$BACKEND_FIELDS" ]; then
     continue
   fi
 
-  # 提取前端 interface 的 body（從 interface 宣告到下一個 export 或空行+非縮排行）
+  # 提取前端 interface 的 body（透過 sys.argv 傳遞）
   INTERFACE_BODY=$(python3 -c "
 import re, sys
-content = open('$TYPES_FILE').read()
-# 匹配 'export interface SchemaName {' 到對應的 '}'
-pattern = r'export interface $schema_name\s*\{([^}]*)\}'
+name = sys.argv[1]
+types_file = sys.argv[2]
+content = open(types_file).read()
+pattern = r'export interface ' + re.escape(name) + r'\s*\{([^}]*)\}'
 match = re.search(pattern, content, re.DOTALL)
 if match:
     print(match.group(1))
-" 2>/dev/null)
+" "$schema_name" "$TYPES_FILE" 2>/dev/null)
 
   if [ -z "$INTERFACE_BODY" ]; then
     continue
