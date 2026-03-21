@@ -39,7 +39,7 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
   );
 
   return (
-    <form className={styles.searchBar} onSubmit={handleSubmit}>
+    <form className={styles.searchBar} onSubmit={handleSubmit} data-testid="discovery-search-bar">
       <div className={styles.searchInputWrapper}>
         <SearchIcon size={18} className={styles.searchInputIcon} />
         <input
@@ -50,9 +50,15 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           disabled={loading}
+          data-testid="discovery-search-input"
         />
       </div>
-      <button type="submit" className={styles.searchButton} disabled={loading || !query.trim()}>
+      <button
+        type="submit"
+        className={styles.searchButton}
+        disabled={loading || !query.trim()}
+        data-testid="discovery-search-submit"
+      >
         {loading ? t.discovery.searching : t.common.search}
       </button>
     </form>

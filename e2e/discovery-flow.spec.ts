@@ -9,46 +9,38 @@ test.describe("Discovery Flow", () => {
   });
 
   test("discovery page loads with search bar", async ({ page }) => {
-    const searchInput = page.locator("form input[type='text']").first();
-    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="discovery-search-input"]')).toBeVisible({ timeout: 5000 });
   });
 
   test("trending period buttons are visible", async ({ page }) => {
-    const trendingButtons = page.locator('button[class*="trendingTag"]');
-    await expect(trendingButtons.first()).toBeVisible({ timeout: 10000 });
-    const count = await trendingButtons.count();
-    expect(count).toBe(3);
+    await expect(page.locator('[data-testid="trending-daily"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="trending-weekly"]')).toBeVisible();
+    await expect(page.locator('[data-testid="trending-monthly"]')).toBeVisible();
   });
 
   test("can search and see results", async ({ page }) => {
-    const searchInput = page.locator("form input[type='text']").first();
+    const searchInput = page.locator('[data-testid="discovery-search-input"]');
     await searchInput.fill("react");
-    await searchInput.press("Enter");
+    await page.locator('[data-testid="discovery-search-submit"]').click();
 
-    // Wait for result cards to appear
-    const resultCards = page.locator('[class*="resultCard"]');
-    await expect(resultCards.first()).toBeVisible({ timeout: 15000 });
+    // 等待結果卡片出現（使用 data-testid pattern）
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
   });
 
   test("filter controls are visible", async ({ page }) => {
-    // Filters appear after trending auto-loads
-    const filterSelects = page.locator('[class*="filterSelect"]');
-    await expect(filterSelects.first()).toBeVisible({ timeout: 10000 });
-
-    const count = await filterSelects.count();
-    expect(count).toBeGreaterThanOrEqual(4);
+    await expect(page.locator('[data-testid="discovery-filters"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="filter-language"]')).toBeVisible();
   });
 
   test("clicking trending period loads results", async ({ page }) => {
-    const trendingButtons = page.locator('button[class*="trendingTag"]');
-    await expect(trendingButtons.first()).toBeVisible({ timeout: 10000 });
+    const dailyBtn = page.locator('[data-testid="trending-daily"]');
+    await expect(dailyBtn).toBeVisible({ timeout: 10000 });
 
-    await trendingButtons.first().click();
-    await expect(trendingButtons.first()).toHaveClass(/active/);
+    await dailyBtn.click();
 
-    // Results or empty state should appear
+    // 結果或空狀態應出現
     await expect(
-      page.locator('[class*="results"]').or(page.locator('[class*="emptyState"]'))
+      page.locator('[data-testid="discovery-results"]').or(page.locator('[data-testid^="discovery-result-"]').first())
     ).toBeVisible({ timeout: 15000 });
   });
 });

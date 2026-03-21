@@ -30,6 +30,7 @@ export function TrendingFilters({ activePeriod, onSelectPeriod }: TrendingFilter
             key={period.value}
             className={`${styles.trendingTag} ${activePeriod === period.value ? styles.active : ""}`}
             onClick={() => onSelectPeriod(period.value)}
+            data-testid={`trending-${period.value}`}
           >
             {t.discovery.trending[period.labelKey]}
           </button>

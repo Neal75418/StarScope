@@ -99,12 +99,13 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
   const isAsc = filters.order === "asc";
 
   return (
-    <div className={styles.filters}>
+    <div className={styles.filters} data-testid="discovery-filters">
       <select
         className={styles.filterSelect}
         value={filters.language || ""}
         onChange={(e) => onFiltersChange({ ...filters, language: e.target.value || undefined })}
         aria-label={t.discovery.filters.allLanguages}
+        data-testid="filter-language"
       >
         {LANGUAGES.map((lang) => (
           <option key={lang.value} value={lang.value}>

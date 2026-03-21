@@ -60,7 +60,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
     .join(" ");
 
   return (
-    <div className={cardClassName}>
+    <div className={cardClassName} data-testid={`discovery-result-${repo.id}`}>
       {repo.archived && <span className={styles.archivedBadge}>{t.discovery.archived}</span>}
       <div className={styles.cardHeader}>
         {isSelectionMode && (
