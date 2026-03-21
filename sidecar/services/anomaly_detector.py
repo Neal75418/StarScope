@@ -575,7 +575,7 @@ class AnomalyDetector:
             ContextSignal.fetched_at >= cutoff_hn,
             ContextSignal.score >= VIRAL_HN_MIN_SCORE,
         ).order_by(ContextSignal.score.desc()).all()
-        # hn_signal_map: {repo_id: highest_score_hn_signal}
+        # hn_signal_map: {repo_id: 最高分 HN 訊號}
         hn_signal_map: dict[int, ContextSignal] = {}
         for hn in hn_signals_raw:
             if hn.repo_id not in hn_signal_map:

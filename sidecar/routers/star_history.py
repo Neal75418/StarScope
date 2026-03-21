@@ -46,8 +46,8 @@ class BackfillResult(BaseModel):
     success: bool
     total_stargazers: int
     snapshots_created: int
-    earliest_date: str | None  # ISO format date string
-    latest_date: str | None  # ISO format date string
+    earliest_date: str | None  # ISO 格式日期字串
+    latest_date: str | None  # ISO 格式日期字串
     message: str
 
 

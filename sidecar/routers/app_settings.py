@@ -28,7 +28,7 @@ DEFAULT_FETCH_INTERVAL = 60
 DEFAULT_SNAPSHOT_RETENTION = 90
 
 
-# --- Schemas ---
+# --- Schema 定義 ---
 
 class FetchIntervalResponse(BaseModel):
     interval_minutes: int

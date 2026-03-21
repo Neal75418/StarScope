@@ -35,7 +35,7 @@ ERROR_ALERT_NOT_FOUND = "Alert not found"
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
-# --- Schema ---
+# --- Schema 定義 ---
 
 class AlertRuleCreate(BaseModel):
     """建立警報規則的 schema。"""

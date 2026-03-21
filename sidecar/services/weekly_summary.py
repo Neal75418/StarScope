@@ -244,25 +244,25 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     now = utc_now()
     week_ago = now - timedelta(days=days)
 
-    # --- Total repos ---
+    # --- Repo 總數 ---
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
-    # --- Stars delta per repo (latest snapshot vs N-day-ago snapshot) ---
+    # --- 每個 repo 的星數差值（最新快照 vs N 天前快照）---
     latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start)
 
-    # --- Signal map & repo info ---
+    # --- 訊號對映 & repo 資訊 ---
     signal_map, repo_info = _preload_signal_and_repo_maps(db)
 
-    # --- Top gainers / losers ---
+    # --- 漲幅 / 跌幅排行 ---
     top_gainers, top_losers = _find_top_movers(repo_deltas, repo_info, latest_map, signal_map)
 
-    # --- Alerts & early signals ---
+    # --- 警報 & 早期訊號 ---
     alerts_triggered, early_signals_detected, early_signals_by_type = _get_alert_and_signal_stats(db, week_ago)
 
-    # --- HN mentions ---
+    # --- HN 提及 ---
     hn_mentions = _get_hn_mentions(db, week_ago, repo_info)
 
-    # --- Accelerating / decelerating repos ---
+    # --- 加速 / 減速中的 repo ---
     accelerating, decelerating = _count_acceleration(signal_map)
 
     return {

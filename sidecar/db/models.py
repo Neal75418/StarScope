@@ -258,7 +258,7 @@ class SimilarRepo(Base):
     # 相似度指標
     similarity_score: Mapped[float] = mapped_column(Float, nullable=False)  # 0.0-1.0
     shared_topics: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # 共同 topics 的 JSON 陣列
-    same_language: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)  # SQLite bool
+    same_language: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)  # SQLite 布林值
 
     # 時間戳記
     calculated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
@@ -344,7 +344,7 @@ class EarlySignal(Base):
 
     # 訊號詳情
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    severity: Mapped[str] = mapped_column(String(20), nullable=False)  # low、medium、high
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)  # 嚴重度：low、medium、high
     description: Mapped[str] = mapped_column(String(500), nullable=False)
 
     # 偵測時的指標
@@ -357,7 +357,7 @@ class EarlySignal(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 使用者互動
-    acknowledged: Mapped[bool] = mapped_column(Integer, default=False)  # SQLite bool
+    acknowledged: Mapped[bool] = mapped_column(Integer, default=False)  # SQLite 布林值
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 關聯

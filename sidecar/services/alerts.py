@@ -161,7 +161,7 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
     # 批次預載所有相關 Signal（一次查詢取代 R×M 次）
     signal_types = {r.signal_type for r in rules}
     all_signals = db.query(Signal).filter(Signal.signal_type.in_(signal_types)).all()
-    # signal_lookup: {(repo_id, signal_type): Signal}
+    # signal_lookup: {(repo_id, signal_type): Signal} 查找表
     signal_lookup: dict[tuple[int, str], Signal] = {}
     for s in all_signals:
         key = (s.repo_id, s.signal_type)

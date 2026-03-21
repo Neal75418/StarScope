@@ -523,7 +523,7 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
     stars_map = build_stars_map(db, recommended_ids)
 
     # 對每個被推薦 repo 取最高 adjusted_score 的來源
-    # key = similar_repo_id, value = best entry info
+    # key = 相似 repo ID, value = 最佳條目資訊
     best_per_repo: dict[int, dict] = {}
 
     for entry in similar_entries:
@@ -532,7 +532,7 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
         # noinspection PyTypeChecker
         source_id = int(entry.repo_id)
 
-        # velocity boost
+        # 速度加成
         signals = signal_map.get(target_id, {})
         velocity = signals.get("velocity")
         trend_val = signals.get("trend")

@@ -59,7 +59,7 @@ class ContextSignalsResponse(BaseModel):
 class ContextBadge(BaseModel):
     """顯示在 repo 卡片上的徽章（僅 HN）。"""
     type: str  # "hn"
-    label: str  # "HN: 150 pts"
+    label: str  # 格式範例："HN: 150 pts"
     url: str
     score: int | None
     is_recent: bool  # 7 天內發布

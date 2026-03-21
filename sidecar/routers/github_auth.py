@@ -33,7 +33,7 @@ class PollRequestModel(BaseModel):
 
 class PollResponseModel(BaseModel):
     """輪詢端點的回應 model。"""
-    status: str  # "success" | "pending" | "expired" | "error"
+    status: str  # 狀態值："success" | "pending" | "expired" | "error"
     username: str | None = None
     error: str | None = None
     slow_down: bool | None = None
