@@ -58,7 +58,6 @@ class TrendsResponse(BaseModel):
     sort_by: str
 
 
-
 @router.get("/", response_model=ApiResponse[TrendsResponse])
 async def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),

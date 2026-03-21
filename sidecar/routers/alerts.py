@@ -153,8 +153,6 @@ def _to_triggered_alert_response(alert: TriggeredAlert) -> TriggeredAlertRespons
     )
 
 
-
-
 # --- 端點 ---
 
 @router.get("/signal-types", response_model=ApiResponse[list[SignalTypeInfo]])

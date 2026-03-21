@@ -22,7 +22,6 @@ from schemas.response import ApiResponse, success_response
 router = APIRouter(prefix="/api/recommendations", tags=["recommendations"])
 
 
-
 class CalculateSimilaritiesResponse(BaseModel):
     """計算相似度操作的回應。"""
     repo_id: int

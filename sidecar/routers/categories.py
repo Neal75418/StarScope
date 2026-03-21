@@ -197,7 +197,6 @@ def _get_category_or_404(category_id: int, db: Session) -> Category:
     return category
 
 
-
 def _validate_parent_category(parent_id: int, category_id: int | None, db: Session) -> None:
     """驗證父分類是否存在且無循環參考（含間接循環）。"""
     parent = db.query(Category).filter(Category.id == parent_id).first()
