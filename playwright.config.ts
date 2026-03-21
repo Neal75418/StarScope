@@ -13,7 +13,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "html",
 
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:1420",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -45,7 +45,7 @@ export default defineConfig({
         },
         {
           command: "npm run dev",
-          url: "http://localhost:5173",
+          url: "http://localhost:1420",
           reuseExistingServer: true,
           timeout: 30000,
         },
