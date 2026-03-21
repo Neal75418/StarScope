@@ -50,7 +50,7 @@ export function GearIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Repo icon
+// 儲存庫圖示
 export function RepoIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>
@@ -149,7 +149,7 @@ export function SearchIcon({ size = 16, className, ariaLabel }: IconProps) {
   );
 }
 
-// Fork icon
+// Fork 圖示
 export function ForkIcon({ size = 16, className, ariaLabel }: IconProps) {
   return (
     <svg {...getSvgProps(size, className, ariaLabel)}>

@@ -36,7 +36,7 @@ function loadSort(): WatchlistSortState {
       if (parsed.key && parsed.direction) return parsed;
     }
   } catch {
-    // ignore
+    // 忽略
   }
   return DEFAULT_SORT;
 }
@@ -45,7 +45,7 @@ function saveSort(state: WatchlistSortState): void {
   try {
     localStorage.setItem(STORAGE_KEYS.WATCHLIST_SORT, JSON.stringify(state));
   } catch {
-    // ignore
+    // 忽略
   }
 }
 

@@ -31,7 +31,7 @@ export function StatusBadge({
     );
   }
 
-  // variant === "empty"
+  // variant === "empty" 時
   return (
     <button
       className={`${classPrefix} ${classPrefix}-empty`}

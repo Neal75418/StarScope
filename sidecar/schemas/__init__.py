@@ -1,5 +1,5 @@
 """
-Pydantic schemas for API request/response models.
+API 請求/回應的 Pydantic schemas。
 """
 
 from .repo import (
@@ -25,7 +25,7 @@ from .discovery import (
 )
 
 __all__ = [
-    # Repo schemas
+    # Repo schemas（儲存庫）
     "RepoCreate",
     "RepoResponse",
     "RepoWithSignals",

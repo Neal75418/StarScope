@@ -13,7 +13,7 @@ function loadViewMode(storageKey: string): ViewMode {
     const stored = localStorage.getItem(storageKey);
     if (stored === "grid" || stored === "list") return stored;
   } catch {
-    // ignore
+    // 忽略
   }
   return "list";
 }
@@ -27,7 +27,7 @@ export function useViewMode(storageKey: string = STORAGE_KEYS.VIEW_MODE) {
       try {
         localStorage.setItem(storageKey, mode);
       } catch {
-        // ignore
+        // 忽略
       }
     },
     [storageKey]

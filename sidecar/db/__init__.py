@@ -1,5 +1,5 @@
 """
-Database package for StarScope.
+StarScope 資料庫套件。
 """
 
 from .database import get_db, init_db

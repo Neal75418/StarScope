@@ -214,7 +214,7 @@ class ContextSignal(Base):
 
     # 訊號識別
     signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 僅 hacker_news
-    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN story ID
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN 文章 ID
 
     # 內容
     title: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -288,7 +288,7 @@ class Category(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    icon: Mapped[str | None] = mapped_column(String(10), nullable=True)  # Emoji
+    icon: Mapped[str | None] = mapped_column(String(10), nullable=True)  # 表情符號
     color: Mapped[str | None] = mapped_column(String(7), nullable=True)  # Hex 色碼
     parent_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(FK_CATEGORIES_ID, ondelete="SET NULL"), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)

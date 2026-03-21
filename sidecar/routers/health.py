@@ -30,7 +30,7 @@ async def health_check() -> dict:
     Returns:
         統一格式的 ApiResponse，包含健康狀態資訊
 
-    Example Response:
+    回應範例：
         {
             "success": true,
             "data": {

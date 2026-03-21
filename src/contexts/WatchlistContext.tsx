@@ -304,7 +304,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   );
 }
 
-// Hooks
+// 自訂 Hooks
 
 export function useWatchlistState(): WatchlistState {
   const context = useContext(WatchlistStateContext);

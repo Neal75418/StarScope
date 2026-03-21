@@ -1,6 +1,6 @@
 """
-Weekly summary API endpoint.
-Provides aggregated weekly data for the Dashboard.
+每週摘要 API 端點。
+為 Dashboard 提供彙整的每週資料。
 """
 
 from fastapi import APIRouter, Depends, Query

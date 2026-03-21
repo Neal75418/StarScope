@@ -10,7 +10,7 @@ export function useCollapsible(storageKey: string, defaultCollapsed = false) {
       const stored = localStorage.getItem(storageKey);
       if (stored === "true" || stored === "false") return stored === "true";
     } catch {
-      // ignore
+      // 忽略
     }
     return defaultCollapsed;
   });
@@ -21,7 +21,7 @@ export function useCollapsible(storageKey: string, defaultCollapsed = false) {
       try {
         localStorage.setItem(storageKey, String(next));
       } catch {
-        // ignore
+        // 忽略
       }
       return next;
     });

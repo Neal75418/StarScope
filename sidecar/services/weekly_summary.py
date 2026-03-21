@@ -1,6 +1,6 @@
 """
-Weekly summary service.
-Aggregates weekly changes across all tracked repos.
+每週摘要服務。
+彙整所有追蹤 repo 的每週變化。
 """
 
 from __future__ import annotations
@@ -231,12 +231,12 @@ def _count_acceleration(
 
 def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     """
-    Build a summary covering the last N days.
+    建構涵蓋最近 N 天的摘要。
 
     Args:
-        days: Number of days to cover (default 7).
+        days: 涵蓋天數（預設 7）。
 
-    Returns a dict matching the WeeklySummaryResponse schema.
+    回傳符合 WeeklySummaryResponse schema 的 dict。
     """
     today = utc_today()
     period_end = today

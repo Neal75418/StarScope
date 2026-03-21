@@ -14,7 +14,7 @@ export interface RepoSelectorHandle {
   resetSearch: () => void;
 }
 
-// RepoSelector
+// Repo 選擇器
 export const RepoSelector = memo(
   forwardRef(function RepoSelector(
     {

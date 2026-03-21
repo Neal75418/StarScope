@@ -36,7 +36,7 @@ export function useDeviceFlowPolling({
   // 從 usePollingRefs 內聯的邏輯
   const pollIntervalRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
-  const currentIntervalRef = useRef<number>(10); // DEFAULT_INTERVAL
+  const currentIntervalRef = useRef<number>(10); // 預設輪詢間隔
 
   const codeRef = useRef<string>("");
   const initialDelayRef = useRef<number | null>(null);
@@ -58,7 +58,7 @@ export function useDeviceFlowPolling({
   }, []);
 
   const resetInterval = useCallback(() => {
-    currentIntervalRef.current = 10; // DEFAULT_INTERVAL
+    currentIntervalRef.current = 10; // 預設輪詢間隔
   }, []);
 
   const handleSuccess = useCallback(

@@ -27,7 +27,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
 
     const result: Insight[] = [];
 
-    // Leader — highest current_stars
+    // 領先者 — 當前星數最高
     const leader = repos.reduce((best, r) => (r.current_stars > best.current_stars ? r : best));
     result.push({
       label: t.compare.diff.leader,
@@ -36,7 +36,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       color: leader.color,
     });
 
-    // Fastest growing — highest velocity
+    // 成長最快 — 速度最高
     const withVelocity = repos.filter((r) => r.velocity != null);
     if (withVelocity.length > 0) {
       const fastest = withVelocity.reduce((best, r) =>
@@ -50,7 +50,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       });
     }
 
-    // Most gained — highest stars_delta_7d
+    // 增長最多 — 7 天星數增量最高
     const withDelta = repos.filter((r) => r.stars_delta_7d != null);
     if (withDelta.length > 0) {
       const mostGained = withDelta.reduce((best, r) =>
@@ -64,7 +64,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       });
     }
 
-    // Gap — star difference between #1 and #2
+    // 差距 — 第一名與第二名的星數差
     const sortedByStars = [...repos].sort((a, b) => b.current_stars - a.current_stars);
     if (sortedByStars.length >= 2) {
       const gap = sortedByStars[0].current_stars - sortedByStars[1].current_stars;
@@ -75,7 +75,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
         color: sortedByStars[0].color,
       });
 
-      // Closing/Widening — velocity gap between leader and runner-up
+      // 追趕/拉開 — 領先者與追趕者的速度差
       const leaderVel = sortedByStars[0].velocity ?? 0;
       const runnerVel = sortedByStars[1].velocity ?? 0;
       const isClosing = runnerVel > leaderVel;
