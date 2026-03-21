@@ -828,6 +828,28 @@ body {
   border-radius: var(--radius-md);
 }
 
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--fg-default);
+}
+
+.btn-outline:hover {
+  background: var(--bg-subtle);
+  border-color: var(--fg-muted);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-muted);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-subtle);
+  color: var(--fg-default);
+}
+
 /* Loading State */
 .loading {
   display: flex;
