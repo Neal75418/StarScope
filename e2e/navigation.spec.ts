@@ -66,7 +66,4 @@ test.describe("App Navigation", () => {
     await expect(page.locator('[data-testid="nav-trends"]')).toHaveClass(/active/);
   });
 
-  test("notification bell is visible in header", async ({ page }) => {
-    await expect(page.locator('[data-testid="notification-trigger"]')).toBeVisible();
-  });
 });

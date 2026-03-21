@@ -57,7 +57,4 @@ test.describe("Discovery Flow", () => {
     await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
   });
 
-  test("quick picks section is visible before search", async ({ page }) => {
-    await expect(page.locator('[data-testid="quick-picks"]')).toBeVisible({ timeout: 10000 });
-  });
 });

@@ -14,6 +14,8 @@ test.describe("Watchlist Flow", () => {
   });
 
   test("add repo dialog opens and accepts input", async ({ page }) => {
+    // 等待 add-repo-btn 可見（需 sidecar 連線成功後才會渲染）
+    await expect(page.locator('[data-testid="add-repo-btn"]')).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="add-repo-btn"]').click();
 
     const dialog = page.locator('div[role="dialog"]');
