@@ -2412,7 +2412,7 @@ body {
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 13px;
-  color: var(--text-muted);
+  color: var(--fg-muted);
   text-decoration: none;
   transition:
     background 0.15s,
@@ -2424,7 +2424,7 @@ body {
 
 .settings-nav-item:hover {
   background: var(--bg-subtle);
-  color: var(--text-default);
+  color: var(--fg-default);
 }
 
 .settings-content {
