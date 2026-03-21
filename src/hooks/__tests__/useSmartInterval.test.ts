@@ -129,4 +129,24 @@ describe("useSmartIntervalCallback", () => {
     });
     expect(callback).toHaveBeenCalledTimes(1);
   });
+
+  it("uses latest callback reference without restarting interval", () => {
+    const callback1 = vi.fn();
+    const callback2 = vi.fn();
+    const { rerender } = renderHook(({ cb }) => useSmartIntervalCallback(cb, 1000), {
+      initialProps: { cb: callback1 as (() => void) | null },
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(callback1).toHaveBeenCalledTimes(1);
+
+    rerender({ cb: callback2 });
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(callback2).toHaveBeenCalledTimes(1);
+    expect(callback1).toHaveBeenCalledTimes(1);
+  });
 });

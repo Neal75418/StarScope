@@ -81,6 +81,7 @@ export function Settings() {
           {navItems.map(({ id, label }) => (
             <button
               key={id}
+              type="button"
               className="settings-nav-item"
               onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
             >

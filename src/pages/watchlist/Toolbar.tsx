@@ -188,15 +188,15 @@ export function Toolbar({
 
       <div className="toolbar-sort-row" data-testid="sort-tabs">
         <span className="sort-label">{t.watchlist.sort.label}</span>
-        <div className="sort-tabs" role="tablist" aria-label={t.watchlist.sort.label}>
+        <div className="sort-tabs" role="toolbar" aria-label={t.watchlist.sort.label}>
           {SORT_OPTIONS.map((key) => (
             <button
               key={key}
-              role="tab"
+              type="button"
               className={`sort-tab${sortKey === key ? " active" : ""}`}
               onClick={() => onSortChange(key)}
               data-testid={`sort-tab-${key}`}
-              aria-selected={sortKey === key}
+              aria-pressed={sortKey === key}
             >
               {sortLabels[key]}
               {sortKey === key && (

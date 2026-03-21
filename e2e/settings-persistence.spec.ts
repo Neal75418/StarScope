@@ -27,8 +27,8 @@ test.describe("Settings Persistence", () => {
     await input.fill(newValue);
     await section.locator("button", { hasText: /儲存|Save/ }).click();
 
-    // 等待儲存
-    await page.waitForTimeout(1000);
+    // 等待儲存完成（按鈕恢復可點擊狀態）
+    await expect(section.locator("button", { hasText: /儲存|Save/ })).toBeEnabled({ timeout: 5000 });
 
     // 重新載入頁面
     await page.reload();
@@ -47,7 +47,7 @@ test.describe("Settings Persistence", () => {
     const section = page.locator("#diagnostics");
     await expect(section).toBeVisible({ timeout: 5000 });
 
-    // 應該顯示版本、資料庫大小等資訊
-    await expect(section.locator("text=0.4.0")).toBeVisible({ timeout: 5000 });
+    // 應該顯示版本號（格式 X.Y.Z）
+    await expect(section.locator("text=/\\d+\\.\\d+\\.\\d+/")).toBeVisible({ timeout: 5000 });
   });
 });
