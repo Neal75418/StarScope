@@ -86,7 +86,7 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：前端 870 + 後端 482 = 1,352+ 個測試案例
+> **測試覆蓋率**：前端 1,062 + 後端 496 = 1,558+ 個測試案例
 
 ### E2E 測試
 
@@ -114,11 +114,11 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|-------------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
 | `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 53 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `hooks/`        | 52 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
-| `**/__tests__/` | Vitest 單元測試（870 個測試案例）                                |
+| `**/__tests__/` | Vitest 單元測試（1,062 個測試案例）                               |
 
 ### Sidecar `sidecar/`
 

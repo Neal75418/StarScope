@@ -203,7 +203,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   53 個 Custom Hooks
+│   ├── hooks/                     #   52 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -216,7 +216,7 @@ StarScope/
 │   │   └── Settings.tsx           #     設定與警報管理
 │   ├── theme/                     #   淺色／深色主題
 │   ├── types/                     #   共用 TypeScript 型別
-│   └── utils/                     #   工具函式（12 個模組）
+│   └── utils/                     #   工具函式（13 個模組）
 │
 ├── src-tauri/                     # Tauri 桌面層（Rust）
 │   ├── src/
@@ -233,7 +233,7 @@ StarScope/
 │   ├── db/                        #   SQLite + SQLAlchemy（13 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（482 個）
+│   └── tests/                     #   pytest 後端測試（496 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -282,7 +282,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 870 + 後端 482 = **1,352+ 個測試案例**
+> **測試覆蓋**：前端 1,062 + 後端 496 = **1,558+ 個測試案例**
 
 ---
 
