@@ -2,7 +2,7 @@
  * Star 歷史圖表，使用 Recharts 繪製。
  */
 
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import {
   LineChart,
   Line,
@@ -30,6 +30,26 @@ const TOOLTIP_STYLE = {
   borderRadius: "4px",
 };
 
+/** 從 CSS 變數讀取圖表顏色（Recharts 不支援 var()，需透過 JS 讀取）。 */
+function useChartColors() {
+  const [colors, setColors] = useState({
+    grid: "#333",
+    tick: "#888",
+    line: "#f0db4f",
+    tooltipText: "#fff",
+  });
+  useEffect(() => {
+    const style = getComputedStyle(document.documentElement);
+    setColors({
+      grid: style.getPropertyValue("--chart-grid").trim() || "#333",
+      tick: style.getPropertyValue("--chart-tick").trim() || "#888",
+      line: style.getPropertyValue("--chart-line").trim() || "#f0db4f",
+      tooltipText: style.getPropertyValue("--chart-tooltip-text").trim() || "#fff",
+    });
+  }, []);
+  return colors;
+}
+
 interface TimeRangeSelectorProps {
   current: TimeRange;
   onChange: (range: TimeRange) => void;
@@ -52,39 +72,47 @@ function TimeRangeSelector({ current, onChange, labels }: TimeRangeSelectorProps
   );
 }
 
-interface ChartContentProps {
-  data: ChartDataPoint[];
+interface ChartColors {
+  grid: string;
+  tick: string;
+  line: string;
+  tooltipText: string;
 }
 
-function ChartContent({ data }: ChartContentProps) {
+interface ChartContentProps {
+  data: ChartDataPoint[];
+  colors: ChartColors;
+}
+
+function ChartContent({ data, colors }: ChartContentProps) {
   return (
     <ResponsiveContainer width="100%" height={180}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+        <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis
           dataKey="date"
-          tick={{ fill: "#888", fontSize: 11 }}
+          tick={{ fill: colors.tick, fontSize: 11 }}
           tickFormatter={formatChartDate}
           interval="preserveStartEnd"
         />
         <YAxis
-          tick={{ fill: "#888", fontSize: 11 }}
+          tick={{ fill: colors.tick, fontSize: 11 }}
           tickFormatter={(value) => formatNumber(value)}
           width={50}
         />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
-          labelStyle={{ color: "#fff" }}
+          labelStyle={{ color: colors.tooltipText }}
           formatter={(value) => [formatNumber(value as number), "Stars"]}
           labelFormatter={(label) => new Date(label).toLocaleDateString()}
         />
         <Line
           type="monotone"
           dataKey="stars"
-          stroke="#f0db4f"
+          stroke={colors.line}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, fill: "#f0db4f" }}
+          activeDot={{ r: 4, fill: colors.line }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -94,6 +122,7 @@ function ChartContent({ data }: ChartContentProps) {
 export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
   const { t } = useI18n();
+  const chartColors = useChartColors();
 
   const timeRangeLabels = useMemo<Record<TimeRange, string>>(
     () => ({
@@ -136,7 +165,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   return (
     <div className="stars-chart">
       <TimeRangeSelector current={timeRange} onChange={setTimeRange} labels={timeRangeLabels} />
-      <ChartContent data={data} />
+      <ChartContent data={data} colors={chartColors} />
       <StarHistoryBackfill
         repoId={repoId}
         currentStars={currentStars ?? null}

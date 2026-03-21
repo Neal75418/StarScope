@@ -52,4 +52,21 @@ test.describe("App Navigation", () => {
     const restored = await langToggle.textContent();
     expect(restored).toBe(initial);
   });
+
+  test("page remembers last visited page after reload", async ({ page }) => {
+    // 導航至 Trends
+    await page.locator('[data-testid="nav-trends"]').click();
+    await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
+
+    // 重新載入
+    await page.reload();
+    await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
+
+    // 應仍在 Trends（localStorage 持久化）
+    await expect(page.locator('[data-testid="nav-trends"]')).toHaveClass(/active/);
+  });
+
+  test("notification bell is visible in header", async ({ page }) => {
+    await expect(page.locator('[data-testid="notification-trigger"]')).toBeVisible();
+  });
 });

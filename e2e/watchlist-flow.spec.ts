@@ -26,7 +26,7 @@ test.describe("Watchlist Flow", () => {
     const submitBtn = dialog.locator('button[type="submit"]');
     await expect(submitBtn).toBeEnabled();
 
-    // Close dialog without submitting
+    // 用 ESC 關閉 dialog
     await page.keyboard.press("Escape");
     await expect(dialog).not.toBeVisible({ timeout: 3000 });
   });
@@ -39,22 +39,30 @@ test.describe("Watchlist Flow", () => {
     await page.locator("#add-repo-input").fill("vitejs/vite");
     await dialog.locator('button[type="submit"]').click();
 
-    // Wait for dialog to close (success) — generous timeout for real API call
+    // 等待 dialog 關閉（成功）
     await expect(dialog).not.toBeVisible({ timeout: 30000 });
 
-    // Verify repo appears somewhere on the page
+    // 驗證 repo 出現
     await expect(page.locator("text=vitejs/vite").first()).toBeVisible({ timeout: 15000 });
   });
 
   test("refresh button works without crashing", async ({ page }) => {
     await page.locator('[data-testid="refresh-all-btn"]').click();
-    // Page should remain functional
     await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test("settings page has GitHub connection section", async ({ page }) => {
+  test("view mode toggle exists", async ({ page }) => {
+    await expect(page.locator('[data-testid="view-mode-toggle"]')).toBeVisible();
+  });
+
+  test("sort tabs are visible", async ({ page }) => {
+    await expect(page.locator('[data-testid="sort-tabs"]')).toBeVisible();
+  });
+
+  test("settings page has GitHub connection and alerts sections", async ({ page }) => {
     await page.locator('[data-testid="nav-settings"]').click();
     await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('[data-testid="github-section"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="alerts-section"]')).toBeVisible();
   });
 });

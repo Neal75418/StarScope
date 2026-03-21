@@ -10,6 +10,7 @@ test.describe("Discovery Flow", () => {
 
   test("discovery page loads with search bar", async ({ page }) => {
     await expect(page.locator('[data-testid="discovery-search-input"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="discovery-search-submit"]')).toBeVisible();
   });
 
   test("trending period buttons are visible", async ({ page }) => {
@@ -23,7 +24,6 @@ test.describe("Discovery Flow", () => {
     await searchInput.fill("react");
     await page.locator('[data-testid="discovery-search-submit"]').click();
 
-    // 等待結果卡片出現（使用 data-testid pattern）
     await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
   });
 
@@ -38,9 +38,26 @@ test.describe("Discovery Flow", () => {
 
     await dailyBtn.click();
 
-    // 結果或空狀態應出現
     await expect(
       page.locator('[data-testid="discovery-results"]').or(page.locator('[data-testid^="discovery-result-"]').first())
     ).toBeVisible({ timeout: 15000 });
+  });
+
+  test("search input can be cleared and re-searched", async ({ page }) => {
+    const searchInput = page.locator('[data-testid="discovery-search-input"]');
+    await searchInput.fill("vue");
+    await page.locator('[data-testid="discovery-search-submit"]').click();
+
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
+
+    await searchInput.clear();
+    await searchInput.fill("svelte");
+    await page.locator('[data-testid="discovery-search-submit"]').click();
+
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
+  });
+
+  test("quick picks section is visible before search", async ({ page }) => {
+    await expect(page.locator('[data-testid="quick-picks"]')).toBeVisible({ timeout: 10000 });
   });
 });
