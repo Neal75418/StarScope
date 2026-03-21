@@ -3,7 +3,7 @@
 from typing import TypeVar, Generic, Any
 from pydantic import BaseModel, Field
 
-# Generic type for data payload
+# 泛型資料載荷型別
 T = TypeVar("T")
 
 
@@ -17,12 +17,12 @@ class PaginationInfo(BaseModel):
 
 class ApiResponse(BaseModel, Generic[T]):
     """
-    Unified API response wrapper.
+    統一 API 回應封裝。
 
-    All API endpoints should return responses in this format for consistency.
+    所有 API 端點應以此格式回傳，確保一致性。
 
-    Examples:
-        Success response:
+    範例：
+        成功回應：
             {
                 "success": true,
                 "data": {"id": 1, "name": "example"},
@@ -30,7 +30,7 @@ class ApiResponse(BaseModel, Generic[T]):
                 "error": null
             }
 
-        Error response:
+        錯誤回應：
             {
                 "success": false,
                 "data": null,
@@ -38,7 +38,7 @@ class ApiResponse(BaseModel, Generic[T]):
                 "error": {"code": "NOT_FOUND", "details": null}
             }
 
-        List response with pagination:
+        分頁列表回應：
             {
                 "success": true,
                 "data": [{"id": 1}, {"id": 2}],
@@ -62,26 +62,26 @@ class ErrorDetail(BaseModel):
     details: Any | None = Field(None, description="Additional error details")
 
 
-# Update forward reference
+# 更新前向參照
 ApiResponse.model_rebuild()
 
 
-# Helper functions for creating responses
+# 建立回應的輔助函式
 def success_response(
     data: Any = None,
     message: str | None = None,
     pagination: PaginationInfo | None = None
 ) -> dict:
     """
-    Create a successful API response.
+    建立成功的 API 回應。
 
     Args:
-        data: The response payload
-        message: Optional success message
-        pagination: Optional pagination info for list responses
+        data: 回應資料載荷
+        message: 選填成功訊息
+        pagination: 選填分頁資訊（用於列表回應）
 
     Returns:
-        Dict formatted as ApiResponse
+        以 ApiResponse 格式化的 dict
     """
     response = {
         "success": True,

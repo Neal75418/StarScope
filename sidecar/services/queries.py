@@ -149,7 +149,7 @@ def build_snapshot_map(
     if subq is None:
         return {}
 
-    # Join to get full snapshot records
+    # 透過 join 取得完整快照記錄
     snapshots = (
         db.query(RepoSnapshot)
         .join(
@@ -184,7 +184,7 @@ def build_stars_map(
     if subq is None:
         return {}
 
-    # Join to get stars from latest snapshot
+    # 透過 join 從最新快照取得星數
     results = (
         db.query(RepoSnapshot.repo_id, RepoSnapshot.stars)
         .join(
