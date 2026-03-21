@@ -61,7 +61,6 @@
   /* Helper colors */
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, Liberation Mono, monospace;
   --attention-subtle: rgba(163, 113, 247, 0.15);
-  --neutral-subtle: rgba(110, 118, 129, 0.1);
   --warning-border: #f0b729;
 
   --shadow-sm: 0 1px 0 rgba(1, 4, 9, 0.1);
@@ -95,8 +94,6 @@
   --z-skip-link: 9999;
 
   /* Header specific */
-  --header-bg: #161b22;
-  --header-border: #30363d;
   --header-logo: #f0f6fc;
 
   /* Navigation items */
@@ -175,7 +172,6 @@
 
   /* Helper colors */
   --attention-subtle: rgba(130, 80, 223, 0.1);
-  --neutral-subtle: rgba(175, 184, 193, 0.2);
   --warning-border: #d29922;
 
   --shadow-sm: 0 1px 0 rgba(31, 35, 40, 0.04);
@@ -194,8 +190,6 @@
   --card-glow: rgba(9, 105, 218, 0.08);
 
   /* Header specific - GitHub style dark header even in light mode */
-  --header-bg: #24292f;
-  --header-border: #57606a;
   --header-logo: #ffffff;
 
   /* Navigation items (dark header in light mode) */

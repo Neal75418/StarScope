@@ -19,17 +19,23 @@ interface UseAppLanguageReturn {
 }
 
 export function useAppLanguage(): UseAppLanguageReturn {
-  const [language, setLanguageState] = useState<Language>(getInitialLanguage);
+  const [language, setLanguageState] = useState<Language>(() => {
+    const initial = getInitialLanguage();
+    document.documentElement.lang = initial;
+    return initial;
+  });
 
   const setLanguage = useCallback((newLang: Language) => {
     setLanguageState(newLang);
     saveLanguage(newLang);
+    document.documentElement.lang = newLang;
   }, []);
 
   const toggleLanguage = useCallback(() => {
     setLanguageState((current) => {
       const newLang = current === "en" ? "zh-TW" : "en";
       saveLanguage(newLang);
+      document.documentElement.lang = newLang;
       return newLang;
     });
   }, []);
