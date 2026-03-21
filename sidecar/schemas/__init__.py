@@ -16,7 +16,6 @@ from .response import (
     ApiResponse,
     PaginationInfo,
     ErrorDetail,
-    ErrorCode,
     StatusResponse,
     success_response,
 )
@@ -39,7 +38,6 @@ __all__ = [
     "ApiResponse",
     "PaginationInfo",
     "ErrorDetail",
-    "ErrorCode",
     "StatusResponse",
     "success_response",
     # Discovery schemas

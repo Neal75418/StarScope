@@ -66,20 +66,6 @@ class ErrorDetail(BaseModel):
 ApiResponse.model_rebuild()
 
 
-# Common error codes
-class ErrorCode:
-    """Standard error codes for API responses."""
-    NOT_FOUND = "NOT_FOUND"
-    VALIDATION_ERROR = "VALIDATION_ERROR"
-    ALREADY_EXISTS = "ALREADY_EXISTS"
-    UNAUTHORIZED = "UNAUTHORIZED"
-    FORBIDDEN = "FORBIDDEN"
-    RATE_LIMITED = "RATE_LIMITED"
-    EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-    BAD_REQUEST = "BAD_REQUEST"
-
-
 # Helper functions for creating responses
 def success_response(
     data: Any = None,
@@ -106,8 +92,6 @@ def success_response(
     if pagination:
         response["pagination"] = pagination.model_dump()
     return response
-
-
 
 
 # Status response for simple operations

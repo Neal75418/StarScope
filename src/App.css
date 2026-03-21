@@ -1391,37 +1391,6 @@ body {
   justify-content: flex-start;
 }
 
-/* Status Tags */
-.status-tags {
-  display: inline-flex;
-  gap: 4px;
-  margin-left: 6px;
-}
-
-.status-tag {
-  display: inline-block;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  line-height: 1.4;
-}
-
-.status-tag.status-hot {
-  background-color: var(--danger-subtle);
-  color: var(--danger-fg);
-}
-
-.status-tag.status-stale {
-  background-color: var(--attention-subtle);
-  color: var(--attention-fg);
-}
-
-.status-tag.status-signal {
-  background-color: var(--accent-subtle);
-  color: var(--accent-fg);
-}
-
 /* Export Dropdown */
 .export-dropdown {
   position: relative;
@@ -3265,23 +3234,6 @@ a:focus-visible {
     width: 100%;
     order: -1;
   }
-
-  .compare-layout {
-    flex-direction: column;
-  }
-
-  .compare-sidebar {
-    width: 100%;
-    max-height: 300px;
-  }
-
-  .compare-summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .signals-summary {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Mobile Bottom Tab Bar — hidden by default, shown ≤768px */
@@ -3405,25 +3357,6 @@ a:focus-visible {
   .repo-stats {
     gap: 16px;
   }
-
-  .signals-toolbar {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-
-  .signals-filters {
-    flex-wrap: wrap;
-  }
-
-  .signals-actions {
-    justify-content: flex-end;
-  }
-
-  .export-grid {
-    grid-template-columns: 1fr;
-  }
-
   .form-row {
     grid-template-columns: 1fr;
   }
@@ -3432,27 +3365,9 @@ a:focus-visible {
     margin: 8px;
     max-width: calc(100% - 16px);
   }
-
-  .health-panel {
-    max-width: calc(100% - 32px);
-  }
-
-  .score-row {
-    grid-template-columns: 1fr 80px 40px;
-    gap: 8px;
-  }
-
-  .score-detail {
-    padding-left: 0;
-  }
 }
 
 @media (max-width: 480px) {
-  .compare-summary,
-  .signals-summary {
-    grid-template-columns: 1fr;
-  }
-
   .trends-table {
     font-size: 13px;
   }
@@ -3467,21 +3382,6 @@ a:focus-visible {
   .velocity-col {
     width: 70px;
   }
-
-  .signal-card {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .signal-time {
-    text-align: left;
-    min-width: auto;
-  }
-
-  .signal-actions {
-    align-self: flex-end;
-  }
-
   .toast-container {
     left: 16px;
     right: 16px;
