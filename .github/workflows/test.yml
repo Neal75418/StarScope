@@ -94,7 +94,6 @@ jobs:
   test-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [test-backend, test-frontend]
 
     steps:
       - uses: actions/checkout@v6
