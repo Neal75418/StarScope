@@ -285,8 +285,6 @@ export async function getStarsChart(
   return apiCall<StarsChartResponse>(`/charts/${repoId}/stars?time_range=${timeRange}`, { signal });
 }
 
-// Commit 活動 API 函式
-
 // 星數歷史回填 API 函式
 
 /**

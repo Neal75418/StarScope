@@ -51,7 +51,6 @@
 
   /* Hover variants */
   --success-hover: #2ea043;
-  --danger-hover: #b62324;
   --warning-hover: #7d5014;
 
   /* Rank badge colors */
@@ -105,8 +104,6 @@
 
   /* Overlay */
   --overlay-bg: rgba(1, 4, 9, 0.8);
-
-  /* Commit heatmap levels */
 
   /* Dynamic Badge Color Default */
   --badge-color: var(--fg-muted);
@@ -163,7 +160,6 @@
 
   /* Hover variants */
   --success-hover: #2c974b;
-  --danger-hover: #a40e26;
   --warning-hover: #7d5014;
 
   /* Rank badge colors */
@@ -201,8 +197,6 @@
 
   /* Overlay */
   --overlay-bg: rgba(31, 35, 40, 0.5);
-
-  /* Commit heatmap levels (GitHub light) */
 
   /* Dynamic Badge Color Default */
   --badge-color: var(--fg-muted);
@@ -2370,7 +2364,6 @@ body {
   margin-left: auto;
 }
 
-/* Health Badge */
 /* Stars Chart */
 .repo-chart-container {
   margin-top: 16px;
@@ -2428,7 +2421,6 @@ body {
   color: var(--danger-fg);
 }
 
-/* Signals Page */
 /* Settings Layout */
 .settings-layout {
   display: flex;
@@ -2565,7 +2557,6 @@ body {
   color: var(--success-fg);
 }
 
-/* Export Grid */
 /* Import Section */
 .import-form {
   display: flex;
@@ -3846,7 +3837,6 @@ a:focus-visible {
   color: var(--fg-default);
 }
 
-/* Velocity Chart */
 /* Activity List */
 .activity-list {
   display: flex;
@@ -4259,8 +4249,8 @@ a:focus-visible {
 
 /* Offline state */
 .star-history-backfill.offline {
-  border-color: var(--warning-border, #f59e0b);
-  background-color: var(--warning-subtle, rgba(245, 158, 11, 0.1));
+  border-color: var(--warning-border);
+  background-color: var(--warning-subtle);
 }
 
 .star-history-backfill .backfill-offline-badge {
@@ -4579,8 +4569,7 @@ a:focus-visible {
   clip-path: none;
 }
 
-/* ========== Weekly Summary ========== */
-/* ---- Weekly Summary ---- */
+/* Weekly Summary */
 .weekly-summary {
   margin-bottom: 24px;
 }

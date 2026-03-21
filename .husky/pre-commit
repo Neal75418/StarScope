@@ -1,5 +1,4 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
 # 檢查是否有 GitHub Personal Access Token 洩露
 echo "🔍 檢查敏感資料..."

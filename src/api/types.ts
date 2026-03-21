@@ -106,8 +106,6 @@ export interface ContextSignalsResponse {
   repo_id: number;
 }
 
-// ==================== Commit 活動型別 ====================
-
 // ==================== 星數歷史回填型別 ====================
 
 export interface BackfillStatus {
