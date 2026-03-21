@@ -108,51 +108,6 @@ export interface ContextSignalsResponse {
 
 // ==================== Commit 活動型別 ====================
 
-export interface CommitWeek {
-  week_start: string;
-  commit_count: number;
-}
-
-export interface CommitActivityResponse {
-  repo_id: number;
-  repo_name: string;
-  weeks: CommitWeek[];
-  total_commits_52w: number;
-  avg_commits_per_week: number;
-  last_updated: string | null;
-}
-
-export interface CommitActivitySummary {
-  repo_id: number;
-  total_commits_52w: number;
-  avg_commits_per_week: number;
-  last_updated: string | null;
-}
-
-// ==================== 語言統計型別 ====================
-
-interface LanguageBreakdown {
-  language: string;
-  bytes: number;
-  percentage: number;
-}
-
-export interface LanguagesResponse {
-  repo_id: number;
-  repo_name: string;
-  languages: LanguageBreakdown[];
-  primary_language: string | null;
-  total_bytes: number;
-  last_updated: string | null;
-}
-
-export interface LanguagesSummary {
-  repo_id: number;
-  primary_language: string | null;
-  language_count: number;
-  last_updated: string | null;
-}
-
 // ==================== 星數歷史回填型別 ====================
 
 export interface BackfillStatus {

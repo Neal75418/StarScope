@@ -18,10 +18,6 @@ import type {
   HealthResponse,
   ContextBadgesResponse,
   ContextSignalsResponse,
-  CommitActivityResponse,
-  CommitActivitySummary,
-  LanguagesResponse,
-  LanguagesSummary,
   BackfillStatus,
   BackfillResult,
   StarHistoryResponse,
@@ -290,40 +286,6 @@ export async function getStarsChart(
 }
 
 // Commit 活動 API 函式
-
-/**
- * 從 GitHub 抓取（或重新整理）commit 活動。
- */
-export async function fetchCommitActivity(repoId: number): Promise<CommitActivityResponse> {
-  return apiCall<CommitActivityResponse>(`/commit-activity/${repoId}/fetch`, {
-    method: "POST",
-  });
-}
-
-/**
- * 取得簡要 commit 活動摘要（供 badge/card 使用）。
- */
-export async function getCommitActivitySummary(repoId: number): Promise<CommitActivitySummary> {
-  return apiCall<CommitActivitySummary>(`/commit-activity/${repoId}/summary`);
-}
-
-// 語言統計 API 函式
-
-/**
- * 從 GitHub 抓取（或重新整理）語言資料。
- */
-export async function fetchLanguages(repoId: number): Promise<LanguagesResponse> {
-  return apiCall<LanguagesResponse>(`/languages/${repoId}/fetch`, {
-    method: "POST",
-  });
-}
-
-/**
- * 取得簡要語言摘要（供 badge/card 使用）。
- */
-export async function getLanguagesSummary(repoId: number): Promise<LanguagesSummary> {
-  return apiCall<LanguagesSummary>(`/languages/${repoId}/summary`);
-}
 
 // 星數歷史回填 API 函式
 

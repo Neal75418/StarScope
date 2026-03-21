@@ -134,12 +134,6 @@ describe("queryKeys", () => {
     });
   });
 
-  describe("similarRepos", () => {
-    it("generates list key", () => {
-      expect(queryKeys.similarRepos.list(1, 10)).toEqual(["similarRepos", "list", 1, 10]);
-    });
-  });
-
   describe("connection", () => {
     it("generates status key", () => {
       expect(queryKeys.connection.status()).toEqual(["connection", "status"]);
@@ -149,12 +143,6 @@ describe("queryKeys", () => {
   describe("starsChart", () => {
     it("generates data key", () => {
       expect(queryKeys.starsChart.data(1, "30d")).toEqual(["starsChart", "data", 1, "30d"]);
-    });
-  });
-
-  describe("summaries", () => {
-    it("generates generic key", () => {
-      expect(queryKeys.summaries.generic("commit", 1)).toEqual(["summaries", "commit", 1]);
     });
   });
 

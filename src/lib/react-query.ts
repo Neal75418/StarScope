@@ -134,13 +134,6 @@ export const queryKeys = {
     status: (repoId: number) => [...queryKeys.backfill.all, "status", repoId] as const,
   },
 
-  // 相似儲存庫
-  similarRepos: {
-    all: ["similarRepos"] as const,
-    list: (repoId: number, limit: number) =>
-      [...queryKeys.similarRepos.all, "list", repoId, limit] as const,
-  },
-
   // 連線
   connection: {
     all: ["connection"] as const,
@@ -152,13 +145,6 @@ export const queryKeys = {
     all: ["starsChart"] as const,
     data: (repoId: number, timeRange: string) =>
       [...queryKeys.starsChart.all, "data", repoId, timeRange] as const,
-  },
-
-  // 摘要
-  summaries: {
-    all: ["summaries"] as const,
-    generic: (logPrefix: string, repoId: number) =>
-      [...queryKeys.summaries.all, logPrefix, repoId] as const,
   },
 
   // Repo 卡片資料
