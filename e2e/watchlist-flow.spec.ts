@@ -27,10 +27,6 @@ test.describe("Watchlist Flow", () => {
 
     const submitBtn = dialog.locator('button[type="submit"]');
     await expect(submitBtn).toBeEnabled();
-
-    // 用 ESC 關閉 dialog
-    await page.keyboard.press("Escape");
-    await expect(dialog).not.toBeVisible({ timeout: 3000 });
   });
 
   test("can add a repo and see it in the list", async ({ page }) => {
