@@ -3,7 +3,7 @@
  * 所有與 Python sidecar 通訊的介面型別集中在此。
  */
 
-// ==================== 基礎型別 ====================
+// 基礎型別
 
 export interface RepoWithSignals {
   id: number;
@@ -40,7 +40,7 @@ export interface RepoCreate {
   url?: string;
 }
 
-// ==================== Starred Import 型別 ====================
+// Starred Import 型別
 
 export interface StarredRepo {
   owner: string;
@@ -72,7 +72,7 @@ export interface HealthResponse {
   timestamp: string;
 }
 
-// ==================== Context Signal 型別 ====================
+// Context Signal 型別
 
 export interface ContextBadge {
   type: "hn";
@@ -106,7 +106,7 @@ export interface ContextSignalsResponse {
   repo_id: number;
 }
 
-// ==================== 星數歷史回填型別 ====================
+// 星數歷史回填型別
 
 export interface BackfillStatus {
   repo_id: number;
@@ -143,7 +143,7 @@ export interface StarHistoryResponse {
   total_points: number;
 }
 
-// ==================== 圖表型別 ====================
+// 圖表型別
 
 export interface ChartDataPoint {
   date: string;
@@ -161,7 +161,7 @@ export interface StarsChartResponse {
   max_stars: number;
 }
 
-// ==================== API 錯誤類別 ====================
+// API 錯誤類別
 
 export class ApiError extends Error {
   constructor(
@@ -173,7 +173,7 @@ export class ApiError extends Error {
   }
 }
 
-// ==================== 推薦系統型別 ====================
+// 推薦系統型別
 
 export interface CalculateSimilaritiesResponse {
   repo_id: number;
@@ -186,7 +186,7 @@ export interface RecalculateAllResponse {
   similarities_found: number;
 }
 
-// ==================== 個人化推薦型別 ====================
+// 個人化推薦型別
 
 export interface PersonalizedRecommendation {
   repo_id: number;
@@ -210,7 +210,7 @@ export interface PersonalizedResponse {
   based_on_repos: number;
 }
 
-// ==================== 分類型別 ====================
+// 分類型別
 
 export interface Category {
   id: number;
@@ -284,7 +284,7 @@ export interface RepoCategoriesResponse {
   total: number;
 }
 
-// ==================== 早期信號型別 ====================
+// 早期信號型別
 
 export type EarlySignalType =
   | "rising_star"
@@ -323,7 +323,7 @@ export interface SignalSummary {
   repos_with_signals: number;
 }
 
-// ==================== 趨勢型別 ====================
+// 趨勢型別
 
 export interface TrendingRepo {
   id: number;
@@ -352,7 +352,7 @@ export interface TrendsResponse {
   sort_by: string;
 }
 
-// ==================== GitHub 驗證型別 ====================
+// GitHub 驗證型別
 
 export interface DeviceCodeResponse {
   device_code: string;
@@ -384,7 +384,7 @@ export interface DisconnectResponse {
   message: string;
 }
 
-// ==================== 警報型別 ====================
+// 警報型別
 
 export interface SignalTypeInfo {
   type: string;
@@ -443,7 +443,7 @@ export interface TriggeredAlert {
   acknowledged_at: string | null;
 }
 
-// ==================== 探索型別 ====================
+// 探索型別
 
 export interface DiscoveryRepo {
   id: number;
@@ -484,7 +484,7 @@ export interface SearchFilters {
   hideArchived?: boolean;
 }
 
-// ==================== 週報摘要型別 ====================
+// 週報摘要型別
 
 export interface WeeklyRepoSummary {
   repo_id: number;
@@ -518,7 +518,7 @@ export interface WeeklySummaryResponse {
   decelerating: number;
 }
 
-// ==================== 對比模式型別 ====================
+// 對比模式型別
 
 export interface ComparisonRepoData {
   repo_id: number;
@@ -542,7 +542,7 @@ export interface ComparisonChartResponse {
 
 export type ComparisonTimeRange = "7d" | "30d" | "90d" | "all";
 
-// ==================== Portfolio 歷史型別 ====================
+// Portfolio 歷史型別
 
 export interface PortfolioHistoryPoint {
   date: string; // "YYYY-MM-DD"
@@ -556,11 +556,11 @@ export interface PortfolioHistoryResponse {
   days: number;
 }
 
-// ==================== Dashboard 時間範圍 ====================
+// Dashboard 時間範圍
 
 export type DashboardTimeRange = 7 | 14 | 30;
 
-// ==================== 應用程式設定型別 ====================
+// 應用程式設定型別
 
 export interface FetchIntervalResponse {
   interval_minutes: number;

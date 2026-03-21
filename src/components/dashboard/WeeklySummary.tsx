@@ -22,7 +22,7 @@ function formatDateRange(start: string, end: string): string {
   return `${fmt(s)} – ${fmt(e)}`;
 }
 
-// ==================== 子元件 ====================
+// 子元件
 
 const TopMovers = memo(function TopMovers({
   gainers,
@@ -141,7 +141,7 @@ const HNMentionsList = memo(function HNMentionsList({
   );
 });
 
-// ==================== 主元件 ====================
+// 主元件
 
 interface WeeklySummaryProps {
   days?: DashboardTimeRange;

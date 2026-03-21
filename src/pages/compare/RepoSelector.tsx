@@ -14,7 +14,7 @@ export interface RepoSelectorHandle {
   resetSearch: () => void;
 }
 
-// ==================== RepoSelector ====================
+// RepoSelector
 export const RepoSelector = memo(
   forwardRef(function RepoSelector(
     {

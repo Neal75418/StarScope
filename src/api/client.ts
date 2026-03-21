@@ -507,7 +507,7 @@ export async function acknowledgeSignal(
 /**
  * 確認所有信號。
  */
-// ==================== 趨勢 API ====================
+// 趨勢 API
 
 /**
  * 取得趨勢儲存庫排行。
@@ -527,7 +527,7 @@ export async function getTrends(params: {
   return apiCall<TrendsResponse>(`/trends/?${query}`);
 }
 
-// ==================== 匯出 API ====================
+// 匯出 API
 
 /**
  * 取得追蹤清單 JSON 的匯出下載 URL。
@@ -571,7 +571,7 @@ export function getExportTrendsCsvUrl(
   return `${API_ENDPOINT}/export/trends.csv?${params}`;
 }
 
-// ==================== GitHub 驗證 API 函式 ====================
+// GitHub 驗證 API 函式
 
 /**
  * 啟動 GitHub Device Flow 驗證。
@@ -610,7 +610,7 @@ export async function disconnectGitHub(): Promise<DisconnectResponse> {
   });
 }
 
-// ==================== 警報 API 函式 ====================
+// 警報 API 函式
 
 /**
  * 列出警報規則可用的信號類型。
@@ -702,7 +702,7 @@ export async function checkAlerts(): Promise<{
   });
 }
 
-// ==================== 探索 API 函式 ====================
+// 探索 API 函式
 
 /**
  * 使用 GitHub Search API 搜尋儲存庫。
@@ -730,7 +730,7 @@ export async function searchRepos(
   return apiCall<SearchResponse>(`/discovery/search?${params}`, { signal });
 }
 
-// ==================== 週報摘要 API 函式 ====================
+// 週報摘要 API 函式
 
 /**
  * 取得摘要資料。
@@ -754,7 +754,7 @@ export async function getPortfolioHistory(
   return apiCall<PortfolioHistoryResponse>(`/star-history/portfolio?days=${days}`, { signal });
 }
 
-// ==================== 對比模式 API 函式 ====================
+// 對比模式 API 函式
 
 /**
  * 取得多 repo 對比圖表資料。
@@ -774,7 +774,7 @@ export async function getComparisonChart(
   });
 }
 
-// ==================== 個人化推薦 API 函式 ====================
+// 個人化推薦 API 函式
 
 /**
  * 取得基於 watchlist 的個人化推薦。
@@ -786,7 +786,7 @@ export async function getPersonalizedRecommendations(
   return apiCall<PersonalizedResponse>(`/recommendations/personalized?limit=${limit}`, { signal });
 }
 
-// ==================== 應用程式設定 API 函式 ====================
+// 應用程式設定 API 函式
 
 /** 取得定時更新間隔設定。 */
 export async function getFetchInterval(signal?: AbortSignal): Promise<FetchIntervalResponse> {

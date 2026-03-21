@@ -44,7 +44,7 @@ function loadSavedRepoIds(): number[] {
   }
 }
 
-// ==================== 主元件 ====================
+// 主元件
 export function Compare() {
   const { t } = useI18n();
   const [selectedIds, setSelectedIds] = useState<number[]>(loadSavedRepoIds);

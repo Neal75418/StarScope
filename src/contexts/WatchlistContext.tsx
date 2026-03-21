@@ -46,13 +46,13 @@ export type {
   WatchlistActions,
 } from "./watchlistReducer";
 
-// ==================== Contexts ====================
+// Contexts
 
 const WatchlistStateContext = createContext<WatchlistState | undefined>(undefined);
 
 const WatchlistActionsContext = createContext<WatchlistActions | undefined>(undefined);
 
-// ==================== Provider ====================
+// Provider
 
 interface WatchlistProviderProps {
   children: ReactNode;
@@ -304,7 +304,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   );
 }
 
-// ==================== Hooks ====================
+// Hooks
 
 export function useWatchlistState(): WatchlistState {
   const context = useContext(WatchlistStateContext);

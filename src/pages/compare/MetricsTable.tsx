@@ -9,7 +9,7 @@ import { formatNumber, formatDelta } from "../../utils/format";
 import { TREND_ARROWS } from "../../constants/trends";
 import { BreakoutBadge } from "../trends/BreakoutBadge";
 
-// ==================== MetricsTable ====================
+// MetricsTable
 export const MetricsTable = memo(function MetricsTable({
   repos,
   t,
