@@ -147,11 +147,6 @@ export const translations = {
       },
       loadMore: "Load More",
       results: "{count} results",
-      searchHistory: {
-        title: "Recent searches",
-        clear: "Clear history",
-        removeItem: 'Remove "{item}" from search history',
-      },
       quickPicks: {
         languages: "Languages:",
         topics: "Topics:",
@@ -171,10 +166,6 @@ export const translations = {
         showMore: "Show More",
         showLess: "Show Less",
         dismiss: "Not interested",
-      },
-      recentlyViewed: {
-        title: "Recently Viewed",
-        clear: "Clear",
       },
       batchAdd: {
         select: "Select",
@@ -593,16 +584,6 @@ export const translations = {
           error: "Failed to update retention setting",
         },
       },
-      keyboardShortcuts: {
-        title: "Keyboard Shortcuts",
-        description: "Quick reference for keyboard shortcuts across all pages.",
-        shortcut: "Shortcut",
-        action: "Action",
-        global: "Global",
-        watchlist: "Watchlist",
-        discovery: "Discovery",
-        compare: "Compare",
-      },
     },
     // 通知
     notifications: {
@@ -618,14 +599,6 @@ export const translations = {
       minutesAgo: "{n} min ago",
       hoursAgo: "{n} hr ago",
       daysAgo: "{n} days ago",
-    },
-    // 已儲存篩選
-    savedFilters: {
-      title: "Saved",
-      empty: "No saved filters",
-      saveCurrent: "Save current filters",
-      namePlaceholder: "Filter name...",
-      noFilters: "No filters set",
     },
     // 共用
     common: {
@@ -744,29 +717,6 @@ export const translations = {
       expand: "Expand",
       collapse: "Collapse",
     },
-    // Commit 活動
-    commitActivity: {
-      title: "Commit Activity",
-      subtitle: "Weekly commit activity for the past year",
-      totalCommits: "Total Commits (52w)",
-      avgPerWeek: "Avg Commits/Week",
-      lastUpdated: "Last updated: {date}",
-      fetch: "Fetch Activity",
-      refresh: "Refresh",
-      fetching: "Fetching...",
-      noData: "No commit data available",
-      fetchFailed: "Failed to fetch commit activity",
-      clickToFetch: "Click to fetch commit activity",
-      failedToLoad: "Failed to load",
-      perWeek: "{count}/wk",
-      activityLevel: {
-        veryHigh: "Very Active",
-        high: "Active",
-        medium: "Moderate",
-        low: "Low",
-        minimal: "Minimal",
-      },
-    },
     // 語言
     languages: {
       title: "Languages",
@@ -806,23 +756,6 @@ export const translations = {
       offlineHint: "Data may be outdated",
       offlineNoBackfill: "Cannot backfill while offline",
       rateLimited: "Rate limit exceeded. Please try again later.",
-    },
-    // 相似儲存庫
-    similarRepos: {
-      title: "Similar Repos",
-      loading: "Loading...",
-      loadError: "Failed to load recommendations",
-      empty: "No similar repos found in your watchlist.",
-      showSimilar: "Show similar repositories",
-      similar: "Similar",
-      similarityScore: "Similarity score",
-      sameLanguage: "Same Language",
-      recalculate: "Recalculate",
-      breakdown: {
-        topics: "Topics",
-        language: "Language",
-        starScale: "Star Scale",
-      },
     },
     // HN 討論面板
     contextBadges: {
@@ -997,11 +930,6 @@ export const translations = {
       },
       loadMore: "載入更多",
       results: "{count} 個結果",
-      searchHistory: {
-        title: "最近搜尋",
-        clear: "清除歷史",
-        removeItem: "從搜尋歷史移除「{item}」",
-      },
       quickPicks: {
         languages: "語言：",
         topics: "主題：",
@@ -1020,10 +948,6 @@ export const translations = {
         showMore: "顯示更多",
         showLess: "收起",
         dismiss: "不感興趣",
-      },
-      recentlyViewed: {
-        title: "最近檢視",
-        clear: "清除",
       },
       batchAdd: {
         select: "選取",
@@ -1438,16 +1362,6 @@ export const translations = {
           error: "保留設定儲存失敗",
         },
       },
-      keyboardShortcuts: {
-        title: "鍵盤快捷鍵",
-        description: "各頁面鍵盤快捷鍵速查表。",
-        shortcut: "快捷鍵",
-        action: "動作",
-        global: "全域",
-        watchlist: "追蹤清單",
-        discovery: "探索",
-        compare: "對比",
-      },
     },
     // 通知
     notifications: {
@@ -1463,14 +1377,6 @@ export const translations = {
       minutesAgo: "{n} 分鐘前",
       hoursAgo: "{n} 小時前",
       daysAgo: "{n} 天前",
-    },
-    // 已儲存篩選
-    savedFilters: {
-      title: "已儲存",
-      empty: "沒有已儲存的篩選",
-      saveCurrent: "儲存目前篩選",
-      namePlaceholder: "篩選名稱...",
-      noFilters: "未設定篩選",
     },
     // 共用
     common: {
@@ -1589,29 +1495,6 @@ export const translations = {
       expand: "展開",
       collapse: "收起",
     },
-    // Commit 活動
-    commitActivity: {
-      title: "提交活動",
-      subtitle: "過去一年的每週提交活動",
-      totalCommits: "總提交數 (52週)",
-      avgPerWeek: "平均每週提交數",
-      lastUpdated: "最後更新：{date}",
-      fetch: "取得活動",
-      refresh: "重新整理",
-      fetching: "取得中...",
-      noData: "沒有可用的提交資料",
-      fetchFailed: "取得提交活動失敗",
-      clickToFetch: "點擊取得提交活動",
-      failedToLoad: "載入失敗",
-      perWeek: "{count}/週",
-      activityLevel: {
-        veryHigh: "非常活躍",
-        high: "活躍",
-        medium: "中等",
-        low: "低度",
-        minimal: "極少",
-      },
-    },
     // 語言
     languages: {
       title: "語言分布",
@@ -1651,23 +1534,6 @@ export const translations = {
       offlineHint: "資料可能已過時",
       offlineNoBackfill: "離線時無法回填",
       rateLimited: "請求超過限制，請稍後再試。",
-    },
-    // 相似儲存庫
-    similarRepos: {
-      title: "相似儲存庫",
-      loading: "載入中...",
-      loadError: "載入推薦失敗",
-      empty: "追蹤清單中沒有找到相似儲存庫。",
-      showSimilar: "顯示相似儲存庫",
-      similar: "相似",
-      similarityScore: "相似度分數",
-      sameLanguage: "相同語言",
-      recalculate: "重新計算",
-      breakdown: {
-        topics: "主題",
-        language: "語言",
-        starScale: "星數量級",
-      },
     },
     // HN 討論面板
     contextBadges: {
