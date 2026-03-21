@@ -255,11 +255,6 @@ body {
   flex-direction: column;
 }
 
-.main-content {
-  flex: 1;
-  width: 100%;
-}
-
 /* ==================== GitHub-Style Navigation ==================== */
 .app-header {
   background-color: var(--glass-bg);
@@ -645,57 +640,6 @@ body {
 
 .notification-view-all:hover {
   background-color: var(--bg-subtle);
-}
-
-/* Legacy Navigation Bar (kept for compatibility) */
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  background-color: var(--bg-default);
-  border-bottom: 1px solid var(--border-default);
-}
-
-.nav-brand {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--fg-on-emphasis);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.nav-brand::before {
-  content: "★";
-  color: var(--warning-fg);
-}
-
-.nav-links {
-  display: flex;
-  gap: 4px;
-}
-
-.nav-link {
-  padding: 8px 16px;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--fg-muted);
-  cursor: pointer;
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
-}
-
-.nav-link:hover {
-  background-color: var(--bg-subtle);
-  color: var(--fg-default);
-}
-
-.nav-link.active {
-  background-color: var(--accent-subtle);
-  color: var(--accent-fg);
 }
 
 /* Main Content Area */
@@ -1524,7 +1468,7 @@ body {
 .batch-count {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--fg-default);
 }
 
 .batch-actions {
@@ -1558,7 +1502,7 @@ body {
   text-align: left;
   background: none;
   border: none;
-  color: var(--text-primary);
+  color: var(--fg-default);
   cursor: pointer;
   font-size: 13px;
 }
@@ -1576,7 +1520,7 @@ body {
 
 .selection-count {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: var(--fg-muted);
 }
 
 .repo-card-selectable {
@@ -1600,21 +1544,6 @@ body {
   width: 18px;
   height: 18px;
   cursor: pointer;
-}
-
-.btn-sm {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-.btn-danger {
-  background-color: var(--color-danger, #da3633);
-  color: #fff;
-  border-color: var(--color-danger, #da3633);
-}
-
-.btn-danger:hover {
-  background-color: color-mix(in srgb, var(--color-danger, #da3633) 85%, black);
 }
 
 /* Trends Table */
@@ -2016,7 +1945,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: var(--bg-surface);
+  background: var(--bg-default);
   border-top: 1px solid var(--border-default);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
   z-index: 10;
@@ -3846,7 +3775,6 @@ body {
 
 /* Focus States for Accessibility */
 .btn:focus-visible,
-.nav-link:focus-visible,
 .sort-tab:focus-visible,
 .chart-range-btn:focus-visible {
   outline: 2px solid var(--accent-fg);
@@ -4020,19 +3948,6 @@ a:focus-visible {
 
   .nav-action-btn {
     padding: 8px;
-  }
-
-  /* Legacy nav responsive */
-  .nav-bar {
-    flex-direction: column;
-    gap: 12px;
-    padding: 12px 16px;
-  }
-
-  .nav-links {
-    width: 100%;
-    justify-content: center;
-    flex-wrap: wrap;
   }
 
   .page-header h1 {
