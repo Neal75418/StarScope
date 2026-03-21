@@ -30,7 +30,7 @@ class GitHubRateLimitError(GitHubAPIError):
     """GitHub API 速率限制超過時拋出。"""
     def __init__(self, message: str, status_code: int | None = None, reset_at: int | None = None) -> None:
         super().__init__(message, status_code)
-        self.reset_at = reset_at  # Unix timestamp of rate limit reset
+        self.reset_at = reset_at  # 速率限制重置的 Unix timestamp
 
 
 class GitHubNotFoundError(GitHubAPIError):
@@ -372,7 +372,7 @@ class GitHubService:
         }
 
         all_stargazers: list[dict] = []
-        max_pages = 100  # Safety limit: max 10,000 stars
+        max_pages = 100  # 安全上限：最多 10,000 顆星
 
         for page in range(1, max_pages + 1):
             response = await self.client.get(

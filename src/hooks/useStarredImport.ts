@@ -77,8 +77,8 @@ export function useStarredImport() {
 
       // 匯入成功後重新取得 repos 清單
       void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
-    } catch (e) {
-      setImportError(e instanceof Error ? e.message : String(e));
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
     } finally {
       setIsImporting(false);
     }

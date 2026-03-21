@@ -2,14 +2,25 @@
 追蹤清單 API 端點，管理 GitHub repo。
 """
 
+import logging
 import re
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from constants import (
+    SignalType,
+    GITHUB_USERNAME_PATTERN,
+    GITHUB_REPO_NAME_PATTERN,
+    MAX_OWNER_LENGTH,
+    MAX_REPO_NAME_LENGTH,
+    MAX_REPOS_PER_PAGE,
+)
 from db import get_db, Repo, RepoSnapshot
 from middleware.rate_limit import limiter
+from routers.dependencies import get_repo_or_404
 from schemas import (
     RepoCreate,
     RepoWithSignals,
@@ -20,26 +31,15 @@ from schemas import (
     StarredReposResponse,
 )
 from schemas.response import ApiResponse, success_response
-from constants import (
-    SignalType,
-    GITHUB_USERNAME_PATTERN,
-    GITHUB_REPO_NAME_PATTERN,
-    MAX_OWNER_LENGTH,
-    MAX_REPO_NAME_LENGTH,
-    MAX_REPOS_PER_PAGE,
-)
 from services.github import (
     GitHubService,
     GitHubAPIError,
     GitHubNotFoundError,
     get_github_service,
 )
-from services.rate_limiter import fetch_repo_with_retry
 from services.queries import build_signal_map, build_snapshot_map
+from services.rate_limiter import fetch_repo_with_retry
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
-from routers.dependencies import get_repo_or_404
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +138,6 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
         snapshot_map.get(repo.id),
         signal_map.get(repo.id, {})
     )
-
-
 
 
 def _build_repo_list_response(

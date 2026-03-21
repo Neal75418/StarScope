@@ -26,16 +26,16 @@ from utils.time import utc_now
 logger = logging.getLogger(__name__)
 
 # 偵測門檻（可透過 app_settings 覆寫）
-RISING_STAR_MAX_STARS = 5000  # Max stars to be considered "rising"
-RISING_STAR_MIN_VELOCITY = 10  # Min velocity to be notable
-RISING_STAR_VELOCITY_RATIO = 0.01  # velocity/stars ratio threshold
+RISING_STAR_MAX_STARS = 5000  # 視為「新星」的最大星數
+RISING_STAR_MIN_VELOCITY = 10  # 值得注意的最低速度
+RISING_STAR_VELOCITY_RATIO = 0.01  # velocity/stars 比率門檻
 
-SUDDEN_SPIKE_MULTIPLIER = 3  # Daily growth must be 3x average
-SUDDEN_SPIKE_MIN_ABSOLUTE = 100  # Minimum absolute growth
+SUDDEN_SPIKE_MULTIPLIER = 3  # 日增長須為平均值的 3 倍
+SUDDEN_SPIKE_MIN_ABSOLUTE = 100  # 最低絕對增長量
 
-BREAKOUT_VELOCITY_THRESHOLD = 2  # Current week velocity must be > 2
+BREAKOUT_VELOCITY_THRESHOLD = 2  # 當週速度須 > 2
 
-VIRAL_HN_MIN_SCORE = 100  # Minimum HN score to trigger
+VIRAL_HN_MIN_SCORE = 100  # 觸發的最低 HN 分數
 
 # 預設門檻值（作為備用）
 _DEFAULT_THRESHOLDS = {
@@ -301,7 +301,7 @@ class AnomalyDetector:
             velocity_value=float(latest_delta),
             star_count=latest_stars if latest_stars else None,
             detected_at=utc_now(),
-            expires_at=utc_now() + timedelta(days=3),  # Short-lived signal
+            expires_at=utc_now() + timedelta(days=3),  # 短期訊號
         )
 
     @staticmethod

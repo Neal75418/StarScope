@@ -17,8 +17,8 @@ from services.hacker_news import fetch_hn_mentions, HNStory
 from utils.time import utc_now
 
 # 清理設定
-CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # Remove signals older than this
-CONTEXT_SIGNAL_MAX_PER_REPO = 100  # Keep at most this many signals per repo
+CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # 超過此天數的訊號將被移除
+CONTEXT_SIGNAL_MAX_PER_REPO = 100  # 每個 repo 最多保留的訊號數
 
 logger = logging.getLogger(__name__)
 

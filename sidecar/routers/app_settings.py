@@ -141,7 +141,7 @@ async def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends
             )
     except Exception as e:
         # 排程器更新失敗不影響設定儲存，但記錄警告
-        logger.warning("排程器更新失敗，將於下次重啟後生效: %s", e)
+        logger.warning(f"[設定] 排程器更新失敗，將於下次重啟後生效: {e}")
 
     return success_response(data=FetchIntervalResponse(interval_minutes=body.interval_minutes))
 

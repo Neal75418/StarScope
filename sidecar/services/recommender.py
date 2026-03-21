@@ -35,7 +35,7 @@ def _parse_topics_json(topics_json: str | None) -> set[str]:
         if isinstance(parsed, list):
             return {t.lower() for t in parsed if isinstance(t, str)}
     except json.JSONDecodeError:
-        logger.warning("[推薦] topics JSON 解析失敗: %s", repr(topics_json)[:200])
+        logger.warning(f"[推薦] topics JSON 解析失敗: {repr(topics_json)[:200]}")
     return set()
 
 

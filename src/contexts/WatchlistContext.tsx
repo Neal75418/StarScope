@@ -46,13 +46,13 @@ export type {
   WatchlistActions,
 } from "./watchlistReducer";
 
-// Contexts
+// Context 定義
 
 const WatchlistStateContext = createContext<WatchlistState | undefined>(undefined);
 
 const WatchlistActionsContext = createContext<WatchlistActions | undefined>(undefined);
 
-// Provider
+// Provider 元件
 
 interface WatchlistProviderProps {
   children: ReactNode;

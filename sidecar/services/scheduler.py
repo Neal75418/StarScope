@@ -55,7 +55,7 @@ def _job_context(job_name: str):
 _scheduler: Optional[AsyncIOScheduler] = None
 _scheduler_lock = threading.Lock()
 
-# Repo 連續失敗計數器（in-memory，重啟後歸零）
+# Repo 連續失敗計數器（記憶體內，重啟後歸零）
 _repo_failure_counts: dict[int, int] = {}
 FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
 
@@ -377,7 +377,7 @@ def _register_fetch_job(scheduler, interval_minutes: int) -> None:
         id="fetch_all_repos",
         name="Fetch all repos from GitHub",
         replace_existing=True,
-        max_instances=1,  # Prevent overlapping runs
+        max_instances=1,  # 防止重複執行
     )
 
 
