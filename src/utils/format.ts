@@ -94,18 +94,23 @@ export function formatRelativeTime(
  * 格式化日期字串為人類可讀的相對時間（例如 "today"、"1d ago"、"3mo ago"）。
  * 用於 Hacker News 討論面板等場景。
  */
-export function formatTimeAgo(dateStr: string): string {
+export function formatTimeAgo(
+  dateStr: string,
+  labels?: { today?: string; suffix?: string }
+): string {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "—";
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffDays = Math.floor(diffMs / MS_PER_DAY);
+  const sfx = labels?.suffix ?? " ago";
+  const todayLabel = labels?.today ?? "today";
 
-  if (diffDays === 0) return "today";
-  if (diffDays === 1) return "1d ago";
-  if (diffDays < 30) return `${diffDays}d ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
-  return `${Math.floor(diffDays / 365)}y ago`;
+  if (diffDays === 0) return todayLabel;
+  if (diffDays === 1) return `1d${sfx}`;
+  if (diffDays < 30) return `${diffDays}d${sfx}`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo${sfx}`;
+  return `${Math.floor(diffDays / 365)}y${sfx}`;
 }
 
 /**

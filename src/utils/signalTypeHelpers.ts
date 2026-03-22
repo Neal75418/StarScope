@@ -23,3 +23,21 @@ export function getSignalTypeLabel(
   const signalType = signalTypes.find((s) => s.type === type);
   return signalType?.name ?? type;
 }
+
+/** Signal type key → 翻譯 label 的快速對映表。 */
+const SIGNAL_TYPE_KEY_MAP: Record<string, string> = {
+  rising_star: "risingStar",
+  sudden_spike: "suddenSpike",
+  breakout: "breakout",
+  viral_hn: "viralHn",
+  release_surge: "releaseSurge",
+};
+
+/** 從 signal_type 取得翻譯名稱（用於通知、活動、週報）。 */
+export function getSignalDisplayName(
+  signalType: string,
+  signalLabels: Record<string, string>
+): string {
+  const key = SIGNAL_TYPE_KEY_MAP[signalType];
+  return (key && signalLabels[key]) || signalType.replace(/_/g, " ");
+}

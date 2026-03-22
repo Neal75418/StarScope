@@ -80,7 +80,12 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
             )}
             {signal.author && <span className="hn-meta-item hn-meta-author">{signal.author}</span>}
             {signal.published_at && (
-              <span className="hn-meta-item">{formatTimeAgo(signal.published_at)}</span>
+              <span className="hn-meta-item">
+                {formatTimeAgo(signal.published_at, {
+                  today: t.relativeTime.today,
+                  suffix: t.relativeTime.suffix,
+                })}
+              </span>
             )}
           </div>
         </div>

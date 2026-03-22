@@ -78,6 +78,7 @@ export const translations = {
         title: "Language Distribution",
         empty: "No language data available",
         repos: "repos",
+        other: "Other",
       },
       categorySummary: {
         title: "Category Summary",
@@ -833,6 +834,7 @@ export const translations = {
       hoursAgo: "{hours}h ago",
       daysAgo: "{days}d ago",
       suffix: " ago",
+      today: "today",
     },
   },
   "zh-TW": {
@@ -907,6 +909,7 @@ export const translations = {
         title: "語言分佈",
         empty: "尚無語言資料",
         repos: "個儲存庫",
+        other: "其他",
       },
       categorySummary: {
         title: "分類摘要",
@@ -1656,6 +1659,7 @@ export const translations = {
       hoursAgo: "{hours} 小時前",
       daysAgo: "{days} 天前",
       suffix: "前",
+      today: "今天",
     },
   },
 };

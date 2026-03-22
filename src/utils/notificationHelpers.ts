@@ -5,21 +5,26 @@
 
 import { TriggeredAlert } from "../api/client";
 import { Notification } from "../hooks/useNotifications";
+import { getSignalDisplayName } from "./signalTypeHelpers";
 
 /**
  * 將已觸發的警報轉換為通知。
  */
 export function alertsToNotifications(
   alerts: TriggeredAlert[],
-  readIds: Set<string>
+  readIds: Set<string>,
+  signalLabels?: Record<string, string>
 ): Notification[] {
   return alerts.map((alert) => {
     const id = `alert-${alert.id}`;
+    const signalName = signalLabels
+      ? getSignalDisplayName(alert.signal_type, signalLabels)
+      : alert.signal_type;
     return {
       id,
       type: "alert" as const,
       title: alert.rule_name,
-      message: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold} (current: ${(alert.signal_value ?? 0).toFixed(1)})`,
+      message: `${alert.repo_name}: ${signalName} ${alert.operator} ${alert.threshold} (${(alert.signal_value ?? 0).toFixed(1)})`,
       timestamp: alert.triggered_at,
       read: readIds.has(id) || alert.acknowledged_at !== null,
       link: {

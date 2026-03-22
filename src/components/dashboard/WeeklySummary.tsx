@@ -11,6 +11,7 @@ import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
+import { getSignalDisplayName } from "../../utils/signalTypeHelpers";
 import type { WeeklyRepoSummary, WeeklyHNMention } from "../../api/types";
 
 const MAX_HN_MENTIONS_DISPLAY = 6;
@@ -85,7 +86,9 @@ const SignalsOverview = memo(function SignalsOverview({
       </div>
       {Object.entries(earlySignalsByType).map(([type, count]) => (
         <div key={type} className="weekly-stat-row weekly-stat-row--sub">
-          <span className="weekly-stat-label">{type.replace(/_/g, " ")}</span>
+          <span className="weekly-stat-label">
+            {getSignalDisplayName(type, t.dashboard.signals.types)}
+          </span>
           <span className="weekly-stat-value">{count}</span>
         </div>
       ))}

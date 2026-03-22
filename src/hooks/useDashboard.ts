@@ -4,6 +4,8 @@
  */
 
 import { useCallback, useMemo } from "react";
+import { useI18n } from "../i18n";
+import { getSignalDisplayName } from "../utils/signalTypeHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getRepos,
@@ -40,6 +42,7 @@ export interface RecentActivity {
 }
 
 export function useDashboard() {
+  const { t } = useI18n();
   const qc = useQueryClient();
 
   const reposQuery = useQuery<RepoWithSignals[], Error>({
@@ -137,7 +140,7 @@ export function useDashboard() {
           id: `alert-${alert.id}`,
           type: "alert_triggered",
           title: alert.rule_name,
-          description: `${alert.repo_name}: ${alert.signal_type} ${alert.operator} ${alert.threshold}`,
+          description: `${alert.repo_name}: ${getSignalDisplayName(alert.signal_type, t.dashboard.signals.types)} ${alert.operator} ${alert.threshold}`,
           timestamp: alert.triggered_at,
         }),
       });
@@ -160,7 +163,7 @@ export function useDashboard() {
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 10)
       .map((s) => s.build());
-  }, [repos, alerts, earlySignals]);
+  }, [repos, alerts, earlySignals, t]);
 
   // 計算 velocity 分佈供圖表使用
   const velocityDistribution = useMemo(() => {
@@ -185,7 +188,7 @@ export function useDashboard() {
   const languageDistribution: LanguageSlice[] = useMemo(() => {
     const langMap: Record<string, number> = {};
     for (const repo of repos) {
-      const lang = repo.language ?? "Other";
+      const lang = repo.language ?? t.dashboard.languageDistribution.other;
       langMap[lang] = (langMap[lang] ?? 0) + 1;
     }
     const sorted = Object.entries(langMap).sort((a, b) => b[1] - a[1]);
@@ -194,21 +197,21 @@ export function useDashboard() {
       return sorted.map(([language, count]) => ({ language, count }));
     }
 
-    // 超過 10 種時：前 9 筆保留，第 10 筆起（含已存在的 "Other"）全部合併為 "Other"
-    // 先把已在前 9 筆的 "Other"（若存在）單獨計算，避免重複 key
-    const top9Named = sorted.filter(([lang]) => lang !== "Other").slice(0, 9);
-    const explicitOther = langMap["Other"] ?? 0;
+    // 超過 10 種時：前 9 筆保留，第 10 筆起全部合併為「其他」
+    const otherLabel = t.dashboard.languageDistribution.other;
+    const top9Named = sorted.filter(([lang]) => lang !== otherLabel).slice(0, 9);
+    const explicitOther = langMap[otherLabel] ?? 0;
     const overflowCount = sorted
-      .filter(([lang]) => lang !== "Other")
+      .filter(([lang]) => lang !== otherLabel)
       .slice(9)
       .reduce((sum, [, c]) => sum + c, 0);
     const combinedOther = explicitOther + overflowCount;
 
     return [
       ...top9Named.map(([language, count]) => ({ language, count })),
-      ...(combinedOther > 0 ? [{ language: "Other", count: combinedOther }] : []),
+      ...(combinedOther > 0 ? [{ language: otherLabel, count: combinedOther }] : []),
     ];
-  }, [repos]);
+  }, [repos, t]);
 
   // Portfolio 健康分數（0-100）
   const healthScoreInput: HealthScoreInput = useMemo(() => {

@@ -47,7 +47,9 @@ export function useNotificationPolling(
     queryKey: queryKeys.notifications.polling(),
     queryFn: async () => {
       const alerts = await listTriggeredAlerts(false, 50);
-      return sortNotifications(alertsToNotifications(alerts, readIdsRef.current));
+      return sortNotifications(
+        alertsToNotifications(alerts, readIdsRef.current, tRef.current.dashboard.signals.types)
+      );
     },
     // 智慧輪詢：visibility + online aware
     refetchInterval: smartInterval,
