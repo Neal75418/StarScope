@@ -101,7 +101,10 @@ export function buildCombinedQuery(
   return parts.join(" ");
 }
 
-/** 判斷 filters 中是否有任何有效的篩選條件（不含 language，因為 language 已在 query 中）。 */
+/**
+ * 判斷 filters 中是否有任何有效的篩選條件。
+ * 排除 language（已在 query 中）和 sort/order（僅影響排序，不構成搜尋條件）。
+ */
 export function hasActiveFilters(filters: SearchFilters): boolean {
   return !!(
     filters.topic ||
