@@ -104,4 +104,9 @@ describe("formatRelativeTime", () => {
     const date = new Date("2024-01-14T12:00:00Z");
     expect(formatRelativeTime(date, "Just now")).toBe("1d ago");
   });
+
+  it("appends custom suffix when provided", () => {
+    const date = new Date("2024-01-15T11:30:00Z"); // 30 分鐘前
+    expect(formatRelativeTime(date, "剛剛", "前")).toBe("30m前");
+  });
 });

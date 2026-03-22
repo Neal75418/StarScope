@@ -71,7 +71,7 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
             onClick={(e) => handleOpenUrl(e, signal.url)}
             className="hn-discussion-title"
           >
-            {signal.title || "Untitled"}
+            {signal.title || t.contextBadges.untitled}
           </a>
           <div className="hn-discussion-meta">
             {signal.score != null && <span className="hn-meta-item">▲ {signal.score}</span>}

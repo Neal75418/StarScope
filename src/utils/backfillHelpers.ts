@@ -14,6 +14,10 @@ export function isNetworkError(err: unknown): boolean {
 }
 
 /** 格式化相對時間（委託給 format.ts 的統一實作）。 */
-export function formatRelativeTime(date: Date | null, justNowText: string): string {
-  return formatRelativeTimeBase(date, { justNowText, suffix: " ago" });
+export function formatRelativeTime(
+  date: Date | null,
+  justNowText: string,
+  suffix = " ago"
+): string {
+  return formatRelativeTimeBase(date, { justNowText, suffix });
 }

@@ -77,6 +77,7 @@ export const translations = {
       languageDistribution: {
         title: "Language Distribution",
         empty: "No language data available",
+        repos: "repos",
       },
       categorySummary: {
         title: "Category Summary",
@@ -802,11 +803,13 @@ export const translations = {
     // HN 討論面板
     contextBadges: {
       noDiscussions: "No discussions found",
+      untitled: "Untitled",
     },
     // 圖表
     chart: {
       loading: "Loading chart...",
       loadFailed: "Chart loading failed",
+      stars: "Stars",
       insufficientData:
         "Insufficient data. At least 2 data points are required to render the chart.",
       timeRange: {
@@ -829,6 +832,7 @@ export const translations = {
       justNow: "Just now",
       hoursAgo: "{hours}h ago",
       daysAgo: "{days}d ago",
+      suffix: " ago",
     },
   },
   "zh-TW": {
@@ -902,6 +906,7 @@ export const translations = {
       languageDistribution: {
         title: "語言分佈",
         empty: "尚無語言資料",
+        repos: "個儲存庫",
       },
       categorySummary: {
         title: "分類摘要",
@@ -1622,11 +1627,13 @@ export const translations = {
     // HN 討論面板
     contextBadges: {
       noDiscussions: "找不到相關討論",
+      untitled: "無標題",
     },
     // 圖表
     chart: {
       loading: "圖表載入中...",
       loadFailed: "圖表載入失敗",
+      stars: "星數",
       insufficientData: "資料不足，至少需要 2 個資料點才能繪製圖表。",
       timeRange: {
         "7d": "7天",
@@ -1648,6 +1655,7 @@ export const translations = {
       justNow: "剛剛",
       hoursAgo: "{hours} 小時前",
       daysAgo: "{days} 天前",
+      suffix: "前",
     },
   },
 };

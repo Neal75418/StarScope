@@ -47,6 +47,7 @@ interface TooltipPayload {
 }
 
 function LangTooltip({ active, payload }: TooltipPayload) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
   const { language, count } = payload[0].payload;
   return (
@@ -60,7 +61,7 @@ function LangTooltip({ active, payload }: TooltipPayload) {
         color: "var(--fg-default)",
       }}
     >
-      <strong>{language}</strong>: {count} repo{count !== 1 ? "s" : ""}
+      <strong>{language}</strong>: {count} {t.dashboard.languageDistribution.repos}
     </div>
   );
 }

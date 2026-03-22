@@ -57,7 +57,11 @@ export function StarHistoryBackfill({
     return null;
   }
 
-  const lastUpdatedText = formatRelativeTime(lastUpdated, t.relativeTime?.justNow ?? "Just now");
+  const lastUpdatedText = formatRelativeTime(
+    lastUpdated,
+    t.relativeTime.justNow,
+    t.relativeTime.suffix
+  );
 
   return (
     <div className={`star-history-backfill ${isOffline ? "offline" : ""}`}>

@@ -85,6 +85,7 @@ interface ChartContentProps {
 }
 
 function ChartContent({ data, colors }: ChartContentProps) {
+  const { t } = useI18n();
   return (
     <ResponsiveContainer width="100%" height={180}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
@@ -103,7 +104,7 @@ function ChartContent({ data, colors }: ChartContentProps) {
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           labelStyle={{ color: colors.tooltipText }}
-          formatter={(value) => [formatNumber(value as number), "Stars"]}
+          formatter={(value) => [formatNumber(value as number), t.chart.stars]}
           labelFormatter={(label) => new Date(label).toLocaleDateString()}
         />
         <Line
