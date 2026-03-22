@@ -76,6 +76,11 @@ describe("RepoCardHeader", () => {
     expect(defaultProps.onToggleChart).toHaveBeenCalled();
   });
 
+  it("shows hide chart title when chart is visible", () => {
+    render(<RepoCardHeader {...defaultProps} showChart={true} />);
+    expect(screen.getByTitle("Hide chart")).toBeInTheDocument();
+  });
+
   it("disables refresh and remove buttons when loading", () => {
     render(<RepoCardHeader {...defaultProps} isLoading={true} />);
     expect(screen.getByTitle("Refresh")).toBeDisabled();
