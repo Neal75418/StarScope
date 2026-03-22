@@ -105,14 +105,21 @@ export const NotificationItem = memo(function NotificationItem({
         onClick={handleClick}
         role="button"
         tabIndex={0}
-        aria-label={notification.title}
+        aria-labelledby={`notif-title-${notification.id}`}
+        aria-describedby={`notif-msg-${notification.id} notif-time-${notification.id}`}
         onKeyDown={handleKeyDown}
       >
         <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>
         <div className="notification-content">
-          <div className="notification-title">{notification.title}</div>
-          <div className="notification-message">{notification.message}</div>
-          <div className="notification-time">{timeAgo}</div>
+          <div className="notification-title" id={`notif-title-${notification.id}`}>
+            {notification.title}
+          </div>
+          <div className="notification-message" id={`notif-msg-${notification.id}`}>
+            {notification.message}
+          </div>
+          <div className="notification-time" id={`notif-time-${notification.id}`}>
+            {timeAgo}
+          </div>
         </div>
       </div>
       <button

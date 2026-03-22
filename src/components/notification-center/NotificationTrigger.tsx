@@ -28,7 +28,6 @@ export function NotificationTrigger({
       onClick={onToggle}
       aria-label={t.notifications.title}
       aria-expanded={isOpen}
-      aria-haspopup="true"
     >
       <BellIcon size={16} />
       {badgeDisplay && (

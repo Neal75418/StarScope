@@ -109,7 +109,7 @@ export function Settings() {
       </header>
 
       <div className="settings-layout">
-        <nav className="settings-nav" aria-label="Settings sections">
+        <nav className="settings-nav" aria-label={t.settings.title}>
           {navItems.map(({ id, label }) => (
             <button
               key={id}
@@ -174,9 +174,9 @@ export function Settings() {
                       className="btn"
                       onClick={() => void alerts.handleCheckNow()}
                       disabled={alerts.isSubmitting}
-                      title={t.settings.alerts.checkNow ?? "Check alerts now"}
+                      title={t.settings.alerts.checkNow}
                     >
-                      {t.settings.alerts.checkNow ?? "Check Now"}
+                      {t.settings.alerts.checkNow}
                     </button>
                     <button className="btn btn-primary" onClick={() => setShowAddAlert(true)}>
                       {t.settings.alerts.create}
