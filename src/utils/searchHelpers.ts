@@ -79,8 +79,7 @@ export function getMinStarsForPeriod(period: TrendingPeriod): number {
 export function buildCombinedQuery(
   keyword: string,
   period: TrendingPeriod | undefined,
-  language: string | undefined,
-  filters?: SearchFilters
+  language: string | undefined
 ): string {
   const parts: string[] = [];
 
@@ -99,19 +98,16 @@ export function buildCombinedQuery(
     parts.push(`language:${language}`);
   }
 
-  // 將 filter 維度也納入 query（確保 filter-only 搜尋能觸發請求）
-  if (filters?.topic) {
-    parts.push(`topic:${filters.topic}`);
-  }
-  if (filters?.minStars != null) {
-    parts.push(`stars:>=${filters.minStars}`);
-  }
-  if (filters?.maxStars != null) {
-    parts.push(`stars:<=${filters.maxStars}`);
-  }
-  if (filters?.license) {
-    parts.push(`license:${filters.license}`);
-  }
-
   return parts.join(" ");
+}
+
+/** 判斷 filters 中是否有任何有效的篩選條件（不含 language，因為 language 已在 query 中）。 */
+export function hasActiveFilters(filters: SearchFilters): boolean {
+  return !!(
+    filters.topic ||
+    filters.minStars != null ||
+    filters.maxStars != null ||
+    filters.license ||
+    filters.hideArchived
+  );
 }

@@ -5,7 +5,12 @@
 import { useState, useCallback, useMemo } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { SearchFilters, DiscoveryRepo } from "../api/client";
-import { buildCombinedQuery, fetchSearchResults, SearchResult } from "../utils/searchHelpers";
+import {
+  buildCombinedQuery,
+  hasActiveFilters,
+  fetchSearchResults,
+  SearchResult,
+} from "../utils/searchHelpers";
 import { TrendingPeriod } from "../components/discovery";
 import { useI18n } from "../i18n";
 import { queryKeys } from "../lib/react-query";
@@ -83,14 +88,17 @@ export function useDiscoverySearch() {
       filters: SearchFilters,
       _page: number = 1
     ) => {
-      const query = buildCombinedQuery(keyword, period, filters.language, filters);
+      const query = buildCombinedQuery(keyword, period, filters.language);
 
-      if (!query.trim()) {
+      // filter-only 搜尋：query 為空但有 active filters 時，用 stars:>=0 作為最小查詢
+      const effectiveQuery = query.trim() || (hasActiveFilters(filters) ? "stars:>=0" : "");
+
+      if (!effectiveQuery) {
         setSearchParams(null);
         return;
       }
 
-      setSearchParams({ query, filters });
+      setSearchParams({ query: effectiveQuery, filters });
     },
     []
   );
