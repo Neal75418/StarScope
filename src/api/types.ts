@@ -617,6 +617,11 @@ export interface DiagnosticsResponse {
   total_snapshots: number;
   last_snapshot_at: string | null;
   uptime_seconds: number;
+  last_fetch_success: string | null;
+  last_fetch_failure: string | null;
+  last_fetch_error: string | null;
+  last_alert_check: string | null;
+  last_backup: string | null;
 }
 
 export interface ResetDataResponse {

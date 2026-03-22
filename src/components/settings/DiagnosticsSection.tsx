@@ -67,6 +67,34 @@ export function DiagnosticsSection() {
             <span className="diagnostics-label">{t.settings.diagnostics.dbPath}</span>
             <span className="diagnostics-value diagnostics-path">{data.db_path}</span>
           </div>
+          <div className="diagnostics-item">
+            <span className="diagnostics-label">{t.settings.diagnostics.lastFetchSuccess}</span>
+            <span className="diagnostics-value">
+              {data.last_fetch_success
+                ? formatRelativeTime(new Date(data.last_fetch_success))
+                : "—"}
+            </span>
+          </div>
+          {data.last_fetch_error && (
+            <div className="diagnostics-item" style={{ gridColumn: "1 / -1" }}>
+              <span className="diagnostics-label">{t.settings.diagnostics.lastFetchError}</span>
+              <span className="diagnostics-value" style={{ color: "var(--danger-fg)" }}>
+                {data.last_fetch_error}
+              </span>
+            </div>
+          )}
+          <div className="diagnostics-item">
+            <span className="diagnostics-label">{t.settings.diagnostics.lastAlertCheck}</span>
+            <span className="diagnostics-value">
+              {data.last_alert_check ? formatRelativeTime(new Date(data.last_alert_check)) : "—"}
+            </span>
+          </div>
+          <div className="diagnostics-item">
+            <span className="diagnostics-label">{t.settings.diagnostics.lastBackup}</span>
+            <span className="diagnostics-value">
+              {data.last_backup ? formatRelativeTime(new Date(data.last_backup)) : "—"}
+            </span>
+          </div>
         </div>
       )}
     </div>

@@ -338,6 +338,77 @@ describe("useDiscoverySearch", () => {
     expect(result.current.repos).toHaveLength(1);
   });
 
+  it("topic-only filter (no keyword, no period) triggers search", async () => {
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [makeDiscoveryRepo({ full_name: "topic/only" })],
+      totalCount: 5,
+      hasMore: false,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("", undefined, { topic: "machine-learning" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+    });
+
+    expect(mockFetchResults).toHaveBeenCalledWith(
+      "stars:>=0",
+      expect.objectContaining({ topic: "machine-learning" }),
+      1,
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it("hideArchived-only filter triggers search", async () => {
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [makeDiscoveryRepo()],
+      totalCount: 1,
+      hasMore: false,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("", undefined, { hideArchived: true });
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+    });
+  });
+
+  it("restoreState with keyword+period triggers correct search", async () => {
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [makeDiscoveryRepo({ full_name: "restored/repo" })],
+      totalCount: 1,
+      hasMore: false,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("restored-keyword", "weekly", { language: "Python" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+      expect(result.current.repos[0].full_name).toBe("restored/repo");
+    });
+
+    expect(mockFetchResults).toHaveBeenCalledWith(
+      expect.stringContaining("restored-keyword"),
+      expect.objectContaining({ language: "Python" }),
+      1,
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
   it("caches results for same query", async () => {
     mockFetchResults.mockResolvedValue({
       repos: [makeDiscoveryRepo()],

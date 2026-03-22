@@ -210,11 +210,19 @@ class DiagnosticsResponse(BaseModel):
     total_snapshots: int
     last_snapshot_at: str | None
     uptime_seconds: float
+    last_fetch_success: str | None
+    last_fetch_failure: str | None
+    last_fetch_error: str | None
+    last_alert_check: str | None
+    last_backup: str | None
 
 
 @router.get("/diagnostics", response_model=ApiResponse[DiagnosticsResponse])
 async def get_diagnostics(db: Session = Depends(get_db)):
-    """取得系統診斷資訊：版本、資料庫狀態、最後同步時間。"""
+    """取得系統診斷資訊：版本、資料庫狀態、排程健康狀態。"""
+    from services.scheduler import get_scheduler_health
+    from datetime import datetime, timezone
+
     db_path_abs = DATABASE_URL.replace("sqlite:///", "")
     db_size = os.path.getsize(db_path_abs) / (1024 * 1024) if os.path.exists(db_path_abs) else 0
     # 顯示相對路徑（隱藏使用者名稱）
@@ -233,7 +241,24 @@ async def get_diagnostics(db: Session = Depends(get_db)):
         total_snapshots=total_snapshots,
         last_snapshot_at=last_snapshot.isoformat() if last_snapshot else None,
         uptime_seconds=round(_time.monotonic() - _START_TIME, 1),
+        **_format_scheduler_health(get_scheduler_health()),
     ))
+
+
+def _format_scheduler_health(health: dict) -> dict:
+    """將 scheduler 的 Unix timestamp 轉為 ISO 字串。"""
+    from datetime import datetime, timezone
+
+    def _ts_to_iso(ts: float | None) -> str | None:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None
+
+    return {
+        "last_fetch_success": _ts_to_iso(health.get("last_fetch_success")),
+        "last_fetch_failure": _ts_to_iso(health.get("last_fetch_failure")),
+        "last_fetch_error": health.get("last_fetch_error"),
+        "last_alert_check": _ts_to_iso(health.get("last_alert_check")),
+        "last_backup": _ts_to_iso(health.get("last_backup")),
+    }
 
 
 # --- 重設所有資料 ---

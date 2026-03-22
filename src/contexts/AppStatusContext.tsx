@@ -3,7 +3,7 @@
  * 所有頁面透過 useAppStatus() 取得目前的降級狀態。
  */
 
-import { createContext, useContext, useMemo, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useQuery } from "@tanstack/react-query";
 import { checkHealth } from "../api/client";
@@ -49,6 +49,18 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
 
   const isSidecarUp = healthQuery.data?.status === "ok";
 
+  // 監聽 rate-limited 事件（由 apiCall 在 429 重試耗盡時廣播）
+  const [isRateLimited, setRateLimited] = useState(false);
+  useEffect(() => {
+    const handler = () => {
+      setRateLimited(true);
+      const timer = setTimeout(() => setRateLimited(false), 60_000);
+      return () => clearTimeout(timer);
+    };
+    window.addEventListener("starscope:rate-limited", handler);
+    return () => window.removeEventListener("starscope:rate-limited", handler);
+  }, []);
+
   const status = useMemo<AppStatus>(() => {
     if (!isOnline) {
       return {
@@ -68,6 +80,15 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
         isOnline: true,
       };
     }
+    if (isRateLimited) {
+      return {
+        level: "rate-limited",
+        showBanner: true,
+        bannerMessage: "rateLimited",
+        isSidecarUp,
+        isOnline: true,
+      };
+    }
     return {
       level: "online",
       showBanner: false,
@@ -75,7 +96,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
       isSidecarUp,
       isOnline: true,
     };
-  }, [isOnline, isSidecarUp, healthQuery.isLoading]);
+  }, [isOnline, isSidecarUp, healthQuery.isLoading, isRateLimited]);
 
   return <AppStatusContext.Provider value={status}>{children}</AppStatusContext.Provider>;
 }

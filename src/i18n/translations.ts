@@ -546,6 +546,10 @@ export const translations = {
         totalSnapshots: "Snapshots",
         lastSync: "Last Sync",
         dbPath: "Database Path",
+        lastFetchSuccess: "Last Successful Sync",
+        lastFetchError: "Last Error",
+        lastAlertCheck: "Last Alert Check",
+        lastBackup: "Last Backup",
       },
       about: {
         title: "About",
@@ -1347,6 +1351,10 @@ export const translations = {
         totalSnapshots: "快照數量",
         lastSync: "最後同步",
         dbPath: "資料庫路徑",
+        lastFetchSuccess: "最近成功同步",
+        lastFetchError: "最近錯誤",
+        lastAlertCheck: "最近警報檢查",
+        lastBackup: "最近備份",
       },
       about: {
         title: "關於",

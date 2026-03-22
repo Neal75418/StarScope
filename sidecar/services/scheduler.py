@@ -9,6 +9,7 @@ import asyncio
 import logging
 import os
 import threading
+import time as _time
 import uuid
 from contextlib import contextmanager
 from datetime import timedelta
@@ -57,6 +58,20 @@ _scheduler_lock = threading.Lock()
 
 # Repo 連續失敗計數器（記憶體內，重啟後歸零）
 _repo_failure_counts: dict[int, int] = {}
+
+# 排程健康狀態追蹤（記憶體內）
+_scheduler_health: dict[str, float | str | None] = {
+    "last_fetch_success": None,
+    "last_fetch_failure": None,
+    "last_fetch_error": None,
+    "last_alert_check": None,
+    "last_backup": None,
+}
+
+
+def get_scheduler_health() -> dict[str, float | str | None]:
+    """取得排程器健康狀態。"""
+    return dict(_scheduler_health)
 FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
 
 
@@ -231,9 +246,12 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
                 f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"
                 f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
             )
+            _scheduler_health["last_fetch_success"] = _time.time()
 
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
+            _scheduler_health["last_fetch_failure"] = _time.time()
+            _scheduler_health["last_fetch_error"] = str(e)[:200]
             # 可恢復的錯誤，不中斷排程
         except KeyboardInterrupt:
             log.info(f"[排程] [{job_id}] 收到中斷信號")
@@ -261,6 +279,7 @@ def check_alerts_job() -> None:
             try:
                 triggered = check_all_alerts(db)
 
+                _scheduler_health["last_alert_check"] = _time.time()
                 if triggered:
                     log.info(f"[排程] 已觸發 {len(triggered)} 個警報")
                 else:
@@ -360,6 +379,7 @@ def backup_job() -> None:
 
         if backup_path:
             logger.info(f"[排程] 資料庫備份成功: {backup_path}")
+            _scheduler_health["last_backup"] = _time.time()
         else:
             logger.error("[排程] 資料庫備份失敗")
 
