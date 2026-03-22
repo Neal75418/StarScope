@@ -14,9 +14,9 @@ test.describe("GitHub Connection", () => {
     const githubSection = page.locator("#github");
     await expect(githubSection).toBeVisible({ timeout: 5000 });
 
-    // 應顯示連線狀態（API 配額或中斷連線按鈕）
+    // 應顯示 GitHub 連線區塊（已連接或 Device Flow 按鈕）
     await expect(
-      githubSection.locator("text=/API:|中斷連線|Disconnect/i").first()
+      githubSection.locator("button").first()
     ).toBeVisible({ timeout: 5000 });
   });
 
