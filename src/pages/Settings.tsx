@@ -49,9 +49,11 @@ export function Settings() {
     }
   };
 
-  // 追蹤可見 section 以高亮 nav
+  // 追蹤可見 section 以高亮 nav（需要 IntersectionObserver 支援）
   const [activeSection, setActiveSection] = useState<string>("github");
   useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+
     const sectionIds = [
       "github",
       "scheduled-refresh",

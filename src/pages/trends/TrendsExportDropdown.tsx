@@ -28,8 +28,8 @@ export function TrendsExportDropdown({ sortBy, language, minStars }: TrendsExpor
           <a
             href={getExportTrendsJsonUrl(sortBy, langParam, starsParam)}
             className="export-dropdown-item"
-            download
             role="menuitem"
+            download
             onClick={close}
           >
             {t.trends.export.json}
@@ -37,8 +37,8 @@ export function TrendsExportDropdown({ sortBy, language, minStars }: TrendsExpor
           <a
             href={getExportTrendsCsvUrl(sortBy, langParam, starsParam)}
             className="export-dropdown-item"
-            download
             role="menuitem"
+            download
             onClick={close}
           >
             {t.trends.export.csv}

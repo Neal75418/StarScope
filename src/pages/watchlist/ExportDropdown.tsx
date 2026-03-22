@@ -19,8 +19,8 @@ export function ExportDropdown() {
           <a
             href={getExportWatchlistJsonUrl()}
             className="export-dropdown-item"
-            download
             role="menuitem"
+            download
             onClick={close}
           >
             {t.watchlist.export.json}
@@ -28,8 +28,8 @@ export function ExportDropdown() {
           <a
             href={getExportWatchlistCsvUrl()}
             className="export-dropdown-item"
-            download
             role="menuitem"
+            download
             onClick={close}
           >
             {t.watchlist.export.csv}
