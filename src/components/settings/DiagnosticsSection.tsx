@@ -41,12 +41,17 @@ export function DiagnosticsSection() {
     queryKey: [...queryKeys.connection.all, "rate-limit"],
     queryFn: ({ signal }) => getGitHubConnectionStatus(signal),
     staleTime: 60_000,
+    refetchInterval: diagnosticsInterval,
   });
 
   const handleExportLogs = async () => {
     setExporting(true);
     try {
       const result = await getRecentLogs();
+      if (!result.logs) {
+        logger.warn("[DiagnosticsSection] 無日誌可匯出");
+        return;
+      }
       const blob = new Blob([result.logs], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

@@ -270,15 +270,16 @@ async def get_recent_logs():
     log_file = os.path.join(log_dir, "starscope.log")
 
     if not os.path.exists(log_file):
-        return success_response(data={"logs": "（無日誌檔案）"})
+        return success_response(data={"logs": "", "success": False, "reason": "no_file"})
 
     try:
         with open(log_file, "r", errors="ignore") as f:
             lines = f.readlines()
         recent = "".join(lines[-200:])
-        return success_response(data={"logs": recent})
+        return success_response(data={"logs": recent, "success": True})
     except OSError as e:
-        return success_response(data={"logs": f"讀取日誌失敗: {e}"})
+        logger.error(f"[設定] 日誌讀取失敗: {e}")
+        raise HTTPException(status_code=500, detail=f"日誌讀取失敗: {e}")
 
 
 # --- 重設所有資料 ---

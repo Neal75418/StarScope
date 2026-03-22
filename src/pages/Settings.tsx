@@ -2,7 +2,7 @@
  * 設定頁面，管理外觀、資料、排程、警示規則等設定。
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
@@ -49,6 +49,36 @@ export function Settings() {
     }
   };
 
+  // 追蹤可見 section 以高亮 nav
+  const [activeSection, setActiveSection] = useState<string>("github");
+  useEffect(() => {
+    const sectionIds = [
+      "github",
+      "scheduled-refresh",
+      "snapshot-retention",
+      "signal-thresholds",
+      "import",
+      "data-management",
+      "alerts",
+      "diagnostics",
+      "about",
+    ];
+    const observers: IntersectionObserver[] = [];
+    for (const id of sectionIds) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) setActiveSection(id);
+        },
+        { rootMargin: "-20% 0px -60% 0px" }
+      );
+      observer.observe(el);
+      observers.push(observer);
+    }
+    return () => observers.forEach((o) => o.disconnect());
+  }, []);
+
   if (alerts.isLoading) {
     return (
       <div className="page">
@@ -82,7 +112,8 @@ export function Settings() {
             <button
               key={id}
               type="button"
-              className="settings-nav-item"
+              className={`settings-nav-item${activeSection === id ? " active" : ""}`}
+              aria-current={activeSection === id ? "true" : undefined}
               onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
             >
               {label}

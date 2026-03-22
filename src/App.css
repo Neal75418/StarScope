@@ -2433,6 +2433,14 @@ body {
   color: var(--fg-default);
 }
 
+.settings-nav-item.active {
+  background: var(--bg-subtle);
+  color: var(--accent-fg);
+  font-weight: 600;
+  border-left: 2px solid var(--accent-fg);
+  padding-left: 8px;
+}
+
 .settings-content {
   flex: 1;
   min-width: 0;

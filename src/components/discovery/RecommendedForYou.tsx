@@ -66,15 +66,7 @@ const RecCard = memo(function RecCard({
   );
 
   return (
-    <div
-      role="link"
-      tabIndex={0}
-      className={styles.recCard}
-      onClick={handleClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") handleClick();
-      }}
-    >
+    <div className={styles.recCard}>
       <button
         className={styles.recDismissBtn}
         onClick={handleDismiss}
@@ -84,7 +76,18 @@ const RecCard = memo(function RecCard({
         ×
       </button>
       <div className={styles.recCardHeader}>
-        <span className={styles.recCardName}>{rec.full_name}</span>
+        <a
+          href={rec.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.recCardName}
+          onClick={(e) => {
+            e.preventDefault();
+            handleClick();
+          }}
+        >
+          {rec.full_name}
+        </a>
         {rec.language && <span className={styles.recCardLang}>{rec.language}</span>}
       </div>
       {rec.description && <div className={styles.recCardDesc}>{rec.description}</div>}
