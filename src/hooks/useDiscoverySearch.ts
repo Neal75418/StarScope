@@ -66,9 +66,12 @@ export function useDiscoverySearch() {
     [data?.pages, searchParams]
   );
 
+  // 從第一頁取得 totalCount（避免後續頁面錯誤覆蓋正確值）
+  const firstPage = searchParams ? data?.pages[0] : undefined;
   const lastPage = searchParams ? data?.pages[data.pages.length - 1] : undefined;
-  const totalCount = lastPage?.totalCount ?? 0;
-  const error = lastPage?.error ?? null;
+  const totalCount = firstPage?.totalCount ?? 0;
+  // 只在所有頁面都失敗時才顯示錯誤（保留已載入的結果）
+  const error = repos.length === 0 ? (lastPage?.error ?? null) : null;
 
   /**
    * 觸發新搜尋（page 參數保留向後相容；page > 1 由 loadMore 處理）。
@@ -80,7 +83,7 @@ export function useDiscoverySearch() {
       filters: SearchFilters,
       _page: number = 1
     ) => {
-      const query = buildCombinedQuery(keyword, period, filters.language);
+      const query = buildCombinedQuery(keyword, period, filters.language, filters);
 
       if (!query.trim()) {
         setSearchParams(null);

@@ -79,7 +79,8 @@ export function getMinStarsForPeriod(period: TrendingPeriod): number {
 export function buildCombinedQuery(
   keyword: string,
   period: TrendingPeriod | undefined,
-  language: string | undefined
+  language: string | undefined,
+  filters?: SearchFilters
 ): string {
   const parts: string[] = [];
 
@@ -96,6 +97,20 @@ export function buildCombinedQuery(
 
   if (language) {
     parts.push(`language:${language}`);
+  }
+
+  // 將 filter 維度也納入 query（確保 filter-only 搜尋能觸發請求）
+  if (filters?.topic) {
+    parts.push(`topic:${filters.topic}`);
+  }
+  if (filters?.minStars != null) {
+    parts.push(`stars:>=${filters.minStars}`);
+  }
+  if (filters?.maxStars != null) {
+    parts.push(`stars:<=${filters.maxStars}`);
+  }
+  if (filters?.license) {
+    parts.push(`license:${filters.license}`);
   }
 
   return parts.join(" ");

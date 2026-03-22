@@ -156,7 +156,20 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       if (attempt < MAX_RETRIES) {
         // 429 使用更長的退避延遲
         const baseDelay = apiError.status === 429 ? RETRY_DELAY_MS * 4 : RETRY_DELAY_MS;
-        await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)));
+        const delay = baseDelay * Math.pow(2, attempt);
+        // 可取消的退避延遲：signal abort 時立即結束等待
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, delay);
+          callerSignal?.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              resolve();
+            },
+            { once: true }
+          );
+        });
+        if (callerSignal?.aborted) throw lastError ?? new ApiError(0, "Aborted");
       }
     }
   }

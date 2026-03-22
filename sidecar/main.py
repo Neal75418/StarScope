@@ -79,13 +79,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    # 關閉：取消啟動任務（如果仍在執行）
+    # 關閉：先停止排程器（等待 in-flight jobs 完成）
+    stop_scheduler()
+    # 取消啟動任務（如果仍在執行）並等待完成
     if not startup_task.done():
         startup_task.cancel()
-    # 關閉 GitHub HTTP client
+        try:
+            await startup_task
+        except asyncio.CancelledError:
+            pass
+    # 最後關閉 GitHub HTTP client（確保所有 jobs 已停止）
     await close_github_service()
-    # 關閉：停止排程器
-    stop_scheduler()
     logger.info("[啟動] StarScope Engine 已停止")
 
 
