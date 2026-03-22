@@ -290,7 +290,7 @@ describe("ContextBadges", () => {
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("2d ago")).toBeInTheDocument();
+      expect(screen.getByText("2d")).toBeInTheDocument();
     });
   });
 
@@ -319,7 +319,7 @@ describe("ContextBadges", () => {
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("today")).toBeInTheDocument();
+      expect(screen.getByText("Just now")).toBeInTheDocument();
     });
   });
 
@@ -349,7 +349,7 @@ describe("ContextBadges", () => {
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("1d ago")).toBeInTheDocument();
+      expect(screen.getByText("1d")).toBeInTheDocument();
     });
   });
 
@@ -379,7 +379,7 @@ describe("ContextBadges", () => {
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("2mo ago")).toBeInTheDocument();
+      expect(screen.getByText("2mo")).toBeInTheDocument();
     });
   });
 
@@ -409,7 +409,7 @@ describe("ContextBadges", () => {
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(screen.getByText("1y ago")).toBeInTheDocument();
+      expect(screen.getByText("1y")).toBeInTheDocument();
     });
   });
 });

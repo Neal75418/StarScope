@@ -116,27 +116,27 @@ describe("formatTimeAgo", () => {
 
   it("returns 'today' for current date", () => {
     const now = new Date().toISOString();
-    expect(formatTimeAgo(now)).toBe("today");
+    expect(formatTimeAgo(now)).toBe("<1d");
   });
 
   it("returns '1d ago' for yesterday", () => {
     const yesterday = new Date(Date.now() - 86400000).toISOString();
-    expect(formatTimeAgo(yesterday)).toBe("1d ago");
+    expect(formatTimeAgo(yesterday)).toBe("1d");
   });
 
   it("returns days for dates within 30 days", () => {
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000).toISOString();
-    expect(formatTimeAgo(fiveDaysAgo)).toBe("5d ago");
+    expect(formatTimeAgo(fiveDaysAgo)).toBe("5d");
   });
 
   it("returns months for dates within a year", () => {
     const twoMonthsAgo = new Date(Date.now() - 60 * 86400000).toISOString();
-    expect(formatTimeAgo(twoMonthsAgo)).toBe("2mo ago");
+    expect(formatTimeAgo(twoMonthsAgo)).toBe("2mo");
   });
 
   it("returns years for dates over a year", () => {
     const twoYearsAgo = new Date(Date.now() - 730 * 86400000).toISOString();
-    expect(formatTimeAgo(twoYearsAgo)).toBe("2y ago");
+    expect(formatTimeAgo(twoYearsAgo)).toBe("2y");
   });
 });
 

@@ -7,7 +7,7 @@ import React, { useState, useCallback } from "react";
 import { safeOpenUrl } from "../utils/url";
 import { ContextBadge, ContextSignal, getContextSignals } from "../api/client";
 import { useI18n } from "../i18n";
-import { formatTimeAgo } from "../utils/format";
+import { formatRelativeTime } from "../utils/format";
 import { logger } from "../utils/logger";
 
 interface ContextBadgesProps {
@@ -81,10 +81,7 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
             {signal.author && <span className="hn-meta-item hn-meta-author">{signal.author}</span>}
             {signal.published_at && (
               <span className="hn-meta-item">
-                {formatTimeAgo(signal.published_at, {
-                  today: t.relativeTime.today,
-                  suffix: t.relativeTime.suffix,
-                })}
+                {formatRelativeTime(signal.published_at, { justNowText: t.relativeTime.justNow })}
               </span>
             )}
           </div>
