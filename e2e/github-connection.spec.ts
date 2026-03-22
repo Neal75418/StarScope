@@ -14,9 +14,9 @@ test.describe("GitHub Connection", () => {
     const githubSection = page.locator("#github");
     await expect(githubSection).toBeVisible({ timeout: 5000 });
 
-    // 應顯示連線狀態（已連接或未連接）
+    // 應顯示連線狀態（API 配額或中斷連線按鈕）
     await expect(
-      githubSection.locator("text=/已連接|Connected|連線|connect/i")
+      githubSection.locator("text=/API:|中斷連線|Disconnect/i").first()
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -24,7 +24,7 @@ test.describe("GitHub Connection", () => {
     await page.goto("/");
     await page.locator('[data-testid="nav-settings"]').click();
 
-    const diagnostics = page.locator("#diagnostics");
+    const diagnostics = page.locator('[data-testid="diagnostics-section"]');
     await expect(diagnostics).toBeVisible({ timeout: 5000 });
 
     // 應顯示版本號

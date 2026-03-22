@@ -195,9 +195,7 @@ export function Settings() {
           </section>
 
           {/* 系統診斷 */}
-          <div id="diagnostics">
-            <DiagnosticsSection />
-          </div>
+          <DiagnosticsSection />
 
           {/* 關於 */}
           <div id="about">

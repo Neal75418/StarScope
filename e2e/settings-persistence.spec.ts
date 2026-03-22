@@ -44,7 +44,7 @@ test.describe("Settings Persistence", () => {
   });
 
   test("diagnostics section shows sidecar info", async ({ page }) => {
-    const section = page.locator("#diagnostics");
+    const section = page.locator('[data-testid="diagnostics-section"]');
     await expect(section).toBeVisible({ timeout: 5000 });
 
     // 應該顯示版本號（格式 X.Y.Z）
