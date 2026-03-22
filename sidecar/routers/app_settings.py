@@ -12,7 +12,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from db.database import get_db, DATABASE_URL
+from db.database import get_db, DATABASE_URL, get_app_data_dir
 from db.models import (
     AppSettingKey,
     Repo, RepoSnapshot, Signal, AlertRule, TriggeredAlert,
@@ -266,7 +266,7 @@ def _format_scheduler_health(health: dict) -> dict:
 @router.get("/logs", response_model=ApiResponse[dict])
 async def get_recent_logs():
     """取得最近的日誌條目（最多 200 行）。"""
-    log_dir = os.path.join(os.path.expanduser("~"), ".starscope")
+    log_dir = str(get_app_data_dir())
     log_file = os.path.join(log_dir, "starscope.log")
 
     if not os.path.exists(log_file):
