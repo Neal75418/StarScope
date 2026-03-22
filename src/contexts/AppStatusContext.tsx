@@ -10,15 +10,10 @@ import { checkHealth } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 
 /** 應用降級狀態。 */
-export type DegradationLevel =
-  | "online"
-  | "offline"
-  | "sidecar-down"
-  | "rate-limited"
-  | "partial-failure";
+export type DegradationLevel = "online" | "offline" | "sidecar-down" | "rate-limited";
 
 /** 降級狀態橫幅訊息的 i18n key。 */
-export type StatusMessageKey = "offline" | "sidecarDown" | "rateLimited" | "partialFailure";
+export type StatusMessageKey = "offline" | "sidecarDown" | "rateLimited";
 
 export interface AppStatus {
   /** 當前降級等級。 */

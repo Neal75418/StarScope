@@ -11,7 +11,6 @@ const ICONS: Record<DegradationLevel, string> = {
   offline: "⚡",
   "sidecar-down": "🔌",
   "rate-limited": "⏳",
-  "partial-failure": "⚠️",
 };
 
 /** 全域降級狀態橫幅。 */

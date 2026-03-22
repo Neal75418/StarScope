@@ -14,7 +14,7 @@
 ## 錯誤處理規則
 
 - 所有 API 錯誤使用 `ApiError` class（含 `code`/`details` 結構化欄位）
-- 5 種降級等級：`online` / `offline` / `sidecar-down` / `rate-limited` / `partial-failure`
+- 4 種降級等級：`online` / `offline` / `sidecar-down` / `rate-limited`
 - 頁面透過 `useAppStatus()` 取得全域降級狀態
 - 429 重試耗盡時 `apiCall` 自動廣播 `starscope:rate-limited` 事件
 - retry backoff 可被 `AbortSignal` 取消，abort 時回傳 `CANCELLED`

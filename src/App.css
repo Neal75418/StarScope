@@ -5293,8 +5293,3 @@ a:focus-visible {
   background-color: var(--attention-subtle);
   color: var(--attention-fg);
 }
-
-.status-banner--partial-failure {
-  background-color: var(--warning-subtle);
-  color: var(--warning-fg);
-}

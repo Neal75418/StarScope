@@ -622,7 +622,6 @@ export const translations = {
       offline: "You are offline. Showing cached data.",
       sidecarDown: "Data engine is not running. Please restart the app.",
       rateLimited: "GitHub API rate limit reached. Requests will resume shortly.",
-      partialFailure: "Some data could not be loaded.",
     },
     // 共用
     common: {
@@ -1427,7 +1426,6 @@ export const translations = {
       offline: "目前離線，顯示快取資料。",
       sidecarDown: "資料引擎未執行，請重新啟動應用程式。",
       rateLimited: "GitHub API 已達速率限制，稍後將自動恢復。",
-      partialFailure: "部分資料無法載入。",
     },
     // 共用
     common: {
