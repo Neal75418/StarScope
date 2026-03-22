@@ -22,7 +22,7 @@
 
 ### 新增功能
 
-- **統一降級策略** — AppStatusContext 統一管理 online/offline/sidecar-down/rate-limited/partial-failure 五種降級狀態
+- **統一降級策略** — AppStatusContext 統一管理 online/offline/sidecar-down/rate-limited 四種降級狀態
 - **StatusBanner** — 全域降級狀態橫幅（離線、sidecar 不可用時自動顯示），支援暗色/淺色主題
 - **DataFreshnessBar** — 資料新鮮度指示條（最後更新時間、離線狀態、同步中、手動刷新）
 - **Settings Diagnostics** — 系統診斷區塊（版本、運行時間、DB 大小/路徑、repo/快照數、最後同步）

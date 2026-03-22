@@ -736,7 +736,7 @@ Add entry to `[Unreleased]`:
 ### 重構與變更
 
 - **Discovery 搜尋 contract 固化** — 統一 filter-only、loadMore 失敗、quick picks 的狀態規則，補充 5 個缺失測試
-- **統一降級策略** — AppStatusContext 統一管理 online/offline/sidecar-down/rate-limited/partial-failure 五種降級狀態
+- **統一降級策略** — AppStatusContext 統一管理 online/offline/sidecar-down/rate-limited 四種降級狀態
 - **StatusBanner** — 全域降級狀態橫幅（離線、sidecar 不可用時自動顯示）
 - **跨層 E2E** — 新增 Discovery filter-only、降級橫幅 E2E 測試
 ```
