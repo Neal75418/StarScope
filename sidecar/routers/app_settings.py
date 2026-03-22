@@ -261,6 +261,26 @@ def _format_scheduler_health(health: dict) -> dict:
     }
 
 
+# --- 日誌匯出 ---
+
+@router.get("/logs", response_model=ApiResponse[dict])
+async def get_recent_logs():
+    """取得最近的日誌條目（最多 200 行）。"""
+    log_dir = os.path.join(os.path.expanduser("~"), ".starscope")
+    log_file = os.path.join(log_dir, "starscope.log")
+
+    if not os.path.exists(log_file):
+        return success_response(data={"logs": "（無日誌檔案）", "path": log_file})
+
+    try:
+        with open(log_file, "r", errors="ignore") as f:
+            lines = f.readlines()
+        recent = "".join(lines[-200:])
+        return success_response(data={"logs": recent, "path": log_file})
+    except OSError as e:
+        return success_response(data={"logs": f"讀取日誌失敗: {e}", "path": log_file})
+
+
 # --- 重設所有資料 ---
 
 @router.post("/reset-data", response_model=ApiResponse[ResetDataResponse])

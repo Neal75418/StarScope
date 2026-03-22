@@ -550,6 +550,8 @@ export const translations = {
         lastFetchError: "Last Error",
         lastAlertCheck: "Last Alert Check",
         lastBackup: "Last Backup",
+        rateLimit: "GitHub API Quota",
+        exportLogs: "Export Logs",
       },
       about: {
         title: "About",
@@ -1355,6 +1357,8 @@ export const translations = {
         lastFetchError: "最近錯誤",
         lastAlertCheck: "最近警報檢查",
         lastBackup: "最近備份",
+        rateLimit: "GitHub API 配額",
+        exportLogs: "匯出日誌",
       },
       about: {
         title: "關於",

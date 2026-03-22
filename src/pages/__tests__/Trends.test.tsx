@@ -34,6 +34,16 @@ vi.mock("../../hooks/useTrends", () => ({
   useTrends: () => mockTrendsReturn,
 }));
 
+vi.mock("../../contexts/AppStatusContext", () => ({
+  useAppStatus: () => ({
+    isOnline: true,
+    level: "online",
+    showBanner: false,
+    bannerMessage: null,
+    isSidecarUp: true,
+  }),
+}));
+
 vi.mock("../../api/client", () => ({
   addRepo: (...args: unknown[]) => mockAddRepo(...args),
   batchAddRepos: vi.fn().mockResolvedValue({ success: 1, failed: 0, total: 1 }),

@@ -13,6 +13,7 @@ import { useWatchlistState } from "../contexts/WatchlistContext";
 import { useViewMode } from "../hooks/useViewMode";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { STORAGE_KEYS } from "../constants/storage";
+import { useAppStatus } from "../contexts/AppStatusContext";
 import { logger } from "../utils/logger";
 import { TrendRow } from "./trends/TrendRow";
 import { TrendExpandedRow } from "./trends/TrendExpandedRow";
@@ -143,6 +144,7 @@ export function Trends() {
 
   // 多選模式 — 批次加入 watchlist
   const selection = useSelectionMode();
+  const { level } = useAppStatus();
 
   const selectedRepos = useMemo(
     () => trends.filter((r) => selection.selectedIds.has(r.id)),
@@ -270,11 +272,17 @@ export function Trends() {
   }
 
   if (error) {
+    const message =
+      level === "sidecar-down"
+        ? t.status.sidecarDown
+        : level === "offline"
+          ? t.status.offline
+          : error;
     return (
       <AnimatedPage className="page">
         <div className="error-container">
           <h2>{t.trends.loadingError}</h2>
-          <p>{error}</p>
+          <p>{message}</p>
           <button className="btn btn-primary" onClick={retry}>
             {t.trends.retry}
           </button>

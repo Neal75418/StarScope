@@ -62,6 +62,16 @@ let mockState: WatchlistState;
 let mockActions: WatchlistActions;
 let mockSelectors: MockSelectors;
 
+vi.mock("../../contexts/AppStatusContext", () => ({
+  useAppStatus: () => ({
+    isOnline: true,
+    level: "online",
+    showBanner: false,
+    bannerMessage: null,
+    isSidecarUp: true,
+  }),
+}));
+
 vi.mock("../../contexts/WatchlistContext", () => ({
   useWatchlistState: () => mockState,
   useWatchlistActions: () => mockActions,

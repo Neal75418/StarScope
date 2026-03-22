@@ -57,4 +57,21 @@ test.describe("Discovery Flow", () => {
     await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
   });
 
+  test("filter-only search (language, no keyword) shows results", async ({ page }) => {
+    // 清除預設的 trending filter
+    const clearBtn = page.locator("button", { hasText: /清除全部|Clear all/i });
+    if (await clearBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await clearBtn.click();
+    }
+
+    // 只選語言（不輸入關鍵字）
+    const langSelect = page.locator("select").first();
+    await langSelect.selectOption("Python");
+
+    // 等待搜尋結果出現
+    await expect(
+      page.locator('[data-testid^="discovery-result-"]').first()
+    ).toBeVisible({ timeout: 15000 });
+  });
+
 });

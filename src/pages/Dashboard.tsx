@@ -8,6 +8,7 @@ import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashbo
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { DataFreshnessBar } from "../components/DataFreshnessBar";
+import { useAppStatus } from "../contexts/AppStatusContext";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
@@ -149,6 +150,8 @@ export function Dashboard() {
   // 小工具顯示/隱藏
   const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(loadWidgetVisibility);
 
+  const { level } = useAppStatus();
+
   if (isLoading) {
     return (
       <AnimatedPage className="page dashboard-page">
@@ -200,11 +203,17 @@ export function Dashboard() {
   }
 
   if (error) {
+    const message =
+      level === "sidecar-down"
+        ? t.status.sidecarDown
+        : level === "offline"
+          ? t.status.offline
+          : error;
     return (
       <AnimatedPage className="page">
         <div className="error-container">
           <h2>{t.common.error}</h2>
-          <p>{error}</p>
+          <p>{message}</p>
           <button onClick={refresh} className="btn btn-primary">
             {t.common.retry}
           </button>
