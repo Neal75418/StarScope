@@ -20,7 +20,24 @@
 - **日誌語言統一** — database.py 英文日誌改為繁體中文，query logger INFO → DEBUG 降噪
 - **代碼風格統一（7 輪 review）** — 101 處修復：英文 comment/docstring 全面翻譯為繁中、`catch (err)` / `except as e` 統一、import 順序標準化、logger `[模組名]` prefix 補齊、`%` formatting → f-string、PEP 8 blank lines
 
+### 新增功能
+
+- **統一降級策略** — AppStatusContext 統一管理 online/offline/sidecar-down/rate-limited/partial-failure 五種降級狀態
+- **StatusBanner** — 全域降級狀態橫幅（離線、sidecar 不可用時自動顯示），支援暗色/淺色主題
+- **DataFreshnessBar** — 資料新鮮度指示條（最後更新時間、離線狀態、同步中、手動刷新）
+- **Settings Diagnostics** — 系統診斷區塊（版本、運行時間、DB 大小/路徑、repo/快照數、最後同步）
+- **結構化 API 錯誤碼** — ApiError 擴展 code/details + isRateLimited/isNotFound/isRetryable 判斷
+- **Bundle budget** — 400KB gzipped JS 預算 + CI 自動檢查（當前 330KB）
+- **OpenAPI 型別整合** — generate:types + check:api-drift 前後端型別同步檢測
+- **統一 polling** — useSmartInterval（visibility + online aware），統一通知與 Device Flow 輪詢
+- **API retry abort-aware** — 退避延遲可被 AbortSignal 取消，abort 時回傳 CANCELLED 而非 stale error
+
 ### 問題修正
+
+- 修復 Discovery filter-only 搜尋不觸發 API 請求（hasActiveFilters + stars:>=0 fallback）
+- 修復 Discovery 分頁失敗覆蓋已載入結果（totalCount 取 firstPage、error 僅在 repos 為空時顯示）
+- 修復 Sidecar shutdown race condition（先停排程器再關閉 HTTP client）
+- 修復 API retry backoff 期間 abort 回傳 stale error 而非 CANCELLED
 
 - 修復 SQLAlchemy SAWarning：`subquery()` → `select()` 消除 "Coercing Subquery" 警告
 - 修復 `utc_now()` 時區一致性：回傳 naive datetime 消除 aware/naive 不匹配

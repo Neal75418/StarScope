@@ -3,7 +3,7 @@
  */
 
 import { memo } from "react";
-import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { useAppStatus } from "../contexts/AppStatusContext";
 import { useI18n } from "../i18n";
 import { formatRelativeTime } from "../utils/format";
 
@@ -22,7 +22,7 @@ export const DataFreshnessBar = memo(function DataFreshnessBar({
   isFetching,
   onRefresh,
 }: DataFreshnessBarProps) {
-  const isOnline = useOnlineStatus();
+  const { isOnline } = useAppStatus();
   const { t } = useI18n();
 
   if (dataUpdatedAt === 0) return null;

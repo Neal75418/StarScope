@@ -12,8 +12,14 @@ vi.mock("../../utils/logger", () => ({
 }));
 
 let mockOnline = true;
-vi.mock("../../hooks/useOnlineStatus", () => ({
-  useOnlineStatus: () => mockOnline,
+vi.mock("../../contexts/AppStatusContext", () => ({
+  useAppStatus: () => ({
+    isOnline: mockOnline,
+    level: mockOnline ? "online" : "offline",
+    showBanner: !mockOnline,
+    bannerMessage: mockOnline ? null : "offline",
+    isSidecarUp: true,
+  }),
 }));
 
 vi.mock("../../i18n", () => ({

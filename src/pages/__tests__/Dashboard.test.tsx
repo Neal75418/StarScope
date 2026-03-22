@@ -74,6 +74,16 @@ vi.mock("../../hooks/useDashboard", () => ({
   useDashboard: () => mockDashboard,
 }));
 
+vi.mock("../../contexts/AppStatusContext", () => ({
+  useAppStatus: () => ({
+    isOnline: true,
+    level: "online",
+    showBanner: false,
+    bannerMessage: null,
+    isSidecarUp: true,
+  }),
+}));
+
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/motion", () => ({
   AnimatedPage: ({ children, className }: { children: ReactNode; className?: string }) => (

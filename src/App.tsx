@@ -13,6 +13,8 @@ import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
 import { NavigationProvider } from "./contexts/NavigationContext";
+import { AppStatusProvider } from "./contexts/AppStatusContext";
+import { StatusBanner } from "./components/StatusBanner";
 import { queryClient } from "./lib/react-query";
 import type { Page } from "./types/navigation";
 import { STORAGE_KEYS } from "./constants/storage";
@@ -94,29 +96,32 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeContext.Provider value={themeContextValue}>
         <I18nContext.Provider value={i18nContextValue}>
-          <WatchlistProvider>
-            <NavigationProvider onPageChange={handlePageChange}>
-              <div className="app">
-                <AppHeader
-                  currentPage={currentPage}
-                  onPageChange={handlePageChange}
-                  theme={theme}
-                  onThemeToggle={toggleTheme}
-                  language={language}
-                  onLanguageToggle={toggleLanguage}
-                  t={t}
-                />
+          <AppStatusProvider>
+            <WatchlistProvider>
+              <NavigationProvider onPageChange={handlePageChange}>
+                <div className="app">
+                  <AppHeader
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    theme={theme}
+                    onThemeToggle={toggleTheme}
+                    language={language}
+                    onLanguageToggle={toggleLanguage}
+                    t={t}
+                  />
 
-                <main className="app-main" id="main-content">
-                  <ErrorBoundary>
-                    <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                      <PageContent page={currentPage} />
-                    </Suspense>
-                  </ErrorBoundary>
-                </main>
-              </div>
-            </NavigationProvider>
-          </WatchlistProvider>
+                  <StatusBanner />
+                  <main className="app-main" id="main-content">
+                    <ErrorBoundary>
+                      <Suspense fallback={<PageLoader text={t.common.loading} />}>
+                        <PageContent page={currentPage} />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </main>
+                </div>
+              </NavigationProvider>
+            </WatchlistProvider>
+          </AppStatusProvider>
         </I18nContext.Provider>
       </ThemeContext.Provider>
     </QueryClientProvider>

@@ -199,6 +199,145 @@ describe("useDiscoverySearch", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("filter-only search (no keyword, no period) triggers API request", async () => {
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [makeDiscoveryRepo({ full_name: "filtered/repo" })],
+      totalCount: 1,
+      hasMore: false,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("", undefined, { minStars: 1000 });
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+      expect(result.current.repos[0].full_name).toBe("filtered/repo");
+    });
+
+    // query 應使用 stars:>=0 作為 fallback
+    expect(mockFetchResults).toHaveBeenCalledWith(
+      "stars:>=0",
+      expect.objectContaining({ minStars: 1000 }),
+      1,
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it("period-only search works (no keyword, no filters)", async () => {
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [makeDiscoveryRepo({ full_name: "trending/repo" })],
+      totalCount: 100,
+      hasMore: true,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("", "weekly", {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+    });
+
+    // query 應包含 created:> 和 stars:>=
+    expect(mockFetchResults).toHaveBeenCalledWith(
+      expect.stringContaining("created:>"),
+      expect.anything(),
+      1,
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it("loadMore failure preserves existing page 1 results", async () => {
+    const page1Repos = [
+      makeDiscoveryRepo({ id: 1, full_name: "page1/repo1" }),
+      makeDiscoveryRepo({ id: 2, full_name: "page1/repo2" }),
+    ];
+
+    mockFetchResults.mockResolvedValueOnce({
+      repos: page1Repos,
+      totalCount: 50,
+      hasMore: true,
+    });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    act(() => {
+      result.current.executeSearch("react", undefined, {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(2);
+    });
+
+    // Page 2 回傳錯誤
+    mockFetchResults.mockResolvedValueOnce({
+      repos: [],
+      totalCount: 0,
+      hasMore: false,
+      error: "Network error",
+    });
+
+    act(() => {
+      result.current.loadMore();
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Page 1 結果仍保留
+    expect(result.current.repos).toHaveLength(2);
+    expect(result.current.repos[0].full_name).toBe("page1/repo1");
+    // 有結果時不顯示 error
+    expect(result.current.error).toBeNull();
+    // totalCount 保留 page 1 的值
+    expect(result.current.totalCount).toBe(50);
+  });
+
+  it("changing search params cancels previous and starts fresh", async () => {
+    mockFetchResults
+      .mockResolvedValueOnce({
+        repos: [makeDiscoveryRepo({ full_name: "first/result" })],
+        totalCount: 1,
+        hasMore: false,
+      })
+      .mockResolvedValueOnce({
+        repos: [makeDiscoveryRepo({ full_name: "second/result" })],
+        totalCount: 1,
+        hasMore: false,
+      });
+
+    const { result } = renderHook(() => useDiscoverySearch(), { wrapper: createWrapper() });
+
+    // 第一次搜尋
+    act(() => {
+      result.current.executeSearch("react", undefined, {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos).toHaveLength(1);
+    });
+
+    // 改變搜尋條件 — 新的 queryKey 重新從 page 1 開始
+    act(() => {
+      result.current.executeSearch("vue", undefined, {});
+    });
+
+    await waitFor(() => {
+      expect(result.current.repos[0]?.full_name).toBe("second/result");
+    });
+
+    // 舊結果不應殘留
+    expect(result.current.repos).toHaveLength(1);
+  });
+
   it("caches results for same query", async () => {
     mockFetchResults.mockResolvedValue({
       repos: [makeDiscoveryRepo()],

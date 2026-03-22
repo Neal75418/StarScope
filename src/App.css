@@ -5267,3 +5267,34 @@ a:focus-visible {
   word-break: break-all;
   grid-column: 1 / -1;
 }
+
+/* Status Banner */
+.status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.status-banner--offline {
+  background-color: var(--warning-subtle);
+  color: var(--warning-fg);
+}
+
+.status-banner--sidecar-down {
+  background-color: var(--danger-subtle);
+  color: var(--danger-fg);
+}
+
+.status-banner--rate-limited {
+  background-color: var(--attention-subtle);
+  color: var(--attention-fg);
+}
+
+.status-banner--partial-failure {
+  background-color: var(--warning-subtle);
+  color: var(--warning-fg);
+}
