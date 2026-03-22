@@ -51,42 +51,44 @@ export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: 
         <span className="summary-panel-arrow">{collapsed ? "▸" : "▾"}</span>
       </button>
 
-      {!collapsed && (
-        <div className="summary-panel-content" id="summary-panel-content">
-          <div className="summary-stat-group">
-            <div className="summary-stat" data-testid="summary-top-velocity">
-              <span className="summary-stat-label">{t.watchlist.summary.topVelocity}</span>
-              <div className="summary-stat-value">
-                {stats.topVelocity.length > 0 ? (
-                  stats.topVelocity.map((r) => (
-                    <span key={r.id} className="summary-repo-chip" title={r.full_name}>
-                      {r.name}
-                      <span className="summary-velocity">{r.velocity?.toFixed(1)}</span>
-                    </span>
-                  ))
-                ) : (
-                  <span className="summary-empty">—</span>
-                )}
-              </div>
-            </div>
-
-            <div className="summary-stat" data-testid="summary-hot-count">
-              <span className="summary-stat-label">{t.watchlist.summary.hotRepos}</span>
-              <span className="summary-stat-number">{stats.hotCount}</span>
-            </div>
-
-            <div className="summary-stat" data-testid="summary-signal-count">
-              <span className="summary-stat-label">{t.watchlist.summary.signalRepos}</span>
-              <span className="summary-stat-number">{stats.signalRepoCount}</span>
-            </div>
-
-            <div className="summary-stat" data-testid="summary-stale-count">
-              <span className="summary-stat-label">{t.watchlist.summary.staleRepos}</span>
-              <span className="summary-stat-number">{stats.staleCount}</span>
+      <div
+        className="summary-panel-content"
+        id="summary-panel-content"
+        hidden={collapsed || undefined}
+      >
+        <div className="summary-stat-group">
+          <div className="summary-stat" data-testid="summary-top-velocity">
+            <span className="summary-stat-label">{t.watchlist.summary.topVelocity}</span>
+            <div className="summary-stat-value">
+              {stats.topVelocity.length > 0 ? (
+                stats.topVelocity.map((r) => (
+                  <span key={r.id} className="summary-repo-chip" title={r.full_name}>
+                    {r.name}
+                    <span className="summary-velocity">{r.velocity?.toFixed(1)}</span>
+                  </span>
+                ))
+              ) : (
+                <span className="summary-empty">—</span>
+              )}
             </div>
           </div>
+
+          <div className="summary-stat" data-testid="summary-hot-count">
+            <span className="summary-stat-label">{t.watchlist.summary.hotRepos}</span>
+            <span className="summary-stat-number">{stats.hotCount}</span>
+          </div>
+
+          <div className="summary-stat" data-testid="summary-signal-count">
+            <span className="summary-stat-label">{t.watchlist.summary.signalRepos}</span>
+            <span className="summary-stat-number">{stats.signalRepoCount}</span>
+          </div>
+
+          <div className="summary-stat" data-testid="summary-stale-count">
+            <span className="summary-stat-label">{t.watchlist.summary.staleRepos}</span>
+            <span className="summary-stat-number">{stats.staleCount}</span>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 });
