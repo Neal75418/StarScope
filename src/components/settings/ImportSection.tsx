@@ -11,38 +11,26 @@ import { getGitHubConnectionStatus } from "../../api/client";
 import { queryKeys } from "../../lib/react-query";
 
 function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
-  switch (status) {
-    case "pending":
-      return (
-        <span className="import-status pending" aria-label="pending">
-          ○
-        </span>
-      );
-    case "importing":
-      return (
-        <span className="import-status importing" aria-label="importing">
-          ◐
-        </span>
-      );
-    case "success":
-      return (
-        <span className="import-status success" aria-label="success">
-          ✓
-        </span>
-      );
-    case "error":
-      return (
-        <span className="import-status error" aria-label="error">
-          ✗
-        </span>
-      );
-    case "skipped":
-      return (
-        <span className="import-status skipped" aria-label="skipped">
-          -
-        </span>
-      );
-  }
+  const { t } = useI18n();
+  const labels: Record<string, string> = {
+    pending: t.settings.import.statusPending,
+    importing: t.settings.import.statusImporting,
+    success: t.settings.import.statusSuccess,
+    error: t.settings.import.statusError,
+    skipped: t.settings.import.statusSkipped,
+  };
+  const icons: Record<string, string> = {
+    pending: "○",
+    importing: "◐",
+    success: "✓",
+    error: "✗",
+    skipped: "-",
+  };
+  return (
+    <span className={`import-status ${status}`} aria-label={labels[status]}>
+      {icons[status]}
+    </span>
+  );
 }
 
 const RepoItem = memo(function RepoItem({ repo }: { repo: ParsedRepo }) {

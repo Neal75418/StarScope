@@ -130,6 +130,7 @@ export const CategorySidebar = memo(function CategorySidebar({
           }}
           role="button"
           tabIndex={0}
+          aria-pressed={selectedCategoryId === null}
         >
           <span className="category-expand-spacer" />
           <span className="category-name">{t.categories.allRepos}</span>

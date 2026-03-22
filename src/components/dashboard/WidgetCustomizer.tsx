@@ -6,6 +6,7 @@
 import { memo, useState, useCallback, useRef } from "react";
 import { useI18n } from "../../i18n";
 import { useClickOutside } from "../../hooks/useClickOutside";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export type WidgetId =
   | "portfolioHealth"
@@ -61,8 +62,9 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // 點擊外部關閉
+  // 點擊外部或 ESC 關閉
   useClickOutside(ref, () => setOpen(false), open);
+  useEscapeKey(() => setOpen(false), open);
 
   const toggle = useCallback(
     (id: WidgetId) => {
@@ -91,6 +93,7 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
         onClick={() => setOpen((o) => !o)}
         title={t.dashboard.widgetCustomizer.customize}
         aria-label={t.dashboard.widgetCustomizer.customize}
+        aria-expanded={open}
       >
         ⚙
       </button>

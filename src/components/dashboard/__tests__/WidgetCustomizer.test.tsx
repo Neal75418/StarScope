@@ -58,4 +58,24 @@ describe("WidgetCustomizer", () => {
     expect(screen.getByRole("group")).toBeInTheDocument();
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
+
+  it("sets aria-expanded on trigger button", () => {
+    render(<WidgetCustomizer visibility={defaultVisibility} onChange={vi.fn()} />);
+    const btn = screen.getByRole("button");
+
+    expect(btn).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("closes on ESC key", async () => {
+    render(<WidgetCustomizer visibility={defaultVisibility} onChange={vi.fn()} />);
+    const btn = screen.getByRole("button");
+
+    fireEvent.click(btn);
+    expect(screen.getByRole("group")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("group")).not.toBeInTheDocument();
+  });
 });

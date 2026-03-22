@@ -308,7 +308,12 @@ export function Trends() {
       </header>
 
       <div className="toolbar">
-        <div className="sort-tabs" data-testid="sort-tabs" role="tablist" aria-label="Sort options">
+        <div
+          className="sort-tabs"
+          data-testid="sort-tabs"
+          role="tablist"
+          aria-label={t.trends.filters.sortLabel}
+        >
           {SORT_KEYS.map((key) => (
             <button
               key={key}
@@ -328,7 +333,7 @@ export function Trends() {
             className="trends-filter-select"
             value={languageFilter}
             onChange={(e) => setLanguageFilter(e.target.value)}
-            aria-label="Filter by language"
+            aria-label={t.trends.filters.languageLabel}
           >
             <option value="">{t.trends.filters.allLanguages}</option>
             {availableLanguages.map((lang) => (
@@ -342,7 +347,7 @@ export function Trends() {
             className="trends-filter-select"
             value={minStarsFilter ?? ""}
             onChange={(e) => setMinStarsFilter(e.target.value ? Number(e.target.value) : null)}
-            aria-label="Minimum stars"
+            aria-label={t.trends.filters.starsLabel}
           >
             <option value="">{t.trends.filters.minStars}</option>
             {MIN_STARS_OPTIONS.map((n) => (
