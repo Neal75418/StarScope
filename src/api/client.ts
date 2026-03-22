@@ -169,7 +169,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
           }, delay);
           callerSignal?.addEventListener("abort", onAbort, { once: true });
         });
-        if (callerSignal?.aborted) throw lastError ?? new ApiError(0, "Aborted");
+        if (callerSignal?.aborted) throw new ApiError(0, API_ERROR_MESSAGES.CANCELLED);
       }
     }
   }

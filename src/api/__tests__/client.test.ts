@@ -352,6 +352,24 @@ describe("API Client", () => {
       }
     });
 
+    it("throws CANCELLED (not stale error) when aborted during retry backoff", async () => {
+      // 第一次請求回傳 429，觸發重試退避
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        json: async () => ({ detail: "Rate limited" }),
+      });
+
+      const controller = new AbortController();
+
+      // 在退避延遲期間 abort
+      const promise = searchRepos("test", {}, 1, controller.signal);
+      // 立即 abort（退避 delay 中會檢查 signal）
+      setTimeout(() => controller.abort(), 10);
+
+      await expect(promise).rejects.toThrow("Request cancelled");
+    });
+
     it("handles non-Error thrown by fetch", async () => {
       // Must mock all retry attempts since network errors (status 0) trigger retries
       mockFetch.mockRejectedValue("string error");
