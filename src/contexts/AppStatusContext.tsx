@@ -3,7 +3,7 @@
  * 所有頁面透過 useAppStatus() 取得目前的降級狀態。
  */
 
-import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useQuery } from "@tanstack/react-query";
 import { checkHealth } from "../api/client";
@@ -51,14 +51,18 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
 
   // 監聽 rate-limited 事件（由 apiCall 在 429 重試耗盡時廣播）
   const [isRateLimited, setRateLimited] = useState(false);
+  const rateLimitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     const handler = () => {
       setRateLimited(true);
-      const timer = setTimeout(() => setRateLimited(false), 60_000);
-      return () => clearTimeout(timer);
+      clearTimeout(rateLimitTimerRef.current);
+      rateLimitTimerRef.current = setTimeout(() => setRateLimited(false), 60_000);
     };
     window.addEventListener("starscope:rate-limited", handler);
-    return () => window.removeEventListener("starscope:rate-limited", handler);
+    return () => {
+      window.removeEventListener("starscope:rate-limited", handler);
+      clearTimeout(rateLimitTimerRef.current);
+    };
   }, []);
 
   const status = useMemo<AppStatus>(() => {

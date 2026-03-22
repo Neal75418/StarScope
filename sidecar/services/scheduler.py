@@ -72,6 +72,8 @@ _scheduler_health: dict[str, float | str | None] = {
 def get_scheduler_health() -> dict[str, float | str | None]:
     """取得排程器健康狀態。"""
     return dict(_scheduler_health)
+
+
 FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
 
 
@@ -246,7 +248,12 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
                 f"[排程] [{job_id}] 排程抓取完成: {success_count} 成功、"
                 f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
             )
-            _scheduler_health["last_fetch_success"] = _time.time()
+            if error_count == 0:
+                _scheduler_health["last_fetch_success"] = _time.time()
+                _scheduler_health["last_fetch_error"] = None
+            else:
+                _scheduler_health["last_fetch_failure"] = _time.time()
+                _scheduler_health["last_fetch_error"] = f"{error_count} repos 抓取失敗"
 
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)

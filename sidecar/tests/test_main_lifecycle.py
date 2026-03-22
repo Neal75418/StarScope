@@ -52,14 +52,24 @@ class TestShutdownOrder:
     @pytest.mark.asyncio
     async def test_startup_task_cancel_is_awaited(self, mock_lifecycle):
         """取消的 startup task 應被 await（無 unhandled exception）。"""
-        never_done: asyncio.Future[None] = asyncio.get_event_loop().create_future()
-        mock_lifecycle["trigger_fetch"].return_value = never_done
+        cancel_observed = False
+
+        async def slow_fetch():
+            nonlocal cancel_observed
+            try:
+                await asyncio.sleep(3600)
+            except asyncio.CancelledError:
+                cancel_observed = True
+                raise
+
+        mock_lifecycle["trigger_fetch"].side_effect = slow_fetch
 
         from main import lifespan, app
 
-        # 不應拋出 asyncio.CancelledError 或 warning
         async with lifespan(app):
-            pass
+            await asyncio.sleep(0.01)  # 讓 startup task 開始執行
+
+        assert cancel_observed, "startup task 應被 cancel 並 await"
 
 
 class TestStartupResilience:

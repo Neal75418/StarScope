@@ -16,7 +16,7 @@ if [ -z "$SCHEMA" ]; then
 fi
 
 # 要檢查的關鍵 schema 名稱
-SCHEMAS="RepoWithSignals RepoListResponse BackfillStatus BackfillResult StarHistoryResponse StarsChartResponse ContextBadgesResponse ContextSignalsResponse TrendsResponse ComparisonChartResponse WeeklySummaryResponse PortfolioHistoryResponse DiscoveryRepo SearchResponse"
+SCHEMAS="RepoWithSignals RepoListResponse BackfillStatus BackfillResult StarHistoryResponse StarsChartResponse ContextBadgesResponse ContextSignalsResponse TrendsResponse ComparisonChartResponse WeeklySummaryResponse PortfolioHistoryResponse DiscoveryRepo SearchResponse DiagnosticsResponse"
 
 for schema_name in $SCHEMAS; do
   # 從 OpenAPI 取得後端欄位（透過 sys.argv 傳遞，避免 shell injection）
