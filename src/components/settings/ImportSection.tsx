@@ -126,7 +126,7 @@ export function ImportSection() {
   const starred = useStarredImport();
   const { data: ghStatus } = useQuery({
     queryKey: queryKeys.connection.status(),
-    queryFn: getGitHubConnectionStatus,
+    queryFn: ({ signal }) => getGitHubConnectionStatus(signal),
   });
   const isConnected = ghStatus?.connected ?? false;
 

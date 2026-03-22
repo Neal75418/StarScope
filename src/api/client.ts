@@ -622,8 +622,10 @@ export async function pollAuthorization(deviceCode: string): Promise<PollRespons
 /**
  * 取得目前 GitHub 連線狀態。
  */
-export async function getGitHubConnectionStatus(): Promise<GitHubConnectionStatus> {
-  return apiCall<GitHubConnectionStatus>(`/github-auth/status`);
+export async function getGitHubConnectionStatus(
+  signal?: AbortSignal
+): Promise<GitHubConnectionStatus> {
+  return apiCall<GitHubConnectionStatus>(`/github-auth/status`, { signal });
 }
 
 /**
@@ -864,6 +866,11 @@ export async function updateSignalThresholds(
     body: JSON.stringify(updates),
     signal,
   });
+}
+
+/** 取得最近日誌（最多 200 行）。 */
+export async function getRecentLogs(signal?: AbortSignal): Promise<{ logs: string }> {
+  return apiCall<{ logs: string }>("/settings/logs", { signal });
 }
 
 /** 清除後端快取。 */

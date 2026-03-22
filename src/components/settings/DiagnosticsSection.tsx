@@ -4,7 +4,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getDiagnostics, getGitHubConnectionStatus, DiagnosticsResponse } from "../../api/client";
+import {
+  getDiagnostics,
+  getGitHubConnectionStatus,
+  getRecentLogs,
+  DiagnosticsResponse,
+} from "../../api/client";
+import { logger } from "../../utils/logger";
 import { useI18n } from "../../i18n";
 import { queryKeys } from "../../lib/react-query";
 import { formatRelativeTime } from "../../utils/format";
@@ -31,23 +37,23 @@ export function DiagnosticsSection() {
 
   const ghQuery = useQuery({
     queryKey: [...queryKeys.connection.all, "rate-limit"],
-    queryFn: () => getGitHubConnectionStatus(),
+    queryFn: ({ signal }) => getGitHubConnectionStatus(signal),
     staleTime: 60_000,
   });
 
   const handleExportLogs = async () => {
     setExporting(true);
     try {
-      const resp = await fetch("/api/settings/logs");
-      const json = await resp.json();
-      const logs = json.data?.logs ?? "（無日誌）";
-      const blob = new Blob([logs], { type: "text/plain" });
+      const result = await getRecentLogs();
+      const blob = new Blob([result.logs], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `starscope-logs-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch (err) {
+      logger.error("[DiagnosticsSection] 日誌匯出失敗:", err);
     } finally {
       setExporting(false);
     }

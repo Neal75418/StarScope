@@ -65,7 +65,7 @@ test.describe("Discovery Flow", () => {
     }
 
     // 只選語言（不輸入關鍵字）
-    const langSelect = page.locator("select").first();
+    const langSelect = page.locator('[data-testid="filter-language"]');
     await langSelect.selectOption("Python");
 
     // 等待搜尋結果出現
