@@ -64,7 +64,10 @@ export const TrendCard = memo(function TrendCard({
               }
             },
             role: "group",
-            "aria-label": `${repo.full_name} — ${isSelected ? "selected" : "not selected"}`,
+            "aria-label": (isSelected ? t.common.itemSelected : t.common.itemNotSelected).replace(
+              "{name}",
+              repo.full_name
+            ),
             tabIndex: 0,
           }
         : {})}
@@ -76,7 +79,7 @@ export const TrendCard = memo(function TrendCard({
           checked={isSelected}
           onChange={() => onToggleSelection?.(repo.id)}
           onClick={(e) => e.stopPropagation()}
-          aria-label={`Select ${repo.full_name}`}
+          aria-label={t.common.selectItem.replace("{name}", repo.full_name)}
         />
       )}
       <div className={`trend-card-rank ${getRankClass(repo.rank)}`}>#{repo.rank}</div>

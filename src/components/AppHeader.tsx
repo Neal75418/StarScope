@@ -86,7 +86,7 @@ export function AppHeader({
               <span className="logo-text">StarScope</span>
             </button>
 
-            <div className="nav-items" role="navigation" aria-label="Main navigation">
+            <div className="nav-items" role="navigation" aria-label={t.nav.mainNavigation}>
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -160,7 +160,7 @@ export function AppHeader({
       </header>
 
       {/* 手機底部 tab bar，僅在 ≤768px 時透過 CSS 顯示 */}
-      <nav className="mobile-tab-bar" aria-label="Mobile navigation">
+      <nav className="mobile-tab-bar" aria-label={t.nav.mobileNavigation}>
         {mobileNavItems.map((item) => (
           <button
             key={item.id}

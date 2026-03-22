@@ -16,6 +16,8 @@ export const translations = {
       trends: "Trends",
       compare: "Compare",
       settings: "Settings",
+      mainNavigation: "Main navigation",
+      mobileNavigation: "Mobile navigation",
     },
     // 儀表板頁面
     dashboard: {
@@ -652,6 +654,9 @@ export const translations = {
       no: "No",
       retry: "Retry",
       dismiss: "Dismiss",
+      selectItem: "Select {name}",
+      itemSelected: "{name} — selected",
+      itemNotSelected: "{name} — not selected",
       skipToContent: "Skip to content",
       offline: "Offline",
       lastUpdated: "Updated",
@@ -836,6 +841,8 @@ export const translations = {
       trends: "趨勢",
       compare: "對比",
       settings: "設定",
+      mainNavigation: "主要導覽",
+      mobileNavigation: "行動版導覽",
     },
     // 儀表板頁面
     dashboard: {
@@ -1467,6 +1474,9 @@ export const translations = {
       no: "否",
       retry: "重試",
       dismiss: "關閉",
+      selectItem: "選取 {name}",
+      itemSelected: "{name} — 已選取",
+      itemNotSelected: "{name} — 未選取",
       skipToContent: "跳至主要內容",
       offline: "離線",
       lastUpdated: "最後更新",

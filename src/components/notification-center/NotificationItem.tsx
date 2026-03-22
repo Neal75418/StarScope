@@ -99,19 +99,21 @@ export const NotificationItem = memo(function NotificationItem({
   const timeAgo = formatTimeAgo(notification.timestamp, t);
 
   return (
-    <div
-      className={`notification-item ${notification.read ? "read" : "unread"}`}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      aria-label={notification.title}
-      onKeyDown={handleKeyDown}
-    >
-      <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>
-      <div className="notification-content">
-        <div className="notification-title">{notification.title}</div>
-        <div className="notification-message">{notification.message}</div>
-        <div className="notification-time">{timeAgo}</div>
+    <div className={`notification-item ${notification.read ? "read" : "unread"}`}>
+      <div
+        className="notification-body"
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        aria-label={notification.title}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="notification-icon">{renderNotificationIcon(notification.type)}</div>
+        <div className="notification-content">
+          <div className="notification-title">{notification.title}</div>
+          <div className="notification-message">{notification.message}</div>
+          <div className="notification-time">{timeAgo}</div>
+        </div>
       </div>
       <button
         className="notification-clear"

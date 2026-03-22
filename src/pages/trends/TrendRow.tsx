@@ -71,7 +71,7 @@ export const TrendRow = memo(function TrendRow({
             checked={isSelected}
             onChange={() => onToggleSelection?.(repo.id)}
             onClick={(e) => e.stopPropagation()}
-            aria-label={`Select ${repo.full_name}`}
+            aria-label={t.common.selectItem.replace("{name}", repo.full_name)}
           />
         ) : (
           <>

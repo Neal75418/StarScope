@@ -311,7 +311,7 @@ export function Trends() {
         <div
           className="sort-tabs"
           data-testid="sort-tabs"
-          role="tablist"
+          role="group"
           aria-label={t.trends.filters.sortLabel}
         >
           {SORT_KEYS.map((key) => (
@@ -320,8 +320,7 @@ export function Trends() {
               data-testid={`sort-${key}`}
               className={`sort-tab ${sortBy === key ? "active" : ""}`}
               onClick={() => setSortBy(key)}
-              role="tab"
-              aria-selected={sortBy === key}
+              aria-pressed={sortBy === key}
             >
               {sortLabels[key]}
             </button>
@@ -362,6 +361,7 @@ export function Trends() {
               className={`btn btn-sm${showBreakoutsOnly ? " btn-primary" : ""}`}
               onClick={() => setShowBreakoutsOnly((prev) => !prev)}
               data-testid="trends-breakouts-filter"
+              aria-pressed={showBreakoutsOnly}
             >
               {t.trends.breakouts.filter} ({reposWithBreakouts.size})
             </button>
@@ -373,6 +373,7 @@ export function Trends() {
               onClick={() => setViewMode("list")}
               aria-label={t.trends.viewMode.list}
               title={t.trends.viewMode.list}
+              aria-pressed={viewMode === "list"}
             >
               ☰
             </button>
@@ -381,6 +382,7 @@ export function Trends() {
               onClick={() => setViewMode("grid")}
               aria-label={t.trends.viewMode.grid}
               title={t.trends.viewMode.grid}
+              aria-pressed={viewMode === "grid"}
             >
               ▦
             </button>

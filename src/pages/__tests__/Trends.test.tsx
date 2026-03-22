@@ -314,12 +314,12 @@ describe("Trends", () => {
     expect(screen.getByText("Acceleration")).toBeInTheDocument();
   });
 
-  it("marks active sort tab with aria-selected", () => {
+  it("marks active sort button with aria-pressed", () => {
     mockTrendsReturn.trends = [makeTrending()];
     mockTrendsReturn.sortBy = "stars_delta_30d";
     renderTrends();
-    expect(screen.getByTestId("sort-stars_delta_30d")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("sort-velocity")).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByTestId("sort-stars_delta_30d")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("sort-velocity")).toHaveAttribute("aria-pressed", "false");
   });
 
   it("expands a row when clicked and shows chart", async () => {
