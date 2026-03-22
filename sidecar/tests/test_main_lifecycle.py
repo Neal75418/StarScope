@@ -77,10 +77,12 @@ class TestStartupResilience:
 
     @pytest.mark.asyncio
     async def test_startup_fetch_error_does_not_crash(self, mock_lifecycle):
-        """startup fetch 拋出例外時應用仍能啟動。"""
+        """startup fetch 拋出例外時應用仍能啟動，shutdown 也不拋出。"""
         mock_lifecycle["trigger_fetch"].side_effect = Exception("GitHub API down")
 
         from main import lifespan, app
 
         async with lifespan(app):
-            pass  # 不應拋出
+            await asyncio.sleep(0.01)  # 讓 task 執行並失敗
+
+        # 如果到這裡沒拋出，表示 shutdown 正確消化了 task 的例外
