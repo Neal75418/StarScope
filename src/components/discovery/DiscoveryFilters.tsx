@@ -132,7 +132,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
           className={styles.filterSelect}
           value={filters.sort || "stars"}
           onChange={(e) => onFiltersChange({ ...filters, sort: e.target.value as SortOption })}
-          aria-label={t.discovery.filters.sortByStars}
+          aria-label={t.discovery.filters.sortLabel}
         >
           {SORT_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>

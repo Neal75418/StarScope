@@ -44,6 +44,7 @@ export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: 
         className="summary-panel-toggle"
         onClick={toggle}
         aria-expanded={!collapsed}
+        aria-controls="summary-panel-content"
         data-testid="summary-toggle"
       >
         {t.watchlist.summary.title}
@@ -51,7 +52,7 @@ export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: 
       </button>
 
       {!collapsed && (
-        <div className="summary-panel-content">
+        <div className="summary-panel-content" id="summary-panel-content">
           <div className="summary-stat-group">
             <div className="summary-stat" data-testid="summary-top-velocity">
               <span className="summary-stat-label">{t.watchlist.summary.topVelocity}</span>

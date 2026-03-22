@@ -137,6 +137,7 @@ export function Toolbar({
             onClick={() => onViewModeChange("list")}
             aria-label={t.watchlist.viewMode.list}
             title={t.watchlist.viewMode.list}
+            aria-pressed={viewMode === "list"}
           >
             <ListIcon size={16} />
           </button>
@@ -146,6 +147,7 @@ export function Toolbar({
             onClick={() => onViewModeChange("grid")}
             aria-label={t.watchlist.viewMode.grid}
             title={t.watchlist.viewMode.grid}
+            aria-pressed={viewMode === "grid"}
           >
             <GridIcon size={16} />
           </button>

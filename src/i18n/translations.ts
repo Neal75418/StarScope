@@ -139,6 +139,7 @@ export const translations = {
       filters: {
         allLanguages: "All Languages",
         allLicenses: "All Licenses",
+        sortLabel: "Sort options",
         sortByStars: "Most Stars",
         sortByForks: "Most Forks",
         sortByUpdated: "Recently Updated",
@@ -385,12 +386,15 @@ export const translations = {
       noData: "No data available for selected time range",
       retry: "Retry",
       download: "Download PNG",
+      timeRange: "Time range",
       metric: {
+        title: "Metric",
         stars: "Stars",
         forks: "Forks",
         issues: "Issues",
       },
       chartType: {
+        title: "Chart type",
         line: "Line",
         area: "Area",
       },
@@ -983,6 +987,7 @@ export const translations = {
       filters: {
         allLanguages: "所有語言",
         allLicenses: "所有授權",
+        sortLabel: "排序選項",
         sortByStars: "依星數排序",
         sortByForks: "依分支數排序",
         sortByUpdated: "依更新時間排序",
@@ -1228,12 +1233,15 @@ export const translations = {
       noData: "所選時間範圍內無資料",
       retry: "重試",
       download: "下載 PNG",
+      timeRange: "時間範圍",
       metric: {
+        title: "指標",
         stars: "星數",
         forks: "Fork 數",
         issues: "Issue 數",
       },
       chartType: {
+        title: "圖表類型",
         line: "折線",
         area: "面積",
       },

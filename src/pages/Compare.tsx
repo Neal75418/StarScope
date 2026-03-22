@@ -146,49 +146,65 @@ export function Compare() {
       {canCompare && (
         <FadeIn delay={0.15}>
           <div className="compare-controls">
-            <div className="compare-time-ranges">
+            <div className="compare-time-ranges" role="group" aria-label={t.compare.timeRange}>
               {TIME_RANGES.map((tr) => (
                 <button
                   key={tr}
                   className={`compare-range-btn ${timeRange === tr ? "active" : ""}`}
                   onClick={() => setTimeRange(tr)}
+                  aria-pressed={timeRange === tr}
                 >
                   {tr}
                 </button>
               ))}
             </div>
 
-            <div className="compare-metric-toggle" data-testid="compare-metric-toggle">
+            <div
+              className="compare-metric-toggle"
+              data-testid="compare-metric-toggle"
+              role="group"
+              aria-label={t.compare.metric.title}
+            >
               <button
                 className={`btn btn-sm ${metric === "stars" ? "active" : ""}`}
                 onClick={() => setMetric("stars")}
+                aria-pressed={metric === "stars"}
               >
                 {t.compare.metric.stars}
               </button>
               <button
                 className={`btn btn-sm ${metric === "forks" ? "active" : ""}`}
                 onClick={() => setMetric("forks")}
+                aria-pressed={metric === "forks"}
               >
                 {t.compare.metric.forks}
               </button>
               <button
                 className={`btn btn-sm ${metric === "issues" ? "active" : ""}`}
                 onClick={() => setMetric("issues")}
+                aria-pressed={metric === "issues"}
               >
                 {t.compare.metric.issues}
               </button>
             </div>
 
-            <div className="compare-chart-type-toggle" data-testid="compare-chart-type-toggle">
+            <div
+              className="compare-chart-type-toggle"
+              data-testid="compare-chart-type-toggle"
+              role="group"
+              aria-label={t.compare.chartType.title}
+            >
               <button
                 className={`btn btn-sm ${chartType === "line" ? "active" : ""}`}
                 onClick={() => setChartType("line")}
+                aria-pressed={chartType === "line"}
               >
                 {t.compare.chartType.line}
               </button>
               <button
                 className={`btn btn-sm ${chartType === "area" ? "active" : ""}`}
                 onClick={() => setChartType("area")}
+                aria-pressed={chartType === "area"}
               >
                 {t.compare.chartType.area}
               </button>
