@@ -3,6 +3,7 @@
  */
 
 import { memo } from "react";
+import { useI18n } from "../../i18n";
 
 interface PayloadEntry {
   name: string;
@@ -24,6 +25,7 @@ export const CompareTooltip = memo(function CompareTooltip({
   label,
   normalize,
 }: CompareTooltipProps) {
+  const { t } = useI18n();
   if (!active || !payload?.length) return null;
 
   return (
@@ -38,7 +40,7 @@ export const CompareTooltip = memo(function CompareTooltip({
             <span className="compare-tooltip-value">
               {typeof entry.value === "number"
                 ? isGrowth
-                  ? `${entry.value >= 0 ? "+" : ""}${entry.value.toFixed(1)}/d`
+                  ? `${entry.value >= 0 ? "+" : ""}${entry.value.toFixed(1)}${t.compare.perDay}`
                   : `${entry.value.toLocaleString()}${normalize ? "%" : ""}`
                 : "—"}
             </span>

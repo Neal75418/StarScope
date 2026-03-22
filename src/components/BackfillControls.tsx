@@ -45,6 +45,7 @@ export function BackfillControls({
           onClick={() => void loadStatus()}
           disabled={loading}
           title={t.common.retry}
+          aria-label={t.common.retry}
         >
           {loading ? "..." : "↻"}
         </button>

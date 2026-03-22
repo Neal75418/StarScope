@@ -202,7 +202,14 @@ export function Toolbar({
             >
               {sortLabels[key]}
               {sortKey === key && (
-                <span className="sort-direction" aria-label={sortDirection}>
+                <span
+                  className="sort-direction"
+                  aria-label={
+                    sortDirection === "asc"
+                      ? t.watchlist.sort.ascending
+                      : t.watchlist.sort.descending
+                  }
+                >
                   {sortDirection === "asc" ? " ↑" : " ↓"}
                 </span>
               )}

@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { GitHubConnectionStatus } from "../../api/client";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 
 interface ConnectionConnectedProps {
   status: GitHubConnectionStatus;
@@ -91,8 +91,11 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
                   : ""
               }`}
             >
-              API: {status.rate_limit_remaining?.toLocaleString()} /{" "}
-              {status.rate_limit_total?.toLocaleString()} {t.githubConnection.remaining}
+              {interpolate(t.githubConnection.apiQuota, {
+                remaining: status.rate_limit_remaining?.toLocaleString() ?? "0",
+                total: status.rate_limit_total?.toLocaleString() ?? "0",
+                suffix: t.githubConnection.remaining,
+              })}
             </span>
             {countdown && (
               <span className="rate-limit-reset">

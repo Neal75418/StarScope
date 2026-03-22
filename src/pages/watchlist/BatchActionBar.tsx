@@ -7,6 +7,7 @@ import { useI18n, interpolate } from "../../i18n";
 import { useCategoryTree } from "../../hooks/useCategoryTree";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 interface BatchActionBarProps {
   selectedCount: number;
@@ -28,6 +29,7 @@ export const BatchActionBar = memo(function BatchActionBar({
   const { t } = useI18n();
   const { tree } = useCategoryTree();
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const closePicker = useCallback(() => setShowCategoryPicker(false), []);
   useClickOutside(pickerRef, closePicker, showCategoryPicker);
@@ -47,14 +49,15 @@ export const BatchActionBar = memo(function BatchActionBar({
     onDone();
   }, [onBatchRefresh, onDone]);
 
-  const handleRemove = useCallback(async () => {
-    const confirmed = window.confirm(
-      interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })
-    );
-    if (!confirmed) return;
+  const handleRemoveClick = useCallback(() => {
+    setShowRemoveConfirm(true);
+  }, []);
+
+  const handleRemoveConfirm = useCallback(async () => {
+    setShowRemoveConfirm(false);
     await onBatchRemove();
     onDone();
-  }, [onBatchRemove, onDone, t, selectedCount]);
+  }, [onBatchRemove, onDone]);
 
   // 攤平所有分類（包含子分類），memoize 避免每次 render 重建
   const flatCategories = useMemo(() => {
@@ -122,13 +125,22 @@ export const BatchActionBar = memo(function BatchActionBar({
 
         <button
           className="btn btn-sm btn-danger"
-          onClick={handleRemove}
+          onClick={handleRemoveClick}
           disabled={isProcessing}
           data-testid="batch-remove"
         >
           {t.watchlist.batch.remove}
         </button>
       </div>
+
+      <ConfirmDialog
+        isOpen={showRemoveConfirm}
+        title={t.watchlist.batch.remove}
+        message={interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })}
+        variant="danger"
+        onConfirm={handleRemoveConfirm}
+        onCancel={() => setShowRemoveConfirm(false)}
+      />
     </div>
   );
 });

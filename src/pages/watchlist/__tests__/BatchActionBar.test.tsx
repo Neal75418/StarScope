@@ -52,25 +52,26 @@ describe("BatchActionBar", () => {
   });
 
   it("calls onBatchRemove and onDone when remove clicked and confirmed", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<BatchActionBar {...defaultProps} />);
 
     await user.click(screen.getByTestId("batch-remove"));
-    expect(window.confirm).toHaveBeenCalled();
+    // ConfirmDialog 應出現
+    const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+    expect(confirmBtn).toBeInTheDocument();
+    await user.click(confirmBtn);
     expect(defaultProps.onBatchRemove).toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 
   it("does not call onBatchRemove when remove cancelled", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     const user = userEvent.setup();
     render(<BatchActionBar {...defaultProps} />);
 
     await user.click(screen.getByTestId("batch-remove"));
-    expect(window.confirm).toHaveBeenCalled();
+    // ConfirmDialog 應出現，點取消
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    await user.click(cancelBtn);
     expect(defaultProps.onBatchRemove).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 
   it("shows category picker when add-to-category clicked", async () => {

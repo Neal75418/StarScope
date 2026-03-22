@@ -74,12 +74,12 @@ describe("BackfillControls", () => {
 
   it("shows retry button when offline", () => {
     render(<BackfillControls {...defaultProps} isOffline={true} />);
-    expect(screen.getByRole("button", { name: "↻" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
   it("hides retry button when online", () => {
     render(<BackfillControls {...defaultProps} isOffline={false} />);
-    expect(screen.queryByRole("button", { name: "↻" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
   });
 
   it("calls loadStatus when retry clicked", async () => {
@@ -87,17 +87,17 @@ describe("BackfillControls", () => {
     const loadStatus = vi.fn();
     render(<BackfillControls {...defaultProps} isOffline={true} loadStatus={loadStatus} />);
 
-    await user.click(screen.getByRole("button", { name: "↻" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(loadStatus).toHaveBeenCalled();
   });
 
   it("shows loading state on retry button", () => {
     render(<BackfillControls {...defaultProps} isOffline={true} loading={true} />);
-    expect(screen.getByRole("button", { name: "..." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
   it("disables retry button when loading", () => {
     render(<BackfillControls {...defaultProps} isOffline={true} loading={true} />);
-    expect(screen.getByRole("button", { name: "..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
   });
 });

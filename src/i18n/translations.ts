@@ -224,6 +224,8 @@ export const translations = {
         stars_delta_7d: "7d Delta",
         acceleration: "Accel",
         full_name: "Name",
+        ascending: "Ascending",
+        descending: "Descending",
       },
       export: {
         button: "Export",
@@ -407,6 +409,7 @@ export const translations = {
         acceleration: "Accel",
         trend: "Trend",
       },
+      perDay: "/day",
       diff: {
         title: "Summary",
         leader: "Leader",
@@ -722,6 +725,7 @@ export const translations = {
       openManually: "Open GitHub manually",
       cancel: "Cancel",
       connectedAs: "Connected as",
+      apiQuota: "API: {remaining} / {total} {suffix}",
       remaining: "remaining",
       resetsIn: "Resets in",
       refresh: "Refresh",
@@ -1071,6 +1075,8 @@ export const translations = {
         stars_delta_7d: "7天變化",
         acceleration: "加速度",
         full_name: "名稱",
+        ascending: "升序",
+        descending: "降序",
       },
       export: {
         button: "匯出",
@@ -1254,6 +1260,7 @@ export const translations = {
         acceleration: "加速度",
         trend: "趨勢",
       },
+      perDay: "/天",
       diff: {
         title: "摘要",
         leader: "領先者",
@@ -1565,6 +1572,7 @@ export const translations = {
       openManually: "手動開啟 GitHub",
       cancel: "取消",
       connectedAs: "已連接",
+      apiQuota: "API：{remaining} / {total} {suffix}",
       remaining: "剩餘",
       resetsIn: "重置於",
       refresh: "重新整理",
