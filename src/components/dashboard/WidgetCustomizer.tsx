@@ -95,11 +95,20 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
         ⚙
       </button>
       {open && (
-        <div className="widget-customizer-dropdown" role="menu">
+        <div
+          className="widget-customizer-dropdown"
+          role="group"
+          aria-label={t.dashboard.widgetCustomizer.title}
+        >
           <div className="widget-customizer-title">{t.dashboard.widgetCustomizer.title}</div>
           {widgets.map(({ id, label }) => (
             <label key={id} className="widget-customizer-item">
-              <input type="checkbox" checked={visibility[id]} onChange={() => toggle(id)} />
+              <input
+                type="checkbox"
+                checked={visibility[id]}
+                onChange={() => toggle(id)}
+                aria-label={label}
+              />
               <span>{label}</span>
             </label>
           ))}

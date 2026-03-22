@@ -116,7 +116,14 @@ export function Settings() {
               type="button"
               className={`settings-nav-item${activeSection === id ? " active" : ""}`}
               aria-current={activeSection === id ? "true" : undefined}
-              onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => {
+                const prefersReduced = window.matchMedia(
+                  "(prefers-reduced-motion: reduce)"
+                ).matches;
+                document
+                  .getElementById(id)
+                  ?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
+              }}
             >
               {label}
             </button>

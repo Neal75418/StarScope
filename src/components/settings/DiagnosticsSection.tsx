@@ -28,6 +28,7 @@ function formatUptime(seconds: number): string {
 export function DiagnosticsSection() {
   const { t } = useI18n();
   const [exporting, setExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<"idle" | "success" | "empty" | "error">("idle");
   const diagnosticsInterval = useSmartInterval(60_000);
 
   const { data, isLoading, error } = useQuery<DiagnosticsResponse>({
@@ -46,10 +47,11 @@ export function DiagnosticsSection() {
 
   const handleExportLogs = async () => {
     setExporting(true);
+    setExportStatus("idle");
     try {
       const result = await getRecentLogs();
       if (!result.logs) {
-        logger.warn("[DiagnosticsSection] 無日誌可匯出");
+        setExportStatus("empty");
         return;
       }
       const blob = new Blob([result.logs], { type: "text/plain" });
@@ -59,8 +61,10 @@ export function DiagnosticsSection() {
       a.download = `starscope-logs-${new Date().toISOString().slice(0, 10)}.txt`;
       a.click();
       URL.revokeObjectURL(url);
+      setExportStatus("success");
     } catch (err) {
       logger.error("[DiagnosticsSection] 日誌匯出失敗:", err);
+      setExportStatus("error");
     } finally {
       setExporting(false);
     }
@@ -156,6 +160,21 @@ export function DiagnosticsSection() {
           >
             {exporting ? t.common.loading : t.settings.diagnostics.exportLogs}
           </button>
+          {exportStatus === "success" && (
+            <span className="diagnostics-feedback success" role="status">
+              ✓ {t.settings.diagnostics.exportSuccess}
+            </span>
+          )}
+          {exportStatus === "empty" && (
+            <span className="diagnostics-feedback" role="status">
+              {t.settings.diagnostics.exportEmpty}
+            </span>
+          )}
+          {exportStatus === "error" && (
+            <span className="diagnostics-feedback error" role="alert">
+              {t.settings.diagnostics.exportError}
+            </span>
+          )}
         </>
       )}
     </div>

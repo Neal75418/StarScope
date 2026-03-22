@@ -3,8 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { userEvent } from "@testing-library/user-event";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
 import { Toast, ToastContainer, useToast, type ToastMessage } from "../Toast";
 
@@ -56,14 +55,15 @@ describe("Toast", () => {
     expect(screen.getByText("⚠")).toBeInTheDocument();
   });
 
-  it.skip("calls onDismiss when close button clicked", async () => {
-    const user = userEvent.setup({ delay: null });
+  it("calls onDismiss when close button clicked", () => {
+    vi.useFakeTimers();
     render(<Toast toast={mockToast} onDismiss={mockOnDismiss} />);
 
     const closeButton = screen.getByRole("button");
-    await user.click(closeButton);
+    fireEvent.click(closeButton);
 
     expect(mockOnDismiss).toHaveBeenCalledWith("test-1");
+    vi.useRealTimers();
   });
 
   it("auto-dismisses after default duration", () => {

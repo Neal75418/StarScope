@@ -552,6 +552,9 @@ export const translations = {
         lastBackup: "Last Backup",
         rateLimit: "GitHub API Quota",
         exportLogs: "Export Logs",
+        exportSuccess: "Export successful",
+        exportEmpty: "No logs available",
+        exportError: "Export failed",
       },
       about: {
         title: "About",
@@ -1358,6 +1361,9 @@ export const translations = {
         lastBackup: "最近備份",
         rateLimit: "GitHub API 配額",
         exportLogs: "匯出日誌",
+        exportSuccess: "匯出成功",
+        exportEmpty: "無日誌可匯出",
+        exportError: "匯出失敗",
       },
       about: {
         title: "關於",

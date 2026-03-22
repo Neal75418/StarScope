@@ -120,20 +120,21 @@ const HNMentionsList = memo(function HNMentionsList({
       ) : (
         <div className="weekly-hn-grid">
           {mentions.slice(0, MAX_HN_MENTIONS_DISPLAY).map((m) => (
-            <div
+            <a
               key={`${m.repo_name}-${m.hn_url}-${m.hn_title}`}
-              role="link"
-              tabIndex={0}
+              href={m.hn_url}
+              target="_blank"
+              rel="noopener noreferrer"
               className="weekly-hn-item"
-              onClick={() => handleClick(m.hn_url)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleClick(m.hn_url);
+              onClick={(e) => {
+                e.preventDefault();
+                handleClick(m.hn_url);
               }}
             >
               <span className="weekly-hn-repo">{m.repo_name}</span>
               <span className="weekly-hn-title">{m.hn_title}</span>
               <span className="weekly-hn-score">{m.hn_score} pts</span>
-            </div>
+            </a>
           ))}
         </div>
       )}
