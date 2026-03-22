@@ -64,7 +64,7 @@ describe("RepoCardHeader", () => {
 
   it("renders action buttons", () => {
     render(<RepoCardHeader {...defaultProps} />);
-    expect(screen.getByTitle("Chart")).toBeInTheDocument();
+    expect(screen.getByTitle("Show chart")).toBeInTheDocument();
     expect(screen.getByTitle("Refresh")).toBeInTheDocument();
     expect(screen.getByTitle("Remove")).toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe("RepoCardHeader", () => {
   it("calls onToggleChart when chart button clicked", async () => {
     const user = userEvent.setup();
     render(<RepoCardHeader {...defaultProps} />);
-    await user.click(screen.getByTitle("Chart"));
+    await user.click(screen.getByTitle("Show chart"));
     expect(defaultProps.onToggleChart).toHaveBeenCalled();
   });
 

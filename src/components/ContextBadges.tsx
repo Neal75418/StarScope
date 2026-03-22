@@ -22,11 +22,8 @@ interface PanelState {
   fetched: boolean;
 }
 
-const BADGE_CONFIG: Record<
-  string,
-  { icon: string; label: string; color: string; tooltip: string }
-> = {
-  hn: { icon: "🔶", label: "HN", color: "#ff6600", tooltip: "Hacker News 討論分數" },
+const BADGE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
+  hn: { icon: "🔶", label: "HN", color: "#ff6600" },
 };
 
 function formatValue(badge: ContextBadge): string {
@@ -92,6 +89,7 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
 }
 
 export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
+  const { t } = useI18n();
   const [panelState, setPanelState] = useState<PanelState>({
     expanded: false,
     signals: [],
@@ -125,8 +123,8 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
             icon: "❓",
             label: "?",
             color: "#666",
-            tooltip: badge.label,
           };
+          const tooltip = t.contextBadges.hnScore;
           const value = formatValue(badge);
 
           return (
@@ -135,7 +133,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               type="button"
               className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""} ${repoId ? "expandable" : ""}`}
               style={{ "--badge-color": config.color } as React.CSSProperties}
-              title={`${config.tooltip}: ${badge.label}`}
+              title={`${tooltip}: ${badge.label}`}
               aria-label={`${config.label}: ${badge.label}`}
               onClick={repoId ? toggleExpand : undefined}
             >

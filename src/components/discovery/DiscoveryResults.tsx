@@ -124,6 +124,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
                 onClick={() => onViewModeChange("list")}
                 aria-label={t.discovery.viewMode.list}
                 title={t.discovery.viewMode.list}
+                aria-pressed={viewMode === "list"}
               >
                 <ListIcon size={16} />
               </button>
@@ -133,6 +134,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
                 onClick={() => onViewModeChange("grid")}
                 aria-label={t.discovery.viewMode.grid}
                 title={t.discovery.viewMode.grid}
+                aria-pressed={viewMode === "grid"}
               >
                 <GridIcon size={16} />
               </button>

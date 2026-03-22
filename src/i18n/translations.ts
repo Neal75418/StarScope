@@ -125,6 +125,16 @@ export const translations = {
       currentFilters: "Active filters:",
       clearAll: "Clear all",
       removeFilter: "Remove {type} filter",
+      filterTypes: {
+        keyword: "keyword",
+        period: "period",
+        language: "language",
+        license: "license",
+        topic: "topic",
+        "min stars": "min stars",
+        "max stars": "max stars",
+        "hide archived": "hide archived",
+      },
       archived: "Archived",
       filters: {
         allLanguages: "All Languages",
@@ -261,6 +271,8 @@ export const translations = {
       trend: "Trend",
       chart: "Chart",
       hide: "Hide",
+      showChart: "Show chart",
+      hideChart: "Hide chart",
       similar: "Similar",
       refresh: "Refresh",
       refreshContext: "Refresh Context",
@@ -805,6 +817,7 @@ export const translations = {
     contextBadges: {
       noDiscussions: "No discussions found",
       untitled: "Untitled",
+      hnScore: "Hacker News score",
     },
     // 圖表
     chart: {
@@ -956,6 +969,16 @@ export const translations = {
       currentFilters: "目前篩選：",
       clearAll: "清除全部",
       removeFilter: "移除{type}篩選",
+      filterTypes: {
+        keyword: "關鍵字",
+        period: "時間範圍",
+        language: "語言",
+        license: "授權",
+        topic: "主題",
+        "min stars": "最低星數",
+        "max stars": "最高星數",
+        "hide archived": "隱藏已歸檔",
+      },
       archived: "已歸檔",
       filters: {
         allLanguages: "所有語言",
@@ -1091,6 +1114,8 @@ export const translations = {
       trend: "趨勢",
       chart: "圖表",
       hide: "隱藏",
+      showChart: "顯示圖表",
+      hideChart: "隱藏圖表",
       similar: "相似",
       refresh: "重新整理",
       refreshContext: "刷新情境資訊",
@@ -1631,6 +1656,7 @@ export const translations = {
     contextBadges: {
       noDiscussions: "找不到相關討論",
       untitled: "無標題",
+      hnScore: "Hacker News 討論分數",
     },
     // 圖表
     chart: {

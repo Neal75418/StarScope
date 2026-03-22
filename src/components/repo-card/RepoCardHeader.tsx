@@ -59,8 +59,8 @@ export const RepoCardHeader = memo(function RepoCardHeader({
         <button
           onClick={onToggleChart}
           className={`btn btn-sm ${showChart ? "active" : ""}`}
-          title={t.repo.chart}
-          aria-label={showChart ? `${t.repo.hide} chart` : t.repo.chart}
+          title={showChart ? t.repo.hideChart : t.repo.showChart}
+          aria-label={showChart ? t.repo.hideChart : t.repo.showChart}
         >
           {showChart ? t.repo.hide : t.repo.chart}
         </button>

@@ -21,7 +21,10 @@ function FilterTag({
       <button
         className={styles.removeFilterBtn}
         onClick={onRemove}
-        aria-label={t.discovery.removeFilter.replace("{type}", filterType)}
+        aria-label={t.discovery.removeFilter.replace(
+          "{type}",
+          (t.discovery.filterTypes as Record<string, string>)?.[filterType] ?? filterType
+        )}
       >
         ×
       </button>

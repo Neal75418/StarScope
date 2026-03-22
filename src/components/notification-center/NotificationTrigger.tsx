@@ -26,7 +26,11 @@ export function NotificationTrigger({
     <button
       className="nav-action-btn notification-trigger"
       onClick={onToggle}
-      aria-label={t.notifications.title}
+      aria-label={
+        unreadCount > 0
+          ? `${t.notifications.title} (${unreadCount} ${t.notifications.unread})`
+          : t.notifications.title
+      }
       aria-expanded={isOpen}
     >
       <BellIcon size={16} />
