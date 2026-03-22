@@ -1,9 +1,9 @@
 /**
- * 通用下拉選單容器，處理開關狀態、點擊外部關閉、ESC 關閉。
- * 供各頁面的 export/presets 下拉選單複用。
+ * 通用下拉選單容器。
+ * 完整 ARIA menu pattern：ESC 關閉、focus return、arrow key 導航、auto-focus。
  */
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -25,8 +25,9 @@ export function DropdownMenu({
   children,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -34,11 +35,47 @@ export function DropdownMenu({
     buttonRef.current?.focus();
   }, [onClose]);
 
-  useClickOutside(ref, close, open);
+  useClickOutside(containerRef, close, open);
   useEscapeKey(close, open);
 
+  // 開啟時自動 focus 第一個 menuitem
+  useEffect(() => {
+    if (!open || !menuRef.current) return;
+    const first = menuRef.current.querySelector<HTMLElement>('[role="menuitem"]');
+    first?.focus();
+  }, [open]);
+
+  // Arrow key 導航
+  const handleMenuKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!menuRef.current) return;
+    const items = Array.from(menuRef.current.querySelectorAll<HTMLElement>('[role="menuitem"]'));
+    if (items.length === 0) return;
+
+    const current = document.activeElement as HTMLElement;
+    const index = items.indexOf(current);
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        items[index === -1 ? 0 : (index + 1) % items.length]?.focus();
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        items[index === -1 ? items.length - 1 : (index - 1 + items.length) % items.length]?.focus();
+        break;
+      case "Home":
+        e.preventDefault();
+        items[0]?.focus();
+        break;
+      case "End":
+        e.preventDefault();
+        items[items.length - 1]?.focus();
+        break;
+    }
+  }, []);
+
   return (
-    <div className="export-dropdown" ref={ref}>
+    <div className="export-dropdown" ref={containerRef}>
       <button
         ref={buttonRef}
         type="button"
@@ -52,9 +89,11 @@ export function DropdownMenu({
       </button>
       {open && (
         <div
+          ref={menuRef}
           className={`export-dropdown-menu${menuClassName ? ` ${menuClassName}` : ""}`}
           role="menu"
           data-testid={menuTestId}
+          onKeyDown={handleMenuKeyDown}
         >
           {children(close)}
         </div>
