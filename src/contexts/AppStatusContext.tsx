@@ -39,12 +39,13 @@ const AppStatusContext = createContext<AppStatus | undefined>(undefined);
 export function AppStatusProvider({ children }: { children: ReactNode }) {
   const isOnline = useOnlineStatus();
 
+  // Health check：離線時暫停，但頁面隱藏時仍繼續（偵測 sidecar 恢復）
   const healthQuery = useQuery({
     queryKey: queryKeys.dashboard.health,
     queryFn: checkHealth,
     retry: 1,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: () => (isOnline ? 60_000 : false),
   });
 
   const isSidecarUp = healthQuery.data?.status === "ok";

@@ -11,6 +11,7 @@ import {
   DiagnosticsResponse,
 } from "../../api/client";
 import { logger } from "../../utils/logger";
+import { useSmartInterval } from "../../hooks/useSmartInterval";
 import { useI18n } from "../../i18n";
 import { queryKeys } from "../../lib/react-query";
 import { formatRelativeTime } from "../../utils/format";
@@ -27,12 +28,13 @@ function formatUptime(seconds: number): string {
 export function DiagnosticsSection() {
   const { t } = useI18n();
   const [exporting, setExporting] = useState(false);
+  const diagnosticsInterval = useSmartInterval(60_000);
 
   const { data, isLoading, error } = useQuery<DiagnosticsResponse>({
     queryKey: [...queryKeys.connection.all, "diagnostics"],
     queryFn: ({ signal }) => getDiagnostics(signal),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: diagnosticsInterval,
   });
 
   const ghQuery = useQuery({
