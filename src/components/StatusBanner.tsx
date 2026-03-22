@@ -21,7 +21,7 @@ export const StatusBanner = memo(function StatusBanner() {
 
   if (!showBanner || !bannerMessage) return null;
 
-  const message = t.status?.[bannerMessage as keyof typeof t.status] ?? bannerMessage;
+  const message = t.status[bannerMessage];
 
   return (
     <div

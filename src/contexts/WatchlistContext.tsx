@@ -14,17 +14,17 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   addRepo,
   removeRepo,
   fetchRepo,
   fetchAllRepos,
   recalculateAllSimilarities,
-  checkHealth,
   getCategoryRepos,
 } from "../api/client";
 import { useReposQuery } from "../hooks/useReposQuery";
+import { useAppStatus } from "./AppStatusContext";
 import { queryKeys } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
@@ -63,14 +63,8 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   const qc = useQueryClient();
   const [reducerState, dispatch] = useReducer(watchlistReducer, initialState);
 
-  // ── React Query：連線檢查 ──
-  const healthQuery = useQuery({
-    queryKey: queryKeys.dashboard.health,
-    queryFn: checkHealth,
-    retry: 1,
-    staleTime: 1000 * 60,
-  });
-  const isConnected = healthQuery.data?.status === "ok";
+  // ── 連線狀態（由 AppStatusContext 統一管理）──
+  const { isSidecarUp: isConnected } = useAppStatus();
 
   // ── React Query：repos 資料（連線成功後才啟用）──
   const reposQuery = useReposQuery({ enabled: isConnected });
@@ -78,13 +72,12 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   // ── 合併 React Query 資料與 reducer UI 狀態 ──
   // 保持 WatchlistState 介面不變，消費端無須修改
   const state: WatchlistState = useMemo(() => {
-    // 判斷載入狀態：React Query 載入中且 reducer 空閒時視為初始化
+    // 判斷載入狀態：sidecar 連線中或 repos 載入中
     const isInitializing =
-      (healthQuery.isLoading || (isConnected && reposQuery.isLoading)) &&
-      reducerState.loadingState.type === "idle";
+      (!isConnected || reposQuery.isLoading) && reducerState.loadingState.type === "idle";
 
     // 合併錯誤來源
-    const queryError = healthQuery.error ?? reposQuery.error;
+    const queryError = reposQuery.error;
     const mergedError =
       reducerState.error ?? (queryError instanceof Error ? queryError.message : null);
 
@@ -95,15 +88,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       loadingState: isInitializing ? { type: "initializing" as const } : reducerState.loadingState,
       error: mergedError,
     };
-  }, [
-    reducerState,
-    reposQuery.data,
-    reposQuery.isLoading,
-    reposQuery.error,
-    healthQuery.isLoading,
-    healthQuery.error,
-    isConnected,
-  ]);
+  }, [reducerState, reposQuery.data, reposQuery.isLoading, reposQuery.error, isConnected]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
   const stateRef = useRef(state);

@@ -17,13 +17,16 @@ export type DegradationLevel =
   | "rate-limited"
   | "partial-failure";
 
+/** 降級狀態橫幅訊息的 i18n key。 */
+export type StatusMessageKey = "offline" | "sidecarDown" | "rateLimited" | "partialFailure";
+
 export interface AppStatus {
   /** 當前降級等級。 */
   level: DegradationLevel;
   /** 是否應顯示全域橫幅。 */
   showBanner: boolean;
   /** 橫幅訊息 key（對應 i18n status section）。 */
-  bannerMessage: string | null;
+  bannerMessage: StatusMessageKey | null;
   /** Sidecar 是否可用。 */
   isSidecarUp: boolean;
   /** 是否在線。 */
