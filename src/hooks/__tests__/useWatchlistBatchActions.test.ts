@@ -14,6 +14,7 @@ interface BatchResult {
   success: number;
   failed: number;
   total: number;
+  failedIds?: number[];
 }
 
 describe("useWatchlistBatchActions", () => {
@@ -44,10 +45,11 @@ describe("useWatchlistBatchActions", () => {
     expect(batchResult).toBeDefined();
     expect(batchResult?.success).toBe(3);
     expect(batchResult?.failed).toBe(0);
+    expect(batchResult?.failedIds).toEqual([]);
     expect(mockRefreshAll).toHaveBeenCalled();
   });
 
-  it("batchAddToCategory counts failures", async () => {
+  it("batchAddToCategory counts failures and returns failedIds", async () => {
     vi.mocked(client.addRepoToCategory)
       .mockResolvedValueOnce({ status: "ok", message: "" })
       .mockRejectedValueOnce(new Error("fail"))
@@ -63,6 +65,7 @@ describe("useWatchlistBatchActions", () => {
 
     expect(batchResult?.success).toBe(2);
     expect(batchResult?.failed).toBe(1);
+    expect(batchResult?.failedIds).toEqual([2]);
   });
 
   it("batchRefresh fetches each repo", async () => {

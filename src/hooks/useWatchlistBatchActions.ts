@@ -17,13 +17,14 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
   const [isProcessing, setIsProcessing] = useState(false);
 
   const batchAddToCategory = useCallback(
-    async (categoryId: number): Promise<BatchResult> => {
+    async (categoryId: number): Promise<BatchResult & { failedIds: number[] }> => {
       const ids = Array.from(selectedIds);
-      if (ids.length === 0) return { success: 0, failed: 0, total: 0 };
+      if (ids.length === 0) return { success: 0, failed: 0, total: 0, failedIds: [] };
 
       setIsProcessing(true);
       let success = 0;
       let failed = 0;
+      const failedIds: number[] = [];
 
       try {
         for (const repoId of ids) {
@@ -32,13 +33,14 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
             success++;
           } catch {
             failed++;
+            failedIds.push(repoId);
           }
         }
         await actions.refreshAll();
       } finally {
         setIsProcessing(false);
       }
-      return { success, failed, total: ids.length };
+      return { success, failed, total: ids.length, failedIds };
     },
     [selectedIds, actions]
   );

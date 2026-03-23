@@ -214,6 +214,41 @@ describe("useDeviceFlowPolling", () => {
     result.current.stopPolling();
   });
 
+  it("discards in-flight poll result after stopPolling (cancel)", async () => {
+    let resolvePoll: (value: { status: "success"; username: string }) => void = () => undefined;
+    mockPollAuth.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePoll = resolve;
+        })
+    );
+
+    const { result } = renderPolling();
+
+    act(() => {
+      result.current.startPolling("test-code", 10, 300);
+    });
+
+    // Fire initial delay — starts poll request
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockPollAuth).toHaveBeenCalledTimes(1);
+
+    // Cancel (stopPolling) while poll is in-flight
+    act(() => {
+      result.current.stopPolling();
+    });
+
+    // Resolve the in-flight request — should be discarded
+    await act(async () => {
+      resolvePoll({ status: "success", username: "stale-user" });
+    });
+
+    // onSuccess should NOT have been called — result was stale
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it("skips poll when document is hidden", async () => {
     mockPollAuth.mockResolvedValue({ status: "pending" });
     const { result } = renderPolling();

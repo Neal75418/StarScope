@@ -15,16 +15,16 @@ interface BatchResult {
   total: number;
 }
 
-interface RemoveBatchResult extends BatchResult {
+interface DetailedBatchResult extends BatchResult {
   failedIds: number[];
 }
 
 interface BatchActionBarProps {
   selectedCount: number;
   isProcessing: boolean;
-  onBatchAddToCategory: (categoryId: number) => Promise<BatchResult>;
+  onBatchAddToCategory: (categoryId: number) => Promise<DetailedBatchResult>;
   onBatchRefresh: () => Promise<BatchResult>;
-  onBatchRemove: () => Promise<RemoveBatchResult>;
+  onBatchRemove: () => Promise<DetailedBatchResult>;
   onPruneSelection: (keepIds: number[]) => void;
   onDone: () => void;
   onError: (msg: string) => void;
@@ -72,9 +72,21 @@ export const BatchActionBar = memo(function BatchActionBar({
     async (categoryId: number) => {
       setShowCategoryPicker(false);
       const result = await onBatchAddToCategory(categoryId);
-      handleResult(result);
+      if (result.success === result.total) {
+        onDone();
+      } else if (result.success > 0) {
+        onPruneSelection(result.failedIds);
+        onError(
+          interpolate(t.watchlist.batch.partial, {
+            success: result.success,
+            total: result.total,
+          })
+        );
+      } else {
+        onError(t.watchlist.batch.error);
+      }
     },
-    [onBatchAddToCategory, handleResult]
+    [onBatchAddToCategory, onPruneSelection, onDone, onError, t]
   );
 
   const handleRefresh = useCallback(async () => {

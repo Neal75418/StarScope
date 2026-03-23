@@ -43,10 +43,12 @@ export function useDeviceFlowPolling({
   const currentIntervalRef = useRef<number>(10);
 
   const codeRef = useRef<string>("");
+  const sessionIdRef = useRef(0);
   const initialDelayRef = useRef<number | null>(null);
 
-  // 清理所有 timers
+  // 清理所有 timers，並作廢飛行中的請求
   const stopPolling = useCallback(() => {
+    sessionIdRef.current++;
     if (initialDelayRef.current !== null) {
       clearTimeout(initialDelayRef.current);
       initialDelayRef.current = null;
@@ -87,6 +89,7 @@ export function useDeviceFlowPolling({
   const startPolling = useCallback(
     (code: string, interval: number, expiresIn: number) => {
       stopPolling(); // 清除前一次 polling session
+      const sessionId = sessionIdRef.current;
       codeRef.current = code;
       currentIntervalRef.current = Math.max(interval, DEVICE_FLOW_MIN_POLL_INTERVAL_SEC);
 
@@ -119,6 +122,9 @@ export function useDeviceFlowPolling({
           );
           const result = await pollAuthorization(codeRef.current);
 
+          // Session 已被 stopPolling/cancelAuth 作廢，丟棄結果
+          if (sessionId !== sessionIdRef.current) return;
+
           if (result.status === "success") {
             handleSuccess(result.username);
           } else if (result.status === "expired" || result.status === "error") {
@@ -139,6 +145,7 @@ export function useDeviceFlowPolling({
             scheduleNext();
           }
         } catch (err) {
+          if (sessionId !== sessionIdRef.current) return;
           logger.error("[GitHub 驗證] 輪詢錯誤:", err);
           setPollStatus(t.githubConnection.status.networkError);
           scheduleNext();

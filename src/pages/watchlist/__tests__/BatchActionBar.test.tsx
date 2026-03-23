@@ -22,7 +22,9 @@ describe("BatchActionBar", () => {
   const defaultProps = {
     selectedCount: 3,
     isProcessing: false,
-    onBatchAddToCategory: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
+    onBatchAddToCategory: vi
+      .fn()
+      .mockResolvedValue({ success: 3, failed: 0, total: 3, failedIds: [] }),
     onBatchRefresh: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
     onBatchRemove: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3, failedIds: [] }),
     onPruneSelection: vi.fn(),
@@ -155,6 +157,24 @@ describe("BatchActionBar", () => {
 
     // Dialog should still be visible (not dismissed prematurely)
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
+  it("prunes selection to failed IDs on partial add-to-category", async () => {
+    const user = userEvent.setup();
+    const props = {
+      ...defaultProps,
+      onBatchAddToCategory: vi
+        .fn()
+        .mockResolvedValue({ success: 2, failed: 1, total: 3, failedIds: [3] }),
+    };
+    render(<BatchActionBar {...props} />);
+
+    await user.click(screen.getByTestId("batch-add-to-category"));
+    await user.click(screen.getByText("Frontend"));
+
+    expect(props.onPruneSelection).toHaveBeenCalledWith([3]);
+    expect(props.onDone).not.toHaveBeenCalled();
+    expect(props.onError).toHaveBeenCalled();
   });
 
   it("calls onError on full failure (remove)", async () => {
