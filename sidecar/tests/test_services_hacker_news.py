@@ -274,10 +274,15 @@ class TestHackerNewsService:
 class TestGetHnService:
     """Tests for get_hn_service function."""
 
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self):
+        original = hn_module._default_service
+        hn_module._default_service = None
+        yield
+        hn_module._default_service = original
+
     def test_returns_singleton(self):
         """Test returns the same instance."""
-        hn_module._default_service = None
-
         s1 = get_hn_service()
         s2 = get_hn_service()
 
@@ -285,8 +290,6 @@ class TestGetHnService:
 
     def test_creates_instance(self):
         """Test creates HackerNewsService instance."""
-        hn_module._default_service = None
-
         service = get_hn_service()
 
         assert isinstance(service, HackerNewsService)

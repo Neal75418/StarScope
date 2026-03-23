@@ -350,11 +350,16 @@ class TestDisconnect:
 class TestGetGitHubAuthService:
     """Tests for get_github_auth_service function."""
 
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self):
+        import services.github_auth as auth_module
+        original = auth_module._auth_service
+        auth_module._auth_service = None
+        yield
+        auth_module._auth_service = original
+
     def test_returns_singleton(self):
         """Test returns the same instance."""
-        import services.github_auth as auth_module
-        auth_module._auth_service = None
-
         s1 = get_github_auth_service()
         s2 = get_github_auth_service()
 
@@ -362,9 +367,6 @@ class TestGetGitHubAuthService:
 
     def test_creates_instance(self):
         """Test creates GitHubAuthService instance."""
-        import services.github_auth as auth_module
-        auth_module._auth_service = None
-
         service = get_github_auth_service()
 
         assert isinstance(service, GitHubAuthService)

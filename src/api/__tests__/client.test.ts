@@ -111,11 +111,7 @@ describe("API Client", () => {
         json: async () => ({ detail: "Service unavailable" }),
       });
 
-      try {
-        await checkHealth();
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-      }
+      await expect(checkHealth()).rejects.toThrow(ApiError);
     });
   });
 
@@ -253,11 +249,7 @@ describe("API Client", () => {
     it("handles network errors", async () => {
       mockFetch.mockRejectedValueOnce(new Error("Network failure"));
 
-      try {
-        await checkHealth();
-      } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-      }
+      await expect(checkHealth()).rejects.toThrow(Error);
     });
 
     it("handles JSON parse errors", async () => {
@@ -268,14 +260,11 @@ describe("API Client", () => {
         },
       });
 
-      try {
-        await checkHealth();
-      } catch (e) {
-        expect(e).toBeInstanceOf(Error);
-      }
+      await expect(checkHealth()).rejects.toThrow(Error);
     });
 
     it("handles non-ok response with JSON parse failure", async () => {
+      expect.assertions(3);
       // Must mock all retry attempts (MAX_RETRIES + 1 = 3) since 500 errors trigger retries
       mockFetch.mockResolvedValue({
         ok: false,
@@ -296,6 +285,7 @@ describe("API Client", () => {
     });
 
     it("uses error.detail when present in non-ok response", async () => {
+      expect.assertions(2);
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 422,
@@ -311,6 +301,7 @@ describe("API Client", () => {
     });
 
     it("falls back to HTTP status when error.detail is missing", async () => {
+      expect.assertions(2);
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 418,
@@ -326,6 +317,7 @@ describe("API Client", () => {
     });
 
     it("handles DOMException AbortError as timeout when no caller signal", async () => {
+      expect.assertions(2);
       const abortError = new DOMException("Aborted", "AbortError");
       // Must mock all retry attempts since timeout errors (status 0) trigger retries
       mockFetch.mockRejectedValue(abortError);
@@ -345,11 +337,7 @@ describe("API Client", () => {
       const controller = new AbortController();
       controller.abort();
 
-      try {
-        await getRepos(); // Can't easily pass signal to getRepos, use searchRepos instead
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-      }
+      await expect(getRepos()).rejects.toThrow(ApiError);
     });
 
     it("throws CANCELLED (not stale error) when aborted during retry backoff", async () => {

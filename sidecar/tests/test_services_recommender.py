@@ -286,10 +286,15 @@ class TestRecalculateAll:
 class TestGetRecommenderService:
     """Tests for get_recommender_service function."""
 
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self):
+        original = recommender_module._recommender
+        recommender_module._recommender = None
+        yield
+        recommender_module._recommender = original
+
     def test_returns_singleton(self):
         """Test returns the same instance."""
-        recommender_module._recommender = None
-
         r1 = get_recommender_service()
         r2 = get_recommender_service()
 
@@ -297,8 +302,6 @@ class TestGetRecommenderService:
 
     def test_creates_instance(self):
         """Test creates RecommenderService instance."""
-        recommender_module._recommender = None
-
         service = get_recommender_service()
 
         assert isinstance(service, RecommenderService)

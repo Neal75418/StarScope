@@ -39,7 +39,6 @@ class TestTrendsEndpoints:
         assert "data" in data
 
     def test_get_trends_invalid_sort(self, client):
-        """Test getting trends with invalid sort option."""
+        """Test getting trends with invalid sort option returns validation error."""
         response = client.get("/api/trends/?sort_by=invalid")
-        # Should either use default or return an error
-        assert response.status_code in [200, 400, 422]
+        assert response.status_code == 422

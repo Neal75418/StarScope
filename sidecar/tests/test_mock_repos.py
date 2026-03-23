@@ -87,7 +87,7 @@ class TestSignalsWithMockData:
         repo_data = next((r for r in repos if r["id"] == repo.id), None)
         assert repo_data is not None
         # Velocity signal should be reflected in the repo response
-        assert repo_data.get("velocity") is not None or len(repos) >= 1
+        assert repo_data.get("velocity") is not None
 
 
 class TestEarlySignalsWithMockData:
@@ -102,8 +102,8 @@ class TestEarlySignalsWithMockData:
         # 驗證統一的 API 響應格式
         assert data["success"] is True
         signals = data["data"]["signals"]
-        assert len(signals) >= 1
-        assert any(s["signal_type"] == "rising_star" for s in signals)
+        assert len(signals) == 1
+        assert signals[0]["signal_type"] == "rising_star"
 
     def test_early_signal_severity(self, client, mock_early_signal):
         """Test early signal severity value."""
@@ -114,9 +114,9 @@ class TestEarlySignalsWithMockData:
         # 驗證統一的 API 響應格式
         assert data["success"] is True
         signals = data["data"]["signals"]
-        if len(signals) > 0:
-            assert signals[0]["severity"] == "high"
-            assert signals[0]["signal_type"] == "rising_star"
+        assert len(signals) == 1
+        assert signals[0]["severity"] == "high"
+        assert signals[0]["signal_type"] == "rising_star"
 
 
 class TestCategoryWithMockData:
@@ -140,7 +140,7 @@ class TestChartsWithMockData:
         assert response.status_code == 200
         resp = response.json()
         assert resp["success"] is True
-        assert len(resp["data"]["data_points"]) > 0
+        assert len(resp["data"]["data_points"]) == 30
 
     def test_get_stars_chart_time_ranges(self, client, mock_repo_with_snapshots):
         """Test star chart with different time ranges."""

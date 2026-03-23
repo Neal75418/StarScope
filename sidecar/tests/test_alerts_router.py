@@ -289,11 +289,9 @@ class TestAlertCheck:
         assert resp["success"] is True
         data = resp["data"]
         assert data["status"] == "checked"
-        assert data["triggered_count"] >= 1
-        # Verify triggered alert structure
-        if data["triggered_count"] > 0:
-            triggered = data["triggered"][0]
-            assert "id" in triggered
-            assert "rule_id" in triggered
-            assert "repo_id" in triggered
-            assert "signal_value" in triggered
+        assert data["triggered_count"] == 1
+        triggered = data["triggered"][0]
+        assert "id" in triggered
+        assert "rule_id" in triggered
+        assert "repo_id" in triggered
+        assert "signal_value" in triggered

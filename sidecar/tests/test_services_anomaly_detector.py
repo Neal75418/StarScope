@@ -2,6 +2,7 @@
 Tests for services/anomaly_detector.py - Anomaly detection service.
 """
 
+import pytest
 from datetime import date, timedelta
 
 from db.models import (
@@ -330,11 +331,16 @@ class TestRunDetection:
 class TestGetAnomalyDetector:
     """Tests for get_anomaly_detector function."""
 
+    @pytest.fixture(autouse=True)
+    def reset_singleton(self):
+        import services.anomaly_detector as detector_module
+        original = detector_module._detector
+        detector_module._detector = None
+        yield
+        detector_module._detector = original
+
     def test_returns_singleton(self):
         """Test returns the same instance."""
-        import services.anomaly_detector as detector_module
-        detector_module._detector = None
-
         d1 = get_anomaly_detector()
         d2 = get_anomaly_detector()
 
@@ -342,9 +348,6 @@ class TestGetAnomalyDetector:
 
     def test_creates_instance(self):
         """Test creates AnomalyDetector instance."""
-        import services.anomaly_detector as detector_module
-        detector_module._detector = None
-
         detector = get_anomaly_detector()
 
         assert isinstance(detector, AnomalyDetector)
