@@ -33,6 +33,7 @@ export const CategorySidebar = memo(function CategorySidebar({
 }: CategorySidebarProps) {
   const { t } = useI18n();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryTreeNode | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -51,6 +52,18 @@ export const CategorySidebar = memo(function CategorySidebar({
   const { isExpanded, toggleExpanded } = useCategoryExpand();
   const deleteConfirm = useDeleteConfirm();
   const { reorder } = useCategoryReorder(tree, fetchCategories);
+
+  const handleCreate = useCallback(
+    async (name: string): Promise<boolean> => {
+      setIsAddingCategory(true);
+      try {
+        return await handleCreateCategory(name);
+      } finally {
+        setIsAddingCategory(false);
+      }
+    },
+    [handleCreateCategory]
+  );
 
   const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
     e.stopPropagation();
@@ -123,10 +136,11 @@ export const CategorySidebar = memo(function CategorySidebar({
       <CategorySidebarHeader
         showAddForm={showAddForm}
         onToggleAddForm={() => setShowAddForm(!showAddForm)}
+        disabled={isAddingCategory}
       />
 
       {showAddForm && (
-        <CategoryAddForm onSubmit={handleCreateCategory} onCancel={() => setShowAddForm(false)} />
+        <CategoryAddForm onSubmit={handleCreate} onCancel={() => setShowAddForm(false)} />
       )}
 
       <div className="category-list">

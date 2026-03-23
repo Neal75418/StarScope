@@ -19,8 +19,10 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const isOperating = isClearingCache || isResetting;
 
   const handleClearCache = async () => {
+    if (isOperating) return;
     setIsClearingCache(true);
     try {
       await clearCache();
@@ -35,6 +37,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
   };
 
   const handleResetData = async () => {
+    if (isOperating) return;
     setIsResetting(true);
     try {
       await resetAllData();
@@ -62,11 +65,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
               <div className="data-action-title">{t.settings.data.clearCache}</div>
               <div className="data-action-desc">{t.settings.data.clearCacheDesc}</div>
             </div>
-            <button
-              className="btn"
-              onClick={() => void handleClearCache()}
-              disabled={isClearingCache}
-            >
+            <button className="btn" onClick={() => void handleClearCache()} disabled={isOperating}>
               {isClearingCache ? `${t.settings.data.clearCache}...` : t.settings.data.clearCache}
             </button>
           </div>
@@ -83,7 +82,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
               <button
                 className="btn btn-danger"
                 onClick={() => setShowResetConfirm(true)}
-                disabled={isResetting}
+                disabled={isOperating}
               >
                 {isResetting ? `${t.settings.data.resetData}...` : t.settings.data.resetData}
               </button>

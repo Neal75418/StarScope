@@ -172,7 +172,7 @@ describe("useDeviceFlowPolling", () => {
 
   it("does not overlap polls when pollAuthorization is slow", async () => {
     // pollAuthorization takes 15s to resolve — longer than the 10s interval
-    let resolveFirst: (value: unknown) => void = () => undefined;
+    let resolveFirst: (value: { status: "pending" }) => void = () => undefined;
     mockPollAuth.mockImplementationOnce(
       () =>
         new Promise((resolve) => {

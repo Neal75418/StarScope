@@ -44,6 +44,7 @@ export const BatchActionBar = memo(function BatchActionBar({
   const { tree } = useCategoryTree();
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
   const closePicker = useCallback(() => setShowCategoryPicker(false), []);
   useClickOutside(pickerRef, closePicker, showCategoryPicker);
@@ -85,13 +86,15 @@ export const BatchActionBar = memo(function BatchActionBar({
   const closeRemoveConfirm = useCallback(() => setShowRemoveConfirm(false), []);
 
   const handleRemoveConfirm = useCallback(async () => {
+    setIsRemoving(true);
     try {
       const result = await onBatchRemove();
-      setShowRemoveConfirm(false);
       if (result.success === result.total) {
+        setShowRemoveConfirm(false);
         onDone();
       } else if (result.success > 0) {
-        // Partial — prune selection to only failed IDs for retry
+        // Partial — close dialog, prune selection to only failed IDs for retry
+        setShowRemoveConfirm(false);
         onPruneSelection(result.failedIds);
         onError(
           interpolate(t.watchlist.batch.partial, {
@@ -100,11 +103,14 @@ export const BatchActionBar = memo(function BatchActionBar({
           })
         );
       } else {
+        // Full failure — keep dialog open for retry
         onError(t.watchlist.batch.error);
       }
     } catch {
-      setShowRemoveConfirm(false);
+      // Unexpected error — keep dialog open for retry
       onError(t.watchlist.batch.error);
+    } finally {
+      setIsRemoving(false);
     }
   }, [onBatchRemove, onPruneSelection, onDone, onError, t]);
 
@@ -182,7 +188,7 @@ export const BatchActionBar = memo(function BatchActionBar({
         title={t.watchlist.batch.remove}
         message={interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })}
         variant="danger"
-        isProcessing={isProcessing}
+        isProcessing={isRemoving}
         onConfirm={handleRemoveConfirm}
         onCancel={closeRemoveConfirm}
       />

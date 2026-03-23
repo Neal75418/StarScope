@@ -7,11 +7,13 @@ import { useI18n } from "../../i18n";
 interface CategorySidebarHeaderProps {
   showAddForm: boolean;
   onToggleAddForm: () => void;
+  disabled?: boolean;
 }
 
 export function CategorySidebarHeader({
   showAddForm,
   onToggleAddForm,
+  disabled,
 }: CategorySidebarHeaderProps) {
   const { t } = useI18n();
 
@@ -21,6 +23,7 @@ export function CategorySidebarHeader({
       <button
         className="btn btn-sm"
         onClick={onToggleAddForm}
+        disabled={disabled}
         title={t.categories.addCategory}
         aria-label={t.categories.addCategory}
         aria-expanded={showAddForm}
