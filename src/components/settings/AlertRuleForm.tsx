@@ -175,6 +175,7 @@ export function AlertRuleForm({
         </div>
         {!applyToAll && (
           <select
+            aria-label={t.settings.alerts.form.selectedRepos}
             value={rule.repo_id ?? ""}
             onChange={(e) =>
               setRule({ ...rule, repo_id: e.target.value ? parseInt(e.target.value) : undefined })

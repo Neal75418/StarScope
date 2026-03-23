@@ -87,21 +87,16 @@ export const BatchActionBar = memo(function BatchActionBar({
             disabled={isProcessing || flatCategories.length === 0}
             data-testid="batch-add-to-category"
             aria-expanded={showCategoryPicker}
-            aria-haspopup="listbox"
+            aria-haspopup="menu"
           >
             {t.watchlist.batch.addToCategory}
           </button>
           {showCategoryPicker && (
-            <div
-              className="batch-category-picker"
-              role="listbox"
-              data-testid="batch-category-picker"
-            >
+            <div className="batch-category-picker" role="menu" data-testid="batch-category-picker">
               {flatCategories.map((cat) => (
                 <button
                   key={cat.id}
-                  role="option"
-                  aria-selected={false}
+                  role="menuitem"
                   className="batch-category-option"
                   style={{ paddingLeft: `${8 + cat.depth * 16}px` }}
                   onClick={() => handleAddToCategory(cat.id)}

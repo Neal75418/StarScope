@@ -692,6 +692,7 @@ export const translations = {
       lastUpdated: "Updated",
       syncing: "Syncing...",
       refresh: "Refresh",
+      timeUnits: { h: "h", m: "m", s: "s" },
     },
     // 對話框
     dialog: {
@@ -1548,6 +1549,7 @@ export const translations = {
       lastUpdated: "最後更新",
       syncing: "同步中...",
       refresh: "重新整理",
+      timeUnits: { h: "時", m: "分", s: "秒" },
     },
     // 對話框
     dialog: {

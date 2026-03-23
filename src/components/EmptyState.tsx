@@ -15,7 +15,7 @@ interface EmptyStateProps {
 export function EmptyState({ title, description, actionLabel, onAction, icon }: EmptyStateProps) {
   return (
     <div className="empty-state-container">
-      <div className="empty-state-icon">
+      <div className="empty-state-icon" aria-hidden="true">
         {icon || (
           <svg
             width="120"

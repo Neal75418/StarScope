@@ -54,13 +54,25 @@ const AlertRuleCard = memo(function AlertRuleCard({
         </div>
       </div>
       <div className="alert-rule-actions">
-        <button className="btn btn-sm" onClick={() => onToggle(rule.id)}>
+        <button
+          className="btn btn-sm"
+          onClick={() => onToggle(rule.id)}
+          aria-label={`${rule.enabled ? t.settings.alerts.actions.disable : t.settings.alerts.actions.enable} ${rule.name}`}
+        >
           {rule.enabled ? t.settings.alerts.actions.disable : t.settings.alerts.actions.enable}
         </button>
-        <button className="btn btn-sm" onClick={() => onEdit(rule)}>
+        <button
+          className="btn btn-sm"
+          onClick={() => onEdit(rule)}
+          aria-label={`${t.common.edit} ${rule.name}`}
+        >
           {t.common.edit}
         </button>
-        <button className="btn btn-sm btn-danger" onClick={() => onDelete(rule.id)}>
+        <button
+          className="btn btn-sm btn-danger"
+          onClick={() => onDelete(rule.id)}
+          aria-label={`${t.common.delete} ${rule.name}`}
+        >
           {t.common.delete}
         </button>
       </div>

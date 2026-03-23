@@ -13,22 +13,22 @@ interface ConnectionConnectedProps {
 }
 
 /**
- * 將秒數格式化為易讀的倒數字串（如 "45m 30s" 或 "1h 23m"）。
+ * 將秒數格式化為易讀的倒數字串，使用本地化時間單位。
  */
-function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return "0s";
+function formatCountdown(seconds: number, units: { h: string; m: string; s: string }): string {
+  if (seconds <= 0) return `0${units.s}`;
 
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = seconds % 60;
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return `${hours}${units.h} ${minutes}${units.m}`;
   }
   if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
+    return `${minutes}${units.m} ${secs}${units.s}`;
   }
-  return `${secs}s`;
+  return `${secs}${units.s}`;
 }
 
 export function ConnectionConnected({ status, onDisconnect, onRefresh }: ConnectionConnectedProps) {
@@ -51,7 +51,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
       if (secondsRemaining <= 0) {
         setCountdown("");
       } else {
-        setCountdown(formatCountdown(secondsRemaining));
+        setCountdown(formatCountdown(secondsRemaining, t.common.timeUnits));
       }
     };
 
@@ -62,7 +62,7 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [status.rate_limit_reset]);
+  }, [status.rate_limit_reset, t.common.timeUnits]);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
