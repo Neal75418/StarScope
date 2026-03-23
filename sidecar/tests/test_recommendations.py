@@ -34,16 +34,3 @@ class TestRecommendationEndpoints:
         assert "processed" in data
         assert "similarities_found" in data
 
-    def test_get_recommendation_stats(self, client):
-        """Test getting recommendation statistics."""
-        response = client.get("/api/recommendations/stats")
-        assert response.status_code == 200
-        response_data = response.json()
-        # 驗證統一的 API 響應格式
-        assert response_data["success"] is True
-        assert "data" in response_data
-        data = response_data["data"]
-        assert "total_repos" in data
-        assert "total_similarity_pairs" in data
-        assert "repos_with_recommendations" in data
-        assert "average_similarity_score" in data

@@ -23,7 +23,6 @@ import type {
   BackfillResult,
   StarHistoryResponse,
   StarsChartResponse,
-  CalculateSimilaritiesResponse,
   RecalculateAllResponse,
   Category,
   CategoryTreeResponse,
@@ -345,17 +344,6 @@ export async function getStarHistory(
 }
 
 // 推薦系統 API 函式
-
-/**
- * 計算指定儲存庫的相似度。
- */
-export async function calculateRepoSimilarities(
-  repoId: number
-): Promise<CalculateSimilaritiesResponse> {
-  return apiCall<CalculateSimilaritiesResponse>(`/recommendations/repo/${repoId}/calculate`, {
-    method: "POST",
-  });
-}
 
 /**
  * 重新計算所有儲存庫的相似度。

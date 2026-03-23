@@ -123,30 +123,3 @@ async def get_trends(
         data=trends_response,
         message=f"Found {len(trending_repos)} trending repositories (sorted by {sort_by.value})"
     )
-
-
-@router.get("/top-velocity", response_model=ApiResponse[TrendsResponse])
-async def get_top_velocity(
-    limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db)
-) -> dict:
-    """依 velocity（每日 star 數）取得排名前列的 repo。"""
-    return await get_trends(sort_by=SortBy.VELOCITY, limit=limit, db=db)
-
-
-@router.get("/top-delta-7d", response_model=ApiResponse[TrendsResponse])
-async def get_top_delta_7d(
-    limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db)
-) -> dict:
-    """依 7 天 star 增量取得排名前列的 repo。"""
-    return await get_trends(sort_by=SortBy.STARS_DELTA_7D, limit=limit, db=db)
-
-
-@router.get("/top-acceleration", response_model=ApiResponse[TrendsResponse])
-async def get_top_acceleration(
-    limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db)
-) -> dict:
-    """依 acceleration（動量變化）取得排名前列的 repo。"""
-    return await get_trends(sort_by=SortBy.ACCELERATION, limit=limit, db=db)

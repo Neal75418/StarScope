@@ -5,13 +5,12 @@
 
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from middleware.rate_limit import limiter
 
 from db.database import get_db
-from db.models import Repo, SimilarRepo
+from db.models import Repo
 from services.recommender import (
     calculate_repo_similarities,
     recalculate_all_similarities,
@@ -57,14 +56,6 @@ class PersonalizedResponse(BaseModel):
     recommendations: list[PersonalizedRecommendation]
     total: int
     based_on_repos: int
-
-
-class RecommendationStatsResponse(BaseModel):
-    """推薦系統統計資訊的回應。"""
-    total_repos: int
-    total_similarity_pairs: int
-    repos_with_recommendations: int
-    average_similarity_score: float
 
 
 # 端點
@@ -142,33 +133,4 @@ async def get_personalized(
     return success_response(
         data=personalized_response,
         message=f"Found {result['total']} personalized recommendations"
-    )
-
-
-@router.get("/stats", response_model=ApiResponse[RecommendationStatsResponse])
-async def get_recommendation_stats(
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    取得推薦系統的統計資訊。
-    """
-    total_repos = db.query(Repo).count()
-    total_similarities = db.query(SimilarRepo).count()
-
-    # 平均相似度分數
-    avg_score = db.query(func.avg(SimilarRepo.similarity_score)).scalar() or 0.0
-
-    # 至少有一個相似 repo 的 repo
-    repos_with_similar = db.query(SimilarRepo.repo_id).distinct().count()
-
-    stats_response = RecommendationStatsResponse(
-        total_repos=total_repos,
-        total_similarity_pairs=total_similarities,
-        repos_with_recommendations=repos_with_similar,
-        average_similarity_score=round(avg_score, 3),
-    )
-
-    return success_response(
-        data=stats_response,
-        message="Retrieved recommendation system statistics"
     )
