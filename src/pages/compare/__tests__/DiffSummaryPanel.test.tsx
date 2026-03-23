@@ -7,12 +7,14 @@ vi.mock("../../../i18n", () => ({
   useI18n: () => ({
     t: {
       compare: {
+        perDay: "/day",
         diff: {
           title: "Summary",
           leader: "Leader",
           fastest: "Fastest Growing",
           mostGained: "Most Gained (7d)",
           gap: "Star Gap",
+          versus: "vs",
           closing: "Closing",
           widening: "Widening",
         },
