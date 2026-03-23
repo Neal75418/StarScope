@@ -21,8 +21,16 @@ export function BackfillMessages({ isOffline, error, successMessage, t }: Backfi
         </span>
       )}
 
-      {error && <span className="backfill-error">{error}</span>}
-      {successMessage && <span className="backfill-success">{successMessage}</span>}
+      {error && (
+        <span className="backfill-error" role="alert">
+          {error}
+        </span>
+      )}
+      {successMessage && (
+        <span className="backfill-success" role="status">
+          {successMessage}
+        </span>
+      )}
     </>
   );
 }

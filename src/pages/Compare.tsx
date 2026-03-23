@@ -154,7 +154,7 @@ export function Compare() {
                   onClick={() => setTimeRange(tr)}
                   aria-pressed={timeRange === tr}
                 >
-                  {tr}
+                  {t.compare.timeRangeLabels[tr]}
                 </button>
               ))}
             </div>

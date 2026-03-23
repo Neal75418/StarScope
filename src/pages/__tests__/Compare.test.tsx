@@ -66,6 +66,12 @@ vi.mock("../../i18n", () => ({
         noData: "No data available for selected time range",
         retry: "Retry",
         download: "Download PNG",
+        timeRangeLabels: {
+          "7d": "7 days",
+          "30d": "30 days",
+          "90d": "90 days",
+          all: "All time",
+        },
         metric: {
           stars: "Stars",
           forks: "Forks",
@@ -240,7 +246,7 @@ describe("Compare", () => {
 
   it("does not show chart controls when < 2 repos selected", () => {
     render(<Compare />);
-    expect(screen.queryByText("30d")).not.toBeInTheDocument();
+    expect(screen.queryByText("30 days")).not.toBeInTheDocument();
     expect(screen.queryByText("Normalize (%)")).not.toBeInTheDocument();
   });
 
@@ -319,10 +325,10 @@ describe("Compare", () => {
       refetch: mockRefetch,
     };
     render(<Compare />);
-    expect(screen.getByText("7d")).toBeInTheDocument();
-    expect(screen.getByText("30d")).toBeInTheDocument();
-    expect(screen.getByText("90d")).toBeInTheDocument();
-    expect(screen.getByText("all")).toBeInTheDocument();
+    expect(screen.getByText("7 days")).toBeInTheDocument();
+    expect(screen.getByText("30 days")).toBeInTheDocument();
+    expect(screen.getByText("90 days")).toBeInTheDocument();
+    expect(screen.getByText("All time")).toBeInTheDocument();
   });
 
   it("shows normalize checkbox when >= 2 repos selected", () => {

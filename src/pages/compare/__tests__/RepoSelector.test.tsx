@@ -88,9 +88,9 @@ describe("RepoSelector", () => {
         t={mockT as never}
       />
     );
-    // The 6th chip (not selected) should be disabled
+    // The 6th chip (not selected) should be aria-disabled
     const preactChip = screen.getByText("preactjs/preact");
-    expect(preactChip.closest("button")).toBeDisabled();
+    expect(preactChip.closest("button")).toHaveAttribute("aria-disabled", "true");
   });
 
   it("filters repos by search query", async () => {

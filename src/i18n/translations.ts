@@ -389,6 +389,12 @@ export const translations = {
       retry: "Retry",
       download: "Download PNG",
       timeRange: "Time range",
+      timeRangeLabels: {
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days",
+        all: "All time",
+      },
       metric: {
         title: "Metric",
         stars: "Stars",
@@ -1240,6 +1246,12 @@ export const translations = {
       retry: "重試",
       download: "下載 PNG",
       timeRange: "時間範圍",
+      timeRangeLabels: {
+        "7d": "7 天",
+        "30d": "30 天",
+        "90d": "90 天",
+        all: "全部",
+      },
       metric: {
         title: "指標",
         stars: "星數",

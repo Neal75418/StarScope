@@ -78,7 +78,7 @@ export function AppHeader({
         {t.common.skipToContent}
       </a>
       <header className="app-header">
-        <nav className="nav-container">
+        <nav className="nav-container" aria-label={t.nav.mainNavigation}>
           {/* 左側：Logo 與導覽 */}
           <div className="nav-left">
             <button className="nav-logo" onClick={() => onPageChange("dashboard")}>
@@ -86,7 +86,7 @@ export function AppHeader({
               <span className="logo-text">StarScope</span>
             </button>
 
-            <div className="nav-items" role="navigation" aria-label={t.nav.mainNavigation}>
+            <div className="nav-items">
               {navItems.map((item) => (
                 <button
                   key={item.id}

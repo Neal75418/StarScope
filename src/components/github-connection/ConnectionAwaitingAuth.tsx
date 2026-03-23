@@ -34,8 +34,8 @@ export function ConnectionAwaitingAuth({
             {copied ? t.githubConnection.copied : t.githubConnection.copy}
           </button>
         </div>
-        <div className="device-code-hint">
-          <span className="spinner-small" />
+        <div className="device-code-hint" role="status" aria-live="polite">
+          <span className="spinner-small" aria-hidden="true" />
           {pollStatus || t.githubConnection.waitingAuth}
         </div>
         <div className="device-code-warning">{t.githubConnection.stayOnPage}</div>

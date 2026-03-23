@@ -40,6 +40,8 @@ export const RepoSelector = memo(
       []
     );
 
+    const atLimit = selectedIds.length >= MAX_COMPARE_REPOS;
+
     const filtered = useMemo(() => {
       if (!search.trim()) return repos;
       const q = search.toLowerCase();
@@ -56,17 +58,22 @@ export const RepoSelector = memo(
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {atLimit && (
+          <p className="compare-hint" role="status">
+            {t.compare.maxRepos}
+          </p>
+        )}
         <div className="compare-repo-list">
           {filtered.map((repo) => {
             const isSelected = selectedIds.includes(repo.id);
-            const disabled = !isSelected && selectedIds.length >= MAX_COMPARE_REPOS;
+            const isDisabled = !isSelected && atLimit;
             return (
               <button
                 key={repo.id}
-                className={`compare-repo-chip ${isSelected ? "selected" : ""}`}
-                onClick={() => onToggle(repo.id)}
-                disabled={disabled}
-                title={disabled ? t.compare.maxRepos : repo.full_name}
+                className={`compare-repo-chip ${isSelected ? "selected" : ""}${isDisabled ? " disabled" : ""}`}
+                onClick={() => !isDisabled && onToggle(repo.id)}
+                aria-disabled={isDisabled || undefined}
+                title={repo.full_name}
               >
                 {repo.full_name}
                 {isSelected && <span className="compare-chip-x">×</span>}
