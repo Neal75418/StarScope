@@ -127,11 +127,11 @@ describe("BreakoutBadge", () => {
     render(<BreakoutBadge signals={signals} />);
 
     const badge = screen.getByText("Breakout");
-    const descId = badge.getAttribute("aria-describedby");
-    expect(descId).toBeTruthy();
+    const descId = badge.getAttribute("aria-describedby") ?? "";
+    expect(descId).not.toBe("");
 
     // sr-only span 存在且 id 對應
-    const descSpan = document.getElementById(descId!);
+    const descSpan = document.getElementById(descId);
     expect(descSpan).toBeInTheDocument();
     expect(descSpan).toHaveClass("sr-only");
     expect(descSpan).toHaveTextContent("Velocity exceeds threshold");
