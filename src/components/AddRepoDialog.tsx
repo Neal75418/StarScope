@@ -43,7 +43,11 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
   };
 
   return (
-    <div className="dialog-overlay" onClick={handleClose} role="presentation">
+    <div
+      className="dialog-overlay"
+      onClick={isLoading ? undefined : handleClose}
+      role="presentation"
+    >
       <div
         ref={focusTrapRef}
         className="dialog"
@@ -55,7 +59,12 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
       >
         <div className="dialog-header">
           <h2 id="add-repo-dialog-title">{t.dialog.addRepo.title}</h2>
-          <button onClick={handleClose} className="btn btn-sm" aria-label={t.common.close}>
+          <button
+            onClick={handleClose}
+            className="btn btn-sm"
+            aria-label={t.common.close}
+            disabled={isLoading}
+          >
             ✕
           </button>
         </div>

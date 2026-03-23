@@ -56,9 +56,12 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
     const updates: Partial<SignalThresholdsResponse> = {};
     for (const [key, val] of Object.entries(draft)) {
       const parsed = parseFloat(val);
-      if (!isNaN(parsed)) {
-        (updates as Record<string, number>)[key] = parsed;
+      if (isNaN(parsed)) {
+        // 有無效值 — 拒絕送出，避免部分欄位被默默丟掉
+        onToast(t.settings.signalThresholds.toast.error, "error");
+        return;
       }
+      (updates as Record<string, number>)[key] = parsed;
     }
     if (Object.keys(updates).length > 0) {
       mutation.mutate(updates, {

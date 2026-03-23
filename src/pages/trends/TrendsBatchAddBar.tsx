@@ -27,29 +27,34 @@ export const TrendsBatchAddBar = memo(function TrendsBatchAddBar({
   const [isAdding, setIsAdding] = useState(false);
 
   const handleBatchAdd = useCallback(async () => {
-    if (selectedRepos.length === 0) return;
+    if (isAdding || selectedRepos.length === 0) return;
     setIsAdding(true);
     try {
       const result = await batchAddRepos(
         selectedRepos.map((r) => ({ owner: r.owner, name: r.name }))
       );
-      void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
-      onDone();
-      if (result.failed > 0) {
+      if (result.success === result.total) {
+        // 全部成功 — 退出 selection mode
+        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+        onDone();
+      } else if (result.success > 0) {
+        // 部分成功 — 保留 selection 讓使用者可重試
+        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
         onError(
-          result.success === 0
-            ? t.trends.batch.error
-            : t.trends.batch.partial
-                .replace("{success}", String(result.success))
-                .replace("{total}", String(result.total))
+          t.trends.batch.partial
+            .replace("{success}", String(result.success))
+            .replace("{total}", String(result.total))
         );
+      } else {
+        // 全部失敗
+        onError(t.trends.batch.error);
       }
     } catch {
       onError(t.trends.batch.error);
     } finally {
       setIsAdding(false);
     }
-  }, [selectedRepos, queryClient, onDone, onError, t]);
+  }, [isAdding, selectedRepos, queryClient, onDone, onError, t]);
 
   if (selectedCount === 0) return null;
 

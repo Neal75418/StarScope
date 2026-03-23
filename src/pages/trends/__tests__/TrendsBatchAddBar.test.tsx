@@ -112,7 +112,8 @@ describe("TrendsBatchAddBar", () => {
     await user.click(screen.getByTestId("trends-batch-add-btn"));
 
     await waitFor(() => {
-      expect(onDone).toHaveBeenCalled();
+      // Partial failure: stay in selection mode, show error, don't call onDone
+      expect(onDone).not.toHaveBeenCalled();
       expect(onError).toHaveBeenCalledWith("Added 1 of 2 repos");
     });
   });
