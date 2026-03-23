@@ -55,6 +55,7 @@ export const RepoSelector = memo(
           type="text"
           className="compare-search"
           placeholder={t.compare.searchPlaceholder}
+          aria-label={t.compare.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

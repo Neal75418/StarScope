@@ -28,7 +28,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       await queryClient.invalidateQueries();
       onToast(t.settings.data.toast.cacheCleared, "success");
     } catch {
-      onToast(t.common.error, "error");
+      onToast(t.settings.data.toast.cacheClearFailed, "error");
     } finally {
       setIsClearingCache(false);
     }
@@ -43,7 +43,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       queryClient.clear();
       onToast(t.settings.data.toast.dataReset, "success");
     } catch {
-      onToast(t.common.error, "error");
+      onToast(t.settings.data.toast.dataResetFailed, "error");
     } finally {
       setIsResetting(false);
     }

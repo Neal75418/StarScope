@@ -2,7 +2,7 @@
  * PNG 下載按鈕：將圖表 SVG 轉為 PNG 並下載。
  */
 
-import type { RefObject } from "react";
+import { useState, useCallback, type RefObject } from "react";
 import { useI18n } from "../../i18n";
 
 interface ChartDownloadButtonProps {
@@ -11,13 +11,22 @@ interface ChartDownloadButtonProps {
 
 export function ChartDownloadButton({ chartRef }: ChartDownloadButtonProps) {
   const { t } = useI18n();
+  const [error, setError] = useState(false);
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(() => {
+    setError(false);
+
     const container = chartRef.current;
-    if (!container) return;
+    if (!container) {
+      setError(true);
+      return;
+    }
 
     const svg = container.querySelector("svg");
-    if (!svg) return;
+    if (!svg) {
+      setError(true);
+      return;
+    }
 
     const svgData = new XMLSerializer().serializeToString(svg);
     const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
@@ -33,6 +42,7 @@ export function ChartDownloadButton({ chartRef }: ChartDownloadButtonProps) {
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         URL.revokeObjectURL(url);
+        setError(true);
         return;
       }
 
@@ -41,7 +51,10 @@ export function ChartDownloadButton({ chartRef }: ChartDownloadButtonProps) {
       URL.revokeObjectURL(url);
 
       canvas.toBlob((blob) => {
-        if (!blob) return;
+        if (!blob) {
+          setError(true);
+          return;
+        }
         const blobUrl = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = blobUrl;
@@ -52,17 +65,25 @@ export function ChartDownloadButton({ chartRef }: ChartDownloadButtonProps) {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
+      setError(true);
     };
     img.src = url;
-  };
+  }, [chartRef]);
 
   return (
-    <button
-      className="btn btn-sm compare-download-btn"
-      onClick={handleDownload}
-      data-testid="compare-download-btn"
-    >
-      {t.compare.download}
-    </button>
+    <span className="compare-download-wrapper">
+      <button
+        className="btn btn-sm compare-download-btn"
+        onClick={handleDownload}
+        data-testid="compare-download-btn"
+      >
+        {t.compare.download}
+      </button>
+      {error && (
+        <span className="compare-download-error" role="alert">
+          {t.compare.downloadFailed}
+        </span>
+      )}
+    </span>
   );
 }

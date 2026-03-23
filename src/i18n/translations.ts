@@ -388,6 +388,7 @@ export const translations = {
       noData: "No data available for selected time range",
       retry: "Retry",
       download: "Download PNG",
+      downloadFailed: "Download failed",
       timeRange: "Time range",
       timeRangeLabels: {
         "7d": "7 days",
@@ -570,7 +571,9 @@ export const translations = {
         dangerZone: "Danger Zone",
         toast: {
           cacheCleared: "Cache cleared",
+          cacheClearFailed: "Failed to clear cache",
           dataReset: "All data has been reset",
+          dataResetFailed: "Failed to reset data",
         },
       },
       diagnostics: {
@@ -1245,6 +1248,7 @@ export const translations = {
       noData: "所選時間範圍內無資料",
       retry: "重試",
       download: "下載 PNG",
+      downloadFailed: "下載失敗",
       timeRange: "時間範圍",
       timeRangeLabels: {
         "7d": "7 天",
@@ -1425,7 +1429,9 @@ export const translations = {
         dangerZone: "危險操作",
         toast: {
           cacheCleared: "快取已清除",
+          cacheClearFailed: "清除快取失敗",
           dataReset: "所有資料已重置",
+          dataResetFailed: "重置資料失敗",
         },
       },
       diagnostics: {

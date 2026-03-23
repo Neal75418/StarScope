@@ -13,7 +13,7 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
   const { t } = useI18n();
 
   return (
-    <div className="github-error">
+    <div className="github-error" role="alert">
       {error}
       <button onClick={onDismiss} className="dismiss-btn">
         {t.githubConnection.dismiss}

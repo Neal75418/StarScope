@@ -63,9 +63,12 @@ export function ScheduledRefreshSection({ onToast }: ScheduledRefreshSectionProp
         <Skeleton width={300} height={40} variant="rounded" />
       ) : (
         <div className="settings-field">
-          <label className="settings-field-label">{t.settings.scheduledRefresh.interval}</label>
+          <label className="settings-field-label" htmlFor="scheduled-refresh-interval">
+            {t.settings.scheduledRefresh.interval}
+          </label>
           <div className="settings-interval-row">
             <select
+              id="scheduled-refresh-interval"
               className="settings-select"
               value={effectiveInterval}
               onChange={(e) => setSelected(parseInt(e.target.value) as FetchInterval)}
