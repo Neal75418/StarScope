@@ -67,6 +67,24 @@ describe("BackfillStatusBadge", () => {
     expect(container.querySelector(".backfill-last-updated")).not.toBeInTheDocument();
   });
 
+  it("uses app language for locale formatting in title", () => {
+    const lastUpdated = new Date("2024-01-15T12:00:00Z");
+    render(
+      <BackfillStatusBadge
+        status={{ has_backfilled_data: false, can_backfill: true }}
+        lastUpdated={lastUpdated}
+        lastUpdatedText="5m ago"
+        t={mockT}
+        language="zh-TW"
+      />
+    );
+
+    expect(screen.getByText("5m ago")).toHaveAttribute(
+      "title",
+      lastUpdated.toLocaleString("zh-TW")
+    );
+  });
+
   it("handles undefined backfilled_days gracefully", () => {
     render(
       <BackfillStatusBadge

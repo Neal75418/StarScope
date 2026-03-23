@@ -122,6 +122,29 @@ describe("BreakoutBadge", () => {
     expect(badge).toHaveAttribute("title", "Testing tooltip");
   });
 
+  it("exposes description via aria-describedby and sr-only span", () => {
+    const signals = [makeSignal({ description: "Velocity exceeds threshold" })];
+    render(<BreakoutBadge signals={signals} />);
+
+    const badge = screen.getByText("Breakout");
+    const descId = badge.getAttribute("aria-describedby");
+    expect(descId).toBeTruthy();
+
+    // sr-only span 存在且 id 對應
+    const descSpan = document.getElementById(descId!);
+    expect(descSpan).toBeInTheDocument();
+    expect(descSpan).toHaveClass("sr-only");
+    expect(descSpan).toHaveTextContent("Velocity exceeds threshold");
+  });
+
+  it("omits aria-describedby when description is empty", () => {
+    const signals = [makeSignal({ description: "" })];
+    render(<BreakoutBadge signals={signals} />);
+
+    const badge = screen.getByText("Breakout");
+    expect(badge).not.toHaveAttribute("aria-describedby");
+  });
+
   it("shows all signal type labels correctly", () => {
     // Test each type one at a time
     const types: Array<{ type: EarlySignal["signal_type"]; label: string }> = [
