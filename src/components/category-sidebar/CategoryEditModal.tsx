@@ -46,7 +46,7 @@ export function CategoryEditModal({
   useEscapeKey(onClose, !isSubmitting);
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="presentation">
+    <div className="modal-overlay" onClick={isSubmitting ? undefined : onClose} role="presentation">
       <div
         className="modal category-edit-modal"
         onClick={(e) => e.stopPropagation()}
@@ -57,7 +57,12 @@ export function CategoryEditModal({
       >
         <div className="modal-header">
           <h3 id="category-edit-modal-title">{t.categories.editCategory}</h3>
-          <button className="modal-close" onClick={onClose} aria-label={t.common.close}>
+          <button
+            className="modal-close"
+            onClick={onClose}
+            aria-label={t.common.close}
+            disabled={isSubmitting}
+          >
             &times;
           </button>
         </div>

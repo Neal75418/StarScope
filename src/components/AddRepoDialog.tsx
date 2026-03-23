@@ -2,7 +2,7 @@
  * 新增 repo 到 watchlist 的 dialog。
  */
 
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -20,11 +20,13 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
   const [input, setInput] = useState("");
   const focusTrapRef = useFocusTrap(isOpen, false);
 
+  // dialog 開啟時清空輸入（上次成功關閉後重新進入）
+  useEffect(() => {
+    if (isOpen) setInput("");
+  }, [isOpen]);
+
   // 按 ESC 關閉 dialog
-  useEscapeKey(() => {
-    setInput("");
-    onClose();
-  }, isOpen && !isLoading);
+  useEscapeKey(onClose, isOpen && !isLoading);
 
   if (!isOpen) return null;
 
@@ -32,11 +34,11 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
     e.preventDefault();
     if (!input.trim()) return;
     await onAdd(input.trim());
-    setInput("");
+    // 不清空 input — 失敗時保留讓使用者可修改重試
+    // 成功時 reducer 關閉 dialog，下次開啟由 useEffect 清空
   };
 
   const handleClose = () => {
-    setInput("");
     onClose();
   };
 

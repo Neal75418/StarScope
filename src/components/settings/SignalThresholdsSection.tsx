@@ -37,11 +37,6 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
 
   const mutation = useMutation({
     mutationFn: (updates: Partial<SignalThresholdsResponse>) => updateSignalThresholds(updates),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["settings", "signalThresholds"] });
-      setDraft({});
-      onToast(t.settings.signalThresholds.toast.saved, "success");
-    },
     onError: () => {
       onToast(t.settings.signalThresholds.toast.error, "error");
     },
@@ -66,7 +61,13 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
       }
     }
     if (Object.keys(updates).length > 0) {
-      mutation.mutate(updates);
+      mutation.mutate(updates, {
+        onSuccess: () => {
+          void queryClient.invalidateQueries({ queryKey: ["settings", "signalThresholds"] });
+          setDraft({});
+          onToast(t.settings.signalThresholds.toast.saved, "success");
+        },
+      });
     }
   };
 

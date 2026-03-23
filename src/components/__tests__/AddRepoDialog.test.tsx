@@ -116,7 +116,7 @@ describe("AddRepoDialog", () => {
     expect(screen.getByText("Repository not found")).toBeInTheDocument();
   });
 
-  it("clears input after successful submit", async () => {
+  it("preserves input after submit so user can retry on failure", async () => {
     const user = userEvent.setup();
     mockOnAdd.mockResolvedValue(undefined);
 
@@ -127,8 +127,29 @@ describe("AddRepoDialog", () => {
     await user.click(screen.getByText("Add"));
 
     await vi.waitFor(() => {
-      expect(input.value).toBe("");
+      expect(mockOnAdd).toHaveBeenCalledWith("test/repo");
     });
+    // Input preserved — on failure, user can edit and retry
+    expect(input.value).toBe("test/repo");
+  });
+
+  it("clears input when dialog reopens", async () => {
+    const user = userEvent.setup();
+    mockOnAdd.mockResolvedValue(undefined);
+
+    const { rerender } = render(
+      <AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />
+    );
+
+    const input = screen.getByPlaceholderText("owner/repo or GitHub URL") as HTMLInputElement;
+    await user.type(input, "test/repo");
+
+    // Dialog closes then reopens — input should be cleared
+    rerender(<AddRepoDialog isOpen={false} onClose={mockOnClose} onAdd={mockOnAdd} />);
+    rerender(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
+
+    const freshInput = screen.getByPlaceholderText("owner/repo or GitHub URL") as HTMLInputElement;
+    expect(freshInput.value).toBe("");
   });
 
   it("has proper ARIA attributes", () => {

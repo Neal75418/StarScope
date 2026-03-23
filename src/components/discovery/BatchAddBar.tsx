@@ -31,13 +31,17 @@ export const BatchAddBar = memo(function BatchAddBar({
     setIsAdding(true);
     try {
       const result = await batchAddRepos(selectedRepos);
-      toast.success(
-        t.discovery.batchAdd.success
-          .replace("{count}", String(result.success))
-          .replace("{total}", String(result.total))
-      );
-      void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
-      onDone();
+      if (result.success > 0) {
+        toast.success(
+          t.discovery.batchAdd.success
+            .replace("{count}", String(result.success))
+            .replace("{total}", String(result.total))
+        );
+        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+        onDone();
+      } else {
+        toast.error(t.toast.error);
+      }
     } catch {
       toast.error(t.toast.error);
     } finally {
