@@ -468,6 +468,29 @@ describe("Compare", () => {
 
   // ==================== Coverage Tests ====================
 
+  it("caps localStorage repo ids to MAX_COMPARE_REPOS", () => {
+    // Pre-seed 7 ids — should be capped to 5
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2, 3, 4, 5, 6, 7]));
+    mockRepos = Array.from({ length: 7 }, (_, i) =>
+      makeRepo({ id: i + 1, full_name: `org/repo-${i + 1}` })
+    );
+    render(<Compare />);
+    const selectedChips = screen.getAllByText("×");
+    expect(selectedChips.length).toBe(5);
+  });
+
+  it("caps preselectedIds from NavigationContext to MAX_COMPARE_REPOS", () => {
+    // Already have 3 in localStorage, navigation brings 4 more → merged should cap at 5
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2, 3]));
+    mockNavigationState = { preselectedIds: [4, 5, 6, 7] };
+    mockRepos = Array.from({ length: 7 }, (_, i) =>
+      makeRepo({ id: i + 1, full_name: `org/repo-${i + 1}` })
+    );
+    render(<Compare />);
+    const selectedChips = screen.getAllByText("×");
+    expect(selectedChips.length).toBe(5);
+  });
+
   it("handles corrupted localStorage gracefully", () => {
     localStorage.setItem("starscope-compare-repos", "not-valid-json!!!");
     render(<Compare />);
