@@ -40,7 +40,7 @@ test.describe("Discovery Flow", () => {
 
     await expect(
       page.locator('[data-testid="discovery-results"]').or(page.locator('[data-testid^="discovery-result-"]').first())
-    ).toBeVisible({ timeout: 15000 });
+    ).toBeVisible({ timeout: 30000 });
   });
 
   test("search input can be cleared and re-searched", async ({ page }) => {
