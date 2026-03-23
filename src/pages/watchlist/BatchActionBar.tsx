@@ -49,9 +49,8 @@ export const BatchActionBar = memo(function BatchActionBar({
     onDone();
   }, [onBatchRefresh, onDone]);
 
-  const handleRemoveClick = useCallback(() => {
-    setShowRemoveConfirm(true);
-  }, []);
+  const handleRemoveClick = useCallback(() => setShowRemoveConfirm(true), []);
+  const closeRemoveConfirm = useCallback(() => setShowRemoveConfirm(false), []);
 
   const handleRemoveConfirm = useCallback(async () => {
     setShowRemoveConfirm(false);
@@ -139,7 +138,7 @@ export const BatchActionBar = memo(function BatchActionBar({
         message={interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })}
         variant="danger"
         onConfirm={handleRemoveConfirm}
-        onCancel={() => setShowRemoveConfirm(false)}
+        onCancel={closeRemoveConfirm}
       />
     </div>
   );

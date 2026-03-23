@@ -77,4 +77,14 @@ describe("Toolbar", () => {
     render(<Toolbar {...defaultProps} />);
     expect(screen.queryByText(/Showing/)).not.toBeInTheDocument();
   });
+
+  it("shows localized aria-label on sort direction indicator", () => {
+    render(<Toolbar {...defaultProps} sortKey="stars" sortDirection="desc" />);
+    expect(screen.getByLabelText("Descending")).toBeInTheDocument();
+  });
+
+  it("shows ascending aria-label when sort direction is asc", () => {
+    render(<Toolbar {...defaultProps} sortKey="stars" sortDirection="asc" />);
+    expect(screen.getByLabelText("Ascending")).toBeInTheDocument();
+  });
 });

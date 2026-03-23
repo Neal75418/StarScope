@@ -36,6 +36,22 @@ describe("CompareTooltip", () => {
     expect(screen.getByText("150,000")).toBeInTheDocument();
   });
 
+  it("shows per-day suffix for growth entries", () => {
+    render(
+      <CompareTooltip
+        active={true}
+        payload={[
+          { name: "repo/a", value: 3.5, color: "#2563eb", dataKey: "growth_repo_a" },
+          { name: "repo/b", value: -1.2, color: "#dc2626", dataKey: "growth_repo_b" },
+        ]}
+        label="2024-01-01"
+        normalize={false}
+      />
+    );
+    expect(screen.getByText("+3.5/day")).toBeInTheDocument();
+    expect(screen.getByText("-1.2/day")).toBeInTheDocument();
+  });
+
   it("adds % suffix when normalized", () => {
     render(
       <CompareTooltip
