@@ -24,7 +24,8 @@ describe("BatchActionBar", () => {
     isProcessing: false,
     onBatchAddToCategory: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
     onBatchRefresh: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
-    onBatchRemove: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
+    onBatchRemove: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3, failedIds: [] }),
+    onPruneSelection: vi.fn(),
     onDone: vi.fn(),
     onError: vi.fn(),
   };
@@ -123,11 +124,46 @@ describe("BatchActionBar", () => {
     expect(props.onError).toHaveBeenCalledWith(expect.stringContaining("1"));
   });
 
+  it("prunes selection to failed IDs on partial remove", async () => {
+    const user = userEvent.setup();
+    const props = {
+      ...defaultProps,
+      onBatchRemove: vi.fn().mockResolvedValue({ success: 2, failed: 1, total: 3, failedIds: [3] }),
+    };
+    render(<BatchActionBar {...props} />);
+
+    await user.click(screen.getByTestId("batch-remove"));
+    const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+    await user.click(confirmBtn);
+
+    expect(props.onPruneSelection).toHaveBeenCalledWith([3]);
+    expect(props.onDone).not.toHaveBeenCalled();
+    expect(props.onError).toHaveBeenCalled();
+  });
+
+  it("keeps confirm dialog open while remove is in-flight", async () => {
+    const user = userEvent.setup();
+    const props = {
+      ...defaultProps,
+      onBatchRemove: vi.fn().mockReturnValue(new Promise(() => {})), // never resolves
+    };
+    render(<BatchActionBar {...props} />);
+
+    await user.click(screen.getByTestId("batch-remove"));
+    const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+    await user.click(confirmBtn);
+
+    // Dialog should still be visible (not dismissed prematurely)
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
   it("calls onError on full failure (remove)", async () => {
     const user = userEvent.setup();
     const props = {
       ...defaultProps,
-      onBatchRemove: vi.fn().mockResolvedValue({ success: 0, failed: 3, total: 3 }),
+      onBatchRemove: vi
+        .fn()
+        .mockResolvedValue({ success: 0, failed: 3, total: 3, failedIds: [1, 2, 3] }),
     };
     render(<BatchActionBar {...props} />);
 

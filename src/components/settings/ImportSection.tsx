@@ -316,8 +316,8 @@ export function ImportSection() {
         {/* 結果 */}
         {result && <ImportResult result={result} />}
 
-        {/* 操作按鈕 */}
-        {parsedRepos.length > 0 && !result && (
+        {/* 操作按鈕：未完成或有失敗時可重試 */}
+        {parsedRepos.length > 0 && (!result || result.failed > 0) && (
           <div className="import-actions">
             <button
               className="btn btn-primary"
@@ -333,8 +333,8 @@ export function ImportSection() {
           </div>
         )}
 
-        {/* 完成後重設 */}
-        {result && (
+        {/* 全部成功後重設 */}
+        {result && result.failed === 0 && (
           <div className="import-actions">
             <button className="btn btn-primary" onClick={handleReset}>
               {t.settings.import.importMore}

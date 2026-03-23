@@ -46,30 +46,54 @@ export async function executeImportFlow(
   abortController: AbortController,
   updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void
 ): Promise<{ success: number; skipped: number; failed: number; dedupCheckFailed: boolean }> {
-  const { set: existingSet, hadError } = await fetchExistingRepoSet();
+  const { set: existingSet, hadError } = await fetchExistingRepoSet(abortController.signal);
 
   const result = await runImportLoop(
     parsedRepos,
     abortController,
     existingSet,
     updateRepo,
-    async () => new Promise((resolve) => setTimeout(resolve, 500))
+    async () => abortableDelay(500, abortController.signal)
   );
 
   return { ...result, dedupCheckFailed: hadError };
 }
 
-async function fetchExistingRepoSet(): Promise<{ set: Set<string>; hadError: boolean }> {
+async function fetchExistingRepoSet(
+  signal?: AbortSignal
+): Promise<{ set: Set<string>; hadError: boolean }> {
   try {
-    const response = await getRepos();
+    const response = await getRepos(signal);
     return {
       set: new Set(response.repos.map((r) => normalizeRepoName(r.full_name))),
       hadError: false,
     };
   } catch (err) {
+    if (signal?.aborted) return { set: new Set(), hadError: false };
     logger.warn("[Import] 取得現有 repos 進行去重檢查失敗:", err);
     return { set: new Set(), hadError: true };
   }
+}
+
+/**
+ * Abort-aware delay：可被 AbortSignal 中斷的延遲。
+ */
+function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error("Aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error("Aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 /**
@@ -96,7 +120,7 @@ async function executeWithRetry<T>(
       if (isRateLimit && attempt < maxAttempts - 1) {
         // 指數退避：2s、4s、8s...
         const delay = Math.pow(2, attempt + 1) * 1000;
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        await abortableDelay(delay, signal);
         continue;
       }
       throw lastError;

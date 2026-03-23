@@ -90,6 +90,13 @@ export function Watchlist() {
     [actions]
   );
 
+  const handlePruneSelection = useCallback(
+    (keepIds: number[]) => {
+      selection.selectAll(keepIds);
+    },
+    [selection]
+  );
+
   // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
   const categoryOps = useCategoryOperations(actions.refreshAll, actions.error);
 
@@ -221,6 +228,7 @@ export function Watchlist() {
               onBatchAddToCategory={batchActions.batchAddToCategory}
               onBatchRefresh={batchActions.batchRefresh}
               onBatchRemove={batchActions.batchRemove}
+              onPruneSelection={handlePruneSelection}
               onDone={handleBatchDone}
               onError={handleBatchError}
             />

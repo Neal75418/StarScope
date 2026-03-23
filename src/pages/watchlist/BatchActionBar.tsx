@@ -15,12 +15,17 @@ interface BatchResult {
   total: number;
 }
 
+interface RemoveBatchResult extends BatchResult {
+  failedIds: number[];
+}
+
 interface BatchActionBarProps {
   selectedCount: number;
   isProcessing: boolean;
   onBatchAddToCategory: (categoryId: number) => Promise<BatchResult>;
   onBatchRefresh: () => Promise<BatchResult>;
-  onBatchRemove: () => Promise<BatchResult>;
+  onBatchRemove: () => Promise<RemoveBatchResult>;
+  onPruneSelection: (keepIds: number[]) => void;
   onDone: () => void;
   onError: (msg: string) => void;
 }
@@ -31,6 +36,7 @@ export const BatchActionBar = memo(function BatchActionBar({
   onBatchAddToCategory,
   onBatchRefresh,
   onBatchRemove,
+  onPruneSelection,
   onDone,
   onError,
 }: BatchActionBarProps) {
@@ -79,10 +85,28 @@ export const BatchActionBar = memo(function BatchActionBar({
   const closeRemoveConfirm = useCallback(() => setShowRemoveConfirm(false), []);
 
   const handleRemoveConfirm = useCallback(async () => {
-    setShowRemoveConfirm(false);
-    const result = await onBatchRemove();
-    handleResult(result);
-  }, [onBatchRemove, handleResult]);
+    try {
+      const result = await onBatchRemove();
+      setShowRemoveConfirm(false);
+      if (result.success === result.total) {
+        onDone();
+      } else if (result.success > 0) {
+        // Partial — prune selection to only failed IDs for retry
+        onPruneSelection(result.failedIds);
+        onError(
+          interpolate(t.watchlist.batch.partial, {
+            success: result.success,
+            total: result.total,
+          })
+        );
+      } else {
+        onError(t.watchlist.batch.error);
+      }
+    } catch {
+      setShowRemoveConfirm(false);
+      onError(t.watchlist.batch.error);
+    }
+  }, [onBatchRemove, onPruneSelection, onDone, onError, t]);
 
   // 攤平所有分類（包含子分類），memoize 避免每次 render 重建
   const flatCategories = useMemo(() => {

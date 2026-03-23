@@ -168,6 +168,50 @@ describe("executeImportFlow", () => {
     expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
   });
 
+  it("abort during dedup fetch stops import", async () => {
+    const controller = new AbortController();
+
+    vi.mocked(apiClient.getRepos).mockImplementation(async () => {
+      controller.abort();
+      throw new DOMException("Aborted", "AbortError");
+    });
+
+    const repos = [makeParsedRepo("owner/repo1")];
+    const result = await executeImportFlow(repos, controller, updateRepo);
+
+    // Aborted during dedup — should not proceed to import
+    expect(result.success).toBe(0);
+    expect(apiClient.addRepo).not.toHaveBeenCalled();
+    // Abort is not a dedup error
+    expect(result.dedupCheckFailed).toBe(false);
+  });
+
+  it("abort during retry backoff stops immediately", async () => {
+    vi.useFakeTimers();
+
+    const controller = new AbortController();
+
+    vi.mocked(apiClient.addRepo).mockRejectedValue(new Error("rate limit exceeded"));
+
+    const repos = [makeParsedRepo("owner/repo")];
+    const promise = executeImportFlow(repos, controller, updateRepo);
+
+    // Rate limit hit, waiting for backoff delay — abort during wait
+    await vi.advanceTimersByTimeAsync(500);
+    controller.abort();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const result = await promise;
+
+    // Aborted during backoff — not counted as failed (abort guard in runImportLoop)
+    expect(result.success).toBe(0);
+    expect(result.failed).toBe(0);
+    // Only the initial attempt, no retry after abort
+    expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
   // ==================== Rate limit 重試 ====================
 
   it("retries on rate limit error with exponential backoff", async () => {
