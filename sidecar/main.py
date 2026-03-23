@@ -24,7 +24,7 @@ from constants import DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
 from db import init_db
 from db.database import get_app_data_dir
 from logging_config import setup_logging
-from middleware import LoggingMiddleware
+from middleware import LoggingMiddleware, SessionAuthMiddleware
 from middleware.rate_limit import limiter
 from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
@@ -94,6 +94,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("[啟動] StarScope Engine 已停止")
 
 
+# 正式環境停用互動式 API 文件，避免暴露內部端點結構
+_IS_PRODUCTION = ENV == "production"
+
 app = FastAPI(
     title="StarScope API",
     description="""
@@ -128,10 +131,10 @@ app = FastAPI(
     """,
     version="0.4.0",
     lifespan=lifespan,
-    # OpenAPI 配置
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
+    # OpenAPI 配置（正式環境停用）
+    docs_url=None if _IS_PRODUCTION else "/api/docs",
+    redoc_url=None if _IS_PRODUCTION else "/api/redoc",
+    openapi_url=None if _IS_PRODUCTION else "/api/openapi.json",
     # 聯絡資訊
     contact={
         "name": "StarScope Team",
@@ -244,8 +247,11 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Session-Secret"],
 )
+
+# Per-session secret 驗證 middleware（在 CORS 之後，確保 preflight 可通過）
+app.add_middleware(SessionAuthMiddleware)
 
 # Request/Response 日誌 middleware
 app.add_middleware(

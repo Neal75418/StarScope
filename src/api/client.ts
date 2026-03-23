@@ -11,6 +11,7 @@ import {
   API_ERROR_MESSAGES,
 } from "../constants/api";
 import { ApiError } from "./types";
+import { getSessionSecret } from "./sessionSecret";
 import type {
   RepoWithSignals,
   RepoListResponse,
@@ -80,11 +81,16 @@ async function doFetch<T>(
 
   let response: Response;
   try {
+    // 確保 session secret 已初始化（首次 await 後快取，後續為同步快取命中）
+    const secret = await getSessionSecret();
+    const sessionHeader: Record<string, string> = secret ? { "X-Session-Secret": secret } : {};
+
     response = await fetch(url, {
       ...options,
       signal: timeoutController.signal,
       headers: {
         "Content-Type": "application/json",
+        ...sessionHeader,
         ...options.headers,
       },
     });
@@ -529,9 +535,6 @@ export async function acknowledgeSignal(
   });
 }
 
-/**
- * 確認所有信號。
- */
 // 趨勢 API
 
 /**

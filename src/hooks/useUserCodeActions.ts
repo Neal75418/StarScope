@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { safeOpenUrl } from "../utils/url";
+import { isSafeUrl, safeOpenUrl } from "../utils/url";
 import { DeviceCodeResponse } from "../api/client";
 import { CLIPBOARD_FEEDBACK_MS } from "../constants/api";
 
@@ -45,7 +45,11 @@ export function useUserCodeActions(
       try {
         await safeOpenUrl(deviceCode.verification_uri);
       } catch {
-        window.open(deviceCode.verification_uri, "_blank");
+        // Tauri opener 不可用時（如 WebView 限制），以瀏覽器開啟作為 fallback。
+        // 仍需通過 isSafeUrl 安全檢查，防止開啟惡意 URL。
+        if (isSafeUrl(deviceCode.verification_uri)) {
+          window.open(deviceCode.verification_uri, "_blank", "noopener,noreferrer");
+        }
       }
     }
   }, [deviceCode]);

@@ -14,6 +14,25 @@ struct SidecarState {
     child: Mutex<Option<CommandChild>>,
 }
 
+/// 保存 per-session secret，用於驗證前端對 sidecar 的 API 請求。
+struct SessionSecretState {
+    secret: String,
+}
+
+/// 產生一個 per-session 隨機 secret（64 hex chars = 256 bits）。
+/// 使用 `getrandom` CSPRNG 確保密碼學安全性。
+fn generate_session_secret() -> String {
+    let mut bytes = [0u8; 32];
+    getrandom::getrandom(&mut bytes).expect("OS RNG unavailable");
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Tauri command：讓前端取得 session secret 以附加至 API 請求 header。
+#[tauri::command]
+fn get_session_secret(state: tauri::State<'_, SessionSecretState>) -> String {
+    state.secret.clone()
+}
+
 #[cfg(target_os = "macos")]
 use objc2_app_kit::{NSWindow, NSWindowButton, NSWindowCollectionBehavior};
 
@@ -62,7 +81,8 @@ fn retry_delay_ms(attempt: u32, initial_delay_ms: u64) -> u64 {
 }
 
 /// 啟動 Python sidecar，失敗時以 exponential backoff 重試，最終優雅降級。
-/// 透過 `Command::env()` 傳遞 app data dir，避免在多執行緒環境呼叫 `std::env::set_var`。
+/// 透過 `Command::env()` 傳遞 app data dir 及 session secret，
+/// 避免在多執行緒環境呼叫 `std::env::set_var`。
 /// 在背景執行緒中執行，避免阻塞 UI 主執行緒。
 fn start_sidecar(app: &App) {
     // 先註冊空的 SidecarState，讓其他元件可以安全存取
@@ -70,14 +90,20 @@ fn start_sidecar(app: &App) {
         child: Mutex::new(None),
     });
 
+    // 產生 per-session secret 並註冊到 Tauri state，供前端透過 command 取得
+    let secret = generate_session_secret();
+    app.manage(SessionSecretState {
+        secret: secret.clone(),
+    });
+
     let app_handle = app.app_handle().clone();
     std::thread::spawn(move || {
-        start_sidecar_with_retry(&app_handle);
+        start_sidecar_with_retry(&app_handle, &secret);
     });
 }
 
 /// 在背景執行緒中以 exponential backoff 重試啟動 sidecar。
-fn start_sidecar_with_retry(app: &AppHandle) {
+fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
     for attempt in 0..=MAX_RETRIES {
         // 每次重試都重建 Command，因為 spawn() 會 consume self。
         let mut cmd = match app.shell().sidecar("starscope-sidecar") {
@@ -89,11 +115,12 @@ fn start_sidecar_with_retry(app: &AppHandle) {
             }
         };
 
-        // 將 app data dir 透過環境變數傳給 sidecar 子程序，
+        // 將 app data dir 與 session secret 透過環境變數傳給 sidecar 子程序，
         // 而非使用 std::env::set_var（在多執行緒環境有 data race 風險）。
         if let Ok(app_data_dir) = app.path().app_data_dir() {
             cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
         }
+        cmd = cmd.env("STARSCOPE_SESSION_SECRET", session_secret);
 
         match cmd.spawn() {
             Ok((_rx, child)) => {
@@ -256,6 +283,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .invoke_handler(tauri::generate_handler![get_session_secret])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
