@@ -27,11 +27,12 @@ export const BatchAddBar = memo(function BatchAddBar({
   const [isAdding, setIsAdding] = useState(false);
 
   const handleBatchAdd = useCallback(async () => {
-    if (selectedRepos.length === 0) return;
+    if (isAdding || selectedRepos.length === 0) return;
     setIsAdding(true);
     try {
       const result = await batchAddRepos(selectedRepos);
-      if (result.success > 0) {
+      if (result.success === result.total) {
+        // 全部成功 — 退出 selection mode
         toast.success(
           t.discovery.batchAdd.success
             .replace("{count}", String(result.success))
@@ -39,7 +40,16 @@ export const BatchAddBar = memo(function BatchAddBar({
         );
         void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
         onDone();
+      } else if (result.success > 0) {
+        // 部分成功 — 保留 selection 讓使用者可重試失敗的
+        toast.warning(
+          t.discovery.batchAdd.success
+            .replace("{count}", String(result.success))
+            .replace("{total}", String(result.total))
+        );
+        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
       } else {
+        // 全部失敗
         toast.error(t.toast.error);
       }
     } catch {
@@ -47,7 +57,7 @@ export const BatchAddBar = memo(function BatchAddBar({
     } finally {
       setIsAdding(false);
     }
-  }, [selectedRepos, toast, t, queryClient, onDone]);
+  }, [isAdding, selectedRepos, toast, t, queryClient, onDone]);
 
   if (selectedCount === 0) return null;
 
