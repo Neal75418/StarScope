@@ -78,38 +78,6 @@ def _star_magnitude_similarity(stars1: int | None, stars2: int | None) -> float:
     return 1.0 - (diff / 3.0)
 
 
-def _upsert_similar_repo(
-    db: Session,
-    repo_id: int,
-    similar_repo_id: int,
-    score: float,
-    shared: list[str],
-    same_lang: bool
-) -> None:
-    """新增或更新相似 repo 紀錄。"""
-    now = utc_now()
-    existing = db.query(SimilarRepo).filter(
-        SimilarRepo.repo_id == repo_id,
-        SimilarRepo.similar_repo_id == similar_repo_id
-    ).first()
-
-    if existing:
-        existing.similarity_score = score
-        existing.shared_topics = json.dumps(shared) if shared else None
-        existing.same_language = same_lang
-        existing.calculated_at = now
-    else:
-        similar = SimilarRepo(
-            repo_id=repo_id,
-            similar_repo_id=similar_repo_id,
-            similarity_score=score,
-            shared_topics=json.dumps(shared) if shared else None,
-            same_language=same_lang,
-            calculated_at=now,
-        )
-        db.add(similar)
-
-
 def _upsert_similar_repo_cached(
     db: Session,
     repo_id: int,
