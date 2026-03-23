@@ -39,10 +39,6 @@ const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {
 
 const DEFAULT_COLORS = { bg: "#6b7280", text: "#f3f4f6" };
 
-export function getLanguageColors(language: string): { bg: string; text: string } {
-  return LANGUAGE_COLORS[language] || DEFAULT_COLORS;
-}
-
 export function getLanguageColor(language: string): string {
   return (LANGUAGE_COLORS[language] || DEFAULT_COLORS).bg;
 }

@@ -3,7 +3,7 @@
 提供 repo 為何趨勢上升的情境資訊（僅 HN）。
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict

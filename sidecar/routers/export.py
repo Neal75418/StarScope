@@ -17,7 +17,7 @@ from db.database import get_db
 from constants import SignalType
 from db.models import Repo, RepoSnapshot
 from services.queries import build_snapshot_map, build_signal_map, build_stars_map, query_trending_repos
-from utils.time import utc_now, utc_today
+from utils.time import utc_now
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
