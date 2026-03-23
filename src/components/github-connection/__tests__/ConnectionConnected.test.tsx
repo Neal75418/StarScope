@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { ConnectionConnected } from "../ConnectionConnected";
 import type { GitHubConnectionStatus } from "../../../api/types";
+import * as i18nModule from "../../../i18n";
+import { translations } from "../../../i18n/translations";
 
 function makeStatus(overrides: Partial<GitHubConnectionStatus> = {}): GitHubConnectionStatus {
   return {
@@ -159,6 +161,29 @@ describe("ConnectionConnected", () => {
     // After refresh, button shows "↻" again
     expect(refreshBtn.textContent).toBe("↻");
     expect(refreshBtn).not.toBeDisabled();
+  });
+
+  it("renders countdown with localized time units in zh-TW", () => {
+    const spy = vi.spyOn(i18nModule, "useI18n").mockReturnValue({
+      t: translations["zh-TW"],
+      language: "zh-TW",
+      setLanguage: vi.fn(),
+    });
+
+    const resetTime = Math.floor(Date.now() / 1000) + 2700; // 45 min
+    render(
+      <ConnectionConnected
+        status={makeStatus({ rate_limit_reset: resetTime })}
+        onDisconnect={onDisconnect}
+        onRefresh={onRefresh}
+      />
+    );
+
+    // zh-TW should render "45分 0秒" style, not "45m 0s"
+    expect(screen.getByText(/\d+分 \d+秒/)).toBeInTheDocument();
+    expect(screen.queryByText(/\d+m \d+s/)).not.toBeInTheDocument();
+
+    spy.mockRestore();
   });
 
   it("hides rate limit section when rate_limit_remaining is undefined", () => {
