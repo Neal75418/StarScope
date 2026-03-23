@@ -22,13 +22,18 @@ export function CategoryAddForm({ onSubmit, onCancel }: CategoryAddFormProps) {
 
     setIsSubmitting(true);
     setError(false);
-    const success = await onSubmit(name.trim());
-    setIsSubmitting(false);
-    if (success) {
-      setName("");
-      onCancel();
-    } else {
+    try {
+      const success = await onSubmit(name.trim());
+      if (success) {
+        setName("");
+        onCancel();
+      } else {
+        setError(true);
+      }
+    } catch {
       setError(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

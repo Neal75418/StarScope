@@ -118,6 +118,29 @@ describe("TrendsBatchAddBar", () => {
     });
   });
 
+  it("calls onError without onDone when all repos fail", async () => {
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    const onError = vi.fn();
+    mockBatchAddRepos.mockResolvedValue({ success: 0, failed: 2, total: 2 });
+
+    renderWithQuery(
+      <TrendsBatchAddBar
+        selectedRepos={[makeTrending(1, "a/b"), makeTrending(2, "c/d")]}
+        selectedCount={2}
+        onDone={onDone}
+        onError={onError}
+      />
+    );
+
+    await user.click(screen.getByTestId("trends-batch-add-btn"));
+
+    await waitFor(() => {
+      expect(onDone).not.toHaveBeenCalled();
+      expect(onError).toHaveBeenCalledWith("Failed to add repos to watchlist");
+    });
+  });
+
   it("calls onError on API failure", async () => {
     const user = userEvent.setup();
     const onError = vi.fn();
