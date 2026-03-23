@@ -51,8 +51,6 @@ class Repo(Base):
     snapshots: Mapped[list["RepoSnapshot"]] = relationship("RepoSnapshot", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     signals: Mapped[list["Signal"]] = relationship("Signal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     context_signals: Mapped[list["ContextSignal"]] = relationship("ContextSignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    commit_activities: Mapped[list["CommitActivity"]] = relationship("CommitActivity", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
-    languages: Mapped[list["RepoLanguage"]] = relationship("RepoLanguage", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
     early_signals: Mapped[list["EarlySignal"]] = relationship("EarlySignal", back_populates="repo", cascade=CASCADE_DELETE_ORPHAN)
 
     # 索引
@@ -413,69 +411,3 @@ class AppSetting(Base):
 
     def __repr__(self) -> str:
         return f"<AppSetting key={self.key}>"
-
-
-# ==================== Commit Activity 模型 ====================
-
-class CommitActivity(Base):
-    """
-    repo 的每週 commit 活動資料。
-    從 GitHub Stats API 取得：/repos/{owner}/{repo}/stats/commit_activity
-    """
-    __tablename__ = "commit_activities"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
-
-    # 週資料
-    week_start: Mapped[date] = mapped_column(Date, nullable=False)  # ISO 週起始日（週日）
-    commit_count: Mapped[int] = mapped_column(Integer, default=0)
-
-    # 時間戳記
-    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # 關聯
-    repo: Mapped["Repo"] = relationship("Repo", back_populates="commit_activities")
-
-    # 索引與約束
-    __table_args__ = (
-        UniqueConstraint("repo_id", "week_start", name="uq_commit_activity"),
-        Index("ix_commit_activity_repo", "repo_id"),
-        Index("ix_commit_activity_week", "week_start"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<CommitActivity repo_id={self.repo_id} week={self.week_start} commits={self.commit_count}>"
-
-
-# ==================== Repo 程式語言模型 ====================
-
-class RepoLanguage(Base):
-    """
-    repo 的程式語言分佈。
-    從 GitHub API 取得：/repos/{owner}/{repo}/languages
-    """
-    __tablename__ = "repo_languages"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
-
-    # 語言資料
-    language: Mapped[str] = mapped_column(String(100), nullable=False)
-    bytes: Mapped[int] = mapped_column(Integer, default=0)  # 程式碼位元組數
-    percentage: Mapped[float] = mapped_column(Float, default=0.0)  # 計算後的百分比
-
-    # 時間戳記
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
-
-    # 關聯
-    repo: Mapped["Repo"] = relationship("Repo", back_populates="languages")
-
-    # 索引與約束
-    __table_args__ = (
-        UniqueConstraint("repo_id", "language", name="uq_repo_language"),
-        Index("ix_repo_languages_repo", "repo_id"),
-    )
-
-    def __repr__(self) -> str:
-        return f"<RepoLanguage repo_id={self.repo_id} lang={self.language} {self.percentage:.1f}%>"

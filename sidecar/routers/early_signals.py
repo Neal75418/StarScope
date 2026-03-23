@@ -12,7 +12,6 @@ from sqlalchemy import case, func
 
 from db.database import get_db
 from db.models import EarlySignal, Repo
-from services.anomaly_detector import run_detection
 from utils.time import utc_now
 from schemas.response import ApiResponse, success_response, StatusResponse
 
@@ -59,13 +58,6 @@ class SignalSummary(BaseModel):
     by_type: dict
     by_severity: dict
     repos_with_signals: int
-
-
-class DetectionResultResponse(BaseModel):
-    """偵測執行的回應。"""
-    repos_scanned: int
-    signals_detected: int
-    by_type: dict
 
 
 # 輔助函式
@@ -244,74 +236,6 @@ async def acknowledge_signal(
     return success_response(
         data=StatusResponse(status="ok", id=signal_id),
         message="Signal acknowledged"
-    )
-
-
-@router.post("/acknowledge-all", response_model=ApiResponse[StatusResponse])
-async def acknowledge_all_signals(
-    signal_type: str | None = Query(None),
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    確認所有活躍訊號。
-    可選擇依訊號類型篩選。
-    """
-    query = db.query(EarlySignal).filter(EarlySignal.acknowledged.is_(False))
-
-    if signal_type:
-        query = query.filter(EarlySignal.signal_type == signal_type)
-
-    now = utc_now()
-    count = query.update({
-        EarlySignal.acknowledged: True,
-        EarlySignal.acknowledged_at: now,
-    })
-    db.commit()
-
-    return success_response(
-        data=StatusResponse(status="ok", count=count),
-        message=f"{count} signals acknowledged"
-    )
-
-
-@router.post("/detect", response_model=ApiResponse[DetectionResultResponse])
-async def trigger_detection(
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    手動觸發所有 repo 的異常偵測。
-    """
-    result = run_detection(db)
-
-    detection_result = DetectionResultResponse(
-        repos_scanned=result["repos_scanned"],
-        signals_detected=result["signals_detected"],
-        by_type=result["by_type"],
-    )
-    return success_response(
-        data=detection_result,
-        message=f"Scanned {result['repos_scanned']} repositories, detected {result['signals_detected']} signals"
-    )
-
-
-@router.delete("/{signal_id}", response_model=ApiResponse[StatusResponse])
-async def delete_signal(
-    signal_id: int,
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    刪除早期訊號。
-    """
-    signal = db.query(EarlySignal).filter(EarlySignal.id == signal_id).first()
-    if not signal:
-        raise HTTPException(status_code=404, detail="Signal not found")
-
-    db.delete(signal)
-    db.commit()
-
-    return success_response(
-        data=StatusResponse(status="ok", id=signal_id),
-        message="Signal deleted"
     )
 
 

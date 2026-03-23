@@ -130,15 +130,6 @@ class TestCategoryWithMockData:
         assert data["success"] is True
         assert data["data"]["name"] == "Frontend Frameworks"
 
-    def test_list_categories(self, client, mock_category):
-        """Test listing categories."""
-        response = client.get("/api/categories")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
-        assert len(data["data"]["categories"]) >= 1
-
-
 class TestChartsWithMockData:
     """Test chart endpoints with mock data."""
 

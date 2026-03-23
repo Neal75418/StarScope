@@ -74,12 +74,6 @@ class CategoryTreeNode(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class CategoryListResponse(BaseModel):
-    """分類列表的回應。"""
-    categories: list[CategoryResponse]
-    total: int
-
-
 class CategoryTreeResponse(BaseModel):
     """分類樹的回應。"""
     tree: list[CategoryTreeNode]
@@ -235,45 +229,6 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 
 
 # 端點
-@router.get("/", response_model=ApiResponse[CategoryListResponse])
-async def list_categories(
-    skip: int = 0,
-    limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
-) -> dict:
-    """
-    列出所有分類（扁平列表），含分頁。
-
-    Args:
-        skip: 跳過的紀錄數（預設 0）
-        limit: 回傳的最大紀錄數（預設 100，上限 500）
-        db: 資料庫 session
-    """
-
-    # 取得總數
-    total = db.query(Category).count()
-
-    # noinspection PyTypeChecker
-    categories: list[Category] = (
-        db.query(Category)
-        .order_by(Category.sort_order, Category.name)
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
-    repo_count_map = _build_repo_count_map(db)
-
-    category_list = CategoryListResponse(
-        categories=[_category_to_response(c, repo_count_map) for c in categories],
-        total=total,
-    )
-
-    return success_response(
-        data=category_list,
-        message=f"Found {total} categories"
-    )
-
-
 @router.get("/tree", response_model=ApiResponse[CategoryTreeResponse])
 async def get_category_tree(
     db: Session = Depends(get_db)

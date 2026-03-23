@@ -22,13 +22,3 @@ export function getErrorMessage(error: unknown, fallbackMessage: string): string
 
   return fallbackMessage;
 }
-
-/** 從錯誤中提取結構化錯誤碼（僅 ApiError 有）。 */
-export function getErrorCode(error: unknown): string | null {
-  return error instanceof ApiError ? error.code : null;
-}
-
-/** 判斷錯誤是否為可重試的（伺服器錯誤或外部 API 錯誤）。 */
-export function isRetryableError(error: unknown): boolean {
-  return error instanceof ApiError && error.isRetryable;
-}

@@ -9,18 +9,6 @@ NONEXISTENT_CATEGORY_ID = 99999
 class TestCategoryEndpoints:
     """Test cases for /api/categories endpoints."""
 
-    def test_list_categories_empty(self, client):
-        """Test listing categories when none exist."""
-        response = client.get("/api/categories")
-        assert response.status_code == 200
-        response_data = response.json()
-        # 驗證統一的 API 響應格式
-        assert response_data["success"] is True
-        assert "data" in response_data
-        data = response_data["data"]
-        assert data["total"] == 0
-        assert data["categories"] == []
-
     def test_get_category_tree_empty(self, client):
         """Test getting category tree when empty."""
         response = client.get("/api/categories/tree")

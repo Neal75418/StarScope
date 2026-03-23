@@ -23,7 +23,7 @@ def reset_anomaly_detector_globals():
     yield
     for attr, value in original.items():
         setattr(_detector, attr, value)
-from db.models import AppSetting, AppSettingKey, Repo, RepoSnapshot, Signal, AlertRule, TriggeredAlert, EarlySignal, ContextSignal, CommitActivity, RepoLanguage, SimilarRepo, RepoCategory, Category
+from db.models import AppSetting, AppSettingKey, Repo, RepoSnapshot, Signal, AlertRule, TriggeredAlert, EarlySignal, ContextSignal, SimilarRepo, RepoCategory, Category
 from utils.time import utc_now
 
 

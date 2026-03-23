@@ -49,28 +49,3 @@ class TestEarlySignalsEndpoints:
         response = client.post("/api/early-signals/99999/acknowledge")
         assert response.status_code == 404
 
-    def test_delete_signal_not_found(self, client):
-        """Test deleting a nonexistent signal."""
-        response = client.delete("/api/early-signals/99999")
-        assert response.status_code == 404
-
-    def test_trigger_detection(self, client):
-        """Test triggering anomaly detection."""
-        response = client.post("/api/early-signals/detect")
-        assert response.status_code == 200
-        data = response.json()
-        # 驗證統一的 API 響應格式
-        assert data["success"] is True
-        result = data["data"]
-        assert "repos_scanned" in result
-        assert "signals_detected" in result
-        assert "by_type" in result
-
-    def test_acknowledge_all_signals(self, client):
-        """Test acknowledging all signals."""
-        response = client.post("/api/early-signals/acknowledge-all")
-        assert response.status_code == 200
-        data = response.json()
-        # 驗證統一的 API 響應格式
-        assert data["success"] is True
-        assert data["data"]["status"] == "ok"

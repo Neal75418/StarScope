@@ -3,7 +3,7 @@ StarScope 資料庫套件。
 """
 
 from .database import get_db, init_db
-from .models import Base, Repo, RepoSnapshot, Signal, CommitActivity, RepoLanguage
+from .models import Base, Repo, RepoSnapshot, Signal
 
 __all__ = [
     "get_db",
@@ -12,6 +12,4 @@ __all__ = [
     "Repo",
     "RepoSnapshot",
     "Signal",
-    "CommitActivity",
-    "RepoLanguage",
 ]

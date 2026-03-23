@@ -16,7 +16,7 @@ from db.database import get_db, DATABASE_URL, get_app_data_dir
 from db.models import (
     AppSettingKey,
     Repo, RepoSnapshot, Signal, AlertRule, TriggeredAlert,
-    EarlySignal, ContextSignal, CommitActivity, RepoLanguage,
+    EarlySignal, ContextSignal,
     SimilarRepo, RepoCategory, Category,
 )
 from schemas.response import ApiResponse, success_response
@@ -301,8 +301,6 @@ async def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_
     db.query(ContextSignal).delete(synchronize_session=False)
     db.query(Signal).delete(synchronize_session=False)
     db.query(RepoSnapshot).delete(synchronize_session=False)
-    db.query(CommitActivity).delete(synchronize_session=False)
-    db.query(RepoLanguage).delete(synchronize_session=False)
     db.query(SimilarRepo).delete(synchronize_session=False)
     db.query(RepoCategory).delete(synchronize_session=False)
     db.query(Repo).delete(synchronize_session=False)
