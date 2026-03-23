@@ -3,6 +3,7 @@
  */
 
 import { Fragment, useState, useMemo, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
 import { formatNumber } from "../utils/format";
@@ -10,6 +11,7 @@ import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
 import { addRepo } from "../api/client";
 import { useWatchlistState } from "../contexts/WatchlistContext";
+import { queryKeys } from "../lib/react-query";
 import { useViewMode } from "../hooks/useViewMode";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { STORAGE_KEYS } from "../constants/storage";
@@ -97,6 +99,7 @@ function LastUpdatedIndicator({
 
 export function Trends() {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
 
   // Auto-refresh 間隔
   const [refreshInterval, setRefreshInterval] = useState<number | false>(getStoredRefreshInterval);
@@ -179,6 +182,8 @@ export function Trends() {
       try {
         await addRepo({ owner: repo.owner, name: repo.name });
         setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
+        // 同步全域 watchlist 資料源，避免雙真相
+        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
       } catch (err) {
         logger.error("[Trends] 加入追蹤失敗:", err);
         setAddError(`${t.common.error}: ${repo.full_name}`);
@@ -190,7 +195,7 @@ export function Trends() {
         });
       }
     },
-    [t]
+    [t, queryClient]
   );
 
   const handleToggleExpand = useCallback((repoId: number) => {

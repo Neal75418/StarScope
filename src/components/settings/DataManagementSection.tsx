@@ -8,6 +8,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { clearCache, resetAllData } from "../../api/client";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { STORAGE_KEYS } from "../../constants/storage";
+
+/** 資料衍生型 localStorage key — reset 時一併清除 */
+const DATA_DERIVED_KEYS: string[] = [
+  STORAGE_KEYS.COMPARE_REPOS,
+  STORAGE_KEYS.NOTIFICATIONS_READ,
+  STORAGE_KEYS.DISMISSED_RECS,
+  STORAGE_KEYS.SEARCH_HISTORY,
+  STORAGE_KEYS.RECENTLY_VIEWED,
+  STORAGE_KEYS.SAVED_FILTERS,
+  STORAGE_KEYS.WATCHLIST_SORT,
+];
 
 interface DataManagementSectionProps {
   onToast: (message: string, type?: "success" | "error") => void;
@@ -43,6 +55,10 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       await resetAllData();
       // 清除所有快取
       queryClient.clear();
+      // 清除資料衍生型 localStorage（保留使用者偏好如主題/語言）
+      for (const key of DATA_DERIVED_KEYS) {
+        localStorage.removeItem(key);
+      }
       setShowResetConfirm(false);
       onToast(t.settings.data.toast.dataReset, "success");
     } catch {

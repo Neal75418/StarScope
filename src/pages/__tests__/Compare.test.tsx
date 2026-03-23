@@ -497,6 +497,21 @@ describe("Compare", () => {
     expect(screen.getByText("Select at least 2 repos")).toBeInTheDocument();
   });
 
+  it("prunes orphan selectedIds when repos change", () => {
+    // Pre-seed with repo IDs where 999 doesn't exist in mockRepos
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2, 999]));
+    render(<Compare />);
+
+    // Only 1 and 2 exist in mockRepos, so 999 should be pruned
+    const selectedChips = screen.getAllByText("×");
+    expect(selectedChips.length).toBe(2);
+
+    // localStorage should be updated
+    const raw = localStorage.getItem("starscope-compare-repos");
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw as string)).toEqual([1, 2]);
+  });
+
   it("switches to Issues metric", async () => {
     localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
     mockComparisonReturn = {

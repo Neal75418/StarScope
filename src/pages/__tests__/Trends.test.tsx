@@ -132,12 +132,14 @@ function makeTrending(overrides: Partial<TrendingRepo> = {}): TrendingRepo {
   };
 }
 
+let testQueryClient: QueryClient;
+
 function renderTrends() {
-  const queryClient = new QueryClient({
+  testQueryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={testQueryClient}>
       <Trends />
     </QueryClientProvider>
   );
@@ -301,6 +303,21 @@ describe("Trends", () => {
     const addBtn = screen.getByText("+ Watchlist");
     await user.click(addBtn);
     expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
+  });
+
+  it("invalidates watchlist repos query after successful add", async () => {
+    const user = userEvent.setup();
+    mockAddRepo.mockResolvedValue({});
+    mockTrendsReturn.trends = [makeTrending()];
+    renderTrends();
+
+    const invalidateSpy = vi.spyOn(testQueryClient, "invalidateQueries");
+
+    await user.click(screen.getByText("+ Watchlist"));
+
+    // Should invalidate repos query to sync global watchlist
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["repos"] });
+    invalidateSpy.mockRestore();
   });
 
   it("renders all four sort tabs with correct labels", () => {

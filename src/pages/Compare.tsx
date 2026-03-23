@@ -58,6 +58,25 @@ export function Compare() {
 
   const reposQuery = useReposQuery();
 
+  // reconcile：當 watchlist repos 變動時，裁切掉已不存在的 orphan IDs
+  const availableRepoIds = useMemo(
+    () => new Set((reposQuery.data ?? []).map((r) => r.id)),
+    [reposQuery.data]
+  );
+  useEffect(() => {
+    if (availableRepoIds.size === 0) return;
+    setSelectedIds((prev) => {
+      const pruned = prev.filter((id) => availableRepoIds.has(id));
+      if (pruned.length === prev.length) return prev;
+      try {
+        localStorage.setItem(STORAGE_KEYS.COMPARE_REPOS, JSON.stringify(pruned));
+      } catch {
+        // QuotaExceededError — 靜默忽略
+      }
+      return pruned;
+    });
+  }, [availableRepoIds]);
+
   const {
     data,
     isLoading: chartLoading,
