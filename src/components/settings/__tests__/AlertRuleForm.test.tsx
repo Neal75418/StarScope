@@ -23,13 +23,11 @@ const defaultRule: AlertRuleCreate = {
 };
 
 describe("AlertRuleForm", () => {
-  let mockOnSubmit: ReturnType<typeof vi.fn>;
-  let mockOnCancel: ReturnType<typeof vi.fn>;
+  const mockOnSubmit = vi.fn<(rule: AlertRuleCreate) => Promise<boolean>>();
+  const mockOnCancel = vi.fn<() => void>();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockOnSubmit = vi.fn();
-    mockOnCancel = vi.fn();
   });
 
   function renderForm(overrides: Partial<Parameters<typeof AlertRuleForm>[0]> = {}) {
