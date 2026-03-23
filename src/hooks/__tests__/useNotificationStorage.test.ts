@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useNotificationStorage } from "../useNotificationStorage";
+import { DATA_RESET_EVENT } from "../../constants/events";
 
 describe("useNotificationStorage", () => {
   let storageData: Record<string, string>;
@@ -79,5 +80,17 @@ describe("useNotificationStorage", () => {
     });
     // ID is still added to in-memory set
     expect(result.current.readIdsRef.current.has("test-id")).toBe(true);
+  });
+
+  it("clears in-memory ref on data-reset event", () => {
+    storageData["starscope_notifications_read"] = JSON.stringify(["id-1", "id-2"]);
+    const { result } = renderHook(() => useNotificationStorage());
+    expect(result.current.readIdsRef.current.size).toBe(2);
+
+    act(() => {
+      window.dispatchEvent(new Event(DATA_RESET_EVENT));
+    });
+
+    expect(result.current.readIdsRef.current.size).toBe(0);
   });
 });

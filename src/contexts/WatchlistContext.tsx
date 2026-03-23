@@ -12,6 +12,7 @@ import {
   useMemo,
   useRef,
   useCallback,
+  useEffect,
   ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import { parseRepoString } from "../utils/importHelpers";
 import { useI18n } from "../i18n";
 import { generateId } from "../utils/id";
 import { logger } from "../utils/logger";
+import { DATA_RESET_EVENT } from "../constants/events";
 import {
   watchlistReducer,
   initialState,
@@ -62,6 +64,13 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [reducerState, dispatch] = useReducer(watchlistReducer, initialState);
+
+  // ── data-reset 事件：Settings 全域重置後清除 in-memory 篩選狀態 ──
+  useEffect(() => {
+    const handler = () => dispatch({ type: "RESET_FILTERS" });
+    window.addEventListener(DATA_RESET_EVENT, handler);
+    return () => window.removeEventListener(DATA_RESET_EVENT, handler);
+  }, []);
 
   // ── 連線狀態（由 AppStatusContext 統一管理）──
   const { isSidecarUp: isConnected } = useAppStatus();

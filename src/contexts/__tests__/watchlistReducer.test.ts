@@ -302,5 +302,20 @@ describe("watchlistReducer", () => {
       expect(result.filters.searchQuery).toBe("react");
       expect(result.toasts).toHaveLength(1);
     });
+
+    it("RESET_FILTERS clears filters and error to initial state", () => {
+      const stateWithFilters: WatchlistState = {
+        ...initialState,
+        filters: {
+          selectedCategoryId: 5,
+          searchQuery: "react",
+          categoryRepoIds: [1, 2, 3],
+        },
+        error: "some error",
+      };
+      const result = watchlistReducer(stateWithFilters, { type: "RESET_FILTERS" });
+      expect(result.filters).toEqual(initialState.filters);
+      expect(result.error).toBeNull();
+    });
   });
 });

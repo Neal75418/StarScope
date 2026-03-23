@@ -64,7 +64,9 @@ export function Compare() {
     [reposQuery.data]
   );
   useEffect(() => {
-    if (availableRepoIds.size === 0) return;
+    // query 尚未回傳（data === undefined）時跳過，避免誤清
+    // data === []（watchlist 真的空了）時則正確 prune 全部
+    if (reposQuery.data === undefined) return;
     setSelectedIds((prev) => {
       const pruned = prev.filter((id) => availableRepoIds.has(id));
       if (pruned.length === prev.length) return prev;
@@ -75,7 +77,7 @@ export function Compare() {
       }
       return pruned;
     });
-  }, [availableRepoIds]);
+  }, [availableRepoIds, reposQuery.data]);
 
   const {
     data,

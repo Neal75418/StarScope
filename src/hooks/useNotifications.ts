@@ -2,11 +2,12 @@
  * 通知中心：整合儲存、輪詢與操作邏輯。
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
 import { useOSNotification } from "./useOSNotification";
+import { DATA_RESET_EVENT } from "../constants/events";
 import type { Page } from "../types/navigation";
 
 type NotificationType = "alert" | "signal" | "system";
@@ -32,6 +33,13 @@ export interface Notification {
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+
+  // data-reset 事件：清空通知列表（已讀 ref 由 useNotificationStorage 自行清除）
+  useEffect(() => {
+    const handler = () => setNotifications([]);
+    window.addEventListener(DATA_RESET_EVENT, handler);
+    return () => window.removeEventListener(DATA_RESET_EVENT, handler);
+  }, []);
 
   // 已讀狀態儲存
   const { readIdsRef, markIdAsRead, markIdsAsRead, removeIdFromRead } = useNotificationStorage();

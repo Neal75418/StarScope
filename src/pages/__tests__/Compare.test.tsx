@@ -497,6 +497,21 @@ describe("Compare", () => {
     expect(screen.getByText("Select at least 2 repos")).toBeInTheDocument();
   });
 
+  it("prunes all selectedIds when watchlist becomes empty", () => {
+    // Pre-seed compare selection, then set repos to empty
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
+    mockRepos = [];
+    render(<Compare />);
+
+    // All should be pruned — no × chips
+    expect(screen.queryAllByText("×").length).toBe(0);
+
+    // localStorage should be updated to empty
+    const raw = localStorage.getItem("starscope-compare-repos");
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw as string)).toEqual([]);
+  });
+
   it("prunes orphan selectedIds when repos change", () => {
     // Pre-seed with repo IDs where 999 doesn't exist in mockRepos
     localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2, 999]));

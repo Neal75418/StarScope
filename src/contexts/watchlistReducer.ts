@@ -96,7 +96,10 @@ export type WatchlistAction =
   | { type: "DISMISS_TOAST"; payload: { id: string } }
 
   // 錯誤處理
-  | { type: "CLEAR_ERROR" };
+  | { type: "CLEAR_ERROR" }
+
+  // 全域重置（data reset 後清除 in-memory 篩選狀態）
+  | { type: "RESET_FILTERS" };
 
 /**
  * Actions 介面 - 業務邏輯層
@@ -400,6 +403,14 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
     case "CLEAR_ERROR":
       return {
         ...state,
+        error: null,
+      };
+
+    // 全域重置 — data reset 後清除 in-memory 篩選與 UI 狀態
+    case "RESET_FILTERS":
+      return {
+        ...state,
+        filters: initialState.filters,
         error: null,
       };
 

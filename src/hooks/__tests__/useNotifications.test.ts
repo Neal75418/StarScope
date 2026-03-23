@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { DATA_RESET_EVENT } from "../../constants/events";
+import type { Dispatch, SetStateAction } from "react";
+import type { Notification } from "../useNotifications";
+
+// Capture setNotifications so we can inject notifications from outside
+let capturedSetNotifications: Dispatch<SetStateAction<Notification[]>> | null = null;
 
 // Mock all sub-hooks
 vi.mock("../useNotificationStorage", () => ({
@@ -8,15 +14,19 @@ vi.mock("../useNotificationStorage", () => ({
     markIdAsRead: vi.fn(),
     markIdsAsRead: vi.fn(),
     removeIdFromRead: vi.fn(),
+    clearAll: vi.fn(),
   }),
 }));
 
 vi.mock("../useNotificationPolling", () => ({
-  useNotificationPolling: () => ({
-    isLoading: false,
-    error: null,
-    refresh: vi.fn(),
-  }),
+  useNotificationPolling: (setNotifications: Dispatch<SetStateAction<Notification[]>>) => {
+    capturedSetNotifications = setNotifications;
+    return {
+      isLoading: false,
+      error: null,
+      refresh: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("../useNotificationActions", () => ({
@@ -83,5 +93,32 @@ describe("useNotifications", () => {
     expect(result.current.osNotification).toHaveProperty("isGranted");
     expect(result.current.osNotification).toHaveProperty("isLoading");
     expect(result.current.osNotification).toHaveProperty("requestPermission");
+  });
+
+  it("clears notifications on data-reset event", () => {
+    const { result } = renderHook(() => useNotifications());
+
+    // Inject notifications via captured setter
+    act(() => {
+      capturedSetNotifications?.([
+        {
+          id: "n1",
+          type: "alert",
+          title: "Test",
+          message: "msg",
+          timestamp: "2024-01-01",
+          read: false,
+        },
+      ]);
+    });
+    expect(result.current.notifications).toHaveLength(1);
+
+    // Dispatch reset event
+    act(() => {
+      window.dispatchEvent(new Event(DATA_RESET_EVENT));
+    });
+
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
   });
 });

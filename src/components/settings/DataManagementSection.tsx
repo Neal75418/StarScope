@@ -9,6 +9,7 @@ import { useI18n } from "../../i18n";
 import { clearCache, resetAllData } from "../../api/client";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { STORAGE_KEYS } from "../../constants/storage";
+import { DATA_RESET_EVENT } from "../../constants/events";
 
 /** 資料衍生型 localStorage key — reset 時一併清除 */
 const DATA_DERIVED_KEYS: string[] = [
@@ -59,6 +60,8 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       for (const key of DATA_DERIVED_KEYS) {
         localStorage.removeItem(key);
       }
+      // 通知 app-wide 的 in-memory 狀態（notification ref、watchlist filters）同步清除
+      window.dispatchEvent(new Event(DATA_RESET_EVENT));
       setShowResetConfirm(false);
       onToast(t.settings.data.toast.dataReset, "success");
     } catch {

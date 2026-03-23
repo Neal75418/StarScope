@@ -2,9 +2,10 @@
  * 通知已讀狀態的 localStorage 持久化管理。
  */
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { logger } from "../utils/logger";
 import { STORAGE_KEYS } from "../constants/storage";
+import { DATA_RESET_EVENT } from "../constants/events";
 
 /**
  * 從 localStorage 載入已讀通知 ID。
@@ -51,10 +52,23 @@ export function useNotificationStorage() {
     saveReadIds(readIdsRef.current);
   }, []);
 
+  const clearAll = useCallback(() => {
+    readIdsRef.current = new Set();
+    saveReadIds(readIdsRef.current);
+  }, []);
+
+  // data-reset 事件：Settings 頁面 resetAllData 後觸發，清空 in-memory ref
+  useEffect(() => {
+    const handler = () => clearAll();
+    window.addEventListener(DATA_RESET_EVENT, handler);
+    return () => window.removeEventListener(DATA_RESET_EVENT, handler);
+  }, [clearAll]);
+
   return {
     readIdsRef,
     markIdAsRead,
     markIdsAsRead,
     removeIdFromRead,
+    clearAll,
   };
 }
