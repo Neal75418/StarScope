@@ -5,10 +5,9 @@
  *
  * 使用方式：
  * - React Query: `refetchInterval: useSmartInterval(60_000)`
- * - 原生 setInterval: `useSmartIntervalCallback(callback, intervalMs)`
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useOnlineStatus } from "./useOnlineStatus";
 
 /**
@@ -31,43 +30,5 @@ export function useSmartInterval(intervalMs: number): () => number | false {
       return false;
     }
     return intervalMs;
-  }, [intervalMs]);
-}
-
-/**
- * 智慧 setInterval：visibility + online aware。
- * 頁面隱藏或離線時自動暫停，恢復時繼續。
- * 用於非 React Query 的原生輪詢場景（如 OAuth Device Flow）。
- */
-export function useSmartIntervalCallback(callback: (() => void) | null, intervalMs: number): void {
-  const isOnline = useOnlineStatus();
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
-  const isOnlineRef = useRef(isOnline);
-  isOnlineRef.current = isOnline;
-  const intervalRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!callbackRef.current || intervalMs <= 0) return;
-
-    const shouldRun = () => {
-      if (typeof document !== "undefined" && document.hidden) return false;
-      if (!isOnlineRef.current) return false;
-      return true;
-    };
-
-    const tick = () => {
-      if (shouldRun() && callbackRef.current) {
-        callbackRef.current();
-      }
-    };
-
-    intervalRef.current = window.setInterval(tick, intervalMs);
-
-    return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-      }
-    };
   }, [intervalMs]);
 }

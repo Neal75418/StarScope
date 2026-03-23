@@ -200,11 +200,6 @@ export class ApiError extends Error {
 
 // 推薦系統型別
 
-export interface CalculateSimilaritiesResponse {
-  repo_id: number;
-  similarities_found: number;
-}
-
 export interface RecalculateAllResponse {
   total_repos: number;
   processed: number;

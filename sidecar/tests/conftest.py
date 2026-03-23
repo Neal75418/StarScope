@@ -89,23 +89,6 @@ def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
 
 
 @pytest.fixture
-def sample_repo_data():
-    """Sample repository data for testing."""
-    return {
-        "owner": "facebook",
-        "name": "react"
-    }
-
-
-@pytest.fixture
-def sample_repo_url_data():
-    """Sample repository data with URL for testing."""
-    return {
-        "url": "https://github.com/facebook/react"
-    }
-
-
-@pytest.fixture
 def mock_repo(test_db):
     """Create a mock repository in the database."""
     from db.models import Repo
