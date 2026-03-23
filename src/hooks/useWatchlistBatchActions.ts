@@ -36,7 +36,7 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
             failedIds.push(repoId);
           }
         }
-        await actions.refreshAll();
+        actions.invalidateRepos();
       } finally {
         setIsProcessing(false);
       }
@@ -62,7 +62,7 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
           failed++;
         }
       }
-      await actions.refreshAll();
+      actions.invalidateRepos();
     } finally {
       setIsProcessing(false);
     }
@@ -88,7 +88,7 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
           failedIds.push(repoId);
         }
       }
-      await actions.refreshAll();
+      actions.invalidateRepos();
     } finally {
       setIsProcessing(false);
     }

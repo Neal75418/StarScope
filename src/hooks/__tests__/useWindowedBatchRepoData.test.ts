@@ -84,9 +84,8 @@ describe("useWindowedBatchRepoData", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    // ID 999 not in mock response — should return empty arrays
-    expect(result.current.dataMap[999].badges).toEqual([]);
-    expect(result.current.dataMap[999].signals).toEqual([]);
+    // ID 999 not in mock response — dataMap only contains loaded entries
+    expect(result.current.dataMap[999]).toBeUndefined();
   });
 
   it("handles API error gracefully", async () => {

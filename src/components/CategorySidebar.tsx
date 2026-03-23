@@ -3,9 +3,8 @@
  */
 
 import { useState, useCallback, useRef, memo, MouseEvent } from "react";
-import { CategoryTreeNode, getCategory } from "../api/client";
+import { CategoryTreeNode, CategoryUpdate, getCategory } from "../api/client";
 import { useI18n } from "../i18n";
-import { useCategoryTree } from "../hooks/useCategoryTree";
 import { useCategoryExpand } from "../hooks/useCategoryExpand";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -20,16 +19,26 @@ import { DraggableCategoryList } from "./category-sidebar/DraggableCategoryList"
 import { useCategoryReorder } from "../hooks/useCategoryReorder";
 import { logger } from "../utils/logger";
 
+export interface CategoryTreeData {
+  tree: CategoryTreeNode[];
+  loading: boolean;
+  error: string | null;
+  fetchCategories: () => Promise<void>;
+  handleCreateCategory: (name: string) => Promise<boolean>;
+  handleUpdateCategory: (categoryId: number, data: CategoryUpdate) => Promise<boolean>;
+  handleDeleteCategory: (categoryId: number) => Promise<boolean>;
+}
+
 interface CategorySidebarProps {
   selectedCategoryId: number | null;
   onSelectCategory: (categoryId: number | null) => void;
-  onCategoriesChange?: () => void;
+  categoryTree: CategoryTreeData;
 }
 
 export const CategorySidebar = memo(function CategorySidebar({
   selectedCategoryId,
   onSelectCategory,
-  onCategoriesChange,
+  categoryTree,
 }: CategorySidebarProps) {
   const { t } = useI18n();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -47,7 +56,7 @@ export const CategorySidebar = memo(function CategorySidebar({
     handleCreateCategory,
     handleUpdateCategory,
     handleDeleteCategory,
-  } = useCategoryTree(onCategoriesChange);
+  } = categoryTree;
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
   const deleteConfirm = useDeleteConfirm();

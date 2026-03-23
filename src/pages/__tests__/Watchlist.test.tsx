@@ -106,6 +106,7 @@ vi.mock("../../hooks/useSelectionMode", () => ({
     toggleSelection: vi.fn(),
     selectAll: vi.fn(),
     clearSelection: vi.fn(),
+    reconcile: vi.fn(),
   }),
 }));
 

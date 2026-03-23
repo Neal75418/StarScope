@@ -4,10 +4,10 @@
 
 import { useState, useCallback, useMemo, useRef, memo } from "react";
 import { useI18n, interpolate } from "../../i18n";
-import { useCategoryTree } from "../../hooks/useCategoryTree";
 import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import type { CategoryTreeNode } from "../../api/client";
 
 interface BatchResult {
   success: number;
@@ -28,6 +28,7 @@ interface BatchActionBarProps {
   onPruneSelection: (keepIds: number[]) => void;
   onDone: () => void;
   onError: (msg: string) => void;
+  categoryTree: CategoryTreeNode[];
 }
 
 export const BatchActionBar = memo(function BatchActionBar({
@@ -39,9 +40,10 @@ export const BatchActionBar = memo(function BatchActionBar({
   onPruneSelection,
   onDone,
   onError,
+  categoryTree,
 }: BatchActionBarProps) {
   const { t } = useI18n();
-  const { tree } = useCategoryTree();
+  const tree = categoryTree;
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);

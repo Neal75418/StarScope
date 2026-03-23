@@ -18,9 +18,9 @@ interface BatchResult {
 }
 
 describe("useWatchlistBatchActions", () => {
-  const mockRefreshAll = vi.fn().mockResolvedValue(undefined);
+  const mockInvalidateRepos = vi.fn();
   const mockActions = {
-    refreshAll: mockRefreshAll,
+    invalidateRepos: mockInvalidateRepos,
   } as unknown as WatchlistActions;
 
   beforeEach(() => {
@@ -46,7 +46,7 @@ describe("useWatchlistBatchActions", () => {
     expect(batchResult?.success).toBe(3);
     expect(batchResult?.failed).toBe(0);
     expect(batchResult?.failedIds).toEqual([]);
-    expect(mockRefreshAll).toHaveBeenCalled();
+    expect(mockInvalidateRepos).toHaveBeenCalled();
   });
 
   it("batchAddToCategory counts failures and returns failedIds", async () => {
@@ -81,7 +81,7 @@ describe("useWatchlistBatchActions", () => {
 
     expect(client.fetchRepo).toHaveBeenCalledTimes(2);
     expect(batchResult?.success).toBe(2);
-    expect(mockRefreshAll).toHaveBeenCalled();
+    expect(mockInvalidateRepos).toHaveBeenCalled();
   });
 
   it("batchRemove removes each repo", async () => {
@@ -97,7 +97,7 @@ describe("useWatchlistBatchActions", () => {
 
     expect(client.removeRepo).toHaveBeenCalledTimes(2);
     expect(batchResult?.success).toBe(2);
-    expect(mockRefreshAll).toHaveBeenCalled();
+    expect(mockInvalidateRepos).toHaveBeenCalled();
   });
 
   it("returns zero result for empty selection", async () => {

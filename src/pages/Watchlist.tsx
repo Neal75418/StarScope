@@ -18,6 +18,7 @@ import {
   useIsInitializing,
 } from "../hooks/selectors/useWatchlistSelectors";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
+import { useCategoryTree } from "../hooks/useCategoryTree";
 import { useWatchlistSort } from "../hooks/useWatchlistSort";
 import { useViewMode } from "../hooks/useViewMode";
 import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
@@ -55,8 +56,9 @@ export function Watchlist() {
   const isRecalculating = useIsRecalculating();
   const isInitializing = useIsInitializing();
 
-  // 視窗化批次載入：僅載入可見範圍的 repo 資料
-  const repoIds = useMemo(() => state.repos.map((r) => r.id), [state.repos]);
+  // 視窗化批次載入：基於 displayedRepos（已排序 / 過濾）的 ID 順序，
+  // 確保 RepoList/RepoGrid 回報的可見範圍 index 對齊正確的 repos
+  const repoIds = useMemo(() => displayedRepos.map((r) => r.id), [displayedRepos]);
   const { dataMap: batchData, setVisibleRange } = useWindowedBatchRepoData(repoIds, {
     bufferSize: 10,
   });
@@ -110,8 +112,11 @@ export function Watchlist() {
     [selection]
   );
 
+  // 分類樹：提升到頁面層，讓 CategorySidebar 和 BatchActionBar 共用
+  const categoryTree = useCategoryTree(actions.invalidateRepos);
+
   // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
-  const categoryOps = useCategoryOperations(actions.refreshAll, actions.error);
+  const categoryOps = useCategoryOperations(actions.invalidateRepos, actions.error);
 
   // Memoize handlers 以避免不必要的 re-render
   const handleRemove = useCallback(
@@ -163,6 +168,7 @@ export function Watchlist() {
         <CategorySidebar
           selectedCategoryId={state.filters.selectedCategoryId}
           onSelectCategory={actions.setCategory}
+          categoryTree={categoryTree}
         />
 
         <div className="watchlist-main">
@@ -244,6 +250,7 @@ export function Watchlist() {
               onPruneSelection={handlePruneSelection}
               onDone={handleBatchDone}
               onError={handleBatchError}
+              categoryTree={categoryTree.tree}
             />
           )}
         </div>

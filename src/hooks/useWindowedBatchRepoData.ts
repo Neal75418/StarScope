@@ -158,6 +158,8 @@ export function useWindowedBatchRepoData(
   }, [missingIdsKey]);
 
   // 合併成最終的 dataMap（增量更新：只替換真正有變化的 entry，穩定 reference）
+  // 輸出所有已載入的資料（不侷限於 allRepoIds），讓 SummaryPanel 等全域消費者
+  // 即使在分類 / 搜尋過濾時仍能讀取先前載入的 repo signals
   const prevDataMapRef = useRef<Record<number, BatchRepoData>>({});
 
   const dataMap = useMemo(() => {
@@ -165,8 +167,13 @@ export function useWindowedBatchRepoData(
     let changed = false;
     const result: Record<number, BatchRepoData> = {};
 
-    for (const id of allRepoIds) {
-      const key = String(id);
+    // 收集所有已載入資料的 keys
+    const loadedKeys = new Set<string>();
+    for (const key of Object.keys(badgesMap)) loadedKeys.add(key);
+    for (const key of Object.keys(signalsMap)) loadedKeys.add(key);
+
+    for (const key of loadedKeys) {
+      const id = Number(key);
       const newBadges = badgesMap[key]?.badges ?? EMPTY_BADGES;
       const newSignals = signalsMap[key]?.signals ?? EMPTY_SIGNALS;
       const existing = prev[id];
@@ -179,13 +186,13 @@ export function useWindowedBatchRepoData(
       }
     }
 
-    if (!changed && Object.keys(prev).length === allRepoIds.length) {
+    if (!changed && Object.keys(prev).length === loadedKeys.size) {
       return prev;
     }
 
     prevDataMapRef.current = result;
     return result;
-  }, [allRepoIds, badgesMap, signalsMap]);
+  }, [badgesMap, signalsMap]);
 
   // 包裝 setVisibleRange 以確保穩定引用
   const handleSetVisibleRange = useCallback((range: VisibleRange) => {

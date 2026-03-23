@@ -3,22 +3,41 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { BatchActionBar } from "../BatchActionBar";
 
-vi.mock("../../../hooks/useCategoryTree", () => ({
-  useCategoryTree: () => ({
-    tree: [
-      { id: 1, name: "Frontend", children: [] },
-      { id: 2, name: "Backend", children: [{ id: 3, name: "API", children: [] }] },
-    ],
-    loading: false,
-    error: null,
-    fetchCategories: vi.fn(),
-    handleCreateCategory: vi.fn(),
-    handleUpdateCategory: vi.fn(),
-    handleDeleteCategory: vi.fn(),
-  }),
-}));
-
 describe("BatchActionBar", () => {
+  const mockCategoryTree = [
+    {
+      id: 1,
+      name: "Frontend",
+      description: null,
+      icon: null,
+      color: null,
+      sort_order: 0,
+      repo_count: 0,
+      children: [],
+    },
+    {
+      id: 2,
+      name: "Backend",
+      description: null,
+      icon: null,
+      color: null,
+      sort_order: 1,
+      repo_count: 0,
+      children: [
+        {
+          id: 3,
+          name: "API",
+          description: null,
+          icon: null,
+          color: null,
+          sort_order: 0,
+          repo_count: 0,
+          children: [],
+        },
+      ],
+    },
+  ];
+
   const defaultProps = {
     selectedCount: 3,
     isProcessing: false,
@@ -30,6 +49,7 @@ describe("BatchActionBar", () => {
     onPruneSelection: vi.fn(),
     onDone: vi.fn(),
     onError: vi.fn(),
+    categoryTree: mockCategoryTree,
   };
 
   beforeEach(() => {

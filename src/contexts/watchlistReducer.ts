@@ -111,6 +111,9 @@ export interface WatchlistActions {
   refreshAll: () => Promise<void>;
   recalculateAll: () => Promise<void>;
 
+  // 輕量同步（僅 invalidate React Query cache + 刷新分類快照，不重抓 GitHub）
+  invalidateRepos: () => void;
+
   // UI 操作
   openDialog: () => void;
   closeDialog: () => void;

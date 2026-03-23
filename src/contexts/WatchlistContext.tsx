@@ -294,6 +294,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       // 錯誤處理
       clearError: () => dispatch({ type: "CLEAR_ERROR" }),
 
+      // 輕量同步 — 僅 invalidate React Query cache + 刷新分類快照，不重抓 GitHub
+      invalidateRepos,
+
       // 連線重試 — invalidate React Query cache 觸發重新取得
       retry: async () => {
         dispatch({ type: "CLEAR_ERROR" });

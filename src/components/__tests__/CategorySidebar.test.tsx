@@ -5,147 +5,161 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { CategorySidebar } from "../CategorySidebar";
+import { CategorySidebar, CategoryTreeData } from "../CategorySidebar";
+import type { CategoryTreeNode } from "../../api/client";
 import * as apiClient from "../../api/client";
 
-// Mock API client
+// Mock API client (getCategory is still called internally for edit)
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
   return {
     ...actual,
-    getCategoryTree: vi.fn(),
     getCategory: vi.fn(),
-    createCategory: vi.fn(),
-    deleteCategory: vi.fn(),
   };
 });
 
-// Mock window.confirm
-global.confirm = vi.fn(() => true);
-
-describe("CategorySidebar", () => {
-  const mockOnSelectCategory = vi.fn();
-  const mockOnCategoriesChange = vi.fn();
-
-  const mockCategoryTree = {
-    total: 3,
-    tree: [
+const mockTree: CategoryTreeNode[] = [
+  {
+    id: 1,
+    name: "Frontend",
+    description: null,
+    icon: "🎨",
+    color: "#3b82f6",
+    sort_order: 0,
+    repo_count: 5,
+    children: [
       {
-        id: 1,
-        name: "Frontend",
+        id: 2,
+        name: "React",
         description: null,
-        icon: "🎨",
-        color: "#3b82f6",
+        icon: "⚛️",
+        color: null,
         sort_order: 0,
-        repo_count: 5,
-        children: [
-          {
-            id: 2,
-            name: "React",
-            description: null,
-            icon: "⚛️",
-            color: null,
-            sort_order: 0,
-            repo_count: 3,
-            children: [],
-          },
-        ],
-      },
-      {
-        id: 3,
-        name: "Backend",
-        description: null,
-        icon: "⚙️",
-        color: "#10b981",
-        sort_order: 1,
-        repo_count: 2,
+        repo_count: 3,
         children: [],
       },
     ],
+  },
+  {
+    id: 3,
+    name: "Backend",
+    description: null,
+    icon: "⚙️",
+    color: "#10b981",
+    sort_order: 1,
+    repo_count: 2,
+    children: [],
+  },
+];
+
+function makeCategoryTreeData(overrides: Partial<CategoryTreeData> = {}): CategoryTreeData {
+  return {
+    tree: mockTree,
+    loading: false,
+    error: null,
+    fetchCategories: vi.fn().mockResolvedValue(undefined),
+    handleCreateCategory: vi.fn().mockResolvedValue(true),
+    handleUpdateCategory: vi.fn().mockResolvedValue(true),
+    handleDeleteCategory: vi.fn().mockResolvedValue(true),
+    ...overrides,
   };
+}
+
+describe("CategorySidebar", () => {
+  const mockOnSelectCategory = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("shows loading state initially", () => {
-    vi.mocked(apiClient.getCategoryTree).mockImplementation(
-      () => new Promise(() => {}) // Never resolves
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({ loading: true, tree: [] })}
+      />
     );
-
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
 
     expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it("displays categories after loading", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+  it("displays categories after loading", () => {
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Frontend")).toBeInTheDocument();
-      expect(screen.getByText("Backend")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Frontend")).toBeInTheDocument();
+    expect(screen.getByText("Backend")).toBeInTheDocument();
   });
 
-  it("shows error message on load failure", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockRejectedValue(new Error("Network error"));
+  it("shows error message on load failure", () => {
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({ error: "Failed to load categories", tree: [] })}
+      />
+    );
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to load categories")).toBeInTheDocument();
-    });
+    expect(screen.getByText("Failed to load categories")).toBeInTheDocument();
   });
 
-  it("displays All Repositories option", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+  it("displays All Repositories option", () => {
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("All Repositories")).toBeInTheDocument();
-    });
+    expect(screen.getByText("All Repositories")).toBeInTheDocument();
   });
 
   it("calls onSelectCategory when category clicked", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Frontend")).toBeInTheDocument();
-    });
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
     await user.click(screen.getByText("Frontend"));
 
     expect(mockOnSelectCategory).toHaveBeenCalledWith(1);
   });
 
-  it("highlights selected category", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-
+  it("highlights selected category", () => {
     const { container } = render(
-      <CategorySidebar selectedCategoryId={1} onSelectCategory={mockOnSelectCategory} />
+      <CategorySidebar
+        selectedCategoryId={1}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
     );
 
-    await waitFor(() => {
-      const selectedItem = container.querySelector(".category-item.selected");
-      expect(selectedItem).toBeInTheDocument();
-    });
+    const selectedItem = container.querySelector(".category-item.selected");
+    expect(selectedItem).toBeInTheDocument();
   });
 
   it("shows add category form when add button clicked", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ total: 0, tree: [] });
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
-    });
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({ tree: [] })}
+      />
+    );
 
     await user.click(screen.getByTitle("Add category"));
 
@@ -154,28 +168,15 @@ describe("CategorySidebar", () => {
 
   it("creates new category", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ total: 0, tree: [] });
-    vi.mocked(apiClient.createCategory).mockResolvedValue({
-      id: 1,
-      name: "New Category",
-      description: null,
-      icon: null,
-      color: null,
-      parent_id: null,
-      sort_order: 0,
-      created_at: "2026-01-19",
-      repo_count: 0,
-    });
+    const mockCreate = vi.fn().mockResolvedValue(true);
 
     render(
       <CategorySidebar
         selectedCategoryId={null}
         onSelectCategory={mockOnSelectCategory}
-        onCategoriesChange={mockOnCategoriesChange}
+        categoryTree={makeCategoryTreeData({ tree: [], handleCreateCategory: mockCreate })}
       />
     );
-
-    await waitFor(() => screen.getByTitle("Add category"));
 
     await user.click(screen.getByTitle("Add category"));
 
@@ -184,39 +185,41 @@ describe("CategorySidebar", () => {
     await user.click(screen.getByText("Add"));
 
     await waitFor(() => {
-      expect(apiClient.createCategory).toHaveBeenCalledWith({ name: "New Category" });
-      expect(mockOnCategoriesChange).toHaveBeenCalled();
+      expect(mockCreate).toHaveBeenCalledWith("New Category");
     });
   });
 
-  it("shows repo count for each category", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+  it("shows repo count for each category", () => {
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      // Frontend: 5, Backend: 2 (from mockCategoryTree)
-      expect(screen.getByText("5")).toBeInTheDocument();
-      expect(screen.getByText("2")).toBeInTheDocument();
-    });
+    // Frontend: 5, Backend: 2
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("expands and collapses categories with children", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => screen.getByText("Frontend"));
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
     // React should not be visible initially
     expect(screen.queryByText("React")).not.toBeInTheDocument();
 
-    // Click expand button (uses aria-label from i18n)
     const expandButton = screen.getByLabelText("Expand");
     await user.click(expandButton);
 
-    // Now React should be visible
     await waitFor(() => {
       expect(screen.getByText("React")).toBeInTheDocument();
     });
@@ -224,69 +227,15 @@ describe("CategorySidebar", () => {
 
   it("deletes a category after confirmation", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-    vi.mocked(apiClient.deleteCategory).mockResolvedValue({ status: "ok", message: "deleted" });
+    const mockDelete = vi.fn().mockResolvedValue(true);
 
     render(
       <CategorySidebar
         selectedCategoryId={null}
         onSelectCategory={mockOnSelectCategory}
-        onCategoriesChange={mockOnCategoriesChange}
+        categoryTree={makeCategoryTreeData({ handleDeleteCategory: mockDelete })}
       />
     );
-
-    await waitFor(() => screen.getByText("Backend"));
-
-    // Click delete button on Backend category
-    const deleteButtons = screen.getAllByTitle("Delete category");
-    // Backend is the second top-level category (index 1)
-    await user.click(deleteButtons[deleteButtons.length - 1]);
-
-    // ConfirmDialog should appear - click the confirm button
-    await waitFor(() => {
-      const confirmBtn = screen.getByText("Confirm");
-      expect(confirmBtn).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByText("Confirm"));
-
-    await waitFor(() => {
-      expect(apiClient.deleteCategory).toHaveBeenCalledWith(3);
-    });
-  });
-
-  it("selects All Repositories when clicked", async () => {
-    const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-
-    render(<CategorySidebar selectedCategoryId={1} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => screen.getByText("All Repositories"));
-
-    await user.click(screen.getByText("All Repositories"));
-
-    expect(mockOnSelectCategory).toHaveBeenCalledWith(null);
-  });
-
-  it("shows category icons", async () => {
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("🎨")).toBeInTheDocument();
-      expect(screen.getByText("⚙️")).toBeInTheDocument();
-    });
-  });
-
-  it("keeps delete dialog open when deletion fails", async () => {
-    const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
-    vi.mocked(apiClient.deleteCategory).mockRejectedValue(new Error("Server error"));
-
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => screen.getByText("Backend"));
 
     const deleteButtons = screen.getAllByTitle("Delete category");
     await user.click(deleteButtons[deleteButtons.length - 1]);
@@ -297,19 +246,70 @@ describe("CategorySidebar", () => {
 
     await user.click(screen.getByText("Confirm"));
 
-    // Dialog should remain open for retry after failure
     await waitFor(() => {
-      expect(apiClient.deleteCategory).toHaveBeenCalledWith(3);
+      expect(mockDelete).toHaveBeenCalledWith(3);
+    });
+  });
+
+  it("selects All Repositories when clicked", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CategorySidebar
+        selectedCategoryId={1}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
+
+    await user.click(screen.getByText("All Repositories"));
+
+    expect(mockOnSelectCategory).toHaveBeenCalledWith(null);
+  });
+
+  it("shows category icons", () => {
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
+
+    expect(screen.getByText("🎨")).toBeInTheDocument();
+    expect(screen.getByText("⚙️")).toBeInTheDocument();
+  });
+
+  it("keeps delete dialog open when deletion fails", async () => {
+    const user = userEvent.setup();
+    const mockDelete = vi.fn().mockResolvedValue(false);
+
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({ handleDeleteCategory: mockDelete })}
+      />
+    );
+
+    const deleteButtons = screen.getAllByTitle("Delete category");
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirm")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Confirm"));
+
+    await waitFor(() => {
+      expect(mockDelete).toHaveBeenCalledWith(3);
     });
     expect(screen.getByText("Confirm")).toBeInTheDocument();
   });
 
   it("discards stale edit response when another edit is clicked", async () => {
     const user = userEvent.setup();
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
 
-    // First getCategory call: slow, resolves to "Frontend" data
-    // Second getCategory call: fast, resolves to "Backend" data
     let resolveFirst: (value: unknown) => void = () => undefined;
     const firstCall = new Promise((resolve) => {
       resolveFirst = resolve;
@@ -329,9 +329,13 @@ describe("CategorySidebar", () => {
         repo_count: 2,
       });
 
-    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
-
-    await waitFor(() => screen.getByText("Frontend"));
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
 
     // Click edit on Frontend (id=1), then immediately on Backend (id=3)
     const editButtons = screen.getAllByTitle("Edit category");
