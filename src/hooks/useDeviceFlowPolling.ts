@@ -1,5 +1,6 @@
 /**
  * OAuth Device Flow 輪詢邏輯。
+ * 使用 recursive setTimeout 而非 setInterval，確保前一次請求完成後才排程下一次。
  */
 
 import { useCallback, useRef, useEffect } from "react";
@@ -37,9 +38,9 @@ export function useDeviceFlowPolling({
   const isOnlineRef = useRef(isOnline);
   isOnlineRef.current = isOnline;
 
-  const pollIntervalRef = useRef<number | null>(null);
+  const nextPollRef = useRef<number | null>(null);
   const pollTimeoutRef = useRef<number | null>(null);
-  const currentIntervalRef = useRef<number>(10); // 預設輪詢間隔
+  const currentIntervalRef = useRef<number>(10);
 
   const codeRef = useRef<string>("");
   const initialDelayRef = useRef<number | null>(null);
@@ -50,9 +51,9 @@ export function useDeviceFlowPolling({
       clearTimeout(initialDelayRef.current);
       initialDelayRef.current = null;
     }
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    if (nextPollRef.current !== null) {
+      clearTimeout(nextPollRef.current);
+      nextPollRef.current = null;
     }
     if (pollTimeoutRef.current) {
       clearTimeout(pollTimeoutRef.current);
@@ -61,7 +62,7 @@ export function useDeviceFlowPolling({
   }, []);
 
   const resetInterval = useCallback(() => {
-    currentIntervalRef.current = 10; // 預設輪詢間隔
+    currentIntervalRef.current = 10;
   }, []);
 
   const handleSuccess = useCallback(
@@ -83,21 +84,9 @@ export function useDeviceFlowPolling({
     [t, stopPolling, onError, setPollStatus]
   );
 
-  const restartWithNewInterval = useCallback(
-    (newInterval: number) => {
-      currentIntervalRef.current = newInterval;
-      setPollStatus(interpolate(t.githubConnection.status.rateLimited, { seconds: newInterval }));
-
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        // 將在下一個 tick 重新設定
-      }
-    },
-    [t, setPollStatus]
-  );
-
   const startPolling = useCallback(
     (code: string, interval: number, expiresIn: number) => {
+      stopPolling(); // 清除前一次 polling session
       codeRef.current = code;
       currentIntervalRef.current = Math.max(interval, DEVICE_FLOW_MIN_POLL_INTERVAL_SEC);
 
@@ -106,11 +95,19 @@ export function useDeviceFlowPolling({
         onExpired();
       }, expiresIn * 1000);
 
+      const scheduleNext = () => {
+        nextPollRef.current = window.setTimeout(doPoll, currentIntervalRef.current * 1000);
+      };
+
       const doPoll = async () => {
-        // 頁面不可見或離線時跳過本次輪詢
-        if (typeof document !== "undefined" && document.hidden) return;
+        // 頁面不可見或離線時跳過本次輪詢，排程下一次
+        if (typeof document !== "undefined" && document.hidden) {
+          scheduleNext();
+          return;
+        }
         if (!isOnlineRef.current) {
           setPollStatus(t.githubConnection.status.networkError);
+          scheduleNext();
           return;
         }
 
@@ -121,44 +118,36 @@ export function useDeviceFlowPolling({
             })
           );
           const result = await pollAuthorization(codeRef.current);
-          processResult(result, doPoll);
+
+          if (result.status === "success") {
+            handleSuccess(result.username);
+          } else if (result.status === "expired" || result.status === "error") {
+            handleError(result.error);
+          } else if (result.status === "pending" && result.slow_down && result.interval) {
+            const newInterval = result.interval + DEVICE_FLOW_SLOWDOWN_EXTRA_SEC;
+            currentIntervalRef.current = newInterval;
+            setPollStatus(
+              interpolate(t.githubConnection.status.rateLimited, { seconds: newInterval })
+            );
+            scheduleNext();
+          } else {
+            setPollStatus(
+              interpolate(t.githubConnection.status.waiting, {
+                seconds: currentIntervalRef.current,
+              })
+            );
+            scheduleNext();
+          }
         } catch (err) {
           logger.error("[GitHub 驗證] 輪詢錯誤:", err);
           setPollStatus(t.githubConnection.status.networkError);
-        }
-      };
-
-      const processResult = (
-        result: {
-          status: string;
-          username?: string;
-          error?: string;
-          slow_down?: boolean;
-          interval?: number;
-        },
-        pollFn: () => Promise<void>
-      ) => {
-        if (result.status === "success") {
-          handleSuccess(result.username);
-        } else if (result.status === "expired" || result.status === "error") {
-          handleError(result.error);
-        } else if (result.status === "pending" && result.slow_down && result.interval) {
-          const newInterval = result.interval + DEVICE_FLOW_SLOWDOWN_EXTRA_SEC;
-          restartWithNewInterval(newInterval);
-          pollIntervalRef.current = window.setInterval(pollFn, newInterval * 1000);
-        } else {
-          setPollStatus(
-            interpolate(t.githubConnection.status.waiting, {
-              seconds: currentIntervalRef.current,
-            })
-          );
+          scheduleNext();
         }
       };
 
       initialDelayRef.current = window.setTimeout(doPoll, DEVICE_FLOW_INITIAL_DELAY_MS);
-      pollIntervalRef.current = window.setInterval(doPoll, currentIntervalRef.current * 1000);
     },
-    [t, stopPolling, onExpired, setPollStatus, handleSuccess, handleError, restartWithNewInterval]
+    [t, stopPolling, onExpired, setPollStatus, handleSuccess, handleError]
   );
 
   // 元件卸載時清理所有 timers
@@ -167,8 +156,8 @@ export function useDeviceFlowPolling({
       if (initialDelayRef.current !== null) {
         clearTimeout(initialDelayRef.current);
       }
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+      if (nextPollRef.current !== null) {
+        clearTimeout(nextPollRef.current);
       }
       if (pollTimeoutRef.current) {
         clearTimeout(pollTimeoutRef.current);

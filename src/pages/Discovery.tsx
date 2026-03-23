@@ -43,7 +43,7 @@ export function Discovery() {
   const { refreshAll: handleRefreshAll } = useWatchlistActions();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
+  const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
 
@@ -131,7 +131,7 @@ export function Discovery() {
   // 將 repo 加入 watchlist（共用邏輯）
   const doAddToWatchlist = useCallback(
     async (owner: string, name: string, fullName: string, id: number) => {
-      setAddingRepoId(id);
+      setAddingRepoIds((prev) => new Set(prev).add(id));
       try {
         await addRepo({ owner, name });
         setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(fullName)));
@@ -140,7 +140,11 @@ export function Discovery() {
       } catch {
         toast.error(t.toast.error);
       } finally {
-        setAddingRepoId(null);
+        setAddingRepoIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
       }
     },
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
@@ -195,7 +199,7 @@ export function Discovery() {
       <RecommendedForYou
         watchlistFullNames={watchlistFullNames}
         onAddToWatchlist={handleRecAddToWatchlist}
-        addingRepoId={addingRepoId}
+        addingRepoIds={addingRepoIds}
       />
 
       <DiscoverySearchBar
@@ -245,7 +249,7 @@ export function Discovery() {
         watchlistSignalMap={watchlistSignalMap}
         onAddToWatchlist={handleAddToWatchlist}
         onLoadMore={discovery.loadMore}
-        addingRepoId={addingRepoId}
+        addingRepoIds={addingRepoIds}
         hasSearched={discovery.hasSearched}
         isSelectionMode={selection.isActive}
         selectedIds={selection.selectedIds}

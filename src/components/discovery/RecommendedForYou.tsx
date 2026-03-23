@@ -124,13 +124,13 @@ const RecCard = memo(function RecCard({
 interface RecommendedForYouProps {
   watchlistFullNames?: Set<string>;
   onAddToWatchlist?: (rec: PersonalizedRecommendation) => void;
-  addingRepoId?: number | null;
+  addingRepoIds?: Set<number>;
 }
 
 export const RecommendedForYou = memo(function RecommendedForYou({
   watchlistFullNames,
   onAddToWatchlist,
-  addingRepoId,
+  addingRepoIds,
 }: RecommendedForYouProps) {
   const { t } = useI18n();
   const { data, isLoading, error } = usePersonalizedRecs(FETCH_LIMIT);
@@ -207,7 +207,7 @@ export const RecommendedForYou = memo(function RecommendedForYou({
                 onDismiss={dismiss}
                 isInWatchlist={watchlistFullNames?.has(normalizeRepoName(rec.full_name))}
                 onAddToWatchlist={onAddToWatchlist}
-                isAdding={addingRepoId === rec.repo_id}
+                isAdding={addingRepoIds?.has(rec.repo_id)}
               />
             ))}
           </div>

@@ -28,7 +28,7 @@ interface DiscoveryResultsProps {
   watchlistSignalMap?: Map<string, WatchlistSignal>;
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   onLoadMore: () => void;
-  addingRepoId: number | null;
+  addingRepoIds: Set<number>;
   hasSearched: boolean;
   onViewRepo?: (repo: DiscoveryRepo) => void;
   isSelectionMode?: boolean;
@@ -52,7 +52,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
   watchlistSignalMap,
   onAddToWatchlist,
   onLoadMore,
-  addingRepoId,
+  addingRepoIds,
   hasSearched,
   onViewRepo,
   isSelectionMode = false,
@@ -167,7 +167,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
               repo={repo}
               isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
               onAddToWatchlist={onAddToWatchlist}
-              isAdding={addingRepoId === repo.id}
+              isAdding={addingRepoIds.has(repo.id)}
               signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
               onView={onViewRepo}
               isSelectionMode={isSelectionMode}

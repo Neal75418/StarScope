@@ -170,6 +170,50 @@ describe("useDeviceFlowPolling", () => {
     expect(setPollStatus).toHaveBeenCalled();
   });
 
+  it("does not overlap polls when pollAuthorization is slow", async () => {
+    // pollAuthorization takes 15s to resolve — longer than the 10s interval
+    let resolveFirst: (value: unknown) => void = () => undefined;
+    mockPollAuth.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        })
+    );
+
+    const { result } = renderPolling();
+
+    act(() => {
+      result.current.startPolling("test-code", 10, 300);
+    });
+
+    // Fire the initial delay (3s) — starts first poll
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockPollAuth).toHaveBeenCalledTimes(1);
+
+    // Advance past the interval (10s) — with setInterval, this would fire a second poll
+    // With recursive setTimeout, no new poll should start until the first resolves
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(mockPollAuth).toHaveBeenCalledTimes(1); // Still 1 — no overlap
+
+    // Resolve the first poll — should schedule next poll after interval
+    mockPollAuth.mockResolvedValue({ status: "pending" } as never);
+    await act(async () => {
+      resolveFirst({ status: "pending" });
+    });
+
+    // Advance past the next interval — now second poll should fire
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+    expect(mockPollAuth).toHaveBeenCalledTimes(2);
+
+    result.current.stopPolling();
+  });
+
   it("skips poll when document is hidden", async () => {
     mockPollAuth.mockResolvedValue({ status: "pending" });
     const { result } = renderPolling();

@@ -10,7 +10,7 @@ import { TrendCard } from "./TrendCard";
 interface TrendGridProps {
   trends: TrendingRepo[];
   allWatchlistNames: Set<string>;
-  addingRepoId: number | null;
+  addingRepoIds: Set<number>;
   onAddToWatchlist: (repo: TrendingRepo) => void;
   t: ReturnType<typeof useI18n>["t"];
   isSelectionMode?: boolean;
@@ -22,7 +22,7 @@ interface TrendGridProps {
 export function TrendGrid({
   trends,
   allWatchlistNames,
-  addingRepoId,
+  addingRepoIds,
   onAddToWatchlist,
   t,
   isSelectionMode,
@@ -37,7 +37,7 @@ export function TrendGrid({
           key={repo.id}
           repo={repo}
           isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
-          isAdding={addingRepoId === repo.id}
+          isAdding={addingRepoIds.has(repo.id)}
           onAddToWatchlist={onAddToWatchlist}
           t={t}
           isSelectionMode={isSelectionMode}

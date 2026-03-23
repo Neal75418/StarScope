@@ -136,7 +136,7 @@ export function Trends() {
   // Watchlist 狀態 — 從 Context 讀取，避免重複 API 請求
   const watchlistState = useWatchlistState();
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
-  const [addingRepoId, setAddingRepoId] = useState<number | null>(null);
+  const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
   const [addError, setAddError] = useState<string | null>(null);
 
   // 展開狀態 — 同一時間只展開一行（僅 list 模式）
@@ -174,7 +174,7 @@ export function Trends() {
 
   const handleAddToWatchlist = useCallback(
     async (repo: TrendingRepo) => {
-      setAddingRepoId(repo.id);
+      setAddingRepoIds((prev) => new Set(prev).add(repo.id));
       setAddError(null);
       try {
         await addRepo({ owner: repo.owner, name: repo.name });
@@ -183,7 +183,11 @@ export function Trends() {
         logger.error("[Trends] 加入追蹤失敗:", err);
         setAddError(`${t.common.error}: ${repo.full_name}`);
       } finally {
-        setAddingRepoId(null);
+        setAddingRepoIds((prev) => {
+          const next = new Set(prev);
+          next.delete(repo.id);
+          return next;
+        });
       }
     },
     [t]
@@ -454,7 +458,7 @@ export function Trends() {
         <TrendGrid
           trends={displayedTrends}
           allWatchlistNames={allWatchlistNames}
-          addingRepoId={addingRepoId}
+          addingRepoIds={addingRepoIds}
           onAddToWatchlist={handleAddToWatchlist}
           t={t}
           isSelectionMode={selection.isActive}
@@ -485,7 +489,7 @@ export function Trends() {
                   <TrendRow
                     repo={repo}
                     isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
-                    isAdding={addingRepoId === repo.id}
+                    isAdding={addingRepoIds.has(repo.id)}
                     onAddToWatchlist={handleAddToWatchlist}
                     isExpanded={expandedRepoId === repo.id}
                     onToggleExpand={handleToggleExpand}

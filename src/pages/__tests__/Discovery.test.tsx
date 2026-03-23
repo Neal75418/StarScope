@@ -152,7 +152,7 @@ vi.mock("../../components/discovery", () => ({
     hasSearched,
     watchlistFullNames,
     onAddToWatchlist,
-    addingRepoId,
+    addingRepoIds,
   }: {
     repos: { id: number; full_name: string; owner: string; name: string }[];
     hasSearched: boolean;
@@ -163,7 +163,7 @@ vi.mock("../../components/discovery", () => ({
       owner: string;
       name: string;
     }) => void;
-    addingRepoId: number | null;
+    addingRepoIds: Set<number>;
   }) => (
     <div data-testid="discovery-results">
       {hasSearched ? `${repos.length} results` : "Start searching"}
@@ -176,7 +176,7 @@ vi.mock("../../components/discovery", () => ({
             <button
               data-testid={`add-btn-${r.id}`}
               onClick={() => onAddToWatchlist(r)}
-              disabled={addingRepoId === r.id}
+              disabled={addingRepoIds.has(r.id)}
             >
               Add
             </button>
