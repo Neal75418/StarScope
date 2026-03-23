@@ -8,7 +8,7 @@ import { useI18n } from "../../i18n";
 import type { RepoWithSignals } from "../../api/types";
 import { normalizeRepoName } from "../../utils/format";
 
-const MAX_COMPARE_REPOS = 5;
+export const MAX_COMPARE_REPOS = 5;
 
 export interface RepoSelectorHandle {
   resetSearch: () => void;

@@ -9,13 +9,20 @@ import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 
+interface BatchResult {
+  success: number;
+  failed: number;
+  total: number;
+}
+
 interface BatchActionBarProps {
   selectedCount: number;
   isProcessing: boolean;
-  onBatchAddToCategory: (categoryId: number) => Promise<unknown>;
-  onBatchRefresh: () => Promise<unknown>;
-  onBatchRemove: () => Promise<unknown>;
+  onBatchAddToCategory: (categoryId: number) => Promise<BatchResult>;
+  onBatchRefresh: () => Promise<BatchResult>;
+  onBatchRemove: () => Promise<BatchResult>;
   onDone: () => void;
+  onError: (msg: string) => void;
 }
 
 export const BatchActionBar = memo(function BatchActionBar({
@@ -25,6 +32,7 @@ export const BatchActionBar = memo(function BatchActionBar({
   onBatchRefresh,
   onBatchRemove,
   onDone,
+  onError,
 }: BatchActionBarProps) {
   const { t } = useI18n();
   const { tree } = useCategoryTree();
@@ -35,28 +43,46 @@ export const BatchActionBar = memo(function BatchActionBar({
   useClickOutside(pickerRef, closePicker, showCategoryPicker);
   useEscapeKey(closePicker, showCategoryPicker);
 
+  const handleResult = useCallback(
+    (result: BatchResult) => {
+      if (result.success === result.total) {
+        onDone();
+      } else if (result.success > 0) {
+        onError(
+          interpolate(t.watchlist.batch.partial, {
+            success: result.success,
+            total: result.total,
+          })
+        );
+      } else {
+        onError(t.watchlist.batch.error);
+      }
+    },
+    [onDone, onError, t]
+  );
+
   const handleAddToCategory = useCallback(
     async (categoryId: number) => {
       setShowCategoryPicker(false);
-      await onBatchAddToCategory(categoryId);
-      onDone();
+      const result = await onBatchAddToCategory(categoryId);
+      handleResult(result);
     },
-    [onBatchAddToCategory, onDone]
+    [onBatchAddToCategory, handleResult]
   );
 
   const handleRefresh = useCallback(async () => {
-    await onBatchRefresh();
-    onDone();
-  }, [onBatchRefresh, onDone]);
+    const result = await onBatchRefresh();
+    handleResult(result);
+  }, [onBatchRefresh, handleResult]);
 
   const handleRemoveClick = useCallback(() => setShowRemoveConfirm(true), []);
   const closeRemoveConfirm = useCallback(() => setShowRemoveConfirm(false), []);
 
   const handleRemoveConfirm = useCallback(async () => {
     setShowRemoveConfirm(false);
-    await onBatchRemove();
-    onDone();
-  }, [onBatchRemove, onDone]);
+    const result = await onBatchRemove();
+    handleResult(result);
+  }, [onBatchRemove, handleResult]);
 
   // 攤平所有分類（包含子分類），memoize 避免每次 render 重建
   const flatCategories = useMemo(() => {

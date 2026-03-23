@@ -18,7 +18,6 @@ interface AlertRuleFormProps {
   onCancel: () => void;
 }
 
-const DEFAULT_THRESHOLD = 0;
 const DEFAULT_ENABLED = true;
 
 const OPERATORS: { value: AlertOperator; label: string }[] = [
@@ -40,6 +39,7 @@ export function AlertRuleForm({
 }: AlertRuleFormProps) {
   const { t } = useI18n();
   const [rule, setRule] = useState<AlertRuleCreate>(initialData);
+  const [thresholdInput, setThresholdInput] = useState(String(initialData.threshold));
   const [applyToAll, setApplyToAll] = useState(initialData.repo_id === undefined);
   const { validate } = useAlertRuleFormValidation(rule, applyToAll);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -47,6 +47,7 @@ export function AlertRuleForm({
   // initialData 變更時重設表單（編輯模式用）
   useEffect(() => {
     setRule(initialData);
+    setThresholdInput(String(initialData.threshold));
     setApplyToAll(initialData.repo_id === undefined);
     setValidationError(null);
   }, [initialData]);
@@ -61,9 +62,16 @@ export function AlertRuleForm({
     }
     setValidationError(null);
 
+    const parsedThreshold = parseFloat(thresholdInput);
+    if (isNaN(parsedThreshold)) {
+      setValidationError(t.settings.alerts.form.invalidThreshold);
+      return;
+    }
+
     const ruleData: AlertRuleCreate = {
       ...rule,
       name: rule.name.trim(),
+      threshold: parsedThreshold,
       repo_id: applyToAll ? undefined : rule.repo_id,
     };
 
@@ -138,10 +146,14 @@ export function AlertRuleForm({
           <input
             id="alert-rule-threshold"
             type="number"
-            value={rule.threshold}
-            onChange={(e) =>
-              setRule({ ...rule, threshold: parseFloat(e.target.value) || DEFAULT_THRESHOLD })
-            }
+            value={thresholdInput}
+            onChange={(e) => {
+              setThresholdInput(e.target.value);
+              const parsed = parseFloat(e.target.value);
+              if (Number.isFinite(parsed)) {
+                setRule((r) => ({ ...r, threshold: parsed }));
+              }
+            }}
             step="any"
             required
           />

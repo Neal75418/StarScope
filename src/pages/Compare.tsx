@@ -25,7 +25,7 @@ import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { TIME_RANGES } from "../constants/chart";
 import { STORAGE_KEYS } from "../constants/storage";
-import { RepoSelector, type RepoSelectorHandle } from "./compare/RepoSelector";
+import { RepoSelector, MAX_COMPARE_REPOS, type RepoSelectorHandle } from "./compare/RepoSelector";
 import { MetricsTable } from "./compare/MetricsTable";
 import { CompareTooltip } from "./compare/CompareTooltip";
 import { ChartDownloadButton } from "./compare/ChartDownloadButton";
@@ -38,7 +38,8 @@ export type CompareChartType = "line" | "area";
 function loadSavedRepoIds(): number[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.COMPARE_REPOS);
-    return saved ? JSON.parse(saved) : [];
+    const ids: number[] = saved ? JSON.parse(saved) : [];
+    return ids.slice(0, MAX_COMPARE_REPOS);
   } catch {
     return [];
   }
@@ -77,7 +78,7 @@ export function Compare() {
     const ids = navigationState.preselectedIds as number[];
     if (ids.length > 0) {
       setSelectedIds((prev) => {
-        const merged = Array.from(new Set([...prev, ...ids]));
+        const merged = Array.from(new Set([...prev, ...ids])).slice(0, MAX_COMPARE_REPOS);
         try {
           localStorage.setItem(STORAGE_KEYS.COMPARE_REPOS, JSON.stringify(merged));
         } catch {
@@ -91,7 +92,11 @@ export function Compare() {
 
   const toggleRepo = useCallback((id: number) => {
     setSelectedIds((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length >= MAX_COMPARE_REPOS
+          ? prev
+          : [...prev, id];
       try {
         localStorage.setItem(STORAGE_KEYS.COMPARE_REPOS, JSON.stringify(next));
       } catch {

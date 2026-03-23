@@ -93,10 +93,13 @@ export const CategorySidebar = memo(function CategorySidebar({
   const handleConfirmDelete = useCallback(async () => {
     if (deleteConfirm.itemId === null) return;
     const success = await handleDeleteCategory(deleteConfirm.itemId);
-    if (success && selectedCategoryId === deleteConfirm.itemId) {
-      onSelectCategory(null);
+    if (success) {
+      if (selectedCategoryId === deleteConfirm.itemId) {
+        onSelectCategory(null);
+      }
+      deleteConfirm.close();
     }
-    deleteConfirm.close();
+    // 失敗時保留 dialog 開啟，讓使用者可以重試
   }, [deleteConfirm, handleDeleteCategory, selectedCategoryId, onSelectCategory]);
 
   if (loading) {

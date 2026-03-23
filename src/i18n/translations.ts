@@ -259,6 +259,8 @@ export const translations = {
         confirmRemove: "Remove {count} selected repos? This cannot be undone.",
         processing: "Processing...",
         done: "Batch operation completed",
+        partial: "Completed {success} of {total} — some items failed",
+        error: "Batch operation failed",
       },
       connection: {
         title: "Connecting...",
@@ -474,6 +476,7 @@ export const translations = {
           allRepos: "All Repositories",
           selectedRepos: "Selected Repositories",
           enabled: "Enabled",
+          invalidThreshold: "Invalid threshold value",
         },
         conditions: {
           stars_delta_7d: "7-Day Star Delta",
@@ -1124,6 +1127,8 @@ export const translations = {
         confirmRemove: "確定要移除 {count} 個已選的 repo 嗎？此操作無法復原。",
         processing: "處理中...",
         done: "批次操作完成",
+        partial: "完成 {success}/{total} — 部分項目失敗",
+        error: "批次操作失敗",
       },
       connection: {
         title: "連線中...",
@@ -1338,6 +1343,7 @@ export const translations = {
           allRepos: "全部儲存庫",
           selectedRepos: "選定儲存庫",
           enabled: "啟用",
+          invalidThreshold: "無效的閾值",
         },
         conditions: {
           stars_delta_7d: "7天星星變化",

@@ -22,10 +22,11 @@ describe("BatchActionBar", () => {
   const defaultProps = {
     selectedCount: 3,
     isProcessing: false,
-    onBatchAddToCategory: vi.fn().mockResolvedValue(undefined),
-    onBatchRefresh: vi.fn().mockResolvedValue(undefined),
-    onBatchRemove: vi.fn().mockResolvedValue(undefined),
+    onBatchAddToCategory: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
+    onBatchRefresh: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
+    onBatchRemove: vi.fn().mockResolvedValue({ success: 3, failed: 0, total: 3 }),
     onDone: vi.fn(),
+    onError: vi.fn(),
   };
 
   beforeEach(() => {
@@ -98,5 +99,42 @@ describe("BatchActionBar", () => {
     render(<BatchActionBar {...defaultProps} isProcessing={true} />);
     expect(screen.getByTestId("batch-refresh")).toBeDisabled();
     expect(screen.getByTestId("batch-remove")).toBeDisabled();
+  });
+
+  it("calls onDone on full success (refresh)", async () => {
+    const user = userEvent.setup();
+    render(<BatchActionBar {...defaultProps} />);
+
+    await user.click(screen.getByTestId("batch-refresh"));
+    expect(defaultProps.onDone).toHaveBeenCalled();
+    expect(defaultProps.onError).not.toHaveBeenCalled();
+  });
+
+  it("calls onError on partial failure (refresh)", async () => {
+    const user = userEvent.setup();
+    const props = {
+      ...defaultProps,
+      onBatchRefresh: vi.fn().mockResolvedValue({ success: 1, failed: 2, total: 3 }),
+    };
+    render(<BatchActionBar {...props} />);
+
+    await user.click(screen.getByTestId("batch-refresh"));
+    expect(props.onDone).not.toHaveBeenCalled();
+    expect(props.onError).toHaveBeenCalledWith(expect.stringContaining("1"));
+  });
+
+  it("calls onError on full failure (remove)", async () => {
+    const user = userEvent.setup();
+    const props = {
+      ...defaultProps,
+      onBatchRemove: vi.fn().mockResolvedValue({ success: 0, failed: 3, total: 3 }),
+    };
+    render(<BatchActionBar {...props} />);
+
+    await user.click(screen.getByTestId("batch-remove"));
+    const confirmBtn = screen.getByRole("button", { name: "Confirm" });
+    await user.click(confirmBtn);
+    expect(props.onDone).not.toHaveBeenCalled();
+    expect(props.onError).toHaveBeenCalled();
   });
 });

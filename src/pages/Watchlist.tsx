@@ -83,6 +83,13 @@ export function Watchlist() {
     actions.success(t.watchlist.batch.done);
   }, [selection, actions, t.watchlist.batch.done]);
 
+  const handleBatchError = useCallback(
+    (msg: string) => {
+      actions.error(msg);
+    },
+    [actions]
+  );
+
   // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
   const categoryOps = useCategoryOperations(actions.refreshAll, actions.error);
 
@@ -215,6 +222,7 @@ export function Watchlist() {
               onBatchRefresh={batchActions.batchRefresh}
               onBatchRemove={batchActions.batchRemove}
               onDone={handleBatchDone}
+              onError={handleBatchError}
             />
           )}
         </div>
