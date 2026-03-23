@@ -114,6 +114,48 @@ describe("useSelectionMode", () => {
     expect(result.current.isActive).toBe(true);
   });
 
+  it("reconcile prunes IDs not in the visible set", () => {
+    const { result } = renderHook(() => useSelectionMode());
+
+    act(() => {
+      result.current.enter();
+      result.current.toggleSelection(1);
+      result.current.toggleSelection(2);
+      result.current.toggleSelection(3);
+    });
+
+    expect(result.current.selectedCount).toBe(3);
+
+    // Simulate dataset change — only IDs 1 and 3 are still visible
+    act(() => {
+      result.current.reconcile(new Set([1, 3]));
+    });
+
+    expect(result.current.selectedCount).toBe(2);
+    expect(result.current.selectedIds.has(1)).toBe(true);
+    expect(result.current.selectedIds.has(2)).toBe(false);
+    expect(result.current.selectedIds.has(3)).toBe(true);
+  });
+
+  it("reconcile is a no-op when all selected IDs are still visible", () => {
+    const { result } = renderHook(() => useSelectionMode());
+
+    act(() => {
+      result.current.enter();
+      result.current.toggleSelection(1);
+      result.current.toggleSelection(2);
+    });
+
+    const prevIds = result.current.selectedIds;
+
+    act(() => {
+      result.current.reconcile(new Set([1, 2, 3]));
+    });
+
+    // Should be referentially identical (no unnecessary re-render)
+    expect(result.current.selectedIds).toBe(prevIds);
+  });
+
   it("enter clears any previous selections", () => {
     const { result } = renderHook(() => useSelectionMode());
 

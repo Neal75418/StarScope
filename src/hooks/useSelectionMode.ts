@@ -38,6 +38,17 @@ export function useSelectionMode() {
     setSelectedIds(new Set());
   }, []);
 
+  /** 修剪 selection，只保留仍在 visibleIds 中的項目 */
+  const reconcile = useCallback((visibleIds: Set<number>) => {
+    setSelectedIds((prev) => {
+      const next = new Set<number>();
+      for (const id of prev) {
+        if (visibleIds.has(id)) next.add(id);
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, []);
+
   return {
     isActive,
     selectedIds,
@@ -47,5 +58,6 @@ export function useSelectionMode() {
     toggleSelection,
     selectAll,
     clearSelection,
+    reconcile,
   };
 }

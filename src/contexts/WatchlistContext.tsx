@@ -106,10 +106,34 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     });
   }, []);
 
-  // invalidate repos cache 的便利函式
+  // 重新載入當前分類的 repo 成員快照
+  const refreshCategoryRepos = useCallback(async () => {
+    const categoryId = stateRef.current.filters.selectedCategoryId;
+    if (categoryId === null) return;
+
+    categoryAbortRef.current?.abort();
+    const controller = new AbortController();
+    categoryAbortRef.current = controller;
+
+    try {
+      const response = await getCategoryRepos(categoryId, controller.signal);
+      if (!controller.signal.aborted) {
+        dispatch({
+          type: "SET_CATEGORY_REPOS",
+          payload: { repoIds: response.repos.map((r) => r.id) },
+        });
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return;
+      logger.error("[Watchlist] 分類 Repo 重新載入失敗:", err);
+    }
+  }, []);
+
+  // invalidate repos cache 的便利函式（同時刷新分類快照）
   const invalidateRepos = useCallback(() => {
     void qc.invalidateQueries({ queryKey: queryKeys.repos.all });
-  }, [qc]);
+    void refreshCategoryRepos();
+  }, [qc, refreshCategoryRepos]);
 
   // Actions - 使用 ref 讀取 state，確保 actions 引用穩定
   const actions = useMemo<WatchlistActions>(

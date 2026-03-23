@@ -2,7 +2,7 @@
  * Watchlist 頁面，顯示所有追蹤中的 repo。
  */
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -73,6 +73,17 @@ export function Watchlist() {
   // 批次操作
   const selection = useSelectionMode();
   const batchActions = useWatchlistBatchActions(selection.selectedIds, actions);
+
+  // 當可見 repo 集合改變時，修剪 selection（分類切換、搜尋、batch 操作後）
+  const displayedRepoIdSet = useMemo(
+    () => new Set(displayedRepos.map((r) => r.id)),
+    [displayedRepos]
+  );
+  useEffect(() => {
+    if (selection.isActive) {
+      selection.reconcile(displayedRepoIdSet);
+    }
+  }, [displayedRepoIdSet, selection.isActive, selection.reconcile]);
 
   const handleSelectAll = useCallback(() => {
     selection.selectAll(displayedRepos.map((r) => r.id));

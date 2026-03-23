@@ -38,7 +38,7 @@ interface UseGitHubConnectionResult {
 
 export function useGitHubConnection(): UseGitHubConnectionResult {
   const { t } = useI18n();
-  const { status, setStatus, state, setState, error, setError, fetchStatus } =
+  const { status, setStatus, state, setState, error, setError, setAuthActive, fetchStatus } =
     useConnectionStatus();
   const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
   const [pollStatus, setPollStatus] = useState<string>("");
@@ -47,27 +47,30 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
 
   const handlePollingSuccess = useCallback(
     (newStatus: typeof status) => {
+      setAuthActive(false);
       setDeviceCode(null);
       setStatus(newStatus);
       setState("connected");
     },
-    [setStatus, setState]
+    [setAuthActive, setStatus, setState]
   );
 
   const handlePollingError = useCallback(
     (errorMessage: string) => {
+      setAuthActive(false);
       setError(errorMessage);
       setState("disconnected");
       setDeviceCode(null);
     },
-    [setError, setState]
+    [setAuthActive, setError, setState]
   );
 
   const handlePollingExpired = useCallback(() => {
+    setAuthActive(false);
     setError(t.githubConnection.errors.expired);
     setState("disconnected");
     setDeviceCode(null);
-  }, [t, setError, setState]);
+  }, [t, setAuthActive, setError, setState]);
 
   const { startPolling, stopPolling, resetInterval } = useDeviceFlowPolling({
     onSuccess: handlePollingSuccess,
@@ -77,6 +80,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
   });
 
   const startDeviceFlow = useCallback(async () => {
+    setAuthActive(true);
     setState("connecting");
     setError(null);
     setPollStatus("");
@@ -95,19 +99,22 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
 
       startPolling(result.device_code, result.interval, result.expires_in);
     } catch (err) {
+      setAuthActive(false);
       setError(getErrorMessage(err, t.githubConnection.errors.generic));
       setState("error");
     }
-  }, [t, setState, setError, startPolling, resetInterval]);
+  }, [t, setAuthActive, setState, setError, startPolling, resetInterval]);
 
   const cancelAuth = useCallback(() => {
+    setAuthActive(false);
     stopPolling();
     setDeviceCode(null);
     setPollStatus("");
     setState("disconnected");
-  }, [stopPolling, setState]);
+  }, [setAuthActive, stopPolling, setState]);
 
   const handleDisconnect = useCallback(async () => {
+    setAuthActive(false);
     setState("loading");
     setError(null);
 
@@ -119,7 +126,7 @@ export function useGitHubConnection(): UseGitHubConnectionResult {
       setError(getErrorMessage(err, t.githubConnection.errors.generic));
       setState("error");
     }
-  }, [t, setState, setError, setStatus]);
+  }, [t, setAuthActive, setState, setError, setStatus]);
 
   const clearError = useCallback(() => setError(null), [setError]);
 

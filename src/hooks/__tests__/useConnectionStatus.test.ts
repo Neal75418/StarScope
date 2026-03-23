@@ -81,6 +81,67 @@ describe("useConnectionStatus", () => {
     expect(result.current.error).toBe("Network error");
   });
 
+  it("does not overwrite state when auth is active", async () => {
+    // Initial query returns disconnected
+    mockGetStatus.mockResolvedValueOnce({ connected: false } as never);
+
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("disconnected");
+    });
+
+    // Simulate device flow starting — set auth active and manually set state
+    act(() => {
+      result.current.setAuthActive(true);
+      result.current.setState("awaiting_auth");
+    });
+
+    expect(result.current.state).toBe("awaiting_auth");
+
+    // Simulate a background refetch completing (e.g., window refocus)
+    mockGetStatus.mockResolvedValueOnce({ connected: false } as never);
+    await act(async () => {
+      await result.current.fetchStatus();
+    });
+
+    // State should NOT have been overwritten back to "disconnected"
+    // because authActive is true — the useEffect sync is gated
+    expect(result.current.state).toBe("loading"); // fetchStatus sets loading, then effect is skipped
+  });
+
+  it("resumes sync after auth is deactivated", async () => {
+    mockGetStatus.mockResolvedValueOnce({ connected: false } as never);
+
+    const { result } = renderHook(() => useConnectionStatus(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("disconnected");
+    });
+
+    // Activate auth, then deactivate
+    act(() => {
+      result.current.setAuthActive(true);
+    });
+    act(() => {
+      result.current.setAuthActive(false);
+    });
+
+    // Now a refetch should sync state normally
+    mockGetStatus.mockResolvedValueOnce({
+      connected: true,
+      username: "user",
+    } as never);
+
+    await act(async () => {
+      await result.current.fetchStatus();
+    });
+
+    await waitFor(() => {
+      expect(result.current.state).toBe("connected");
+    });
+  });
+
   it("fetchStatus can be called manually to refresh", async () => {
     mockGetStatus.mockResolvedValueOnce({ connected: false } as never);
 

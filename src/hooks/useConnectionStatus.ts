@@ -7,7 +7,7 @@
  * 導致狀態更新遺失。改用 useEffect 同步 React Query 狀態至手動 state。
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getGitHubConnectionStatus, GitHubConnectionStatus } from "../api/client";
 import { getErrorMessage } from "../utils/error";
@@ -22,6 +22,7 @@ interface UseConnectionStatusResult {
   setState: (state: ConnectionState) => void;
   error: string | null;
   setError: (error: string | null) => void;
+  setAuthActive: (active: boolean) => void;
   fetchStatus: () => Promise<void>;
 }
 
@@ -30,6 +31,10 @@ export function useConnectionStatus(): UseConnectionStatusResult {
   const queryClient = useQueryClient();
   const [state, setState] = useState<ConnectionState>("loading");
   const [error, setError] = useState<string | null>(null);
+  const authActiveRef = useRef(false);
+  const setAuthActive = useCallback((active: boolean) => {
+    authActiveRef.current = active;
+  }, []);
 
   const genericErrorMessage = t.githubConnection.errors.generic;
 
@@ -41,7 +46,9 @@ export function useConnectionStatus(): UseConnectionStatusResult {
 
   // 同步 React Query 狀態至手動 state，確保 useEffect 的 setState
   // 一定指向當前 component instance（避免 strict mode 下 closure 失效）
+  // 注意：Device Flow 進行中時跳過同步，避免 refetch 覆蓋 connecting/awaiting_auth 狀態
   useEffect(() => {
+    if (authActiveRef.current) return;
     if (query.isSuccess && query.data != null) {
       setState(query.data.connected ? "connected" : "disconnected");
       setError(null);
@@ -71,6 +78,7 @@ export function useConnectionStatus(): UseConnectionStatusResult {
     setState,
     error,
     setError,
+    setAuthActive,
     fetchStatus,
   };
 }
