@@ -45,7 +45,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       result.push({
         label: t.compare.diff.fastest,
         repoName: fastest.repo_name,
-        value: `${fastest.velocity?.toFixed(1) ?? "—"}/d`,
+        value: `${fastest.velocity?.toFixed(1) ?? "—"}${t.compare.perDay}`,
         color: fastest.color,
       });
     }
@@ -70,7 +70,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       const gap = sortedByStars[0].current_stars - sortedByStars[1].current_stars;
       result.push({
         label: t.compare.diff.gap,
-        repoName: `${sortedByStars[0].repo_name.split("/")[1]} vs ${sortedByStars[1].repo_name.split("/")[1]}`,
+        repoName: `${sortedByStars[0].repo_name.split("/")[1]} ${t.compare.diff.versus} ${sortedByStars[1].repo_name.split("/")[1]}`,
         value: formatNumber(gap),
         color: sortedByStars[0].color,
       });
@@ -83,7 +83,7 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
       result.push({
         label: isClosing ? t.compare.diff.closing : t.compare.diff.widening,
         repoName: sortedByStars[1].repo_name,
-        value: `${rate}/d`,
+        value: `${rate}${t.compare.perDay}`,
         color: sortedByStars[1].color,
       });
     }

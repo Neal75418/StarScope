@@ -33,8 +33,12 @@ export const RepoCardStats = memo(function RepoCardStats({ repo }: RepoCardStats
   return (
     <div className="repo-stats">
       <StatItem label={t.repo.stars} value={formatNumber(repo.stars)} />
-      <StatItem label="7d" value={formatDelta(repo.stars_delta_7d)} className="delta" />
-      <StatItem label="30d" value={formatDelta(repo.stars_delta_30d)} className="delta" />
+      <StatItem label={t.repo.delta7d} value={formatDelta(repo.stars_delta_7d)} className="delta" />
+      <StatItem
+        label={t.repo.delta30d}
+        value={formatDelta(repo.stars_delta_30d)}
+        className="delta"
+      />
       <StatItem label={t.repo.velocity} value={formatVelocity(repo.velocity)} />
       <StatItem label={t.repo.trend} value={<TrendArrow trend={repo.trend} />} />
     </div>

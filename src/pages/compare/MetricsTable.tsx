@@ -75,7 +75,23 @@ export const MetricsTable = memo(function MetricsTable({
                 </td>
                 <td>{r.velocity != null ? r.velocity.toFixed(1) : "—"}</td>
                 <td>{r.acceleration != null ? r.acceleration.toFixed(1) : "—"}</td>
-                <td>{r.trend != null ? (TREND_ARROWS[r.trend] ?? "→") : "—"}</td>
+                <td>
+                  {r.trend != null ? (
+                    <span
+                      aria-label={
+                        r.trend > 0
+                          ? t.compare.trendLabels.up
+                          : r.trend < 0
+                            ? t.compare.trendLabels.down
+                            : t.compare.trendLabels.stable
+                      }
+                    >
+                      {TREND_ARROWS[r.trend] ?? "→"}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

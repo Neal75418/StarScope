@@ -19,6 +19,7 @@ const mockT = {
       acceleration: "Accel",
       trend: "Trend",
     },
+    trendLabels: { up: "Up", stable: "Stable", down: "Down" },
   },
 };
 

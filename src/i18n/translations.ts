@@ -284,6 +284,8 @@ export const translations = {
       removeFromCategory: "Remove from Category",
       activeSignals: "{count} active signal(s)",
       loadingBadges: "Loading badges...",
+      delta7d: "7d",
+      delta30d: "30d",
     },
     // 趨勢頁面
     trends: {
@@ -423,9 +425,11 @@ export const translations = {
         fastest: "Fastest Growing",
         mostGained: "Most Gained (7d)",
         gap: "Star Gap",
+        versus: "vs",
         closing: "Closing",
         widening: "Widening",
       },
+      trendLabels: { up: "Up", stable: "Stable", down: "Down" },
     },
     // 設定頁面
     settings: {
@@ -1145,6 +1149,8 @@ export const translations = {
       removeFromCategory: "從分類移除",
       activeSignals: "{count} 個活躍信號",
       loadingBadges: "載入徽章中...",
+      delta7d: "7天",
+      delta30d: "30天",
     },
     // 趨勢頁面
     trends: {
@@ -1284,9 +1290,11 @@ export const translations = {
         fastest: "成長最快",
         mostGained: "7天增長最多",
         gap: "星數差距",
+        versus: "vs",
         closing: "追趕中",
         widening: "拉開中",
       },
+      trendLabels: { up: "上升", stable: "持平", down: "下降" },
     },
     // 設定頁面
     settings: {

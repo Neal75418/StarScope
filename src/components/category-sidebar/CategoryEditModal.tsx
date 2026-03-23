@@ -57,7 +57,7 @@ export function CategoryEditModal({
       >
         <div className="modal-header">
           <h3 id="category-edit-modal-title">{t.categories.editCategory}</h3>
-          <button className="modal-close" onClick={onClose}>
+          <button className="modal-close" onClick={onClose} aria-label={t.common.close}>
             &times;
           </button>
         </div>

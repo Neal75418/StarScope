@@ -17,7 +17,7 @@ export function ConnectionError({ onRetry }: ConnectionErrorProps) {
 
   return (
     <div className="page">
-      <div className="error-container">
+      <div className="error-container" role="alert">
         <h2>{t.watchlist.connection.title}</h2>
         <p>{message}</p>
         <p className="hint">{t.watchlist.connection.autoRetry}</p>

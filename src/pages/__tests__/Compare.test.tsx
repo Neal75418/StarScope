@@ -95,15 +95,18 @@ vi.mock("../../i18n", () => ({
           acceleration: "Accel",
           trend: "Trend",
         },
+        perDay: "/day",
         diff: {
           title: "Summary",
           leader: "Leader",
           fastest: "Fastest Growing",
           mostGained: "Most Gained (7d)",
           gap: "Gap",
+          versus: "vs",
           closing: "Closing",
           widening: "Widening",
         },
+        trendLabels: { up: "Up", stable: "Stable", down: "Down" },
         correlation: {
           title: "Correlation Matrix",
         },
