@@ -60,8 +60,11 @@ export function useAlertRules(toast: Toast) {
 
   const confirmDelete = useCallback(async () => {
     if (!deleteConfirm.itemId) return;
-    await handleDelete(deleteConfirm.itemId);
-    deleteConfirm.close();
+    const success = await handleDelete(deleteConfirm.itemId);
+    if (success) {
+      deleteConfirm.close();
+    }
+    // 失敗時保留 dialog 開啟，讓使用者可以重試
   }, [deleteConfirm, handleDelete]);
 
   // 將 AlertRule 轉為 AlertRuleCreate 供表單使用

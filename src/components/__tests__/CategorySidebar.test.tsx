@@ -14,6 +14,7 @@ vi.mock("../../api/client", async (importOriginal) => {
   return {
     ...actual,
     getCategoryTree: vi.fn(),
+    getCategory: vi.fn(),
     createCategory: vi.fn(),
     deleteCategory: vi.fn(),
   };
@@ -276,5 +277,89 @@ describe("CategorySidebar", () => {
       expect(screen.getByText("🎨")).toBeInTheDocument();
       expect(screen.getByText("⚙️")).toBeInTheDocument();
     });
+  });
+
+  it("keeps delete dialog open when deletion fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+    vi.mocked(apiClient.deleteCategory).mockRejectedValue(new Error("Server error"));
+
+    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
+
+    await waitFor(() => screen.getByText("Backend"));
+
+    const deleteButtons = screen.getAllByTitle("Delete category");
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirm")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Confirm"));
+
+    // Dialog should remain open for retry after failure
+    await waitFor(() => {
+      expect(apiClient.deleteCategory).toHaveBeenCalledWith(3);
+    });
+    expect(screen.getByText("Confirm")).toBeInTheDocument();
+  });
+
+  it("discards stale edit response when another edit is clicked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategoryTree).mockResolvedValue(mockCategoryTree);
+
+    // First getCategory call: slow, resolves to "Frontend" data
+    // Second getCategory call: fast, resolves to "Backend" data
+    let resolveFirst: (value: unknown) => void = () => undefined;
+    const firstCall = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+
+    vi.mocked(apiClient.getCategory)
+      .mockImplementationOnce(() => firstCall as Promise<apiClient.Category>)
+      .mockResolvedValueOnce({
+        id: 3,
+        name: "Backend-fresh",
+        description: null,
+        icon: "⚙️",
+        color: "#10b981",
+        parent_id: null,
+        sort_order: 1,
+        created_at: "2024-01-01",
+        repo_count: 2,
+      });
+
+    render(<CategorySidebar selectedCategoryId={null} onSelectCategory={mockOnSelectCategory} />);
+
+    await waitFor(() => screen.getByText("Frontend"));
+
+    // Click edit on Frontend (id=1), then immediately on Backend (id=3)
+    const editButtons = screen.getAllByTitle("Edit category");
+    await user.click(editButtons[0]); // Frontend - slow
+    await user.click(editButtons[editButtons.length - 1]); // Backend - fast
+
+    // Backend's fast response should populate the edit modal's name input
+    const nameInput = await waitFor(() => {
+      const input = screen.getByLabelText(/Name|名稱/) as HTMLInputElement;
+      expect(input.value).toBe("Backend-fresh");
+      return input;
+    });
+
+    // Now resolve the slow Frontend request - it should be discarded
+    resolveFirst({
+      id: 1,
+      name: "Frontend-stale",
+      description: null,
+      icon: "🎨",
+      color: "#3b82f6",
+      parent_id: null,
+      sort_order: 0,
+      created_at: "2024-01-01",
+      repo_count: 5,
+    });
+
+    // Wait a tick and verify the stale response didn't overwrite
+    await new Promise((r) => setTimeout(r, 50));
+    expect(nameInput.value).toBe("Backend-fresh");
   });
 });

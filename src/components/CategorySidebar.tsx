@@ -2,7 +2,7 @@
  * 分類側邊欄元件，以樹狀結構組織 repo 並支援新增 / 編輯。
  */
 
-import { useState, useCallback, memo, MouseEvent } from "react";
+import { useState, useCallback, useRef, memo, MouseEvent } from "react";
 import { CategoryTreeNode, getCategory } from "../api/client";
 import { useI18n } from "../i18n";
 import { useCategoryTree } from "../hooks/useCategoryTree";
@@ -35,6 +35,7 @@ export const CategorySidebar = memo(function CategorySidebar({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryTreeNode | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const editRequestIdRef = useRef(0);
 
   const {
     tree,
@@ -52,10 +53,11 @@ export const CategorySidebar = memo(function CategorySidebar({
 
   const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
     e.stopPropagation();
-    // 取得最新的分類資料以確保一致性
+    // 用遞增 ID 防止連點時慢回應覆蓋快回應（stale-response race）
+    const requestId = ++editRequestIdRef.current;
     try {
       const freshCategory = await getCategory(node.id);
-      // 合併最新資料與樹節點結構（保留 children）
+      if (requestId !== editRequestIdRef.current) return; // 已被更新的請求取代
       setEditingCategory({
         ...node,
         name: freshCategory.name,
@@ -64,7 +66,7 @@ export const CategorySidebar = memo(function CategorySidebar({
         color: freshCategory.color,
       });
     } catch (err) {
-      // 取得失敗時使用樹節點快取資料
+      if (requestId !== editRequestIdRef.current) return;
       logger.error("[CategorySidebar] 分類載入失敗，使用快取資料:", err);
       setEditingCategory(node);
     }

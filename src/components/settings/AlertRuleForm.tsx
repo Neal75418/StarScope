@@ -225,7 +225,7 @@ export function AlertRuleForm({
         <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
           {isSubmitting ? t.common.loading : isEditMode ? t.common.save : t.settings.alerts.create}
         </button>
-        <button type="button" className="btn" onClick={onCancel}>
+        <button type="button" className="btn" onClick={onCancel} disabled={isSubmitting}>
           {t.common.cancel}
         </button>
       </div>
