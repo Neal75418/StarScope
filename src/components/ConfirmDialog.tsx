@@ -14,6 +14,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "warning" | "default";
+  isProcessing?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   confirmText,
   cancelText,
   variant = "default",
+  isProcessing = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -35,8 +37,8 @@ export function ConfirmDialog({
   const descId = useId();
   const focusTrapRef = useFocusTrap(isOpen);
 
-  // 按 ESC 關閉 dialog
-  useEscapeKey(onCancel, isOpen);
+  // 按 ESC 關閉 dialog（processing 時停用）
+  useEscapeKey(onCancel, isOpen && !isProcessing);
 
   if (!isOpen) return null;
 
@@ -48,7 +50,11 @@ export function ConfirmDialog({
         : "btn btn-primary";
 
   return (
-    <div className="dialog-overlay" onClick={onCancel} role="presentation">
+    <div
+      className="dialog-overlay"
+      onClick={isProcessing ? undefined : onCancel}
+      role="presentation"
+    >
       <div
         ref={focusTrapRef}
         className="dialog confirm-dialog"
@@ -68,10 +74,15 @@ export function ConfirmDialog({
         </div>
 
         <div className="dialog-footer">
-          <button type="button" onClick={onCancel} className="btn">
+          <button type="button" onClick={onCancel} className="btn" disabled={isProcessing}>
             {resolvedCancelText}
           </button>
-          <button type="button" onClick={onConfirm} className={confirmButtonClass}>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className={confirmButtonClass}
+            disabled={isProcessing}
+          >
             {resolvedConfirmText}
           </button>
         </div>

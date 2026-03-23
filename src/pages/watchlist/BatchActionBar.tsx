@@ -158,6 +158,7 @@ export const BatchActionBar = memo(function BatchActionBar({
         title={t.watchlist.batch.remove}
         message={interpolate(t.watchlist.batch.confirmRemove, { count: selectedCount })}
         variant="danger"
+        isProcessing={isProcessing}
         onConfirm={handleRemoveConfirm}
         onCancel={closeRemoveConfirm}
       />

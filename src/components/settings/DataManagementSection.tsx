@@ -35,18 +35,19 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
   };
 
   const handleResetData = async () => {
-    setShowResetConfirm(false);
     setIsResetting(true);
     try {
       await resetAllData();
       // 清除所有快取
       queryClient.clear();
+      setShowResetConfirm(false);
       onToast(t.settings.data.toast.dataReset, "success");
     } catch {
       onToast(t.settings.data.toast.dataResetFailed, "error");
     } finally {
       setIsResetting(false);
     }
+    // 失敗時保留 dialog 開啟，讓使用者可以重試
   };
 
   return (
@@ -97,6 +98,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
         message={`${t.settings.data.resetDataDesc} ${t.settings.data.resetWarning}`}
         confirmText={t.settings.data.resetData}
         variant="danger"
+        isProcessing={isResetting}
         onConfirm={() => void handleResetData()}
         onCancel={() => setShowResetConfirm(false)}
       />

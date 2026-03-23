@@ -244,6 +244,7 @@ export function Watchlist() {
         })}
         confirmText={t.dialog.removeRepo.confirm}
         variant="danger"
+        isProcessing={state.loadingState.type === "removing"}
         onConfirm={actions.confirmRemove}
         onCancel={actions.cancelRemove}
       />

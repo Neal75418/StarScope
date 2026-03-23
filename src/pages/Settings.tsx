@@ -250,6 +250,7 @@ export function Settings() {
         message={t.settings.alerts.confirm.deleteMessage}
         confirmText={t.common.delete}
         variant="danger"
+        isProcessing={alerts.isSubmitting}
         onConfirm={alerts.confirmDelete}
         onCancel={alerts.closeDeleteConfirm}
       />

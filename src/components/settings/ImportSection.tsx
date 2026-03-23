@@ -170,12 +170,15 @@ export function ImportSection() {
             </button>
           ) : starred.isLoading ? (
             <p className="import-hint">{t.settings.import.starredImport.loading}</p>
-          ) : starred.result ? (
+          ) : starred.result && starred.result.failed === 0 ? (
             <ImportResult result={starred.result} />
           ) : starred.starredRepos.length === 0 ? (
             <p className="import-hint">{t.settings.import.starredImport.noNew}</p>
           ) : (
             <>
+              {starred.result && starred.result.failed > 0 && (
+                <ImportResult result={starred.result} />
+              )}
               <div className="import-actions import-actions--mb">
                 <button className="btn btn-sm" onClick={starred.selectAll}>
                   {t.settings.import.starredImport.selectAll}
@@ -233,7 +236,7 @@ export function ImportSection() {
               {starred.importError}
             </div>
           )}
-          {starred.result && (
+          {starred.result && starred.result.failed === 0 && (
             <div className="import-actions import-actions--mt">
               <button className="btn btn-primary" onClick={starred.reset}>
                 {t.settings.import.importMore}

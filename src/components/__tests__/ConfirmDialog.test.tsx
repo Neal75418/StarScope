@@ -191,4 +191,59 @@ describe("ConfirmDialog", () => {
     const dialog = screen.getByRole("alertdialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
   });
+
+  it("disables both buttons when isProcessing is true", () => {
+    render(
+      <ConfirmDialog
+        isOpen={true}
+        title="Test"
+        message="Test"
+        isProcessing={true}
+        onConfirm={mockOnConfirm}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    expect(screen.getByText("Confirm")).toBeDisabled();
+    expect(screen.getByText("Cancel")).toBeDisabled();
+  });
+
+  it("does not call onCancel on ESC key when isProcessing", async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfirmDialog
+        isOpen={true}
+        title="Test"
+        message="Test"
+        isProcessing={true}
+        onConfirm={mockOnConfirm}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    await user.keyboard("{Escape}");
+
+    expect(mockOnCancel).not.toHaveBeenCalled();
+  });
+
+  it("does not call onCancel on overlay click when isProcessing", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ConfirmDialog
+        isOpen={true}
+        title="Test"
+        message="Test"
+        isProcessing={true}
+        onConfirm={mockOnConfirm}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const overlay = container.querySelector(".dialog-overlay");
+    if (overlay) {
+      await user.click(overlay);
+    }
+
+    expect(mockOnCancel).not.toHaveBeenCalled();
+  });
 });

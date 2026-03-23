@@ -35,6 +35,7 @@ export const CategorySidebar = memo(function CategorySidebar({
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryTreeNode | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const editRequestIdRef = useRef(0);
 
   const {
@@ -94,14 +95,19 @@ export const CategorySidebar = memo(function CategorySidebar({
 
   const handleConfirmDelete = useCallback(async () => {
     if (deleteConfirm.itemId === null) return;
-    const success = await handleDeleteCategory(deleteConfirm.itemId);
-    if (success) {
-      if (selectedCategoryId === deleteConfirm.itemId) {
-        onSelectCategory(null);
+    setIsDeleting(true);
+    try {
+      const success = await handleDeleteCategory(deleteConfirm.itemId);
+      if (success) {
+        if (selectedCategoryId === deleteConfirm.itemId) {
+          onSelectCategory(null);
+        }
+        deleteConfirm.close();
       }
-      deleteConfirm.close();
+      // 失敗時保留 dialog 開啟，讓使用者可以重試
+    } finally {
+      setIsDeleting(false);
     }
-    // 失敗時保留 dialog 開啟，讓使用者可以重試
   }, [deleteConfirm, handleDeleteCategory, selectedCategoryId, onSelectCategory]);
 
   if (loading) {
@@ -171,6 +177,7 @@ export const CategorySidebar = memo(function CategorySidebar({
         title={t.categories.deleteCategory}
         message={t.categories.deleteConfirm}
         variant="danger"
+        isProcessing={isDeleting}
         onConfirm={handleConfirmDelete}
         onCancel={deleteConfirm.close}
       />
