@@ -34,21 +34,21 @@ function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
 }
 
 const RepoItem = memo(function RepoItem({ repo }: { repo: ParsedRepo }) {
-  const errorDisplay = repo.error
-    ? repo.error.length > 100
-      ? `${repo.error.substring(0, 100)}...`
-      : repo.error
-    : null;
+  const isLong = repo.error && repo.error.length > 100;
 
   return (
     <div className={`import-item ${repo.status}`}>
       <StatusIcon status={repo.status} />
       <span className="import-item-name">{repo.fullName}</span>
-      {errorDisplay && (
-        <span className="import-item-error" title={repo.error}>
-          {errorDisplay}
-        </span>
-      )}
+      {repo.error &&
+        (isLong ? (
+          <details className="import-item-error-details">
+            <summary className="import-item-error">{repo.error.substring(0, 100)}…</summary>
+            <p className="import-item-error-full">{repo.error}</p>
+          </details>
+        ) : (
+          <span className="import-item-error">{repo.error}</span>
+        ))}
     </div>
   );
 });

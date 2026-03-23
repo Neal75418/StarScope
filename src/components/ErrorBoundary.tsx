@@ -30,7 +30,7 @@ function ErrorFallbackUI({
     <div className="error-boundary">
       <div className="error-boundary-content">
         <h2>{t.errorBoundary.title}</h2>
-        <p className="error-message">{error?.message || t.errorBoundary.message}</p>
+        <p className="error-message">{t.errorBoundary.message}</p>
         <div className="error-boundary-actions">
           <button onClick={onRetry} className="btn btn-primary">
             {t.errorBoundary.tryAgain}
@@ -100,7 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 <div className="error-boundary">
                   <div className="error-boundary-content">
                     <h2>{fb.title}</h2>
-                    <p className="error-message">{this.state.error?.message || fb.message}</p>
+                    <p className="error-message">{fb.message}</p>
                     <div className="error-boundary-actions">
                       <button onClick={this.handleRetry} className="btn btn-primary">
                         {fb.tryAgain}

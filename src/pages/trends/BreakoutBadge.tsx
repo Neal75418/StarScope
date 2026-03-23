@@ -3,7 +3,7 @@
  * 最多顯示 2 個 badge + "+N more"。
  */
 
-import { memo } from "react";
+import { memo, useId } from "react";
 import type { EarlySignal } from "../../api/types";
 import { useI18n } from "../../i18n";
 
@@ -13,6 +13,7 @@ interface BreakoutBadgeProps {
 
 export const BreakoutBadge = memo(function BreakoutBadge({ signals }: BreakoutBadgeProps) {
   const { t } = useI18n();
+  const baseId = useId();
   const labels = t.trends.breakouts.types;
 
   // 只顯示未 acknowledged 的信號
@@ -26,16 +27,24 @@ export const BreakoutBadge = memo(function BreakoutBadge({ signals }: BreakoutBa
 
   return (
     <span className="breakout-badges" data-testid="breakout-badges">
-      {shown.map((type) => {
+      {shown.map((type, i) => {
         const label = labels[type] ?? type;
+        const description = active.find((s) => s.signal_type === type)?.description ?? "";
+        const descId = `${baseId}-desc-${i}`;
         return (
           <span
             key={type}
             className={`breakout-badge breakout-badge-${type}`}
-            title={active.find((s) => s.signal_type === type)?.description ?? ""}
+            title={description}
             aria-label={label}
+            aria-describedby={description ? descId : undefined}
           >
             {label}
+            {description && (
+              <span id={descId} className="sr-only">
+                {description}
+              </span>
+            )}
           </span>
         );
       })}

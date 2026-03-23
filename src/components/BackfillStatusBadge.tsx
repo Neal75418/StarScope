@@ -2,7 +2,7 @@
  * Backfill 狀態徽章，顯示是否已有回填資料。
  */
 
-import { TranslationKeys } from "../i18n";
+import type { TranslationKeys, Language } from "../i18n";
 
 interface BackfillStatusBadgeProps {
   status: {
@@ -13,6 +13,7 @@ interface BackfillStatusBadgeProps {
   lastUpdated: Date | null;
   lastUpdatedText: string;
   t: TranslationKeys;
+  language?: Language;
 }
 
 export function BackfillStatusBadge({
@@ -20,6 +21,7 @@ export function BackfillStatusBadge({
   lastUpdated,
   lastUpdatedText,
   t,
+  language,
 }: BackfillStatusBadgeProps) {
   return (
     <div className="backfill-info">
@@ -31,7 +33,7 @@ export function BackfillStatusBadge({
         <span className="backfill-status eligible">{t.starHistory.eligible}</span>
       )}
       {lastUpdated && (
-        <span className="backfill-last-updated" title={lastUpdated.toLocaleString()}>
+        <span className="backfill-last-updated" title={lastUpdated.toLocaleString(language)}>
           {lastUpdatedText}
         </span>
       )}

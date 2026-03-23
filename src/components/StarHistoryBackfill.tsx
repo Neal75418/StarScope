@@ -23,7 +23,7 @@ export function StarHistoryBackfill({
   currentStars,
   onBackfillComplete,
 }: StarHistoryBackfillProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   // 依 star 數判斷是否需要顯示
   const exceedsStarLimit = currentStars !== null && currentStars > MAX_STARS_FOR_BACKFILL;
@@ -73,6 +73,7 @@ export function StarHistoryBackfill({
           lastUpdated={lastUpdated}
           lastUpdatedText={lastUpdatedText}
           t={t}
+          language={language}
         />
       )}
 
