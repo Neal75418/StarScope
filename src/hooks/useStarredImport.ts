@@ -2,7 +2,7 @@
  * GitHub starred repos 匯入的管理 hook。
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getStarredRepos, batchAddRepos } from "../api/client";
 import { queryKeys } from "../lib/react-query";
@@ -15,6 +15,7 @@ export function useStarredImport() {
   const [result, setResult] = useState<BatchImportResult | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [fetchEnabled, setFetchEnabled] = useState(false);
+  const importRequestIdRef = useRef(0);
 
   const {
     data: starredData,
@@ -64,6 +65,7 @@ export function useStarredImport() {
   const startImport = useCallback(async () => {
     if (selectedRepos.size === 0) return;
 
+    const requestId = ++importRequestIdRef.current;
     setIsImporting(true);
     setImportError(null);
     try {
@@ -73,22 +75,28 @@ export function useStarredImport() {
       });
 
       const importResult = await batchAddRepos(repos);
+      if (requestId !== importRequestIdRef.current) return; // 已被 reset 取代
       setResult(importResult);
 
       // 匯入成功後重新取得 repos 清單
       void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
     } catch (err) {
+      if (requestId !== importRequestIdRef.current) return;
       setImportError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsImporting(false);
+      if (requestId === importRequestIdRef.current) {
+        setIsImporting(false);
+      }
     }
   }, [selectedRepos, queryClient]);
 
   const reset = useCallback(() => {
+    importRequestIdRef.current++; // 使飛行中的請求被忽略
     setFetchEnabled(false);
     setSelectedRepos(new Set());
     setResult(null);
     setImportError(null);
+    setIsImporting(false);
   }, []);
 
   return {

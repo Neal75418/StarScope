@@ -62,6 +62,13 @@ export function useImport() {
     [setResult, t]
   );
 
+  const reset = useCallback(() => {
+    cancelImport();
+    setParsedRepos([]);
+    setParseError(null);
+    setResult(null);
+  }, [cancelImport, setResult]);
+
   return {
     parsedRepos,
     isImporting,
@@ -70,6 +77,6 @@ export function useImport() {
     parseFile,
     parseText,
     startImport,
-    reset: cancelImport,
+    reset,
   };
 }

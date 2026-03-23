@@ -73,7 +73,7 @@ export const TrendsBatchAddBar = memo(function TrendsBatchAddBar({
           ? t.trends.batch.adding
           : t.trends.batch.addToWatchlist.replace("{count}", String(selectedCount))}
       </button>
-      <button className="btn btn-sm" onClick={onDone}>
+      <button className="btn btn-sm" onClick={onDone} disabled={isAdding}>
         {t.trends.batch.cancel}
       </button>
     </div>

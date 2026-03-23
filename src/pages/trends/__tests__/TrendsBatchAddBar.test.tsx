@@ -179,6 +179,24 @@ describe("TrendsBatchAddBar", () => {
     expect(onDone).toHaveBeenCalled();
   });
 
+  it("disables cancel button while adding", async () => {
+    const user = userEvent.setup();
+    mockBatchAddRepos.mockReturnValue(new Promise(() => {})); // never resolves
+
+    renderWithQuery(
+      <TrendsBatchAddBar
+        selectedRepos={[makeTrending(1, "a/b")]}
+        selectedCount={1}
+        onDone={vi.fn()}
+        onError={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByTestId("trends-batch-add-btn"));
+
+    expect(screen.getByText("Cancel")).toBeDisabled();
+  });
+
   it("disables add button while adding", async () => {
     const user = userEvent.setup();
     let resolvePromise: ((value: unknown) => void) | undefined;
