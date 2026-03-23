@@ -3,7 +3,7 @@
  * 僅支援頂層分類排序。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { CategoryTreeNode, CategoryUpdate, updateCategory } from "../api/client";
 import { logger } from "../utils/logger";
 
@@ -17,10 +17,12 @@ export function useCategoryReorder(
   onTreeChange: () => Promise<void>
 ): UseCategoryReorderResult {
   const [isReordering, setIsReordering] = useState(false);
+  const isReorderingRef = useRef(false);
 
   const reorder = useCallback(
     (activeId: number, overId: number) => {
       if (activeId === overId) return;
+      if (isReorderingRef.current) return;
 
       const oldIndex = tree.findIndex((n) => n.id === activeId);
       const newIndex = tree.findIndex((n) => n.id === overId);
@@ -38,6 +40,7 @@ export function useCategoryReorder(
 
       if (changed.length === 0) return;
 
+      isReorderingRef.current = true;
       setIsReordering(true);
       const updates: Promise<unknown>[] = changed.map(({ node, newOrder }) => {
         const update: CategoryUpdate = { sort_order: newOrder };
@@ -53,7 +56,10 @@ export function useCategoryReorder(
           logger.error("[CategoryReorder] 部分排序更新失敗，重新載入分類樹:", err);
           return onTreeChange(); // 失敗時仍刷新分類樹以回復一致狀態
         })
-        .finally(() => setIsReordering(false));
+        .finally(() => {
+          isReorderingRef.current = false;
+          setIsReordering(false);
+        });
     },
     [tree, onTreeChange]
   );

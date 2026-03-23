@@ -49,6 +49,19 @@ describe("useNotificationStorage", () => {
     expect(stored).toEqual(expect.arrayContaining(["a", "b", "c"]));
   });
 
+  it("removeIdFromRead removes ID from memory and localStorage", () => {
+    storageData["starscope_notifications_read"] = JSON.stringify(["id-1", "id-2"]);
+    const { result } = renderHook(() => useNotificationStorage());
+    act(() => {
+      result.current.removeIdFromRead("id-1");
+    });
+    expect(result.current.readIdsRef.current.has("id-1")).toBe(false);
+    expect(result.current.readIdsRef.current.has("id-2")).toBe(true);
+    const stored = JSON.parse(storageData["starscope_notifications_read"]) as string[];
+    expect(stored).not.toContain("id-1");
+    expect(stored).toContain("id-2");
+  });
+
   it("handles corrupted localStorage data gracefully", () => {
     storageData["starscope_notifications_read"] = "not valid json!!!";
     const { result } = renderHook(() => useNotificationStorage());

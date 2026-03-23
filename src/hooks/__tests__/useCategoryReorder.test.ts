@@ -65,6 +65,34 @@ describe("useCategoryReorder", () => {
     expect(client.updateCategory).not.toHaveBeenCalled();
   });
 
+  it("ignores overlapping reorder calls while one is in flight", async () => {
+    // Make updateCategory return a promise that never resolves (to keep isReordering true)
+    vi.mocked(client.updateCategory).mockImplementation(() => new Promise(() => {}));
+
+    const tree = [makeNode(1, "A", 0), makeNode(2, "B", 1), makeNode(3, "C", 2)];
+
+    const { result } = renderHook(() => useCategoryReorder(tree, mockOnTreeChange));
+
+    // First reorder — starts in-flight
+    act(() => {
+      result.current.reorder(2, 1);
+    });
+
+    expect(result.current.isReordering).toBe(true);
+
+    // Record how many updateCategory calls the first reorder made
+    const firstBatchCalls = vi.mocked(client.updateCategory).mock.calls.length;
+    expect(firstBatchCalls).toBeGreaterThan(0);
+
+    // Second reorder while first is in-flight — should be ignored
+    act(() => {
+      result.current.reorder(3, 1);
+    });
+
+    // No additional updateCategory calls should have been made
+    expect(client.updateCategory).toHaveBeenCalledTimes(firstBatchCalls);
+  });
+
   it("calls onTreeChange after all updates complete", async () => {
     const tree = [makeNode(1, "A", 0), makeNode(2, "B", 1)];
 

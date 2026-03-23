@@ -34,7 +34,7 @@ export function useNotifications() {
   const [isOpen, setIsOpen] = useState(false);
 
   // 已讀狀態儲存
-  const { readIdsRef, markIdAsRead, markIdsAsRead } = useNotificationStorage();
+  const { readIdsRef, markIdAsRead, markIdsAsRead, removeIdFromRead } = useNotificationStorage();
 
   // OS 通知功能
   const osNotification = useOSNotification();
@@ -50,7 +50,7 @@ export function useNotifications() {
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
     notifications,
     setNotifications,
-    { markIdAsRead, markIdsAsRead }
+    { markIdAsRead, markIdsAsRead, removeIdFromRead }
   );
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);

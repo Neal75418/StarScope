@@ -7,6 +7,7 @@ vi.mock("../useNotificationStorage", () => ({
     readIdsRef: { current: new Set<string>() },
     markIdAsRead: vi.fn(),
     markIdsAsRead: vi.fn(),
+    removeIdFromRead: vi.fn(),
   }),
 }));
 

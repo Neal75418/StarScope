@@ -46,9 +46,15 @@ export function useNotificationStorage() {
     saveReadIds(readIdsRef.current);
   }, []);
 
+  const removeIdFromRead = useCallback((id: string) => {
+    readIdsRef.current.delete(id);
+    saveReadIds(readIdsRef.current);
+  }, []);
+
   return {
     readIdsRef,
     markIdAsRead,
     markIdsAsRead,
+    removeIdFromRead,
   };
 }

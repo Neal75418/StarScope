@@ -111,6 +111,33 @@ describe("useBackfillAction", () => {
     expect(result.current.backfilling).toBe(false);
   });
 
+  it("does not report backfill failure when onSuccess refresh throws", async () => {
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "test/repo",
+      success: true,
+      total_stargazers: 100,
+      snapshots_created: 5,
+      earliest_date: "2024-01-01",
+      latest_date: "2024-01-31",
+      message: "Success",
+    });
+    mockOnSuccess.mockRejectedValue(new Error("Refresh failed"));
+
+    const { result } = renderHook(() => useBackfillAction(defaultProps));
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+
+    // Backfill succeeded — should NOT call setError with backfill error message
+    expect(mockSetError).not.toHaveBeenCalledWith(expect.stringContaining("Server error"));
+    // Success message should still be set
+    expect(result.current.successMessage).toBeTruthy();
+    // onComplete should still be called
+    expect(mockOnComplete).toHaveBeenCalled();
+  });
+
   it("sets backfilling state during operation", async () => {
     let resolveBackfill: ((value: apiClient.BackfillResult) => void) | null = null;
     vi.mocked(apiClient.backfillStarHistory).mockImplementation(

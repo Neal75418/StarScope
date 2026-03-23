@@ -83,6 +83,8 @@ export function Watchlist() {
     if (selection.isActive) {
       selection.reconcile(displayedRepoIdSet);
     }
+    // selection is a plain object literal — decompose to stable refs to avoid infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedRepoIdSet, selection.isActive, selection.reconcile]);
 
   const handleSelectAll = useCallback(() => {

@@ -21,7 +21,7 @@ let mockReturnValue: {
   close: () => void;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  clearNotification: (id: string) => void;
+  clearNotification: (id: string) => Promise<void>;
   refresh: () => void;
 };
 

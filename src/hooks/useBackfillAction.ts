@@ -43,8 +43,12 @@ export function useBackfillAction({
         setSuccessMessage(
           t.starHistory.backfillComplete.replace("{count}", String(result.snapshots_created))
         );
-        // 回填完成後重新載入狀態
-        await onSuccess();
+        // 回填完成後重新載入狀態（失敗不應歸因於回填本身）
+        try {
+          await onSuccess();
+        } catch (refreshErr) {
+          logger.warn("[BackfillAction] 回填成功但刷新失敗:", refreshErr);
+        }
         onComplete?.();
       } else {
         setError(result.message);
