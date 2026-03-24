@@ -13,11 +13,9 @@ import hmac
 import logging
 import os
 
-from collections.abc import Callable
-
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp
 
@@ -47,7 +45,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
                 _SECRET_ENV_VAR,
             )
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # 未設定 secret 時（開發模式）跳過驗證
         if not self._secret:
             return await call_next(request)
