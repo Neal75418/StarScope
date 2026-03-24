@@ -59,9 +59,8 @@ describe("CategoryEditModal", () => {
     const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
     const overlay = container.querySelector(".modal-overlay");
-    if (overlay) {
-      fireEvent.click(overlay);
-    }
+    expect(overlay).not.toBeNull();
+    fireEvent.click(overlay!);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -70,9 +69,8 @@ describe("CategoryEditModal", () => {
     const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
     const modal = container.querySelector(".modal");
-    if (modal) {
-      fireEvent.click(modal);
-    }
+    expect(modal).not.toBeNull();
+    fireEvent.click(modal!);
     expect(onClose).not.toHaveBeenCalled();
   });
 

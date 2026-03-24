@@ -175,7 +175,7 @@ describe("Trends", () => {
     mockTrendsReturn.loading = true;
     renderTrends();
     expect(screen.getByText("Trends")).toBeInTheDocument();
-    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("skeleton")).toHaveLength(106);
   });
 
   it("shows error state with retry", async () => {

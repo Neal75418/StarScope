@@ -133,7 +133,7 @@ describe("useBackfillAction", () => {
     // Backfill succeeded — should NOT call setError with backfill error message
     expect(mockSetError).not.toHaveBeenCalledWith(expect.stringContaining("Server error"));
     // Success message should still be set
-    expect(result.current.successMessage).toBeTruthy();
+    expect(result.current.successMessage).toBe("Backfill complete! Created 5 data points.");
     // onComplete should still be called
     expect(mockOnComplete).toHaveBeenCalled();
   });

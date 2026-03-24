@@ -160,7 +160,7 @@ describe("Dashboard", () => {
     mockDashboard.isLoading = true;
     render(<Dashboard />);
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
-    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("skeleton")).toHaveLength(31);
   });
 
   it("shows error state with retry button", async () => {

@@ -171,14 +171,14 @@ def mock_multiple_repos(test_db):
         ("angular", "angular", "TypeScript"),
     ]
 
-    for owner, name, lang in repo_data:
+    for i, (owner, name, lang) in enumerate(repo_data):
         repo = Repo(
             owner=owner,
             name=name,
             full_name=f"{owner}/{name}",
             url=f"https://github.com/{owner}/{name}",
             description=f"The {name} framework",
-            github_id=hash(f"{owner}/{name}") % 1000000,
+            github_id=100001 + i,
             default_branch="main",
             language=lang,
             created_at=utc_now(),

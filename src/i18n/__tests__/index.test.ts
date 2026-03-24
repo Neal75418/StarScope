@@ -92,14 +92,16 @@ describe("i18n utilities", () => {
   describe("getTranslations", () => {
     it("returns English translations", () => {
       const translations = getTranslations("en");
-      expect(translations).toBeDefined();
       expect(translations.common).toBeDefined();
+      expect(translations.common.cancel).toBe("Cancel");
+      expect(translations.common.save).toBe("Save");
     });
 
     it("returns Traditional Chinese translations", () => {
       const translations = getTranslations("zh-TW");
-      expect(translations).toBeDefined();
       expect(translations.common).toBeDefined();
+      expect(typeof translations.common.cancel).toBe("string");
+      expect(translations.common.cancel.length).toBeGreaterThan(0);
     });
   });
 });

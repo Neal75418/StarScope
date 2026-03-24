@@ -130,8 +130,8 @@ describe("useNotificationPolling", () => {
     );
 
     await waitFor(() => {
-      // Non-Error exceptions produce a generic fallback message
-      expect(result.current.error).toBeTruthy();
+      // Non-Error exceptions produce the i18n fallback message
+      expect(result.current.error).toBe("Failed to fetch notifications");
     });
   });
 });

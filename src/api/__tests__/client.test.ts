@@ -896,8 +896,8 @@ describe("API Client", () => {
       });
 
       const result = await getContextBadgesBatch([1, 2]);
-      expect(result["1"]).toBeDefined();
-      expect(result["2"]).toBeDefined();
+      expect(result["1"]).toEqual({ repo_id: 1, badges: [] });
+      expect(result["2"]).toEqual({ repo_id: 2, badges: [] });
     });
   });
 
@@ -913,7 +913,7 @@ describe("API Client", () => {
       });
 
       const result = await getRepoSignalsBatch([1]);
-      expect(result["1"]).toBeDefined();
+      expect(result["1"]).toEqual({ signals: [], total: 0 });
     });
   });
 

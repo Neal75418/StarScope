@@ -1,8 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { render, act, renderHook } from "@testing-library/react";
+import React from "react";
 import { useIntersectionObserver } from "../useIntersectionObserver";
 
 type IntersectionCallback = (entries: Partial<IntersectionObserverEntry>[]) => void;
+
+/** Test harness that attaches sentinelRef to a real DOM element. */
+function TestHarness({
+  onIntersect,
+  enabled = true,
+}: {
+  onIntersect: () => void;
+  enabled?: boolean;
+}) {
+  const { sentinelRef, isSupported } = useIntersectionObserver({ onIntersect, enabled });
+  return React.createElement("div", {
+    ref: sentinelRef,
+    "data-testid": "sentinel",
+    "data-supported": String(isSupported),
+  });
+}
 
 describe("useIntersectionObserver", () => {
   let mockObserve: ReturnType<typeof vi.fn>;
@@ -44,37 +61,33 @@ describe("useIntersectionObserver", () => {
 
   it("does not create observer when enabled is false", () => {
     const onIntersect = vi.fn();
-    renderHook(() => useIntersectionObserver({ onIntersect, enabled: false }));
+    render(React.createElement(TestHarness, { onIntersect, enabled: false }));
 
     expect(mockObserve).not.toHaveBeenCalled();
   });
 
   it("calls onIntersect when entry is intersecting", () => {
     const onIntersect = vi.fn();
+    render(React.createElement(TestHarness, { onIntersect }));
 
-    renderHook(() => useIntersectionObserver({ onIntersect, enabled: true }));
-
-    if (capturedCallback) {
-      const cb = capturedCallback;
-      act(() => {
-        cb([{ isIntersecting: true }]);
-      });
-      expect(onIntersect).toHaveBeenCalledTimes(1);
-    }
+    expect(capturedCallback).not.toBeNull();
+    const cb = capturedCallback!;
+    act(() => {
+      cb([{ isIntersecting: true }]);
+    });
+    expect(onIntersect).toHaveBeenCalledTimes(1);
   });
 
   it("does not call onIntersect when entry is not intersecting", () => {
     const onIntersect = vi.fn();
+    render(React.createElement(TestHarness, { onIntersect }));
 
-    renderHook(() => useIntersectionObserver({ onIntersect, enabled: true }));
-
-    if (capturedCallback) {
-      const cb = capturedCallback;
-      act(() => {
-        cb([{ isIntersecting: false }]);
-      });
-      expect(onIntersect).not.toHaveBeenCalled();
-    }
+    expect(capturedCallback).not.toBeNull();
+    const cb = capturedCallback!;
+    act(() => {
+      cb([{ isIntersecting: false }]);
+    });
+    expect(onIntersect).not.toHaveBeenCalled();
   });
 
   it("reports isSupported false when IntersectionObserver is unavailable", () => {
@@ -89,24 +102,19 @@ describe("useIntersectionObserver", () => {
   });
 
   it("uses onIntersect from latest render (callback ref pattern)", () => {
-    let counter = 0;
-    const cb1 = vi.fn(() => counter++);
-    const cb2 = vi.fn(() => (counter += 10));
+    const cb1 = vi.fn();
+    const cb2 = vi.fn();
 
-    const { rerender } = renderHook(
-      ({ onIntersect }) => useIntersectionObserver({ onIntersect, enabled: true }),
-      { initialProps: { onIntersect: cb1 } }
-    );
+    const { rerender } = render(React.createElement(TestHarness, { onIntersect: cb1 }));
 
-    rerender({ onIntersect: cb2 });
+    rerender(React.createElement(TestHarness, { onIntersect: cb2 }));
 
-    if (capturedCallback) {
-      const cb = capturedCallback;
-      act(() => {
-        cb([{ isIntersecting: true }]);
-      });
-      expect(cb2).toHaveBeenCalled();
-      expect(cb1).not.toHaveBeenCalled();
-    }
+    expect(capturedCallback).not.toBeNull();
+    const cb = capturedCallback!;
+    act(() => {
+      cb([{ isIntersecting: true }]);
+    });
+    expect(cb2).toHaveBeenCalled();
+    expect(cb1).not.toHaveBeenCalled();
   });
 });
