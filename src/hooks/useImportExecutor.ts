@@ -5,7 +5,8 @@
 import { ParsedRepo } from "../utils/importHelpers";
 import { executeImportFlow } from "../utils/importExecutorHelpers";
 import { useImportState } from "./useImportState";
-import { useCallback, useEffect, Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 interface UseImportExecutorOptions {
   parsedRepos: ParsedRepo[];

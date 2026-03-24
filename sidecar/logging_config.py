@@ -4,13 +4,10 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
-from typing import Optional
-
-
 def setup_logging(
     level: str = "INFO",
-    log_format: Optional[str] = None,
-    log_dir: Optional[str] = None,
+    log_format: str | None = None,
+    log_dir: str | None = None,
 ) -> None:
     """
     設定應用程式 logging。

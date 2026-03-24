@@ -116,9 +116,6 @@ export function parseCSV(content: string): ParsedRepo[] {
 }
 
 /**
- * 將 JSON 內容解析為儲存庫列表。
- */
-/**
  * 嘗試將單一 JSON 項目解析為 ParsedRepo。
  */
 function parseRepoItem(item: unknown): { owner: string; name: string } | null {

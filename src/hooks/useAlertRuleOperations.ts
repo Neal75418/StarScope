@@ -2,17 +2,16 @@
  * 警報規則的 CRUD 與檢查操作。
  */
 
-import { useCallback, Dispatch, SetStateAction } from "react";
+import { useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import {
-  AlertRule,
-  AlertRuleCreate,
-  AlertRuleUpdate,
   createAlertRule,
   updateAlertRule,
   deleteAlertRule,
   checkAlerts,
   acknowledgeAllTriggeredAlerts,
 } from "../api/client";
+import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from "../api/client";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";
 import { useAsyncOperation } from "./useAsyncOperation";

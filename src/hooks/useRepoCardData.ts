@@ -18,6 +18,7 @@ import { queryKeys } from "../lib/react-query";
 interface UseRepoCardDataResult {
   badges: ContextBadge[];
   badgesLoading: boolean;
+  /** 原始 signals 陣列，供需要直接存取的消費端使用（RepoCard 僅用 activeSignalCount）。 */
   signals: EarlySignal[];
   signalsLoading: boolean;
   activeSignalCount: number;

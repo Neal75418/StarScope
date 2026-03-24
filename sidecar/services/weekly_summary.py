@@ -94,7 +94,7 @@ def _preload_signal_and_repo_maps(
         ``(signal_map, repo_info)``
     """
     all_signals = db.query(Signal).filter(
-        Signal.signal_type.in_(["velocity", "trend", "acceleration"])
+        Signal.signal_type.in_([SignalType.VELOCITY, SignalType.TREND, SignalType.ACCELERATION])
     ).all()
     signal_map: dict[int, dict[str, float]] = {}
     for sig in all_signals:

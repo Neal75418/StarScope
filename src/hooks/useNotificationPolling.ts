@@ -3,7 +3,8 @@
  * 使用 React Query + useSmartInterval 管理輪詢（visibility + online aware）。
  */
 
-import { useCallback, useEffect, useRef, Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTriggeredAlerts } from "../api/client";
 import {
@@ -11,7 +12,7 @@ import {
   sortNotifications,
   mergeNotifications,
 } from "../utils/notificationHelpers";
-import { Notification } from "./useNotifications";
+import type { Notification } from "./useNotifications";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
 import { queryKeys } from "../lib/react-query";

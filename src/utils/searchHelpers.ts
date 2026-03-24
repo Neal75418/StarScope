@@ -5,6 +5,7 @@
 import { TrendingPeriod } from "../components/discovery";
 import { searchRepos, SearchFilters, DiscoveryRepo, ApiError } from "../api/client";
 import type { TranslationKeys } from "../i18n";
+import { DISCOVERY_PERIOD_DAYS, DISCOVERY_PERIOD_MIN_STARS } from "../constants/api";
 
 export interface SearchResult {
   repos: DiscoveryRepo[];
@@ -50,29 +51,12 @@ export async function fetchSearchResults(
 // 起始日期工具
 export function getStartDateForPeriod(period: TrendingPeriod): string {
   const now = new Date();
-  switch (period) {
-    case "daily":
-      now.setDate(now.getDate() - 1);
-      break;
-    case "weekly":
-      now.setDate(now.getDate() - 7);
-      break;
-    case "monthly":
-      now.setDate(now.getDate() - 30);
-      break;
-  }
+  now.setDate(now.getDate() - DISCOVERY_PERIOD_DAYS[period]);
   return now.toISOString().split("T")[0];
 }
 
 export function getMinStarsForPeriod(period: TrendingPeriod): number {
-  switch (period) {
-    case "daily":
-      return 10;
-    case "weekly":
-      return 50;
-    case "monthly":
-      return 100;
-  }
+  return DISCOVERY_PERIOD_MIN_STARS[period];
 }
 
 // 組合查詢邏輯

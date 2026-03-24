@@ -8,6 +8,7 @@ Tables:
 """
 
 from datetime import datetime, date
+from enum import StrEnum
 from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
@@ -377,8 +378,8 @@ class EarlySignal(Base):
 
 # ==================== 應用程式設定模型 ====================
 
-class AppSettingKey:
-    """應用程式設定鍵常數。"""
+class AppSettingKey(StrEnum):
+    """應用程式設定鍵常數（StrEnum 與其他常數群組一致）。"""
     GITHUB_TOKEN = "github_token"
     GITHUB_USERNAME = "github_username"
     # 排程設定

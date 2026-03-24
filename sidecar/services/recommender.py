@@ -11,6 +11,7 @@ import threading
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
+from constants import RECOMMENDER_FLUSH_SIZE
 from db.models import Repo, SimilarRepo
 from services.queries import build_stars_map, build_signal_map
 from utils.time import utc_now
@@ -377,9 +378,8 @@ class RecommenderService:
             )
 
             # 4. 批量寫入相似度紀錄
-            flush_size = 500
-            for i in range(0, len(similarities), flush_size):
-                batch = similarities[i:i + flush_size]
+            for i in range(0, len(similarities), RECOMMENDER_FLUSH_SIZE):
+                batch = similarities[i:i + RECOMMENDER_FLUSH_SIZE]
                 db.bulk_save_objects(batch)
 
             db.commit()

@@ -26,7 +26,7 @@ const VELOCITY_COLORS: Record<string, string> = {
   low: "var(--fg-muted)",
   medium: "var(--accent-fg)",
   high: "var(--success-fg)",
-  veryHigh: "#a371f7",
+  veryHigh: "var(--accent-emphasis)",
 };
 
 interface TooltipPayload {

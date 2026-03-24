@@ -2,6 +2,8 @@
  * 集中管理 localStorage 儲存鍵值，避免散落各處。
  */
 
+// 注意：COMPARE_REPOS、LANGUAGE、PAGE、THEME 使用 hyphen 分隔符（歷史遺留），
+// 其餘使用 underscore。因已寫入使用者 localStorage，無法統一。新增 key 一律用 underscore。
 export const STORAGE_KEYS = {
   COMPARE_REPOS: "starscope-compare-repos",
   DISMISSED_RECS: "starscope_dismissed_recs",

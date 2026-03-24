@@ -13,7 +13,7 @@ import httpx
 from db.models import AppSettingKey
 from services.settings import get_setting, set_setting, delete_setting
 from services.github import reset_github_service
-from constants import GITHUB_API_TIMEOUT_SECONDS
+from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_STATUS_CHECK_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +95,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"[GitHub 驗證] Device flow 啟動失敗: {response.text}", )
+                logger.error(f"[GitHub 驗證] Device flow 啟動失敗: {response.text}")
                 raise GitHubAuthError(
                     f"Failed to initiate device flow: {response.status_code}"
                 )
@@ -125,7 +125,7 @@ class GitHubAuthService:
         logger.info(f"[GitHub 驗證] 正在輪詢 token，device_code: {device_code[:8]}...")
 
         if not self.client_id:
-            logger.error("[GitHub 驗證] 未設定 Client ID", )
+            logger.error("[GitHub 驗證] 未設定 Client ID")
             return {"status": "error", "error": "Client ID not configured"}
 
         async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
@@ -140,7 +140,7 @@ class GitHubAuthService:
             )
 
             if response.status_code != 200:
-                logger.error(f"[GitHub 驗證] 輪詢失敗: HTTP {response.status_code}", )
+                logger.error(f"[GitHub 驗證] 輪詢失敗: HTTP {response.status_code}")
                 return {"status": "error", "error": f"HTTP {response.status_code}"}
 
             data = response.json()
@@ -163,7 +163,7 @@ class GitHubAuthService:
                 logger.warning("[GitHub 驗證] 使用者拒絕授權")
                 return {"status": "error", "error": "User denied access"}
             elif error:
-                logger.error(f"[GitHub 驗證] 未知錯誤: {error}", )
+                logger.error(f"[GitHub 驗證] 未知錯誤: {error}")
                 return {"status": "error", "error": error}
 
             # 成功！已取得 access token
@@ -225,7 +225,7 @@ class GitHubAuthService:
                         "Authorization": f"Bearer {token}",
                         "Accept": "application/vnd.github+json",
                     },
-                    timeout=10.0,
+                    timeout=GITHUB_STATUS_CHECK_TIMEOUT_SECONDS,
                 )
 
                 if response.status_code == 401:

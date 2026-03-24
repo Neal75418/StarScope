@@ -13,7 +13,6 @@ import time as _time
 import uuid
 from contextlib import contextmanager
 from datetime import timedelta
-from typing import Optional
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -22,7 +21,12 @@ from sqlalchemy import create_engine, func, select as sa_select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query, Session
 
-from constants import CONTEXT_FETCH_INTERVAL_MINUTES, SCHEDULER_BATCH_SIZE
+from constants import (
+    CONTEXT_FETCH_INTERVAL_MINUTES,
+    DEFAULT_SNAPSHOT_RETENTION_DAYS,
+    SCHEDULER_BATCH_SIZE,
+    SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS,
+)
 from db.database import DATABASE_URL, get_db_session
 from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
@@ -53,7 +57,7 @@ def _job_context(job_name: str):
 
 
 # 全域排程器實例
-_scheduler: Optional[AsyncIOScheduler] = None
+_scheduler: AsyncIOScheduler | None = None
 _scheduler_lock = threading.Lock()
 
 # Repo 連續失敗計數器（記憶體內，重啟後歸零）
@@ -192,16 +196,17 @@ async def _fetch_and_update_single_repo(
 
 def _cleanup_snapshots_job() -> None:
     """快照清理工作，從 DB 讀取保留天數設定。"""
-    with get_db_session() as db:
-        try:
-            from db.models import AppSettingKey
-            from services.settings import get_setting
-            value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
-            retention_days = int(value) if value else 90
-        except Exception as e:
-            logger.warning(f"[排程] 讀取快照保留天數失敗（使用預設值 90 天）: {e}")
-            retention_days = 90
-    cleanup_old_snapshots(retention_days)
+    with _job_context("快照清理") as log:
+        with get_db_session() as db:
+            try:
+                from db.models import AppSettingKey
+                from services.settings import get_setting
+                value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
+                retention_days = int(value) if value else DEFAULT_SNAPSHOT_RETENTION_DAYS
+            except Exception as e:
+                log.warning(f"[排程] 讀取快照保留天數失敗（使用預設值 {DEFAULT_SNAPSHOT_RETENTION_DAYS} 天）: {e}")
+                retention_days = DEFAULT_SNAPSHOT_RETENTION_DAYS
+        cleanup_old_snapshots(retention_days)
 
 
 async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
@@ -476,8 +481,8 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
             stored = get_setting(AppSettingKey.FETCH_INTERVAL_MINUTES, db)
             if stored:
                 fetch_interval_minutes = int(stored)
-    except Exception:
-        pass  # 使用參數預設值
+    except Exception as e:
+        logger.warning(f"[排程] 讀取排程間隔失敗，使用預設值 {fetch_interval_minutes} 分鐘: {e}")
 
     scheduler = get_scheduler()
 
@@ -499,7 +504,7 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
 
 
 def stop_scheduler() -> None:
-    """停止背景排程器（最多等待 10 秒讓進行中的任務完成）。"""
+    """停止背景排程器（最多等待指定秒數讓進行中的任務完成）。"""
     import concurrent.futures
 
     scheduler = get_scheduler()
@@ -508,7 +513,7 @@ def stop_scheduler() -> None:
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(scheduler.shutdown, wait=True)
             try:
-                future.result(timeout=10)
+                future.result(timeout=SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS)
             except concurrent.futures.TimeoutError:
                 logger.warning("[排程] 排程器停止超時，強制關閉")
                 scheduler.shutdown(wait=False)

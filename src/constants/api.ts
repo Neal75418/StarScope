@@ -29,6 +29,12 @@ export const MAX_RETRIES = 2;
 /** 重試間的基本延遲（毫秒），配合指數退避使用。 */
 export const RETRY_DELAY_MS = 500;
 
+/** Discovery 搜尋的期間天數。 */
+export const DISCOVERY_PERIOD_DAYS = { daily: 1, weekly: 7, monthly: 30 } as const;
+
+/** Discovery 搜尋各期間的最低星數門檻。 */
+export const DISCOVERY_PERIOD_MIN_STARS = { daily: 10, weekly: 50, monthly: 100 } as const;
+
 /** API 錯誤訊息常量，統一管理硬編碼字串。 */
 export const API_ERROR_MESSAGES = {
   CANCELLED: "Request cancelled",

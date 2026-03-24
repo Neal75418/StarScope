@@ -1,16 +1,5 @@
 /**
- * React Query hook 用於取得 repos 列表
- *
- * 這是使用 React Query 的範例實現，展示如何：
- * - 自動快取資料
- * - 處理載入和錯誤狀態
- * - 自動重試失敗的請求
- * - 避免重複請求
- *
- * 使用方式：
- * ```tsx
- * const { data, isLoading, error, refetch } = useReposQuery();
- * ```
+ * React Query hook 用於取得 repos 列表。
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -65,21 +54,3 @@ export function useReposQuery(options: UseReposQueryOptions = {}) {
     staleTime: options.staleTime,
   });
 }
-
-/**
- * 使用範例：在現有元件中逐步遷移
- *
- * 步驟 1：保留現有的 useWatchlist hook，同時使用 useReposQuery
- * ```tsx
- * const { repos, isLoading: oldLoading } = useWatchlist();
- * const { data: queryRepos, isLoading: queryLoading } = useReposQuery();
- *
- * // 優先使用 React Query 的資料（如果可用）
- * const displayRepos = queryRepos ?? repos;
- * const loading = queryLoading || oldLoading;
- * ```
- *
- * 步驟 2：逐步移除 useWatchlist 的依賴
- *
- * 步驟 3：完全遷移後移除 useWatchlist
- */

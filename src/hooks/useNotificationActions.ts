@@ -7,7 +7,8 @@
  * - ack 失敗時還原 UI，避免本地與後端永久分歧
  */
 
-import { useCallback, useRef, Dispatch, SetStateAction } from "react";
+import { useCallback, useRef } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { acknowledgeTriggeredAlert } from "../api/client";
 import { Notification } from "./useNotifications";
 import { logger } from "../utils/logger";

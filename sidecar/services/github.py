@@ -93,7 +93,7 @@ def _check_github_errors(
                 "GitHub API authentication failed - check token",
                 status_code=401
             )
-        logger.error("[GitHub API] GitHub API 驗證失敗", exc_info=True)
+        logger.error(f"[GitHub API] GitHub API 驗證失敗: {context}")
         return False
 
     response.raise_for_status()

@@ -4,6 +4,17 @@ import { Notification } from "../../hooks/useNotifications";
 import { NotificationItem } from "./NotificationItem";
 import type { Page } from "../../types/navigation";
 
+interface NotificationDropdownProps {
+  notifications: Notification[];
+  unreadCount: number;
+  isLoading: boolean;
+  onMarkAllAsRead: () => void;
+  onNavigate: (page: Page) => void;
+  onClear: (id: string) => void;
+  onMarkAsRead: (id: string) => void;
+  t: ReturnType<typeof useI18n>["t"];
+}
+
 export function NotificationDropdown({
   notifications,
   unreadCount,
@@ -13,16 +24,7 @@ export function NotificationDropdown({
   onClear,
   onMarkAsRead,
   t,
-}: {
-  notifications: Notification[];
-  unreadCount: number;
-  isLoading: boolean;
-  onMarkAllAsRead: () => void;
-  onNavigate: (page: Page) => void;
-  onClear: (id: string) => void;
-  onMarkAsRead: (id: string) => void;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
+}: NotificationDropdownProps) {
   const isEmpty = notifications.length === 0;
   const showLoading = isLoading && isEmpty;
   const showEmpty = !isLoading && isEmpty;

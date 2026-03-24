@@ -28,7 +28,7 @@ class BackupService:
         """
         self.db_path = Path(db_path)
         if not self.db_path.exists():
-            raise FileNotFoundError(f"Database file not found: {db_path}")
+            raise FileNotFoundError(f"資料庫檔案不存在: {db_path}")
 
         if backup_dir:
             self.backup_dir = Path(backup_dir)

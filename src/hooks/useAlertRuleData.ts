@@ -3,7 +3,8 @@
  * 使用 3 個 useQuery 平行取得 rules、signalTypes、repos。
  */
 
-import { useCallback, useRef, useEffect, Dispatch, SetStateAction } from "react";
+import { useCallback, useRef, useEffect } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertRule,
