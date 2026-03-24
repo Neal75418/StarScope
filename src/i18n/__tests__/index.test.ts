@@ -99,9 +99,8 @@ describe("i18n utilities", () => {
 
     it("returns Traditional Chinese translations", () => {
       const translations = getTranslations("zh-TW");
-      expect(translations.common).toBeDefined();
-      expect(typeof translations.common.cancel).toBe("string");
-      expect(translations.common.cancel.length).toBeGreaterThan(0);
+      expect(translations.common.cancel).toBe("取消");
+      expect(translations.common.save).toBe("儲存");
     });
   });
 });

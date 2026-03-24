@@ -288,11 +288,6 @@ class TestGetHnService:
 
         assert s1 is s2
 
-    def test_creates_instance(self):
-        """Test creates HackerNewsService instance."""
-        service = get_hn_service()
-
-        assert isinstance(service, HackerNewsService)
 
 
 class TestFetchHnMentions:

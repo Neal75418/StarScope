@@ -82,6 +82,59 @@ class TestIsInCooldown:
         result = alerts_module._is_in_cooldown(test_db, rule_id=999, repo_id=mock_repo.id)
         assert result is False
 
+    def test_recent_trigger_within_cooldown(self, test_db, mock_repo):
+        """Test returns True when trigger is within cooldown window."""
+        rule = AlertRule(
+            name="Cooldown Rule",
+            signal_type="velocity",
+            operator=AlertOperator.GT,
+            threshold=10.0,
+            enabled=True,
+        )
+        test_db.add(rule)
+        test_db.commit()
+
+        # Create a trigger that just happened (within 1-hour cooldown)
+        trigger = TriggeredAlert(
+            rule_id=rule.id,
+            repo_id=mock_repo.id,
+            signal_value=15.0,
+            triggered_at=utc_now(),
+        )
+        test_db.add(trigger)
+        test_db.commit()
+
+        result = alerts_module._is_in_cooldown(test_db, rule_id=rule.id, repo_id=mock_repo.id)
+        assert result is True
+
+    def test_old_trigger_outside_cooldown(self, test_db, mock_repo):
+        """Test returns False when trigger is outside cooldown window."""
+        from datetime import timedelta
+        from constants import ALERT_COOLDOWN_SECONDS
+
+        rule = AlertRule(
+            name="Old Trigger Rule",
+            signal_type="velocity",
+            operator=AlertOperator.GT,
+            threshold=10.0,
+            enabled=True,
+        )
+        test_db.add(rule)
+        test_db.commit()
+
+        # Create a trigger that is older than the cooldown period
+        trigger = TriggeredAlert(
+            rule_id=rule.id,
+            repo_id=mock_repo.id,
+            signal_value=15.0,
+            triggered_at=utc_now() - timedelta(seconds=ALERT_COOLDOWN_SECONDS + 60),
+        )
+        test_db.add(trigger)
+        test_db.commit()
+
+        result = alerts_module._is_in_cooldown(test_db, rule_id=rule.id, repo_id=mock_repo.id)
+        assert result is False
+
 
 class TestCreateTriggeredAlert:
     """Tests for _create_triggered_alert function."""

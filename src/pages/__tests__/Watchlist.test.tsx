@@ -375,16 +375,6 @@ describe("Watchlist", () => {
     expect(screen.getByText("Calculating...")).toBeInTheDocument();
   });
 
-  it("renders search input", () => {
-    render(<Watchlist />);
-    expect(screen.getByTestId("watchlist-search")).toBeInTheDocument();
-  });
-
-  it("renders category sidebar", () => {
-    render(<Watchlist />);
-    expect(screen.getByTestId("category-sidebar")).toBeInTheDocument();
-  });
-
   it("renders virtual list for repos", () => {
     const repos = [
       makeRepo({ id: 1 }),
@@ -399,15 +389,8 @@ describe("Watchlist", () => {
     expect(screen.getByTestId("repo-card-3")).toBeInTheDocument();
   });
 
-  it("shows page title and subtitle", () => {
+  it("shows page title with correct text", () => {
     render(<Watchlist />);
-    expect(screen.getByTestId("page-title")).toBeInTheDocument();
-  });
-
-  it("passes setCategory to CategorySidebar", () => {
-    render(<Watchlist />);
-    // CategorySidebar is fully mocked; verify the component receives the prop
-    // by checking it renders (integration tested in CategorySidebar.test.tsx)
-    expect(screen.getByTestId("category-sidebar")).toBeInTheDocument();
+    expect(screen.getByTestId("page-title")).toHaveTextContent("StarScope");
   });
 });

@@ -306,11 +306,6 @@ class TestGetRecommenderService:
 
         assert r1 is r2
 
-    def test_creates_instance(self):
-        """Test creates RecommenderService instance."""
-        service = get_recommender_service()
-
-        assert isinstance(service, RecommenderService)
 
 
 class TestConvenienceFunctions:

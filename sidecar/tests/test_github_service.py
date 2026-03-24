@@ -133,71 +133,20 @@ class TestFetchRepoData:
         reset_github_service()
 
     @pytest.mark.asyncio
-    async def test_fetch_repo_data_not_found(self):
-        """Test returns None when repo not found."""
+    @pytest.mark.parametrize("exception", [
+        GitHubNotFoundError("Not found", 404),
+        GitHubRateLimitError("Rate limit", 403),
+        GitHubAPIError("API Error", 500),
+        httpx.TimeoutException("Timeout"),
+        httpx.RequestError("Network error"),
+    ], ids=["not_found", "rate_limit", "api_error", "timeout", "network_error"])
+    async def test_fetch_repo_data_returns_none_on_error(self, exception):
+        """Test returns None when get_repo raises any handled exception."""
         reset_github_service()
 
         with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = GitHubNotFoundError("Not found", 404)
-
-            result = await fetch_repo_data("owner", "nonexistent")
-
-            assert result is None
-
-        reset_github_service()
-
-    @pytest.mark.asyncio
-    async def test_fetch_repo_data_rate_limit(self):
-        """Test returns None when rate limited."""
-        reset_github_service()
-
-        with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = GitHubRateLimitError("Rate limit", 403)
-
+            mock_get.side_effect = exception
             result = await fetch_repo_data("owner", "repo")
-
-            assert result is None
-
-        reset_github_service()
-
-    @pytest.mark.asyncio
-    async def test_fetch_repo_data_api_error(self):
-        """Test returns None on generic API error."""
-        reset_github_service()
-
-        with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = GitHubAPIError("API Error", 500)
-
-            result = await fetch_repo_data("owner", "repo")
-
-            assert result is None
-
-        reset_github_service()
-
-    @pytest.mark.asyncio
-    async def test_fetch_repo_data_timeout(self):
-        """Test returns None on timeout."""
-        reset_github_service()
-
-        with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.TimeoutException("Timeout")
-
-            result = await fetch_repo_data("owner", "repo")
-
-            assert result is None
-
-        reset_github_service()
-
-    @pytest.mark.asyncio
-    async def test_fetch_repo_data_network_error(self):
-        """Test returns None on network error."""
-        reset_github_service()
-
-        with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.RequestError("Network error")
-
-            result = await fetch_repo_data("owner", "repo")
-
             assert result is None
 
         reset_github_service()

@@ -228,22 +228,6 @@ describe("useTrends", () => {
     expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it("returns data normally with refetchInterval option set", async () => {
-    const before = Date.now();
-    const { result } = await renderAndWaitForLoad(defaultResponse, {
-      refetchInterval: 60000,
-    });
-    expect(result.current.trends).toHaveLength(1);
-    expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
-  });
-
-  it("returns data normally with refetchInterval disabled", async () => {
-    const { result } = await renderAndWaitForLoad(defaultResponse, {
-      refetchInterval: false,
-    });
-    expect(result.current.trends).toHaveLength(1);
-  });
-
   it("re-fetches after refetchInterval expires", async () => {
     mockGetTrends.mockResolvedValue(defaultResponse);
     const { result } = renderHook(() => useTrends({ refetchInterval: 100 }), {

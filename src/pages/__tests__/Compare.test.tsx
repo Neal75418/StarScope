@@ -557,7 +557,9 @@ describe("Compare", () => {
       refetch: mockRefetch,
     };
     render(<Compare />);
-    await userEvent.click(screen.getByText("Issues"));
-    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+    const issuesButton = screen.getByText("Issues");
+    await userEvent.click(issuesButton);
+    // Verify the Issues button is now the active/pressed metric
+    expect(issuesButton).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -369,11 +369,6 @@ class TestGetGitHubAuthService:
 
         assert s1 is s2
 
-    def test_creates_instance(self):
-        """Test creates GitHubAuthService instance."""
-        service = get_github_auth_service()
-
-        assert isinstance(service, GitHubAuthService)
 
 
 class TestDataClasses:

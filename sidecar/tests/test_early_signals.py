@@ -2,6 +2,9 @@
 Tests for early signals endpoints.
 """
 
+from db.models import EarlySignal
+from utils.time import utc_now
+
 
 class TestEarlySignalsEndpoints:
     """Test cases for /api/early-signals endpoints."""
@@ -16,15 +19,40 @@ class TestEarlySignalsEndpoints:
         assert data["data"]["signals"] == []
         assert data["data"]["total"] == 0
 
-    def test_list_signals_with_filters(self, client):
-        """Test listing signals with filter parameters."""
+    def test_list_signals_with_filters(self, client, test_db, mock_repo):
+        """Test that filters correctly include/exclude signals by type and severity."""
+        # Create two signals with different type/severity
+        signal_match = EarlySignal(
+            repo_id=mock_repo.id,
+            signal_type="rising_star",
+            severity="high",
+            description="Matching signal",
+            velocity_value=50.0,
+            star_count=1000,
+            percentile_rank=85.0,
+            detected_at=utc_now(),
+        )
+        signal_no_match = EarlySignal(
+            repo_id=mock_repo.id,
+            signal_type="breakout",
+            severity="medium",
+            description="Non-matching signal",
+            velocity_value=20.0,
+            star_count=500,
+            percentile_rank=60.0,
+            detected_at=utc_now(),
+        )
+        test_db.add_all([signal_match, signal_no_match])
+        test_db.commit()
+
+        # Filter by rising_star + high — should return only the matching signal
         response = client.get("/api/early-signals?signal_type=rising_star&severity=high")
         assert response.status_code == 200
         data = response.json()
-        # 驗證統一的 API 響應格式
         assert data["success"] is True
-        assert "signals" in data["data"]
-        assert "total" in data["data"]
+        assert data["data"]["total"] == 1
+        assert data["data"]["signals"][0]["signal_type"] == "rising_star"
+        assert data["data"]["signals"][0]["severity"] == "high"
 
     def test_get_signal_summary(self, client):
         """Test getting signal summary statistics."""

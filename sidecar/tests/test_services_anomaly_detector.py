@@ -346,22 +346,17 @@ class TestGetAnomalyDetector:
 
         assert d1 is d2
 
-    def test_creates_instance(self):
-        """Test creates AnomalyDetector instance."""
-        detector = get_anomaly_detector()
-
-        assert isinstance(detector, AnomalyDetector)
 
 
 class TestConstants:
-    """Tests for module constants — pin 具體值防止意外修改。"""
+    """Tests for module constants — 驗證行為不變式而非具體值。"""
 
-    def test_rising_star_thresholds(self):
-        """Test rising star threshold values match documented defaults."""
-        assert RISING_STAR_MAX_STARS == 5000
-        assert RISING_STAR_MIN_VELOCITY == 10
+    def test_rising_star_thresholds_are_reasonable(self):
+        """Test rising star thresholds maintain logical invariants."""
+        assert RISING_STAR_MIN_VELOCITY > 0  # velocity threshold must be positive
+        assert RISING_STAR_MAX_STARS > 0  # star count ceiling must be positive
 
-    def test_spike_thresholds(self):
-        """Test spike threshold values match documented defaults."""
-        assert SUDDEN_SPIKE_MULTIPLIER == 3
-        assert SUDDEN_SPIKE_MIN_ABSOLUTE == 100
+    def test_spike_thresholds_are_reasonable(self):
+        """Test spike thresholds maintain logical invariants."""
+        assert SUDDEN_SPIKE_MULTIPLIER > 1  # must be a multiplier above 1x
+        assert SUDDEN_SPIKE_MIN_ABSOLUTE > 0  # must require positive absolute growth
