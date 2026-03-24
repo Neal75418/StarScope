@@ -96,7 +96,7 @@ describe("useBackfillAction", () => {
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
-  it("handles API error", async () => {
+  it("treats server error (5xx) as network error with offline message", async () => {
     vi.mocked(apiClient.backfillStarHistory).mockRejectedValue(
       new apiClient.ApiError(500, "Server error")
     );

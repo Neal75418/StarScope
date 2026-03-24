@@ -116,18 +116,6 @@ describe("ContextBadges", () => {
     expect(screen.getByText("no-number-here")).toBeInTheDocument();
   });
 
-  it("formatValue returns full label when no number in HN badge label", () => {
-    const badge: ContextBadge = {
-      type: "hn",
-      label: "no digits",
-      url: "https://example.com",
-      score: null,
-      is_recent: false,
-    };
-    render(<ContextBadges badges={[badge]} />);
-    expect(screen.getByText("no digits")).toBeInTheDocument();
-  });
-
   it("does not show expand arrow when repoId is not provided", () => {
     render(<ContextBadges badges={[mockHnBadge]} />);
     expect(screen.queryByText("▸")).not.toBeInTheDocument();

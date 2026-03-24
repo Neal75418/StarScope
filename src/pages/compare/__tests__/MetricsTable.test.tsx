@@ -64,8 +64,8 @@ describe("MetricsTable", () => {
     render(
       <MetricsTable repos={[makeComparisonRepo({ current_stars: 200000 })]} t={mockT as never} />
     );
-    // formatNumber(200000) → "200,000" or "200k" — look for the text
-    expect(screen.getByText(/200/)).toBeInTheDocument();
+    // formatNumber(200000) → "200.0K"
+    expect(screen.getByText("200.0K")).toBeInTheDocument();
   });
 
   it("renders velocity and acceleration", () => {

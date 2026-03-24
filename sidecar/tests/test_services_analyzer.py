@@ -169,4 +169,5 @@ class TestCalculateSignals:
         # Should have no duplicate signal types after two calculations
         db_signals = test_db.query(Signal).filter(Signal.repo_id == repo.id).all()
         signal_types = [s.signal_type for s in db_signals]
+        assert len(signal_types) >= 1, "Expected at least one signal to be stored"
         assert len(signal_types) == len(set(signal_types))  # No duplicates

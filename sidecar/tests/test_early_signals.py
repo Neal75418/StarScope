@@ -55,17 +55,16 @@ class TestEarlySignalsEndpoints:
         assert data["data"]["signals"][0]["severity"] == "high"
 
     def test_get_signal_summary(self, client):
-        """Test getting signal summary statistics."""
+        """Test getting signal summary returns correct values for empty DB."""
         response = client.get("/api/early-signals/summary")
         assert response.status_code == 200
         data = response.json()
-        # 驗證統一的 API 響應格式
         assert data["success"] is True
         summary = data["data"]
-        assert "total_active" in summary
-        assert "by_type" in summary
-        assert "by_severity" in summary
-        assert "repos_with_signals" in summary
+        assert summary["total_active"] == 0
+        assert summary["by_type"] == {}
+        assert summary["by_severity"] == {}
+        assert summary["repos_with_signals"] == 0
 
     def test_get_repo_signals_not_found(self, client):
         """Test getting signals for nonexistent repo."""

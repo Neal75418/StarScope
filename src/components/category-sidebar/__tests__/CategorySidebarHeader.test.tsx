@@ -17,6 +17,7 @@ vi.mock("../../../i18n", () => ({
 describe("CategorySidebarHeader", () => {
   it("renders title and toggle button", () => {
     render(<CategorySidebarHeader showAddForm={false} onToggleAddForm={vi.fn()} />);
+    expect(screen.getByText("Categories")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Category" })).toBeInTheDocument();
   });
 

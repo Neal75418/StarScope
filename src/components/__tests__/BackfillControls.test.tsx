@@ -91,11 +91,6 @@ describe("BackfillControls", () => {
     expect(loadStatus).toHaveBeenCalled();
   });
 
-  it("shows loading state on retry button", () => {
-    render(<BackfillControls {...defaultProps} isOffline={true} loading={true} />);
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  });
-
   it("disables retry button when loading", () => {
     render(<BackfillControls {...defaultProps} isOffline={true} loading={true} />);
     expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();

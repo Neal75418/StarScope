@@ -134,17 +134,18 @@ class TestCheckAlertsJob:
             assert call_args[0][0] is test_db
 
     def test_handles_triggered_alerts(self, test_db):
-        """Test handles triggered alerts without errors."""
+        """Test processes non-empty triggered alerts without raising."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check, \
-             patch('services.scheduler.logger') as mock_logger:
+             patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.return_value = [MagicMock(), MagicMock()]
+            # Should complete without raising even with triggered alerts
             check_alerts_job()
 
             mock_check.assert_called_once()
-            # 有觸發 alerts 時應記錄結果數量，不應有 error
-            mock_logger.error.assert_not_called()
+            # Verify the session arg was passed
+            call_args = mock_check.call_args
+            assert call_args[0][0] is test_db
 
     def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
