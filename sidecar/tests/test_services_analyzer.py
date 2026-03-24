@@ -3,7 +3,9 @@ Tests for services/analyzer.py - Signal calculation engine.
 """
 
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
+
+from utils.time import utc_today
 
 from services.analyzer import (
     get_snapshot_for_date,
@@ -65,7 +67,7 @@ class TestGetSnapshotForDate:
 
     def test_no_match_returns_none_when_not_allowing_earlier(self, test_db, mock_repo):
         """Test returns None when no exact match and not allowing earlier."""
-        future_date = date.today() + timedelta(days=100)
+        future_date = utc_today() + timedelta(days=100)
         result = get_snapshot_for_date(mock_repo.id, future_date, test_db, allow_earlier=False)
         assert result is None
 
@@ -73,7 +75,7 @@ class TestGetSnapshotForDate:
         """Test returns earlier snapshot when exact match not found."""
         repo, snapshots = mock_repo_with_snapshots
         # Request a date between snapshots
-        future_date = date.today() + timedelta(days=1)
+        future_date = utc_today() + timedelta(days=1)
         result = get_snapshot_for_date(repo.id, future_date, test_db, allow_earlier=True)
         assert result is not None
         # 回傳的 snapshot 日期不應超過目標日期

@@ -257,9 +257,9 @@ describe("useDeviceFlowPolling", () => {
       result.current.startPolling("code", 5, 60);
     });
 
-    // 讓 initial delay (3000ms) 觸發一次正常 poll
+    // 讓 initial delay (3000ms) 觸發一次正常 poll（使用 async 版本以 flush promise chain）
     await act(async () => {
-      vi.advanceTimersByTime(3000);
+      await vi.advanceTimersByTimeAsync(3000);
     });
     const callsBefore = mockPollAuth.mock.calls.length;
     expect(callsBefore).toBeGreaterThan(0);
@@ -267,7 +267,7 @@ describe("useDeviceFlowPolling", () => {
     // 設定頁面為隱藏，再觸發一次 interval
     Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
     await act(async () => {
-      vi.advanceTimersByTime(5000);
+      await vi.advanceTimersByTimeAsync(5000);
     });
 
     // 隱藏期間不應有新的 poll 呼叫
@@ -284,9 +284,9 @@ describe("useDeviceFlowPolling", () => {
       result.current.startPolling("code", 5, 60);
     });
 
-    // 讓 initial delay (3000ms) 觸發一次正常 poll
+    // 讓 initial delay (3000ms) 觸發一次正常 poll（使用 async 版本以 flush promise chain）
     await act(async () => {
-      vi.advanceTimersByTime(3000);
+      await vi.advanceTimersByTimeAsync(3000);
     });
     const callsBefore = mockPollAuth.mock.calls.length;
     expect(callsBefore).toBeGreaterThan(0);
@@ -295,7 +295,7 @@ describe("useDeviceFlowPolling", () => {
     mockOnline = false;
     rerender();
     await act(async () => {
-      vi.advanceTimersByTime(5000);
+      await vi.advanceTimersByTimeAsync(5000);
     });
 
     // 離線期間不應有新的 poll 呼叫

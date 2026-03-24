@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { AddRepoDialog } from "../AddRepoDialog";
 
@@ -126,7 +126,7 @@ describe("AddRepoDialog", () => {
     await user.type(input, "test/repo");
     await user.click(screen.getByText("Add"));
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(mockOnAdd).toHaveBeenCalledWith("test/repo");
     });
     // Input preserved — on failure, user can edit and retry

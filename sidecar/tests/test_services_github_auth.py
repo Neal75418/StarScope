@@ -8,6 +8,7 @@ from unittest.mock import patch, MagicMock, AsyncMock
 
 import httpx
 
+from db.models import AppSettingKey
 from services.github_auth import (
     GitHubAuthService,
     GitHubAuthError,
@@ -209,6 +210,8 @@ class TestPollForToken:
                     assert result["status"] == "success"
                     assert result["username"] == "testuser"
                     assert mock_set.call_count == 2
+                    mock_set.assert_any_call(AppSettingKey.GITHUB_TOKEN, "ghp_token123")
+                    mock_set.assert_any_call(AppSettingKey.GITHUB_USERNAME, "testuser")
 
 
 class TestGetUsername:

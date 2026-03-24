@@ -86,10 +86,11 @@ class TestFetchAllReposJob:
 
             mock_fetch.assert_called_once_with(mock_repo.owner, mock_repo.name)
             mock_update.assert_called_once()
-            # Verify update was called with the correct repo and github data
+            # Verify update was called with the correct repo, github data, and db session
             call_args = mock_update.call_args
             assert call_args[0][0] == mock_repo
             assert call_args[0][1] == mock_fetch.return_value
+            assert call_args[0][2] is test_db
 
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):
@@ -370,8 +371,8 @@ class TestCheckAlertsJobImportError:
 
     def test_handles_import_error(self, test_db):
         """Test handles ImportError when alerts service unavailable."""
-        # sys.modules 中設 None 會讓 from X import Y 拋出 ImportError
-        # （直接 patch builtins.__import__ 會被 sys.modules 快取繞過）
+        # check_alerts_job uses lazy import (from services.alerts import check_all_alerts),
+        # so patching sys.modules with None correctly triggers ImportError
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch.dict('sys.modules', {'services.alerts': None}):
             check_alerts_job()  # Should not raise

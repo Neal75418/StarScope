@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Toolbar } from "../Toolbar";
 
@@ -53,7 +53,7 @@ describe("Toolbar", () => {
     await user.type(input, "react");
 
     // Wait for the debounce
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(defaultProps.onSearchChange).toHaveBeenCalledWith("react");
     });
   });

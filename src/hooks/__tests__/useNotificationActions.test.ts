@@ -91,7 +91,7 @@ describe("useNotificationActions", () => {
     const notifications = [
       makeNotification({ id: "notif-1", type: "alert", metadata: { alertId: 42 }, read: false }),
       makeNotification({ id: "notif-2", type: "alert", metadata: { alertId: 43 }, read: false }),
-      makeNotification({ id: "notif-3", type: "system", read: true }),
+      makeNotification({ id: "notif-3", type: "system", metadata: undefined, read: false }),
     ];
     const { result } = renderHook(() =>
       useNotificationActions(notifications, mockSetNotifications, mockStorage)
@@ -101,7 +101,9 @@ describe("useNotificationActions", () => {
       await result.current.markAllAsRead();
     });
 
-    // Only succeeded alert IDs + non-alert IDs should be persisted
+    // Non-alert IDs should be persisted directly (no server ack needed)
+    expect(mockStorage.markIdsAsRead).toHaveBeenCalledWith(["notif-3"]);
+    // Succeeded alert IDs should also be persisted
     expect(mockStorage.markIdsAsRead).toHaveBeenCalledWith(["notif-1", "notif-2"]);
     expect(mockSetNotifications).toHaveBeenCalled();
     expect(apiClient.acknowledgeTriggeredAlert).toHaveBeenCalledWith(42);
@@ -182,6 +184,15 @@ describe("useNotificationActions", () => {
     // Failed alert UI should be reverted (setNotifications called for optimistic + revert)
     // Exactly 2 calls: optimistic mark-all-read + revert failed alert
     expect(mockSetNotifications).toHaveBeenCalledTimes(2);
+
+    // Verify rollback: notif-2 (failed) should be reverted to read:false, notif-1 (succeeded) stays read:true
+    const revertUpdater = mockSetNotifications.mock.calls[1][0] as (
+      prev: Notification[]
+    ) => Notification[];
+    const allMarkedRead = notifications.map((n) => ({ ...n, read: true }));
+    const reverted = revertUpdater(allMarkedRead);
+    expect(reverted.find((n) => n.id === "notif-2")?.read).toBe(false);
+    expect(reverted.find((n) => n.id === "notif-1")?.read).toBe(true);
   });
 
   it("clearNotification removes read mark from storage on alert ack failure", async () => {
