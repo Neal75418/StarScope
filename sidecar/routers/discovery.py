@@ -2,8 +2,8 @@
 探索 API 端點，用於搜尋 GitHub repo。
 """
 
-from enum import Enum
 import logging
+from enum import Enum
 
 from fastapi import APIRouter, Query, HTTPException, Request
 

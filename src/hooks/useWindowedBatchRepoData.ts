@@ -4,12 +4,8 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import {
-  ContextBadge,
-  EarlySignal,
-  getContextBadgesBatch,
-  getRepoSignalsBatch,
-} from "../api/client";
+import type { ContextBadge, EarlySignal } from "../api/client";
+import { getContextBadgesBatch, getRepoSignalsBatch } from "../api/client";
 import { logger } from "../utils/logger";
 
 export interface BatchRepoData {
@@ -18,6 +14,7 @@ export interface BatchRepoData {
 }
 
 const MAX_BATCH_SIZE = 50;
+const INITIAL_VISIBLE_STOP = 20;
 const EMPTY_BADGES: ContextBadge[] = [];
 const EMPTY_SIGNALS: EarlySignal[] = [];
 
@@ -61,10 +58,13 @@ export function useWindowedBatchRepoData(
 ): UseWindowedBatchRepoDataResult {
   const { bufferSize = 10, debounceMs = 150 } = options;
 
-  const [visibleRange, setVisibleRange] = useState<VisibleRange>({ start: 0, stop: 20 });
+  const [visibleRange, setVisibleRange] = useState<VisibleRange>({
+    start: 0,
+    stop: INITIAL_VISIBLE_STOP,
+  });
   const [debouncedVisibleRange, setDebouncedVisibleRange] = useState<VisibleRange>({
     start: 0,
-    stop: 20,
+    stop: INITIAL_VISIBLE_STOP,
   });
   const [badgesMap, setBadgesMap] = useState<Record<string, { badges: ContextBadge[] }>>({});
   const [signalsMap, setSignalsMap] = useState<Record<string, { signals: EarlySignal[] }>>({});

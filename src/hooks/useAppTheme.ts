@@ -3,7 +3,8 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Theme, getInitialTheme, saveTheme, applyTheme } from "../theme";
+import type { Theme } from "../theme";
+import { getInitialTheme, saveTheme, applyTheme } from "../theme";
 
 interface UseAppThemeReturn {
   theme: Theme;

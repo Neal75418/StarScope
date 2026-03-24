@@ -124,8 +124,12 @@ def _build_need_fetch_query(
     """建立需要抓取的 repo 查詢，跳過近期已抓取的項目。
 
     Returns:
-        ``(need_fetch_query, total_count, skipped_count)`` 或
+        ``(need_fetch_query, total_count, skipped_count)`` tuple，或
         ``None``（當監控清單為空時）。
+
+        - ``need_fetch_query``: 需要抓取的 repo 查詢
+        - ``total_count``: 監控清單中的 repo 總數
+        - ``skipped_count``: 因近期已抓取而跳過的 repo 數量
     """
     recent_threshold = utc_now() - timedelta(minutes=skip_recent_minutes)
 

@@ -4,7 +4,8 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { CategoryTreeNode, CategoryUpdate, updateCategory } from "../api/client";
+import type { CategoryTreeNode, CategoryUpdate } from "../api/client";
+import { updateCategory } from "../api/client";
 import { logger } from "../utils/logger";
 
 interface UseCategoryReorderResult {

@@ -21,6 +21,7 @@ from utils.time import utc_now
 
 # 常數
 MAX_STARS_FOR_BACKFILL = 5000
+MAX_HISTORY_SNAPSHOTS = 5000  # get_star_history 查詢上限
 ERROR_TOO_MANY_STARS = f"Repository has too many stars (>{MAX_STARS_FOR_BACKFILL}). Backfill is not available."
 
 router = APIRouter(prefix="/api/star-history", tags=["star-history"])
@@ -85,7 +86,7 @@ class PortfolioHistoryResponse(BaseModel):
 async def get_portfolio_history(
     days: int = Query(default=30, ge=7, le=365),
     db: Session = Depends(get_db),
-):
+) -> dict:
     """
     取得所有追蹤 repo 的聚合 star 歷史。
     依日期分組加總 star 數，供 Dashboard Portfolio History 圖表使用。
@@ -224,7 +225,7 @@ def _create_snapshots_from_history(
 async def get_backfill_status(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     檢查 repo 是否符合 star 歷史回填條件。
     """
@@ -267,7 +268,7 @@ async def get_backfill_status(
 async def backfill_star_history(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     回填 repo 的 star 歷史。
 
@@ -364,7 +365,7 @@ async def backfill_star_history(
 async def get_star_history(
     repo_id: int,
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得 repo 的完整 star 歷史。
     回傳依日期排序的所有可用快照。
@@ -373,7 +374,7 @@ async def get_star_history(
 
     snapshots = db.query(RepoSnapshot).filter(
         RepoSnapshot.repo_id == repo_id
-    ).order_by(RepoSnapshot.snapshot_date.asc()).limit(5000).all()
+    ).order_by(RepoSnapshot.snapshot_date.asc()).limit(MAX_HISTORY_SNAPSHOTS).all()
 
     # noinspection PyTypeChecker
     history = [

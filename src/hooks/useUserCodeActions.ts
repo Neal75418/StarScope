@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { isSafeUrl, safeOpenUrl } from "../utils/url";
-import { DeviceCodeResponse } from "../api/client";
+import type { DeviceCodeResponse } from "../api/client";
 import { CLIPBOARD_FEEDBACK_MS } from "../constants/api";
 
 interface UseUserCodeActionsResult {

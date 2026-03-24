@@ -3,9 +3,12 @@
  */
 
 import { addRepo, getRepos } from "../api/client";
-import { ParsedRepo } from "./importHelpers";
+import type { ParsedRepo } from "./importHelpers";
 import { normalizeRepoName } from "./format";
 import { logger } from "./logger";
+
+/** 匯入逐筆之間的延遲（毫秒），避免 API 過載。 */
+const IMPORT_ITEM_DELAY_MS = 500;
 
 /**
  * 執行儲存庫列表的匯入迴圈。
@@ -53,7 +56,7 @@ export async function executeImportFlow(
     abortController,
     existingSet,
     updateRepo,
-    async () => abortableDelay(500, abortController.signal)
+    async () => abortableDelay(IMPORT_ITEM_DELAY_MS, abortController.signal)
   );
 
   return { ...result, dedupCheckFailed: hadError };

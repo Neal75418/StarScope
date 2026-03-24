@@ -193,7 +193,7 @@ async def list_rules(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     列出所有警報規則（含分頁）。
 
@@ -217,7 +217,7 @@ async def list_rules(
 
 
 @router.post("/rules", response_model=ApiResponse[AlertRuleResponse])
-async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
+async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)) -> dict:
     """建立新警報規則。
     signal_type 與 operator 由 Pydantic Literal 型別驗證。
     """
@@ -245,7 +245,7 @@ async def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
-async def get_rule(rule_id: int, db: Session = Depends(get_db)):
+async def get_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
     """取得特定警報規則。"""
     rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -255,7 +255,7 @@ async def get_rule(rule_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
-async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)):
+async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)) -> dict:
     """更新警報規則。"""
     rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -292,7 +292,7 @@ async def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depen
 
 
 @router.delete("/rules/{rule_id}", response_model=ApiResponse[StatusResponse])
-async def delete_rule(rule_id: int, db: Session = Depends(get_db)):
+async def delete_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
     """刪除警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -309,7 +309,7 @@ async def list_triggered_alerts(
     unacknowledged_only: bool = False,
     limit: int = Query(50, ge=1, le=500),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """列出已觸發的警報。"""
     # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢
     query = (
@@ -331,7 +331,7 @@ async def list_triggered_alerts(
 
 
 @router.post("/triggered/{alert_id}/acknowledge", response_model=ApiResponse[StatusResponse])
-async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)):
+async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)) -> dict:
     """確認已觸發的警報。"""
     if acknowledge_alert(db, alert_id):
         return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
@@ -339,14 +339,14 @@ async def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/triggered/acknowledge-all", response_model=ApiResponse[StatusResponse])
-async def acknowledge_all(db: Session = Depends(get_db)):
+async def acknowledge_all(db: Session = Depends(get_db)) -> dict:
     """確認所有未確認的警報。"""
     count = acknowledge_all_alerts(db)
     return success_response(data=StatusResponse(status="acknowledged", count=count))
 
 
 @router.post("/check", response_model=ApiResponse[CheckAlertsResponse])
-async def check_alerts_now(db: Session = Depends(get_db)):
+async def check_alerts_now(db: Session = Depends(get_db)) -> dict:
     """手動觸發警報檢查。"""
     triggered = check_all_alerts(db)
     check_result = CheckAlertsResponse(

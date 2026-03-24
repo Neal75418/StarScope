@@ -8,7 +8,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BackfillStatus, getBackfillStatus, ApiError } from "../api/client";
+import type { BackfillStatus } from "../api/client";
+import { getBackfillStatus, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
 import { isNetworkError } from "../utils/backfillHelpers";
 import { logger } from "../utils/logger";

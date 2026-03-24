@@ -2,11 +2,12 @@
  * 匯入流程執行器，協調解析與批次匯入。
  */
 
-import { ParsedRepo } from "../utils/importHelpers";
-import { executeImportFlow } from "../utils/importExecutorHelpers";
-import { useImportState } from "./useImportState";
 import { useCallback, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
+
+import type { ParsedRepo } from "../utils/importHelpers";
+import { executeImportFlow } from "../utils/importExecutorHelpers";
+import { useImportState } from "./useImportState";
 
 interface UseImportExecutorOptions {
   parsedRepos: ParsedRepo[];

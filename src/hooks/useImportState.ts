@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef } from "react";
-import { ImportResult } from "../utils/importHelpers";
+import type { ImportResult } from "../utils/importHelpers";
 
 export function useImportState() {
   const [isImporting, setIsImporting] = useState(false);

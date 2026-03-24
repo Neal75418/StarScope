@@ -10,13 +10,12 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
+from constants import ContextSignalType, MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 from db.database import get_db
-from constants import ContextSignalType
 from db.models import ContextSignal
 from routers.dependencies import get_repo_or_404
 from services.context_fetcher import fetch_context_signals_for_repo
 from utils.time import utc_now
-from constants import MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 from schemas.response import ApiResponse, success_response
 
 router = APIRouter(prefix="/api/context", tags=["context"])

@@ -10,7 +10,7 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { acknowledgeTriggeredAlert } from "../api/client";
-import { Notification } from "./useNotifications";
+import type { Notification } from "./useNotifications";
 import { logger } from "../utils/logger";
 
 interface StorageActions {

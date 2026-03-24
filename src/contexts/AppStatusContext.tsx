@@ -28,6 +28,11 @@ export interface AppStatus {
   isOnline: boolean;
 }
 
+/** Health check 輪詢間隔（毫秒）。 */
+const HEALTH_CHECK_INTERVAL_MS = 60_000;
+/** Rate limit 橫幅自動消失時間（毫秒）。 */
+const RATE_LIMIT_BANNER_DURATION_MS = 60_000;
+
 const AppStatusContext = createContext<AppStatus | undefined>(undefined);
 
 /** 應用狀態 Provider。 */
@@ -40,7 +45,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
     queryFn: checkHealth,
     retry: 1,
     staleTime: 30_000,
-    refetchInterval: () => (isOnline ? 60_000 : false),
+    refetchInterval: () => (isOnline ? HEALTH_CHECK_INTERVAL_MS : false),
   });
 
   const isSidecarUp = healthQuery.data?.status === "ok";
@@ -52,7 +57,10 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
     const handler = () => {
       setRateLimited(true);
       clearTimeout(rateLimitTimerRef.current);
-      rateLimitTimerRef.current = setTimeout(() => setRateLimited(false), 60_000);
+      rateLimitTimerRef.current = setTimeout(
+        () => setRateLimited(false),
+        RATE_LIMIT_BANNER_DURATION_MS
+      );
     };
     window.addEventListener("starscope:rate-limited", handler);
     return () => {

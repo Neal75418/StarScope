@@ -9,10 +9,11 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getGitHubConnectionStatus, GitHubConnectionStatus } from "../api/client";
+import type { GitHubConnectionStatus } from "../api/client";
+import { getGitHubConnectionStatus } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { useI18n } from "../i18n";
-import { ConnectionState } from "./useGitHubConnection";
+import type { ConnectionState } from "./useGitHubConnection";
 import { queryKeys } from "../lib/react-query";
 
 interface UseConnectionStatusResult {

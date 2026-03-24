@@ -41,7 +41,7 @@ async def get_stars_chart(
     repo_id: int,
     time_range: TimeRange = Query(TimeRange.MONTH, description="Time range for chart data"),
     db: Session = Depends(get_db)
-):
+) -> dict:
     """
     取得圖表用的歷史 star 數資料。
     回傳指定時間範圍的資料點。
