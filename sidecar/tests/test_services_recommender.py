@@ -318,12 +318,12 @@ class TestConvenienceFunctions:
     def test_find_similar_repos_function(self, test_db, mock_repo):
         """Test find_similar_repos convenience function."""
         result = find_similar_repos(mock_repo.id, test_db)
-        assert isinstance(result, list)
+        assert result == []
 
     def test_calculate_repo_similarities_function(self, test_db, mock_repo):
         """Test calculate_repo_similarities convenience function."""
         result = calculate_repo_similarities(mock_repo.id, test_db)
-        assert isinstance(result, int)
+        assert result == 0
 
     def test_calculate_repo_similarities_nonexistent(self, test_db):
         """Test returns 0 for nonexistent repo."""

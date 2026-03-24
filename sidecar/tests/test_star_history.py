@@ -103,7 +103,7 @@ class TestStarHistoryBackfill:
         assert data["repo_id"] == mock_repo.id
         assert data["success"] is True
         assert data["total_stargazers"] == 3
-        assert data["snapshots_created"] > 0
+        assert data["snapshots_created"] == 2
         assert data["earliest_date"] == "2025-01-01"
         assert data["latest_date"] == "2025-01-02"
 

@@ -207,7 +207,7 @@ class TestHackerNewsService:
             service = HackerNewsService()
             result = await service.search_repo("repo", "owner")
 
-            assert len(result) >= 1
+            assert len(result) == 1
             assert isinstance(result[0], HNStory)
 
     @pytest.mark.asyncio

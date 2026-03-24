@@ -81,9 +81,16 @@ class TestCreateBackup:
 
     def test_multiple_backups_unique_names(self, service):
         """多次備份應產生不同檔案名稱。"""
-        b1 = service.create_backup()
-        time.sleep(1.1)  # 確保 timestamp 不同
-        b2 = service.create_backup()
+        from unittest.mock import patch
+        from datetime import datetime, timezone
+
+        t1 = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        t2 = datetime(2024, 1, 1, 12, 0, 1, tzinfo=timezone.utc)
+
+        with patch('services.backup.datetime') as mock_dt:
+            mock_dt.now.side_effect = [t1, t2]
+            b1 = service.create_backup()
+            b2 = service.create_backup()
 
         assert b1 != b2
         assert b1.exists()

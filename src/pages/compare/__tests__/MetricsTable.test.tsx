@@ -87,7 +87,7 @@ describe("MetricsTable", () => {
       />
     );
     const dashes = screen.getAllByText("—");
-    expect(dashes.length).toBeGreaterThanOrEqual(3);
+    expect(dashes.length).toBe(3);
   });
 
   it("sorts repos by velocity descending", () => {
@@ -125,7 +125,7 @@ describe("MetricsTable", () => {
       />
     );
     const trendDown = container.querySelectorAll(".trend-down");
-    expect(trendDown.length).toBeGreaterThanOrEqual(2);
+    expect(trendDown.length).toBe(2);
   });
 
   it("renders dash for null delta values", () => {
@@ -136,7 +136,7 @@ describe("MetricsTable", () => {
       />
     );
     const dashes = screen.getAllByText("—");
-    expect(dashes.length).toBeGreaterThanOrEqual(2);
+    expect(dashes.length).toBe(2);
   });
 
   it("renders zero delta without trend class", () => {

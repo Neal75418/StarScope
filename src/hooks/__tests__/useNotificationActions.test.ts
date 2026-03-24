@@ -164,8 +164,8 @@ describe("useNotificationActions", () => {
     // Only the succeeded alert is persisted
     expect(mockStorage.markIdsAsRead).toHaveBeenCalledWith(["notif-1"]);
     // Failed alert UI should be reverted (setNotifications called for optimistic + revert)
-    const setNotifCalls = mockSetNotifications.mock.calls;
-    expect(setNotifCalls.length).toBeGreaterThanOrEqual(2);
+    // Exactly 2 calls: optimistic mark-all-read + revert failed alert
+    expect(mockSetNotifications).toHaveBeenCalledTimes(2);
   });
 
   it("clearNotification removes read mark from storage on alert ack failure", async () => {

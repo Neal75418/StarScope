@@ -118,8 +118,9 @@ class TestCalculateAcceleration:
         """Test acceleration calculation."""
         repo, _ = mock_repo_with_snapshots
         acceleration = calculate_acceleration(repo.id, test_db)
-        # With consistent growth, acceleration should be near 0
-        assert acceleration is not None
+        # Linear growth but "today" resolves to day -1, making this_week 6 days vs last_week 7 days
+        # this_week: 300/7, last_week: 350/7 → acceleration = -50/350 = -1/7
+        assert acceleration == pytest.approx(-1 / 7)
 
     def test_calculate_acceleration_no_data(self, test_db, mock_repo):
         """Test acceleration returns None with no data."""

@@ -58,10 +58,6 @@ describe("RepoCardHeader", () => {
     );
   });
 
-  it("displays languages badge component", () => {
-    render(<RepoCardHeader {...defaultProps} />);
-  });
-
   it("renders action buttons", () => {
     render(<RepoCardHeader {...defaultProps} />);
     expect(screen.getByTitle("Show chart")).toBeInTheDocument();

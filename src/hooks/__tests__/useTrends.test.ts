@@ -223,17 +223,19 @@ describe("useTrends", () => {
   });
 
   it("exposes dataUpdatedAt timestamp", async () => {
+    const before = Date.now();
     const { result } = await renderAndWaitForLoad();
-    expect(result.current.dataUpdatedAt).toBeGreaterThan(0);
+    expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
   });
 
   it("accepts refetchInterval option", async () => {
+    const before = Date.now();
     const { result } = await renderAndWaitForLoad(defaultResponse, {
       refetchInterval: 60000,
     });
     // Hook should still return data normally
     expect(result.current.trends).toHaveLength(1);
-    expect(result.current.dataUpdatedAt).toBeGreaterThan(0);
+    expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
   });
 
   it("accepts false refetchInterval", async () => {

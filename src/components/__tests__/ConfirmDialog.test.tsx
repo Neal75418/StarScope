@@ -122,10 +122,9 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const overlay = container.querySelector(".dialog-overlay");
-    if (overlay) {
-      await user.click(overlay);
-    }
+    const overlay = container.querySelector(".dialog-overlay") as HTMLElement;
+    expect(overlay).not.toBeNull();
+    await user.click(overlay);
 
     expect(mockOnCancel).toHaveBeenCalled();
   });
@@ -239,10 +238,9 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const overlay = container.querySelector(".dialog-overlay");
-    if (overlay) {
-      await user.click(overlay);
-    }
+    const overlay = container.querySelector(".dialog-overlay") as HTMLElement;
+    expect(overlay).not.toBeNull();
+    await user.click(overlay);
 
     expect(mockOnCancel).not.toHaveBeenCalled();
   });

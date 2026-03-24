@@ -67,6 +67,6 @@ describe("RepoCardStats", () => {
       />
     );
     const dashes = screen.getAllByText("—");
-    expect(dashes.length).toBeGreaterThanOrEqual(3);
+    expect(dashes.length).toBe(4);
   });
 });
