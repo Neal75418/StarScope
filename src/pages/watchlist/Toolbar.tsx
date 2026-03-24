@@ -2,7 +2,8 @@
  * 工具列元件，包含搜尋、排序、新增、刷新、重新計算和匯出功能。
  */
 
-import { useState, useRef, useEffect, useCallback, type RefObject } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import type { RefObject } from "react";
 import { useI18n, interpolate } from "../../i18n";
 import type { WatchlistSortKey, SortDirection } from "../../hooks/useWatchlistSort";
 import type { ViewMode } from "../../hooks/useViewMode";

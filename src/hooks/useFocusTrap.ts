@@ -2,7 +2,8 @@
  * 將焦點限制在容器元素內（如對話框），Tab / Shift+Tab 循環切換。
  */
 
-import { useEffect, useRef, RefObject } from "react";
+import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';

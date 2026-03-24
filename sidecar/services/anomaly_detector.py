@@ -36,6 +36,7 @@ SUDDEN_SPIKE_MIN_ABSOLUTE = 100  # 最低絕對增長量
 BREAKOUT_VELOCITY_THRESHOLD = 2  # 當週速度須 > 2
 
 VIRAL_HN_MIN_SCORE = 100  # 觸發的最低 HN 分數
+VIRAL_HN_CUTOFF_HOURS = 48  # HN 訊號有效期（小時）
 
 # 預設門檻值（作為備用）
 _DEFAULT_THRESHOLDS = {
@@ -262,9 +263,6 @@ class AnomalyDetector:
         條件：today_delta > 3 倍 avg_daily 且絕對值 > 100
         recent_snapshots: 預載的近 30 天快照（desc），避免 N+1 查詢。
         """
-        _ = snapshot_map  # 由呼叫端傳入，本偵測器不使用
-        _ = signal_map
-
         # 優先使用預載的快照序列（由 detect_all 批次載入），避免 N+1
         if recent_snapshots is not None:
             snapshots = recent_snapshots
@@ -371,8 +369,7 @@ class AnomalyDetector:
         偵測 Hacker News 爆紅訊號。
         條件：48 小時內 HN 貼文分數 >= 100
         """
-        _ = signal_map  # 由呼叫端傳入，本偵測器不使用訊號
-        cutoff = utc_now() - timedelta(hours=48)
+        cutoff = utc_now() - timedelta(hours=VIRAL_HN_CUTOFF_HOURS)
 
         hn_signal = db.query(ContextSignal).filter(
             ContextSignal.repo_id == repo.id,
@@ -575,7 +572,7 @@ class AnomalyDetector:
         active_signals = _build_active_signals_set(db)
 
         # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）
-        cutoff_hn = utc_now() - timedelta(hours=48)
+        cutoff_hn = utc_now() - timedelta(hours=VIRAL_HN_CUTOFF_HOURS)
         hn_signals_raw = db.query(ContextSignal).filter(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
             ContextSignal.fetched_at >= cutoff_hn,

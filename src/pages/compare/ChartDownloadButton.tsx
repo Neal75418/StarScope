@@ -2,7 +2,8 @@
  * PNG 下載按鈕：將圖表 SVG 轉為 PNG 並下載。
  */
 
-import { useState, useCallback, type RefObject } from "react";
+import { useState, useCallback } from "react";
+import type { RefObject } from "react";
 import { useI18n } from "../../i18n";
 
 interface ChartDownloadButtonProps {

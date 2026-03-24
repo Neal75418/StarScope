@@ -2,7 +2,8 @@
  * 樹狀結構中的單一分類節點項目。
  */
 
-import { memo, MouseEvent } from "react";
+import { memo } from "react";
+import type { MouseEvent } from "react";
 import { CategoryTreeNode } from "../../api/client";
 import { useI18n } from "../../i18n";
 

@@ -3,7 +3,8 @@
  * 使用 @dnd-kit/sortable 實作。
  */
 
-import { MouseEvent, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import type { MouseEvent } from "react";
 import {
   DndContext,
   closestCenter,

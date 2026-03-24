@@ -2,7 +2,8 @@
  * 批次匯入 repo 的區塊元件。
  */
 
-import { useState, useRef, ChangeEvent, memo } from "react";
+import { useState, useRef, memo } from "react";
+import type { ChangeEvent } from "react";
 import { useI18n } from "../../i18n";
 import { useImport, ParsedRepo } from "../../hooks/useImport";
 import { useStarredImport } from "../../hooks/useStarredImport";

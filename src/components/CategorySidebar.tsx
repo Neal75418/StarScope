@@ -2,7 +2,8 @@
  * 分類側邊欄元件，以樹狀結構組織 repo 並支援新增 / 編輯。
  */
 
-import { useState, useCallback, useRef, memo, MouseEvent } from "react";
+import { useState, useCallback, useRef, memo } from "react";
+import type { MouseEvent } from "react";
 import { CategoryTreeNode, CategoryUpdate, getCategory } from "../api/client";
 import { useI18n } from "../i18n";
 import { useCategoryExpand } from "../hooks/useCategoryExpand";

@@ -2,7 +2,8 @@
  * 偵測點擊元素外部的 hook
  */
 
-import { RefObject, useEffect } from "react";
+import { useEffect } from "react";
+import type { RefObject } from "react";
 
 export function useClickOutside<T extends HTMLElement>(
   ref: RefObject<T | null>,

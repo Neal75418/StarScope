@@ -26,7 +26,7 @@ vi.mock("../../api/client", () => {
 
 // Import after mock setup
 import { searchRepos, ApiError } from "../../api/client";
-import { TranslationKeys } from "../../i18n";
+import type { TranslationKeys } from "../../i18n";
 const mockSearchRepos = vi.mocked(searchRepos);
 
 const mockT = {

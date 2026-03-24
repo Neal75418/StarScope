@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { BackfillStatusBadge } from "../BackfillStatusBadge";
-import { TranslationKeys } from "../../i18n";
+import type { TranslationKeys } from "../../i18n";
 
 const mockT = {
   starHistory: {

@@ -2,7 +2,8 @@
  * 編輯分類詳細資訊的 modal。
  */
 
-import { useState, FormEvent } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { CategoryTreeNode, CategoryUpdate } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { useEscapeKey } from "../../hooks/useEscapeKey";

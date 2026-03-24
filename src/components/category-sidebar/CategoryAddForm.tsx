@@ -2,7 +2,8 @@
  * 新增分類的表單。
  */
 
-import { useState, FormEvent } from "react";
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useI18n } from "../../i18n";
 
 interface CategoryAddFormProps {

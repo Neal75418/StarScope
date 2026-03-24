@@ -2,7 +2,8 @@
  * 新增 repo 到 watchlist 的 dialog。
  */
 
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";

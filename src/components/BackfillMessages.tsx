@@ -2,7 +2,7 @@
  * Backfill 狀態訊息元件（離線、錯誤、成功）。
  */
 
-import { TranslationKeys } from "../i18n";
+import type { TranslationKeys } from "../i18n";
 
 interface BackfillMessagesProps {
   isOffline: boolean;

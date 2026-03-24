@@ -2,7 +2,7 @@
  * 分類樹節點的遞迴渲染器。
  */
 
-import { MouseEvent } from "react";
+import type { MouseEvent } from "react";
 import { CategoryTreeNode } from "../../api/client";
 import { CategoryNodeItem } from "./CategoryNodeItem";
 

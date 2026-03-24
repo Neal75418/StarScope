@@ -2,7 +2,8 @@
  * Discovery 頁面的篩選下拉選單，含語言、授權、排序、Topic、Stars 範圍。
  */
 
-import { useState, useCallback, useEffect, FormEvent } from "react";
+import { useState, useCallback, useEffect } from "react";
+import type { FormEvent } from "react";
 import { useI18n } from "../../i18n";
 import { SearchFilters } from "../../api/client";
 import type { SortOption } from "../../hooks/useDiscovery";

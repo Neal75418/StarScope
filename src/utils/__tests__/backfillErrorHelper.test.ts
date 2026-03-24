@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { getBackfillErrorMessage } from "../backfillErrorHelper";
 import { ApiError } from "../../api/client";
-import { TranslationKeys } from "../../i18n/translations";
+import type { TranslationKeys } from "../../i18n/translations";
 
 const mockT = {
   starHistory: {
