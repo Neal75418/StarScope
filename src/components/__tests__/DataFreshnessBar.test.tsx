@@ -2,7 +2,7 @@
  * DataFreshnessBar 元件測試。
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DataFreshnessBar } from "../DataFreshnessBar";
@@ -36,6 +36,10 @@ vi.mock("../../i18n", () => ({
 }));
 
 describe("DataFreshnessBar", () => {
+  beforeEach(() => {
+    mockOnline = true;
+  });
+
   it("renders nothing when dataUpdatedAt is 0", () => {
     const { container } = render(<DataFreshnessBar dataUpdatedAt={0} isFetching={false} />);
     expect(container.firstChild).toBeNull();
@@ -50,7 +54,6 @@ describe("DataFreshnessBar", () => {
     mockOnline = false;
     render(<DataFreshnessBar dataUpdatedAt={Date.now()} isFetching={false} />);
     expect(screen.getByText(/Offline/)).toBeInTheDocument();
-    mockOnline = true;
   });
 
   it("shows syncing indicator when fetching", () => {

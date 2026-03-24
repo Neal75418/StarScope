@@ -53,10 +53,20 @@ class TestStoreHnSignals:
 
     def test_stores_new_signals(self, test_db, mock_repo):
         """Test storing new HN signals."""
+        from db.models import ContextSignal
+
         stories = [create_mock_hn_story("hn1"), create_mock_hn_story("hn2")]
         count = context_fetcher_module._store_hn_signals(mock_repo.id, stories, test_db)  # type: ignore[arg-type]
 
         assert count == 2
+        # Verify records were added to the session (flush to materialize)
+        test_db.flush()
+        stored = test_db.query(ContextSignal).filter(
+            ContextSignal.repo_id == mock_repo.id
+        ).all()
+        assert len(stored) == 2
+        stored_ids = {s.external_id for s in stored}
+        assert stored_ids == {"hn1", "hn2"}
 
     def test_empty_stories(self, test_db, mock_repo):
         """Test with empty stories list."""

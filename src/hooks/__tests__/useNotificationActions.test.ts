@@ -126,7 +126,9 @@ describe("useNotificationActions", () => {
 
   it("markAsRead rolls back UI and skips storage on alert ack failure", async () => {
     vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(new Error("Server error"));
-    const notifications = [makeNotification({ type: "alert", metadata: { alertId: 42 } })];
+    const notifications = [
+      makeNotification({ type: "alert", metadata: { alertId: 42 }, read: false }),
+    ];
     const { result } = renderHook(() =>
       useNotificationActions(notifications, mockSetNotifications, mockStorage)
     );
@@ -139,6 +141,20 @@ describe("useNotificationActions", () => {
     expect(mockStorage.markIdAsRead).not.toHaveBeenCalled();
     // Should have called setNotifications twice: optimistic + rollback
     expect(mockSetNotifications).toHaveBeenCalledTimes(2);
+
+    // Verify optimistic update set read: true
+    const optimisticUpdater = mockSetNotifications.mock.calls[0][0] as (
+      prev: typeof notifications
+    ) => typeof notifications;
+    const optimisticResult = optimisticUpdater(notifications);
+    expect(optimisticResult[0].read).toBe(true);
+
+    // Verify rollback restored read: false
+    const rollbackUpdater = mockSetNotifications.mock.calls[1][0] as (
+      prev: typeof notifications
+    ) => typeof notifications;
+    const rollbackResult = rollbackUpdater(optimisticResult);
+    expect(rollbackResult[0].read).toBe(false);
   });
 
   it("markAllAsRead reverts failed alerts and only persists succeeded ones", async () => {

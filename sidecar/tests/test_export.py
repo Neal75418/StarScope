@@ -6,13 +6,13 @@ Tests for export endpoints.
 import csv
 import io
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
 from constants import SignalType
 from db.models import Repo, RepoSnapshot, Signal
-from utils.time import utc_now
+from utils.time import utc_now, utc_today
 
 
 class TestExportWatchlistJson:
@@ -69,7 +69,7 @@ class TestExportWatchlistJson:
         # 創建 snapshot
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=15000,
             forks=5000,
             watchers=1000,
@@ -140,7 +140,7 @@ class TestExportWatchlistJson:
         # 創建 snapshot
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=20000,
             forks=8000,
             watchers=1500,
@@ -204,7 +204,7 @@ class TestExportWatchlistJson:
             # 為每個 repo 添加 snapshot
             snapshot = RepoSnapshot(
                 repo_id=repo.id,
-                snapshot_date=date.today(),
+                snapshot_date=utc_today(),
                 stars=1000 * (i + 1),
                 forks=100 * (i + 1),
                 watchers=50,
@@ -259,7 +259,7 @@ class TestExportWatchlistJson:
         # 創建舊 snapshot
         old_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today() - timedelta(days=7),
+            snapshot_date=utc_today() - timedelta(days=7),
             stars=10000,
             forks=3000,
             watchers=500,
@@ -271,7 +271,7 @@ class TestExportWatchlistJson:
         # 創建新 snapshot
         new_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=15000,
             forks=5000,
             watchers=800,
@@ -341,7 +341,7 @@ class TestExportWatchlistCsv:
         # 創建完整資料
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=25000,
             forks=10000,
             watchers=2000,
@@ -444,7 +444,7 @@ class TestExportWatchlistCsv:
 
             snapshot = RepoSnapshot(
                 repo_id=repo.id,
-                snapshot_date=date.today(),
+                snapshot_date=utc_today(),
                 stars=5000 * (i + 1),
                 forks=1000 * (i + 1),
                 watchers=100,
@@ -497,7 +497,7 @@ class TestExportBatchQueryOptimization:
 
             snapshot = RepoSnapshot(
                 repo_id=repo.id,
-                snapshot_date=date.today(),
+                snapshot_date=utc_today(),
                 stars=100 * (i + 1),
                 forks=10 * (i + 1),
                 watchers=5,

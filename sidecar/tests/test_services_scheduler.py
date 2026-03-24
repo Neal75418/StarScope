@@ -84,8 +84,12 @@ class TestFetchAllReposJob:
 
             await fetch_all_repos_job()
 
-            mock_fetch.assert_called_once()
+            mock_fetch.assert_called_once_with(mock_repo.owner, mock_repo.name)
             mock_update.assert_called_once()
+            # Verify update was called with the correct repo and github data
+            call_args = mock_update.call_args
+            assert call_args[0][0] == mock_repo
+            assert call_args[0][1] == mock_fetch.return_value
 
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):

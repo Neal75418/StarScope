@@ -339,12 +339,13 @@ class TestDisconnect:
 
     def test_returns_false_when_no_credentials(self):
         """Test returns False when no credentials existed."""
-        with patch('services.github_auth.delete_setting', return_value=False), \
+        with patch('services.github_auth.delete_setting', return_value=False) as mock_delete, \
              patch('services.github_auth.reset_github_service'):
 
             result = GitHubAuthService.disconnect()
 
             assert result is False
+            assert mock_delete.call_count == 2
 
 
 class TestGetGitHubAuthService:

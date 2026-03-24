@@ -257,11 +257,12 @@ describe("useDeviceFlowPolling", () => {
       result.current.startPolling("code", 5, 60);
     });
 
-    // 讓 initial delay 觸發
+    // 讓 initial delay (3000ms) 觸發一次正常 poll
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(3000);
     });
     const callsBefore = mockPollAuth.mock.calls.length;
+    expect(callsBefore).toBeGreaterThan(0);
 
     // 設定頁面為隱藏，再觸發一次 interval
     Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
@@ -283,11 +284,12 @@ describe("useDeviceFlowPolling", () => {
       result.current.startPolling("code", 5, 60);
     });
 
-    // 先讓 initial delay 觸發一次正常 poll
+    // 讓 initial delay (3000ms) 觸發一次正常 poll
     await act(async () => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(3000);
     });
     const callsBefore = mockPollAuth.mock.calls.length;
+    expect(callsBefore).toBeGreaterThan(0);
 
     // 切換為離線並 rerender 讓 ref 更新
     mockOnline = false;

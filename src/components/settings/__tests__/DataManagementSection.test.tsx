@@ -49,7 +49,7 @@ describe("DataManagementSection", () => {
 
     // Confirm dialog should be visible — find confirm button inside the alertdialog
     const dialog = await waitFor(() => screen.getByRole("alertdialog"));
-    const confirmBtn = within(dialog).getAllByRole("button")[1]; // second button is confirm
+    const confirmBtn = within(dialog).getByRole("button", { name: /Reset All Data|重置所有資料/ }); // second button is confirm
 
     // Click confirm — reset fails
     await user.click(confirmBtn);
@@ -73,7 +73,7 @@ describe("DataManagementSection", () => {
     await user.click(within(section).getByRole("button", { name: /Reset All|重置所有/ }));
 
     const dialog = await waitFor(() => screen.getByRole("alertdialog"));
-    const confirmBtn = within(dialog).getAllByRole("button")[1];
+    const confirmBtn = within(dialog).getByRole("button", { name: /Reset All Data|重置所有資料/ });
 
     await user.click(confirmBtn);
 
@@ -102,7 +102,7 @@ describe("DataManagementSection", () => {
     const section = screen.getByTestId("data-management-section");
     await user.click(within(section).getByRole("button", { name: /Reset All|重置所有/ }));
     const dialog = await waitFor(() => screen.getByRole("alertdialog"));
-    const confirmBtn = within(dialog).getAllByRole("button")[1];
+    const confirmBtn = within(dialog).getByRole("button", { name: /Reset All Data|重置所有資料/ });
     await user.click(confirmBtn);
 
     await waitFor(() => {
@@ -132,7 +132,7 @@ describe("DataManagementSection", () => {
     const section = screen.getByTestId("data-management-section");
     await user.click(within(section).getByRole("button", { name: /Reset All|重置所有/ }));
     const dialog = await waitFor(() => screen.getByRole("alertdialog"));
-    const confirmBtn = within(dialog).getAllByRole("button")[1];
+    const confirmBtn = within(dialog).getByRole("button", { name: /Reset All Data|重置所有資料/ });
     await user.click(confirmBtn);
 
     await waitFor(() => {

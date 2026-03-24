@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useCategoryReorder } from "../useCategoryReorder";
 import * as client from "../../api/client";
 import type { CategoryTreeNode } from "../../api/client";
@@ -34,12 +34,11 @@ describe("useCategoryReorder", () => {
 
     const { result } = renderHook(() => useCategoryReorder(tree, mockOnTreeChange));
 
-    await act(async () => {
+    act(() => {
       result.current.reorder(3, 1); // Move C before A
-      // Wait for the async operations
-      await vi.waitFor(() => {
-        expect(mockOnTreeChange).toHaveBeenCalled();
-      });
+    });
+    await waitFor(() => {
+      expect(mockOnTreeChange).toHaveBeenCalled();
     });
 
     // After moving C before A: [C, A, B]
@@ -98,11 +97,11 @@ describe("useCategoryReorder", () => {
 
     const { result } = renderHook(() => useCategoryReorder(tree, mockOnTreeChange));
 
-    await act(async () => {
+    act(() => {
       result.current.reorder(2, 1);
-      await vi.waitFor(() => {
-        expect(mockOnTreeChange).toHaveBeenCalled();
-      });
+    });
+    await waitFor(() => {
+      expect(mockOnTreeChange).toHaveBeenCalled();
     });
 
     expect(client.updateCategory).toHaveBeenCalledTimes(2);
