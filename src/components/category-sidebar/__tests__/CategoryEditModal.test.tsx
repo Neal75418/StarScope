@@ -58,9 +58,9 @@ describe("CategoryEditModal", () => {
     const onClose = vi.fn();
     const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
-    const overlay = container.querySelector(".modal-overlay");
+    const overlay = container.querySelector(".modal-overlay") as HTMLElement;
     expect(overlay).not.toBeNull();
-    fireEvent.click(overlay!);
+    fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -68,9 +68,9 @@ describe("CategoryEditModal", () => {
     const onClose = vi.fn();
     const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
-    const modal = container.querySelector(".modal");
+    const modal = container.querySelector(".modal") as HTMLElement;
     expect(modal).not.toBeNull();
-    fireEvent.click(modal!);
+    fireEvent.click(modal);
     expect(onClose).not.toHaveBeenCalled();
   });
 

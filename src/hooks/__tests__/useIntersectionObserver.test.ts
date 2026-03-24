@@ -71,7 +71,7 @@ describe("useIntersectionObserver", () => {
     render(React.createElement(TestHarness, { onIntersect }));
 
     expect(capturedCallback).not.toBeNull();
-    const cb = capturedCallback!;
+    const cb = capturedCallback as IntersectionCallback;
     act(() => {
       cb([{ isIntersecting: true }]);
     });
@@ -83,7 +83,7 @@ describe("useIntersectionObserver", () => {
     render(React.createElement(TestHarness, { onIntersect }));
 
     expect(capturedCallback).not.toBeNull();
-    const cb = capturedCallback!;
+    const cb = capturedCallback as IntersectionCallback;
     act(() => {
       cb([{ isIntersecting: false }]);
     });
@@ -110,7 +110,7 @@ describe("useIntersectionObserver", () => {
     rerender(React.createElement(TestHarness, { onIntersect: cb2 }));
 
     expect(capturedCallback).not.toBeNull();
-    const cb = capturedCallback!;
+    const cb = capturedCallback as IntersectionCallback;
     act(() => {
       cb([{ isIntersecting: true }]);
     });
