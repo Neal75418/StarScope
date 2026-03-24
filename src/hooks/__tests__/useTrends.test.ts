@@ -228,17 +228,16 @@ describe("useTrends", () => {
     expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it("accepts refetchInterval option", async () => {
+  it("returns data normally with refetchInterval option set", async () => {
     const before = Date.now();
     const { result } = await renderAndWaitForLoad(defaultResponse, {
       refetchInterval: 60000,
     });
-    // Hook should still return data normally
     expect(result.current.trends).toHaveLength(1);
     expect(result.current.dataUpdatedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it("accepts false refetchInterval", async () => {
+  it("returns data normally with refetchInterval disabled", async () => {
     const { result } = await renderAndWaitForLoad(defaultResponse, {
       refetchInterval: false,
     });

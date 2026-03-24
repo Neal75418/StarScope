@@ -135,14 +135,17 @@ class TestCheckAlertsJob:
             mock_check.assert_called_once()
 
     def test_handles_triggered_alerts(self, test_db):
-        """Test handles triggered alerts."""
+        """Test handles triggered alerts without errors."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check:
+             patch('services.alerts.check_all_alerts') as mock_check, \
+             patch('services.scheduler.logger') as mock_logger:
 
             mock_check.return_value = [MagicMock(), MagicMock()]
             check_alerts_job()
 
             mock_check.assert_called_once()
+            # 有觸發 alerts 時應記錄結果數量，不應有 error
+            mock_logger.error.assert_not_called()
 
     def test_handles_exception(self, test_db):
         """Test handles exception gracefully."""
@@ -361,17 +364,12 @@ class TestBackupJob:
 class TestCheckAlertsJobImportError:
     """Tests for check_alerts_job edge cases."""
 
-    def test_handles_import_error(self):
+    def test_handles_import_error(self, test_db):
         """Test handles ImportError when alerts service unavailable."""
-        import builtins
-        original_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == 'services.alerts':
-                raise ImportError("No module named 'services.alerts'")
-            return original_import(name, *args, **kwargs)
-
-        with patch('builtins.__import__', side_effect=mock_import):
+        # sys.modules 中設 None 會讓 from X import Y 拋出 ImportError
+        # （直接 patch builtins.__import__ 會被 sys.modules 快取繞過）
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch.dict('sys.modules', {'services.alerts': None}):
             check_alerts_job()  # Should not raise
 
     def test_handles_sqlalchemy_error(self, test_db):

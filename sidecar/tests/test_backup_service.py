@@ -144,7 +144,7 @@ class TestBackupDatabase:
         assert result is not None
         assert result.exists()
 
-    def test_returns_none_on_missing_db(self, tmp_path):
+    def test_raises_on_missing_db(self, tmp_path):
         """DB 不存在時應拋出例外。"""
         with pytest.raises(FileNotFoundError):
             backup_database(str(tmp_path / "missing.db"))

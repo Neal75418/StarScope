@@ -3,7 +3,7 @@ Tests for services/anomaly_detector.py - Anomaly detection service.
 """
 
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 
 from db.models import (
     RepoSnapshot,
@@ -26,7 +26,7 @@ from services.anomaly_detector import (
     SUDDEN_SPIKE_MULTIPLIER,
     SUDDEN_SPIKE_MIN_ABSOLUTE,
 )
-from utils.time import utc_now
+from utils.time import utc_now, utc_today
 
 
 class TestDetectRisingStar:
@@ -46,7 +46,7 @@ class TestDetectRisingStar:
         # Create snapshot with high stars
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=10000,  # Above RISING_STAR_MAX_STARS
         )
         test_db.add(snapshot)
@@ -59,7 +59,7 @@ class TestDetectRisingStar:
         """Test returns None when no velocity signal exists."""
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=1000,
         )
         test_db.add(snapshot)
@@ -77,7 +77,7 @@ class TestDetectRisingStar:
         # Create snapshot
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=2000,
         )
         test_db.add(snapshot)
@@ -103,7 +103,7 @@ class TestDetectRisingStar:
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
         test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
 
-        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=date.today(), stars=1000)
+        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000)
         test_db.add(snapshot)
 
         signal = Signal(
@@ -128,7 +128,7 @@ class TestDetectSuddenSpike:
         """Test returns None with less than 2 snapshots."""
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
 
-        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=date.today(), stars=1000)
+        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000)
         test_db.add(snapshot)
         test_db.commit()
 
@@ -140,7 +140,7 @@ class TestDetectSuddenSpike:
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
 
         # Create snapshots showing spike
-        today = date.today()
+        today = utc_today()
         snapshots = [
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today, stars=2000),
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=1), stars=1500),
@@ -160,7 +160,7 @@ class TestDetectSuddenSpike:
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
 
         # Create snapshots with steady growth
-        today = date.today()
+        today = utc_today()
         snapshots = [
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today, stars=1050),
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=1), stars=1000),
@@ -291,7 +291,7 @@ class TestDetectAllForRepo:
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
         test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
 
-        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=date.today(), stars=1000)
+        snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000)
         signal = Signal(
             repo_id=mock_repo.id,
             signal_type=SignalType.VELOCITY,
@@ -354,14 +354,14 @@ class TestGetAnomalyDetector:
 
 
 class TestConstants:
-    """Tests for module constants."""
+    """Tests for module constants — pin 具體值防止意外修改。"""
 
     def test_rising_star_thresholds(self):
-        """Test rising star threshold values are reasonable."""
-        assert RISING_STAR_MAX_STARS > 0
-        assert RISING_STAR_MIN_VELOCITY > 0
+        """Test rising star threshold values match documented defaults."""
+        assert RISING_STAR_MAX_STARS == 5000
+        assert RISING_STAR_MIN_VELOCITY == 10
 
     def test_spike_thresholds(self):
-        """Test spike threshold values are reasonable."""
-        assert SUDDEN_SPIKE_MULTIPLIER > 1
-        assert SUDDEN_SPIKE_MIN_ABSOLUTE > 0
+        """Test spike threshold values match documented defaults."""
+        assert SUDDEN_SPIKE_MULTIPLIER == 3
+        assert SUDDEN_SPIKE_MIN_ABSOLUTE == 100

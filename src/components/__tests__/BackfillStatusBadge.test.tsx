@@ -95,6 +95,8 @@ describe("BackfillStatusBadge", () => {
       />
     );
 
-    expect(screen.getByText("Backfilled undefined days of history")).toBeInTheDocument();
+    // backfilled_days 未提供時應 fallback 為 0，不應顯示 "undefined"
+    expect(screen.getByText("Backfilled 0 days of history")).toBeInTheDocument();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
   });
 });

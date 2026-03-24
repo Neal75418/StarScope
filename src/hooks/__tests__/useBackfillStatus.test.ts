@@ -130,7 +130,7 @@ describe("useBackfillStatus", () => {
     expect(result.current.error).toBe("Backfill failed");
   });
 
-  it("exposes loadStatus function", async () => {
+  it("loadStatus triggers a re-fetch", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useBackfillStatus(1, false), {
@@ -141,10 +141,18 @@ describe("useBackfillStatus", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(typeof result.current.loadStatus).toBe("function");
+    const callsBefore = vi.mocked(apiClient.getBackfillStatus).mock.calls.length;
+
+    await act(async () => {
+      result.current.loadStatus();
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(apiClient.getBackfillStatus).mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 
-  it("exposes setError function", async () => {
+  it("setError updates error state", async () => {
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
 
     const { result } = renderHook(() => useBackfillStatus(1, false), {
@@ -155,6 +163,10 @@ describe("useBackfillStatus", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(typeof result.current.setError).toBe("function");
+    act(() => {
+      result.current.setError("test error");
+    });
+
+    expect(result.current.error).toBe("test error");
   });
 });

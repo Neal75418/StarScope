@@ -211,7 +211,7 @@ describe("useCategoryTree", () => {
     expect(success).toBe(false);
   });
 
-  it("exposes fetchCategories function", async () => {
+  it("fetchCategories triggers a re-fetch", async () => {
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
 
     const { result } = renderHook(() => useCategoryTree());
@@ -220,6 +220,12 @@ describe("useCategoryTree", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(typeof result.current.fetchCategories).toBe("function");
+    const callsBefore = vi.mocked(apiClient.getCategoryTree).mock.calls.length;
+
+    await act(async () => {
+      await result.current.fetchCategories();
+    });
+
+    expect(vi.mocked(apiClient.getCategoryTree).mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });

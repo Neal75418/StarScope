@@ -88,11 +88,11 @@ describe("useNotifications", () => {
     expect(result.current.unreadCount).toBe(0);
   });
 
-  it("exposes osNotification properties", () => {
+  it("exposes osNotification properties with correct values", () => {
     const { result } = renderHook(() => useNotifications());
-    expect(result.current.osNotification).toHaveProperty("isGranted");
-    expect(result.current.osNotification).toHaveProperty("isLoading");
-    expect(result.current.osNotification).toHaveProperty("requestPermission");
+    expect(result.current.osNotification).toHaveProperty("isGranted", false);
+    expect(result.current.osNotification).toHaveProperty("isLoading", false);
+    expect(result.current.osNotification).toHaveProperty("requestPermission", expect.any(Function));
   });
 
   it("clears notifications on data-reset event", () => {

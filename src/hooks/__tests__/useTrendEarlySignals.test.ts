@@ -73,10 +73,6 @@ vi.mock("../../api/client", () => ({
   getRepoSignalsBatch: vi.fn(() => Promise.resolve(mockSignalsResponse)),
 }));
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 function createWrapper() {
   const client = createTestQueryClient();
   return ({ children }: { children: React.ReactNode }) =>
@@ -84,6 +80,10 @@ function createWrapper() {
 }
 
 describe("useTrendEarlySignals", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns empty data for empty repo IDs", () => {
     const { result } = renderHook(() => useTrendEarlySignals([]), {
       wrapper: createWrapper(),

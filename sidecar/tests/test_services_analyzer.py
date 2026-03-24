@@ -71,11 +71,16 @@ class TestGetSnapshotForDate:
 
     def test_returns_earlier_snapshot_when_allowed(self, test_db, mock_repo_with_snapshots):
         """Test returns earlier snapshot when exact match not found."""
-        repo, _ = mock_repo_with_snapshots
+        repo, snapshots = mock_repo_with_snapshots
         # Request a date between snapshots
         future_date = date.today() + timedelta(days=1)
         result = get_snapshot_for_date(repo.id, future_date, test_db, allow_earlier=True)
         assert result is not None
+        # 回傳的 snapshot 日期不應超過目標日期
+        assert result.snapshot_date <= future_date
+        # 應回傳最近的 snapshot（最大日期）
+        latest_date = max(s.snapshot_date for s in snapshots)
+        assert result.snapshot_date == latest_date
 
 
 class TestCalculateDelta:

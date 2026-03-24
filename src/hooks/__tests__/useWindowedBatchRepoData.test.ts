@@ -38,11 +38,11 @@ vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 describe("useWindowedBatchRepoData", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("returns empty dataMap when no repo IDs provided", () => {
     const { result } = renderHook(() => useWindowedBatchRepoData([]));
 
@@ -104,8 +104,7 @@ describe("useWindowedBatchRepoData", () => {
     expect(result.current.error?.message).toBe("Network error");
     expect(result.current.loading).toBe(false);
 
-    // 恢復預設 mock，避免影響後續測試
-    vi.mocked(getContextBadgesBatch).mockImplementation(() => Promise.resolve(mockBadgesResponse));
+    // clearAllMocks in beforeEach 會恢復 mock，無需手動恢復
   });
 
   it("does not re-fetch already loaded IDs", async () => {
@@ -126,8 +125,8 @@ describe("useWindowedBatchRepoData", () => {
     // Re-render with same IDs — should not trigger new fetch
     rerender({ ids: [1, 2] });
 
-    // Wait a tick to ensure no new calls
-    await new Promise((r) => setTimeout(r, 50));
+    // Flush microtasks to ensure no new calls are pending
+    await act(async () => {});
 
     expect(vi.mocked(getContextBadgesBatch).mock.calls.length).toBe(callCountBadges);
     expect(vi.mocked(getRepoSignalsBatch).mock.calls.length).toBe(callCountSignals);

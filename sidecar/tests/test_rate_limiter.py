@@ -6,6 +6,7 @@ Verifies tenacity retry behavior for GitHub API calls.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from tenacity import wait_none
 
 from services.github import (
     GitHubService,
@@ -45,8 +46,8 @@ class TestFetchRepoWithRetry:
             ]
         )
 
-        # Patch wait to speed up test
-        with patch("services.rate_limiter.wait_exponential_jitter", return_value=0):
+        # 直接 patch 已建構的 retry decorator 的 wait 策略
+        with patch.object(fetch_repo_with_retry.retry, "wait", wait_none()):
             result = await fetch_repo_with_retry(mock_github, "owner", "repo")
 
         assert result == {"stargazers_count": 100}
@@ -63,7 +64,7 @@ class TestFetchRepoWithRetry:
             ]
         )
 
-        with patch("services.rate_limiter.wait_exponential_jitter", return_value=0):
+        with patch.object(fetch_repo_with_retry.retry, "wait", wait_none()):
             result = await fetch_repo_with_retry(mock_github, "owner", "repo")
 
         assert result == {"stargazers_count": 200}
@@ -98,7 +99,8 @@ class TestFetchRepoWithRetry:
         async def fetch_with_limited_retry(github, owner, name):
             return await github.get_repo(owner, name)
 
-        with patch("services.rate_limiter.wait_exponential_jitter", return_value=0):
+        # patch 新建 decorator 的 wait 策略
+        with patch.object(fetch_with_limited_retry.retry, "wait", wait_none()):
             with pytest.raises(GitHubRateLimitError):
                 await fetch_with_limited_retry(mock_github, "owner", "repo")
 
@@ -108,10 +110,10 @@ class TestFetchRepoWithRetry:
 class TestCreateGitHubRetryDecorator:
     """Tests for create_github_retry_decorator factory."""
 
-    def test_custom_max_attempts(self):
-        """Test creating decorator with custom max attempts."""
+    def test_custom_max_attempts_returns_callable(self):
+        """Test creating decorator with custom max attempts returns callable decorator."""
         decorator = create_github_retry_decorator(max_attempts=10)
-        assert decorator is not None
+        assert callable(decorator)
 
     @pytest.mark.asyncio
     async def test_decorator_respects_max_attempts(self):
@@ -124,7 +126,7 @@ class TestCreateGitHubRetryDecorator:
             call_count += 1
             raise GitHubRateLimitError("Rate limited", 403)
 
-        with patch("services.rate_limiter.wait_exponential_jitter", return_value=0):
+        with patch.object(failing_function.retry, "wait", wait_none()):
             with pytest.raises(GitHubRateLimitError):
                 await failing_function()
 

@@ -3,6 +3,8 @@ Comprehensive tests with mock repository data.
 Tests real database operations with properly structured mock data.
 """
 
+import pytest
+
 
 class TestRepoWithMockData:
     """Test repository operations with mock data."""
@@ -87,7 +89,7 @@ class TestSignalsWithMockData:
         repo_data = next((r for r in repos if r["id"] == repo.id), None)
         assert repo_data is not None
         # Velocity signal should be reflected in the repo response
-        assert repo_data.get("velocity") is not None
+        assert repo_data.get("velocity") == pytest.approx(50.0)
 
 
 class TestEarlySignalsWithMockData:

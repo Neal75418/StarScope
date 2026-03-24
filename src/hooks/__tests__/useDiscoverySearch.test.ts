@@ -409,7 +409,7 @@ describe("useDiscoverySearch", () => {
     );
   });
 
-  it("caches results for same query", async () => {
+  it("re-uses query key and returns data on re-navigation", async () => {
     mockFetchResults.mockResolvedValue({
       repos: [makeDiscoveryRepo()],
       totalCount: 1,
@@ -437,8 +437,7 @@ describe("useDiscoverySearch", () => {
       expect(mockFetchResults).toHaveBeenCalledTimes(2);
     });
 
-    // Switch back to "react" — should hit cache (staleTime=0 in test client, so refetch)
-    // but the important thing is the query key mechanism works
+    // Switch back to "react" — query key mechanism re-uses same key
     act(() => {
       result.current.executeSearch("react", undefined, {}, 1);
     });

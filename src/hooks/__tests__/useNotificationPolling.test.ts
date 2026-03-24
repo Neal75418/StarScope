@@ -116,9 +116,11 @@ describe("useNotificationPolling", () => {
 
     unmount();
 
+    // Flush pending microtasks after unmount
+    await act(async () => {});
+
     // After unmount, no more fetches should occur
-    const callCount = vi.mocked(apiClient.listTriggeredAlerts).mock.calls.length;
-    expect(callCount).toBe(1);
+    expect(vi.mocked(apiClient.listTriggeredAlerts).mock.calls.length).toBe(1);
   });
 
   it("handles non-Error exceptions in fetch", async () => {

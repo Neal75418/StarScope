@@ -187,6 +187,7 @@ describe("StarsChart", () => {
   });
 
   it("cleans up async operations on unmount", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
     const { unmount } = renderWithClient(<StarsChart repoId={1} />);
@@ -194,8 +195,15 @@ describe("StarsChart", () => {
     // Unmount before API call resolves
     unmount();
 
-    // Should not trigger any state updates (no errors in console)
+    // Flush microtasks — should not trigger state updates on unmounted component
     await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Verify no React "state update on unmounted component" errors
+    const reactErrors = errorSpy.mock.calls.filter(
+      (args) => typeof args[0] === "string" && args[0].includes("unmounted")
+    );
+    expect(reactErrors).toHaveLength(0);
+    errorSpy.mockRestore();
   });
 
   it("refetches data when repo ID changes", async () => {

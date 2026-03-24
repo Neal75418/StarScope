@@ -3,12 +3,13 @@ Tests for services/recommender.py - Repository recommendation service.
 """
 
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
 
 from db.models import Repo, RepoSnapshot, SimilarRepo
+from utils.time import utc_today
 from services.recommender import (
     RecommenderService,
     get_recommender_service,
@@ -117,12 +118,12 @@ class TestBuildStarsMap:
 
         old_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today() - timedelta(days=7),  # 7 天前
+            snapshot_date=utc_today() - timedelta(days=7),  # 7 天前
             stars=500,
         )
         new_snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            snapshot_date=date.today(),
+            snapshot_date=utc_today(),
             stars=1000,
         )
         test_db.add_all([old_snapshot, new_snapshot])

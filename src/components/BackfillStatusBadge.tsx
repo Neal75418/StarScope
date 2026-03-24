@@ -27,7 +27,7 @@ export function BackfillStatusBadge({
     <div className="backfill-info">
       {status.has_backfilled_data ? (
         <span className="backfill-status has-data">
-          {t.starHistory.alreadyBackfilled.replace("{days}", String(status.backfilled_days))}
+          {t.starHistory.alreadyBackfilled.replace("{days}", String(status.backfilled_days ?? 0))}
         </span>
       ) : (
         <span className="backfill-status eligible">{t.starHistory.eligible}</span>
