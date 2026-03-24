@@ -2,6 +2,7 @@
 Tests for services/analyzer.py - Signal calculation engine.
 """
 
+import pytest
 from datetime import date, timedelta
 
 from services.analyzer import (
@@ -84,9 +85,9 @@ class TestCalculateDelta:
         """Test delta calculation with historical data."""
         repo, _ = mock_repo_with_snapshots
         delta = calculate_delta(repo.id, 7, test_db)
-        # With snapshots growing by 50 stars per day, 7 days should be ~350
-        assert delta is not None
-        assert delta >= 0
+        # Snapshots: day -30 to -1, 50 stars/day growth
+        # Day -1: 2450 stars, Day -7: 2150 stars → delta = 300
+        assert delta == 300
 
     def test_calculate_delta_no_data(self, test_db, mock_repo):
         """Test delta calculation with no snapshot data."""
@@ -101,8 +102,8 @@ class TestCalculateVelocity:
         """Test velocity calculation."""
         repo, _ = mock_repo_with_snapshots
         velocity = calculate_velocity(repo.id, test_db, days=7)
-        assert velocity is not None
-        assert velocity >= 0
+        # 300 stars over 7 days ≈ 42.857 stars/day
+        assert velocity == pytest.approx(300.0 / 7)
 
     def test_calculate_velocity_no_data(self, test_db, mock_repo):
         """Test velocity returns None with no data."""
@@ -141,7 +142,7 @@ class TestCalculateSignals:
 
         # Check signals were stored in DB
         db_signals = test_db.query(Signal).filter(Signal.repo_id == repo.id).all()
-        assert len(db_signals) > 0
+        assert len(db_signals) == 9
 
     def test_calculate_signals_upsert(self, test_db, mock_repo_with_snapshots):
         """Test that signals are upserted (not duplicated)."""
@@ -153,7 +154,8 @@ class TestCalculateSignals:
         calculate_signals(repo.id, test_db)
         calculate_signals(repo.id, test_db)
 
-        # Should still have only one signal per type
+        # Should still have exactly 9 signals (one per type, no duplicates)
         db_signals = test_db.query(Signal).filter(Signal.repo_id == repo.id).all()
+        assert len(db_signals) == 9
         signal_types = [s.signal_type for s in db_signals]
         assert len(signal_types) == len(set(signal_types))  # No duplicates

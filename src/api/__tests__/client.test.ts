@@ -359,6 +359,7 @@ describe("API Client", () => {
     });
 
     it("handles non-Error thrown by fetch", async () => {
+      expect.assertions(3);
       // Must mock all retry attempts since network errors (status 0) trigger retries
       mockFetch.mockRejectedValue("string error");
 

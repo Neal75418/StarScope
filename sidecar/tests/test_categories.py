@@ -122,7 +122,7 @@ class TestCategoryEndpoints:
         # Find parent in tree
         parent_node = next((n for n in tree if n["name"] == "Tree Parent"), None)
         assert parent_node is not None
-        assert len(parent_node["children"]) > 0
+        assert len(parent_node["children"]) == 1
         assert parent_node["children"][0]["name"] == "Tree Child"
 
 

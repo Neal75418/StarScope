@@ -201,16 +201,9 @@ describe("searchHelpers", () => {
       const controller = new AbortController();
       controller.abort();
 
-      // In jsdom, throwIfAborted() may throw DOMException which gets re-thrown
-      // or it may be caught as a generic error — either way it doesn't succeed normally
-      try {
-        const result = await fetchSearchResults("react", {}, 1, mockT, controller.signal);
-        // If it doesn't throw, it should return an error result
-        expect(result.error).toBeDefined();
-      } catch {
-        // If it throws (AbortError re-thrown), that's also valid
-      }
-      // searchRepos should not have been called since throwIfAborted fires first
+      const result = await fetchSearchResults("react", {}, 1, mockT, controller.signal);
+      // Should return an error result, not throw
+      expect(result.error).toBeDefined();
       expect(mockSearchRepos).not.toHaveBeenCalled();
     });
 

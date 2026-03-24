@@ -2,12 +2,7 @@
 Tests for utility functions.
 """
 
-import sys
-import os
 from datetime import datetime, timezone
-
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.time import utc_now
 

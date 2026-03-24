@@ -304,7 +304,7 @@ class TestGetConnectionStatus:
 
                     assert result.connected is False
                     assert "expired" in result.error.lower() or "revoked" in result.error.lower()
-                    assert mock_delete.call_count >= 1
+                    assert mock_delete.call_count == 2
 
     @pytest.mark.asyncio
     async def test_handles_timeout(self):

@@ -75,7 +75,8 @@ class TestComparisonEndpoint:
         for repo_data in data["repos"]:
             assert len(repo_data["data_points"]) == 5
             assert repo_data["color"].startswith("#")
-            assert repo_data["current_stars"] > 0
+            # Last snapshot stars = 1000 + 4*100 + repo_id*10
+            assert repo_data["current_stars"] >= 1400
 
     def test_comparison_with_signals(self, client, mock_multiple_repos, test_db):
         """Test comparison includes signal data."""

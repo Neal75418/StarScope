@@ -202,10 +202,15 @@ class TestTriggerFetchNow:
 class TestTrackRepoFailure:
     """Tests for _track_repo_failure function."""
 
-    def setup_method(self):
-        """Reset failure counts before each test."""
+    @pytest.fixture(autouse=True)
+    def reset_failure_counts(self):
+        """Reset failure counts before each test and restore after."""
         import services.scheduler as scheduler_module
+        original = dict(scheduler_module._repo_failure_counts)
         scheduler_module._repo_failure_counts.clear()
+        yield
+        scheduler_module._repo_failure_counts.clear()
+        scheduler_module._repo_failure_counts.update(original)
 
     def test_increments_count(self):
         """Test failure count increments."""

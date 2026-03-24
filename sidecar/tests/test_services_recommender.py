@@ -247,7 +247,7 @@ class TestRecommenderServiceCalculateAndStoreSimilarities:
 
         count = RecommenderService.calculate_and_store_similarities(mock_repo, test_db)
 
-        assert count >= 0
+        assert count == 1
 
     def test_clears_existing_when_recalculating(self, test_db, mock_repo):
         """Test clears existing similarities when recalculating."""
@@ -267,8 +267,13 @@ class TestRecommenderServiceCalculateAndStoreSimilarities:
         # Recalculate should clear existing
         RecommenderService.calculate_and_store_similarities(mock_repo, test_db, recalculate=True)
 
-        # Verify old entry was cleared (or updated)
-        # The exact behavior depends on whether the new calculation creates a new entry
+        # Old entry with score 0.5 should be cleared
+        old_records = test_db.query(SimilarRepo).filter(
+            SimilarRepo.repo_id == mock_repo.id,
+            SimilarRepo.similar_repo_id == other_repo.id,
+            SimilarRepo.similarity_score == 0.5,
+        ).count()
+        assert old_records == 0
 
 
 class TestRecalculateAll:
