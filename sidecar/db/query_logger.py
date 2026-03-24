@@ -11,7 +11,6 @@ import logging
 import threading
 import time
 
-
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -91,5 +90,3 @@ def setup_query_logging(engine: Engine, enable: bool = True):
     # PRAGMA 設定已統一在 database.py set_sqlite_pragma 中管理
 
     logger.info(f"[查詢日誌] 資料庫查詢日誌已啟用（慢查詢閾值: {SLOW_QUERY_THRESHOLD:.1f}s）")
-
-

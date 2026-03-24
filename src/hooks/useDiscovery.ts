@@ -3,8 +3,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SearchFilters } from "../api/client";
-import { TrendingPeriod } from "../components/discovery";
+import type { SearchFilters } from "../api/client";
+import type { TrendingPeriod } from "../components/discovery";
 import { useDiscoverySearch } from "./useDiscoverySearch";
 
 export type SortOption = "stars" | "forks" | "updated";

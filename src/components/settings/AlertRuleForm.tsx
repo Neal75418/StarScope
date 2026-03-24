@@ -2,8 +2,14 @@
  * 警示規則建立 / 編輯表單元件。
  */
 
-import { useState, useEffect, FormEvent } from "react";
-import { AlertOperator, AlertRuleCreate, SignalTypeInfo, RepoWithSignals } from "../../api/client";
+import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
+import type {
+  AlertOperator,
+  AlertRuleCreate,
+  SignalTypeInfo,
+  RepoWithSignals,
+} from "../../api/client";
 import { useI18n } from "../../i18n";
 import { useAlertRuleFormValidation } from "../../hooks/useAlertRuleFormValidation";
 import { getSignalTypeLabel as getSignalTypeLabelUtil } from "../../utils/signalTypeHelpers";

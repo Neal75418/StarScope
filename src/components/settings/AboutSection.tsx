@@ -4,7 +4,7 @@
  */
 
 import { useI18n } from "../../i18n";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { safeOpenUrl } from "../../utils/url";
 
 const APP_VERSION = "0.4.0";
 const GITHUB_URL = "https://github.com/Neal75418/StarScope";
@@ -13,7 +13,7 @@ const LICENSE_URL = "https://opensource.org/licenses/MIT";
 function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    void openUrl(href);
+    void safeOpenUrl(href);
   };
   return (
     <a href={href} onClick={handleClick} className="about-link">

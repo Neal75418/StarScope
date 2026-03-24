@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getSignalThresholds, updateSignalThresholds } from "../../api/client";
 import type { SignalThresholdsResponse } from "../../api/types";
+import { queryKeys } from "../../lib/react-query";
 import { Skeleton } from "../Skeleton";
 
 const DEFAULTS: SignalThresholdsResponse = {
@@ -28,7 +29,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["settings", "signalThresholds"],
+    queryKey: queryKeys.settings.signalThresholds(),
     queryFn: ({ signal }) => getSignalThresholds(signal),
   });
 
@@ -45,7 +46,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
   const handleReset = () => {
     mutation.mutate(DEFAULTS, {
       onSuccess: () => {
-        void queryClient.invalidateQueries({ queryKey: ["settings", "signalThresholds"] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.settings.signalThresholds() });
         setDraft({});
         onToast(t.settings.signalThresholds.toast.reset, "success");
       },
@@ -66,7 +67,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
     if (Object.keys(updates).length > 0) {
       mutation.mutate(updates, {
         onSuccess: () => {
-          void queryClient.invalidateQueries({ queryKey: ["settings", "signalThresholds"] });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.settings.signalThresholds() });
           setDraft({});
           onToast(t.settings.signalThresholds.toast.saved, "success");
         },

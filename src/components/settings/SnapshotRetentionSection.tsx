@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getSnapshotRetention, updateSnapshotRetention } from "../../api/client";
+import { queryKeys } from "../../lib/react-query";
 import { Skeleton } from "../Skeleton";
 
 interface SnapshotRetentionSectionProps {
@@ -18,7 +19,7 @@ export function SnapshotRetentionSection({ onToast }: SnapshotRetentionSectionPr
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["settings", "snapshotRetention"],
+    queryKey: queryKeys.settings.snapshotRetention(),
     queryFn: ({ signal }) => getSnapshotRetention(signal),
   });
 
@@ -28,7 +29,7 @@ export function SnapshotRetentionSection({ onToast }: SnapshotRetentionSectionPr
   const mutation = useMutation({
     mutationFn: (days: number) => updateSnapshotRetention(days),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["settings", "snapshotRetention"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.snapshotRetention() });
       setInputDays(null);
       onToast(t.settings.snapshotRetention.toast.saved, "success");
     },

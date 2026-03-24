@@ -2,7 +2,8 @@
  * 應用程式 header，含導覽列、主題切換、語言切換與通知中心。
  */
 
-import { ReactNode, useMemo } from "react";
+import { useMemo } from "react";
+import type { ReactNode } from "react";
 import {
   StarIcon,
   SearchIcon,
@@ -16,8 +17,8 @@ import {
   HomeIcon,
 } from "./Icons";
 import { NotificationCenter } from "./NotificationCenter";
-import { Theme } from "../theme";
-import { Language, TranslationKeys } from "../i18n";
+import type { Theme } from "../theme";
+import type { Language, TranslationKeys } from "../i18n";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import type { Page } from "../types/navigation";
 

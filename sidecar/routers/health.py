@@ -1,7 +1,5 @@
 """
 健康檢查路由，驗證 sidecar 連線狀態。
-
-此路由器已遷移至統一的 ApiResponse 格式（範例實現）。
 """
 
 from fastapi import APIRouter

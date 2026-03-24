@@ -5,7 +5,7 @@
 import { memo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { safeOpenUrl } from "../../utils/url";
-import { RepoWithSignals } from "../../api/client";
+import type { RepoWithSignals } from "../../api/client";
 import { LinkExternalIcon } from "../Icons";
 import { useI18n, interpolate } from "../../i18n";
 

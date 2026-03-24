@@ -6,14 +6,8 @@
 import { useCallback, useRef, useEffect } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertRule,
-  SignalTypeInfo,
-  listAlertRules,
-  listSignalTypes,
-  getRepos,
-  RepoWithSignals,
-} from "../api/client";
+import { listAlertRules, listSignalTypes, getRepos } from "../api/client";
+import type { AlertRule, SignalTypeInfo, RepoWithSignals } from "../api/client";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/error";
 import type { Toast } from "./types";

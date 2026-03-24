@@ -65,7 +65,7 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
 
     if (outcome === "network-fallback") {
       setIsOffline(true);
-      setManualError(t.starHistory.offline ?? "離線中 — 顯示快取資料");
+      setManualError(t.starHistory.offline);
     } else {
       setIsOffline(false);
       setManualError(null);

@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { AlertRule, AlertRuleCreate } from "../api/client";
+import type { AlertRule, AlertRuleCreate } from "../api/client";
 import { useDeleteConfirm } from "./useDeleteConfirm";
 import { useAlertRuleData } from "./useAlertRuleData";
 import { useAlertRuleOperations } from "./useAlertRuleOperations";

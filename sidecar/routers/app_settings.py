@@ -20,6 +20,7 @@ from db.models import (
     SimilarRepo, RepoCategory, Category,
 )
 from schemas.response import ApiResponse, success_response
+from constants import APP_VERSION, DEFAULT_SNAPSHOT_RETENTION_DAYS
 from services.settings import get_setting, set_setting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -28,8 +29,8 @@ _START_TIME = _time.monotonic()
 
 # 允許的排程間隔（分鐘）
 ALLOWED_FETCH_INTERVALS = {60, 360, 720, 1440}
+# UI 預設排程間隔（60 分鐘），不同於排程器啟動預設 DEFAULT_FETCH_INTERVAL_MINUTES（30 分鐘）
 DEFAULT_FETCH_INTERVAL = 60
-DEFAULT_SNAPSHOT_RETENTION = 90
 
 
 # --- Schema 定義 ---
@@ -156,7 +157,7 @@ async def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends
 async def get_snapshot_retention(db: Session = Depends(get_db)):
     """取得快照保留天數設定。"""
     value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
-    days = int(value) if value else DEFAULT_SNAPSHOT_RETENTION
+    days = int(value) if value else DEFAULT_SNAPSHOT_RETENTION_DAYS
     return success_response(data=SnapshotRetentionResponse(retention_days=days))
 
 
@@ -234,7 +235,7 @@ async def get_diagnostics(db: Session = Depends(get_db)):
     last_snapshot = db.query(func.max(RepoSnapshot.snapshot_date)).scalar()
 
     return success_response(data=DiagnosticsResponse(
-        version="0.4.0",
+        version=APP_VERSION,
         db_path=db_path_display,
         db_size_mb=round(db_size, 2),
         total_repos=total_repos,

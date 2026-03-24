@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo } from "react";
 import { RepoCard } from "../../components/RepoCard";
-import { RepoWithSignals } from "../../api/client";
+import type { RepoWithSignals } from "../../api/client";
 import type { useWindowedBatchRepoData } from "../../hooks/useWindowedBatchRepoData";
 
 export function RepoGrid({

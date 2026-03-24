@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { List, RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../../components/RepoCard";
-import { RepoWithSignals } from "../../api/client";
+import type { RepoWithSignals } from "../../api/client";
 import type { useWindowedBatchRepoData } from "../../hooks/useWindowedBatchRepoData";
 
 // 虛擬滾動常數

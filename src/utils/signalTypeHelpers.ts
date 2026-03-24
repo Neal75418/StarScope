@@ -2,7 +2,7 @@
  * Signal Type 相關的輔助函數。
  */
 
-import { SignalTypeInfo } from "../api/client";
+import type { SignalTypeInfo } from "../api/client";
 
 /**
  * 取得翻譯後的訊號類型名稱。

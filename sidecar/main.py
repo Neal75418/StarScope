@@ -20,7 +20,7 @@ from slowapi.errors import RateLimitExceeded
 # 從 .env 檔載入環境變數（必須在讀取環境變數前呼叫）
 load_dotenv()
 
-from constants import DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
+from constants import APP_VERSION, DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
 from db import init_db
 from db.database import get_app_data_dir
 from logging_config import setup_logging
@@ -129,7 +129,7 @@ app = FastAPI(
     - 背景排程器每小時自動更新所有追蹤專案
     - 支援手動觸發更新 (`POST /api/repos/{id}/fetch`)
     """,
-    version="0.4.0",
+    version=APP_VERSION,
     lifespan=lifespan,
     # OpenAPI 配置（正式環境停用）
     docs_url=None if _IS_PRODUCTION else "/api/docs",
@@ -190,7 +190,9 @@ app = FastAPI(
     ],
 )
 app.state.limiter = limiter
-def _handle_rate_limit(_request: "Request", exc: Exception):
+
+
+def _handle_rate_limit(_request: "Request", exc: Exception) -> JSONResponse:
     detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(
         status_code=429,

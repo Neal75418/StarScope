@@ -4,7 +4,7 @@
 
 import { memo, useMemo } from "react";
 import { useI18n } from "../../i18n";
-import { EarlySignal, SignalSummary } from "../../api/client";
+import type { EarlySignal, SignalSummary } from "../../api/client";
 import { formatCompactRelativeTime } from "../../utils/format";
 import { getSignalTypeConfig } from "../../constants/signalTypes";
 

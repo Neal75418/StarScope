@@ -154,6 +154,14 @@ export const queryKeys = {
     signals: (repoId: number) => [...queryKeys.repoCard.all, "signals", repoId] as const,
   },
 
+  // 設定
+  settings: {
+    all: ["settings"] as const,
+    snapshotRetention: () => [...queryKeys.settings.all, "snapshotRetention"] as const,
+    fetchInterval: () => [...queryKeys.settings.all, "fetchInterval"] as const,
+    signalThresholds: () => [...queryKeys.settings.all, "signalThresholds"] as const,
+  },
+
   // 警報規則資料
   alertRuleData: {
     all: ["alertRuleData"] as const,

@@ -2,7 +2,8 @@
  * 分類樹節點展開 / 收合狀態管理。
  */
 
-import { useState, useCallback, MouseEvent } from "react";
+import { useState, useCallback } from "react";
+import type { MouseEvent } from "react";
 
 interface UseCategoryExpandResult {
   expandedIds: Set<number>;

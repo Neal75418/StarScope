@@ -5,6 +5,9 @@
 
 from enum import StrEnum
 
+# 應用程式版本
+APP_VERSION = "0.4.0"
+
 # 排程器設定
 DEFAULT_FETCH_INTERVAL_MINUTES = 30
 
@@ -28,6 +31,13 @@ SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS = 10
 
 # GitHub 連線狀態檢查逾時（比一般 API 短，因為只是 health check）
 GITHUB_STATUS_CHECK_TIMEOUT_SECONDS = 10.0
+
+# 情境訊號清理
+CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # 超過此天數的訊號將被移除
+CONTEXT_SIGNAL_MAX_PER_REPO = 100  # 每個 repo 最多保留的訊號數
+
+# 警報查詢上限
+MAX_ALERTS_PER_QUERY = 500
 
 # GitHub 設定
 GITHUB_API_TIMEOUT_SECONDS = 30.0

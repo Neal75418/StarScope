@@ -3,8 +3,8 @@
  * 將已觸發警報轉為通知格式，並管理已讀狀態合併。
  */
 
-import { TriggeredAlert } from "../api/client";
-import { Notification } from "../hooks/useNotifications";
+import type { TriggeredAlert } from "../api/client";
+import type { Notification } from "../hooks/useNotifications";
 import { getSignalDisplayName } from "./signalTypeHelpers";
 
 /**

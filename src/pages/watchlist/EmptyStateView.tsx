@@ -1,16 +1,17 @@
+/**
+ * 空狀態元件：依篩選情境顯示對應的空白畫面。
+ */
+
 import { useI18n } from "../../i18n";
 import { EmptyState } from "../../components/EmptyState";
 
-// 空狀態元件
-export function EmptyStateView({
-  hasRepos,
-  hasSearch,
-  onAddRepo,
-}: {
+interface EmptyStateViewProps {
   hasRepos: boolean;
   hasSearch: boolean;
   onAddRepo: () => void;
-}) {
+}
+
+export function EmptyStateView({ hasRepos, hasSearch, onAddRepo }: EmptyStateViewProps) {
   const { t } = useI18n();
 
   if (!hasRepos) {

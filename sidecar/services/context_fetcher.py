@@ -11,14 +11,10 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from constants import ContextSignalType
+from constants import CONTEXT_SIGNAL_MAX_AGE_DAYS, CONTEXT_SIGNAL_MAX_PER_REPO, ContextSignalType
 from db.models import Repo, ContextSignal
 from services.hacker_news import fetch_hn_mentions, HNStory
 from utils.time import utc_now
-
-# 清理設定
-CONTEXT_SIGNAL_MAX_AGE_DAYS = 90  # 超過此天數的訊號將被移除
-CONTEXT_SIGNAL_MAX_PER_REPO = 100  # 每個 repo 最多保留的訊號數
 
 logger = logging.getLogger(__name__)
 

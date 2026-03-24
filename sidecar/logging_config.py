@@ -4,6 +4,8 @@ import logging
 import os
 import sys
 from logging.handlers import RotatingFileHandler
+
+
 def setup_logging(
     level: str = "INFO",
     log_format: str | None = None,

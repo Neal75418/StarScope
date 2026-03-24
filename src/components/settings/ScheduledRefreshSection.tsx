@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getFetchInterval, updateFetchInterval } from "../../api/client";
+import { queryKeys } from "../../lib/react-query";
 import { Skeleton } from "../Skeleton";
 
 const ALLOWED_INTERVALS = [60, 360, 720, 1440] as const;
@@ -21,7 +22,7 @@ export function ScheduledRefreshSection({ onToast }: ScheduledRefreshSectionProp
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["settings", "fetchInterval"],
+    queryKey: queryKeys.settings.fetchInterval(),
     queryFn: ({ signal }) => getFetchInterval(signal),
   });
 
@@ -32,7 +33,7 @@ export function ScheduledRefreshSection({ onToast }: ScheduledRefreshSectionProp
   const mutation = useMutation({
     mutationFn: (interval: FetchInterval) => updateFetchInterval(interval),
     onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ["settings", "fetchInterval"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.settings.fetchInterval() });
       setSelected(null);
       onToast(t.settings.scheduledRefresh.toast.saved, "success");
       return result;

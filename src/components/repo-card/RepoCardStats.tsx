@@ -2,8 +2,9 @@
  * Repo 卡片統計數據顯示元件。
  */
 
-import { memo, ReactNode } from "react";
-import { RepoWithSignals } from "../../api/client";
+import { memo } from "react";
+import type { ReactNode } from "react";
+import type { RepoWithSignals } from "../../api/client";
 import { TrendArrow } from "../TrendArrow";
 import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
 import { useI18n } from "../../i18n";

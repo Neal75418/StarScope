@@ -3,7 +3,7 @@
  * 統一管理所有 signal type 的顯示設定，避免各頁面重複定義。
  */
 
-import { EarlySignalType } from "../api/client";
+import type { EarlySignalType } from "../api/client";
 
 interface SignalTypeDisplay {
   icon: string;

@@ -87,18 +87,24 @@ def save_thresholds(updates: dict, db: "Session") -> None:
             set_setting(key_map[field], str(value), db)
 
 
+_thresholds_lock = threading.Lock()  # 防止併發寫入；讀端在 CPython GIL 下安全，短暫不一致可接受
+
+
 def reload_thresholds_from_db(db: "Session") -> None:
     """從 DB 重新載入門檻，更新此模組的全域變數（供排程器呼叫）。"""
     global RISING_STAR_MIN_VELOCITY, SUDDEN_SPIKE_MULTIPLIER, BREAKOUT_VELOCITY_THRESHOLD, VIRAL_HN_MIN_SCORE
     thresholds = get_thresholds(db)
-    RISING_STAR_MIN_VELOCITY = thresholds["rising_star_min_velocity"]
-    SUDDEN_SPIKE_MULTIPLIER = thresholds["sudden_spike_multiplier"]
-    BREAKOUT_VELOCITY_THRESHOLD = thresholds["breakout_velocity_threshold"]
-    VIRAL_HN_MIN_SCORE = thresholds["viral_hn_min_score"]
+    with _thresholds_lock:
+        RISING_STAR_MIN_VELOCITY = thresholds["rising_star_min_velocity"]
+        SUDDEN_SPIKE_MULTIPLIER = thresholds["sudden_spike_multiplier"]
+        BREAKOUT_VELOCITY_THRESHOLD = thresholds["breakout_velocity_threshold"]
+        VIRAL_HN_MIN_SCORE = thresholds["viral_hn_min_score"]
 
 # 嚴重度門檻（各偵測器）
 RISING_STAR_SEVERITY_HIGH = 50
 RISING_STAR_SEVERITY_MEDIUM = 20
+RISING_STAR_VELOCITY_RATIO_HIGH = 0.05
+RISING_STAR_VELOCITY_RATIO_MEDIUM = 0.02
 SUDDEN_SPIKE_SEVERITY_HIGH = 1000
 SUDDEN_SPIKE_SEVERITY_MEDIUM = 500
 BREAKOUT_SEVERITY_HIGH = 10
@@ -143,9 +149,9 @@ def _build_active_signals_set(db: Session) -> set[tuple[int, str]]:
 
 def _determine_rising_star_severity(velocity: float, velocity_ratio: float) -> str:
     """根據 velocity 與 velocity/stars 比例判斷 rising star 嚴重等級。"""
-    if velocity >= RISING_STAR_SEVERITY_HIGH or velocity_ratio >= 0.05:
+    if velocity >= RISING_STAR_SEVERITY_HIGH or velocity_ratio >= RISING_STAR_VELOCITY_RATIO_HIGH:
         return EarlySignalSeverity.HIGH
-    if velocity >= RISING_STAR_SEVERITY_MEDIUM or velocity_ratio >= 0.02:
+    if velocity >= RISING_STAR_SEVERITY_MEDIUM or velocity_ratio >= RISING_STAR_VELOCITY_RATIO_MEDIUM:
         return EarlySignalSeverity.MEDIUM
     return EarlySignalSeverity.LOW
 

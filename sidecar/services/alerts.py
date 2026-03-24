@@ -8,7 +8,7 @@ from typing import Callable
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from constants import ALERT_COOLDOWN_SECONDS, AlertOperator
+from constants import ALERT_COOLDOWN_SECONDS, MAX_ALERTS_PER_QUERY, AlertOperator
 from db.models import AlertRule, TriggeredAlert, Signal, Repo
 from utils.time import utc_now
 
@@ -231,7 +231,7 @@ def _check_rule_batch(
     return _create_triggered_alert(db, rule, repo, signal_value)
 
 
-def get_unacknowledged_alerts(db: Session, limit: int = 500) -> list[TriggeredAlert]:
+def get_unacknowledged_alerts(db: Session, limit: int = MAX_ALERTS_PER_QUERY) -> list[TriggeredAlert]:
     """
     取得所有未確認（未檢視）的警報。
 

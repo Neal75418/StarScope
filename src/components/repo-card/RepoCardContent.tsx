@@ -3,7 +3,7 @@
  */
 
 import { memo } from "react";
-import { ContextBadge } from "../../api/client";
+import type { ContextBadge } from "../../api/client";
 import { ContextBadges } from "../ContextBadges";
 import { useI18n } from "../../i18n";
 

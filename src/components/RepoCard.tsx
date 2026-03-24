@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, memo, useMemo } from "react";
-import { ContextBadge, EarlySignal, RepoWithSignals } from "../api/client";
+import type { ContextBadge, EarlySignal, RepoWithSignals } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
 

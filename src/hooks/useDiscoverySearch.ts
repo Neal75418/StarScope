@@ -4,14 +4,10 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { SearchFilters, DiscoveryRepo } from "../api/client";
-import {
-  buildCombinedQuery,
-  hasActiveFilters,
-  fetchSearchResults,
-  SearchResult,
-} from "../utils/searchHelpers";
-import { TrendingPeriod } from "../components/discovery";
+import type { SearchFilters, DiscoveryRepo } from "../api/client";
+import { buildCombinedQuery, hasActiveFilters, fetchSearchResults } from "../utils/searchHelpers";
+import type { SearchResult } from "../utils/searchHelpers";
+import type { TrendingPeriod } from "../components/discovery";
 import { useI18n } from "../i18n";
 import { queryKeys } from "../lib/react-query";
 

@@ -5,7 +5,8 @@
 
 import React, { useState, useCallback } from "react";
 import { safeOpenUrl } from "../utils/url";
-import { ContextBadge, ContextSignal, getContextSignals } from "../api/client";
+import { getContextSignals } from "../api/client";
+import type { ContextBadge, ContextSignal } from "../api/client";
 import { useI18n } from "../i18n";
 import { formatRelativeTime } from "../utils/format";
 import { logger } from "../utils/logger";

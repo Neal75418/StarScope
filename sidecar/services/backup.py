@@ -45,10 +45,6 @@ class BackupService:
         Returns:
             備份檔案路徑，失敗時返回 None
 
-        Example:
-            >>> service = BackupService("starscope.db")
-            >>> backup_path = service.create_backup()
-            >>> print(f"Backup created at: {backup_path}")
         """
         try:
             # 生成備份檔案名稱 (starscope_YYYYMMDD_HHMMSS.db)
@@ -90,10 +86,6 @@ class BackupService:
         Returns:
             刪除的備份數量
 
-        Example:
-            >>> service = BackupService("starscope.db")
-            >>> deleted_count = service.cleanup_old_backups(retention_days=7)
-            >>> print(f"Deleted {deleted_count} old backups")
         """
         try:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
