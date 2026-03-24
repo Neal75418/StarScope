@@ -90,6 +90,7 @@ class TestPersonalizedRecommendations:
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["total"] == 0
+        assert data["recommendations"] == []
         assert data["based_on_repos"] == 1
 
     def test_basic_recommendation(self, client, test_db):

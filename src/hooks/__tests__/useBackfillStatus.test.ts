@@ -73,13 +73,11 @@ describe("useBackfillStatus", () => {
       wrapper: createWrapper(),
     });
 
-    // Wait a tick to ensure effect has run
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 10));
+    // Query is disabled — should never fire
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
-
     expect(apiClient.getBackfillStatus).not.toHaveBeenCalled();
-    expect(result.current.loading).toBe(false);
   });
 
   it("handles 404 error by setting status to null", async () => {

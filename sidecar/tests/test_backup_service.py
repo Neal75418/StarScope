@@ -79,6 +79,22 @@ class TestCreateBackup:
         conn.close()
         assert rows == [(1, "hello")]
 
+    def test_backup_is_isolated_from_subsequent_writes(self, service, temp_db):
+        """備份應為時間點快照，後續寫入不應影響備份內容。"""
+        result = service.create_backup()
+
+        # Write a new row to the source DB after backup
+        conn_src = sqlite3.connect(str(temp_db))
+        conn_src.execute("INSERT INTO test VALUES (2, 'world')")
+        conn_src.commit()
+        conn_src.close()
+
+        # Backup should NOT contain the new row
+        conn_bak = sqlite3.connect(str(result))
+        rows = conn_bak.execute("SELECT id, value FROM test").fetchall()
+        conn_bak.close()
+        assert rows == [(1, "hello")]
+
     def test_multiple_backups_unique_names(self, service):
         """多次備份應產生不同檔案名稱。"""
         from unittest.mock import patch

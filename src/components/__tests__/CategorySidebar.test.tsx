@@ -362,8 +362,9 @@ describe("CategorySidebar", () => {
       repo_count: 5,
     });
 
-    // Wait a tick and verify the stale response didn't overwrite
-    await new Promise((r) => setTimeout(r, 50));
-    expect(nameInput.value).toBe("Backend-fresh");
+    // Verify the stale response didn't overwrite
+    await waitFor(() => {
+      expect(nameInput.value).toBe("Backend-fresh");
+    });
   });
 });
