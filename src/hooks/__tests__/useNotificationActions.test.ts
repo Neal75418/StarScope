@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { SetStateAction } from "react";
+import type { SetStateAction } from "react";
 import { useNotificationActions } from "../useNotificationActions";
-import { Notification } from "../useNotifications";
+import type { Notification } from "../useNotifications";
 import * as apiClient from "../../api/client";
 
 vi.mock("../../api/client", async (importOriginal) => {

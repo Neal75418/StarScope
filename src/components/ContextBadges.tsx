@@ -3,7 +3,8 @@
  * 點擊徽章可展開顯示討論詳情。
  */
 
-import React, { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { safeOpenUrl } from "../utils/url";
 import { getContextSignals } from "../api/client";
 import type { ContextBadge, ContextSignal } from "../api/client";
@@ -38,7 +39,7 @@ function formatValue(badge: ContextBadge): string {
 function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loading: boolean }) {
   const { t } = useI18n();
 
-  const handleOpenUrl = async (e: React.MouseEvent, url: string) => {
+  const handleOpenUrl = async (e: MouseEvent, url: string) => {
     e.preventDefault();
     e.stopPropagation();
     await safeOpenUrl(url);
@@ -133,7 +134,7 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               key={badge.url}
               type="button"
               className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""} ${repoId ? "expandable" : ""}`}
-              style={{ "--badge-color": config.color } as React.CSSProperties}
+              style={{ "--badge-color": config.color } as CSSProperties}
               title={`${tooltip}: ${badge.label}`}
               aria-label={`${config.label}: ${badge.label}`}
               onClick={repoId ? toggleExpand : undefined}

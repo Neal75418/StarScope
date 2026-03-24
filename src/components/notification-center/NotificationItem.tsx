@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { XIcon } from "../Icons";
 import { useI18n } from "../../i18n";
-import { Notification } from "../../hooks/useNotifications";
+import type { Notification } from "../../hooks/useNotifications";
 import { MS_PER_MINUTE, MS_PER_HOUR, MS_PER_DAY } from "../../utils/format";
 import type { Page } from "../../types/navigation";
 

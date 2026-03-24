@@ -3,6 +3,7 @@
  * 顯示版本號、GitHub 連結與授權資訊。
  */
 
+import type { MouseEvent, ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 
@@ -10,8 +11,8 @@ const APP_VERSION = "0.4.0";
 const GITHUB_URL = "https://github.com/Neal75418/StarScope";
 const LICENSE_URL = "https://opensource.org/licenses/MIT";
 
-function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
-  const handleClick = (e: React.MouseEvent) => {
+function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
+  const handleClick = (e: MouseEvent) => {
     e.preventDefault();
     void safeOpenUrl(href);
   };

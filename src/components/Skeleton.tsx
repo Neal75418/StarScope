@@ -2,7 +2,7 @@
  * 骨架屏元件，載入中的佔位顯示。
  */
 
-import React from "react";
+import type { CSSProperties } from "react";
 import "./Skeleton.css";
 
 interface SkeletonProps {
@@ -11,7 +11,7 @@ interface SkeletonProps {
   width?: string | number;
   height?: string | number;
   animation?: "pulse" | "wave" | "none";
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
 export function Skeleton({
@@ -22,7 +22,7 @@ export function Skeleton({
   animation = "pulse",
   style,
 }: SkeletonProps) {
-  const styles: React.CSSProperties = {
+  const styles: CSSProperties = {
     width,
     height,
     ...style,

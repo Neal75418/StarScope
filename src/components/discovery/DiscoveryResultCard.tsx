@@ -3,7 +3,8 @@
  * 顯示相對更新時間，以及已追蹤 repo 的 StarScope 信號。
  */
 
-import React, { memo } from "react";
+import { memo } from "react";
+import type { MouseEvent } from "react";
 import { DiscoveryRepo } from "../../api/client";
 import { StarIcon, ForkIcon, LinkExternalIcon, IssueOpenedIcon, LawIcon } from "../Icons";
 import { useI18n } from "../../i18n";
@@ -44,7 +45,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
 }: DiscoveryResultCardProps) {
   const { t } = useI18n();
 
-  const handleLinkClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLinkClick = async (e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     onView?.(repo);
     await safeOpenUrl(repo.url);

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import React from "react";
-import { SetStateAction } from "react";
+import type { SetStateAction } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useNotificationPolling } from "../useNotificationPolling";
-import { Notification } from "../useNotifications";
+import type { Notification } from "../useNotifications";
 import * as apiClient from "../../api/client";
 import { createTestQueryClient } from "../../lib/react-query";
 

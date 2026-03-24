@@ -3,6 +3,7 @@
  */
 
 import { useState, useCallback, memo, useMemo } from "react";
+import type { KeyboardEvent } from "react";
 import type { ContextBadge, EarlySignal, RepoWithSignals } from "../api/client";
 import { useRepoCardData } from "../hooks/useRepoCardData";
 import { RepoCardHeader, RepoCardStats, RepoCardContent, RepoCardPanels } from "./repo-card";
@@ -102,7 +103,7 @@ export const RepoCard = memo(function RepoCard({
     .join(" ");
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       if (selectionState?.isSelectionMode && (e.key === "Enter" || e.key === " ")) {
         e.preventDefault();
         selectionState.onToggleSelection(repo.id);

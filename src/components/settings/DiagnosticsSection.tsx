@@ -4,12 +4,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  getDiagnostics,
-  getGitHubConnectionStatus,
-  getRecentLogs,
-  DiagnosticsResponse,
-} from "../../api/client";
+import { getDiagnostics, getGitHubConnectionStatus, getRecentLogs } from "../../api/client";
+import type { DiagnosticsResponse } from "../../api/client";
 import { logger } from "../../utils/logger";
 import { useSmartInterval } from "../../hooks/useSmartInterval";
 import { useI18n } from "../../i18n";

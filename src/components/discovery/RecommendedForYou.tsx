@@ -3,7 +3,8 @@
  * 支援 View More / Show Less、Dismiss、Add to Watchlist。
  */
 
-import React, { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback, useMemo } from "react";
+import type { MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import { usePersonalizedRecs } from "../../hooks/usePersonalizedRecs";
 import { useDismissedRecs } from "../../hooks/useDismissedRecs";
@@ -50,7 +51,7 @@ const RecCard = memo(function RecCard({
   }, [rec.url]);
 
   const handleDismiss = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       e.stopPropagation();
       onDismiss(rec.repo_id);
     },
@@ -58,7 +59,7 @@ const RecCard = memo(function RecCard({
   );
 
   const handleAddToWatchlist = useCallback(
-    (e: React.MouseEvent) => {
+    (e: MouseEvent) => {
       e.stopPropagation();
       onAddToWatchlist?.(rec);
     },

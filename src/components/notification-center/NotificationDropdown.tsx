@@ -1,6 +1,6 @@
 import { BellIcon, CheckIcon } from "../Icons";
 import { useI18n } from "../../i18n";
-import { Notification } from "../../hooks/useNotifications";
+import type { Notification } from "../../hooks/useNotifications";
 import { NotificationItem } from "./NotificationItem";
 import type { Page } from "../../types/navigation";
 

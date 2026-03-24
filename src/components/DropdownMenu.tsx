@@ -3,7 +3,8 @@
  * 完整 ARIA menu pattern：ESC 關閉、focus return、arrow key 導航、auto-focus。
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -46,7 +47,7 @@ export function DropdownMenu({
   }, [open]);
 
   // Arrow key 導航
-  const handleMenuKeyDown = useCallback((e: React.KeyboardEvent) => {
+  const handleMenuKeyDown = useCallback((e: KeyboardEvent) => {
     if (!menuRef.current) return;
     const items = Array.from(menuRef.current.querySelectorAll<HTMLElement>('[role="menuitem"]'));
     if (items.length === 0) return;

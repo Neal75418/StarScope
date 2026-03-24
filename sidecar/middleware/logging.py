@@ -3,10 +3,10 @@
 import time
 import logging
 import uuid
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import ASGIApp
 
 logger = logging.getLogger("starscope.middleware")
@@ -54,7 +54,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return False
 
     async def dispatch(
-        self, request: Request, call_next: Callable
+        self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """處理 request 並記錄詳情。"""
         # 跳過排除路徑的日誌記錄
