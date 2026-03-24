@@ -3,7 +3,8 @@
  * 所有頁面透過 useAppStatus() 取得目前的降級狀態。
  */
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useQuery } from "@tanstack/react-query";
 import { checkHealth } from "../api/client";

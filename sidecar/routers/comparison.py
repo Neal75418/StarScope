@@ -87,7 +87,7 @@ class ComparisonChartResponse(BaseModel):
 async def comparison_chart(
     req: ComparisonRequest,
     db: Session = Depends(get_db),
-):
+) -> dict:
     """
     取得多個 repo 的對比圖表資料。
     支援 2-5 個 repo，可選正規化為百分比變化。

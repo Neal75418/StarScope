@@ -7,8 +7,8 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from sqlalchemy import asc
+from sqlalchemy.orm import Session
 
 from constants import TimeRange
 from db.database import get_db

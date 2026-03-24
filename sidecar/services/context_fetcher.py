@@ -4,7 +4,7 @@
 """
 
 import logging
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -158,7 +158,7 @@ async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     }
 
 
-def _cleanup_signals_by_age(db: Session, cutoff_date) -> int:
+def _cleanup_signals_by_age(db: Session, cutoff_date: date) -> int:
     """
     刪除超過指定時間的情境訊號。
 

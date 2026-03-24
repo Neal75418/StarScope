@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 import os
 import threading
@@ -509,8 +510,6 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
 
 def stop_scheduler() -> None:
     """停止背景排程器（最多等待指定秒數讓進行中的任務完成）。"""
-    import concurrent.futures
-
     scheduler = get_scheduler()
 
     if scheduler.running:

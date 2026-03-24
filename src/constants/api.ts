@@ -29,6 +29,9 @@ export const MAX_RETRIES = 2;
 /** 重試間的基本延遲（毫秒），配合指數退避使用。 */
 export const RETRY_DELAY_MS = 500;
 
+/** 警報列表查詢的預設上限。 */
+export const ALERT_FETCH_LIMIT = 50;
+
 /** Discovery 搜尋的期間天數。 */
 export const DISCOVERY_PERIOD_DAYS = { daily: 1, weekly: 7, monthly: 30 } as const;
 

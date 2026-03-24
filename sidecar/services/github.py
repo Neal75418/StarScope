@@ -6,6 +6,7 @@ GitHub API 服務。
 import logging
 import os
 import threading
+
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
 from keyring.errors import KeyringError

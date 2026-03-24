@@ -4,7 +4,8 @@
  */
 
 import { useCallback, useRef, useEffect } from "react";
-import { pollAuthorization, GitHubConnectionStatus } from "../api/client";
+import type { GitHubConnectionStatus } from "../api/client";
+import { pollAuthorization } from "../api/client";
 import { useI18n, interpolate } from "../i18n";
 import {
   DEVICE_FLOW_MIN_POLL_INTERVAL_SEC,

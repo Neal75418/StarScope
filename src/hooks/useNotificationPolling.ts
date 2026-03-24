@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listTriggeredAlerts } from "../api/client";
+import { ALERT_FETCH_LIMIT } from "../constants/api";
 import {
   alertsToNotifications,
   sortNotifications,
@@ -47,7 +48,7 @@ export function useNotificationPolling(
   const query = useQuery<Notification[], Error>({
     queryKey: queryKeys.notifications.polling(),
     queryFn: async () => {
-      const alerts = await listTriggeredAlerts(false, 50);
+      const alerts = await listTriggeredAlerts(false, ALERT_FETCH_LIMIT);
       return sortNotifications(
         alertsToNotifications(alerts, readIdsRef.current, tRef.current.dashboard.signals.types)
       );

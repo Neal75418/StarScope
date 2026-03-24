@@ -4,14 +4,8 @@
 
 import { useState, useCallback } from "react";
 import { useOnceEffect } from "./useOnceEffect";
-import {
-  CategoryTreeNode,
-  CategoryUpdate,
-  getCategoryTree,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "../api/client";
+import type { CategoryTreeNode, CategoryUpdate } from "../api/client";
+import { getCategoryTree, createCategory, updateCategory, deleteCategory } from "../api/client";
 import { useI18n } from "../i18n";
 import { logger } from "../utils/logger";
 

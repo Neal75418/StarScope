@@ -5,7 +5,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getStarsChart, getStarHistory, ChartDataPoint } from "../api/client";
+import type { ChartDataPoint } from "../api/client";
+import { getStarsChart, getStarHistory } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 import { useI18n } from "../i18n";
 

@@ -17,5 +17,5 @@ function log(level: "error" | "warn" | "info", message: string, error?: unknown)
 export const logger = {
   error: (message: string, error?: unknown) => log("error", message, error),
   warn: (message: string, error?: unknown) => log("warn", message, error),
-  info: (message: string) => log("info", message),
+  info: (message: string, data?: unknown) => log("info", message, data),
 };

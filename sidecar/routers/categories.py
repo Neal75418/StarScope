@@ -120,7 +120,7 @@ def _build_repo_count_map(db: Session) -> dict[int, int]:
         RepoCategory.category_id,
         func.count(RepoCategory.repo_id),
     ).group_by(RepoCategory.category_id).all()
-    return dict((cat_id, count) for cat_id, count in rows)
+    return {cat_id: count for cat_id, count in rows}
 
 
 def _get_repo_count(category_id: int, db: Session) -> int:

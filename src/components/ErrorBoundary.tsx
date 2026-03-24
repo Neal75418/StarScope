@@ -2,8 +2,10 @@
  * Error Boundary 元件，捕捉子元件的 JavaScript 錯誤並顯示 fallback UI。
  */
 
-import { Component, ErrorInfo, ReactNode } from "react";
-import { I18nContext, TranslationKeys, getInitialLanguage } from "../i18n";
+import { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
+import type { TranslationKeys } from "../i18n";
+import { I18nContext, getInitialLanguage } from "../i18n";
 import { logger } from "../utils/logger";
 
 interface Props {

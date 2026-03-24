@@ -1,8 +1,8 @@
 """應用程式設定服務，管理鍵值對設定與 Keyring 整合。"""
 
-import logging
-from contextlib import contextmanager
 from collections.abc import Generator
+from contextlib import contextmanager
+import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 import keyring

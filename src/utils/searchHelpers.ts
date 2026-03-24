@@ -2,8 +2,9 @@
  * 搜尋與探索功能的輔助函式。
  */
 
-import { TrendingPeriod } from "../components/discovery";
-import { searchRepos, SearchFilters, DiscoveryRepo, ApiError } from "../api/client";
+import type { TrendingPeriod } from "../components/discovery";
+import type { SearchFilters, DiscoveryRepo } from "../api/client";
+import { searchRepos, ApiError } from "../api/client";
 import type { TranslationKeys } from "../i18n";
 import { DISCOVERY_PERIOD_DAYS, DISCOVERY_PERIOD_MIN_STARS } from "../constants/api";
 

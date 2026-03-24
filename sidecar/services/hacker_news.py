@@ -70,7 +70,7 @@ def _parse_hn_hit(hit: dict, seen_ids: set) -> HNStory | None:
 async def _execute_hn_query(
     client: httpx.AsyncClient,
     query: str,
-    seen_ids: set,
+    seen_ids: set[str],
     stories: list[HNStory],
     errors: list[str]
 ) -> None:
@@ -128,7 +128,7 @@ class HackerNewsService:
             HackerNewsAPIError: 僅在所有查詢皆失敗時拋出
         """
         stories: list[HNStory] = []
-        seen_ids: set = set()
+        seen_ids: set[str] = set()
         errors: list[str] = []
 
         # 先搜尋完整名稱（更精確），再搜尋 repo 名稱

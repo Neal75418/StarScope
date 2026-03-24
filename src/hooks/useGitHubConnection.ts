@@ -4,7 +4,8 @@
 
 import { useState, useCallback } from "react";
 import { safeOpenUrl } from "../utils/url";
-import { initiateDeviceFlow, disconnectGitHub, DeviceCodeResponse } from "../api/client";
+import type { DeviceCodeResponse } from "../api/client";
+import { initiateDeviceFlow, disconnectGitHub } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { useI18n } from "../i18n";
 import { useConnectionStatus } from "./useConnectionStatus";

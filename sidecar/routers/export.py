@@ -153,7 +153,7 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
 )
 async def export_watchlist_json(
     db: Session = Depends(get_db)
-):
+) -> StreamingResponse:
     """
     將整個追蹤清單匯出為 JSON。
 
@@ -205,7 +205,7 @@ CSV_COLUMNS = [
 )
 async def export_watchlist_csv(
     db: Session = Depends(get_db)
-):
+) -> StreamingResponse:
     """
     將整個追蹤清單匯出為 CSV。
 
@@ -288,7 +288,7 @@ async def export_trends_json(
     language: str | None = Query(None, description="Filter by language"),
     min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
     db: Session = Depends(get_db),
-):
+) -> StreamingResponse:
     """匯出趨勢 repo 為 JSON。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     data = {
@@ -313,7 +313,7 @@ async def export_trends_csv(
     language: str | None = Query(None, description="Filter by language"),
     min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
     db: Session = Depends(get_db),
-):
+) -> StreamingResponse:
     """匯出趨勢 repo 為 CSV。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     output = io.StringIO()

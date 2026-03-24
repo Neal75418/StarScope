@@ -13,8 +13,8 @@ import {
   useRef,
   useCallback,
   useEffect,
-  ReactNode,
 } from "react";
+import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   addRepo,

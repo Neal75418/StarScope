@@ -28,7 +28,7 @@ _query_stats = {
 }
 
 
-def setup_query_logging(engine: Engine, enable: bool = True):
+def setup_query_logging(engine: Engine, enable: bool = True) -> None:
     """
     設定資料庫查詢日誌監聽器。
 

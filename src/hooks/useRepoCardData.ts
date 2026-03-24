@@ -5,13 +5,8 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ContextBadge,
-  EarlySignal,
-  getContextBadges,
-  getRepoSignals,
-  fetchRepoContext,
-} from "../api/client";
+import type { ContextBadge, EarlySignal } from "../api/client";
+import { getContextBadges, getRepoSignals, fetchRepoContext } from "../api/client";
 import { logger } from "../utils/logger";
 import { queryKeys } from "../lib/react-query";
 

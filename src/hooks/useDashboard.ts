@@ -17,6 +17,7 @@ import {
   TriggeredAlert,
 } from "../api/client";
 import type { EarlySignal } from "../api/types";
+import { ALERT_FETCH_LIMIT } from "../constants/api";
 import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
 import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
@@ -55,7 +56,7 @@ export function useDashboard() {
 
   const alertsQuery = useQuery({
     queryKey: queryKeys.alerts.triggered(),
-    queryFn: () => listTriggeredAlerts(false, 50),
+    queryFn: () => listTriggeredAlerts(false, ALERT_FETCH_LIMIT),
   });
 
   // 取更多早期訊號（供 Recent Activity 使用，最多 20 筆）

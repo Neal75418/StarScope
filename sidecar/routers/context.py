@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, func
+from sqlalchemy import and_, desc, func
 
 from constants import ContextSignalType, MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 from db.database import get_db
@@ -213,8 +213,6 @@ async def get_context_badges_batch(
     recent_threshold = utc_now() - timedelta(days=RECENT_THRESHOLD_DAYS)
 
     # 一次查詢所有 repo 的最高分 HN 文章（同分時取最小 id 作為 tiebreaker）
-    from sqlalchemy import and_
-
     # 第一步：每個 repo 的最高分
     max_score_subq = db.query(
         ContextSignal.repo_id,
