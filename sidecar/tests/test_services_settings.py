@@ -223,8 +223,17 @@ class TestSetSettingToken:
 
     def test_set_token_stores_in_keyring(self, test_db):
         """Test stores GITHUB_TOKEN in keyring, not DB."""
+        keyring_store: dict[tuple[str, str], str] = {}
+
+        def fake_set(service: str, key: str, val: str) -> None:
+            keyring_store[(service, key)] = val
+
+        def fake_get(service: str, key: str) -> str | None:
+            return keyring_store.get((service, key))
+
         with patch('services.settings.keyring') as mock_keyring:
-            mock_keyring.get_password.return_value = "ghp_new_token"
+            mock_keyring.set_password.side_effect = fake_set
+            mock_keyring.get_password.side_effect = fake_get
 
             set_setting("github_token", "ghp_new_token", test_db)
 

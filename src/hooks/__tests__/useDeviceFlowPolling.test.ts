@@ -161,13 +161,26 @@ describe("useDeviceFlowPolling", () => {
       result.current.startPolling("test-code", 3, 300);
     });
 
-    // The interval should be clamped to the minimum (10 seconds)
+    // Fire initial delay (3000ms) to trigger first poll
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
+    const callsAfterFirst = mockPollAuth.mock.calls.length;
+    expect(callsAfterFirst).toBeGreaterThan(0);
 
-    // After initial delay, polling should use >= 10 second interval
-    expect(setPollStatus).toHaveBeenCalled();
+    // Advance 3s more — should NOT fire (interval clamped to 10s, not 3s)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(mockPollAuth.mock.calls.length).toBe(callsAfterFirst);
+
+    // Advance 7s more (total 10s since first poll) — SHOULD fire
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+    expect(mockPollAuth.mock.calls.length).toBe(callsAfterFirst + 1);
+
+    result.current.stopPolling();
   });
 
   it("does not overlap polls when pollAuthorization is slow", async () => {
