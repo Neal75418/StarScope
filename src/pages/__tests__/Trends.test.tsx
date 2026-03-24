@@ -546,13 +546,15 @@ describe("Trends", () => {
     expect(select.value).toBe("300000");
   });
 
-  it("shows last updated text when auto-refresh is active", async () => {
+  it("shows last updated text with time value when auto-refresh is active", async () => {
     const user = userEvent.setup();
     mockTrendsReturn.trends = [makeTrending()];
     mockTrendsReturn.dataUpdatedAt = Date.now();
     renderTrends();
     await user.selectOptions(screen.getByTestId("trends-refresh-select"), "300000");
-    expect(screen.getByTestId("trends-last-updated")).toBeInTheDocument();
-    expect(screen.getByText(/Updated/)).toBeInTheDocument();
+    const lastUpdated = screen.getByTestId("trends-last-updated");
+    expect(lastUpdated).toBeInTheDocument();
+    // Verify the text contains "Updated" followed by a time description (not just "Updated" alone)
+    expect(lastUpdated.textContent).toMatch(/Updated .+/);
   });
 });

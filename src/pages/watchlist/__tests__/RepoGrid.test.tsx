@@ -61,9 +61,9 @@ describe("RepoGrid", () => {
     });
   });
 
-  it("renders empty grid when no repos", () => {
+  it("renders grid wrapper without cards when repos is empty", () => {
     render(<RepoGrid {...defaultProps} repos={[]} />);
     expect(screen.getByTestId("repo-grid")).toBeInTheDocument();
-    expect(screen.queryByTestId("repo-card-1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("repo-grid").children).toHaveLength(0);
   });
 });

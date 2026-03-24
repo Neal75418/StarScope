@@ -329,16 +329,7 @@ class TestFetchHnMentions:
 class TestHackerNewsAPIError:
     """Tests for HackerNewsAPIError class."""
 
-    def test_error_creation(self):
-        """Test error creation with message and status code."""
-        error = HackerNewsAPIError("Test error", status_code=500)
-
-        assert str(error) == "Test error"
-        assert error.status_code == 500
-
-    def test_error_without_status_code(self):
-        """Test error creation without status code."""
+    def test_error_defaults_status_code_to_none(self):
+        """Test that status_code defaults to None when not provided."""
         error = HackerNewsAPIError("Test error")
-
-        assert str(error) == "Test error"
         assert error.status_code is None

@@ -37,15 +37,6 @@ from services.scheduler import (
 class TestGetScheduler:
     """Tests for get_scheduler function."""
 
-    def test_returns_scheduler(self):
-        """Test that scheduler is returned."""
-        # Reset global
-        import services.scheduler as scheduler_module
-        scheduler_module._scheduler = None
-
-        scheduler = get_scheduler()
-        assert scheduler is not None
-
     def test_returns_singleton(self):
         """Test that scheduler is a singleton."""
         import services.scheduler as scheduler_module
@@ -130,7 +121,7 @@ class TestCheckAlertsJob:
     """Tests for check_alerts_job function."""
 
     def test_checks_alerts(self, test_db):
-        """Test calls check_all_alerts."""
+        """Test calls check_all_alerts with a valid DB session."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
@@ -138,6 +129,9 @@ class TestCheckAlertsJob:
             check_alerts_job()
 
             mock_check.assert_called_once()
+            # Verify a DB session was passed as the first argument
+            call_args = mock_check.call_args
+            assert call_args[0][0] is test_db
 
     def test_handles_triggered_alerts(self, test_db):
         """Test handles triggered alerts without errors."""

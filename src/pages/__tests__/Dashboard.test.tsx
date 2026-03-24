@@ -294,10 +294,15 @@ describe("Dashboard", () => {
   });
 
   it("formats time as date for activities older than a week", () => {
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+    const twoWeeksAgoDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = twoWeeksAgoDate.toISOString();
     mockDashboard.recentActivity = [makeActivity({ title: "Old action", timestamp: twoWeeksAgo })];
     render(<Dashboard />);
     expect(screen.getByText("Old action")).toBeInTheDocument();
+    // For activities older than 7 days, formatCompactRelativeTime returns toLocaleDateString()
+    // Both source and test use default locale — consistent within the same runtime
+    const expectedDate = twoWeeksAgoDate.toLocaleDateString();
+    expect(screen.getByText(expectedDate)).toBeInTheDocument();
   });
 
   it("renders signal with unknown type using fallback", () => {

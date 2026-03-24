@@ -110,11 +110,6 @@ class TestFetchRepoWithRetry:
 class TestCreateGitHubRetryDecorator:
     """Tests for create_github_retry_decorator factory."""
 
-    def test_custom_max_attempts_returns_callable(self):
-        """Test creating decorator with custom max attempts returns callable decorator."""
-        decorator = create_github_retry_decorator(max_attempts=10)
-        assert callable(decorator)
-
     @pytest.mark.asyncio
     async def test_decorator_respects_max_attempts(self):
         """Test that custom max_attempts is respected."""

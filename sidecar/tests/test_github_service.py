@@ -295,33 +295,6 @@ class TestGitHubService:
         assert "X-GitHub-Api-Version" in service.headers
 
 
-class TestGitHubAPIError:
-    """Test cases for GitHub API error classes."""
-
-    def test_github_api_error(self):
-        """Test GitHubAPIError creation."""
-        from services.github import GitHubAPIError
-
-        error = GitHubAPIError("Test error", status_code=500)
-        assert str(error) == "Test error"
-        assert error.status_code == 500
-
-    def test_github_not_found_error(self):
-        """Test GitHubNotFoundError creation."""
-        from services.github import GitHubNotFoundError
-
-        error = GitHubNotFoundError("Repo not found", status_code=404)
-        assert "not found" in str(error).lower()
-        assert error.status_code == 404
-
-    def test_github_rate_limit_error(self):
-        """Test GitHubRateLimitError creation."""
-        from services.github import GitHubRateLimitError
-
-        error = GitHubRateLimitError("Rate limit exceeded", status_code=403)
-        assert error.status_code == 403
-
-
 class TestGitHubServiceSearchRepos:
     """Tests for GitHubService.search_repos method."""
 

@@ -51,28 +51,6 @@ describe("DiffSummaryPanel", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders summary panel with 2 repos", () => {
-    const repos = [
-      makeRepo({
-        repo_id: 1,
-        repo_name: "facebook/react",
-        current_stars: 200000,
-        velocity: 14.3,
-        stars_delta_7d: 100,
-      }),
-      makeRepo({
-        repo_id: 2,
-        repo_name: "vuejs/vue",
-        current_stars: 180000,
-        velocity: 20.1,
-        stars_delta_7d: 200,
-        color: "#dc2626",
-      }),
-    ];
-    render(<DiffSummaryPanel repos={repos} />);
-    expect(screen.getByTestId("diff-summary-panel")).toBeInTheDocument();
-  });
-
   it("shows correct leader (highest current_stars)", () => {
     const repos = [
       makeRepo({ repo_id: 1, repo_name: "facebook/react", current_stars: 200000 }),

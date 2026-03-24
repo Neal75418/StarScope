@@ -67,14 +67,21 @@ describe("useWindowedBatchRepoData", () => {
     expect(result.current.dataMap[2].badges).toHaveLength(0);
   });
 
-  it("provides setVisibleRange callback", () => {
-    const { result } = renderHook(() => useWindowedBatchRepoData([1, 2, 3]));
-
-    expect(typeof result.current.setVisibleRange).toBe("function");
+  it("setVisibleRange updates the visible window", async () => {
+    const { result } = renderHook(() => useWindowedBatchRepoData([1, 2, 3], { debounceMs: 0 }));
 
     act(() => {
-      result.current.setVisibleRange({ start: 1, stop: 3 });
+      result.current.setVisibleRange({ start: 0, stop: 2 });
     });
+
+    // After setting range, the hook should still resolve and provide data
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    // Verify dataMap is populated for the visible IDs
+    expect(result.current.dataMap[1]).toBeDefined();
+    expect(result.current.dataMap[2]).toBeDefined();
   });
 
   it("returns empty badges and signals for IDs not in API response", async () => {

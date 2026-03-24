@@ -327,10 +327,10 @@ class TestConvenienceFunctions:
         assert result == 0
 
     def test_recalculate_all_similarities_function(self, test_db, mock_repo):
-        """Test recalculate_all_similarities convenience function."""
+        """Test recalculate_all_similarities processes all repos."""
         result = recalculate_all_similarities(test_db)
-        assert "total_repos" in result
-        assert "processed" in result
+        assert result["total_repos"] == 1
+        assert result["processed"] == 1
 
 
 class TestConstants:

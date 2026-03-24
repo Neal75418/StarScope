@@ -172,7 +172,7 @@ describe("StarsChart", () => {
     expect(sevenDayButton).not.toHaveClass("active");
   });
 
-  it("renders responsive container with correct height", async () => {
+  it("renders chart container after data loads", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
 
     const { container } = renderWithClient(<StarsChart repoId={1} />);
@@ -181,7 +181,6 @@ describe("StarsChart", () => {
       expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
     });
 
-    // Check if ResponsiveContainer is rendered (it has a specific data attribute)
     const chartContainer = container.querySelector(".stars-chart");
     expect(chartContainer).toBeInTheDocument();
   });

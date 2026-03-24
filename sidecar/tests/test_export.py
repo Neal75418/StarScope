@@ -232,13 +232,12 @@ class TestExportWatchlistJson:
         assert data["total"] == 3
         assert len(data["repos"]) == 3
 
-        # 驗證批次載入的資料正確性
-        for i, repo_data in enumerate(data["repos"]):
-            # 因為按 added_at DESC 排序，所以順序相反
-            idx = 2 - i
-            assert repo_data["owner"] == f"owner{idx}"
-            assert repo_data["stars"] == 1000 * (idx + 1)
-            assert repo_data["velocity"] == 50.0 * (idx + 1)
+        # 驗證批次載入的資料正確性（用 lookup 避免耦合排序）
+        by_owner = {r["owner"]: r for r in data["repos"]}
+        for i in range(3):
+            repo_data = by_owner[f"owner{i}"]
+            assert repo_data["stars"] == 1000 * (i + 1)
+            assert repo_data["velocity"] == 50.0 * (i + 1)
 
     def test_export_watchlist_json_filename_format(self, client):
         """Test JSON export has correct filename format."""
@@ -464,13 +463,10 @@ class TestExportWatchlistCsv:
 
         assert len(rows) == 2
 
-        # 驗證第一行（按 added_at DESC，所以是 user1）
-        assert rows[0]["owner"] == "user1"
-        assert rows[0]["stars"] == "10000"
-
-        # 驗證第二行
-        assert rows[1]["owner"] == "user0"
-        assert rows[1]["stars"] == "5000"
+        # 驗證所有行的資料（用 lookup 避免耦合排序）
+        by_owner = {r["owner"]: r for r in rows}
+        assert by_owner["user0"]["stars"] == "5000"
+        assert by_owner["user1"]["stars"] == "10000"
 
 
 class TestExportBatchQueryOptimization:
@@ -516,10 +512,10 @@ class TestExportBatchQueryOptimization:
         data = response.json()
         assert data["total"] == 5
 
-        # 驗證所有 repo 都有正確的 snapshot 資料
-        for i, repo_data in enumerate(data["repos"]):
-            idx = 4 - i  # 按 added_at DESC
-            assert repo_data["stars"] == 100 * (idx + 1)
+        # 驗證所有 repo 都有正確的 snapshot 資料（用 lookup 避免耦合排序）
+        by_owner = {r["owner"]: r for r in data["repos"]}
+        for i in range(5):
+            assert by_owner[f"org{i}"]["stars"] == 100 * (i + 1)
 
     def test_batch_signal_loading(self, client, test_db):
         """Test signals are loaded in batch, not one-by-one."""
@@ -562,8 +558,8 @@ class TestExportBatchQueryOptimization:
         data = response.json()
         assert data["total"] == 3
 
-        # 驗證所有 repo 都有正確的 signal 資料
-        for i, repo_data in enumerate(data["repos"]):
-            idx = 2 - i  # 按 added_at DESC
-            assert repo_data["velocity"] == 30.0 * (idx + 1)
-            assert repo_data["stars_delta_7d"] == 200.0 * (idx + 1)
+        # 驗證所有 repo 都有正確的 signal 資料（用 lookup 避免耦合排序）
+        by_owner = {r["owner"]: r for r in data["repos"]}
+        for i in range(3):
+            assert by_owner[f"team{i}"]["velocity"] == 30.0 * (i + 1)
+            assert by_owner[f"team{i}"]["stars_delta_7d"] == 200.0 * (i + 1)
