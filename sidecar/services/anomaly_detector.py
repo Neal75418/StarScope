@@ -101,6 +101,7 @@ def reload_thresholds_from_db(db: "Session") -> None:
         BREAKOUT_VELOCITY_THRESHOLD = thresholds["breakout_velocity_threshold"]
         VIRAL_HN_MIN_SCORE = thresholds["viral_hn_min_score"]
 
+
 # 嚴重度門檻（各偵測器）
 RISING_STAR_SEVERITY_HIGH = 50
 RISING_STAR_SEVERITY_MEDIUM = 20

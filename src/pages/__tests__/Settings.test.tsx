@@ -1,5 +1,5 @@
-import React from "react";
-import type { ReactNode } from "react";
+import { createElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -116,9 +116,9 @@ vi.mock("../../components/motion", () => ({
   ),
 }));
 
-function renderWithClient(ui: React.ReactElement) {
+function renderWithClient(ui: ReactElement) {
   const client = createTestQueryClient();
-  return render(React.createElement(QueryClientProvider, { client }, ui));
+  return render(createElement(QueryClientProvider, { client }, ui));
 }
 
 describe("Settings", () => {

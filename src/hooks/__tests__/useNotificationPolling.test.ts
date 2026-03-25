@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import React from "react";
-import type { SetStateAction } from "react";
+import { createElement } from "react";
+import type { ReactNode, SetStateAction } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useNotificationPolling } from "../useNotificationPolling";
 import type { Notification } from "../useNotifications";
@@ -28,8 +28,8 @@ vi.mock("../../utils/logger", () => ({
 
 function createWrapper() {
   const client = createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children);
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
 }
 
 describe("useNotificationPolling", () => {

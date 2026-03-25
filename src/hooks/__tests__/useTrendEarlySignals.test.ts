@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import React from "react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../lib/react-query";
@@ -75,8 +76,8 @@ vi.mock("../../api/client", () => ({
 
 function createWrapper() {
   const client = createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children);
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
 }
 
 describe("useTrendEarlySignals", () => {

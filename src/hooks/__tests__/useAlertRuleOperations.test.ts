@@ -1,4 +1,4 @@
-import React from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
@@ -50,14 +50,14 @@ describe("useAlertRuleOperations", () => {
   let mockToast: Toast;
   let mockLoadRules: () => Promise<void>;
   let rules: AlertRule[];
-  let setRules: React.Dispatch<React.SetStateAction<AlertRule[]>>;
+  let setRules: Dispatch<SetStateAction<AlertRule[]>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockToast = { success: vi.fn(), error: vi.fn() };
     mockLoadRules = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     rules = [makeRule({ id: 1, enabled: true }), makeRule({ id: 2, enabled: false })];
-    setRules = vi.fn<React.Dispatch<React.SetStateAction<AlertRule[]>>>((updater) => {
+    setRules = vi.fn<Dispatch<SetStateAction<AlertRule[]>>>((updater) => {
       if (typeof updater === "function") {
         rules = (updater as (prev: AlertRule[]) => AlertRule[])(rules);
       }

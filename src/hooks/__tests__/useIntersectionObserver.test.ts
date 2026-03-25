@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, act, renderHook } from "@testing-library/react";
-import React from "react";
+import { createElement } from "react";
 import { useIntersectionObserver } from "../useIntersectionObserver";
 
 type IntersectionCallback = (entries: Partial<IntersectionObserverEntry>[]) => void;
@@ -14,7 +14,7 @@ function TestHarness({
   enabled?: boolean;
 }) {
   const { sentinelRef, isSupported } = useIntersectionObserver({ onIntersect, enabled });
-  return React.createElement("div", {
+  return createElement("div", {
     ref: sentinelRef,
     "data-testid": "sentinel",
     "data-supported": String(isSupported),
@@ -61,14 +61,14 @@ describe("useIntersectionObserver", () => {
 
   it("does not create observer when enabled is false", () => {
     const onIntersect = vi.fn();
-    render(React.createElement(TestHarness, { onIntersect, enabled: false }));
+    render(createElement(TestHarness, { onIntersect, enabled: false }));
 
     expect(mockObserve).not.toHaveBeenCalled();
   });
 
   it("calls onIntersect when entry is intersecting", () => {
     const onIntersect = vi.fn();
-    render(React.createElement(TestHarness, { onIntersect }));
+    render(createElement(TestHarness, { onIntersect }));
 
     expect(capturedCallback).not.toBeNull();
     const cb = capturedCallback as IntersectionCallback;
@@ -80,7 +80,7 @@ describe("useIntersectionObserver", () => {
 
   it("does not call onIntersect when entry is not intersecting", () => {
     const onIntersect = vi.fn();
-    render(React.createElement(TestHarness, { onIntersect }));
+    render(createElement(TestHarness, { onIntersect }));
 
     expect(capturedCallback).not.toBeNull();
     const cb = capturedCallback as IntersectionCallback;
@@ -105,9 +105,9 @@ describe("useIntersectionObserver", () => {
     const cb1 = vi.fn();
     const cb2 = vi.fn();
 
-    const { rerender } = render(React.createElement(TestHarness, { onIntersect: cb1 }));
+    const { rerender } = render(createElement(TestHarness, { onIntersect: cb1 }));
 
-    rerender(React.createElement(TestHarness, { onIntersect: cb2 }));
+    rerender(createElement(TestHarness, { onIntersect: cb2 }));
 
     expect(capturedCallback).not.toBeNull();
     const cb = capturedCallback as IntersectionCallback;

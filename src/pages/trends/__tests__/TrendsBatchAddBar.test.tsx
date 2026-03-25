@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../../lib/react-query";
@@ -36,7 +37,7 @@ function makeTrending(id: number, fullName: string): TrendingRepo {
   };
 }
 
-function renderWithQuery(ui: React.ReactElement) {
+function renderWithQuery(ui: ReactElement) {
   const queryClient = createTestQueryClient();
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
 }

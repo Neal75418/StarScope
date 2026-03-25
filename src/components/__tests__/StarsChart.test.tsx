@@ -2,7 +2,8 @@
  * Unit tests for StarsChart component
  */
 
-import React from "react";
+import { createElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
@@ -39,13 +40,13 @@ vi.mock("../../utils/format", async (importOriginal) => {
 
 function createWrapper() {
   const client = createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children);
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
 }
 
-function renderWithClient(ui: React.ReactElement) {
+function renderWithClient(ui: ReactElement) {
   const client = createTestQueryClient();
-  return render(React.createElement(QueryClientProvider, { client }, ui));
+  return render(createElement(QueryClientProvider, { client }, ui));
 }
 
 describe("StarsChart", () => {

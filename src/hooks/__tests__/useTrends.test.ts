@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import React from "react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useTrends, TrendingRepo } from "../useTrends";
 import * as apiClient from "../../api/client";
@@ -52,8 +53,8 @@ const defaultResponse = {
 
 function createWrapper() {
   const client = createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children);
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
 }
 
 /** Render hook and wait for initial loading to complete. */

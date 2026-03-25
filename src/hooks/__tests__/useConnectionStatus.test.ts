@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
-import React from "react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../lib/react-query";
 
@@ -20,8 +21,8 @@ const mockGetStatus = vi.mocked(getGitHubConnectionStatus);
 
 function createWrapper() {
   const client = createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children);
+  return ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
 }
 
 describe("useConnectionStatus", () => {

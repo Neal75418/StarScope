@@ -3,13 +3,14 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 import logging
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
-import keyring
-from keyring.errors import PasswordDeleteError, KeyringError
 
-from db.models import AppSetting, AppSettingKey
+import keyring
+from keyring.errors import KeyringError, PasswordDeleteError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
 from db.database import SessionLocal
+from db.models import AppSetting, AppSettingKey
 
 logger = logging.getLogger(__name__)
 
