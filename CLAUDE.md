@@ -86,7 +86,7 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：前端 1,062 + 後端 496 = 1,558+ 個測試案例
+> **測試覆蓋率**：前端 1,195 + 後端 469 = 1,664 個測試案例
 
 ### E2E 測試
 
@@ -114,11 +114,11 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|-------------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
 | `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 52 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `hooks/`        | 54 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
-| `**/__tests__/` | Vitest 單元測試（1,062 個測試案例）                               |
+| `**/__tests__/` | Vitest 單元測試（1,195 個測試案例）                               |
 
 ### Sidecar `sidecar/`
 
@@ -126,7 +126,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 |----------------|-----------------------------------------------------|
 | `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
 | `services/`    | 業務邏輯（15 個服務：analyzer、scheduler、recommender 等）       |
-| `db/models.py` | SQLAlchemy 模型（13 張表：Repo、Signal、Category 等）         |
+| `db/models.py` | SQLAlchemy 模型（11 張表：Repo、Signal、Category 等）         |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`                  |
 
 ### Tauri `src-tauri/`
@@ -234,7 +234,7 @@ PORT=8008
 
 ## 資料庫
 
-SQLite 位於 `sidecar/starscope.db`（13 張表）：
+SQLite 位於 `sidecar/starscope.db`（11 張表）：
 
 | 資料表                 | 說明                               |
 |---------------------|----------------------------------|
@@ -249,8 +249,6 @@ SQLite 位於 `sidecar/starscope.db`（13 張表）：
 | `repo_categories`   | Repo ↔ Category 多對多關聯            |
 | `early_signals`     | 異常偵測信號（rising star、spike 等）      |
 | `app_settings`      | 應用設定（key-value，含 Keyring 整合）     |
-| `commit_activities` | 每週 commit 活動資料                   |
-| `repo_languages`    | 程式語言分佈（bytes + 百分比）              |
 
 ---
 

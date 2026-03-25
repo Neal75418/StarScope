@@ -202,7 +202,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   52 個 Custom Hooks
+│   ├── hooks/                     #   54 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -229,10 +229,10 @@ StarScope/
 │   ├── routers/                   #   16 個路由模組
 │   ├── services/                  #   15 個業務邏輯服務
 │   ├── schemas/                   #   Pydantic 資料模型
-│   ├── db/                        #   SQLite + SQLAlchemy（13 張表）
+│   ├── db/                        #   SQLite + SQLAlchemy（11 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（496 個）
+│   └── tests/                     #   pytest 後端測試（469 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -281,7 +281,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 1,062 + 後端 496 = **1,558+ 個測試案例**
+> **測試覆蓋**：前端 1,195 + 後端 469 = **1,664 個測試案例**
 
 ---
 

@@ -38,6 +38,13 @@
 - 修復 Discovery 分頁失敗覆蓋已載入結果（totalCount 取 firstPage、error 僅在 repos 為空時顯示）
 - 修復 Sidecar shutdown race condition（先停排程器再關閉 HTTP client）
 - 修復 API retry backoff 期間 abort 回傳 stale error 而非 CANCELLED
+- 修復 `close_github_service` 並發 double-close 問題（加鎖保護）
+- 修復 `_scheduler_health` / `_repo_failure_counts` 線程安全問題
+- 修復 `formatChartDate` 非 UTC 時區回傳錯誤日期（改用 getUTCMonth/getUTCDate）
+- 修復 `useAlertRuleOperations.handleToggle` stale closure 問題（改用 useRef）
+- 修復 `useWindowedBatchRepoData` 競態條件（per-effect ownedIds + AbortController）
+- 修復 `isSafeUrl` 未封鎖完整私有 IP 範圍（127.x、10.x、192.168.x 等）
+- 修復 `get_thresholds` 異常時未 fallback 到預設值
 
 - 修復 SQLAlchemy SAWarning：`subquery()` → `select()` 消除 "Coercing Subquery" 警告
 - 修復 `utc_now()` 時區一致性：回傳 naive datetime 消除 aware/naive 不匹配
@@ -54,7 +61,7 @@
 ### 測試
 
 - **E2E 測試** — 從零建立 18 個 Playwright 測試案例（導航、Watchlist CRUD、Discovery 搜尋）
-- **覆蓋率補強** — 新增 33 個前端測試，當前 1,062 前端 + 496 後端 = 1,558 個測試
+- **覆蓋率補強與品質提升** — 5 輪測試品質審查，移除低價值測試、強化斷言、修復 flaky patterns，當前 1,195 前端 + 469 後端 = 1,664 個測試
 
 ### 文件
 
