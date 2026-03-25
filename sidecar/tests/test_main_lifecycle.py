@@ -53,9 +53,11 @@ class TestShutdownOrder:
     async def test_startup_task_cancel_is_awaited(self, mock_lifecycle):
         """取消的 startup task 應被 await（無 unhandled exception）。"""
         cancel_observed = False
+        started = asyncio.Event()
 
         async def slow_fetch():
             nonlocal cancel_observed
+            started.set()
             try:
                 await asyncio.sleep(3600)
             except asyncio.CancelledError:
@@ -67,7 +69,7 @@ class TestShutdownOrder:
         from main import lifespan, app
 
         async with lifespan(app):
-            await asyncio.sleep(0.01)  # 讓 startup task 開始執行
+            await started.wait()  # 確保 startup task 已開始執行
 
         assert cancel_observed, "startup task 應被 cancel 並 await"
 

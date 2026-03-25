@@ -121,7 +121,7 @@ export function formatVelocity(num: number | null): string {
 export function formatChartDate(dateStr: string): string {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return "—";
-  return `${date.getMonth() + 1}/${date.getDate()}`;
+  return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`;
 }
 
 /**

@@ -307,6 +307,13 @@ class TestCleanupOldSnapshots:
             deleted = cleanup_old_snapshots(retention_days=90)
             assert deleted == 1
 
+        # Verify the recent snapshot survived, not the old one
+        remaining = test_db.query(RepoSnapshot).filter(
+            RepoSnapshot.repo_id == mock_repo.id
+        ).all()
+        assert len(remaining) == 1
+        assert remaining[0].stars == 200  # recent snapshot
+
     def test_cleanup_db_error(self, test_db):
         """Test cleanup handles DB error gracefully."""
         from sqlalchemy.exc import SQLAlchemyError
