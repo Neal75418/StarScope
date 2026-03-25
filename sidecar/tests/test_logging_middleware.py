@@ -8,7 +8,7 @@ class TestSensitiveHeaderRedaction:
 
     def test_x_session_secret_is_redacted(self) -> None:
         """X-Session-Secret 應被遮蔽為 '***'。"""
-        mw = LoggingMiddleware(app=None, log_headers=True)  # type: ignore[arg-type]
+        mw = LoggingMiddleware(app=None, log_headers=True)
         # 直接存取 sensitive headers 列表驗證
         headers = {
             "authorization": "Bearer token123",

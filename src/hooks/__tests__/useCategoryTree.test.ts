@@ -240,7 +240,7 @@ describe("useCategoryTree", () => {
   });
 
   it("stale response from earlier fetch is discarded", async () => {
-    let resolveFirst: (v: { tree: typeof mockTree; total: number }) => void;
+    let resolveFirst: (v: { tree: typeof mockTree; total: number }) => void = () => {};
     const firstPromise = new Promise<{ tree: typeof mockTree; total: number }>((r) => {
       resolveFirst = r;
     });
@@ -260,7 +260,7 @@ describe("useCategoryTree", () => {
 
     // Now resolve the first (stale) response
     await act(async () => {
-      resolveFirst!({ tree: mockTree, total: 1 });
+      resolveFirst({ tree: mockTree, total: 1 });
     });
 
     await waitFor(() => expect(result.current.loading).toBe(false));
