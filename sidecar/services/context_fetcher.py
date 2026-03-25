@@ -4,7 +4,7 @@
 """
 
 import logging
-from datetime import date, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
@@ -158,19 +158,19 @@ async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     }
 
 
-def _cleanup_signals_by_age(db: Session, cutoff_date: date) -> int:
+def _cleanup_signals_by_age(db: Session, cutoff: datetime) -> int:
     """
     刪除超過指定時間的情境訊號。
 
     Args:
         db: 資料庫 session
-        cutoff_date: 刪除此時間之前的訊號
+        cutoff: 刪除此時間之前的訊號（datetime，非 date）
 
     Returns:
         刪除的訊號數量
     """
     deleted = db.query(ContextSignal).filter(
-        ContextSignal.fetched_at < cutoff_date
+        ContextSignal.fetched_at < cutoff
     ).delete(synchronize_session=False)
     return deleted
 

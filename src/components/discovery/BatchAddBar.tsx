@@ -2,7 +2,7 @@
  * 批次加入 watchlist 的操作列，固定在結果區域底部。
  */
 
-import { useState, useCallback, memo } from "react";
+import { useState, useCallback, useRef, useEffect, memo } from "react";
 import { batchAddRepos } from "../../api/client";
 import { queryKeys } from "../../lib/react-query";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,13 @@ export const BatchAddBar = memo(function BatchAddBar({
   const toast = useToast();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    []
+  );
 
   const handleBatchAdd = useCallback(async () => {
     if (isAdding || selectedRepos.length === 0) return;
@@ -55,7 +62,7 @@ export const BatchAddBar = memo(function BatchAddBar({
     } catch {
       toast.error(t.toast.error);
     } finally {
-      setIsAdding(false);
+      if (mountedRef.current) setIsAdding(false);
     }
   }, [isAdding, selectedRepos, toast, t, queryClient, onDone]);
 

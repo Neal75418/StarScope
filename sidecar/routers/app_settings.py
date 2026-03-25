@@ -224,7 +224,8 @@ async def get_diagnostics(db: Session = Depends(get_db)) -> dict:
     """取得系統診斷資訊：版本、資料庫狀態、排程健康狀態。"""
     from services.scheduler import get_scheduler_health
 
-    db_path_abs = DATABASE_URL.replace("sqlite:///", "")
+    from sqlalchemy.engine import make_url
+    db_path_abs = make_url(DATABASE_URL).database or ""
     db_size = os.path.getsize(db_path_abs) / (1024 * 1024) if os.path.exists(db_path_abs) else 0
     # 顯示相對路徑（隱藏使用者名稱）
     home = os.path.expanduser("~")

@@ -25,19 +25,21 @@ interface SearchParams {
 }
 
 export function useDiscoverySearch() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const queryClient = useQueryClient();
 
   // 驅動 query key 的搜尋參數；null = 尚未搜尋
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
 
   const queryKey = useMemo(
-    () =>
-      queryKeys.discovery.search({
+    () => [
+      ...queryKeys.discovery.search({
         query: searchParams?.query ?? "",
         filters: (searchParams?.filters ?? {}) as Record<string, unknown>,
       }),
-    [searchParams]
+      language,
+    ],
+    [searchParams, language]
   );
 
   const { data, isFetching, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery<

@@ -63,6 +63,7 @@ _scheduler_lock = threading.Lock()
 
 # Repo 連續失敗計數器（記憶體內，重啟後歸零）
 _repo_failure_counts: dict[int, int] = {}
+_failure_counts_lock = threading.Lock()
 
 # 排程健康狀態追蹤（記憶體內）
 _scheduler_health: dict[str, float | str | None] = {
@@ -72,11 +73,19 @@ _scheduler_health: dict[str, float | str | None] = {
     "last_alert_check": None,
     "last_backup": None,
 }
+_health_lock = threading.Lock()
+
+
+def _update_health(**kwargs: float | str | None) -> None:
+    """線程安全地更新排程健康狀態。"""
+    with _health_lock:
+        _scheduler_health.update(kwargs)
 
 
 def get_scheduler_health() -> dict[str, float | str | None]:
     """取得排程器健康狀態。"""
-    return dict(_scheduler_health)
+    with _health_lock:
+        return dict(_scheduler_health)
 
 
 FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
@@ -101,8 +110,9 @@ def get_scheduler() -> AsyncIOScheduler:
 
 def _track_repo_failure(repo_id: int, full_name: str, reason: str) -> None:
     """追蹤 repo 連續失敗次數，超過閾值時記錄 WARNING。"""
-    count = _repo_failure_counts.get(repo_id, 0) + 1
-    _repo_failure_counts[repo_id] = count
+    with _failure_counts_lock:
+        count = _repo_failure_counts.get(repo_id, 0) + 1
+        _repo_failure_counts[repo_id] = count
 
     if count == FAILURE_ALERT_THRESHOLD:
         logger.warning(
@@ -179,7 +189,8 @@ async def _fetch_and_update_single_repo(
             update_repo_from_github(repo, github_data, db)
 
             # 成功時重置失敗計數
-            _repo_failure_counts.pop(repo_id, None)
+            with _failure_counts_lock:
+                _repo_failure_counts.pop(repo_id, None)
             log.debug(f"[排程] [{job_id}] 已抓取 {repo.full_name}")
             return True
         else:
@@ -259,16 +270,13 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
                 f"{error_count} 失敗、{skipped_count} 跳過 (近期已抓取)"
             )
             if error_count == 0:
-                _scheduler_health["last_fetch_success"] = _time.time()
-                _scheduler_health["last_fetch_error"] = None
+                _update_health(last_fetch_success=_time.time(), last_fetch_error=None)
             else:
-                _scheduler_health["last_fetch_failure"] = _time.time()
-                _scheduler_health["last_fetch_error"] = f"{error_count} repos 抓取失敗"
+                _update_health(last_fetch_failure=_time.time(), last_fetch_error=f"{error_count} repos 抓取失敗")
 
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
-            _scheduler_health["last_fetch_failure"] = _time.time()
-            _scheduler_health["last_fetch_error"] = str(e)[:200]
+            _update_health(last_fetch_failure=_time.time(), last_fetch_error=str(e)[:200])
             # 可恢復的錯誤，不中斷排程
         except KeyboardInterrupt:
             log.info(f"[排程] [{job_id}] 收到中斷信號")
@@ -296,7 +304,7 @@ def check_alerts_job() -> None:
             try:
                 triggered = check_all_alerts(db)
 
-                _scheduler_health["last_alert_check"] = _time.time()
+                _update_health(last_alert_check=_time.time())
                 if triggered:
                     log.info(f"[排程] 已觸發 {len(triggered)} 個警報")
                 else:
@@ -383,8 +391,9 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
 def backup_job() -> None:
     """資料庫備份工作（模組層級，供 APScheduler 序列化引用）。"""
     try:
-        # 取得資料庫檔案路徑（移除 sqlite:/// 前綴）
-        db_file = DATABASE_URL.replace("sqlite:///", "")
+        # 取得資料庫檔案路徑
+        from sqlalchemy.engine import make_url
+        db_file = make_url(DATABASE_URL).database or ""
 
         # 如果是記憶體資料庫或測試環境則跳過
         if db_file == ":memory:" or os.getenv("ENV") == "test":
@@ -396,7 +405,7 @@ def backup_job() -> None:
 
         if backup_path:
             logger.info(f"[排程] 資料庫備份成功: {backup_path}")
-            _scheduler_health["last_backup"] = _time.time()
+            _update_health(last_backup=_time.time())
         else:
             logger.error("[排程] 資料庫備份失敗")
 

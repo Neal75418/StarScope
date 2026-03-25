@@ -105,9 +105,10 @@ export function useWindowedBatchRepoData(
   useEffect(() => {
     if (missingIds.length === 0) return;
 
-    let cancelled = false;
-    // 在 effect 開始時捕獲 Set 引用，避免 cleanup 中的 ref 訪問警告
+    const controller = new AbortController();
     const loadingSet = loadingIdsRef.current;
+    // 記錄本次 effect 擁有的 IDs，只在 cleanup 時移除這些
+    const ownedIds = new Set(missingIds);
 
     // 標記這些 IDs 為正在載入
     missingIds.forEach((id) => loadingSet.add(id));
@@ -118,40 +119,42 @@ export function useWindowedBatchRepoData(
     const chunks = chunkArray(missingIds, MAX_BATCH_SIZE);
 
     Promise.all([
-      Promise.all(chunks.map((c) => getContextBadgesBatch(c))),
-      Promise.all(chunks.map((c) => getRepoSignalsBatch(c))),
+      Promise.all(chunks.map((c) => getContextBadgesBatch(c, controller.signal))),
+      Promise.all(chunks.map((c) => getRepoSignalsBatch(c, controller.signal))),
     ])
       .then(([badgesResults, signalsResults]) => {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           const newBadges = Object.assign({}, ...badgesResults);
           const newSignals = Object.assign({}, ...signalsResults);
 
-          // 累積合併（保留已載入的資料）
           setBadgesMap((prev) => ({ ...prev, ...newBadges }));
           setSignalsMap((prev) => ({ ...prev, ...newSignals }));
           setLoading(false);
 
           // 清除載入標記
-          missingIds.forEach((id) => loadingSet.delete(id));
+          ownedIds.forEach((id) => loadingSet.delete(id));
         }
       })
       .catch((err) => {
+        if (controller.signal.aborted) {
+          setLoading(false);
+          return;
+        }
         const errorObj = err instanceof Error ? err : new Error(String(err));
         logger.error("[useWindowedBatchRepoData] 批次資料抓取失敗:", errorObj);
+        setError(errorObj);
+        setLoading(false);
 
-        if (!cancelled) {
-          setError(errorObj);
-          setLoading(false);
-
-          // 清除載入標記（即使失敗也要清除，否則會永遠不再重試）
-          missingIds.forEach((id) => loadingSet.delete(id));
-        }
+        // 清除載入標記（即使失敗也要清除，否則永遠不再重試）
+        ownedIds.forEach((id) => loadingSet.delete(id));
       });
 
     return () => {
-      cancelled = true;
-      // cleanup 時也清除載入標記（使用捕獲的 Set 引用）
-      missingIds.forEach((id) => loadingSet.delete(id));
+      controller.abort();
+      // 只移除本次 effect 擁有且尚未被新 effect 覆蓋的 IDs
+      ownedIds.forEach((id) => {
+        if (loadingSet.has(id)) loadingSet.delete(id);
+      });
     };
     // 用 missingIdsKey（JSON 字串）代替 missingIds 陣列，避免引用變化觸發重複請求
     // eslint-disable-next-line react-hooks/exhaustive-deps

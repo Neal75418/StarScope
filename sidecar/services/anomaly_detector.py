@@ -48,28 +48,32 @@ _DEFAULT_THRESHOLDS = {
 
 
 def get_thresholds(db: "Session") -> dict:
-    """從 app_settings 讀取門檻設定，不存在則回傳預設值。"""
+    """從 app_settings 讀取門檻設定，不存在或讀取失敗則回傳預設值。"""
     from db.models import AppSettingKey
     from services.settings import get_setting
 
-    return {
-        "rising_star_min_velocity": float(
-            get_setting(AppSettingKey.SIGNAL_RISING_STAR_MIN_VELOCITY, db)
-            or _DEFAULT_THRESHOLDS["rising_star_min_velocity"]
-        ),
-        "sudden_spike_multiplier": float(
-            get_setting(AppSettingKey.SIGNAL_SUDDEN_SPIKE_MULTIPLIER, db)
-            or _DEFAULT_THRESHOLDS["sudden_spike_multiplier"]
-        ),
-        "breakout_velocity_threshold": float(
-            get_setting(AppSettingKey.SIGNAL_BREAKOUT_VELOCITY_THRESHOLD, db)
-            or _DEFAULT_THRESHOLDS["breakout_velocity_threshold"]
-        ),
-        "viral_hn_min_score": int(
-            get_setting(AppSettingKey.SIGNAL_VIRAL_HN_MIN_SCORE, db)
-            or _DEFAULT_THRESHOLDS["viral_hn_min_score"]
-        ),
-    }
+    try:
+        return {
+            "rising_star_min_velocity": float(
+                get_setting(AppSettingKey.SIGNAL_RISING_STAR_MIN_VELOCITY, db)
+                or _DEFAULT_THRESHOLDS["rising_star_min_velocity"]
+            ),
+            "sudden_spike_multiplier": float(
+                get_setting(AppSettingKey.SIGNAL_SUDDEN_SPIKE_MULTIPLIER, db)
+                or _DEFAULT_THRESHOLDS["sudden_spike_multiplier"]
+            ),
+            "breakout_velocity_threshold": float(
+                get_setting(AppSettingKey.SIGNAL_BREAKOUT_VELOCITY_THRESHOLD, db)
+                or _DEFAULT_THRESHOLDS["breakout_velocity_threshold"]
+            ),
+            "viral_hn_min_score": int(
+                get_setting(AppSettingKey.SIGNAL_VIRAL_HN_MIN_SCORE, db)
+                or _DEFAULT_THRESHOLDS["viral_hn_min_score"]
+            ),
+        }
+    except Exception as e:
+        logger.warning(f"[偵測門檻] 讀取失敗，使用預設值: {e}")
+        return dict(_DEFAULT_THRESHOLDS)
 
 
 def save_thresholds(updates: dict, db: "Session") -> None:

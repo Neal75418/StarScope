@@ -2,7 +2,7 @@
  * 警報規則的 CRUD 與檢查操作。
  */
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   createAlertRule,
@@ -72,9 +72,12 @@ export function useAlertRuleOperations({
     [execute, loadRules, t]
   );
 
+  const rulesRef = useRef(rules);
+  rulesRef.current = rules;
+
   const handleToggle = useCallback(
     async (id: number) => {
-      const rule = rules.find((r) => r.id === id);
+      const rule = rulesRef.current.find((r) => r.id === id);
       if (!rule) return;
 
       const newEnabled = !rule.enabled;
@@ -90,7 +93,7 @@ export function useAlertRuleOperations({
         toast.error(getErrorMessage(err, t.common.error));
       }
     },
-    [rules, setRules, toast, t]
+    [setRules, toast, t]
   );
 
   const handleCheckNow = useCallback(async () => {

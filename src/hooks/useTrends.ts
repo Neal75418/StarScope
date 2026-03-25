@@ -43,7 +43,7 @@ export function useTrends(options?: UseTrendsOptions) {
         language: languageFilter || undefined,
         minStars: minStarsFilter ?? undefined,
       }),
-    refetchInterval: options?.refetchInterval || false,
+    refetchInterval: options?.refetchInterval ?? false,
   });
 
   const trends = data?.repos ?? EMPTY_TRENDS;

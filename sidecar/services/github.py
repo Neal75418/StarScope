@@ -411,9 +411,11 @@ def get_github_service() -> GitHubService:
 async def close_github_service() -> None:
     """關閉預設 GitHub service 的 HTTP client（用於應用程式關閉時）。"""
     global _default_service
-    if _default_service:
-        await _default_service.aclose()
+    with _service_lock:
+        service = _default_service
         _default_service = None
+    if service:
+        await service.aclose()
 
 
 def reset_github_service() -> None:

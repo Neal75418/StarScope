@@ -268,13 +268,15 @@ export async function getContextBadges(repoId: number): Promise<ContextBadgesRes
  * 批次取得多個儲存庫的 context badge。
  */
 export async function getContextBadgesBatch(
-  repoIds: number[]
+  repoIds: number[],
+  signal?: AbortSignal
 ): Promise<Record<string, ContextBadgesResponse>> {
   const res = await apiCall<{ results: Record<string, ContextBadgesResponse> }>(
     "/context/badges/batch",
     {
       method: "POST",
       body: JSON.stringify({ repo_ids: repoIds }),
+      signal,
     }
   );
   return res.results;
@@ -493,13 +495,15 @@ export async function getRepoSignals(
  * 批次取得多個儲存庫的早期信號。
  */
 export async function getRepoSignalsBatch(
-  repoIds: number[]
+  repoIds: number[],
+  signal?: AbortSignal
 ): Promise<Record<string, EarlySignalListResponse>> {
   const res = await apiCall<{ results: Record<string, EarlySignalListResponse> }>(
     "/early-signals/batch",
     {
       method: "POST",
       body: JSON.stringify({ repo_ids: repoIds }),
+      signal,
     }
   );
   return res.results;

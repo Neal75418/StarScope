@@ -93,21 +93,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _get_client_ip(request: Request) -> str:
-        """從 request 提取 client IP，處理 proxy 情況。"""
-        # 檢查轉發 header（來自 reverse proxy）
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-
-        # 檢查 real IP header
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-
-        # 回退至直接 client
+        """從 request 提取 client IP（本機 sidecar 直接使用 client.host）。"""
         if request.client:
             return request.client.host
-
         return "unknown"
 
     def _log_request(

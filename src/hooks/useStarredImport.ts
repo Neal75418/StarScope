@@ -97,7 +97,9 @@ export function useStarredImport() {
     setResult(null);
     setImportError(null);
     setIsImporting(false);
-  }, []);
+    // 清除快取，避免重新開啟時閃現舊資料
+    queryClient.removeQueries({ queryKey: queryKeys.repos.starred() });
+  }, [queryClient]);
 
   return {
     starredRepos,

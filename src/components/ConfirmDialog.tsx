@@ -53,7 +53,8 @@ export function ConfirmDialog({
     <div
       className="dialog-overlay"
       onClick={isProcessing ? undefined : onCancel}
-      role="presentation"
+      role="none"
+      tabIndex={-1}
     >
       <div
         ref={focusTrapRef}
