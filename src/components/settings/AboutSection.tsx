@@ -7,7 +7,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.4.1";
 const GITHUB_URL = "https://github.com/Neal75418/StarScope";
 const LICENSE_URL = "https://opensource.org/licenses/MIT";
 
