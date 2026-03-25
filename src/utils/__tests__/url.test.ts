@@ -72,6 +72,32 @@ describe("isSafeUrl", () => {
     expect(isSafeUrl("http://[::ffff:127.0.0.1]:8008/api")).toBe(false);
   });
 
+  // ==================== 封鎖的 IPv6 私有位址 ====================
+
+  it("rejects IPv6 link-local [fe80::1]", () => {
+    expect(isSafeUrl("http://[fe80::1]/api")).toBe(false);
+  });
+
+  it("rejects IPv6 unique local [fc00::1]", () => {
+    expect(isSafeUrl("http://[fc00::1]:8080")).toBe(false);
+  });
+
+  it("rejects IPv6 unique local [fd12:3456::1]", () => {
+    expect(isSafeUrl("http://[fd12:3456::1]/path")).toBe(false);
+  });
+
+  it("rejects IPv4-mapped private [::ffff:10.0.0.1]", () => {
+    expect(isSafeUrl("http://[::ffff:10.0.0.1]:3000")).toBe(false);
+  });
+
+  it("rejects IPv4-mapped private [::ffff:192.168.1.1]", () => {
+    expect(isSafeUrl("http://[::ffff:192.168.1.1]")).toBe(false);
+  });
+
+  it("rejects IPv4-mapped private [::ffff:10.128.0.1] (full /8 range)", () => {
+    expect(isSafeUrl("http://[::ffff:10.128.0.1]")).toBe(false);
+  });
+
   // ==================== 無效 URL ====================
 
   it("rejects empty string", () => {

@@ -211,6 +211,64 @@ describe("useCategoryTree", () => {
     expect(success).toBe(false);
   });
 
+  it("create returns true even when post-mutation reload fails", async () => {
+    vi.mocked(apiClient.getCategoryTree)
+      .mockResolvedValueOnce({ tree: mockTree, total: 1 }) // initial load
+      .mockRejectedValueOnce(new Error("Reload failed")); // post-mutation reload
+    vi.mocked(apiClient.createCategory).mockResolvedValue({
+      id: 2,
+      name: "Backend",
+      description: null,
+      icon: null,
+      color: null,
+      parent_id: null,
+      sort_order: 1,
+      created_at: "2024-01-01",
+      repo_count: 0,
+    });
+
+    const { result } = renderHook(() => useCategoryTree());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.handleCreateCategory("Backend");
+    });
+
+    expect(success).toBe(true);
+    expect(apiClient.createCategory).toHaveBeenCalled();
+  });
+
+  it("stale response from earlier fetch is discarded", async () => {
+    let resolveFirst: (v: { tree: typeof mockTree; total: number }) => void;
+    const firstPromise = new Promise<{ tree: typeof mockTree; total: number }>((r) => {
+      resolveFirst = r;
+    });
+
+    const secondTree: apiClient.CategoryTreeNode[] = [{ ...mockTree[0], name: "Updated" }];
+
+    vi.mocked(apiClient.getCategoryTree)
+      .mockReturnValueOnce(firstPromise) // slow initial
+      .mockResolvedValueOnce({ tree: secondTree, total: 1 }); // fast second
+
+    const { result } = renderHook(() => useCategoryTree());
+
+    // Trigger second fetch while first is still pending
+    await act(async () => {
+      void result.current.fetchCategories();
+    });
+
+    // Now resolve the first (stale) response
+    await act(async () => {
+      resolveFirst!({ tree: mockTree, total: 1 });
+    });
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // Should have the second (newer) tree, not the first
+    expect(result.current.tree[0].name).toBe("Updated");
+  });
+
   it("fetchCategories triggers a re-fetch", async () => {
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
 

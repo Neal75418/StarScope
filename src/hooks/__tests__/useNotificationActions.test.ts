@@ -212,6 +212,60 @@ describe("useNotificationActions", () => {
     expect(mockStorage.removeIdFromRead).toHaveBeenCalledWith("notif-1");
   });
 
+  it("clearNotification restores notification to list on alert ack failure", async () => {
+    vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(new Error("Server error"));
+    const notification = makeNotification({
+      type: "alert",
+      metadata: { alertId: 42 },
+      read: false,
+    });
+    const notifications = [notification];
+    const { result } = renderHook(() =>
+      useNotificationActions(notifications, mockSetNotifications, mockStorage)
+    );
+
+    await act(async () => {
+      await result.current.clearNotification("notif-1");
+    });
+
+    // setNotifications should be called at least twice: optimistic removal + restore
+    expect(mockSetNotifications.mock.calls.length).toBeGreaterThanOrEqual(2);
+
+    // Verify the restore updater re-adds the notification
+    const restoreUpdater = mockSetNotifications.mock.calls[
+      mockSetNotifications.mock.calls.length - 1
+    ][0] as (prev: Notification[]) => Notification[];
+    const restored = restoreUpdater([]); // empty list = not yet re-added by poll
+    expect(restored).toHaveLength(1);
+    expect(restored[0].id).toBe("notif-1");
+    expect(restored[0].read).toBe(false);
+  });
+
+  it("clearNotification restore is idempotent if poll already re-added", async () => {
+    vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(new Error("Server error"));
+    const notification = makeNotification({
+      type: "alert",
+      metadata: { alertId: 42 },
+      read: false,
+    });
+    const notifications = [notification];
+    const { result } = renderHook(() =>
+      useNotificationActions(notifications, mockSetNotifications, mockStorage)
+    );
+
+    await act(async () => {
+      await result.current.clearNotification("notif-1");
+    });
+
+    // Verify restore doesn't duplicate if notification already present
+    const restoreUpdater = mockSetNotifications.mock.calls[
+      mockSetNotifications.mock.calls.length - 1
+    ][0] as (prev: Notification[]) => Notification[];
+    const alreadyPresent = [notification];
+    const result2 = restoreUpdater(alreadyPresent);
+    expect(result2).toHaveLength(1); // no duplicate
+  });
+
   it("clearNotification does not roll back storage for non-alert notifications", async () => {
     const notifications = [makeNotification({ type: "system", metadata: undefined })];
     const { result } = renderHook(() =>

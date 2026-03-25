@@ -124,6 +124,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "x-github-token",
                 "x-token",
                 "x-auth-token",
+                "x-session-secret",
                 "api-key",
                 "apikey",
                 "bearer",

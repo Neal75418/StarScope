@@ -129,14 +129,21 @@ export function useNotificationActions(
       markIdAsRead(notificationId);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
 
-      // 警報類型：嘗試 server ack。失敗時還原（使用者明確清除但 server 仍持有該警報）
+      // 警報類型：嘗試 server ack。失敗時還原通知到列表中
       if (alertId != null) {
         try {
           await acknowledgeTriggeredAlert(alertId);
         } catch (err) {
           logger.warn(`[NotificationActions] 清除通知時警報確認失敗 (alertId: ${alertId}):`, err);
-          // 還原：從 localStorage 移除已讀標記，讓下次輪詢能重新顯示
+          // 還原：移除已讀標記 + 將通知加回列表
           removeIdFromRead(notificationId);
+          if (notification) {
+            setNotifications((prev) => {
+              // 避免重複（輪詢可能已加回）
+              if (prev.some((n) => n.id === notificationId)) return prev;
+              return [...prev, { ...notification, read: false }];
+            });
+          }
         }
       }
     },
