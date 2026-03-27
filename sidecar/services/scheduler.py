@@ -18,7 +18,7 @@ from datetime import timedelta
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
-from sqlalchemy import create_engine, func, select as sa_select
+from sqlalchemy import create_engine, event, func, select as sa_select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Query, Session
 
@@ -101,6 +101,13 @@ def get_scheduler() -> AsyncIOScheduler:
                     DATABASE_URL,
                     connect_args={"check_same_thread": False, "timeout": 30},
                 )
+                # 與主 engine 相同的 SQLite pragma，避免 journal mode 不一致導致鎖衝突
+                @event.listens_for(jobstore_engine, "connect")
+                def _set_jobstore_pragma(dbapi_conn, _conn_record):
+                    cursor = dbapi_conn.cursor()
+                    cursor.execute("PRAGMA journal_mode=WAL")
+                    cursor.execute("PRAGMA foreign_keys=ON")
+                    cursor.close()
                 jobstores = {
                     "default": SQLAlchemyJobStore(engine=jobstore_engine),
                 }

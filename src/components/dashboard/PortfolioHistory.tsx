@@ -55,7 +55,7 @@ function PortfolioTooltip({ active, label, payload }: TooltipPayload) {
 // 格式化 X 軸日期，只顯示 M/D
 function formatXDate(dateStr: string): string {
   const d = new Date(dateStr);
-  return `${d.getMonth() + 1}/${d.getDate()}`;
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 }
 
 // 格式化 Y 軸大數字

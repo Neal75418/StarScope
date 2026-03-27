@@ -184,13 +184,12 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
                     db, rule, repo, signal_lookup, in_cooldown
                 )
                 if triggered:
+                    db.commit()  # 立即 commit，避免後續 rollback 連鎖失效
+                    in_cooldown.add((rule.id, repo.id))  # 同步更新冷卻狀態
                     triggered_alerts.append(triggered)
         except SQLAlchemyError as e:
-            db.rollback()  # 回滾此規則的 flush，避免 commit 時提交部分失敗的 alerts
+            db.rollback()
             logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
-
-    if triggered_alerts:
-        db.commit()
 
     return triggered_alerts
 
