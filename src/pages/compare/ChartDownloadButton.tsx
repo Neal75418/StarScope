@@ -57,11 +57,14 @@ export function ChartDownloadButton({ chartRef }: ChartDownloadButtonProps) {
           return;
         }
         const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = "comparison-chart.png";
-        a.click();
-        URL.revokeObjectURL(blobUrl);
+        try {
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = "comparison-chart.png";
+          a.click();
+        } finally {
+          URL.revokeObjectURL(blobUrl);
+        }
       }, "image/png");
     };
     img.onerror = () => {

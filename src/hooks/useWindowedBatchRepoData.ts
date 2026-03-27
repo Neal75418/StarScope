@@ -136,10 +136,7 @@ export function useWindowedBatchRepoData(
         }
       })
       .catch((err) => {
-        if (controller.signal.aborted) {
-          setLoading(false);
-          return;
-        }
+        if (controller.signal.aborted) return; // 不動 loading — 可能有其他 batch 仍在執行
         const errorObj = err instanceof Error ? err : new Error(String(err));
         logger.error("[useWindowedBatchRepoData] 批次資料抓取失敗:", errorObj);
         setError(errorObj);

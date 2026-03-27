@@ -76,16 +76,29 @@ def _check_github_errors(
         return False
 
     if response.status_code == 403:
-        remaining = response.headers.get("X-RateLimit-Remaining", "unknown")
+        remaining = response.headers.get("X-RateLimit-Remaining", "")
+        retry_after = response.headers.get("Retry-After")
         reset_at_raw = response.headers.get("X-RateLimit-Reset")
         reset_at = int(reset_at_raw) if reset_at_raw else None
+
+        # 主要速率限制（remaining == 0）或次要速率限制（有 Retry-After header）
+        if remaining == "0" or retry_after:
+            if raise_on_error:
+                raise GitHubRateLimitError(
+                    f"GitHub API rate limit exceeded (remaining: {remaining})",
+                    status_code=403,
+                    reset_at=reset_at,
+                )
+            logger.warning(f"[GitHub API] 速率限制: {context}")
+            return False
+
+        # 其他 403（blocked repo、權限不足等）
         if raise_on_error:
-            raise GitHubRateLimitError(
-                f"GitHub API rate limit exceeded (remaining: {remaining})",
+            raise GitHubAPIError(
+                f"GitHub API forbidden (remaining: {remaining})",
                 status_code=403,
-                reset_at=reset_at,
             )
-        logger.warning(f"[GitHub API] 速率限制或禁止存取: {context}")
+        logger.warning(f"[GitHub API] 禁止存取 (非速率限制): {context}")
         return False
 
     if response.status_code == 401:

@@ -80,7 +80,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # 關閉：先停止排程器（等待 in-flight jobs 完成）
-    stop_scheduler()
+    await stop_scheduler()
     # 取消啟動任務並等待完成（消化所有可能的例外）
     if not startup_task.done():
         startup_task.cancel()

@@ -289,7 +289,7 @@ export async function getContextSignals(
   repoId: number,
   signalType?: string
 ): Promise<ContextSignalsResponse> {
-  const params = signalType ? `?signal_type=${signalType}` : "";
+  const params = signalType ? `?signal_type=${encodeURIComponent(signalType)}` : "";
   return apiCall<ContextSignalsResponse>(`/context/${repoId}/signals${params}`);
 }
 

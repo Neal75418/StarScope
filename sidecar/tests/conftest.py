@@ -5,7 +5,7 @@ Pytest fixtures for StarScope tests.
 import os
 import sys
 from typing import Generator
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from constants import SignalType
@@ -68,13 +68,12 @@ def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
     # from interfering with the test session's SQLite connection.
     # Also patch SessionLocal so services like settings.py use test DB.
     with patch("services.scheduler.start_scheduler") as mock_start, \
-         patch("services.scheduler.stop_scheduler") as mock_stop, \
+         patch("services.scheduler.stop_scheduler", new_callable=AsyncMock) as mock_stop, \
          patch("services.scheduler.trigger_fetch_now", return_value=None), \
          patch("main.init_db"), \
          patch("db.database.SessionLocal", test_session_local), \
          patch("services.settings.SessionLocal", test_session_local):
         mock_start.return_value = None
-        mock_stop.return_value = None
 
         # Import app after patching to ensure patches take effect
         from main import app

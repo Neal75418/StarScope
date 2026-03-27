@@ -2,6 +2,7 @@
 追蹤清單 API 端點，管理 GitHub repo。
 """
 
+import json
 import logging
 import re
 from datetime import datetime
@@ -90,6 +91,7 @@ def _create_repo_from_github(owner: str, name: str, github_data: dict) -> Repo:
         github_id=github_data.get("id"),
         default_branch=github_data.get("default_branch"),
         language=github_data.get("language"),
+        topics=json.dumps(github_data.get("topics", [])) if github_data.get("topics") else None,
         created_at=datetime.fromisoformat(github_data["created_at"].replace("Z", "+00:00")) if github_data.get("created_at") else None,
     )
 

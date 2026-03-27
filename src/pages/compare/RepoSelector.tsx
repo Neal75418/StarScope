@@ -72,8 +72,8 @@ export const RepoSelector = memo(
               <button
                 key={repo.id}
                 className={`compare-repo-chip ${isSelected ? "selected" : ""}${isDisabled ? " disabled" : ""}`}
-                onClick={() => !isDisabled && onToggle(repo.id)}
-                aria-disabled={isDisabled || undefined}
+                onClick={() => onToggle(repo.id)}
+                disabled={isDisabled}
                 title={repo.full_name}
               >
                 {repo.full_name}

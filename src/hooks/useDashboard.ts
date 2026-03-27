@@ -160,10 +160,9 @@ export function useDashboard() {
       });
     }
 
-    return sources
-      .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-      .slice(0, 10)
-      .map((s) => s.build());
+    const withTime = sources.map((s) => ({ ...s, time: new Date(s.ts).getTime() }));
+    withTime.sort((a, b) => b.time - a.time);
+    return withTime.slice(0, 10).map((s) => s.build());
   }, [repos, alerts, earlySignals, t]);
 
   // 計算 velocity 分佈供圖表使用

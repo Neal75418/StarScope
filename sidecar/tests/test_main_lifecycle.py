@@ -12,7 +12,7 @@ def mock_lifecycle():
     with (
         patch("main.init_db") as init_db,
         patch("main.start_scheduler") as start_sched,
-        patch("main.stop_scheduler") as stop_sched,
+        patch("main.stop_scheduler", new_callable=AsyncMock) as stop_sched,
         patch("main.close_github_service", new_callable=AsyncMock) as close_gh,
         patch("main.trigger_fetch_now", new_callable=AsyncMock) as trigger,
     ):
@@ -33,7 +33,9 @@ class TestShutdownOrder:
     async def test_scheduler_stops_before_client_closes(self, mock_lifecycle):
         """排程器應在 HTTP client 之前停止。"""
         call_order: list[str] = []
-        mock_lifecycle["stop_scheduler"].side_effect = lambda: call_order.append("stop_scheduler")
+        async def track_stop():
+            call_order.append("stop_scheduler")
+        mock_lifecycle["stop_scheduler"].side_effect = track_stop
 
         async def track_close():
             call_order.append("close_github")

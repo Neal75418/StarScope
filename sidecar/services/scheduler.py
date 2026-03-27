@@ -255,8 +255,10 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
             success_count = 0
             error_count = 0
 
-            # 使用 yield_per 分批處理，避免大型監控清單一次佔用過多記憶體
-            for repo in need_fetch_query.yield_per(SCHEDULER_BATCH_SIZE):
+            # 先載入完整清單再迭代，避免 yield_per streaming cursor 在
+            # 單一 repo rollback 後失效導致後續 repo 全被跳過
+            repos_to_fetch = need_fetch_query.all()
+            for repo in repos_to_fetch:
                 if await _fetch_and_update_single_repo(repo, db, log, job_id):
                     success_count += 1
                 else:
@@ -517,18 +519,19 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     )
 
 
-def stop_scheduler() -> None:
+async def stop_scheduler() -> None:
     """停止背景排程器（最多等待指定秒數讓進行中的任務完成）。"""
     scheduler = get_scheduler()
 
     if scheduler.running:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(scheduler.shutdown, wait=True)
-            try:
-                future.result(timeout=SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS)
-            except concurrent.futures.TimeoutError:
-                logger.warning("[排程] 排程器停止超時，強制關閉")
-                scheduler.shutdown(wait=False)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(scheduler.shutdown, wait=True),
+                timeout=SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("[排程] 排程器停止超時，強制關閉")
+            scheduler.shutdown(wait=False)
         logger.info("[排程] 排程器已停止")
 
 

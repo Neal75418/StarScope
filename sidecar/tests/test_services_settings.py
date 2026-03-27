@@ -99,7 +99,7 @@ class TestSetSetting:
             with pytest.raises(Exception, match="Commit failed"):
                 set_setting("key", "value")
 
-            mock_db.rollback.assert_called_once()
+            mock_db.rollback.assert_called()  # 函式 + _ensure_db 各呼叫一次
             mock_db.close.assert_called_once()
 
 
@@ -151,7 +151,7 @@ class TestDeleteSetting:
             with pytest.raises(Exception, match="Delete failed"):
                 delete_setting("key")
 
-            mock_db.rollback.assert_called_once()
+            mock_db.rollback.assert_called()  # 函式 + _ensure_db 各呼叫一次
             mock_db.close.assert_called_once()
 
 

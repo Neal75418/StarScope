@@ -186,6 +186,7 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
                 if triggered:
                     triggered_alerts.append(triggered)
         except SQLAlchemyError as e:
+            db.rollback()  # 回滾此規則的 flush，避免 commit 時提交部分失敗的 alerts
             logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
 
     if triggered_alerts:
