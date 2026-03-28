@@ -32,7 +32,6 @@ export const SignalSpotlight = memo(function SignalSpotlight({
       sudden_spike: t.dashboard.signals.types.suddenSpike,
       breakout: t.dashboard.signals.types.breakout,
       viral_hn: t.dashboard.signals.types.viralHn,
-      release_surge: t.dashboard.signals.types.releaseSurge,
     }),
     [t]
   );

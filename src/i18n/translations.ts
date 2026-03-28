@@ -50,7 +50,6 @@ export const translations = {
           suddenSpike: "Sudden Spike",
           breakout: "Breakout",
           viralHn: "Viral on HN",
-          releaseSurge: "Release Surge",
         },
       },
       weekly: {
@@ -366,7 +365,6 @@ export const translations = {
           sudden_spike: "Spike",
           rising_star: "Rising",
           viral_hn: "HN Viral",
-          release_surge: "Release",
         },
       },
       autoRefresh: {
@@ -919,7 +917,6 @@ export const translations = {
           suddenSpike: "突然飆升",
           breakout: "爆發突破",
           viralHn: "HN 熱門",
-          releaseSurge: "版本釋出潮",
         },
       },
       weekly: {
@@ -1234,7 +1231,6 @@ export const translations = {
           sudden_spike: "飆升",
           rising_star: "新星",
           viral_hn: "HN 熱門",
-          release_surge: "版本潮",
         },
       },
       autoRefresh: {

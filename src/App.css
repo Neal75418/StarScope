@@ -1986,11 +1986,6 @@ body {
   color: var(--accent-fg);
 }
 
-.breakout-badge-release_surge {
-  background-color: var(--accent-subtle);
-  color: var(--accent-fg);
-}
-
 .breakout-badge-more {
   background-color: var(--bg-muted);
   color: var(--fg-muted);

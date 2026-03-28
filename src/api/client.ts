@@ -10,6 +10,7 @@ import {
   RETRY_DELAY_MS,
   API_ERROR_MESSAGES,
 } from "../constants/api";
+import { RATE_LIMITED_EVENT } from "../constants/events";
 import { ApiError } from "./types";
 import { getSessionSecret } from "./sessionSecret";
 import type {
@@ -180,7 +181,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
   // 429 重試耗盡時廣播 rate-limited 事件（供 AppStatus 消費）
   if (lastError?.status === 429) {
-    window.dispatchEvent(new CustomEvent("starscope:rate-limited"));
+    window.dispatchEvent(new CustomEvent(RATE_LIMITED_EVENT));
   }
   throw lastError ?? new ApiError(0, API_ERROR_MESSAGES.RETRIES_EXHAUSTED);
 }

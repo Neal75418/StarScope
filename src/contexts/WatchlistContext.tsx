@@ -316,6 +316,23 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     [t, showToastFn, invalidateRepos, qc]
   );
 
+  // 監聽 Tauri tray「Refresh All」事件
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    import("@tauri-apps/api/event")
+      .then(({ listen }) => {
+        listen<void>("refresh-all", () => {
+          void actions.refreshAll();
+        }).then((fn) => {
+          unlisten = fn;
+        });
+      })
+      .catch(() => {
+        // 非 Tauri 環境（開發模式 / 測試），忽略
+      });
+    return () => unlisten?.();
+  }, [actions]);
+
   return (
     <WatchlistStateContext.Provider value={state}>
       <WatchlistActionsContext.Provider value={actions}>

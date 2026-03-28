@@ -30,7 +30,6 @@ const SIGNAL_TYPE_KEY_MAP: Record<string, string> = {
   sudden_spike: "suddenSpike",
   breakout: "breakout",
   viral_hn: "viralHn",
-  release_surge: "releaseSurge",
 };
 
 /** 從 signal_type 取得翻譯名稱（用於通知、活動、週報）。 */

@@ -4,3 +4,4 @@
  */
 
 export const DATA_RESET_EVENT = "starscope:data-reset";
+export const RATE_LIMITED_EVENT = "starscope:rate-limited";

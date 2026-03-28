@@ -9,6 +9,7 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useQuery } from "@tanstack/react-query";
 import { checkHealth } from "../api/client";
 import { queryKeys } from "../lib/react-query";
+import { RATE_LIMITED_EVENT } from "../constants/events";
 
 /** 應用降級狀態。 */
 export type DegradationLevel = "online" | "offline" | "sidecar-down" | "rate-limited";
@@ -63,9 +64,9 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
         RATE_LIMIT_BANNER_DURATION_MS
       );
     };
-    window.addEventListener("starscope:rate-limited", handler);
+    window.addEventListener(RATE_LIMITED_EVENT, handler);
     return () => {
-      window.removeEventListener("starscope:rate-limited", handler);
+      window.removeEventListener(RATE_LIMITED_EVENT, handler);
       clearTimeout(rateLimitTimerRef.current);
     };
   }, []);

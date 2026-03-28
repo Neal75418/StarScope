@@ -4,7 +4,6 @@
 提供 SQLite 資料庫的自動備份功能，包括：
 - 定期備份
 - 保留策略（保留最近 N 天）
-- 備份壓縮
 """
 
 from datetime import datetime, timedelta, timezone

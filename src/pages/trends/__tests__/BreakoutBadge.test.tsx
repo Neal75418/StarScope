@@ -14,7 +14,6 @@ vi.mock("../../../i18n", () => ({
             sudden_spike: "Spike",
             rising_star: "Rising",
             viral_hn: "HN Viral",
-            release_surge: "Release",
           },
         },
       },
@@ -152,7 +151,6 @@ describe("BreakoutBadge", () => {
       { type: "sudden_spike", label: "Spike" },
       { type: "rising_star", label: "Rising" },
       { type: "viral_hn", label: "HN Viral" },
-      { type: "release_surge", label: "Release" },
     ];
 
     for (const { type, label } of types) {

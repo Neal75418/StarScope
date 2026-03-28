@@ -15,7 +15,6 @@ const SIGNAL_TYPE_CONFIG: Record<EarlySignalType, SignalTypeDisplay> = {
   sudden_spike: { icon: "\u26A1", className: "signal-sudden-spike" },
   breakout: { icon: "\u{1F680}", className: "signal-breakout" },
   viral_hn: { icon: "\u{1F536}", className: "signal-viral-hn" },
-  release_surge: { icon: "\u{1F4E6}", className: "signal-release-surge" },
 };
 
 const SIGNAL_TYPE_FALLBACK: SignalTypeDisplay = {
