@@ -6,7 +6,7 @@
 from enum import StrEnum
 
 # 應用程式版本
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.4.3"
 
 # 排程器設定
 DEFAULT_FETCH_INTERVAL_MINUTES = 30
