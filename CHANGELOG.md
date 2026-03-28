@@ -7,7 +7,7 @@
 
 ---
 
-## [Unreleased]
+## [0.4.2] — 2026-03-28
 
 ### 修復
 
@@ -16,11 +16,16 @@
 - **正確性** — formatChartDate/formatXDate/WeeklySummary 統一 UTC 日期方法、get_thresholds 異常 fallback、stop_scheduler async 防 deadlock、threshold 原子更新、repos 新增時填入 topics
 - **功能補全** — Tray "Refresh All" 接入前端、import round-trip 支援 StarScope 自身匯出格式、alert rules 暴露全部 9 個 signal types
 - **死碼清理** — 移除 release_surge 前端 stub、ApiError 未用 getter、types.generated.ts、空 react-vendor chunk
+- **開發體驗** — 非 Tauri 環境靜默 OS Notification / Tray event 錯誤，console 從 6 errors → 0
 
 ### 測試
 
 - **E2E 擴展** — 新增 5 個 spec（Dashboard、Compare、Categories、Alerts、Import/Export），E2E 從 6→11 specs / 24→44 tests
 - **單元測試** — 新增 import round-trip、IPv6、cooldown、stale response 等 15+ 測試案例
+
+### 效能
+
+- **CI 加速** — Playwright browser cache，E2E job 從 2m35s → 2m15s
 
 ---
 

@@ -2,7 +2,7 @@
   "name": "starscope",
   "description": "GitHub project intelligence desktop app — analyze star velocity, not just star count",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "type": "module",
   "license": "MIT",
   "author": "Neal Chen",
