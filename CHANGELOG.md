@@ -7,6 +7,25 @@
 
 ---
 
+## [0.4.3] — 2026-03-28
+
+### 效能
+
+- **移除 framer-motion** — 以 CSS @keyframes 替代，JS bundle 減少 44 KB gzip（-13%），總 gzip 350→306 KB
+
+### 修復
+
+- **安全**：npm audit fix 修復 yaml stack overflow + picomatch ReDoS 漏洞（0 vulnerabilities）
+- **UX**：Dashboard 空狀態隱藏無意義的速度分佈空圖表
+- **UX**：Watchlist 空狀態 disable 重新整理/重算按鈕、隱藏摘要面板
+
+### 清理
+
+- 移除死碼：未使用的 imports/functions/translations/CSS（-121 行）
+- 合併 DB migrations 為單一 initial schema（移除 7 張空表）
+
+---
+
 ## [0.4.2] — 2026-03-28
 
 ### 修復
