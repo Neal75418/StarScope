@@ -54,7 +54,7 @@ class TestSignalTypes:
         assert resp["success"] is True
         data = resp["data"]
         assert isinstance(data, list)
-        assert len(data) == 5
+        assert len(data) == 9
 
         type_values = [item["type"] for item in data]
         assert "stars_delta_7d" in type_values
@@ -62,6 +62,10 @@ class TestSignalTypes:
         assert "velocity" in type_values
         assert "acceleration" in type_values
         assert "trend" in type_values
+        assert "forks_delta_7d" in type_values
+        assert "forks_delta_30d" in type_values
+        assert "issues_delta_7d" in type_values
+        assert "issues_delta_30d" in type_values
 
         # Verify each item has required fields
         for item in data:

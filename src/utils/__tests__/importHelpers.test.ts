@@ -106,6 +106,23 @@ describe("importHelpers", () => {
       expect(result[0].fullName).toBe("facebook/react");
     });
 
+    it("skips StarScope export header (full_name,...)", () => {
+      const csv =
+        "full_name,owner,name,url,language\ntorvalds/linux,torvalds,linux,https://github.com/torvalds/linux,C";
+      const result = parseCSV(csv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].fullName).toBe("torvalds/linux");
+    });
+
+    it("parses multi-column CSV where first column is full_name", () => {
+      const csv = "facebook/react,facebook,react,https://github.com/facebook/react,JavaScript";
+      const result = parseCSV(csv);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].fullName).toBe("facebook/react");
+    });
+
     it("handles quoted values", () => {
       const csv = '"facebook","react"';
       const result = parseCSV(csv);
@@ -180,6 +197,22 @@ describe("importHelpers", () => {
       const result = parseJSON(json);
 
       expect(result).toHaveLength(1);
+    });
+
+    it("handles StarScope export wrapper { repos: [...] }", () => {
+      const json = JSON.stringify({
+        exported_at: "2026-03-28T00:00:00Z",
+        total: 2,
+        repos: [
+          { owner: "facebook", name: "react", full_name: "facebook/react" },
+          { owner: "vuejs", name: "vue", full_name: "vuejs/vue" },
+        ],
+      });
+      const result = parseJSON(json);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].fullName).toBe("facebook/react");
+      expect(result[1].fullName).toBe("vuejs/vue");
     });
   });
 

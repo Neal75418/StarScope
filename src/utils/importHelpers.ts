@@ -80,8 +80,12 @@ export function parseCSV(content: string): ParsedRepo[] {
   const repos: ParsedRepo[] = [];
 
   for (const line of lines) {
-    // 跳過看起來像標題的列
-    if (line.toLowerCase().includes("owner") && line.toLowerCase().includes("repo")) {
+    // 跳過看起來像標題的列（相容 StarScope export 的 full_name 欄位）
+    const lower = line.toLowerCase();
+    if (
+      (lower.includes("owner") && (lower.includes("repo") || lower.includes("name"))) ||
+      lower.startsWith("full_name")
+    ) {
       continue;
     }
 
@@ -96,6 +100,9 @@ export function parseCSV(content: string): ParsedRepo[] {
       const name = parts[1];
       if (isValidGitHubIdentifier(owner) && isValidGitHubIdentifier(name)) {
         parsed = { owner, name };
+      } else {
+        // 多欄格式：第一欄可能是 full_name (owner/repo) 或 URL
+        parsed = parseRepoString(parts[0]);
       }
     } else if (parts.length === 1) {
       // 單欄格式：owner/repo 或 URL
@@ -149,8 +156,17 @@ export function parseJSON(content: string): ParsedRepo[] {
     const data: unknown = JSON.parse(content);
     const repos: ParsedRepo[] = [];
 
+    // StarScope export wrapper: { repos: [...] }
+    const unwrapped =
+      !Array.isArray(data) &&
+      typeof data === "object" &&
+      data !== null &&
+      Array.isArray((data as Record<string, unknown>).repos)
+        ? (data as Record<string, unknown>).repos
+        : data;
+
     // 處理字串陣列或物件陣列
-    const items = Array.isArray(data) ? data : [data];
+    const items = Array.isArray(unwrapped) ? unwrapped : [unwrapped];
 
     for (const item of items) {
       const parsed = parseRepoItem(item);

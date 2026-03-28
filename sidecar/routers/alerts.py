@@ -184,6 +184,26 @@ async def list_signal_types() -> dict:
             name="Trend",
             description="Overall trend direction (-1=down, 0=stable, 1=up)"
         ),
+        SignalTypeInfo(
+            type=SignalType.FORKS_DELTA_7D,
+            name="7-Day Fork Delta",
+            description="Number of forks gained in the last 7 days"
+        ),
+        SignalTypeInfo(
+            type=SignalType.FORKS_DELTA_30D,
+            name="30-Day Fork Delta",
+            description="Number of forks gained in the last 30 days"
+        ),
+        SignalTypeInfo(
+            type=SignalType.ISSUES_DELTA_7D,
+            name="7-Day Issue Delta",
+            description="Change in open issues in the last 7 days"
+        ),
+        SignalTypeInfo(
+            type=SignalType.ISSUES_DELTA_30D,
+            name="30-Day Issue Delta",
+            description="Change in open issues in the last 30 days"
+        ),
     ]
     return success_response(data=signal_types)
 
