@@ -281,7 +281,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 1,208 + 後端 471 = **1,679 個測試案例**，E2E 11 specs / 47 tests
+> **測試覆蓋**：前端 1,208 + 後端 471 = **1,679 個測試案例**，E2E 11 specs / 44 tests
 
 ---
 
