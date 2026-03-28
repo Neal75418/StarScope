@@ -86,7 +86,7 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：前端 1,208 + 後端 471 = 1,679 個測試案例
+> **測試覆蓋率**：前端 1,199 + 後端 471 = 1,670 個測試案例
 
 ### E2E 測試
 
@@ -118,7 +118,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
-| `**/__tests__/` | Vitest 單元測試（1,208 個測試案例）                               |
+| `**/__tests__/` | Vitest 單元測試（1,199 個測試案例）                               |
 
 ### Sidecar `sidecar/`
 
@@ -300,10 +300,10 @@ SQLite 位於 `sidecar/starscope.db`（11 張表）：
 
 `tauri.conf.json` 中的 CSP 使用 `style-src 'self' 'unsafe-inline'`。此決策的原因：
 
-- **必要性**：Recharts 和 framer-motion 在 runtime 注入 inline styles，無法避免
+- **必要性**：Recharts 在 runtime 注入 inline styles，無法避免
 - **風險評估**：`unsafe-inline` 僅適用於 `style-src`，`script-src` 並未包含 `unsafe-inline`（這是更關鍵的安全邊界）
 - **Desktop 應用環境**：Tauri 應用不暴露於公共網路，XSS 攻擊面遠小於 Web 應用
-- **結論**：可接受的 tradeoff。若未來 Recharts/framer-motion 支援 nonce-based CSP，應升級
+- **結論**：可接受的 tradeoff。若未來 Recharts 支援 nonce-based CSP，應升級
 
 ### API 不使用版本化路徑
 

@@ -83,7 +83,7 @@
 ### 測試
 
 - **E2E 測試** — 11 個 Playwright spec / 44 個測試案例（導航、Watchlist、Discovery、Dashboard、Compare、Categories、Alerts、Import/Export）
-- **覆蓋率補強與品質提升** — 5 輪測試品質審查，移除低價值測試、強化斷言、修復 flaky patterns，當前 1,208 前端 + 471 後端 = 1,679 個測試
+- **覆蓋率補強與品質提升** — 5 輪測試品質審查，移除低價值測試、強化斷言、修復 flaky patterns，當前 1,199 前端 + 471 後端 = 1,670 個測試
 
 ### 文件
 
