@@ -19,7 +19,7 @@ const MAX_HN_MENTIONS_DISPLAY = 6;
 function formatDateRange(start: string, end: string): string {
   const s = new Date(start);
   const e = new Date(end);
-  const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
   return `${fmt(s)} – ${fmt(e)}`;
 }
 
