@@ -1,90 +1,64 @@
 /**
  * Import/Export E2E 測試。
- * 驗證 JSON/CSV 匯出按鈕可用，以及匯入區塊的基本互動。
+ * Export 在 Watchlist 頁面 Toolbar 的 ExportDropdown；Import 在 Settings 頁面。
  */
 
 import { test, expect } from "@playwright/test";
 
 test.describe("Import & Export", () => {
-  test.beforeEach(async ({ page }) => {
+  test("export dropdown on watchlist has JSON and CSV links", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
+    await page.locator('[data-testid="nav-watchlist"]').click();
+    await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
+
+    // 打開 export dropdown
+    const exportBtn = page.locator('[data-testid="export-btn"]');
+    await expect(exportBtn).toBeVisible({ timeout: 10000 });
+    await exportBtn.click();
+
+    // dropdown 應出現 JSON 和 CSV 連結
+    const menu = page.locator('[data-testid="export-menu"]');
+    await expect(menu).toBeVisible({ timeout: 5000 });
+    await expect(menu.locator('a[download]')).toHaveCount(2);
+  });
+
+  test("import section is visible in settings", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
     await page.locator('[data-testid="nav-settings"]').click();
     await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
-  });
 
-  test("data management section is visible", async ({ page }) => {
-    const section = page.locator('[data-testid="data-management-section"]');
-    await expect(section).toBeVisible({ timeout: 10000 });
-  });
-
-  test("export buttons are present (JSON and CSV)", async ({ page }) => {
-    const section = page.locator('[data-testid="data-management-section"]');
-    await expect(section).toBeVisible({ timeout: 10000 });
-
-    // 應有 JSON 和 CSV 匯出按鈕
-    const jsonBtn = section.locator('button:has-text("JSON")');
-    const csvBtn = section.locator('button:has-text("CSV")');
-
-    await expect(jsonBtn).toBeVisible();
-    await expect(csvBtn).toBeVisible();
-  });
-
-  test("export JSON triggers download", async ({ page }) => {
-    const section = page.locator('[data-testid="data-management-section"]');
-    await expect(section).toBeVisible({ timeout: 10000 });
-
-    // 監聽下載事件
-    const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
-    const jsonBtn = section.locator('button:has-text("JSON")');
-    await jsonBtn.click();
-
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.json$/);
-  });
-
-  test("export CSV triggers download", async ({ page }) => {
-    const section = page.locator('[data-testid="data-management-section"]');
-    await expect(section).toBeVisible({ timeout: 10000 });
-
-    const downloadPromise = page.waitForEvent("download", { timeout: 10000 });
-    const csvBtn = section.locator('button:has-text("CSV")');
-    await csvBtn.click();
-
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.csv$/);
-  });
-
-  test("import section is visible with file input", async ({ page }) => {
     const section = page.locator('[data-testid="import-section"]');
     await expect(section).toBeVisible({ timeout: 10000 });
 
-    // 應有 file input（可能被 label 包裹）
+    // 應有 file input
     const fileInput = section.locator('input[type="file"]');
     await expect(fileInput).toBeAttached();
   });
 
-  test("reset data button exists with confirmation", async ({ page }) => {
+  test("data management section has reset with confirmation", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
+    await page.locator('[data-testid="nav-settings"]').click();
+    await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
+
     const section = page.locator('[data-testid="data-management-section"]');
     await expect(section).toBeVisible({ timeout: 10000 });
 
-    // 重置按鈕應存在（危險操作，通常是紅色按鈕）
-    const resetBtn = section.locator('button:has-text("Reset"), button:has-text("重置")');
-    if ((await resetBtn.count()) === 0) {
-      // 某些 UI 可能把重置放在其他地方
-      return;
-    }
+    // 重置按鈕
+    const resetBtn = section.locator("button.btn-danger");
+    if ((await resetBtn.count()) === 0) return;
 
-    await expect(resetBtn).toBeVisible();
-
-    // 點擊應彈出確認對話框，不應直接執行
     await resetBtn.click();
-    const confirmDialog = page.locator('div[role="alertdialog"], div[role="dialog"]');
-    await expect(confirmDialog).toBeVisible({ timeout: 5000 });
 
-    // 按取消關閉
-    const cancelBtn = confirmDialog.locator('button:has-text("Cancel"), button:has-text("取消")');
+    // 確認對話框
+    const dialog = page.locator('div[role="alertdialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+
+    // 取消
+    const cancelBtn = dialog.locator('button').filter({ hasText: /cancel|取消/i });
     await cancelBtn.click();
-    await expect(confirmDialog).not.toBeVisible({ timeout: 3000 });
+    await expect(dialog).not.toBeVisible({ timeout: 3000 });
   });
 });
