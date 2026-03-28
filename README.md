@@ -136,7 +136,7 @@ graph TB
 | 狀態管理 | React Query + useReducer | v5            |
 | 後端   | Python + FastAPI         | 3.12 / 0.129+ |
 | 儲存   | SQLite + SQLAlchemy      | —             |
-| 動畫   | Framer Motion            | 12            |
+| 動畫   | CSS @keyframes           | —             |
 | 虛擬滾動 | react-window             | v2            |
 
 ---
@@ -197,7 +197,7 @@ StarScope/
 ├── src/                           # React 前端（TypeScript）
 │   ├── api/                       #   API 客戶端 + 自動生成型別
 │   ├── components/                #   UI 元件
-│   │   ├── motion/                #     Framer Motion 動畫包裝
+│   │   ├── motion/                #     CSS 動畫元件（FadeIn、AnimatedPage）
 │   │   ├── settings/              #     設定頁面元件
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
@@ -321,7 +321,6 @@ git push origin feature/your-feature    # 推送並開啟 PR
 [FastAPI](https://fastapi.tiangolo.com/) ·
 [React Query](https://tanstack.com/query) ·
 [Recharts](https://recharts.org/) ·
-[Framer Motion](https://www.framer.com/motion/) ·
 [SQLAlchemy](https://www.sqlalchemy.org/) ·
 [react-window](https://github.com/bvaughn/react-window)
 
