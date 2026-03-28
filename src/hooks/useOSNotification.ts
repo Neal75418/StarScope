@@ -48,9 +48,16 @@ export function useOSNotification(): UseOSNotificationResult {
   const [isGranted, setIsGranted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 初始化：檢查權限狀態
+  // 初始化：檢查權限狀態（非 Tauri 環境直接跳過）
   useEffect(() => {
     const checkPermission = async () => {
+      // 非 Tauri 環境（瀏覽器開發模式）— 通知 API 不可用
+      if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+        setIsGranted(false);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const granted = await isPermissionGranted();
         setIsGranted(granted);
