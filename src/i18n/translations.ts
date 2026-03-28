@@ -796,24 +796,6 @@ export const translations = {
       expand: "Expand",
       collapse: "Collapse",
     },
-    // 語言
-    languages: {
-      title: "Languages",
-      subtitle: "Programming language breakdown",
-      primary: "Primary Language",
-      totalBytes: "Total Code",
-      languageCount: "{count} languages",
-      fetch: "Fetch Languages",
-      refresh: "Refresh",
-      fetching: "Fetching...",
-      noData: "No language data available",
-      fetchFailed: "Failed to fetch languages",
-      clickToFetch: "Click to fetch languages",
-      failedToLoad: "Failed to load",
-      lastUpdated: "Last updated: {date}",
-      bytes: "{bytes} bytes",
-      percentage: "{percentage}%",
-    },
     // 星數歷史回填
     starHistory: {
       title: "Star History",
@@ -1657,24 +1639,6 @@ export const translations = {
       },
       expand: "展開",
       collapse: "收起",
-    },
-    // 語言
-    languages: {
-      title: "語言分布",
-      subtitle: "程式語言統計",
-      primary: "主要語言",
-      totalBytes: "總程式碼量",
-      languageCount: "{count} 種語言",
-      fetch: "取得語言資料",
-      refresh: "重新整理",
-      fetching: "取得中...",
-      noData: "沒有可用的語言資料",
-      fetchFailed: "取得語言資料失敗",
-      clickToFetch: "點擊取得語言分布",
-      failedToLoad: "載入失敗",
-      lastUpdated: "最後更新：{date}",
-      bytes: "{bytes} 位元組",
-      percentage: "{percentage}%",
     },
     // 星數歷史回填
     starHistory: {

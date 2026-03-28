@@ -94,18 +94,13 @@ def save_thresholds(updates: dict, db: "Session") -> None:
 
 _thresholds_lock = threading.Lock()  # 防止併發寫入
 
-# 將可覆寫的門檻收納為 single dict，reload 時整體替換確保讀端原子性（CPython GIL）
-_active_thresholds: dict[str, float] = dict(_DEFAULT_THRESHOLDS)
-
 
 def reload_thresholds_from_db(db: "Session") -> None:
-    """從 DB 重新載入門檻，以原子替換確保讀端一致性。"""
-    global _active_thresholds, RISING_STAR_MIN_VELOCITY, SUDDEN_SPIKE_MULTIPLIER
+    """從 DB 重新載入門檻，更新此模組的全域變數（供排程器呼叫）。"""
+    global RISING_STAR_MIN_VELOCITY, SUDDEN_SPIKE_MULTIPLIER
     global BREAKOUT_VELOCITY_THRESHOLD, VIRAL_HN_MIN_SCORE
     thresholds = get_thresholds(db)
     with _thresholds_lock:
-        _active_thresholds = thresholds  # 單一賦值，GIL 保證原子
-        # 同步更新 module-level 變數以保持向後相容
         RISING_STAR_MIN_VELOCITY = thresholds["rising_star_min_velocity"]
         SUDDEN_SPIKE_MULTIPLIER = thresholds["sudden_spike_multiplier"]
         BREAKOUT_VELOCITY_THRESHOLD = thresholds["breakout_velocity_threshold"]

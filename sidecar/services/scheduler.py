@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import asyncio
-import concurrent.futures
 import logging
 import os
 import threading
@@ -25,7 +24,6 @@ from sqlalchemy.orm import Query, Session
 from constants import (
     CONTEXT_FETCH_INTERVAL_MINUTES,
     DEFAULT_SNAPSHOT_RETENTION_DAYS,
-    SCHEDULER_BATCH_SIZE,
     SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS,
 )
 from db.database import DATABASE_URL, get_db_session

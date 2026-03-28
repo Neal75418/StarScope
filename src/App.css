@@ -3218,8 +3218,6 @@ body {
 }
 
 .category-item:focus-visible,
-.compare-group-item:focus-visible,
-.webhook-card:focus-visible,
 .weekly-hn-item:focus-visible {
   outline: 2px solid var(--accent-fg);
   outline-offset: -2px;

@@ -8,7 +8,6 @@ import {
   formatDelta,
   formatVelocity,
   formatChartDate,
-  formatTimeAgo,
   formatRelativeTime,
 } from "../format";
 
@@ -105,41 +104,6 @@ describe("formatChartDate", () => {
   it("formats ISO datetime string to M/D format", () => {
     expect(formatChartDate("2024-01-15T12:30:00Z")).toBe("1/15");
     expect(formatChartDate("2024-06-01T00:00:00Z")).toBe("6/1");
-  });
-});
-
-describe("formatTimeAgo", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2024-06-15T12:00:00Z"));
-  });
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("returns '—' for invalid date string", () => {
-    expect(formatTimeAgo("not-a-date")).toBe("—");
-    expect(formatTimeAgo("")).toBe("—");
-  });
-
-  it("returns 'today' for current date", () => {
-    expect(formatTimeAgo("2024-06-15T12:00:00Z")).toBe("<1d");
-  });
-
-  it("returns '1d ago' for yesterday", () => {
-    expect(formatTimeAgo("2024-06-14T12:00:00Z")).toBe("1d");
-  });
-
-  it("returns days for dates within 30 days", () => {
-    expect(formatTimeAgo("2024-06-10T12:00:00Z")).toBe("5d");
-  });
-
-  it("returns months for dates within a year", () => {
-    expect(formatTimeAgo("2024-04-16T12:00:00Z")).toBe("2mo");
-  });
-
-  it("returns years for dates over a year", () => {
-    expect(formatTimeAgo("2022-06-16T12:00:00Z")).toBe("2y");
   });
 });
 

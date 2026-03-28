@@ -16,7 +16,6 @@ import {
   XIcon,
   LinkExternalIcon,
   CheckIcon,
-  ChevronDownIcon,
 } from "../Icons";
 
 describe("Icon Components", () => {
@@ -32,7 +31,6 @@ describe("Icon Components", () => {
     { name: "XIcon", Component: XIcon },
     { name: "LinkExternalIcon", Component: LinkExternalIcon },
     { name: "CheckIcon", Component: CheckIcon },
-    { name: "ChevronDownIcon", Component: ChevronDownIcon },
   ];
 
   icons.forEach(({ name, Component }) => {
