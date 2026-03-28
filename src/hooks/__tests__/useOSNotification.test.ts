@@ -16,6 +16,12 @@ import { useOSNotification } from "../useOSNotification";
 describe("useOSNotification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 模擬 Tauri 環境，讓 hook 不會 early return
+    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+  });
+
+  afterEach(() => {
+    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it("checks permission on mount and sets isGranted", async () => {
