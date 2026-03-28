@@ -320,12 +320,13 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     import("@tauri-apps/api/event")
-      .then(({ listen }) => {
+      .then(({ listen }) =>
         listen<void>("refresh-all", () => {
           void actions.refreshAll();
-        }).then((fn) => {
-          unlisten = fn;
-        });
+        })
+      )
+      .then((fn) => {
+        unlisten = fn;
       })
       .catch(() => {
         // 非 Tauri 環境（開發模式 / 測試），忽略
