@@ -1,8 +1,7 @@
 /**
- * 淡入動畫元件。
+ * 淡入動畫元件（純 CSS 實作，取代 framer-motion）。
  */
 
-import { motion } from "framer-motion";
 import type { ReactNode, CSSProperties } from "react";
 
 interface FadeInProps {
@@ -15,14 +14,15 @@ interface FadeInProps {
 
 export function FadeIn({ children, className, style, delay = 0, duration = 0.2 }: FadeInProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay, duration, ease: "easeOut" }}
-      className={className}
-      style={style}
+    <div
+      className={`fade-in ${className ?? ""}`}
+      style={{
+        ...style,
+        animationDuration: `${duration}s`,
+        animationDelay: `${delay}s`,
+      }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

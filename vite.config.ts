@@ -30,8 +30,6 @@ export default defineConfig(async () => ({
         manualChunks: {
           // Separate large charting library for better caching
           recharts: ["recharts"],
-          // Separate animation library (~45KB gzipped)
-          "framer-motion": ["framer-motion"],
         },
       },
     },

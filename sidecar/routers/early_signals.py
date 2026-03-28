@@ -132,6 +132,7 @@ async def get_repo_signals(
     repo_id: int,
     include_acknowledged: bool = Query(False),
     include_expired: bool = Query(False),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -152,7 +153,7 @@ async def get_repo_signals(
         )
 
     # noinspection PyTypeChecker
-    signals: list[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).all()
+    signals: list[EarlySignal] = query.order_by(EarlySignal.detected_at.desc()).limit(limit).all()
 
     signal_responses = [_signal_to_response(s) for s in signals]
     list_response = EarlySignalListResponse(

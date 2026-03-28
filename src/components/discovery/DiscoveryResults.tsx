@@ -3,7 +3,6 @@
  */
 
 import { memo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { DiscoveryRepo } from "../../api/client";
 import { DiscoveryResultCard } from "./DiscoveryResultCard";
 import { GridIcon, ListIcon } from "../Icons";
@@ -152,32 +151,26 @@ export const DiscoveryResults = memo(function DiscoveryResults({
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={resultsKey ?? "results"}
-          className={`${styles.resultsList} ${viewMode === "grid" ? styles.resultsGrid : ""}`}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-        >
-          {repos.map((repo) => (
-            <DiscoveryResultCard
-              key={repo.id}
-              repo={repo}
-              isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
-              onAddToWatchlist={onAddToWatchlist}
-              isAdding={addingRepoIds.has(repo.id)}
-              signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
-              onView={onViewRepo}
-              isSelectionMode={isSelectionMode}
-              isSelected={selectedIds?.has(repo.id) ?? false}
-              onToggleSelection={onToggleSelection}
-              compact={viewMode === "grid"}
-            />
-          ))}
-        </motion.div>
-      </AnimatePresence>
+      <div
+        key={resultsKey ?? "results"}
+        className={`${styles.resultsList} ${viewMode === "grid" ? styles.resultsGrid : ""} animated-page`}
+      >
+        {repos.map((repo) => (
+          <DiscoveryResultCard
+            key={repo.id}
+            repo={repo}
+            isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
+            onAddToWatchlist={onAddToWatchlist}
+            isAdding={addingRepoIds.has(repo.id)}
+            signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}
+            onView={onViewRepo}
+            isSelectionMode={isSelectionMode}
+            isSelected={selectedIds?.has(repo.id) ?? false}
+            onToggleSelection={onToggleSelection}
+            compact={viewMode === "grid"}
+          />
+        ))}
+      </div>
 
       {hasMore &&
         (isIntersectionSupported ? (
