@@ -82,9 +82,13 @@ export function parseCSV(content: string): ParsedRepo[] {
   for (const line of lines) {
     // 跳過看起來像標題的列（相容 StarScope export 的 full_name 欄位）
     const lower = line.toLowerCase();
+    const firstCol = lower
+      .split(",")[0]
+      .trim()
+      .replace(/^["']|["']$/g, "");
     if (
-      (lower.includes("owner") && (lower.includes("repo") || lower.includes("name"))) ||
-      lower.startsWith("full_name")
+      (firstCol === "owner" || firstCol === "full_name" || firstCol === "repo") &&
+      (lower.includes("name") || lower.includes("repo"))
     ) {
       continue;
     }
