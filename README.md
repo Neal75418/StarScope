@@ -232,7 +232,7 @@ StarScope/
 │   ├── db/                        #   SQLite + SQLAlchemy（11 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（469 個）
+│   └── tests/                     #   pytest 後端測試（471 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -281,7 +281,7 @@ StarScope/
 | 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
 | 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
 
-> **測試覆蓋**：前端 1,195 + 後端 469 = **1,664 個測試案例**
+> **測試覆蓋**：前端 1,208 + 後端 471 = **1,679 個測試案例**，E2E 11 specs / 47 tests
 
 ---
 

@@ -7,6 +7,23 @@
 
 ---
 
+## [Unreleased]
+
+### 修復
+
+- **並發安全** — close_github_service 加鎖防 double-close、scheduler health/failure counts 加 threading.Lock、alerts 改為 per-alert commit 防 rollback 連鎖失效
+- **安全** — isSafeUrl 封鎖完整私有 IPv4/IPv6 範圍、logging middleware 遮蔽 X-Session-Secret、403 區分 rate limit vs forbidden
+- **正確性** — formatChartDate/formatXDate/WeeklySummary 統一 UTC 日期方法、get_thresholds 異常 fallback、stop_scheduler async 防 deadlock、threshold 原子更新、repos 新增時填入 topics
+- **功能補全** — Tray "Refresh All" 接入前端、import round-trip 支援 StarScope 自身匯出格式、alert rules 暴露全部 9 個 signal types
+- **死碼清理** — 移除 release_surge 前端 stub、ApiError 未用 getter、types.generated.ts、空 react-vendor chunk
+
+### 測試
+
+- **E2E 擴展** — 新增 5 個 spec（Dashboard、Compare、Categories、Alerts、Import/Export），E2E 從 6→11 specs / 24→47 tests
+- **單元測試** — 新增 import round-trip、IPv6、cooldown、stale response 等 15+ 測試案例
+
+---
+
 ## [0.4.1] — 2026-03-25
 
 ### 重構與變更
@@ -60,8 +77,8 @@
 
 ### 測試
 
-- **E2E 測試** — 從零建立 18 個 Playwright 測試案例（導航、Watchlist CRUD、Discovery 搜尋）
-- **覆蓋率補強與品質提升** — 5 輪測試品質審查，移除低價值測試、強化斷言、修復 flaky patterns，當前 1,195 前端 + 469 後端 = 1,664 個測試
+- **E2E 測試** — 11 個 Playwright spec / 47 個測試案例（導航、Watchlist、Discovery、Dashboard、Compare、Categories、Alerts、Import/Export）
+- **覆蓋率補強與品質提升** — 5 輪測試品質審查，移除低價值測試、強化斷言、修復 flaky patterns，當前 1,208 前端 + 471 後端 = 1,679 個測試
 
 ### 文件
 
