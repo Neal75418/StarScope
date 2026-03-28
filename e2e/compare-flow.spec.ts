@@ -15,7 +15,7 @@ test.describe("Compare Flow", () => {
 
   test("compare page shows repo selector", async ({ page }) => {
     // RepoSelector 區塊應該可見
-    const selector = page.locator(".compare-repo-selector");
+    const selector = page.locator(".compare-selector");
     await expect(selector).toBeVisible({ timeout: 10000 });
   });
 

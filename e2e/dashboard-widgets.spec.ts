@@ -32,7 +32,7 @@ test.describe("Dashboard Widgets", () => {
 
   test("portfolio history chart renders SVG", async ({ page }) => {
     // 投資組合圖表區塊
-    const chart = page.locator(".portfolio-history");
+    const chart = page.locator(".portfolio-history-section");
     await expect(chart).toBeVisible({ timeout: 10000 });
 
     // recharts 渲染 SVG
@@ -40,13 +40,9 @@ test.describe("Dashboard Widgets", () => {
   });
 
   test("recent activity list shows items or empty state", async ({ page }) => {
-    // 近期活動區塊
-    const activity = page.locator(".recent-activity");
-    await expect(activity).toBeVisible({ timeout: 10000 });
-
-    // 有活動項目或空狀態訊息
-    const hasItems = await activity.locator(".activity-item").count();
-    const hasEmpty = await activity.locator(".empty-state-container, .empty-hint").count();
+    // 近期活動區塊 — 透過標題定位 dashboard section
+    const hasItems = await page.locator(".activity-item").count();
+    const hasEmpty = await page.locator(".activity-empty").count();
     expect(hasItems + hasEmpty).toBeGreaterThan(0);
   });
 

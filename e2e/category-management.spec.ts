@@ -23,7 +23,7 @@ test.describe("Category Management", () => {
     await expect(sidebar).toBeVisible({ timeout: 10000 });
 
     // 點擊 + 按鈕
-    const addBtn = sidebar.locator('button[aria-expanded]');
+    const addBtn = sidebar.locator(".category-sidebar-header button");
     await addBtn.click();
 
     // 表單應出現
@@ -31,12 +31,12 @@ test.describe("Category Management", () => {
     await expect(form).toBeVisible();
   });
 
-  test("create category and see it in sidebar", async ({ page }) => {
+  test("create category and see it in sidebar, then clean up", async ({ page, request }) => {
     const sidebar = page.locator(".category-sidebar");
     await expect(sidebar).toBeVisible({ timeout: 10000 });
 
     // 打開新增表單
-    const addBtn = sidebar.locator('button[aria-expanded]');
+    const addBtn = sidebar.locator(".category-sidebar-header button");
     await addBtn.click();
 
     const form = page.locator(".category-add-form");
@@ -50,6 +50,17 @@ test.describe("Category Management", () => {
 
     // 新分類應出現在側邊欄
     await expect(sidebar.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 10000 });
+
+    // 清理：透過 API 刪除測試分類
+    const treeRes = await request.get("http://127.0.0.1:8008/api/categories/tree");
+    const treeData = await treeRes.json();
+    if (treeData.success && Array.isArray(treeData.data?.tree)) {
+      for (const cat of treeData.data.tree) {
+        if (cat.name === uniqueName) {
+          await request.delete(`http://127.0.0.1:8008/api/categories/${cat.id}`);
+        }
+      }
+    }
   });
 
   test("category node shows repo count", async ({ page }) => {
