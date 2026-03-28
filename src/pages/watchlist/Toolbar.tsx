@@ -115,7 +115,7 @@ export function Toolbar({
         <button
           data-testid="refresh-all-btn"
           onClick={onRefreshAll}
-          disabled={isRefreshing}
+          disabled={isRefreshing || totalCount === 0}
           className="btn"
           aria-label={t.watchlist.refreshAll}
         >
@@ -123,7 +123,7 @@ export function Toolbar({
         </button>
         <button
           onClick={onRecalculateAll}
-          disabled={isRecalculating}
+          disabled={isRecalculating || totalCount === 0}
           className="btn"
           title={t.watchlist.recalculateAll}
           aria-label={t.watchlist.recalculateAll}

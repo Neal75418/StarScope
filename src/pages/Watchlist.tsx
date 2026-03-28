@@ -198,7 +198,9 @@ export function Watchlist() {
 
           {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
 
-          <SummaryPanel repos={state.repos} batchSignals={batchSignals} />
+          {state.repos.length > 0 && (
+            <SummaryPanel repos={state.repos} batchSignals={batchSignals} />
+          )}
 
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (

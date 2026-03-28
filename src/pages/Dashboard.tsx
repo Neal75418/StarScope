@@ -274,7 +274,7 @@ export function Dashboard() {
       {(widgetVisibility.velocityChart || widgetVisibility.languageDistribution) && (
         <FadeIn delay={0.22}>
           <div className="dashboard-grid">
-            {widgetVisibility.velocityChart && (
+            {widgetVisibility.velocityChart && stats.totalRepos > 0 && (
               <VelocityChartRecharts data={velocityDistribution} />
             )}
             {widgetVisibility.languageDistribution && (

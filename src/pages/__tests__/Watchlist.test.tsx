@@ -357,6 +357,10 @@ describe("Watchlist", () => {
   });
 
   it("calls handleRefreshAll when Refresh All button is clicked", async () => {
+    const repos = [makeRepo()];
+    mockState.repos = repos;
+    mockSelectors.displayedRepos = repos;
+
     const user = userEvent.setup();
     render(<Watchlist />);
     await user.click(screen.getByTestId("refresh-all-btn"));
