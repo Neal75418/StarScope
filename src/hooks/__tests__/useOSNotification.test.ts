@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 const mockIsPermissionGranted = vi.fn();
@@ -17,11 +17,11 @@ describe("useOSNotification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // 模擬 Tauri 環境，讓 hook 不會 early return
-    (window as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
   });
 
   afterEach(() => {
-    delete (window as Record<string, unknown>).__TAURI_INTERNALS__;
+    delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
   });
 
   it("checks permission on mount and sets isGranted", async () => {
