@@ -363,8 +363,8 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
         filters: {
           ...state.filters,
           selectedCategoryId: action.payload.categoryId,
-          categoryRepoIds:
-            action.payload.categoryId === null ? null : state.filters.categoryRepoIds,
+          // 切換時立即清除舊分類的 repo 快照，避免顯示上一個分類的內容
+          categoryRepoIds: null,
         },
       };
 

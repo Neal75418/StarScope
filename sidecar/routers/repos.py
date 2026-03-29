@@ -2,6 +2,7 @@
 追蹤清單 API 端點，管理 GitHub repo。
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -260,46 +261,49 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     )
 
 
+_fetch_all_lock = asyncio.Lock()
+
+
 @router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
 @limiter.limit("5/minute")
 async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
+    single-flight guard 防止與排程 job 同時跑兩輪抓取。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
-    # noinspection PyTypeChecker
-    repos: list[Repo] = db.query(Repo).all()
-    github = get_github_service()
 
-    success_count = 0
-    failed_count = 0
+    if _fetch_all_lock.locked():
+        return success_response(data=_build_repo_list_response(db), message="Fetch already in progress")
 
-    for repo in repos:
-        try:
-            # 使用帶指數退避的重試包裝器
-            github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
+    async with _fetch_all_lock:
+        # noinspection PyTypeChecker
+        repos: list[Repo] = db.query(Repo).all()
+        github = get_github_service()
 
-            # 原子性更新中繼資料 + 快照 + 訊號（每個 repo 獨立 commit）
-            update_repo_from_github(repo, github_data, db)
-            success_count += 1
+        success_count = 0
+        failed_count = 0
 
-        except GitHubNotFoundError:
-            db.rollback()
-            logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
-            failed_count += 1
-            continue
-        except GitHubAPIError as e:
-            db.rollback()
-            logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
-            failed_count += 1
-            continue
+        for repo in repos:
+            try:
+                github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
+                update_repo_from_github(repo, github_data, db)
+                success_count += 1
+            except GitHubNotFoundError:
+                db.rollback()
+                logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
+                failed_count += 1
+            except GitHubAPIError as e:
+                db.rollback()
+                logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+                failed_count += 1
 
-    repo_list = _build_repo_list_response(db)
-    return success_response(
-        data=repo_list,
-        message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
-    )
+        repo_list = _build_repo_list_response(db)
+        return success_response(
+            data=repo_list,
+            message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
+        )
 
 
 @router.get("/repos/starred", response_model=ApiResponse[StarredReposResponse])
