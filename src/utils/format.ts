@@ -91,6 +91,29 @@ export function formatRelativeTime(
 }
 
 /**
+ * 回傳 delta 值對應的 CSS class（正=positive、負=negative、零=空字串）。
+ * `invert` 為 true 時語意反轉（例如 issue 增多視為 negative）。
+ */
+export function deltaClass(
+  value: number | null | undefined,
+  invert = false
+): "positive" | "negative" | "" {
+  const v = value ?? 0;
+  if (v === 0) return "";
+  const isPositive = invert ? v < 0 : v > 0;
+  return isPositive ? "positive" : "negative";
+}
+
+/**
+ * 回傳 delta 值對應的趨勢 CSS class（正=trend-up、負=trend-down、零=空字串）。
+ */
+export function trendClass(value: number | null | undefined): "trend-up" | "trend-down" | "" {
+  const v = value ?? 0;
+  if (v === 0) return "";
+  return v > 0 ? "trend-up" : "trend-down";
+}
+
+/**
  * 格式化增長速度（每日星數）。
  */
 export function formatVelocity(num: number | null): string {

@@ -5,7 +5,7 @@
 import { memo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../../components/TrendArrow";
-import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
+import { formatNumber, formatDelta, formatVelocity, deltaClass } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import type { useI18n } from "../../i18n";
 import type { TrendingRepo } from "../../api/client";
@@ -90,28 +90,20 @@ export const TrendRow = memo(function TrendRow({
         {signals && signals.length > 0 && <BreakoutBadge signals={signals} />}
       </td>
       <td className="stars-col">{formatNumber(repo.stars)}</td>
-      <td
-        className={`delta-col ${(repo.stars_delta_7d ?? 0) > 0 ? "positive" : (repo.stars_delta_7d ?? 0) < 0 ? "negative" : ""}`}
-      >
+      <td className={`delta-col ${deltaClass(repo.stars_delta_7d)}`}>
         {formatDelta(repo.stars_delta_7d)}
       </td>
-      <td
-        className={`delta-col ${(repo.stars_delta_30d ?? 0) > 0 ? "positive" : (repo.stars_delta_30d ?? 0) < 0 ? "negative" : ""}`}
-      >
+      <td className={`delta-col ${deltaClass(repo.stars_delta_30d)}`}>
         {formatDelta(repo.stars_delta_30d)}
       </td>
       <td className="velocity-col">{formatVelocity(repo.velocity)}</td>
       <td className="trend-col">
         <TrendArrow trend={repo.trend} />
       </td>
-      <td
-        className={`delta-col ${(repo.forks_delta_7d ?? 0) > 0 ? "positive" : (repo.forks_delta_7d ?? 0) < 0 ? "negative" : ""}`}
-      >
+      <td className={`delta-col ${deltaClass(repo.forks_delta_7d)}`}>
         {formatDelta(repo.forks_delta_7d)}
       </td>
-      <td
-        className={`delta-col ${(repo.issues_delta_7d ?? 0) > 0 ? "negative" : (repo.issues_delta_7d ?? 0) < 0 ? "positive" : ""}`}
-      >
+      <td className={`delta-col ${deltaClass(repo.issues_delta_7d, true)}`}>
         {formatDelta(repo.issues_delta_7d)}
       </td>
       <td className="action-col" onClick={handleActionClick}>

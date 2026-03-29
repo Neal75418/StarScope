@@ -5,7 +5,7 @@
 import { memo } from "react";
 import { StarsChart } from "../../components/StarsChart";
 import { TrendArrow } from "../../components/TrendArrow";
-import { formatNumber, formatDelta, formatVelocity } from "../../utils/format";
+import { formatNumber, formatDelta, formatVelocity, deltaClass } from "../../utils/format";
 import { useI18n } from "../../i18n";
 import { useNavigation } from "../../contexts/NavigationContext";
 import type { TrendingRepo } from "../../api/client";
@@ -64,17 +64,13 @@ export const TrendExpandedRow = memo(function TrendExpandedRow({
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.delta7d}</span>
-              <span
-                className={`trend-metric-value ${(repo.stars_delta_7d ?? 0) > 0 ? "positive" : (repo.stars_delta_7d ?? 0) < 0 ? "negative" : ""}`}
-              >
+              <span className={`trend-metric-value ${deltaClass(repo.stars_delta_7d)}`}>
                 {formatDelta(repo.stars_delta_7d)}
               </span>
             </div>
             <div className="trend-metric-chip">
               <span className="trend-metric-label">{t.trends.columns.delta30d}</span>
-              <span
-                className={`trend-metric-value ${(repo.stars_delta_30d ?? 0) > 0 ? "positive" : (repo.stars_delta_30d ?? 0) < 0 ? "negative" : ""}`}
-              >
+              <span className={`trend-metric-value ${deltaClass(repo.stars_delta_30d)}`}>
                 {formatDelta(repo.stars_delta_30d)}
               </span>
             </div>

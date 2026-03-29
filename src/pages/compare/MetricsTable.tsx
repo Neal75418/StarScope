@@ -5,7 +5,7 @@
 import { useMemo, memo } from "react";
 import { useI18n } from "../../i18n";
 import type { ComparisonRepoData, EarlySignal } from "../../api/types";
-import { formatNumber, formatDelta } from "../../utils/format";
+import { formatNumber, formatDelta, trendClass } from "../../utils/format";
 import { TREND_ARROWS } from "../../constants/trends";
 import { BreakoutBadge } from "../trends/BreakoutBadge";
 
@@ -51,26 +51,10 @@ export const MetricsTable = memo(function MetricsTable({
                   )}
                 </td>
                 <td>{formatNumber(r.current_stars)}</td>
-                <td
-                  className={
-                    r.stars_delta_7d && r.stars_delta_7d > 0
-                      ? "trend-up"
-                      : r.stars_delta_7d && r.stars_delta_7d < 0
-                        ? "trend-down"
-                        : ""
-                  }
-                >
+                <td className={trendClass(r.stars_delta_7d)}>
                   {r.stars_delta_7d != null ? formatDelta(r.stars_delta_7d) : "—"}
                 </td>
-                <td
-                  className={
-                    r.stars_delta_30d && r.stars_delta_30d > 0
-                      ? "trend-up"
-                      : r.stars_delta_30d && r.stars_delta_30d < 0
-                        ? "trend-down"
-                        : ""
-                  }
-                >
+                <td className={trendClass(r.stars_delta_30d)}>
                   {r.stars_delta_30d != null ? formatDelta(r.stars_delta_30d) : "—"}
                 </td>
                 <td>{r.velocity != null ? r.velocity.toFixed(1) : "—"}</td>
