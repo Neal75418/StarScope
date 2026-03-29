@@ -2,7 +2,6 @@
 追蹤清單 API 端點，管理 GitHub repo。
 """
 
-import asyncio
 import json
 import logging
 import re
@@ -261,18 +260,17 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     )
 
 
-_fetch_all_lock = asyncio.Lock()
-
-
 @router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
 @limiter.limit("5/minute")
 async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
-    single-flight guard 防止與排程 job 同時跑兩輪抓取。
+    與 scheduler 共享 _fetch_all_lock 防止並發全量抓取。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
+
+    from services.scheduler import _fetch_all_lock
 
     if _fetch_all_lock.locked():
         return success_response(data=_build_repo_list_response(db), message="Fetch already in progress")

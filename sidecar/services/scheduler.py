@@ -59,6 +59,9 @@ def _job_context(job_name: str):
 _scheduler: AsyncIOScheduler | None = None
 _scheduler_lock = threading.Lock()
 
+# Single-flight guard：防止 router / scheduler / startup 同時跑全量抓取
+_fetch_all_lock = asyncio.Lock()
+
 # Repo 連續失敗計數器（記憶體內，重啟後歸零）
 _repo_failure_counts: dict[int, int] = {}
 _failure_counts_lock = threading.Lock()
@@ -234,11 +237,22 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
     """
     背景工作：抓取追蹤清單中所有 repo。
     根據設定的間隔定期執行。
+    使用 _fetch_all_lock 防止與 router 手動刷新同時跑。
 
     Args:
         skip_recent_minutes: 跳過此分鐘數內已抓取的 repo（預設 30）。
                            避免重啟後重複抓取。
     """
+    if _fetch_all_lock.locked():
+        logger.info("[排程] 全量抓取已在執行中，跳過此次排程")
+        return
+
+    async with _fetch_all_lock:
+        await _fetch_all_repos_inner(skip_recent_minutes)
+
+
+async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
+    """fetch_all_repos_job 的內部實作（已在 _fetch_all_lock 保護下執行）。"""
     job_id = uuid.uuid4().hex[:8]
     log = logging.LoggerAdapter(logger, {"job_id": job_id})
     log.info(f"[排程] [{job_id}] 開始排程抓取所有 repo...")
