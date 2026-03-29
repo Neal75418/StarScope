@@ -101,9 +101,9 @@ async def comparison_chart(
         raise HTTPException(status_code=404, detail=f"Repos not found: {missing}")
 
     # 計算日期範圍
-    days_map = {TimeRange.WEEK: 7, TimeRange.MONTH: 30, TimeRange.QUARTER: 90}
+    days_map: dict[str, int] = {"7d": 7, "30d": 30, "90d": 90}
     today = utc_today()
-    if req.time_range == TimeRange.ALL:
+    if req.time_range == TimeRange.ALL.value:
         start_date = None
     else:
         start_date = today - timedelta(days=days_map[req.time_range])
