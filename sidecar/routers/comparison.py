@@ -10,7 +10,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from sqlalchemy import asc
 
-from constants import SignalType
+from constants import SignalType, TimeRange
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
@@ -51,8 +51,9 @@ class ComparisonRequest(BaseModel):
     @field_validator("time_range")
     @classmethod
     def validate_time_range(cls, v: str) -> str:
-        if v not in ("7d", "30d", "90d", "all"):
-            raise ValueError("time_range must be 7d, 30d, 90d, or all")
+        valid = {tr.value for tr in TimeRange}
+        if v not in valid:
+            raise ValueError(f"time_range must be one of {sorted(valid)}")
         return v
 
 
@@ -100,9 +101,9 @@ async def comparison_chart(
         raise HTTPException(status_code=404, detail=f"Repos not found: {missing}")
 
     # 計算日期範圍
-    days_map = {"7d": 7, "30d": 30, "90d": 90}
+    days_map = {TimeRange.WEEK: 7, TimeRange.MONTH: 30, TimeRange.QUARTER: 90}
     today = utc_today()
-    if req.time_range == "all":
+    if req.time_range == TimeRange.ALL:
         start_date = None
     else:
         start_date = today - timedelta(days=days_map[req.time_range])

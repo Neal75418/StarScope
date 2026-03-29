@@ -2,7 +2,7 @@
  * 設定頁面，管理外觀、資料、排程、警示規則等設定。
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ToastContainer, useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
@@ -81,6 +81,11 @@ export function Settings() {
     return () => observers.forEach((o) => o.disconnect());
   }, []);
 
+  const scrollToSection = useCallback((id: string) => {
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(id)?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
+  }, []);
+
   if (alerts.isLoading) {
     return (
       <div className="page">
@@ -116,14 +121,7 @@ export function Settings() {
               type="button"
               className={`settings-nav-item${activeSection === id ? " active" : ""}`}
               aria-current={activeSection === id ? "true" : undefined}
-              onClick={() => {
-                const prefersReduced = window.matchMedia(
-                  "(prefers-reduced-motion: reduce)"
-                ).matches;
-                document
-                  .getElementById(id)
-                  ?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
-              }}
+              onClick={() => scrollToSection(id)}
             >
               {label}
             </button>

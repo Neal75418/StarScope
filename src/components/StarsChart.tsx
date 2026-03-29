@@ -19,6 +19,9 @@ import { StarHistoryBackfill } from "./StarHistoryBackfill";
 import { useI18n } from "../i18n";
 import { TIME_RANGES } from "../constants/chart";
 
+/** 圖表渲染高度（px），與 RepoList 的 CHART_EXTRA_HEIGHT 耦合 */
+export const STARS_CHART_HEIGHT = 180;
+
 interface StarsChartProps {
   repoId: number;
   currentStars?: number | null;
@@ -87,7 +90,7 @@ interface ChartContentProps {
 function ChartContent({ data, colors }: ChartContentProps) {
   const { t } = useI18n();
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={STARS_CHART_HEIGHT}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
         <XAxis

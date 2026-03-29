@@ -71,10 +71,10 @@ async def _execute_hn_query(
     client: httpx.AsyncClient,
     query: str,
     seen_ids: set[str],
-    stories: list[HNStory],
-    errors: list[str]
-) -> None:
-    """執行單一 HN 搜尋查詢並附加結果。"""
+) -> tuple[list[HNStory], list[str]]:
+    """執行單一 HN 搜尋查詢，回傳 (stories, errors)。"""
+    stories: list[HNStory] = []
+    errors: list[str] = []
     try:
         response = await client.get(
             HN_SEARCH_API,
@@ -83,8 +83,7 @@ async def _execute_hn_query(
 
         if response.status_code == 429:
             logger.warning("[HN] API 速率限制已超出")
-            errors.append("Rate limit exceeded")
-            return
+            return stories, ["Rate limit exceeded"]
 
         response.raise_for_status()
         data = response.json()
@@ -103,6 +102,7 @@ async def _execute_hn_query(
     except httpx.HTTPStatusError as e:
         logger.warning(f"[HN] API HTTP 錯誤 ({query}): {e}")
         errors.append(f"HTTP {e.response.status_code}")
+    return stories, errors
 
 
 class HackerNewsService:
@@ -136,7 +136,9 @@ class HackerNewsService:
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for query in queries:
-                await _execute_hn_query(client, query, seen_ids, stories, errors)
+                new_stories, new_errors = await _execute_hn_query(client, query, seen_ids)
+                stories.extend(new_stories)
+                errors.extend(new_errors)
 
         # 僅在所有查詢失敗且無結果時拋出錯誤
         if not stories and errors:

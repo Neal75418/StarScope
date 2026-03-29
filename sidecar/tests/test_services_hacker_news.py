@@ -132,11 +132,7 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
 
-        stories: list = []
-        seen_ids: set[str] = set()
-        errors: list[str] = []
-
-        await hn_module._execute_hn_query(mock_client, "test query", seen_ids, stories, errors)
+        stories, errors = await hn_module._execute_hn_query(mock_client, "test query", set())
 
         assert len(stories) == 2
         assert len(errors) == 0
@@ -150,10 +146,7 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.return_value = mock_response
 
-        stories: list = []
-        errors: list[str] = []
-
-        await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
+        stories, errors = await hn_module._execute_hn_query(mock_client, "test", set())
 
         assert len(stories) == 0
         assert "Rate limit" in errors[0]
@@ -164,10 +157,7 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.side_effect = httpx.TimeoutException("Timeout")
 
-        stories: list = []
-        errors: list[str] = []
-
-        await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
+        stories, errors = await hn_module._execute_hn_query(mock_client, "test", set())
 
         assert len(stories) == 0
         assert "Timeout" in errors[0]
@@ -178,10 +168,7 @@ class TestExecuteHnQuery:
         mock_client = AsyncMock()
         mock_client.get.side_effect = httpx.RequestError("Network error")
 
-        stories: list = []
-        errors: list[str] = []
-
-        await hn_module._execute_hn_query(mock_client, "test", set(), stories, errors)
+        stories, errors = await hn_module._execute_hn_query(mock_client, "test", set())
 
         assert len(stories) == 0
         assert len(errors) == 1

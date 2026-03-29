@@ -2,13 +2,13 @@ import { useCallback, useState } from "react";
 import { List, RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../../components/RepoCard";
-import type { RepoWithSignals } from "../../api/client";
-import type { useWindowedBatchRepoData } from "../../hooks/useWindowedBatchRepoData";
+import { STARS_CHART_HEIGHT } from "../../components/StarsChart";
+import type { RepoViewProps } from "./types";
 
 // 虛擬滾動常數
 const REPO_CARD_GAP = 16;
 const COLLAPSED_ITEM_SIZE = 220 + REPO_CARD_GAP; // 收合狀態：卡片 ≤2行描述 ~218px + 安全邊距 + 間距
-const CHART_EXTRA_HEIGHT = 300; // 圖表展開額外高度（chart 180px + controls + padding + backfill）
+const CHART_EXTRA_HEIGHT = STARS_CHART_HEIGHT + 120; // chart + controls + padding + backfill
 const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
 // 穩定的空物件引用，避免觸發不必要的重新渲染
 const EMPTY_ROW_PROPS = {};
@@ -25,19 +25,7 @@ export function RepoList({
   isSelectionMode,
   selectedIds,
   onToggleSelection,
-}: {
-  repos: RepoWithSignals[];
-  loadingRepoId: number | null;
-  onFetch: (id: number) => void;
-  onRemove: (id: number) => void;
-  selectedCategoryId?: number | null;
-  onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
-  batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
-  onVisibleRangeChange: (range: { start: number; stop: number }) => void;
-  isSelectionMode?: boolean;
-  selectedIds?: Set<number>;
-  onToggleSelection?: (repoId: number) => void;
-}) {
+}: RepoViewProps) {
   // 追蹤哪些 repo 的圖表已展開（提升到此層以控制虛擬滾動行高）
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
 

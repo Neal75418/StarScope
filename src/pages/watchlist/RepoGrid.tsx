@@ -4,8 +4,7 @@
 
 import { useEffect, useMemo } from "react";
 import { RepoCard } from "../../components/RepoCard";
-import type { RepoWithSignals } from "../../api/client";
-import type { useWindowedBatchRepoData } from "../../hooks/useWindowedBatchRepoData";
+import type { RepoViewProps } from "./types";
 
 export function RepoGrid({
   repos,
@@ -19,19 +18,7 @@ export function RepoGrid({
   isSelectionMode,
   selectedIds,
   onToggleSelection,
-}: {
-  repos: RepoWithSignals[];
-  loadingRepoId: number | null;
-  onFetch: (id: number) => void;
-  onRemove: (id: number) => void;
-  selectedCategoryId?: number | null;
-  onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
-  batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
-  onVisibleRangeChange: (range: { start: number; stop: number }) => void;
-  isSelectionMode?: boolean;
-  selectedIds?: Set<number>;
-  onToggleSelection?: (repoId: number) => void;
-}) {
+}: RepoViewProps) {
   // Grid 模式不使用虛擬滾動，直接設定整個範圍讓 batch preload 載入全部
   useEffect(() => {
     onVisibleRangeChange({ start: 0, stop: repos.length });
