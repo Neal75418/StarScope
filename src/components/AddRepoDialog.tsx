@@ -3,7 +3,6 @@
  */
 
 import { useState, useEffect } from "react";
-import type { FormEvent } from "react";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -31,7 +30,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     await onAdd(input.trim());

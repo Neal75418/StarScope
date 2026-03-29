@@ -3,7 +3,6 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import type { FormEvent } from "react";
 import { useI18n } from "../../i18n";
 import { SearchFilters } from "../../api/client";
 import type { SortOption } from "../../hooks/useDiscovery";
@@ -82,7 +81,7 @@ export function DiscoveryFilters({ filters, onFiltersChange }: DiscoveryFiltersP
   }, [filters.topic]);
 
   const handleTopicSubmit = useCallback(
-    (e: FormEvent) => {
+    (e: React.SyntheticEvent) => {
       e.preventDefault();
       const trimmed = topicInput.trim();
       onFiltersChange({ ...filters, topic: trimmed || undefined });
