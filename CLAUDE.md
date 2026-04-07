@@ -1,16 +1,12 @@
 # CLAUDE.md
 
-> Claude Code 在本專案中工作時的指引文件。
+> Claude Code 在本專案中工作時的指引文件。專題知識按需載入自 `.claude/rules/`。
 
 ---
 
 ## 專案概述
 
 StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。
-
----
-
-## 架構
 
 ```mermaid
 %%{init: {'theme': 'dark'}}%%
@@ -36,16 +32,6 @@ graph LR
     F <-->|":8008"| B
     B --> G
     B --> H
-
-    classDef tauri fill:#1e293b,stroke:#475569,color:#f1f5f9,font-weight:bold
-    classDef react fill:#0c4a6e,stroke:#0369a1,color:#e0f2fe,font-weight:bold
-    classDef python fill:#134e4a,stroke:#14b8a6,color:#ccfbf1,font-weight:bold
-    classDef external fill:#312e81,stroke:#6366f1,color:#e0e7ff,font-weight:bold
-
-    class Desktop tauri
-    class Frontend react
-    class Backend python
-    class APIs external
 ```
 
 ---
@@ -86,8 +72,6 @@ npm run test:coverage     # 覆蓋率報告
 npm run test:watch        # Watch 模式
 ```
 
-> **測試覆蓋率**：前端 1,199 + 後端 471 = 1,670 個測試案例
-
 ### E2E 測試
 
 ```bash
@@ -114,20 +98,20 @@ npm run tauri dev               # 終端機 2 — Tauri
 |-----------------|-------------------------------------------------------|
 | `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
 | `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 54 個自訂 Hooks（React Query、狀態管理、通知、匯入等）                 |
+| `hooks/`        | 自訂 Hooks（React Query、狀態管理、通知、匯入等）                     |
 | `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
 | `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
 | `utils/`        | 工具函式（logger、error handling 等）                         |
-| `**/__tests__/` | Vitest 單元測試（1,199 個測試案例）                               |
+| `**/__tests__/` | Vitest 單元測試                                           |
 
 ### Sidecar `sidecar/`
 
-| 目錄             | 說明                                                  |
-|----------------|-----------------------------------------------------|
-| `routers/`     | FastAPI 路由（16 個模組：repos、alerts、trends、categories 等） |
-| `services/`    | 業務邏輯（15 個服務：analyzer、scheduler、recommender 等）       |
-| `db/models.py` | SQLAlchemy 模型（11 張表：Repo、Signal、Category 等）         |
-| `tests/`       | pytest 測試，fixtures 在 `conftest.py`                  |
+| 目錄             | 說明                                         |
+|----------------|--------------------------------------------|
+| `routers/`     | FastAPI 路由（17 個模組）                         |
+| `services/`    | 業務邏輯（15 個服務）                               |
+| `db/models.py` | SQLAlchemy 模型（11 張表）                        |
+| `tests/`       | pytest 測試，fixtures 在 `conftest.py`         |
 
 ### Tauri `src-tauri/`
 
@@ -204,96 +188,6 @@ PORT=8008
 
 ---
 
-## API 端點
-
-所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
-前端 `client.ts` 的 `doFetch` 自動 unwrap `data` 欄位。
-
-| 路由模組              | 前綴                     | 主要端點                                  |
-|-------------------|------------------------|---------------------------------------|
-| `repos`           | `/api`                 | repos CRUD、手動 fetch、batch fetch-all   |
-| `alerts`          | `/api/alerts`          | 規則 CRUD、triggered 列表、acknowledge      |
-| `trends`          | `/api/trends`          | velocity / delta-7d / acceleration 排行 |
-| `categories`      | `/api/categories`      | 分類 CRUD、tree 結構、repo 歸類管理             |
-| `early_signals`   | `/api/early-signals`   | 信號列表、summary、acknowledge、batch        |
-| `context`         | `/api/context`         | HN signals / badges、batch badges      |
-| `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
-| `recommendations` | `/api/recommendations` | 相似 repo、相似度計算、recalculate             |
-| `discovery`       | `/api/discovery`       | GitHub 搜尋（rate limited 30/min）        |
-| `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
-| `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
-| `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
-| `export`          | `/api/export`          | Watchlist JSON/CSV 匯出                 |
-| `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
-| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理            |
-| `health`          | `/api`                 | 健康檢查                                  |
-
-> 共 16 個路由模組
-
----
-
-## 資料庫
-
-SQLite 位於 `sidecar/starscope.db`（11 張表）：
-
-| 資料表                 | 說明                               |
-|---------------------|----------------------------------|
-| `repos`             | 追蹤中的 GitHub 儲存庫                  |
-| `repo_snapshots`    | 時間點快照（stars、forks、watchers 等）    |
-| `signals`           | 計算的速度信號（velocity、acceleration 等） |
-| `alert_rules`       | 使用者定義的警報規則                       |
-| `triggered_alerts`  | 已觸發的警報記錄                         |
-| `context_signals`   | 外部情境信號（HN 提及）                    |
-| `similar_repos`     | 相似 repo 關係與分數                    |
-| `categories`        | 使用者自訂分類（支援階層 parent_id）          |
-| `repo_categories`   | Repo ↔ Category 多對多關聯            |
-| `early_signals`     | 異常偵測信號（rising star、spike 等）      |
-| `app_settings`      | 應用設定（key-value，含 Keyring 整合）     |
-
----
-
-## 前端架構模式
-
-### React Query 資料層
-
-- **QueryClient 設定** (`lib/react-query.ts`) — staleTime 5min、gcTime 30min、retry 1
-- **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
-- **Query hooks**:
-  - `useReposQuery` — repos 列表查詢（WatchlistContext 內部使用）
-  - `useTrends` — Trends 頁面主資料（含 filter 狀態）
-  - `useDashboard` — 4 個平行 useQuery（repos、alerts、signals、summary）
-- **寫入操作** — 由 `WatchlistContext` actions 統一處理（addRepo / removeRepo / fetchRepo / refreshAll），成功後自動 invalidate React Query cache
-- **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
-
-### Watchlist Context + useReducer 架構
-
-- `WatchlistContext.tsx` — 資料層由 React Query 管理，Context 只負責 UI 狀態
-- 資料來源 — `useReposQuery()` + `useQuery(health)` → 合併進 state context
-- State Machine Pattern — `LoadingState` 使用 Discriminated Unions 消除不可能狀態
-- Context 分層（優化 re-render）:
-  - `WatchlistStateContext` — 只讀狀態（repos 來自 React Query、UI 來自 reducer）
-  - `WatchlistActionsContext` — 業務邏輯（mutation + cache invalidation）
-- Selector hooks（精準訂閱）:
-  - `useFilteredRepos()` — 套用分類 + 搜尋篩選
-  - `useLoadingRepo()` — 當前載入的 repo ID
-  - `useIsRefreshing()` — 是否正在刷新
-  - `useIsRecalculating()` — 是否正在重算相似度
-- 測試策略 — Mock Context hooks：`useWatchlistState`, `useWatchlistActions`
-
-### React-Window (虛擬滾動)
-
-- **版本** - `react-window@2.2.5`（v2 API）
-- **核心組件** - `List` 需 4 個必要 props：`rowComponent`, `rowCount`, `rowHeight`, `style`（含 height/width）
-- **RowComponent 型別** - `RowComponentProps` from `react-window`
-- **動態行高** - `rowHeight` 支援函數型式 `(index: number) => number`，用於圖表展開時調整行高
-  - 收合：`COLLAPSED_ITEM_SIZE = 296px`（卡片 280 + 間距 16）
-  - 展開：`EXPANDED_ITEM_SIZE = 596px`（加上圖表 300px）
-- **圖表展開狀態** - 由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理，通過 `chartExpanded` / `onChartToggle` props 傳入 `RepoCard`
-- **Memo 優化** - `onChartToggle` 接受 `(repoId: number)` 參數以避免 inline arrow 破壞 `RepoCard` 的 `memo`
-- **常見陷阱** - v2 API 使用 `rowComponent` prop（非 v1 的 `children` render prop）；避免直接傳 `itemData` 到 `List`，改用 `rowProps`；避免在 `RowComponent` 中使用 inline arrow 作為 memoized 子元件的 callback
-
----
-
 ## 安全性決策記錄
 
 ### CSP `style-src 'unsafe-inline'`
@@ -308,3 +202,13 @@ SQLite 位於 `sidecar/starscope.db`（11 張表）：
 ### API 不使用版本化路徑
 
 桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴。
+
+---
+
+## 按需載入的規則（`.claude/rules/`）
+
+| 規則檔 | 內容 | 載入條件（`paths:` frontmatter） |
+|---|---|---|
+| `api-endpoints.md` | 17 個 API 路由模組表、統一回應格式 | `sidecar/routers/**`、`src/api/**` |
+| `database.md` | 11 張 SQLite 表說明、Alembic 遷移 | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*` |
+| `frontend-patterns.md` | React Query 資料層、Watchlist Context 架構、react-window 虛擬滾動 | `src/hooks/**`、`src/components/**`、`src/pages/**`、`src/lib/**` |
