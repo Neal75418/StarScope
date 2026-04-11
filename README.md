@@ -34,38 +34,11 @@ StarScope 是一款開源桌面應用，幫助工程師以**動能（velocity）
 ```mermaid
 graph TB
     Root(("⭐<br/><b>StarScope</b>"))
-
     Root --- Track["📡 追蹤與分析"]
     Root --- Alert["🔔 警報與通知"]
     Root --- Smart["🧠 智慧功能"]
     Root --- Data["📦 資料管理"]
     Root --- UX["✨ 使用者體驗"]
-
-    Track --- T1["Watchlist 追蹤"]
-    Track --- T2["Velocity / Acceleration"]
-    Track --- T3["7/30/90 天趨勢"]
-    Track --- T4["Star 歷史回填"]
-    Track --- T5["語言分佈"]
-
-    Alert --- A1["自訂警報規則"]
-    Alert --- A2["應用內通知中心"]
-    Alert --- A3["OS 層級推播通知"]
-    Alert --- A4["Hacker News 熱門偵測"]
-
-    Smart --- S1["相似專案推薦"]
-    Smart --- S2["早期訊號偵測"]
-    Smart --- S3["異常偵測 Sudden Spike"]
-    Smart --- S4["Dashboard 儀表板"]
-
-    Data --- D1["批次匯入 CSV/JSON/TXT"]
-    Data --- D2["JSON / CSV 匯出"]
-    Data --- D3["樹狀分類管理"]
-    Data --- D4["GitHub OAuth 認證"]
-
-    UX --- U1["中／英雙語"]
-    UX --- U2["淺色／深色主題"]
-    UX --- U3["虛擬滾動"]
-    UX --- U4["頁面過場動畫"]
 
     classDef root fill:#fbbf24,stroke:#b45309,color:#1f2937,font-weight:bold,font-size:16px
     classDef track fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
@@ -75,12 +48,65 @@ graph TB
     classDef ux fill:#f59e0b,stroke:#d97706,color:#fff,font-weight:bold
 
     class Root root
-    class Track,T1,T2,T3,T4,T5 track
-    class Alert,A1,A2,A3,A4 alert
-    class Smart,S1,S2,S3,S4 smart
-    class Data,D1,D2,D3,D4 data
-    class UX,U1,U2,U3,U4 ux
+    class Track track
+    class Alert alert
+    class Smart smart
+    class Data data
+    class UX ux
 ```
+
+<table>
+<tr>
+<th align="center">📡 追蹤與分析</th>
+<th align="center">🔔 警報與通知</th>
+<th align="center">🧠 智慧功能</th>
+<th align="center">📦 資料管理</th>
+<th align="center">✨ 使用者體驗</th>
+</tr>
+<tr valign="top">
+<td>
+
+- Watchlist 追蹤
+- Velocity / Acceleration
+- 7 / 30 / 90 天趨勢
+- Star 歷史回填
+- 語言分佈
+
+</td>
+<td>
+
+- 自訂警報規則
+- 應用內通知中心
+- OS 層級推播通知
+- Hacker News 熱門偵測
+
+</td>
+<td>
+
+- 相似專案推薦
+- 早期訊號偵測
+- 異常偵測 Sudden Spike
+- Dashboard 儀表板
+
+</td>
+<td>
+
+- 批次匯入 CSV/JSON/TXT
+- JSON / CSV 匯出
+- 樹狀分類管理
+- GitHub OAuth 認證
+
+</td>
+<td>
+
+- 中／英雙語
+- 淺色／深色主題
+- 虛擬滾動
+- 頁面過場動畫
+
+</td>
+</tr>
+</table>
 
 > **測試覆蓋**：前端 1,199 + 後端 471 = **1,670 個測試案例**，E2E 11 specs / 44 tests
 
