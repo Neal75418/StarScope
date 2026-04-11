@@ -56,6 +56,13 @@ graph TB
 ```
 
 <table>
+<colgroup>
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+<col width="20%">
+</colgroup>
 <tr>
 <th align="center">📡 追蹤與分析</th>
 <th align="center">🔔 警報與通知</th>
@@ -67,8 +74,8 @@ graph TB
 <td>
 
 - Watchlist 追蹤
-- Velocity / Acceleration
-- 7 / 30 / 90 天趨勢
+- 速度/加速度分析
+- 7/30/90 天趨勢
 - Star 歷史回填
 - 語言分佈
 
@@ -78,23 +85,23 @@ graph TB
 - 自訂警報規則
 - 應用內通知中心
 - OS 層級推播通知
-- Hacker News 熱門偵測
+- HN 熱門偵測
 
 </td>
 <td>
 
 - 相似專案推薦
 - 早期訊號偵測
-- 異常偵測 Sudden Spike
-- Dashboard 儀表板
+- Sudden Spike 偵測
+- Dashboard 總覽
 
 </td>
 <td>
 
-- 批次匯入 CSV/JSON/TXT
+- 匯入 CSV/JSON/TXT
 - JSON / CSV 匯出
 - 樹狀分類管理
-- GitHub OAuth 認證
+- GitHub OAuth
 
 </td>
 <td>
