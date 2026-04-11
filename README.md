@@ -32,7 +32,7 @@ StarScope 是一款開源桌面應用，幫助工程師以**動能（velocity）
 ## 🗺️ 功能一覽
 
 ```mermaid
-graph LR
+graph TB
     Root(("⭐<br/><b>StarScope</b>"))
 
     Root --- Track["📡 追蹤與分析"]
