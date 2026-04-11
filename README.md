@@ -77,7 +77,6 @@ graph TB
             direction LR
             Pages["<b>Pages</b><br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
             Components["<b>Components</b><br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
-            Pages --> Components
         end
         subgraph Native["Rust Native"]
             direction LR
@@ -97,13 +96,10 @@ graph TB
             Context["Context Fetcher"]
             Recommend["Recommender"]
         end
-        subgraph Data["Data Layer"]
-            direction LR
-            DB[("SQLite")]
-            Sched["APScheduler"]
-        end
+        DB[("SQLite")]
+        Sched["APScheduler"]
         API --> Services
-        Services --> Data
+        Services --> DB
         Sched -.->|hourly| Fetch
     end
 
