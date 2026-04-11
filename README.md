@@ -74,20 +74,23 @@ graph TB
     subgraph Desktop["🖥️ Desktop Client"]
         direction TB
         subgraph UI["React 19 + TypeScript"]
+            direction LR
             Pages["<b>Pages</b><br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
             Components["<b>Components</b><br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
+            Pages --> Components
         end
         subgraph Native["Rust Native"]
+            direction LR
             Tray["System Tray"]
             Notify["OS Notifications"]
         end
-        Pages --> Components
     end
 
     subgraph Engine["⚙️ Data Engine — Python 3.12"]
         direction TB
         API["FastAPI :8008"]
         subgraph Services["Core Services"]
+            direction LR
             Fetch["GitHub Fetcher"]
             Analyze["Signal Analyzer"]
             Detect["Anomaly Detector"]
@@ -95,6 +98,7 @@ graph TB
             Recommend["Recommender"]
         end
         subgraph Data["Data Layer"]
+            direction LR
             DB[("SQLite")]
             Sched["APScheduler"]
         end
@@ -104,6 +108,7 @@ graph TB
     end
 
     subgraph Ext["🌐 External"]
+        direction LR
         GH["GitHub API"]
         HN["Hacker News API"]
     end
@@ -113,8 +118,15 @@ graph TB
     Fetch --> GH
     Context --> HN
 
+    classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
+    classDef backend fill:#8b5cf6,stroke:#6d28d9,color:#fff,font-weight:bold
+    classDef storage fill:#10b981,stroke:#047857,color:#fff,font-weight:bold
     classDef github fill:#24292e,stroke:#0d1117,color:#fff,font-weight:bold
     classDef hackernews fill:#ff6600,stroke:#c2410c,color:#fff,font-weight:bold
+
+    class Pages,Components,Tray,Notify frontend
+    class API,Fetch,Analyze,Detect,Context,Recommend backend
+    class DB,Sched storage
     class GH github
     class HN hackernews
 ```
