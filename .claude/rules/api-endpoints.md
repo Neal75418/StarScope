@@ -27,4 +27,5 @@ paths:
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
 | `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理                   |
 | `health`          | `/api`                 | 健康檢查                                  |
-| `dependencies`    | `/api/dependencies`    | 共用依賴注入                                |
+
+> 註：`routers/dependencies.py` 不是端點模組，是 FastAPI `Depends()` 共用注入 helper（`get_repo_or_404` 等），不要當成 router 誤讀。

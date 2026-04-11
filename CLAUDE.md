@@ -9,7 +9,6 @@
 StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
 graph LR
     subgraph Desktop["Tauri Desktop"]
         T["src-tauri/\nRust + System Tray"]
@@ -106,12 +105,12 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ### Sidecar `sidecar/`
 
-| 目錄             | 說明                                 |
-|----------------|------------------------------------|
-| `routers/`     | FastAPI 路由（17 個模組）                 |
-| `services/`    | 業務邏輯（15 個服務）                       |
-| `db/models.py` | SQLAlchemy 模型（11 張表）               |
-| `tests/`       | pytest 測試，fixtures 在 `conftest.py` |
+| 目錄             | 說明                                              |
+|----------------|-------------------------------------------------|
+| `routers/`     | FastAPI 路由（16 個端點模組 + `dependencies.py` 共用依賴注入） |
+| `services/`    | 業務邏輯（15 個服務）                                    |
+| `db/models.py` | SQLAlchemy 模型（11 張表）                            |
+| `tests/`       | pytest 測試，fixtures 在 `conftest.py`              |
 
 ### Tauri `src-tauri/`
 
@@ -123,27 +122,7 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ---
 
-## 關鍵服務
-
-| 服務                    | 說明                            |
-|-----------------------|-------------------------------|
-| `github.py`           | GitHub API 客戶端（Rate Limit 感知） |
-| `github_auth.py`      | OAuth Device Flow 驗證          |
-| `analyzer.py`         | Star 速度與信號計算                  |
-| `scheduler.py`        | APScheduler 背景排程（含失敗追蹤機制）     |
-| `anomaly_detector.py` | 異常偵測（批次預載 active signals）     |
-| `backup.py`           | SQLite 資料庫備份與還原               |
-| `context_fetcher.py`  | HackerNews 上下文資訊彙整            |
-| `hacker_news.py`      | Hacker News Algolia API 客戶端   |
-| `recommender.py`      | 相似 repo 推薦（topics + language） |
-| `snapshot.py`         | Repo 快照更新（metadata + signals） |
-| `alerts.py`           | 警報規則評估與觸發                     |
-| `queries.py`          | 共用 DB 查詢工具                    |
-| `settings.py`         | 應用設定管理（Keyring 整合）            |
-| `rate_limiter.py`     | API 請求限速與指數退避重試               |
-| `weekly_summary.py`   | 每週摘要報告生成                      |
-
-### 關鍵前端 Hooks
+## 關鍵前端 Hooks
 
 | Hook                     | 說明                                            |
 |--------------------------|-----------------------------------------------|
@@ -209,6 +188,7 @@ PORT=8008
 
 | 規則檔                    | 內容                                                     | 載入條件（`paths:` frontmatter）                                     |
 |------------------------|--------------------------------------------------------|----------------------------------------------------------------|
-| `api-endpoints.md`     | 17 個 API 路由模組表、統一回應格式                                  | `sidecar/routers/**`、`src/api/**`                              |
+| `api-endpoints.md`     | 16 個 API 路由模組表、統一回應格式                                  | `sidecar/routers/**`、`src/api/**`                              |
 | `database.md`          | 11 張 SQLite 表說明、Alembic 遷移                             | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*`        |
 | `frontend-patterns.md` | React Query 資料層、Watchlist Context 架構、react-window 虛擬滾動 | `src/hooks/**`、`src/components/**`、`src/pages/**`、`src/lib/**` |
+| `sidecar-services.md`  | 15 個 sidecar 服務模組表                                     | `sidecar/services/**`                                          |
