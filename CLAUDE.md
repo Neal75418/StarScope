@@ -106,18 +106,18 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ### Sidecar `sidecar/`
 
-| 目錄             | 說明                                         |
-|----------------|--------------------------------------------|
-| `routers/`     | FastAPI 路由（17 個模組）                         |
-| `services/`    | 業務邏輯（15 個服務）                               |
-| `db/models.py` | SQLAlchemy 模型（11 張表）                        |
-| `tests/`       | pytest 測試，fixtures 在 `conftest.py`         |
+| 目錄             | 說明                                 |
+|----------------|------------------------------------|
+| `routers/`     | FastAPI 路由（17 個模組）                 |
+| `services/`    | 業務邏輯（15 個服務）                       |
+| `db/models.py` | SQLAlchemy 模型（11 張表）               |
+| `tests/`       | pytest 測試，fixtures 在 `conftest.py` |
 
 ### Tauri `src-tauri/`
 
 | 檔案                | 說明                  |
 |-------------------|---------------------|
-| `src/main.rs`     | Rust 進入點（呼叫 lib.rs）  |
+| `src/main.rs`     | Rust 進入點（呼叫 lib.rs） |
 | `src/lib.rs`      | Sidecar 管理、系統匣、視窗控制 |
 | `tauri.conf.json` | Tauri 設定、CSP、視窗設定   |
 
@@ -207,8 +207,8 @@ PORT=8008
 
 ## 按需載入的規則（`.claude/rules/`）
 
-| 規則檔 | 內容 | 載入條件（`paths:` frontmatter） |
-|---|---|---|
-| `api-endpoints.md` | 17 個 API 路由模組表、統一回應格式 | `sidecar/routers/**`、`src/api/**` |
-| `database.md` | 11 張 SQLite 表說明、Alembic 遷移 | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*` |
+| 規則檔                    | 內容                                                     | 載入條件（`paths:` frontmatter）                                     |
+|------------------------|--------------------------------------------------------|----------------------------------------------------------------|
+| `api-endpoints.md`     | 17 個 API 路由模組表、統一回應格式                                  | `sidecar/routers/**`、`src/api/**`                              |
+| `database.md`          | 11 張 SQLite 表說明、Alembic 遷移                             | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*`        |
 | `frontend-patterns.md` | React Query 資料層、Watchlist Context 架構、react-window 虛擬滾動 | `src/hooks/**`、`src/components/**`、`src/pages/**`、`src/lib/**` |

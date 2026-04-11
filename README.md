@@ -6,11 +6,6 @@
 
 _Don't just count stars — catch rising stars early._
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/Neal75418/StarScope/actions/workflows/test.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/test.yml)
-[![Release](https://github.com/Neal75418/StarScope/actions/workflows/release.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/release.yml)
-[![codecov](https://codecov.io/gh/Neal75418/StarScope/branch/main/graph/badge.svg)](https://codecov.io/gh/Neal75418/StarScope)
-
 ![Tauri](https://img.shields.io/badge/Tauri-v2-24C8D8?logo=tauri&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
@@ -34,54 +29,50 @@ StarScope 是一款開源桌面應用，幫助工程師以**動能（velocity）
 
 > **核心定位**：StarScope 是工程師的「專案雷達」，不是「專案目錄」。
 
----
-
 ## 🗺️ 功能一覽
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
 mindmap
-  root((StarScope))
-    追蹤與分析
+  root))⭐ StarScope((
+    📡 追蹤與分析
       Watchlist 專案追蹤
       Velocity / Acceleration 分析
       7/30/90 天趨勢偵測
       Star 歷史回填
       語言分佈
-    警報與通知
+    🔔 警報與通知
       自訂警報規則
       應用內通知中心
       OS 層級推播通知
       Hacker News 熱門偵測
-    智慧功能
+    🧠 智慧功能
       相似專案推薦
       早期訊號偵測
       異常偵測 Sudden Spike
       Dashboard 儀表板
-    資料管理
+    📦 資料管理
       批次匯入 CSV/JSON/TXT
       JSON / CSV 匯出
       樹狀分類管理
       GitHub OAuth 認證
-    使用者體驗
+    ✨ 使用者體驗
       中／英雙語
       淺色／深色主題
       虛擬滾動
       頁面過場動畫
 ```
 
----
+> **測試覆蓋**：前端 1,199 + 後端 471 = **1,670 個測試案例**，E2E 11 specs / 44 tests
 
 ## 🏗️ 技術架構
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
 graph TB
-    subgraph Desktop["Desktop Client"]
+    subgraph Desktop["🖥️ Desktop Client"]
         direction TB
         subgraph UI["React 19 + TypeScript"]
-            Pages["Pages\nDashboard / Watchlist / Trends\nDiscovery / Compare / Settings"]
-            Components["Components\nRepoCard / Charts / Badges\nNotificationCenter"]
+            Pages["<b>Pages</b><br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
+            Components["<b>Components</b><br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
         end
         subgraph Native["Rust Native"]
             Tray["System Tray"]
@@ -90,7 +81,7 @@ graph TB
         Pages --> Components
     end
 
-    subgraph Engine["Data Engine — Python 3.12"]
+    subgraph Engine["⚙️ Data Engine — Python 3.12"]
         direction TB
         API["FastAPI :8008"]
         subgraph Services["Core Services"]
@@ -109,7 +100,7 @@ graph TB
         Sched -.->|hourly| Fetch
     end
 
-    subgraph Ext["External"]
+    subgraph Ext["🌐 External"]
         GH["GitHub API"]
         HN["Hacker News API"]
     end
@@ -119,27 +110,13 @@ graph TB
     Fetch --> GH
     Context --> HN
 
-    classDef desktop fill:#1e293b,stroke:#334155,color:#f8fafc,font-weight:bold
-    classDef engine fill:#0f172a,stroke:#1e3a5f,color:#e2e8f0,font-weight:bold
-    classDef ext fill:#312e81,stroke:#4338ca,color:#e0e7ff,font-weight:bold
-    classDef node_default fill:#1e40af,stroke:#1d4ed8,color:#fff
-
-    class Desktop desktop
-    class Engine engine
-    class Ext ext
+    classDef github fill:#24292e,stroke:#0d1117,color:#fff,font-weight:bold
+    classDef hackernews fill:#ff6600,stroke:#c2410c,color:#fff,font-weight:bold
+    class GH github
+    class HN hackernews
 ```
 
-| 層級   | 技術                       | 版本            |
-|------|--------------------------|---------------|
-| 桌面框架 | Tauri                    | v2            |
-| 前端   | React + TypeScript       | 19 / 5.8      |
-| 狀態管理 | React Query + useReducer | v5            |
-| 後端   | Python + FastAPI         | 3.12 / 0.129+ |
-| 儲存   | SQLite + SQLAlchemy      | —             |
-| 動畫   | CSS @keyframes           | —             |
-| 虛擬滾動 | react-window             | v2            |
-
----
+> 其他關鍵依賴：React Query v5（server state）· react-window v2（虛擬滾動）· SQLAlchemy（ORM）· CSS @keyframes（動畫）
 
 ## 🚀 快速開始
 
@@ -187,8 +164,6 @@ npm run test                     # 前端單元測試
 cd sidecar && pytest tests/ -v   # 後端測試
 npm run test:e2e                 # E2E 測試
 ```
-
----
 
 ## 📂 專案結構
 
@@ -238,12 +213,9 @@ StarScope/
 └── .github/workflows/             # CI/CD（test + release）
 ```
 
----
-
 ## 🔌 API 端點
 
-所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`。
-共 **16 個路由模組**：
+所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`：
 
 | 路由模組              | 前綴                     | 說明                                    |
 |-------------------|------------------------|---------------------------------------|
@@ -261,38 +233,10 @@ StarScope/
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
 | `export`          | `/api/export`          | Watchlist JSON / CSV 匯出               |
 | `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
-| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理            |
+| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理                   |
 | `health`          | `/api`                 | 健康檢查                                  |
 
 > 📖 完整 API 文件可在開發模式下存取：`http://localhost:8008/api/docs`（Swagger）/ `http://localhost:8008/api/redoc`（ReDoc）
-
----
-
-## 📋 開發狀態
-
-**功能完整** — 專注核心價值的精簡設計。
-
-| 模組           | 涵蓋範圍                                        |
-|--------------|---------------------------------------------|
-| 🎯 核心追蹤      | Watchlist、Velocity 分析、趨勢偵測、Star 歷史回填        |
-| 🔔 訊號系統      | HN 整合、警報規則、OS 推播通知、應用內通知中心                  |
-| 🧠 智慧功能      | 相似推薦、早期訊號偵測、Dashboard 儀表板                   |
-| 📦 資料管理      | 批次匯入（CSV/JSON/TXT）、JSON/CSV 匯出、樹狀分類         |
-| 🌐 國際化與 UX   | 英／繁中雙語、深淺主題、虛擬滾動、頁面動畫                       |
-| 🔑 GitHub 整合 | OAuth Device Flow、Rate Limit 感知、安全 Token 管理 |
-
-> **測試覆蓋**：前端 1,199 + 後端 471 = **1,670 個測試案例**，E2E 11 specs / 44 tests
-
----
-
-## 🏆 競品比較
-
-| 產品              | 定位    | StarScope 差異  |
-|-----------------|-------|---------------|
-| GitHub Trending | 今日熱門  | 觀察「動能」而非「絕對值」 |
-| Star History    | 歷史曲線  | 主動警報 + OS 通知  |
-| OSS Insight     | 資料儀表板 | 桌面原生 + 異常偵測   |
-| LibHunt         | 分類索引  | 專注追蹤、警報與智慧推薦  |
 
 ---
 
@@ -306,13 +250,9 @@ git commit -m "feat: ..."              # 提交修改（Conventional Commits）
 git push origin feature/your-feature    # 推送並開啟 PR
 ```
 
----
-
 ## 📄 授權
 
 本專案採用 [MIT License](LICENSE)。
-
----
 
 ## 🙏 致謝
 
@@ -327,6 +267,11 @@ git push origin feature/your-feature    # 推送並開啟 PR
 ---
 
 <div align="center">
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/Neal75418/StarScope/actions/workflows/test.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/test.yml)
+[![Release](https://github.com/Neal75418/StarScope/actions/workflows/release.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/release.yml)
+[![codecov](https://codecov.io/gh/Neal75418/StarScope/branch/main/graph/badge.svg)](https://codecov.io/gh/Neal75418/StarScope)
 
 Made with ❤️ by engineers, for engineers.
 
