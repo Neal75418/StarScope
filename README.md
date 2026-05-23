@@ -129,6 +129,38 @@ graph TB
 
 > 其他關鍵依賴：React Query v5（server state）· react-window v2（虛擬滾動）· SQLAlchemy（ORM）· CSS @keyframes（動畫）
 
+## 📦 Installation
+
+從 [Releases](https://github.com/Neal75418/StarScope/releases/latest) 下載適合平台的安裝檔。
+
+### macOS — 首次開啟
+
+未簽名 binary 會被 Gatekeeper 攔截。任一方法:
+
+```bash
+xattr -d com.apple.quarantine /Applications/StarScope.app
+```
+
+或:右鍵 → 開啟 → 確認開啟(僅需一次)。
+
+### Windows — 首次開啟
+
+SmartScreen 顯示「Windows 已保護你的電腦」時:
+
+1. 點「**其他資訊**」
+2. 點「**仍要執行**」
+
+### Linux
+
+```bash
+chmod +x StarScope.AppImage
+./StarScope.AppImage
+```
+
+> 從原始碼建置請見下方 [🚀 快速開始](#-快速開始)。
+
+---
+
 ## 🚀 快速開始
 
 ### 前置需求
@@ -251,15 +283,19 @@ StarScope/
 
 ---
 
-## 🤝 貢獻
+## 📌 Project Status
 
-歡迎貢獻！詳見 [CONTRIBUTING.md](CONTRIBUTING.md)。
+**Status:** Personal side project · v1.0.0 feature-complete
 
-```bash
-git checkout -b feature/your-feature    # 建立分支
-git commit -m "feat: ..."              # 提交修改（Conventional Commits）
-git push origin feature/your-feature    # 推送並開啟 PR
-```
+StarScope 是我的個人作品集 side project，功能範圍已於 v1.0.0 凍結。
+
+- 自用 + 公開供觀摩，不預期外部使用者
+- Issues / PRs 不保證回應（這不是 OSS project，是「公開的個人專案」）
+- 想要不同方向？直接 fork 自由發揮
+
+> 為什麼凍結？核心動能追蹤功能已達成設計目標。
+> 與其無止盡擴張、最後變成另一個半完成 repo，在「剛好完成」時收手，
+> 讓它以「完成品」存在，而不是「永遠 0.x 的爛尾」。
 
 ## 📄 授權
 
@@ -283,6 +319,6 @@ git push origin feature/your-feature    # 推送並開啟 PR
 [![CI](https://github.com/Neal75418/StarScope/actions/workflows/test.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/test.yml)
 [![Release](https://github.com/Neal75418/StarScope/actions/workflows/release.yml/badge.svg)](https://github.com/Neal75418/StarScope/actions/workflows/release.yml)
 
-Made with ❤️ by engineers, for engineers.
+Made by [Neal](https://github.com/Neal75418) · 2026
 
 </div>

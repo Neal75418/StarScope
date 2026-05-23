@@ -7,6 +7,21 @@
 
 ---
 
+## [1.0.0] — 2026-05-23
+
+### 里程碑
+
+- **專案完成** — StarScope 自 v0.1.0 累積至 v1.0.0，確立功能範圍並進入 feature-complete 狀態
+- **個人 side project 收尾** — 不再規劃新功能，僅修復重大 bug 與安全性問題
+
+### 文件
+
+- README 加入 **📌 Project Status** 區塊，明確標示個人作品集定位與凍結原因
+- README 加入 **📦 Installation** 區塊，補充 macOS Gatekeeper / Windows SmartScreen / Linux AppImage 首次開啟教學
+- 移除 README 「🤝 貢獻」區塊（與個人 side project 定位不一致）
+
+---
+
 ## [0.4.3] — 2026-03-28
 
 ### 效能
