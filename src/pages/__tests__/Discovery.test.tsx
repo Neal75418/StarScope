@@ -242,6 +242,9 @@ describe("Discovery", () => {
 
   it("clicking a trending period switches from the For You feed to search results", async () => {
     const user = userEvent.setup();
+    // useDiscovery 在此檔案是完整 mock（非 reactive）；先設好 period，模擬真實 hook 在
+    // setPeriod("daily") 後、下次渲染會回傳的狀態。
+    mockDiscoveryReturn.period = "daily";
     render(<Discovery />);
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
 
@@ -254,6 +257,7 @@ describe("Discovery", () => {
 
   it("clearing all filters after browsing trending returns to the For You feed", async () => {
     const user = userEvent.setup();
+    mockDiscoveryReturn.period = "daily";
     render(<Discovery />);
 
     await user.click(screen.getByTestId("period-daily"));
@@ -262,6 +266,26 @@ describe("Discovery", () => {
     await user.click(screen.getByTestId("clear-all"));
 
     expect(mockDiscoveryReturn.reset).toHaveBeenCalled();
+    expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
+    expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
+  });
+
+  it("removing the period chip individually (not Clear all) returns to the For You feed", async () => {
+    const user = userEvent.setup();
+    mockDiscoveryReturn.period = "daily";
+    const { rerender } = render(<Discovery />);
+
+    await user.click(screen.getByTestId("period-daily"));
+    expect(screen.getByTestId("discovery-results")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("remove-period"));
+    expect(mockDiscoveryReturn.removePeriod).toHaveBeenCalled();
+
+    // 同上：手動同步 removePeriod 後 period 應變成的值（真實 hook 的 setPeriod(undefined)），
+    // 並重新渲染，驗證「未按 Clear all、只移除 period chip」也能回到 feed。
+    mockDiscoveryReturn.period = null;
+    rerender(<Discovery />);
+
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
     expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
   });

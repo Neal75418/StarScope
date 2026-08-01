@@ -204,13 +204,19 @@ export function Discovery() {
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
   );
 
+  // 是否「仍在」瀏覽使用者主動點選的 trending：以 period 目前是否還有值作為衍生條件，
+  // 而非單純依賴 userBrowsedTrending 這個持久旗標——這樣無論是按 Clear all、還是用
+  // ActiveFilters 個別的「×」移除 period chip（discovery.removePeriod），只要 period
+  // 被清空，這裡就會自動跟著變回 false，不會有旗標與實際條件脫鉤、卡在 DiscoveryResults 回不去 feed 的問題。
+  const isBrowsingTrending = userBrowsedTrending && Boolean(discovery.period);
+
   // 是否有搜尋關鍵字、篩選條件、或使用者主動瀏覽 trending：決定顯示搜尋結果還是 For You feed
   // 注意：不可用 discovery.hasSearched（mount 時 cold-start 的 setPeriod("weekly") 就會讓它變 true，
   // 導致 feed 永遠不顯示）；userBrowsedTrending 只在使用者親自點擊 TrendingFilters 時才設定。
   const hasActiveSearch = useMemo(
     () =>
       discovery.keyword.trim() !== "" ||
-      userBrowsedTrending ||
+      isBrowsingTrending ||
       Boolean(
         discoveryFilters.language ||
         discoveryFilters.topic ||
@@ -219,7 +225,7 @@ export function Discovery() {
         discoveryFilters.license ||
         discoveryFilters.hideArchived
       ),
-    [discovery.keyword, discoveryFilters, userBrowsedTrending]
+    [discovery.keyword, discoveryFilters, isBrowsingTrending]
   );
 
   // Batch add：收集已選 repo 的 { owner, name }
