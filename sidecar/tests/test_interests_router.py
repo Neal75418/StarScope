@@ -1,6 +1,4 @@
 """Interests CRUD 與黑名單 API 測試。"""
-from db.models import Interest, ExcludeTerm, InterestKind
-
 BASE = "/api/interests"
 
 
@@ -44,6 +42,17 @@ def test_update_interest(client):
 def test_update_missing_404(client):
     resp = client.put(f"{BASE}/999", json={"term": "x", "kind": "topic", "weight": 1})
     assert resp.status_code == 404
+
+
+def test_update_duplicate_term_kind_conflict(client):
+    # Create two interests with different terms
+    resp1 = client.post(BASE, json={"term": "rust", "kind": "language", "weight": 1})
+    id1 = resp1.json()["data"]["id"]
+    resp2 = client.post(BASE, json={"term": "python", "kind": "language", "weight": 2})
+    id2 = resp2.json()["data"]["id"]
+    # Try to update the second to have the same (term, kind) as the first -> should get 409
+    resp = client.put(f"{BASE}/{id2}", json={"term": "rust", "kind": "language", "weight": 3})
+    assert resp.status_code == 409
 
 
 def test_delete_interest(client):

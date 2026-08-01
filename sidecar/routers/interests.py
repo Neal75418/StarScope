@@ -1,6 +1,4 @@
 """興趣清單與 feed 黑名單 API。"""
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -11,7 +9,6 @@ from schemas.response import ApiResponse, success_response
 from services.feed_defaults import ensure_default_exclude_terms
 
 router = APIRouter(prefix="/api/interests", tags=["interests"])
-logger = logging.getLogger(__name__)
 
 
 class InterestCreate(BaseModel):
@@ -90,6 +87,14 @@ def update_interest(interest_id: int, payload: InterestCreate,
     row = db.get(Interest, interest_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Interest not found")
+    # Check for duplicate (term, kind) excluding self
+    exists = db.query(Interest).filter(
+        Interest.term == payload.term,
+        Interest.kind == payload.kind,
+        Interest.id != interest_id
+    ).first()
+    if exists:
+        raise HTTPException(status_code=409, detail="Interest already exists")
     row.term, row.kind, row.weight = payload.term, payload.kind, payload.weight
     db.commit()
     db.refresh(row)
