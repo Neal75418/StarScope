@@ -60,6 +60,15 @@ import type {
   SignalThresholdsUpdate,
   DiagnosticsResponse,
   ResetDataResponse,
+  Interest,
+  InterestCreate,
+  InterestListResponse,
+  ExcludeTerm,
+  ExclusionListResponse,
+  FeedResponse,
+  GenerateFeedResult,
+  FeedItem,
+  FeedFeedbackAction,
 } from "./types";
 
 export * from "./types";
@@ -886,5 +895,66 @@ export async function resetAllData(signal?: AbortSignal): Promise<ResetDataRespo
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ confirm: "RESET" }),
     signal,
+  });
+}
+
+// --- For You Feed (Phase A) ---
+
+/** 取得興趣清單。 */
+export async function getInterests(signal?: AbortSignal): Promise<InterestListResponse> {
+  return apiCall<InterestListResponse>("/interests", { signal });
+}
+
+/** 新增興趣。 */
+export async function createInterest(input: InterestCreate): Promise<Interest> {
+  return apiCall<Interest>("/interests", { method: "POST", body: JSON.stringify(input) });
+}
+
+/** 更新興趣。 */
+export async function updateInterest(id: number, input: InterestCreate): Promise<Interest> {
+  return apiCall<Interest>(`/interests/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+/** 刪除興趣。 */
+export async function deleteInterest(id: number): Promise<void> {
+  return apiCall<void>(`/interests/${id}`, { method: "DELETE" });
+}
+
+/** 取得黑名單。 */
+export async function getExclusions(signal?: AbortSignal): Promise<ExclusionListResponse> {
+  return apiCall<ExclusionListResponse>("/interests/exclusions", { signal });
+}
+
+/** 新增黑名單關鍵字。 */
+export async function addExclusion(term: string): Promise<ExcludeTerm> {
+  return apiCall<ExcludeTerm>("/interests/exclusions", {
+    method: "POST",
+    body: JSON.stringify({ term }),
+  });
+}
+
+/** 移除黑名單關鍵字。 */
+export async function removeExclusion(id: number): Promise<void> {
+  return apiCall<void>(`/interests/exclusions/${id}`, { method: "DELETE" });
+}
+
+/** 取得今日 feed。 */
+export async function getFeed(signal?: AbortSignal): Promise<FeedResponse> {
+  return apiCall<FeedResponse>("/feed", { signal });
+}
+
+/** 觸發今日 feed 產生（已存在則後端直接回傳既有數量）。 */
+export async function generateFeed(): Promise<GenerateFeedResult> {
+  return apiCall<GenerateFeedResult>("/feed/generate", { method: "POST" });
+}
+
+/** 送出 feed 項目回饋。 */
+export async function sendFeedFeedback(
+  itemId: number,
+  action: FeedFeedbackAction
+): Promise<FeedItem> {
+  return apiCall<FeedItem>(`/feed/items/${itemId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ action }),
   });
 }

@@ -169,6 +169,19 @@ export const queryKeys = {
     signalTypes: () => [...queryKeys.alertRuleData.all, "signalTypes"] as const,
     repos: () => [...queryKeys.alertRuleData.all, "repos"] as const,
   },
+
+  // For You Feed
+  feed: {
+    all: ["feed"] as const,
+    today: () => [...queryKeys.feed.all, "today"] as const,
+  },
+
+  // 興趣（For You Feed）
+  interests: {
+    all: ["interests"] as const,
+    list: () => [...queryKeys.interests.all, "list"] as const,
+    exclusions: () => [...queryKeys.interests.all, "exclusions"] as const,
+  },
 } as const;
 
 /**

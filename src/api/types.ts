@@ -598,3 +598,69 @@ export interface ResetDataResponse {
   status: string;
   deleted_repos: number;
 }
+
+// --- For You Feed (Phase A) ---
+
+export type InterestKind = "topic" | "language" | "keyword";
+
+export interface Interest {
+  id: number;
+  term: string;
+  kind: InterestKind;
+  weight: number;
+}
+
+export interface InterestCreate {
+  term: string;
+  kind: InterestKind;
+  weight: number;
+}
+
+export interface InterestListResponse {
+  interests: Interest[];
+}
+
+export interface ExcludeTerm {
+  id: number;
+  term: string;
+}
+
+export interface ExclusionListResponse {
+  exclusions: ExcludeTerm[];
+}
+
+export interface FeedReason {
+  matched: string[];
+  stars: number;
+  age_days: number | null;
+}
+
+export type FeedFeedbackAction = "starred" | "dismissed";
+
+export interface FeedItem {
+  id: number;
+  github_id: number;
+  full_name: string;
+  owner: string;
+  name: string;
+  description: string | null;
+  language: string | null;
+  topics: string[];
+  stars: number;
+  forks: number;
+  url: string;
+  owner_avatar_url: string | null;
+  score: number;
+  reason: FeedReason;
+  feedback: FeedFeedbackAction | null;
+}
+
+export interface FeedResponse {
+  feed_date: string;
+  items: FeedItem[];
+}
+
+export interface GenerateFeedResult {
+  feed_date: string;
+  generated: number;
+}
