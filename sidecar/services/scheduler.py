@@ -16,6 +16,7 @@ from datetime import timedelta
 
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import create_engine, event, func, select as sa_select
 from sqlalchemy.exc import SQLAlchemyError
@@ -29,7 +30,8 @@ from constants import (
 from db.database import DATABASE_URL, get_db_session
 from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
-from services.github import fetch_repo_data, GitHubAPIError
+from services.feed_generator import generate_feed
+from services.github import fetch_repo_data, get_github_service, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
 from utils.time import utc_now
@@ -366,6 +368,26 @@ async def fetch_context_signals_job() -> None:
             log.critical(f"[排程] [{job_id}] 上下文訊號未預期錯誤: {e}", exc_info=True)
 
 
+async def generate_feed_job() -> None:
+    """
+    背景工作：每日產生 For You feed。
+    當日已存在 feed 時，generate_feed 內部直接跳過（不重打 GitHub API）。
+    """
+    job_id = uuid.uuid4().hex[:8]
+    log = logging.LoggerAdapter(logger, {"job_id": job_id})
+    log.info(f"[排程] [{job_id}] 開始產生每日 feed...")
+
+    with get_db_session() as db:
+        try:
+            github = get_github_service()
+            count = await generate_feed(db, github, utc_now().date())
+            log.info(f"[排程] [{job_id}] 每日 feed 產生完成: 寫入 {count} 條")
+        except (GitHubAPIError, SQLAlchemyError) as e:
+            log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
+        except Exception as e:
+            log.critical(f"[排程] [{job_id}] 未預期錯誤: {e}", exc_info=True)
+
+
 def cleanup_old_snapshots(retention_days: int = 90) -> int:
     """
     清理超過保留天數的舊快照，防止資料庫無限增長。
@@ -500,6 +522,19 @@ def _register_cleanup_jobs(scheduler) -> None:
     )
 
 
+def _register_feed_job(scheduler) -> None:
+    """註冊每日 For You feed 產生工作（每日 07:30 執行）。"""
+    scheduler.add_job(
+        generate_feed_job,
+        trigger=CronTrigger(hour=7, minute=30),
+        id="daily_feed",
+        name="Generate daily For You feed",
+        replace_existing=True,
+        misfire_grace_time=3600,
+        max_instances=1,
+    )
+
+
 def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     """
     啟動背景排程器。
@@ -529,12 +564,14 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     _register_alert_job(scheduler, fetch_interval_minutes)
     _register_context_job(scheduler)
     _register_cleanup_jobs(scheduler)
+    _register_feed_job(scheduler)
 
     scheduler.start()
     logger.info(
         f"[排程] 排程器已啟動: 資料抓取每 {fetch_interval_minutes} 分鐘、"
         f"上下文訊號每 {CONTEXT_FETCH_INTERVAL_MINUTES} 分鐘、"
-        f"快照清理每 24 小時、資料庫備份每日 02:00"
+        f"快照清理每 24 小時、資料庫備份每日 02:00、"
+        f"每日 feed 產生 07:30"
     )
 
 

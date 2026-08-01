@@ -418,3 +418,27 @@ class TestFetchContextSignalsJobCleanup:
             mock_fetch.side_effect = SQLAlchemyError("DB error")
 
             await fetch_context_signals_job()  # Should not raise
+
+
+class TestFeedJob:
+    """每日 feed 產生任務。"""
+
+    @pytest.mark.asyncio
+    async def test_generate_feed_job_invokes_pipeline(self, test_db):
+        """Test generate_feed_job invokes the feed generation pipeline."""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.get_github_service') as mock_get_github, \
+             patch('services.scheduler.generate_feed',
+                   new=AsyncMock(return_value=5)) as mock_gen:
+            from services.scheduler import generate_feed_job
+            await generate_feed_job()
+        mock_gen.assert_awaited_once()
+
+    def test_feed_job_registered(self):
+        """Test _register_feed_job registers a "daily_feed" cron job."""
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from services.scheduler import _register_feed_job
+        scheduler = AsyncIOScheduler()
+        _register_feed_job(scheduler)
+        job = scheduler.get_job("daily_feed")
+        assert job is not None
