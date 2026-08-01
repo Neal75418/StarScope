@@ -480,7 +480,7 @@ class FeedItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     candidate_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("feed_candidates.id"), nullable=False)
+        Integer, ForeignKey("feed_candidates.id", ondelete="CASCADE"), nullable=False)
     feed_date: Mapped[date] = mapped_column(Date, nullable=False)
     score: Mapped[float] = mapped_column(Float, nullable=False)
     reason_json: Mapped[str] = mapped_column(String(2048), nullable=False)
