@@ -150,3 +150,16 @@ async def test_zero_score_items_dropped(test_db):
     test_db.commit()
     gh = FakeGitHub({"tauri": [_gh_item(1, "a/dead", topics=["tauri"], stars=0)]})
     assert await generate_feed(test_db, gh, TODAY, now=NOW) == 0
+
+
+@pytest.mark.asyncio
+async def test_keyword_interest_generates_item_with_reason(test_db):
+    # KEYWORD kind 走 query 拼接分支（非 topic/language 參數），需獨立回歸保護
+    test_db.add(Interest(term="quant", kind=InterestKind.KEYWORD, weight=2))
+    test_db.commit()
+    gh = FakeGitHub({"quant": [_gh_item(1, "a/quant-lib", topics=[])]})
+    count = await generate_feed(test_db, gh, TODAY, now=NOW)
+    assert count == 1
+    item = test_db.query(FeedItem).one()
+    assert "keyword:quant" in item.reason_json
+    assert gh.calls[0]["query"].startswith("quant ")
