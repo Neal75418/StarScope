@@ -170,16 +170,18 @@ export function Discovery() {
     [doAddToWatchlist]
   );
 
-  // For You feed 加入 watchlist
+  // For You feed 加入 watchlist；回傳是否成功，供呼叫端決定是否送出 starred feedback
   const handleFeedAdd = useCallback(
-    async (item: FeedItemType) => {
+    async (item: FeedItemType): Promise<boolean> => {
       try {
         await addRepo({ owner: item.owner, name: item.name });
         setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(item.full_name)));
         void handleRefreshAll();
         toast.success(t.toast.repoAdded);
+        return true;
       } catch {
         toast.error(t.toast.error);
+        return false;
       }
     },
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]

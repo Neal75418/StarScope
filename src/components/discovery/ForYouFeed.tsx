@@ -9,7 +9,7 @@ import { Skeleton } from "../Skeleton";
 import styles from "./Discovery.module.css";
 
 interface ForYouFeedProps {
-  onAddToWatchlist: (item: FeedItem) => void;
+  onAddToWatchlist: (item: FeedItem) => Promise<boolean>;
 }
 
 export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
@@ -48,19 +48,28 @@ export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
           {t.discovery.forYou.refresh}
         </button>
       </div>
-      <div className={styles.resultsList}>
-        {visible.map((item) => (
-          <FeedItemCard
-            key={item.id}
-            item={item}
-            onStar={(it) => {
-              onAddToWatchlist(it);
-              feedback(it.id, "starred");
-            }}
-            onDismiss={(it) => feedback(it.id, "dismissed")}
-          />
-        ))}
-      </div>
+      {visible.length === 0 ? (
+        <p className={styles.recSubtitle} data-testid="feed-all-dismissed">
+          {t.discovery.forYou.allDismissed}
+        </p>
+      ) : (
+        <div className={styles.resultsList}>
+          {visible.map((item) => (
+            <FeedItemCard
+              key={item.id}
+              item={item}
+              onStar={async (it) => {
+                // 只有加入 watchlist 成功才送出 starred feedback，避免失敗仍污染回饋訊號
+                const success = await onAddToWatchlist(it);
+                if (success) {
+                  feedback(it.id, "starred");
+                }
+              }}
+              onDismiss={(it) => feedback(it.id, "dismissed")}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

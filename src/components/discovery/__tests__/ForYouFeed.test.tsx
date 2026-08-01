@@ -58,12 +58,21 @@ describe("ForYouFeed", () => {
 
   it("track button calls onAddToWatchlist and sends starred feedback", async () => {
     vi.mocked(client.sendFeedFeedback).mockResolvedValue({ ...ITEM, feedback: "starred" });
-    const onAdd = vi.fn();
+    const onAdd = vi.fn().mockResolvedValue(true);
     renderWithClient(<ForYouFeed onAddToWatchlist={onAdd} />);
     await screen.findByText("a/one");
     fireEvent.click(screen.getByTestId("feed-star-1"));
     await waitFor(() => expect(onAdd).toHaveBeenCalled());
     expect(client.sendFeedFeedback).toHaveBeenCalledWith(1, "starred");
+  });
+
+  it("does not send starred feedback when adding to watchlist fails", async () => {
+    const onAdd = vi.fn().mockResolvedValue(false);
+    renderWithClient(<ForYouFeed onAddToWatchlist={onAdd} />);
+    await screen.findByText("a/one");
+    fireEvent.click(screen.getByTestId("feed-star-1"));
+    await waitFor(() => expect(onAdd).toHaveBeenCalled());
+    expect(client.sendFeedFeedback).not.toHaveBeenCalledWith(1, "starred");
   });
 
   it("shows empty state when no items and generation done", async () => {
@@ -74,5 +83,15 @@ describe("ForYouFeed", () => {
     });
     renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
     expect(await screen.findByTestId("feed-empty-state")).toBeInTheDocument();
+  });
+
+  it("shows all-caught-up message when every item has been dismissed", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      items: [{ ...ITEM, feedback: "dismissed" }],
+    });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    expect(await screen.findByTestId("feed-all-dismissed")).toBeInTheDocument();
+    expect(screen.queryByText("a/one")).not.toBeInTheDocument();
   });
 });

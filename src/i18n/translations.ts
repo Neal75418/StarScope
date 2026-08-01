@@ -206,6 +206,7 @@ export const translations = {
         addToWatchlist: "Track",
         dismiss: "Not interested",
         refresh: "Refresh",
+        allDismissed: "All caught up for today.",
       },
     },
     // 追蹤清單頁面
@@ -1084,6 +1085,7 @@ export const translations = {
         addToWatchlist: "追蹤",
         dismiss: "不感興趣",
         refresh: "重新整理",
+        allDismissed: "今天的推薦都看完了。",
       },
     },
     // 追蹤清單頁面
