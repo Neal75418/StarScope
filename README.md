@@ -55,7 +55,7 @@ graph TB
     class UX ux
 ```
 
-**📡 追蹤與分析** — Watchlist 追蹤 · Velocity / Acceleration 分析 · 7/30/90 天趨勢偵測 · Star 歷史回填 · 語言分佈
+**📡 追蹤與分析** — Watchlist 追蹤 · Velocity / Acceleration 分析 · 7/30/90 天趨勢偵測 · Star 歷史回填 · 語言分佈 · For You 每日個人化推薦
 
 **🔔 警報與通知** — 自訂警報規則 · 應用內通知中心 · OS 層級推播通知 · Hacker News 熱門偵測
 
@@ -65,7 +65,7 @@ graph TB
 
 **✨ 使用者體驗** — 中／英雙語 · 淺色／深色主題 · 虛擬滾動 · 頁面過場動畫
 
-> **測試覆蓋**：前端 1,199 + 後端 471 = **1,670 個測試案例**，E2E 11 specs / 44 tests
+> **測試覆蓋**：前端 1,231 + 後端 529 = **1,760 個測試案例**，E2E 12 specs / 47 tests
 
 ## 🏗️ 技術架構
 
@@ -220,7 +220,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   54 個 Custom Hooks
+│   ├── hooks/                     #   55 個 Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -244,13 +244,13 @@ StarScope/
 │
 ├── sidecar/                       # Python 資料引擎
 │   ├── main.py                    #   FastAPI 入口（port 8008）
-│   ├── routers/                   #   16 個路由模組
-│   ├── services/                  #   15 個業務邏輯服務
+│   ├── routers/                   #   18 個路由模組
+│   ├── services/                  #   18 個業務邏輯服務
 │   ├── schemas/                   #   Pydantic 資料模型
-│   ├── db/                        #   SQLite + SQLAlchemy（11 張表）
+│   ├── db/                        #   SQLite + SQLAlchemy（16 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（471 個）
+│   └── tests/                     #   pytest 後端測試（529 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）
@@ -271,6 +271,8 @@ StarScope/
 | `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
 | `recommendations` | `/api/recommendations` | 相似 repo 推薦、相似度計算                      |
 | `discovery`       | `/api/discovery`       | GitHub 搜尋（限速 30/min）                  |
+| `feed`            | `/api/feed`            | For You 每日個人化推薦、產生、回饋                   |
+| `interests`       | `/api/interests`       | Feed 興趣清單與排除清單 CRUD                    |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
 | `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
