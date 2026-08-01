@@ -47,6 +47,8 @@ export function Discovery() {
   const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
+  // 使用者是否曾主動點擊 Trending period 按鈕（區分 mount 時 cold-start 的 setPeriod("weekly")）
+  const [userBrowsedTrending, setUserBrowsedTrending] = useState(false);
 
   // 鍵盤快捷鍵：「/」聚焦搜尋框
   useEffect(() => {
@@ -112,6 +114,21 @@ export function Discovery() {
     },
     [setKeyword]
   );
+
+  // 使用者主動點擊 Trending period 按鈕：視為 active search，切到 DiscoveryResults
+  const handleSelectPeriod = useCallback(
+    (period: TrendingPeriod) => {
+      setUserBrowsedTrending(true);
+      setPeriod(period);
+    },
+    [setPeriod]
+  );
+
+  // Clear All／Reset：回到 For You feed 預設畫面
+  const handleResetDiscovery = useCallback(() => {
+    setUserBrowsedTrending(false);
+    resetDiscovery();
+  }, [resetDiscovery]);
 
   // Quick pick：語言
   const handleQuickLanguage = useCallback(
@@ -187,10 +204,13 @@ export function Discovery() {
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
   );
 
-  // 是否有搜尋關鍵字或篩選條件：決定顯示搜尋結果還是 For You feed
+  // 是否有搜尋關鍵字、篩選條件、或使用者主動瀏覽 trending：決定顯示搜尋結果還是 For You feed
+  // 注意：不可用 discovery.hasSearched（mount 時 cold-start 的 setPeriod("weekly") 就會讓它變 true，
+  // 導致 feed 永遠不顯示）；userBrowsedTrending 只在使用者親自點擊 TrendingFilters 時才設定。
   const hasActiveSearch = useMemo(
     () =>
       discovery.keyword.trim() !== "" ||
+      userBrowsedTrending ||
       Boolean(
         discoveryFilters.language ||
         discoveryFilters.topic ||
@@ -199,7 +219,7 @@ export function Discovery() {
         discoveryFilters.license ||
         discoveryFilters.hideArchived
       ),
-    [discovery.keyword, discoveryFilters]
+    [discovery.keyword, discoveryFilters, userBrowsedTrending]
   );
 
   // Batch add：收集已選 repo 的 { owner, name }
@@ -243,7 +263,7 @@ export function Discovery() {
       />
 
       <div className="discovery-toolbar">
-        <TrendingFilters onSelectPeriod={discovery.setPeriod} activePeriod={discovery.period} />
+        <TrendingFilters onSelectPeriod={handleSelectPeriod} activePeriod={discovery.period} />
       </div>
 
       {!discovery.hasSearched && (
@@ -267,7 +287,7 @@ export function Discovery() {
         onRemoveMaxStars={discovery.removeMaxStars}
         onRemoveLicense={discovery.removeLicense}
         onRemoveHideArchived={discovery.removeHideArchived}
-        onClearAll={resetDiscovery}
+        onClearAll={handleResetDiscovery}
       />
 
       <DiscoveryFilters filters={discovery.filters} onFiltersChange={discovery.setFilters} />

@@ -240,6 +240,32 @@ describe("Discovery", () => {
     expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
   });
 
+  it("clicking a trending period switches from the For You feed to search results", async () => {
+    const user = userEvent.setup();
+    render(<Discovery />);
+    expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("period-daily"));
+
+    expect(mockDiscoveryReturn.setPeriod).toHaveBeenCalledWith("daily");
+    expect(screen.getByTestId("discovery-results")).toBeInTheDocument();
+    expect(screen.queryByTestId("for-you-feed")).not.toBeInTheDocument();
+  });
+
+  it("clearing all filters after browsing trending returns to the For You feed", async () => {
+    const user = userEvent.setup();
+    render(<Discovery />);
+
+    await user.click(screen.getByTestId("period-daily"));
+    expect(screen.getByTestId("discovery-results")).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("clear-all"));
+
+    expect(mockDiscoveryReturn.reset).toHaveBeenCalled();
+    expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
+    expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
+  });
+
   it("shows initial state before search", () => {
     // 有關鍵字才會渲染 DiscoveryResults；此處驗證 DiscoveryResults 自身尚未搜尋完成時的狀態
     mockDiscoveryReturn.keyword = "react";
