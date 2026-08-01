@@ -20,17 +20,25 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
   const [weight, setWeight] = useState(2);
   const [excludeTerm, setExcludeTerm] = useState("");
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = term.trim();
     if (!trimmed) return;
-    create({ term: trimmed, kind, weight });
-    setTerm("");
-    onToast(t.settings.interests.toast.added, "success");
+    try {
+      await create({ term: trimmed, kind, weight });
+      setTerm("");
+      onToast(t.settings.interests.toast.added, "success");
+    } catch {
+      onToast(t.settings.interests.toast.error, "error");
+    }
   };
 
-  const handleRemove = (id: number) => {
-    remove(id);
-    onToast(t.settings.interests.toast.removed, "success");
+  const handleRemove = async (id: number) => {
+    try {
+      await remove(id);
+      onToast(t.settings.interests.toast.removed, "success");
+    } catch {
+      onToast(t.settings.interests.toast.error, "error");
+    }
   };
 
   const handleAddExclude = () => {
@@ -60,10 +68,11 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
               value={term}
               placeholder={t.settings.interests.addPlaceholder}
               onChange={(e) => setTerm(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              onKeyDown={(e) => e.key === "Enter" && void handleAdd()}
             />
             <select
               className="settings-select"
+              aria-label={t.settings.interests.kindLabel}
               value={kind}
               onChange={(e) => setKind(e.target.value as InterestKind)}
             >
@@ -81,7 +90,11 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
               <option value={2}>2</option>
               <option value={3}>3</option>
             </select>
-            <button className="btn btn-primary" data-testid="interest-add-btn" onClick={handleAdd}>
+            <button
+              className="btn btn-primary"
+              data-testid="interest-add-btn"
+              onClick={() => void handleAdd()}
+            >
               {t.settings.interests.add}
             </button>
           </div>
@@ -102,7 +115,7 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                     className="btn btn-sm btn-danger"
                     data-testid={`interest-remove-${i.id}`}
                     aria-label={`${t.settings.interests.remove} ${i.term}`}
-                    onClick={() => handleRemove(i.id)}
+                    onClick={() => void handleRemove(i.id)}
                   >
                     {t.settings.interests.remove}
                   </button>

@@ -48,25 +48,50 @@ describe("InterestsSection", () => {
     expect(await screen.findByText("awesome")).toBeInTheDocument();
   });
 
-  it("adds an interest via form", async () => {
+  it("adds an interest via form and shows a success toast", async () => {
     vi.mocked(apiClient.createInterest).mockResolvedValue({
       id: 2,
       term: "rust",
       kind: "language",
       weight: 2,
     });
-    renderSection();
+    const { onToast } = renderSection();
     await screen.findByText("tauri");
     fireEvent.change(screen.getByTestId("interest-term-input"), { target: { value: "rust" } });
     fireEvent.click(screen.getByTestId("interest-add-btn"));
     await waitFor(() => expect(apiClient.createInterest).toHaveBeenCalled());
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Interest added", "success"));
+    expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "error");
   });
 
-  it("removes an interest", async () => {
+  it("shows an error toast (not success) when create fails", async () => {
+    vi.mocked(apiClient.createInterest).mockRejectedValue(new Error("duplicate"));
+    const { onToast } = renderSection();
+    await screen.findByText("tauri");
+    fireEvent.change(screen.getByTestId("interest-term-input"), { target: { value: "rust" } });
+    fireEvent.click(screen.getByTestId("interest-add-btn"));
+    await waitFor(() => expect(apiClient.createInterest).toHaveBeenCalled());
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Operation failed", "error"));
+    expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "success");
+  });
+
+  it("removes an interest and shows a success toast", async () => {
     vi.mocked(apiClient.deleteInterest).mockResolvedValue(undefined);
-    renderSection();
+    const { onToast } = renderSection();
     await screen.findByText("tauri");
     fireEvent.click(screen.getByTestId("interest-remove-1"));
     await waitFor(() => expect(apiClient.deleteInterest).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Interest removed", "success"));
+    expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "error");
+  });
+
+  it("shows an error toast (not success) when remove fails", async () => {
+    vi.mocked(apiClient.deleteInterest).mockRejectedValue(new Error("network error"));
+    const { onToast } = renderSection();
+    await screen.findByText("tauri");
+    fireEvent.click(screen.getByTestId("interest-remove-1"));
+    await waitFor(() => expect(apiClient.deleteInterest).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Operation failed", "error"));
+    expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "success");
   });
 });

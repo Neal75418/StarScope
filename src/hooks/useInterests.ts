@@ -55,9 +55,11 @@ export function useInterests() {
     interests: interestsQuery.data?.interests ?? [],
     exclusions: exclusionsQuery.data?.exclusions ?? [],
     isLoading: interestsQuery.isLoading || exclusionsQuery.isLoading,
-    create: (input: InterestCreate) => createMutation.mutate(input),
+    // create/remove 回傳 Promise（mutateAsync）：呼叫端可用 try/catch 依實際結果決定 toast，
+    // 避免 fire-and-forget 導致失敗時仍顯示成功訊息。
+    create: (input: InterestCreate) => createMutation.mutateAsync(input),
     update: (id: number, input: InterestCreate) => updateMutation.mutate({ id, input }),
-    remove: (id: number) => removeMutation.mutate(id),
+    remove: (id: number) => removeMutation.mutateAsync(id),
     addExclude: (term: string) => addExcludeMutation.mutate(term),
     removeExclude: (id: number) => removeExcludeMutation.mutate(id),
   };
