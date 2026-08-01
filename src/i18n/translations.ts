@@ -193,6 +193,20 @@ export const translations = {
         list: "List view",
         grid: "Grid view",
       },
+      forYou: {
+        title: "For You",
+        subtitle: "Daily picks matched to your interests",
+        empty: "No feed today. Add interests in Settings to activate.",
+        generating: "Building today's feed…",
+        reason: {
+          matched: "matched",
+          stars: "stars",
+          daysOld: "days old",
+        },
+        addToWatchlist: "Track",
+        dismiss: "Not interested",
+        refresh: "Refresh",
+      },
     },
     // 追蹤清單頁面
     watchlist: {
@@ -1056,6 +1070,20 @@ export const translations = {
       viewMode: {
         list: "列表檢視",
         grid: "格狀檢視",
+      },
+      forYou: {
+        title: "為你推薦",
+        subtitle: "根據你的興趣挑選的每日專案",
+        empty: "今天沒有 feed。到設定頁新增興趣以啟用。",
+        generating: "正在產生今日 feed…",
+        reason: {
+          matched: "命中",
+          stars: "stars",
+          daysOld: "天前建立",
+        },
+        addToWatchlist: "追蹤",
+        dismiss: "不感興趣",
+        refresh: "重新整理",
       },
     },
     // 追蹤清單頁面

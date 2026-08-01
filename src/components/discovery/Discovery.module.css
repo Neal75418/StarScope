@@ -547,6 +547,36 @@
   accent-color: var(--accent-fg);
 }
 
+/* For You Feed */
+.feedReason {
+  font-size: 0.8125rem;
+  color: var(--fg-subtle);
+  font-style: italic;
+  margin: 0.5rem 0 0;
+}
+
+.feedActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.dismissButton {
+  padding: 0.375rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--fg-muted);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dismissButton:hover {
+  border-color: var(--danger-fg);
+  color: var(--danger-fg);
+}
+
 /* Empty State */
 .emptyState {
   display: flex;

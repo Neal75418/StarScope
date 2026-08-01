@@ -12,3 +12,5 @@ export { DiscoveryResults } from "./DiscoveryResults";
 export { RecommendedForYou } from "./RecommendedForYou";
 export { QuickPicks } from "./QuickPicks";
 export { BatchAddBar } from "./BatchAddBar";
+export { ForYouFeed } from "./ForYouFeed";
+export { FeedItemCard } from "./FeedItemCard";

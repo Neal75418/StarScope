@@ -13,7 +13,7 @@ import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { normalizeRepoName } from "../utils/format";
 import { addRepo, DiscoveryRepo } from "../api/client";
-import type { PersonalizedRecommendation } from "../api/types";
+import type { PersonalizedRecommendation, FeedItem as FeedItemType } from "../api/types";
 import {
   DiscoverySearchBar,
   TrendingFilters,
@@ -24,6 +24,7 @@ import {
   RecommendedForYou,
   QuickPicks,
   BatchAddBar,
+  ForYouFeed,
 } from "../components/discovery";
 
 export function Discovery() {
@@ -169,6 +170,36 @@ export function Discovery() {
     [doAddToWatchlist]
   );
 
+  // For You feed 加入 watchlist
+  const handleFeedAdd = useCallback(
+    async (item: FeedItemType) => {
+      try {
+        await addRepo({ owner: item.owner, name: item.name });
+        setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(item.full_name)));
+        void handleRefreshAll();
+        toast.success(t.toast.repoAdded);
+      } catch {
+        toast.error(t.toast.error);
+      }
+    },
+    [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
+  );
+
+  // 是否有搜尋關鍵字或篩選條件：決定顯示搜尋結果還是 For You feed
+  const hasActiveSearch = useMemo(
+    () =>
+      discovery.keyword.trim() !== "" ||
+      Boolean(
+        discoveryFilters.language ||
+        discoveryFilters.topic ||
+        discoveryFilters.minStars ||
+        discoveryFilters.maxStars ||
+        discoveryFilters.license ||
+        discoveryFilters.hideArchived
+      ),
+    [discovery.keyword, discoveryFilters]
+  );
+
   // Batch add：收集已選 repo 的 { owner, name }
   const selectedReposForBatch = useMemo(
     () =>
@@ -239,27 +270,31 @@ export function Discovery() {
 
       <DiscoveryFilters filters={discovery.filters} onFiltersChange={discovery.setFilters} />
 
-      <DiscoveryResults
-        repos={discovery.repos}
-        totalCount={discovery.totalCount}
-        hasMore={discovery.hasMore}
-        loading={discovery.loading}
-        error={discovery.error}
-        watchlistFullNames={watchlistFullNames}
-        watchlistSignalMap={watchlistSignalMap}
-        onAddToWatchlist={handleAddToWatchlist}
-        onLoadMore={discovery.loadMore}
-        addingRepoIds={addingRepoIds}
-        hasSearched={discovery.hasSearched}
-        isSelectionMode={selection.isActive}
-        selectedIds={selection.selectedIds}
-        onToggleSelection={selection.toggleSelection}
-        onEnterSelectionMode={selection.enter}
-        onExitSelectionMode={selection.exit}
-        resultsKey={resultsKey}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
+      {hasActiveSearch ? (
+        <DiscoveryResults
+          repos={discovery.repos}
+          totalCount={discovery.totalCount}
+          hasMore={discovery.hasMore}
+          loading={discovery.loading}
+          error={discovery.error}
+          watchlistFullNames={watchlistFullNames}
+          watchlistSignalMap={watchlistSignalMap}
+          onAddToWatchlist={handleAddToWatchlist}
+          onLoadMore={discovery.loadMore}
+          addingRepoIds={addingRepoIds}
+          hasSearched={discovery.hasSearched}
+          isSelectionMode={selection.isActive}
+          selectedIds={selection.selectedIds}
+          onToggleSelection={selection.toggleSelection}
+          onEnterSelectionMode={selection.enter}
+          onExitSelectionMode={selection.exit}
+          resultsKey={resultsKey}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      ) : (
+        <ForYouFeed onAddToWatchlist={handleFeedAdd} />
+      )}
 
       {selection.isActive && (
         <BatchAddBar

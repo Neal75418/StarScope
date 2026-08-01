@@ -188,6 +188,7 @@ vi.mock("../../components/discovery", () => ({
   RecommendedForYou: () => null,
   QuickPicks: () => <div data-testid="quick-picks" />,
   BatchAddBar: () => null,
+  ForYouFeed: () => <div data-testid="for-you-feed" />,
 }));
 
 describe("Discovery", () => {
@@ -233,12 +234,21 @@ describe("Discovery", () => {
     expect(screen.getByTestId("discovery-filters")).toBeInTheDocument();
   });
 
+  it("shows the For You feed by default when there is no search keyword", () => {
+    render(<Discovery />);
+    expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
+    expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
+  });
+
   it("shows initial state before search", () => {
+    // 有關鍵字才會渲染 DiscoveryResults；此處驗證 DiscoveryResults 自身尚未搜尋完成時的狀態
+    mockDiscoveryReturn.keyword = "react";
     render(<Discovery />);
     expect(screen.getByText("Start searching")).toBeInTheDocument();
   });
 
   it("shows results after search", () => {
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.hasSearched = true;
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
@@ -292,6 +302,7 @@ describe("Discovery", () => {
 
   it("adds repo to watchlist successfully", async () => {
     const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.hasSearched = true;
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
@@ -305,6 +316,7 @@ describe("Discovery", () => {
   it("shows error toast when add to watchlist fails", async () => {
     const user = userEvent.setup();
     mockAddRepo.mockRejectedValueOnce(new Error("fail"));
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.hasSearched = true;
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
@@ -316,6 +328,7 @@ describe("Discovery", () => {
 
   it("shows in-watchlist state for repos already in watchlist", () => {
     mockWatchlistRepos = [{ full_name: "facebook/react" }];
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.hasSearched = true;
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
