@@ -434,6 +434,26 @@ class TestFeedJob:
             await generate_feed_job()
         mock_gen.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    async def test_generate_feed_job_keys_by_local_date_not_utc(self, test_db):
+        """generate_feed_job 必須用 local_today() 當 feed_date，而非 utc_now().date()。
+
+        Cron 觸發時區是本機時區（AsyncIOScheduler 預設），若 feed_date 用
+        UTC 日期，會在時區偏移的時段把批次寫進「錯的一天」（見 finding: cron
+        本地時區 x feed_date UTC 日期錯配）。
+        """
+        from datetime import date
+        sentinel_local_date = date(2099, 1, 1)
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.get_github_service'), \
+             patch('services.scheduler.local_today', return_value=sentinel_local_date), \
+             patch('services.scheduler.generate_feed',
+                   new=AsyncMock(return_value=1)) as mock_gen:
+            from services.scheduler import generate_feed_job
+            await generate_feed_job()
+        _db_arg, _github_arg, feed_date_arg = mock_gen.call_args.args
+        assert feed_date_arg == sentinel_local_date
+
     def test_feed_job_registered(self):
         """Test _register_feed_job registers a "daily_feed" cron job."""
         from apscheduler.schedulers.asyncio import AsyncIOScheduler

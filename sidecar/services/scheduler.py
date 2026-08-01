@@ -34,7 +34,7 @@ from services.feed_generator import generate_feed
 from services.github import fetch_repo_data, get_github_service, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
-from utils.time import utc_now
+from utils.time import local_today, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -380,7 +380,9 @@ async def generate_feed_job() -> None:
     with get_db_session() as db:
         try:
             github = get_github_service()
-            count = await generate_feed(db, github, utc_now().date())
+            # feed_date 用本機日期（cron 觸發時區）而非 UTC 日期，
+            # 才能與使用者查詢 /api/feed 時用的日期鍵一致（見 utils/time.local_today）
+            count = await generate_feed(db, github, local_today())
             log.info(f"[排程] [{job_id}] 每日 feed 產生完成: 寫入 {count} 條")
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)

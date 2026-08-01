@@ -12,7 +12,7 @@ from db.models import FeedItem, SeenRepo, FeedFeedback
 from schemas.response import ApiResponse, success_response
 from services.feed_generator import generate_feed
 from services.github import get_github_service
-from utils.time import utc_now
+from utils.time import local_today
 
 router = APIRouter(prefix="/api/feed", tags=["feed"])
 logger = logging.getLogger(__name__)
@@ -92,7 +92,9 @@ def _to_out(item: FeedItem) -> FeedItemOut:
 @router.get("", response_model=ApiResponse[FeedResponse])
 def get_feed(feed_date: date | None = Query(None),
              db: Session = Depends(get_db)) -> dict:
-    target = feed_date or utc_now().date()
+    # feed_date 用本機日期而非 UTC 日期：cron 產生批次與使用者查詢
+    # 必須用同一套日曆日鍵，否則在 UTC+8 等時區會整段時間對不上（見 local_today）
+    target = feed_date or local_today()
     items = (db.query(FeedItem)
              .filter(FeedItem.feed_date == target)
              .order_by(FeedItem.score.desc())
@@ -103,7 +105,7 @@ def get_feed(feed_date: date | None = Query(None),
 
 @router.post("/generate", response_model=ApiResponse[GenerateResult])
 async def trigger_generate(db: Session = Depends(get_db)) -> dict:
-    target = utc_now().date()
+    target = local_today()
     github = get_github_service()
     count = await generate_feed(db, github, target)
     return success_response(GenerateResult(feed_date=target.isoformat(), generated=count))

@@ -9,6 +9,7 @@ import logging
 import math
 from datetime import date, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from db.models import (
@@ -159,6 +160,22 @@ async def generate_feed(db: Session, github, feed_date: date,
         per_term_count[primary] = per_term_count.get(primary, 0) + 1
         written += 1
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # cron 與 API on-demand 同時觸發時，count==0 檢查與寫入之間的 await
+        # 讓兩個 writer 都通過了「當日無 feed」的檢查；先 commit 的一方會成功，
+        # 後 commit 的一方在此撞 uq_feed_items_candidate_date 或
+        # seen_repos.github_id unique constraint。視為「別人已產生」，
+        # rollback 後回傳既有數量，不讓使用者看到 500。
+        db.rollback()
+        existing_after_race = db.query(FeedItem).filter(
+            FeedItem.feed_date == feed_date).count()
+        logger.warning(
+            f"[feed] {feed_date} 併發寫入衝突，已由其他 writer 產生 "
+            f"{existing_after_race} 條，捨棄本次結果"
+        )
+        return existing_after_race
+
     logger.info(f"[feed] {feed_date} 產生 {written} 條（候選 {len(merged)}）")
     return written

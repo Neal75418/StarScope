@@ -1,10 +1,15 @@
 """Feed 產生管線整合測試 — fake GitHubService，不打真 API。"""
+import json
+import os
+import tempfile
 from datetime import date, datetime, timedelta
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from db.models import (
-    Interest, InterestKind, ExcludeTerm, FeedItem, SeenRepo, Repo, FeedCandidate,
+    Base, Interest, InterestKind, ExcludeTerm, FeedItem, SeenRepo, Repo, FeedCandidate,
 )
 from services.feed_generator import generate_feed, FEED_SIZE, MAX_PER_TERM
 
@@ -163,3 +168,72 @@ async def test_keyword_interest_generates_item_with_reason(test_db):
     item = test_db.query(FeedItem).one()
     assert "keyword:quant" in item.reason_json
     assert gh.calls[0]["query"].startswith("quant ")
+
+
+@pytest.mark.asyncio
+async def test_concurrent_generate_returns_existing_count_instead_of_500():
+    """count==0 檢查與最終 db.commit() 之間隔著多個 await（GitHub search、
+    scoring）。當 cron 排程與 API on-demand 同時進入 generate_feed，兩者都
+    通過 count==0 檢查後，先 commit 的一方成功、後 commit 的一方會在自己的
+    db.commit() 撞上 uq_feed_items_candidate_date / seen_repos.github_id
+    unique constraint。預期行為：捕捉 IntegrityError、rollback，回傳「別人
+    已產生」的既有數量，而不是讓 IntegrityError 冒到 API 層變成 500。
+
+    用檔案型 SQLite（而非 :memory: + StaticPool）搭配兩個獨立 session，
+    讓「另一個 writer」的 commit 是真實獨立的交易，藉此重現真正的競態，
+    而不是單純 mock 掉 db.commit()。
+    """
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        session_local = sessionmaker(
+            autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
+
+        db = session_local()
+        db.add(Interest(term="tauri", kind=InterestKind.TOPIC, weight=3))
+        db.commit()
+
+        race_state = {"other_writer_committed": False}
+
+        class RaceGitHub:
+            """在第一次 search_repos 的 await 期間，模擬另一個 writer
+            搶先為同一天、同一 candidate 寫入 feed_item + seen_repo 並真的
+            commit — 對應真實情境中 cron job 與 API 同時進入的窗口。"""
+
+            def __init__(self, items_by_term: dict[str, list[dict]]):
+                self.items_by_term = items_by_term
+
+            async def search_repos(self, **kwargs):
+                if not race_state["other_writer_committed"]:
+                    other = session_local()
+                    try:
+                        cand = FeedCandidate(
+                            github_id=1, full_name="a/one", owner="a", name="one",
+                            url="https://github.com/a/one", stars=200, forks=5,
+                            topics=json.dumps(["tauri"]))
+                        other.add(cand)
+                        other.flush()
+                        other.add(FeedItem(candidate_id=cand.id, feed_date=TODAY,
+                                           score=1.0, reason_json="{}"))
+                        other.add(SeenRepo(github_id=1, full_name="a/one"))
+                        other.commit()
+                    finally:
+                        other.close()
+                    race_state["other_writer_committed"] = True
+
+                term = kwargs.get("topic") or kwargs.get("language") or kwargs.get("query", "").split()[0]
+                return {"items": self.items_by_term.get(term, []), "total_count": 0}
+
+        gh = RaceGitHub({"tauri": [_gh_item(1, "a/one", topics=["tauri"])]})
+
+        count = await generate_feed(db, gh, TODAY, now=NOW)
+
+        # 回傳的是另一個 writer 已經 commit 的既有數量，不是拋出例外
+        assert count == 1
+        assert db.query(FeedItem).count() == 1
+        assert db.query(FeedCandidate).count() == 1
+        db.close()
+    finally:
+        os.remove(db_path)
