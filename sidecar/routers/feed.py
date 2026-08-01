@@ -1,0 +1,126 @@
+"""For You feed API 端點。"""
+import json
+import logging
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, field_validator
+from sqlalchemy.orm import Session
+
+from db.database import get_db
+from db.models import FeedItem, SeenRepo, FeedFeedback
+from schemas.response import ApiResponse, success_response
+from services.feed_generator import generate_feed
+from services.github import get_github_service
+from utils.time import utc_now
+
+router = APIRouter(prefix="/api/feed", tags=["feed"])
+logger = logging.getLogger(__name__)
+
+
+class FeedReason(BaseModel):
+    matched: list[str] = []
+    stars: int = 0
+    age_days: int | None = None
+
+
+class FeedItemOut(BaseModel):
+    id: int
+    github_id: int
+    full_name: str
+    owner: str
+    name: str
+    description: str | None
+    language: str | None
+    topics: list[str]
+    stars: int
+    forks: int
+    url: str
+    owner_avatar_url: str | None
+    score: float
+    reason: FeedReason
+    feedback: str | None
+
+
+class FeedResponse(BaseModel):
+    feed_date: str
+    items: list[FeedItemOut]
+
+
+class GenerateResult(BaseModel):
+    feed_date: str
+    generated: int
+
+
+class FeedbackPayload(BaseModel):
+    action: str
+
+    @field_validator("action")
+    @classmethod
+    def validate_action(cls, v: str) -> str:
+        if v not in (FeedFeedback.STARRED, FeedFeedback.DISMISSED):
+            raise ValueError("action must be 'starred' or 'dismissed'")
+        return v
+
+
+def _to_out(item: FeedItem) -> FeedItemOut:
+    cand = item.candidate
+    reason_raw = json.loads(item.reason_json) if item.reason_json else {}
+    return FeedItemOut(
+        id=item.id,
+        github_id=cand.github_id,
+        full_name=cand.full_name,
+        owner=cand.owner,
+        name=cand.name,
+        description=cand.description,
+        language=cand.language,
+        topics=json.loads(cand.topics) if cand.topics else [],
+        stars=cand.stars,
+        forks=cand.forks,
+        url=cand.url,
+        owner_avatar_url=cand.owner_avatar_url,
+        score=item.score,
+        reason=FeedReason(
+            matched=reason_raw.get("matched", []),
+            stars=reason_raw.get("stars", 0),
+            age_days=reason_raw.get("age_days"),
+        ),
+        feedback=item.feedback,
+    )
+
+
+@router.get("", response_model=ApiResponse[FeedResponse])
+def get_feed(feed_date: date | None = Query(None),
+             db: Session = Depends(get_db)) -> dict:
+    target = feed_date or utc_now().date()
+    items = (db.query(FeedItem)
+             .filter(FeedItem.feed_date == target)
+             .order_by(FeedItem.score.desc())
+             .all())
+    return success_response(FeedResponse(
+        feed_date=target.isoformat(), items=[_to_out(i) for i in items]))
+
+
+@router.post("/generate", response_model=ApiResponse[GenerateResult])
+async def trigger_generate(db: Session = Depends(get_db)) -> dict:
+    target = utc_now().date()
+    github = get_github_service()
+    count = await generate_feed(db, github, target)
+    return success_response(GenerateResult(feed_date=target.isoformat(), generated=count))
+
+
+@router.post("/items/{item_id}/feedback", response_model=ApiResponse[FeedItemOut])
+def submit_feedback(item_id: int, payload: FeedbackPayload,
+                    db: Session = Depends(get_db)) -> dict:
+    item = db.get(FeedItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Feed item not found")
+    item.feedback = payload.action
+    if payload.action == FeedFeedback.DISMISSED:
+        seen = db.query(SeenRepo).filter(
+            SeenRepo.github_id == item.candidate.github_id).first()
+        if seen:
+            seen.dismissed = True
+    db.commit()
+    db.refresh(item)
+    return success_response(_to_out(item))
