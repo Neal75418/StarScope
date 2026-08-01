@@ -1,0 +1,66 @@
+"""Interests CRUD 與黑名單 API 測試。"""
+from db.models import Interest, ExcludeTerm, InterestKind
+
+BASE = "/api/interests"
+
+
+def test_list_empty(client):
+    resp = client.get(BASE)
+    assert resp.status_code == 200
+    assert resp.json()["data"]["interests"] == []
+
+
+def test_create_interest(client):
+    resp = client.post(BASE, json={"term": "tauri", "kind": "topic", "weight": 3})
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert data["term"] == "tauri" and data["weight"] == 3
+
+
+def test_create_duplicate_term_kind_conflict(client):
+    client.post(BASE, json={"term": "tauri", "kind": "topic", "weight": 2})
+    resp = client.post(BASE, json={"term": "tauri", "kind": "topic", "weight": 1})
+    assert resp.status_code == 409
+
+
+def test_create_invalid_weight_rejected(client):
+    resp = client.post(BASE, json={"term": "x", "kind": "topic", "weight": 4})
+    assert resp.status_code == 422
+
+
+def test_create_invalid_kind_rejected(client):
+    resp = client.post(BASE, json={"term": "x", "kind": "banana", "weight": 2})
+    assert resp.status_code == 422
+
+
+def test_update_interest(client):
+    created = client.post(BASE, json={"term": "rust", "kind": "language", "weight": 1})
+    iid = created.json()["data"]["id"]
+    resp = client.put(f"{BASE}/{iid}", json={"term": "rust", "kind": "language", "weight": 3})
+    assert resp.status_code == 200
+    assert resp.json()["data"]["weight"] == 3
+
+
+def test_update_missing_404(client):
+    resp = client.put(f"{BASE}/999", json={"term": "x", "kind": "topic", "weight": 1})
+    assert resp.status_code == 404
+
+
+def test_delete_interest(client):
+    created = client.post(BASE, json={"term": "rust", "kind": "language", "weight": 1})
+    iid = created.json()["data"]["id"]
+    assert client.delete(f"{BASE}/{iid}").status_code == 200
+    assert client.get(BASE).json()["data"]["interests"] == []
+
+
+def test_exclusions_seeded_with_defaults(client):
+    resp = client.get(f"{BASE}/exclusions")
+    terms = {e["term"] for e in resp.json()["data"]["exclusions"]}
+    assert terms == {"awesome", "interview", "roadmap", "tutorial"}
+
+
+def test_add_and_remove_exclusion(client):
+    resp = client.post(f"{BASE}/exclusions", json={"term": "boilerplate"})
+    assert resp.status_code == 200
+    tid = resp.json()["data"]["id"]
+    assert client.delete(f"{BASE}/exclusions/{tid}").status_code == 200
