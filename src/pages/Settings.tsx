@@ -16,6 +16,7 @@ import {
   ScheduledRefreshSection,
   SnapshotRetentionSection,
   SignalThresholdsSection,
+  InterestsSection,
 } from "../components/settings";
 import { DiagnosticsSection } from "../components/settings/DiagnosticsSection";
 import { useAlertRules } from "../hooks/useAlertRules";
@@ -59,6 +60,7 @@ export function Settings() {
       "scheduled-refresh",
       "snapshot-retention",
       "signal-thresholds",
+      "interests",
       "import",
       "data-management",
       "alerts",
@@ -99,6 +101,7 @@ export function Settings() {
     { id: "scheduled-refresh", label: t.settings.scheduledRefresh.title },
     { id: "snapshot-retention", label: t.settings.snapshotRetention.title },
     { id: "signal-thresholds", label: t.settings.signalThresholds.title },
+    { id: "interests", label: t.settings.interests.title },
     { id: "import", label: t.settings.import.title },
     { id: "data-management", label: t.settings.data.title },
     { id: "alerts", label: t.settings.alerts.title },
@@ -147,6 +150,11 @@ export function Settings() {
           {/* Early Signal 偵測門檻 */}
           <div id="signal-thresholds">
             <SignalThresholdsSection onToast={handleDataToast} />
+          </div>
+
+          {/* Feed 興趣清單 */}
+          <div id="interests">
+            <InterestsSection onToast={handleDataToast} />
           </div>
 
           {/* 匯入 */}

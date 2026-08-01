@@ -61,6 +61,7 @@ vi.mock("../../components/settings", () => ({
   ScheduledRefreshSection: () => <div data-testid="scheduled-refresh-section">Refresh</div>,
   SnapshotRetentionSection: () => <div data-testid="snapshot-retention-section">Retention</div>,
   SignalThresholdsSection: () => <div data-testid="signal-thresholds-section">Thresholds</div>,
+  InterestsSection: () => <div data-testid="interests-section">Interests</div>,
   ImportSection: () => <div data-testid="import-section">Import</div>,
   AlertRuleForm: ({
     isEditMode,

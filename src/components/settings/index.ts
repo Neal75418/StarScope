@@ -10,3 +10,4 @@ export { AboutSection } from "./AboutSection";
 export { ScheduledRefreshSection } from "./ScheduledRefreshSection";
 export { SnapshotRetentionSection } from "./SnapshotRetentionSection";
 export { SignalThresholdsSection } from "./SignalThresholdsSection";
+export { InterestsSection } from "./InterestsSection";
