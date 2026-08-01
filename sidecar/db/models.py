@@ -9,7 +9,7 @@ Tables:
 
 from datetime import datetime, date
 from enum import StrEnum
-from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import Integer, String, Float, DateTime, Date, ForeignKey, Index, UniqueConstraint, Boolean
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 
 from utils.time import utc_now  # noqa: F401 — 用於 mapped_column default/onupdate callable
@@ -412,3 +412,96 @@ class AppSetting(Base):
 
     def __repr__(self) -> str:
         return f"<AppSetting key={self.key}>"
+
+
+# --- For You Feed (Phase A) ---
+
+class InterestKind(StrEnum):
+    """興趣項目的匹配種類。"""
+    TOPIC = "topic"
+    LANGUAGE = "language"
+    KEYWORD = "keyword"
+
+
+class FeedFeedback(StrEnum):
+    """Feed 項目的使用者回饋。"""
+    STARRED = "starred"
+    DISMISSED = "dismissed"
+
+
+class Interest(Base):
+    """使用者興趣清單，驅動 feed 候選搜尋與評分。"""
+    __tablename__ = "interests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    term: Mapped[str] = mapped_column(String(100), nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default=InterestKind.TOPIC)
+    weight: Mapped[int] = mapped_column(Integer, nullable=False, default=2)  # 1–3
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    __table_args__ = (UniqueConstraint("term", "kind", name="uq_interests_term_kind"),)
+
+
+class ExcludeTerm(Base):
+    """Feed 黑名單關鍵字，命中者不進 feed。"""
+    __tablename__ = "exclude_terms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    term: Mapped[str] = mapped_column(String(100), nullable=False, unique=True)
+
+
+class FeedCandidate(Base):
+    """搜尋到的候選 repo（metadata 暫存池，與 watchlist 的 repos 表無關）。"""
+    __tablename__ = "feed_candidates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    github_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    full_name: Mapped[str] = mapped_column(String(512), nullable=False)
+    owner: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    language: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    topics: Mapped[str | None] = mapped_column(String(2048), nullable=True)  # JSON 陣列
+    stars: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    forks: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    url: Mapped[str] = mapped_column(String(1024), nullable=False)
+    owner_avatar_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    repo_created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    repo_pushed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    feed_items: Mapped[list["FeedItem"]] = relationship(
+        "FeedItem", back_populates="candidate", cascade=CASCADE_DELETE_ORPHAN)
+
+
+class FeedItem(Base):
+    """每日 feed 產出項目，含評分與可回溯的推薦理由。"""
+    __tablename__ = "feed_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    candidate_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("feed_candidates.id"), nullable=False)
+    feed_date: Mapped[date] = mapped_column(Date, nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    reason_json: Mapped[str] = mapped_column(String(2048), nullable=False)
+    feedback: Mapped[str | None] = mapped_column(String(20), nullable=True)  # FeedFeedback
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+    candidate: Mapped["FeedCandidate"] = relationship(
+        "FeedCandidate", back_populates="feed_items")
+
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "feed_date", name="uq_feed_items_candidate_date"),
+        Index("ix_feed_items_feed_date", "feed_date"),
+    )
+
+
+class SeenRepo(Base):
+    """已在 feed 出現過的 repo；推過不再推，dismissed 者永不回鍋。"""
+    __tablename__ = "seen_repos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    github_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    full_name: Mapped[str] = mapped_column(String(512), nullable=False)
+    last_shown_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
