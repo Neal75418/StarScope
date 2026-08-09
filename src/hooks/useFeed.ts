@@ -52,9 +52,9 @@ export function useFeed() {
     items: query.data?.items ?? [],
     feedDate: query.data?.feed_date ?? null,
     isLoading: query.isLoading || generateMutation.isPending,
+    isError: query.isError,
     isGenerating: generateMutation.isPending,
     feedback: (itemId: number, action: FeedFeedbackAction) =>
       feedbackMutation.mutate({ itemId, action }),
-    refresh: triggerGenerate,
   };
 }

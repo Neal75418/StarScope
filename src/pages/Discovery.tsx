@@ -7,7 +7,6 @@ import { useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useViewMode } from "../hooks/useViewMode";
-import { useOnceEffect } from "../hooks/useOnceEffect";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
@@ -40,7 +39,7 @@ export function Discovery() {
   const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
   // 追蹤本地新增的 repo 以即時反映 UI
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
-  // 使用者是否曾主動點擊 Trending period 按鈕（區分 mount 時 cold-start 的 setPeriod("weekly")）
+  // 使用者是否曾主動點擊 Trending period 按鈕（決定是否切到搜尋結果視圖）
   const [userBrowsedTrending, setUserBrowsedTrending] = useState(false);
 
   // 鍵盤快捷鍵：「/」聚焦搜尋框
@@ -62,11 +61,6 @@ export function Discovery() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  // Cold start：掛載時自動載入本週趨勢
-  useOnceEffect(() => {
-    setPeriod("weekly");
-  });
 
   // 建立 watchlist full_name 的 Set 以快速查找（含本地新增的）
   const watchlistFullNames = useMemo(
@@ -190,8 +184,6 @@ export function Discovery() {
   const isBrowsingTrending = userBrowsedTrending && Boolean(discovery.period);
 
   // 是否有搜尋關鍵字、篩選條件、或使用者主動瀏覽 trending：決定顯示搜尋結果還是 For You feed
-  // 注意：不可用 discovery.hasSearched（mount 時 cold-start 的 setPeriod("weekly") 就會讓它變 true，
-  // 導致 feed 永遠不顯示）；userBrowsedTrending 只在使用者親自點擊 TrendingFilters 時才設定。
   const hasActiveSearch = useMemo(
     () =>
       discovery.keyword.trim() !== "" ||

@@ -38,16 +38,12 @@ const ITEM = {
   feedback: null,
 };
 
-const INTEREST = { id: 1, term: "tauri", kind: "topic" as const, weight: 2 };
-
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(client.getFeed).mockResolvedValue({
     feed_date: "2026-08-01",
     items: [ITEM],
   });
-  vi.mocked(client.getInterests).mockResolvedValue({ interests: [INTEREST] });
-  vi.mocked(client.getExclusions).mockResolvedValue({ exclusions: [] });
 });
 
 describe("ForYouFeed", () => {
@@ -115,29 +111,12 @@ describe("ForYouFeed", () => {
     expect(await screen.findByTestId("feed-date")).toHaveTextContent("2026-08-01");
   });
 
-  it("offers no refresh button when the feed already has items (generation is once-daily)", async () => {
+  it("reports a load failure as an error, not as 'no interests configured'", async () => {
+    vi.mocked(client.getFeed).mockRejectedValue(new Error("network down"));
     renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
-    await screen.findByText("a/one");
-    expect(screen.queryByTestId("feed-retry")).not.toBeInTheDocument();
-  });
-
-  it("offers a retry that actually regenerates when the feed is empty", async () => {
-    vi.mocked(client.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
-    vi.mocked(client.generateFeed).mockResolvedValue({ feed_date: "2026-08-01", generated: 0 });
-    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
-    const retry = await screen.findByTestId("feed-retry");
-    await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(1));
-    fireEvent.click(retry);
-    await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(2));
-  });
-
-  it("hides retry when there are no interests (generate would return 0 immediately)", async () => {
-    vi.mocked(client.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
-    vi.mocked(client.generateFeed).mockResolvedValue({ feed_date: "2026-08-01", generated: 0 });
-    vi.mocked(client.getInterests).mockResolvedValue({ interests: [] });
-    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
-    await screen.findByTestId("feed-empty-state");
-    expect(screen.queryByTestId("feed-retry")).not.toBeInTheDocument();
+    const empty = await screen.findByTestId("feed-empty-state");
+    expect(empty).toHaveTextContent("Couldn't load today's feed.");
+    expect(empty).not.toHaveTextContent("Add interests in Settings");
   });
 
   it("shows all-caught-up message when every item has been dismissed", async () => {
