@@ -3,6 +3,7 @@
  */
 import { useI18n } from "../../i18n";
 import { useFeed } from "../../hooks/useFeed";
+import { useInterests } from "../../hooks/useInterests";
 import type { FeedItem } from "../../api/types";
 import { FeedItemCard } from "./FeedItemCard";
 import { Skeleton } from "../Skeleton";
@@ -15,6 +16,8 @@ interface ForYouFeedProps {
 export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
   const { t } = useI18n();
   const { items, feedDate, isLoading, isGenerating, feedback, refresh } = useFeed();
+  const { interests } = useInterests();
+  const hasInterests = interests.length > 0;
 
   if (isLoading) {
     return (
@@ -27,15 +30,19 @@ export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
     );
   }
 
-  // 空清單時才提供重試：feed 一天一批，已有內容時再次產生不會有任何效果（後端冪等），
-  // 但清單為空代表當日尚未成功產生，此時重試才真的會重跑管線。
+  // 重試只在「有興趣清單但當日尚未成功產生」時才有意義：
+  // 已有內容時後端冪等會直接回傳既有數量；興趣清單為空時 generate_feed 會立刻 return 0
+  // （feed_generator.py 的 `if not interests: return 0`），兩種情況按了都不會有任何變化。
+  // 且無謂重試會對每個興趣各打一次 GitHub search，吃掉 Discovery 搜尋共用的配額。
   if (items.length === 0) {
     return (
       <div className={styles.emptyState} data-testid="feed-empty-state">
         <p>{t.discovery.forYou.empty}</p>
-        <button className={styles.selectionToggle} onClick={refresh} data-testid="feed-retry">
-          {t.discovery.forYou.refresh}
-        </button>
+        {hasInterests && (
+          <button className={styles.selectionToggle} onClick={refresh} data-testid="feed-retry">
+            {t.discovery.forYou.refresh}
+          </button>
+        )}
       </div>
     );
   }

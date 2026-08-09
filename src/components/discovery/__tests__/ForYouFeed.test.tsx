@@ -38,12 +38,16 @@ const ITEM = {
   feedback: null,
 };
 
+const INTEREST = { id: 1, term: "tauri", kind: "topic" as const, weight: 2 };
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(client.getFeed).mockResolvedValue({
     feed_date: "2026-08-01",
     items: [ITEM],
   });
+  vi.mocked(client.getInterests).mockResolvedValue({ interests: [INTEREST] });
+  vi.mocked(client.getExclusions).mockResolvedValue({ exclusions: [] });
 });
 
 describe("ForYouFeed", () => {
@@ -125,6 +129,15 @@ describe("ForYouFeed", () => {
     await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(1));
     fireEvent.click(retry);
     await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(2));
+  });
+
+  it("hides retry when there are no interests (generate would return 0 immediately)", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
+    vi.mocked(client.generateFeed).mockResolvedValue({ feed_date: "2026-08-01", generated: 0 });
+    vi.mocked(client.getInterests).mockResolvedValue({ interests: [] });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByTestId("feed-empty-state");
+    expect(screen.queryByTestId("feed-retry")).not.toBeInTheDocument();
   });
 
   it("shows all-caught-up message when every item has been dismissed", async () => {
