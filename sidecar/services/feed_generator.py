@@ -35,15 +35,29 @@ def _parse_dt(value: str | None) -> datetime | None:
     return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
 
 
+def _normalize_words(text: str) -> str:
+    """把非文字字元換成單一空白，讓黑名單詞與比對目標用同一套切分規則。"""
+    return re.sub(r"[^\w]+", " ", text).strip()
+
+
 def _is_excluded(item: dict, exclude: set[str]) -> bool:
     """黑名單比對。
 
-    以詞界（非英數字元）切分後比對整個詞，不做裸子字串比對——否則加入 "ai"
-    這種短詞會連帶殺掉 tailwindcss、langchain、任何含 mail/chain/main 的專案。
+    兩側都把非文字字元正規化成空白後，以「詞首對齊 + 允許字尾」比對：
+
+    - 不做裸子字串比對——否則 "ai" 會連帶殺掉 tailwindcss（t-**ai**-lwindlabs）
+    - 但允許字尾變化——否則 "interview" 擋不掉 coding-interviews、"tutorial" 擋不掉
+      python-tutorials，黑名單就失去存在意義
+    - 詞組型的詞（machine-learning、node.js）同樣先正規化，才不會因為兩側切法不同而永遠不匹配
     """
     haystacks = [item["full_name"].lower(), *[t.lower() for t in item.get("topics", [])]]
-    words = {w for hay in haystacks for w in re.split(r"[^a-z0-9]+", hay) if w}
-    return bool(words & exclude)
+    normalized_terms = [n for n in (_normalize_words(t) for t in exclude) if n]
+    for hay in haystacks:
+        norm_hay = _normalize_words(hay)
+        for term in normalized_terms:
+            if re.search(rf"(?<!\w){re.escape(term)}\w*", norm_hay):
+                return True
+    return False
 
 
 async def _fetch_candidates(github, interests: list[Interest],

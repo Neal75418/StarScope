@@ -109,13 +109,17 @@ def get_feed(feed_date: date | None = Query(None),
 
 
 @router.post("/generate", response_model=ApiResponse[GenerateResult])
-@limiter.limit("6/minute")
+@limiter.limit("2/minute")
 async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> dict:
     """觸發當日 feed 產生。
 
-    限流理由：本端點會對每個興趣各打一次 GitHub search，而前端在 feed 為空時
-    每次掛載 Discovery 都會自動呼叫；不限流時幾次換頁就能把與搜尋共用的
-    30 次/分鐘配額吃光。
+    限流理由：本端點會對「每個興趣」各打一次 GitHub search，而前端在 feed 為空時
+    每次掛載 Discovery 都會自動呼叫，換頁來回幾次就能把與搜尋共用的 30 次/分鐘
+    配額吃光。
+
+    ⚠️ 這裡限的是 HTTP 呼叫次數，不是 GitHub 呼叫次數——實際上限是
+    2 × 興趣數量／分鐘。興趣超過約 15 個時仍可能壓過 GitHub 的配額，
+    真正的解法是在 feed_generator 內對 search 次數做預算控制。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     target = local_today()

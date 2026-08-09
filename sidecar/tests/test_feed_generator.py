@@ -239,11 +239,22 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
         os.remove(db_path)
 
 
-def test_exclude_matches_whole_words_not_substrings():
-    """短黑名單詞不得以裸子字串誤殺：`ai` 不該吃掉 tailwindcss（t-ai-lwindlabs）。"""
+def test_exclude_matching_rules():
+    """黑名單比對的三條規則，缺一不可（每條都對應一個曾經踩過的 bug）。"""
     from services.feed_generator import _is_excluded
-    item = {"full_name": "tailwindlabs/tailwindcss", "topics": ["css", "framework"]}
-    assert _is_excluded(item, {"ai"}) is False
-    # 真的以整個詞出現時仍要擋掉
-    assert _is_excluded({"full_name": "someone/ai", "topics": []}, {"ai"}) is True
-    assert _is_excluded({"full_name": "x/y", "topics": ["awesome-list"]}, {"awesome"}) is True
+
+    def item(full_name="x/y", topics=None):
+        return {"full_name": full_name, "topics": topics or []}
+
+    # ① 不做裸子字串比對：ai 不該吃掉 tailwindcss（t-ai-lwindlabs）
+    assert _is_excluded(item("tailwindlabs/tailwindcss", ["css"]), {"ai"}) is False
+    assert _is_excluded(item("someone/ai"), {"ai"}) is True
+
+    # ② 允許字尾變化：否則黑名單擋不掉它最該擋的那些清單型 repo
+    assert _is_excluded(item(topics=["coding-interviews"]), {"interview"}) is True
+    assert _is_excluded(item(topics=["python-tutorials"]), {"tutorial"}) is True
+    assert _is_excluded(item("dev/awesome-roadmaps"), {"roadmap"}) is True
+
+    # ③ 含分隔符的詞組同樣要能匹配（兩側用同一套正規化）
+    assert _is_excluded(item(topics=["machine-learning"]), {"machine-learning"}) is True
+    assert _is_excluded(item("a/node.js-starter"), {"node.js"}) is True

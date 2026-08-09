@@ -159,6 +159,12 @@ interface ApiCallConfig {
   timeoutMs?: number;
   /** 覆寫重試次數。有副作用又不冪等的端點應設 0，否則逾時重試會造成伺服器端並行執行。 */
   retries?: number;
+  /**
+   * 429 時不廣播全域 rate-limited 橫幅。
+   * 只用於「429 必然來自本機 slowapi 限流、不可能來自 GitHub」的端點——
+   * 否則會把自家節流誤報成「GitHub API 配額用盡」。
+   */
+  suppressRateLimitBanner?: boolean;
 }
 
 async function apiCall<T>(
@@ -202,7 +208,7 @@ async function apiCall<T>(
     }
   }
   // 429 重試耗盡時廣播 rate-limited 事件（供 AppStatus 消費）
-  if (lastError?.status === 429) {
+  if (lastError?.status === 429 && !config.suppressRateLimitBanner) {
     window.dispatchEvent(new CustomEvent(RATE_LIMITED_EVENT));
   }
   throw lastError ?? new ApiError(0, API_ERROR_MESSAGES.RETRIES_EXHAUSTED);
@@ -964,7 +970,10 @@ export async function generateFeed(): Promise<GenerateFeedResult> {
   return apiCall<GenerateFeedResult>(
     "/feed/generate",
     { method: "POST" },
-    { timeoutMs: 120_000, retries: 0 }
+    // suppressRateLimitBanner：feed_generator 的 _fetch_candidates 會把 GitHub 的錯誤
+    // （含 GitHub 自己的 429）逐一吞掉並 continue，所以這支端點永遠不會傳出 GitHub 的
+    // 429——收到 429 必然是本機 slowapi 限流，不該顯示「GitHub API 配額用盡」橫幅。
+    { timeoutMs: 120_000, retries: 0, suppressRateLimitBanner: true }
   );
 }
 
