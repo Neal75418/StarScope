@@ -119,6 +119,15 @@ describe("ForYouFeed", () => {
     expect(empty).not.toHaveTextContent("Add interests in Settings");
   });
 
+  it("reports a generate failure as an error too (query succeeds but returns empty)", async () => {
+    // generate 掛掉時 getFeed 仍會成功回傳空清單，只看 query.isError 會誤報成「還沒設定興趣」
+    vi.mocked(client.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
+    vi.mocked(client.generateFeed).mockRejectedValue(new Error("rate limited"));
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    const empty = await screen.findByTestId("feed-empty-state");
+    await waitFor(() => expect(empty).toHaveTextContent("Couldn't load today's feed."));
+  });
+
   it("shows all-caught-up message when every item has been dismissed", async () => {
     vi.mocked(client.getFeed).mockResolvedValue({
       feed_date: "2026-08-01",
