@@ -65,7 +65,7 @@ graph TB
 
 **✨ 使用者體驗** — 中／英雙語 · 淺色／深色主題 · 虛擬滾動 · 頁面過場動畫
 
-> **測試覆蓋**：前端 1,231 + 後端 529 = **1,760 個測試案例**，E2E 12 specs / 47 tests
+> **測試覆蓋**：前端 1,234 + 後端 534 = **1,768 個測試案例**，E2E 12 specs / 47 tests
 
 ## 🏗️ 技術架構
 
@@ -250,7 +250,7 @@ StarScope/
 │   ├── db/                        #   SQLite + SQLAlchemy（16 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（529 個）
+│   └── tests/                     #   pytest 後端測試（534 個）
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）

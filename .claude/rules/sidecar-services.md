@@ -5,7 +5,7 @@ paths:
 
 # Sidecar 關鍵服務
 
-`sidecar/services/` 下的 15 個業務邏輯模組。編輯或新增服務時需注意各服務之間的依賴關係（例如 `scheduler.py` 驅動 `github.py` + `snapshot.py`，`context_fetcher.py` 依賴 `hacker_news.py`）。
+`sidecar/services/` 下的 18 個業務邏輯模組。編輯或新增服務時需注意各服務之間的依賴關係（例如 `scheduler.py` 驅動 `github.py` + `snapshot.py`，`context_fetcher.py` 依賴 `hacker_news.py`，`feed_generator.py` 依賴 `feed_scoring.py` + `feed_defaults.py` + `github.py`）。
 
 | 服務                    | 說明                            |
 |-----------------------|-------------------------------|
@@ -24,3 +24,6 @@ paths:
 | `settings.py`         | 應用設定管理（Keyring 整合）            |
 | `rate_limiter.py`     | API 請求限速與指數退避重試               |
 | `weekly_summary.py`   | 每週摘要報告生成                      |
+| `feed_scoring.py`     | For You feed 純函數評分（興趣匹配 × 新鮮度 × 動能） |
+| `feed_generator.py`   | 每日 feed 產生管線（候選檢索 → 評分 → 去重/黑名單/多樣性上限） |
+| `feed_defaults.py`    | 預設黑名單詞播種                       |

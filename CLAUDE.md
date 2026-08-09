@@ -8,6 +8,8 @@
 
 StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。
 
+應用分兩層：**發現層**（Discovery 頁的 For You feed——依使用者興趣清單每日產生個人化推薦）與**監測層**（Watchlist、Trends、Compare、警報——對已追蹤 repo 做時序快照與訊號分析）。監測層的所有功能都依賴發現層或使用者手動把 repo 加入 watchlist，watchlist 為空時整個監測層不會有資料。
+
 ```mermaid
 graph LR
     subgraph Desktop["Tauri Desktop"]
@@ -107,9 +109,9 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 | 目錄             | 說明                                              |
 |----------------|-------------------------------------------------|
-| `routers/`     | FastAPI 路由（16 個端點模組 + `dependencies.py` 共用依賴注入） |
-| `services/`    | 業務邏輯（15 個服務）                                    |
-| `db/models.py` | SQLAlchemy 模型（11 張表）                            |
+| `routers/`     | FastAPI 路由（18 個端點模組 + `dependencies.py` 共用依賴注入） |
+| `services/`    | 業務邏輯（18 個服務）                                    |
+| `db/models.py` | SQLAlchemy 模型（16 張表）                            |
 | `tests/`       | pytest 測試，fixtures 在 `conftest.py`              |
 
 ### Tauri `src-tauri/`
@@ -132,6 +134,8 @@ npm run tauri dev               # 終端機 2 — Tauri
 | `useImport`              | 批次匯入 — CSV/JSON/TXT 檔案解析、文字貼上                 |
 | `useImportExecutor`      | 匯入執行器 — 循序調用 addRepo API、進度追蹤                 |
 | `useAlertRules`          | 警報規則管理 — CRUD 操作、手動檢查、表單狀態                    |
+| `useFeed`                | For You feed — 當日推薦、空清單自動產生一次、⭐/🚫 回饋           |
+| `useInterests`           | 興趣清單與黑名單 CRUD（驅動 feed 的排序來源）                   |
 
 ---
 
@@ -188,7 +192,7 @@ PORT=8008
 
 | 規則檔                    | 內容                                                     | 載入條件（`paths:` frontmatter）                                     |
 |------------------------|--------------------------------------------------------|----------------------------------------------------------------|
-| `api-endpoints.md`     | 16 個 API 路由模組表、統一回應格式                                  | `sidecar/routers/**`、`src/api/**`                              |
-| `database.md`          | 11 張 SQLite 表說明、Alembic 遷移                             | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*`        |
-| `frontend-patterns.md` | React Query 資料層、Watchlist Context 架構、react-window 虛擬滾動 | `src/hooks/**`、`src/components/**`、`src/pages/**`、`src/lib/**` |
-| `sidecar-services.md`  | 15 個 sidecar 服務模組表                                     | `sidecar/services/**`                                          |
+| `api-endpoints.md`     | 18 個 API 路由模組表、統一回應格式                                  | `sidecar/routers/**`、`src/api/**`                              |
+| `database.md`          | 16 張 SQLite 表說明、資料庫實際路徑、Alembic 遷移                     | `sidecar/db/**`、`sidecar/alembic/**`、`sidecar/alembic*`        |
+| `frontend-patterns.md` | React Query 資料層、For You Feed 資料層、Watchlist Context 架構、react-window 虛擬滾動 | `src/hooks/**`、`src/components/**`、`src/pages/**`、`src/lib/**` |
+| `sidecar-services.md`  | 18 個 sidecar 服務模組表                                     | `sidecar/services/**`                                          |

@@ -20,6 +20,8 @@ paths:
 | `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
 | `recommendations` | `/api/recommendations` | 相似 repo、相似度計算、recalculate             |
 | `discovery`       | `/api/discovery`       | GitHub 搜尋（rate limited 30/min）        |
+| `interests`       | `/api/interests`       | 興趣清單 CRUD、黑名單（`/exclusions`）管理        |
+| `feed`            | `/api/feed`            | 當日 For You feed、觸發產生、⭐/🚫 回饋          |
 | `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
 | `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
