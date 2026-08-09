@@ -128,6 +128,19 @@ describe("ForYouFeed", () => {
     await waitFor(() => expect(empty).toHaveTextContent("Couldn't load today's feed."));
   });
 
+  it("locks the track button while adding so a double-click cannot add twice", async () => {
+    let resolveAdd!: (v: boolean) => void;
+    const onAdd = vi.fn().mockReturnValue(new Promise<boolean>((r) => (resolveAdd = r)));
+    renderWithClient(<ForYouFeed onAddToWatchlist={onAdd} />);
+    await screen.findByText("a/one");
+    const btn = screen.getByTestId("feed-star-1");
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+    resolveAdd(true);
+    await waitFor(() => expect(btn).not.toBeDisabled());
+  });
+
   it("shows all-caught-up message when every item has been dismissed", async () => {
     vi.mocked(client.getFeed).mockResolvedValue({
       feed_date: "2026-08-01",

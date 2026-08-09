@@ -41,11 +41,26 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
     }
   };
 
-  const handleAddExclude = () => {
+  // 與 handleAdd 一致：成功才清空輸入並報成功，失敗（例如重複詞回 409）要讓使用者知道
+  const handleAddExclude = async () => {
     const trimmed = excludeTerm.trim();
     if (!trimmed) return;
-    addExclude(trimmed);
-    setExcludeTerm("");
+    try {
+      await addExclude(trimmed);
+      setExcludeTerm("");
+      onToast(t.settings.interests.toast.added, "success");
+    } catch {
+      onToast(t.settings.interests.toast.error, "error");
+    }
+  };
+
+  const handleRemoveExclude = async (id: number) => {
+    try {
+      await removeExclude(id);
+      onToast(t.settings.interests.toast.removed, "success");
+    } catch {
+      onToast(t.settings.interests.toast.error, "error");
+    }
   };
 
   return (
@@ -134,9 +149,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                 value={excludeTerm}
                 placeholder={t.settings.interests.addPlaceholder}
                 onChange={(e) => setExcludeTerm(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddExclude()}
+                onKeyDown={(e) => e.key === "Enter" && void handleAddExclude()}
               />
-              <button className="btn" onClick={handleAddExclude}>
+              <button className="btn" onClick={() => void handleAddExclude()}>
                 {t.settings.interests.add}
               </button>
             </div>
@@ -151,7 +166,7 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                     <button
                       className="btn btn-sm btn-danger"
                       aria-label={`${t.settings.interests.remove} ${e.term}`}
-                      onClick={() => removeExclude(e.id)}
+                      onClick={() => void handleRemoveExclude(e.id)}
                     >
                       {t.settings.interests.remove}
                     </button>

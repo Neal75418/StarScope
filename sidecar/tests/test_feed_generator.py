@@ -237,3 +237,13 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
         db.close()
     finally:
         os.remove(db_path)
+
+
+def test_exclude_matches_whole_words_not_substrings():
+    """短黑名單詞不得以裸子字串誤殺：`ai` 不該吃掉 tailwindcss（t-ai-lwindlabs）。"""
+    from services.feed_generator import _is_excluded
+    item = {"full_name": "tailwindlabs/tailwindcss", "topics": ["css", "framework"]}
+    assert _is_excluded(item, {"ai"}) is False
+    # 真的以整個詞出現時仍要擋掉
+    assert _is_excluded({"full_name": "someone/ai", "topics": []}, {"ai"}) is True
+    assert _is_excluded({"full_name": "x/y", "topics": ["awesome-list"]}, {"awesome"}) is True

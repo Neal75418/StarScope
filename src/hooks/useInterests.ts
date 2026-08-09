@@ -60,7 +60,7 @@ export function useInterests() {
     create: (input: InterestCreate) => createMutation.mutateAsync(input),
     update: (id: number, input: InterestCreate) => updateMutation.mutate({ id, input }),
     remove: (id: number) => removeMutation.mutateAsync(id),
-    addExclude: (term: string) => addExcludeMutation.mutate(term),
-    removeExclude: (id: number) => removeExcludeMutation.mutate(id),
+    addExclude: (term: string) => addExcludeMutation.mutateAsync(term),
+    removeExclude: (id: number) => removeExcludeMutation.mutateAsync(id),
   };
 }

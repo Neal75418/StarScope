@@ -1,6 +1,7 @@
 /**
  * Feed 單卡：repo 資訊 + 推薦理由行 + 回饋動作。
  */
+import { useState } from "react";
 import { useI18n } from "../../i18n";
 import type { FeedItem } from "../../api/types";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
@@ -11,12 +12,15 @@ import styles from "./Discovery.module.css";
 
 interface FeedItemCardProps {
   item: FeedItem;
-  onStar: (item: FeedItem) => void;
+  onStar: (item: FeedItem) => void | Promise<void>;
   onDismiss: (item: FeedItem) => void;
 }
 
 export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
   const { t } = useI18n();
+  // 追蹤中鎖住按鈕：連點會送出兩次 addRepo，第二次回 400「已在追蹤清單」，
+  // 使用者會同時看到成功與失敗兩個 toast。
+  const [starring, setStarring] = useState(false);
   const reason = t.discovery.forYou.reason;
   const reasonParts = [
     item.reason.matched.join(", "),
@@ -41,7 +45,15 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
         <button
           className={styles.addButton}
           data-testid={`feed-star-${item.id}`}
-          onClick={() => onStar(item)}
+          disabled={starring}
+          onClick={async () => {
+            setStarring(true);
+            try {
+              await onStar(item);
+            } finally {
+              setStarring(false);
+            }
+          }}
         >
           ⭐ {t.discovery.forYou.addToWatchlist}
         </button>

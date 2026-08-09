@@ -5,6 +5,7 @@ For You feed 產生管線。
 去重/黑名單/seen/watchlist 過濾 → 評分排序 → 多樣性上限 → 寫 feed_items + seen_repos。
 """
 import json
+import re
 import logging
 import math
 from datetime import date, datetime, timedelta
@@ -35,8 +36,14 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _is_excluded(item: dict, exclude: set[str]) -> bool:
+    """黑名單比對。
+
+    以詞界（非英數字元）切分後比對整個詞，不做裸子字串比對——否則加入 "ai"
+    這種短詞會連帶殺掉 tailwindcss、langchain、任何含 mail/chain/main 的專案。
+    """
     haystacks = [item["full_name"].lower(), *[t.lower() for t in item.get("topics", [])]]
-    return any(term in hay for term in exclude for hay in haystacks)
+    words = {w for hay in haystacks for w in re.split(r"[^a-z0-9]+", hay) if w}
+    return bool(words & exclude)
 
 
 async def _fetch_candidates(github, interests: list[Interest],

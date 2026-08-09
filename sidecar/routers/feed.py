@@ -3,12 +3,13 @@ import json
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
 from db.database import get_db
 from db.models import FeedItem, SeenRepo, FeedFeedback
+from middleware.rate_limit import limiter
 from schemas.response import ApiResponse, success_response
 from services.feed_generator import generate_feed
 from services.github import get_github_service
@@ -108,7 +109,15 @@ def get_feed(feed_date: date | None = Query(None),
 
 
 @router.post("/generate", response_model=ApiResponse[GenerateResult])
-async def trigger_generate(db: Session = Depends(get_db)) -> dict:
+@limiter.limit("6/minute")
+async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> dict:
+    """觸發當日 feed 產生。
+
+    限流理由：本端點會對每個興趣各打一次 GitHub search，而前端在 feed 為空時
+    每次掛載 Discovery 都會自動呼叫；不限流時幾次換頁就能把與搜尋共用的
+    30 次/分鐘配額吃光。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
     target = local_today()
     github = get_github_service()
     count = await generate_feed(db, github, target)

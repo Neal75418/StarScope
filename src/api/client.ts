@@ -77,10 +77,11 @@ export * from "./types";
 async function doFetch<T>(
   url: string,
   options: RequestInit,
-  callerSignal?: AbortSignal | null
+  callerSignal?: AbortSignal | null,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<T> {
   const timeoutController = new AbortController();
-  const timeoutId = setTimeout(() => timeoutController.abort(), DEFAULT_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
 
   if (callerSignal && !callerSignal.aborted) {
     callerSignal.addEventListener("abort", () => timeoutController.abort(), { once: true });
@@ -153,14 +154,26 @@ async function doFetch<T>(
 }
 
 // API 呼叫輔助函式（含重試）
-async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+/** 逾時與重試的每次呼叫覆寫；長時間執行且有副作用的端點需要它。 */
+interface ApiCallConfig {
+  timeoutMs?: number;
+  /** 覆寫重試次數。有副作用又不冪等的端點應設 0，否則逾時重試會造成伺服器端並行執行。 */
+  retries?: number;
+}
+
+async function apiCall<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  config: ApiCallConfig = {}
+): Promise<T> {
   const url = `${API_ENDPOINT}${endpoint}`;
   const callerSignal = options.signal ?? null;
+  const maxRetries = config.retries ?? MAX_RETRIES;
   let lastError: ApiError | undefined;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await doFetch<T>(url, options, callerSignal);
+      return await doFetch<T>(url, options, callerSignal, config.timeoutMs);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError(0, String(err));
       // 4xx 錯誤不重試（客戶端錯誤），但 429 Rate Limit 例外
@@ -168,7 +181,7 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       // 使用者取消不重試
       if (callerSignal?.aborted) throw apiError;
       lastError = apiError;
-      if (attempt < MAX_RETRIES) {
+      if (attempt < maxRetries) {
         // 429 使用更長的退避延遲
         const baseDelay = apiError.status === 429 ? RETRY_DELAY_MS * 4 : RETRY_DELAY_MS;
         const delay = baseDelay * Math.pow(2, attempt);
@@ -945,7 +958,14 @@ export async function getFeed(signal?: AbortSignal): Promise<FeedResponse> {
 
 /** 觸發今日 feed 產生（已存在則後端直接回傳既有數量）。 */
 export async function generateFeed(): Promise<GenerateFeedResult> {
-  return apiCall<GenerateFeedResult>("/feed/generate", { method: "POST" });
+  // 這支端點會對每個興趣各打一次 GitHub search，30 秒的預設逾時很容易踩到；
+  // 而且它有副作用又不冪等，逾時重試會讓伺服器端同時跑多輪產生（正是
+  // feed_generator 用 IntegrityError 兜底的那個競態）。故拉長逾時並停用重試。
+  return apiCall<GenerateFeedResult>(
+    "/feed/generate",
+    { method: "POST" },
+    { timeoutMs: 120_000, retries: 0 }
+  );
 }
 
 /** 送出 feed 項目回饋。 */
