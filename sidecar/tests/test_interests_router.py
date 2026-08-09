@@ -73,3 +73,12 @@ def test_add_and_remove_exclusion(client):
     assert resp.status_code == 200
     tid = resp.json()["data"]["id"]
     assert client.delete(f"{BASE}/exclusions/{tid}").status_code == 200
+
+
+def test_exclusion_rejects_terms_that_normalize_too_short(client):
+    """c++ / c# / ++ 正規化後都塌成 <2 字元，放行只會讓使用者看到無效的黑名單項。"""
+    for bad in ("c++", "c#", "++"):
+        resp = client.post("/api/interests/exclusions", json={"term": bad})
+        assert resp.status_code == 422, f"{bad} 應被拒絕"
+    # 正常詞不受影響
+    assert client.post("/api/interests/exclusions", json={"term": "node.js"}).status_code == 200

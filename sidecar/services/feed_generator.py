@@ -63,7 +63,8 @@ def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
             logger.warning(f"[feed] 黑名單詞 {term!r} 正規化後過短（{norm!r}），已忽略")
             continue
         # y → ies（library/libraries）需要單獨處理，不能只靠 (?:e?s)?
-        stem = rf"{re.escape(norm[:-1])}(?:y|ies)" if norm.endswith("y") else rf"{re.escape(norm)}(?:e?s)?"
+        stem = (rf"{re.escape(norm[:-1])}(?:y|ys|ies)" if norm.endswith("y")
+                else rf"{re.escape(norm)}(?:e?s)?")
         patterns.append(re.compile(rf"(?<!\w){stem}(?!\w)"))
     return patterns
 
@@ -94,11 +95,13 @@ async def _fetch_candidates(github, interests: list[Interest],
         try:
             result = await github.search_repos(**kwargs)
         except GitHubRateLimitError:
-            # 配額耗盡時繼續打下一個興趣只會更快燒光配額，而且 generate 會寫入 0 筆、
-            # 使當日的 existing>0 短路永遠不成立，前端每次重新掛載又觸發整輪 fan-out
-            # ——形成自我延續的配額耗盡迴圈。這裡直接中止並往上拋。
-            logger.warning("[feed] GitHub 配額耗盡，中止本輪 feed 產生")
-            raise
+            # 配額耗盡時繼續打剩下的興趣只會更快燒光配額，所以中止 fan-out；
+            # 但**保留已經取得的候選**而非整輪丟棄——寫得出幾筆，當日的 existing>0
+            # 短路才會成立，否則前端每次重新掛載又會從第一個興趣重跑一整輪。
+            logger.warning(
+                f"[feed] GitHub 配額耗盡，於興趣 {interest.term!r} 中止；"
+                f"保留已取得的 {len(merged)} 個候選")
+            break
         except Exception as e:  # 單一查詢失敗不拖垮整批
             logger.warning(f"[feed] 興趣 {interest.term} 搜尋失敗: {e}")
             continue

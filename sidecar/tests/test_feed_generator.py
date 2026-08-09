@@ -271,16 +271,19 @@ def test_exclude_matching_rules():
     # ⑧ y → ies 也算複數（只靠 (?:e?s)? 涵蓋不到）
     assert check(["library"], topics=["python-libraries"]) is True
     assert check(["library"], topics=["a-library"]) is True
-    # ⑨ 已知取捨：不含分隔符的複合字擋不到（不做前綴比對的必然代價）
+    # ⑨ y 結尾的詞：ies 與單純 s 都要涵蓋（library/libraries、gateway/gateways）
+    assert check(["gateway"], topics=["api-gateways"]) is True
+    assert check(["gateway"], topics=["gateway"]) is True
+    # ⑩ 已知取捨：不含分隔符的複合字擋不到（不做前綴比對的必然代價）
     assert check(["awesome"], "user/awesomelist") is False
 
 
 @pytest.mark.asyncio
-async def test_rate_limit_aborts_instead_of_draining_quota(test_db):
-    """配額耗盡時中止整輪並往上拋，不繼續打剩下的興趣。
+async def test_rate_limit_stops_fanout_but_keeps_what_it_got(test_db):
+    """配額耗盡時停止 fan-out，但保留已取得的候選。
 
-    繼續打只會更快燒光配額，而且會寫入 0 筆——當日 existing>0 短路永遠不成立，
-    前端每次重新掛載又觸發整輪 fan-out，形成自我延續的耗盡迴圈。
+    兩個目的缺一不可：不繼續打（否則更快燒光配額）、要寫得出東西（否則當日
+    existing>0 短路不成立，前端每次重新掛載又從第一個興趣重跑一整輪）。
     """
     from services.github import GitHubRateLimitError
 
@@ -290,13 +293,15 @@ async def test_rate_limit_aborts_instead_of_draining_quota(test_db):
 
     calls = []
 
-    class RateLimitedGitHub:
+    class PartiallyRateLimitedGitHub:
         async def search_repos(self, **kwargs):
             calls.append(kwargs)
+            if len(calls) == 1:
+                return {"items": [_gh_item(1, "a/one", topics=["rust"])]}
             raise GitHubRateLimitError("quota exhausted")
 
-    with pytest.raises(GitHubRateLimitError):
-        await generate_feed(test_db, RateLimitedGitHub(), TODAY)
+    written = await generate_feed(test_db, PartiallyRateLimitedGitHub(), TODAY)
 
-    assert len(calls) == 1, "撞到配額後不應繼續打其餘興趣"
-    assert test_db.query(FeedItem).count() == 0
+    assert len(calls) == 2, "撞到配額後不應繼續打第三個興趣"
+    assert written >= 1, "已取得的候選必須寫入，當日短路才會成立"
+    assert test_db.query(FeedItem).count() == written

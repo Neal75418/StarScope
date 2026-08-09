@@ -7,6 +7,7 @@ from db.database import get_db
 from db.models import Interest, ExcludeTerm, InterestKind
 from schemas.response import ApiResponse, success_response
 from services.feed_defaults import ensure_default_exclude_terms
+from services.feed_generator import _normalize_words
 
 router = APIRouter(prefix="/api/interests", tags=["interests"])
 
@@ -46,7 +47,14 @@ class ExcludeTermCreate(BaseModel):
     @field_validator("term")
     @classmethod
     def normalize_term(cls, v: str) -> str:
-        return v.strip().lower()
+        normalized = v.strip().lower()
+        # 比對時標點會被正規化掉（c++ → c、c# → c），塌成 1 字元的詞若放行，
+        # 使用者會看到它列在黑名單裡卻毫無作用（或反過來誤擋 awesome-c）。
+        # 在入口就擋掉，而不是存進去後在比對層靜默忽略。
+        if len(_normalize_words(normalized)) < 2:
+            raise ValueError(
+                "term must contain at least 2 letters or digits after punctuation is stripped")
+        return normalized
 
 
 class ExcludeTermOut(BaseModel):

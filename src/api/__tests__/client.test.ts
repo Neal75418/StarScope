@@ -55,7 +55,9 @@ import {
   resetAllData,
   getWeeklySummary,
   getPortfolioHistory,
+  generateFeed,
 } from "../client";
+import { RATE_LIMITED_EVENT } from "../../constants/events";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -1167,5 +1169,48 @@ describe("API Client", () => {
         expect.any(Object)
       );
     });
+  });
+});
+
+describe("429 的兩種來源要能區分", () => {
+  // 用 generateFeed 測是因為它設定 retries: 0，不必等重試退避。
+  function mock429(code: string | undefined) {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ detail: "Rate limit exceeded", ...(code ? { code } : {}) }),
+    });
+  }
+
+  it("本機 slowapi 節流不廣播全域橫幅（那是「你點太快」，不是 GitHub 配額用盡）", async () => {
+    const spy = vi.fn();
+    window.addEventListener(RATE_LIMITED_EVENT, spy);
+    mock429("LOCAL_RATE_LIMIT");
+    await expect(generateFeed()).rejects.toThrow();
+    expect(spy).not.toHaveBeenCalled();
+    window.removeEventListener(RATE_LIMITED_EVENT, spy);
+  });
+
+  it("GitHub 配額用盡要廣播全域橫幅", async () => {
+    const spy = vi.fn();
+    window.addEventListener(RATE_LIMITED_EVENT, spy);
+    mock429("GITHUB_RATE_LIMIT");
+    await expect(generateFeed()).rejects.toThrow();
+    expect(spy).toHaveBeenCalled();
+    window.removeEventListener(RATE_LIMITED_EVENT, spy);
+  });
+
+  it("未帶 code 的舊端點維持原行為（照樣廣播）", async () => {
+    const spy = vi.fn();
+    window.addEventListener(RATE_LIMITED_EVENT, spy);
+    mock429(undefined);
+    await expect(generateFeed()).rejects.toThrow();
+    expect(spy).toHaveBeenCalled();
+    window.removeEventListener(RATE_LIMITED_EVENT, spy);
+  });
+
+  it("錯誤回應的 code 會帶進 ApiError", async () => {
+    mock429("LOCAL_RATE_LIMIT");
+    await expect(generateFeed()).rejects.toMatchObject({ status: 429, code: "LOCAL_RATE_LIMIT" });
   });
 });
