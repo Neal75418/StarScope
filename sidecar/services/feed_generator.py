@@ -36,28 +36,34 @@ def _parse_dt(value: str | None) -> datetime | None:
 
 
 def _normalize_words(text: str) -> str:
-    """把非文字字元換成單一空白，讓黑名單詞與比對目標用同一套切分規則。"""
-    return re.sub(r"[^\w]+", " ", text).strip()
+    """把分隔符（含底線）換成單一空白，讓黑名單詞與比對目標用同一套切分規則。"""
+    return re.sub(r"[\W_]+", " ", text, flags=re.UNICODE).strip()
 
 
-def _is_excluded(item: dict, exclude: set[str]) -> bool:
-    """黑名單比對。
+def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
+    """把黑名單詞預先編成 regex（每輪 feed 只做一次，不要在每個候選上重編）。
 
-    兩側都把非文字字元正規化成空白後，以「詞首對齊 + 允許字尾」比對：
+    規約（每條都對應一個踩過的 bug，改動前先看 test_exclude_matching_rules）：
 
-    - 不做裸子字串比對——否則 "ai" 會連帶殺掉 tailwindcss（t-**ai**-lwindlabs）
-    - 但允許字尾變化——否則 "interview" 擋不掉 coding-interviews、"tutorial" 擋不掉
-      python-tutorials，黑名單就失去存在意義
-    - 詞組型的詞（machine-learning、node.js）同樣先正規化，才不會因為兩側切法不同而永遠不匹配
+    - 前後都要是詞界：`ai` 既不吃 tailwind**css** 也不吃 **ai**rbnb，
+      只有整個詞是 ai 才擋。裸子字串與「前綴比對」都試過，兩者都會誤殺
+    - 允許複數字尾（s / es）：否則 `interview` 擋不掉 coding-interviews、
+      `tutorial` 擋不掉 python-tutorials，黑名單就失去存在意義
+    - 兩側用同一套正規化：否則 `machine-learning`、`node.js` 這種含分隔符的詞
+      永遠對不上，變成靜默 no-op
     """
+    patterns = []
+    for term in exclude:
+        norm = _normalize_words(term.lower())
+        if not norm:
+            continue
+        patterns.append(re.compile(rf"(?<!\w){re.escape(norm)}(?:e?s)?(?!\w)"))
+    return patterns
+
+
+def _is_excluded(item: dict, patterns: list[re.Pattern[str]]) -> bool:
     haystacks = [item["full_name"].lower(), *[t.lower() for t in item.get("topics", [])]]
-    normalized_terms = [n for n in (_normalize_words(t) for t in exclude) if n]
-    for hay in haystacks:
-        norm_hay = _normalize_words(hay)
-        for term in normalized_terms:
-            if re.search(rf"(?<!\w){re.escape(term)}\w*", norm_hay):
-                return True
-    return False
+    return any(p.search(_normalize_words(hay)) for hay in haystacks for p in patterns)
 
 
 async def _fetch_candidates(github, interests: list[Interest],
@@ -121,7 +127,7 @@ async def generate_feed(db: Session, github, feed_date: date,
         return 0
 
     ensure_default_exclude_terms(db)
-    exclude = {e.term.lower() for e in db.query(ExcludeTerm).all()}
+    exclude_patterns = compile_exclusions({e.term.lower() for e in db.query(ExcludeTerm).all()})
     seen_ids = {s.github_id for s in db.query(SeenRepo).all()}
     watchlist_ids = {r.github_id for r in db.query(Repo).all() if r.github_id}
     watchlist_names = {r.full_name.lower() for r in db.query(Repo).all()}
@@ -135,7 +141,7 @@ async def generate_feed(db: Session, github, feed_date: date,
             continue
         if item["full_name"].lower() in watchlist_names:
             continue
-        if _is_excluded(item, exclude):
+        if _is_excluded(item, exclude_patterns):
             continue
         breakdown = score_candidate(
             topics=item.get("topics", []),

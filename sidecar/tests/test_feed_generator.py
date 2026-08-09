@@ -240,21 +240,29 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
 
 
 def test_exclude_matching_rules():
-    """黑名單比對的三條規則，缺一不可（每條都對應一個曾經踩過的 bug）。"""
-    from services.feed_generator import _is_excluded
+    """黑名單比對規約。每個 assert 都對應一個實際踩過的 bug，改動實作前先讓這些通過。"""
+    from services.feed_generator import _is_excluded, compile_exclusions
 
-    def item(full_name="x/y", topics=None):
-        return {"full_name": full_name, "topics": topics or []}
+    def check(terms, full_name="x/y", topics=None):
+        return _is_excluded({"full_name": full_name, "topics": topics or []},
+                            compile_exclusions(set(terms)))
 
-    # ① 不做裸子字串比對：ai 不該吃掉 tailwindcss（t-ai-lwindlabs）
-    assert _is_excluded(item("tailwindlabs/tailwindcss", ["css"]), {"ai"}) is False
-    assert _is_excluded(item("someone/ai"), {"ai"}) is True
-
-    # ② 允許字尾變化：否則黑名單擋不掉它最該擋的那些清單型 repo
-    assert _is_excluded(item(topics=["coding-interviews"]), {"interview"}) is True
-    assert _is_excluded(item(topics=["python-tutorials"]), {"tutorial"}) is True
-    assert _is_excluded(item("dev/awesome-roadmaps"), {"roadmap"}) is True
-
-    # ③ 含分隔符的詞組同樣要能匹配（兩側用同一套正規化）
-    assert _is_excluded(item(topics=["machine-learning"]), {"machine-learning"}) is True
-    assert _is_excluded(item("a/node.js-starter"), {"node.js"}) is True
+    # ① 詞中間出現不算：ai 不該吃掉 tailwindcss（t-ai-lwindlabs）
+    assert check(["ai"], "tailwindlabs/tailwindcss", ["css"]) is False
+    # ② 詞開頭出現也不算：ai 不該吃掉 airbnb、go 不該吃掉 google
+    assert check(["ai"], "airbnb/javascript") is False
+    assert check(["go"], "google/guava") is False
+    # ③ 整個詞出現才算
+    assert check(["ai"], "someone/ai") is True
+    # ④ 允許複數字尾：黑名單最該擋的就是這些清單型 repo
+    assert check(["interview"], topics=["coding-interviews"]) is True
+    assert check(["tutorial"], topics=["python-tutorials"]) is True
+    assert check(["roadmap"], "dev/awesome-roadmaps") is True
+    # ⑤ 底線也是分隔符
+    assert check(["awesome"], "user/my_awesome_list") is True
+    # ⑥ 含分隔符的詞組要能匹配（兩側同一套正規化）
+    assert check(["machine-learning"], topics=["machine-learning"]) is True
+    assert check(["node.js"], "a/node.js-starter") is True
+    # ⑦ 正規化後變短的詞不得擴大打擊面：c++ → c 不該吃掉 cli、.net 不該吃掉 netflix
+    assert check(["c++"], "cli-tool/chrome") is False
+    assert check([".net"], "netflix/dispatch") is False

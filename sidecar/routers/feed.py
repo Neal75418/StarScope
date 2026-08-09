@@ -109,7 +109,7 @@ def get_feed(feed_date: date | None = Query(None),
 
 
 @router.post("/generate", response_model=ApiResponse[GenerateResult])
-@limiter.limit("2/minute")
+@limiter.limit("6/minute")
 async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> dict:
     """觸發當日 feed 產生。
 
@@ -117,9 +117,12 @@ async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> d
     每次掛載 Discovery 都會自動呼叫，換頁來回幾次就能把與搜尋共用的 30 次/分鐘
     配額吃光。
 
-    ⚠️ 這裡限的是 HTTP 呼叫次數，不是 GitHub 呼叫次數——實際上限是
-    2 × 興趣數量／分鐘。興趣超過約 15 個時仍可能壓過 GitHub 的配額，
-    真正的解法是在 feed_generator 內對 search 次數做預算控制。
+    ⚠️ 兩個已知限制，別把這個數字當成配額保證：
+    - 它限的是 HTTP 次數而非 GitHub 呼叫次數，實際上限是 6 × 興趣數／分鐘；
+      興趣很多時仍可能壓過 30/min，真正的解法是在 feed_generator 內做搜尋預算控制
+    - 它也會計入「沒有設定興趣」這種零成本呼叫（generate 會直接 return 0），
+      所以數字不能訂太低，否則使用者在探索頁與搜尋間切換幾次就會撞限流，
+      畫面會把可行動的「請去新增興趣」換成一般載入錯誤
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     target = local_today()
