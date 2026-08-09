@@ -17,7 +17,8 @@ def _seed_item(db, gid=1, full_name="a/one", feedback=None):
     db.flush()
     item = FeedItem(candidate_id=cand.id, feed_date=TODAY, score=2.5,
                     reason_json=json.dumps({"matched": ["topic:tauri"],
-                                            "stars": 100, "age_days": 45}),
+                                            "stars": 100, "age_days": 45,
+                                            "pushed_at": "2026-07-31T14:43:41Z"}),
                     feedback=feedback)
     db.add(item)
     db.add(SeenRepo(github_id=gid, full_name=full_name))
@@ -39,6 +40,27 @@ def test_get_feed_returns_items_with_reason(client, test_db):
     assert items[0]["full_name"] == "a/one"
     assert items[0]["reason"]["matched"] == ["topic:tauri"]
     assert items[0]["topics"] == ["tauri"]
+
+
+def test_get_feed_exposes_pushed_at_for_liveness_judgement(client, test_db):
+    # 「這專案還活著嗎」是決定要不要追蹤的關鍵；pushed_at 早就寫在 reason_json，
+    # 這個測試釘住它必須被輸出給前端。
+    _seed_item(test_db)
+    items = client.get("/api/feed", params={"feed_date": "2026-08-01"}).json()["data"]["items"]
+    assert items[0]["reason"]["pushed_at"] == "2026-07-31T14:43:41Z"
+
+
+def test_get_feed_pushed_at_is_none_when_absent(client, test_db):
+    # 舊資料或 GitHub 未回傳 pushed_at 時不得炸掉，回 None 即可。
+    cand = FeedCandidate(github_id=9, full_name="b/two", owner="b", name="two",
+                         url="https://github.com/b/two", stars=5, forks=0)
+    test_db.add(cand)
+    test_db.flush()
+    test_db.add(FeedItem(candidate_id=cand.id, feed_date=TODAY, score=1.0,
+                         reason_json=json.dumps({"matched": [], "stars": 5})))
+    test_db.commit()
+    items = client.get("/api/feed", params={"feed_date": "2026-08-01"}).json()["data"]["items"]
+    assert items[0]["reason"]["pushed_at"] is None
 
 
 def test_get_feed_invalid_date_422(client):

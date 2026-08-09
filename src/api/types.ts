@@ -633,6 +633,8 @@ export interface FeedReason {
   matched: string[];
   stars: number;
   age_days: number | null;
+  /** repo 最後一次 push 的時間，用於判斷專案是否仍在維護 */
+  pushed_at: string | null;
 }
 
 export type FeedFeedbackAction = "starred" | "dismissed";

@@ -41,7 +41,7 @@ const FEED_ITEM: FeedItem = {
   url: "https://github.com/a/one",
   owner_avatar_url: null,
   score: 2.5,
-  reason: { matched: ["topic:tauri"], stars: 100, age_days: 45 },
+  reason: { matched: ["topic:tauri"], stars: 100, age_days: 45, pushed_at: null },
   feedback: null,
 };
 

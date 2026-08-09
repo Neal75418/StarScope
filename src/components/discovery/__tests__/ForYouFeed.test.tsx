@@ -29,7 +29,12 @@ const ITEM = {
   url: "https://github.com/a/one",
   owner_avatar_url: null,
   score: 2.5,
-  reason: { matched: ["topic:tauri"], stars: 380, age_days: 45 },
+  reason: {
+    matched: ["topic:tauri"],
+    stars: 380,
+    age_days: 45,
+    pushed_at: "2026-07-30T00:00:00Z",
+  },
   feedback: null,
 };
 
@@ -83,6 +88,22 @@ describe("ForYouFeed", () => {
     });
     renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
     expect(await screen.findByTestId("feed-empty-state")).toBeInTheDocument();
+  });
+
+  it("shows last push time so a dead project can be ruled out at a glance", async () => {
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByText("a/one");
+    expect(screen.getByTestId("feed-pushed-1")).toBeInTheDocument();
+  });
+
+  it("omits last push when the repo has no pushed_at", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      items: [{ ...ITEM, reason: { ...ITEM.reason, pushed_at: null } }],
+    });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByText("a/one");
+    expect(screen.queryByTestId("feed-pushed-1")).not.toBeInTheDocument();
   });
 
   it("shows the feed date so it is clear which day the picks belong to", async () => {

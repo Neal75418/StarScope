@@ -5,7 +5,7 @@ import { useI18n } from "../../i18n";
 import type { FeedItem } from "../../api/types";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { safeOpenUrl } from "../../utils/url";
-import { formatNumber } from "../../utils/format";
+import { formatNumber, formatRelativeTime } from "../../utils/format";
 import { getLanguageColor } from "../../constants/languageColors";
 import styles from "./Discovery.module.css";
 
@@ -67,6 +67,12 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
           <ForkIcon size={14} />
           {formatNumber(item.forks)}
         </span>
+        {/* 放在 meta 列而非推薦理由行：這是 repo 本身的事實，而且是判斷「還活著嗎」的主要依據 */}
+        {item.reason.pushed_at && (
+          <span className={styles.stat} data-testid={`feed-pushed-${item.id}`}>
+            {t.discovery.forYou.lastPush} {formatRelativeTime(item.reason.pushed_at)}
+          </span>
+        )}
       </div>
 
       <p className={styles.feedReason} data-testid={`feed-reason-${item.id}`}>

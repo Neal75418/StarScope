@@ -22,6 +22,9 @@ class FeedReason(BaseModel):
     matched: list[str] = []
     stars: int = 0
     age_days: int | None = None
+    # repo 最後一次 push 的時間；判斷「這專案還活著嗎」的關鍵依據，
+    # 產生 feed 時就已寫入 reason_json，此處只是把它輸出給前端。
+    pushed_at: str | None = None
 
 
 class FeedItemOut(BaseModel):
@@ -84,6 +87,7 @@ def _to_out(item: FeedItem) -> FeedItemOut:
             matched=reason_raw.get("matched", []),
             stars=reason_raw.get("stars", 0),
             age_days=reason_raw.get("age_days"),
+            pushed_at=reason_raw.get("pushed_at"),
         ),
         feedback=item.feedback,
     )
