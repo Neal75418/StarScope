@@ -10,7 +10,6 @@ export { DiscoveryFilters } from "./DiscoveryFilters";
 export { DiscoveryResultCard } from "./DiscoveryResultCard";
 export { DiscoveryResults } from "./DiscoveryResults";
 export { RecommendedForYou } from "./RecommendedForYou";
-export { QuickPicks } from "./QuickPicks";
 export { BatchAddBar } from "./BatchAddBar";
 export { ForYouFeed } from "./ForYouFeed";
 export { FeedItemCard } from "./FeedItemCard";

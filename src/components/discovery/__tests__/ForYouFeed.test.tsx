@@ -85,6 +85,27 @@ describe("ForYouFeed", () => {
     expect(await screen.findByTestId("feed-empty-state")).toBeInTheDocument();
   });
 
+  it("shows the feed date so it is clear which day the picks belong to", async () => {
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    expect(await screen.findByTestId("feed-date")).toHaveTextContent("2026-08-01");
+  });
+
+  it("offers no refresh button when the feed already has items (generation is once-daily)", async () => {
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByText("a/one");
+    expect(screen.queryByTestId("feed-retry")).not.toBeInTheDocument();
+  });
+
+  it("offers a retry that actually regenerates when the feed is empty", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
+    vi.mocked(client.generateFeed).mockResolvedValue({ feed_date: "2026-08-01", generated: 0 });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    const retry = await screen.findByTestId("feed-retry");
+    await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(1));
+    fireEvent.click(retry);
+    await waitFor(() => expect(client.generateFeed).toHaveBeenCalledTimes(2));
+  });
+
   it("shows all-caught-up message when every item has been dismissed", async () => {
     vi.mocked(client.getFeed).mockResolvedValue({
       feed_date: "2026-08-01",

@@ -14,7 +14,7 @@ interface ForYouFeedProps {
 
 export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
   const { t } = useI18n();
-  const { items, isLoading, isGenerating, feedback, refresh } = useFeed();
+  const { items, feedDate, isLoading, isGenerating, feedback, refresh } = useFeed();
 
   if (isLoading) {
     return (
@@ -27,10 +27,15 @@ export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
     );
   }
 
+  // 空清單時才提供重試：feed 一天一批，已有內容時再次產生不會有任何效果（後端冪等），
+  // 但清單為空代表當日尚未成功產生，此時重試才真的會重跑管線。
   if (items.length === 0) {
     return (
       <div className={styles.emptyState} data-testid="feed-empty-state">
         <p>{t.discovery.forYou.empty}</p>
+        <button className={styles.selectionToggle} onClick={refresh} data-testid="feed-retry">
+          {t.discovery.forYou.refresh}
+        </button>
       </div>
     );
   }
@@ -42,11 +47,11 @@ export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
       <div className={styles.recSectionHeader}>
         <div>
           <h3>{t.discovery.forYou.title}</h3>
-          <p className={styles.recSubtitle}>{t.discovery.forYou.subtitle}</p>
+          <p className={styles.recSubtitle}>
+            {t.discovery.forYou.subtitle}
+            {feedDate && <span data-testid="feed-date"> · {feedDate}</span>}
+          </p>
         </div>
-        <button className={styles.selectionToggle} onClick={refresh}>
-          {t.discovery.forYou.refresh}
-        </button>
       </div>
       {visible.length === 0 ? (
         <p className={styles.recSubtitle} data-testid="feed-all-dismissed">

@@ -186,7 +186,6 @@ vi.mock("../../components/discovery", () => ({
     </div>
   ),
   RecommendedForYou: () => null,
-  QuickPicks: () => <div data-testid="quick-picks" />,
   BatchAddBar: () => null,
   ForYouFeed: () => <div data-testid="for-you-feed" />,
 }));
@@ -227,11 +226,18 @@ describe("Discovery", () => {
     expect(screen.getByTestId("search-bar")).toBeInTheDocument();
   });
 
-  it("renders all filter sections", () => {
+  it("renders all filter sections in search mode", () => {
+    mockDiscoveryReturn.keyword = "react";
     render(<Discovery />);
     expect(screen.getByTestId("trending-filters")).toBeInTheDocument();
     expect(screen.getByTestId("active-filters")).toBeInTheDocument();
     expect(screen.getByTestId("discovery-filters")).toBeInTheDocument();
+  });
+
+  it("hides active filters in feed mode (they do not apply to the feed)", () => {
+    render(<Discovery />);
+    expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
+    expect(screen.queryByTestId("active-filters")).not.toBeInTheDocument();
   });
 
   it("shows the For You feed by default when there is no search keyword", () => {
@@ -309,24 +315,28 @@ describe("Discovery", () => {
   });
 
   it("passes getPeriodLabel result to ActiveFilters when period is set", () => {
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "daily";
     render(<Discovery />);
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("Today");
   });
 
   it("passes 'This Week' label for weekly period", () => {
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "weekly";
     render(<Discovery />);
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("This week");
   });
 
   it("passes 'This Month' label for monthly period", () => {
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "monthly";
     render(<Discovery />);
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("This month");
   });
 
   it("does not show period label when period is null", () => {
+    mockDiscoveryReturn.keyword = "react";
     render(<Discovery />);
     expect(screen.queryByTestId("active-period-label")).not.toBeInTheDocument();
   });
@@ -345,6 +355,7 @@ describe("Discovery", () => {
 
   it("calls discovery.reset when clear all is clicked", async () => {
     const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "react";
     render(<Discovery />);
     await user.click(screen.getByTestId("clear-all"));
     expect(mockDiscoveryReturn.reset).toHaveBeenCalled();
@@ -403,6 +414,7 @@ describe("Discovery", () => {
 
   it("calls removePeriod when period remove button is clicked", async () => {
     const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "daily";
     render(<Discovery />);
     await user.click(screen.getByTestId("remove-period"));

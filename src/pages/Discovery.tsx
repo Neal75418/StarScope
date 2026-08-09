@@ -22,7 +22,6 @@ import {
   DiscoveryFilters,
   DiscoveryResults,
   RecommendedForYou,
-  QuickPicks,
   BatchAddBar,
   ForYouFeed,
 } from "../components/discovery";
@@ -31,13 +30,7 @@ export function Discovery() {
   const { t } = useI18n();
   const toast = useToast();
   const discovery = useDiscovery();
-  const {
-    setKeyword,
-    setPeriod,
-    setFilters,
-    filters: discoveryFilters,
-    reset: resetDiscovery,
-  } = discovery;
+  const { setKeyword, setPeriod, filters: discoveryFilters, reset: resetDiscovery } = discovery;
   const selection = useSelectionMode();
   const { viewMode, setViewMode } = useViewMode();
   const { repos: watchlist } = useWatchlistState();
@@ -131,22 +124,6 @@ export function Discovery() {
     setUserBrowsedTrending(false);
     resetDiscovery();
   }, [resetDiscovery]);
-
-  // Quick pick：語言
-  const handleQuickLanguage = useCallback(
-    (lang: string) => {
-      setFilters({ ...discoveryFilters, language: lang });
-    },
-    [discoveryFilters, setFilters]
-  );
-
-  // Quick pick：主題
-  const handleQuickTopic = useCallback(
-    (topic: string) => {
-      setFilters({ ...discoveryFilters, topic });
-    },
-    [discoveryFilters, setFilters]
-  );
 
   // 將 repo 加入 watchlist（共用邏輯）
   const doAddToWatchlist = useCallback(
@@ -274,29 +251,28 @@ export function Discovery() {
         <TrendingFilters onSelectPeriod={handleSelectPeriod} activePeriod={discovery.period} />
       </div>
 
-      {!discovery.hasSearched && (
-        <QuickPicks onSelectLanguage={handleQuickLanguage} onSelectTopic={handleQuickTopic} />
+      {/* 僅在搜尋模式顯示：feed 模式下這些條件對 feed 無效，顯示出來會誤導成「feed 有被篩選」 */}
+      {hasActiveSearch && (
+        <ActiveFilters
+          keyword={discovery.keyword || undefined}
+          period={discovery.period ? getPeriodLabel(discovery.period) : undefined}
+          language={discovery.filters.language}
+          topic={discovery.filters.topic}
+          minStars={discovery.filters.minStars}
+          maxStars={discovery.filters.maxStars}
+          license={discovery.filters.license}
+          hideArchived={discovery.filters.hideArchived}
+          onRemoveKeyword={discovery.removeKeyword}
+          onRemovePeriod={discovery.removePeriod}
+          onRemoveLanguage={discovery.removeLanguage}
+          onRemoveTopic={discovery.removeTopic}
+          onRemoveMinStars={discovery.removeMinStars}
+          onRemoveMaxStars={discovery.removeMaxStars}
+          onRemoveLicense={discovery.removeLicense}
+          onRemoveHideArchived={discovery.removeHideArchived}
+          onClearAll={handleResetDiscovery}
+        />
       )}
-
-      <ActiveFilters
-        keyword={discovery.keyword || undefined}
-        period={discovery.period ? getPeriodLabel(discovery.period) : undefined}
-        language={discovery.filters.language}
-        topic={discovery.filters.topic}
-        minStars={discovery.filters.minStars}
-        maxStars={discovery.filters.maxStars}
-        license={discovery.filters.license}
-        hideArchived={discovery.filters.hideArchived}
-        onRemoveKeyword={discovery.removeKeyword}
-        onRemovePeriod={discovery.removePeriod}
-        onRemoveLanguage={discovery.removeLanguage}
-        onRemoveTopic={discovery.removeTopic}
-        onRemoveMinStars={discovery.removeMinStars}
-        onRemoveMaxStars={discovery.removeMaxStars}
-        onRemoveLicense={discovery.removeLicense}
-        onRemoveHideArchived={discovery.removeHideArchived}
-        onClearAll={handleResetDiscovery}
-      />
 
       <DiscoveryFilters filters={discovery.filters} onFiltersChange={discovery.setFilters} />
 

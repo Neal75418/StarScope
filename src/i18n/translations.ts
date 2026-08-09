@@ -162,10 +162,6 @@ export const translations = {
       },
       loadMore: "Load More",
       results: "{count} results",
-      quickPicks: {
-        languages: "Languages:",
-        topics: "Topics:",
-      },
       recommendations: {
         title: "Recommended for You",
         subtitle: "Based on your watchlist's similarity patterns and momentum",
@@ -1043,10 +1039,6 @@ export const translations = {
       },
       loadMore: "載入更多",
       results: "{count} 個結果",
-      quickPicks: {
-        languages: "語言：",
-        topics: "主題：",
-      },
       recommendations: {
         title: "為你推薦",
         subtitle: "根據你的追蹤清單相似度與動量分析",
