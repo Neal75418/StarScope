@@ -5,7 +5,7 @@
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
 
-export type TrendingPeriod = "daily" | "weekly" | "monthly";
+export type TrendingPeriod = "daily" | "weekly" | "monthly" | "yearly";
 
 interface TrendingFiltersProps {
   activePeriod?: TrendingPeriod;
@@ -19,6 +19,7 @@ export function TrendingFilters({ activePeriod, onSelectPeriod }: TrendingFilter
     { value: "daily", labelKey: "today" },
     { value: "weekly", labelKey: "thisWeek" },
     { value: "monthly", labelKey: "thisMonth" },
+    { value: "yearly", labelKey: "thisYear" },
   ];
 
   return (

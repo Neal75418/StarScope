@@ -103,6 +103,8 @@ export function Discovery() {
           return t.discovery.trending.thisWeek;
         case "monthly":
           return t.discovery.trending.thisMonth;
+        case "yearly":
+          return t.discovery.trending.thisYear;
       }
     },
     [t.discovery.trending]

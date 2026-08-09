@@ -95,6 +95,10 @@ describe("searchHelpers", () => {
     it("returns 30 days ago for monthly", () => {
       expect(getStartDateForPeriod("monthly")).toBe("2024-05-16");
     });
+
+    it("returns 365 days ago for yearly", () => {
+      expect(getStartDateForPeriod("yearly")).toBe("2023-06-16");
+    });
   });
 
   describe("getMinStarsForPeriod", () => {
@@ -108,6 +112,10 @@ describe("searchHelpers", () => {
 
     it("returns 100 for monthly", () => {
       expect(getMinStarsForPeriod("monthly")).toBe(100);
+    });
+
+    it("returns 500 for yearly", () => {
+      expect(getMinStarsForPeriod("yearly")).toBe(500);
     });
   });
 
