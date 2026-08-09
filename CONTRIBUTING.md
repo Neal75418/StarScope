@@ -53,14 +53,13 @@ npm run tauri dev               # 終端機 2 — Tauri
 ## 🔄 開發流程
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
 graph LR
     A["🌿 建立分支"] --> B["💻 開發"]
     B --> C["🧪 測試"]
     C --> D["✅ 品質檢查"]
     D --> E["📤 提交 PR"]
 
-    classDef step fill:#1e293b,stroke:#475569,color:#f1f5f9,font-weight:bold
+    classDef step fill:#64748B,stroke:#1E293B,color:#FFFFFF,font-weight:bold
     class A,B,C,D,E step
 ```
 

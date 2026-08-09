@@ -95,12 +95,14 @@ graph TB
             Detect["Anomaly Detector"]
             Context["Context Fetcher"]
             Recommend["Recommender"]
+            Feed["Feed Generator"]
         end
         DB[("SQLite")]
         Sched["APScheduler"]
         API --> Services
         Services --> DB
         Sched -.->|hourly| Fetch
+        Sched -.->|daily 07:30| Feed
     end
 
     subgraph Ext["🌐 External"]
