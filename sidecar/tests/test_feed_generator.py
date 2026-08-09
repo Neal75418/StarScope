@@ -263,6 +263,40 @@ def test_exclude_matching_rules():
     # ⑥ 含分隔符的詞組要能匹配（兩側同一套正規化）
     assert check(["machine-learning"], topics=["machine-learning"]) is True
     assert check(["node.js"], "a/node.js-starter") is True
-    # ⑦ 正規化後變短的詞不得擴大打擊面：c++ → c 不該吃掉 cli、.net 不該吃掉 netflix
+    # ⑦ 正規化後短於 2 字元的詞一律丟棄：c++ / c# 都塌成 c，留著會擋掉無關專案
     assert check(["c++"], "cli-tool/chrome") is False
-    assert check([".net"], "netflix/dispatch") is False
+    assert check(["c++"], "foo/awesome-c") is False      # 「c」是獨立詞也不該中
+    assert check(["c#"], "foo/c-sharp") is False
+    assert check(["++"], "foo/anything") is False        # 純標點正規化為空
+    # ⑧ y → ies 也算複數（只靠 (?:e?s)? 涵蓋不到）
+    assert check(["library"], topics=["python-libraries"]) is True
+    assert check(["library"], topics=["a-library"]) is True
+    # ⑨ 已知取捨：不含分隔符的複合字擋不到（不做前綴比對的必然代價）
+    assert check(["awesome"], "user/awesomelist") is False
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_aborts_instead_of_draining_quota(test_db):
+    """配額耗盡時中止整輪並往上拋，不繼續打剩下的興趣。
+
+    繼續打只會更快燒光配額，而且會寫入 0 筆——當日 existing>0 短路永遠不成立，
+    前端每次重新掛載又觸發整輪 fan-out，形成自我延續的耗盡迴圈。
+    """
+    from services.github import GitHubRateLimitError
+
+    for term in ("rust", "tauri", "flutter"):
+        test_db.add(Interest(term=term, kind=InterestKind.TOPIC, weight=2))
+    test_db.commit()
+
+    calls = []
+
+    class RateLimitedGitHub:
+        async def search_repos(self, **kwargs):
+            calls.append(kwargs)
+            raise GitHubRateLimitError("quota exhausted")
+
+    with pytest.raises(GitHubRateLimitError):
+        await generate_feed(test_db, RateLimitedGitHub(), TODAY)
+
+    assert len(calls) == 1, "撞到配額後不應繼續打其餘興趣"
+    assert test_db.query(FeedItem).count() == 0

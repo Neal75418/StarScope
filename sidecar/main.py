@@ -196,7 +196,8 @@ def _handle_rate_limit(_request: "Request", exc: Exception) -> JSONResponse:
     detail = exc.detail if isinstance(exc, RateLimitExceeded) else str(exc)
     return JSONResponse(
         status_code=429,
-        content={"detail": f"Rate limit exceeded: {detail}"},
+        # code 讓前端能區分「自家節流」與「GitHub 配額用盡」——後者才該顯示全域橫幅
+        content={"detail": f"Rate limit exceeded: {detail}", "code": "LOCAL_RATE_LIMIT"},
     )
 
 app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
@@ -216,7 +217,8 @@ async def github_rate_limit_handler(_request: Request, exc: GitHubRateLimitError
         headers["Retry-After"] = str(retry_after)
     return JSONResponse(
         status_code=429,
-        content={"detail": "GitHub API rate limit exceeded. Please try again later."},
+        content={"detail": "GitHub API rate limit exceeded. Please try again later.",
+                 "code": "GITHUB_RATE_LIMIT"},
         headers=headers,
     )
 

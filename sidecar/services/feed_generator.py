@@ -17,6 +17,7 @@ from db.models import (
     Interest, InterestKind, ExcludeTerm, FeedCandidate, FeedItem, SeenRepo, Repo,
 )
 from services.feed_defaults import ensure_default_exclude_terms
+from services.github import GitHubRateLimitError
 from services.feed_scoring import score_candidate
 from utils.time import utc_now
 
@@ -47,23 +48,30 @@ def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
 
     - 前後都要是詞界：`ai` 既不吃 tailwind**css** 也不吃 **ai**rbnb，
       只有整個詞是 ai 才擋。裸子字串與「前綴比對」都試過，兩者都會誤殺
-    - 允許複數字尾（s / es）：否則 `interview` 擋不掉 coding-interviews、
-      `tutorial` 擋不掉 python-tutorials，黑名單就失去存在意義
+    - 允許複數字尾，且**只涵蓋 s / es / y→ies**：否則 `interview` 擋不掉
+      coding-interviews、`library` 擋不掉 python-libraries。代價是不含分隔符的
+      複合字（awesomelist、tutorialspoint）擋不到——那是不做前綴比對的必然取捨
     - 兩側用同一套正規化：否則 `machine-learning`、`node.js` 這種含分隔符的詞
       永遠對不上，變成靜默 no-op
+    - 正規化後**短於 2 字元的詞一律丟棄**：`c++`、`c#` 都會塌成 `c`，留著會擋掉
+      awesome-c、c-sharp 這類無關專案。純標點的詞（`++`）同樣被丟棄
     """
     patterns = []
     for term in exclude:
         norm = _normalize_words(term.lower())
-        if not norm:
+        if len(norm) < 2:
+            logger.warning(f"[feed] 黑名單詞 {term!r} 正規化後過短（{norm!r}），已忽略")
             continue
-        patterns.append(re.compile(rf"(?<!\w){re.escape(norm)}(?:e?s)?(?!\w)"))
+        # y → ies（library/libraries）需要單獨處理，不能只靠 (?:e?s)?
+        stem = rf"{re.escape(norm[:-1])}(?:y|ies)" if norm.endswith("y") else rf"{re.escape(norm)}(?:e?s)?"
+        patterns.append(re.compile(rf"(?<!\w){stem}(?!\w)"))
     return patterns
 
 
 def _is_excluded(item: dict, patterns: list[re.Pattern[str]]) -> bool:
     haystacks = [item["full_name"].lower(), *[t.lower() for t in item.get("topics", [])]]
-    return any(p.search(_normalize_words(hay)) for hay in haystacks for p in patterns)
+    # 正規化放外層：放進 any() 的內層子句會變成每個 pattern 都重算一次
+    return any(p.search(norm) for norm in map(_normalize_words, haystacks) for p in patterns)
 
 
 async def _fetch_candidates(github, interests: list[Interest],
@@ -85,6 +93,12 @@ async def _fetch_candidates(github, interests: list[Interest],
             kwargs["query"] = f"{interest.term} {base_q}"
         try:
             result = await github.search_repos(**kwargs)
+        except GitHubRateLimitError:
+            # 配額耗盡時繼續打下一個興趣只會更快燒光配額，而且 generate 會寫入 0 筆、
+            # 使當日的 existing>0 短路永遠不成立，前端每次重新掛載又觸發整輪 fan-out
+            # ——形成自我延續的配額耗盡迴圈。這裡直接中止並往上拋。
+            logger.warning("[feed] GitHub 配額耗盡，中止本輪 feed 產生")
+            raise
         except Exception as e:  # 單一查詢失敗不拖垮整批
             logger.warning(f"[feed] 興趣 {interest.term} 搜尋失敗: {e}")
             continue
