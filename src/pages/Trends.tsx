@@ -471,9 +471,8 @@ export function Trends() {
             <>
               <p>{t.trends.emptyNoRepos}</p>
               <button
-                className="btn btn-primary"
+                className="btn btn-primary empty-state-cta"
                 data-testid="trends-go-discover"
-                style={{ marginTop: "0.75rem" }}
                 onClick={() => navigateTo("discovery")}
               >
                 {t.dashboard.onboard.cta}

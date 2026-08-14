@@ -60,7 +60,7 @@ export const RepoSelector = memo(
             {interpolate(t.compare.needMoreRepos, { count: repos.length })}
           </p>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary empty-state-cta"
             data-testid="compare-go-discover"
             onClick={onGoDiscover}
           >

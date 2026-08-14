@@ -5458,3 +5458,8 @@ a:focus-visible {
   color: var(--fg-muted);
   white-space: nowrap;
 }
+
+/* 空狀態說明文字與其 CTA 按鈕的間距（趨勢/對比共用） */
+.empty-state-cta {
+  margin-top: 0.75rem;
+}
