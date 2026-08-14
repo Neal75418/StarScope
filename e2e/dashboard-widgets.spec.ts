@@ -1,46 +1,36 @@
 /**
  * Dashboard 頁面 E2E 測試。
- * 驗證首頁的統計卡片、週報摘要和投資組合圖表正確渲染。
+ *
+ * e2e 環境的資料庫是空的（無追蹤 repo），此時儀表板的設計行為是收斂成
+ * 單一引導卡、不渲染任何 widget——所以這裡驗證的是引導卡與其導向；
+ * widget 在有資料時的渲染由 Dashboard 單元測試（mock 資料）覆蓋。
  */
 
 import { test, expect } from "@playwright/test";
 
-test.describe("Dashboard Widgets", () => {
+test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
   });
 
-  test("displays stat cards with numeric values", async ({ page }) => {
-    // Dashboard 是預設頁面，統計卡片應該可見
-    const statCards = page.locator(".stat-card");
-    await expect(statCards.first()).toBeVisible({ timeout: 10000 });
-
-    // 至少有 4 張統計卡片（repos, stars, weekly, alerts）
-    const count = await statCards.count();
-    expect(count).toBeGreaterThanOrEqual(4);
+  test("collapses to an onboarding card when nothing is tracked", async ({ page }) => {
+    await expect(page.locator('[data-testid="dashboard-onboard"]')).toBeVisible({
+      timeout: 10000,
+    });
+    // 空狀態不渲染統計卡與任何 widget——六個模組各自喊「沒資料」正是這張卡要取代的東西
+    expect(await page.locator(".stat-card").count()).toBe(0);
+    expect(await page.locator(".weekly-summary").count()).toBe(0);
   });
 
-  test("weekly summary section renders with date range", async ({ page }) => {
-    // 週報摘要區塊應該可見
-    const summary = page.locator(".weekly-summary");
-    await expect(summary).toBeVisible({ timeout: 10000 });
+  test("onboarding CTA navigates to Discover", async ({ page }) => {
+    await page.locator('[data-testid="dashboard-onboard-cta"]').click();
 
-    // 應顯示日期範圍格式 M/D – M/D
-    await expect(summary.locator("text=/\\d+\\/\\d+\\s*–\\s*\\d+\\/\\d+/")).toBeVisible();
-  });
-
-  test("portfolio history section is visible", async ({ page }) => {
-    // 投資組合圖表區塊（CI 空 DB 時顯示空狀態，不一定有 SVG）
-    const section = page.locator(".portfolio-history-section");
-    await expect(section).toBeVisible({ timeout: 10000 });
-  });
-
-  test("recent activity list shows items or empty state", async ({ page }) => {
-    // 近期活動區塊 — 透過標題定位 dashboard section
-    const hasItems = await page.locator(".activity-item").count();
-    const hasEmpty = await page.locator(".activity-empty").count();
-    expect(hasItems + hasEmpty).toBeGreaterThan(0);
+    // 探索頁預設畫面：feed 或其空狀態（沿用 for-you-feed.spec 的判準）
+    const feed = page.locator('[data-testid="for-you-feed"]');
+    const empty = page.locator('[data-testid="feed-empty-state"]');
+    await expect(feed.or(empty).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="nav-discovery"]')).toHaveClass(/active/);
   });
 
   test("theme persists after page reload", async ({ page }) => {

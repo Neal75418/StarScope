@@ -52,7 +52,7 @@ describe("formatDelta", () => {
   });
 
   it("adds plus sign for positive numbers", () => {
-    expect(formatDelta(0)).toBe("+0");
+    expect(formatDelta(0)).toBe("0");
     expect(formatDelta(50)).toBe("+50");
     expect(formatDelta(999)).toBe("+999");
   });

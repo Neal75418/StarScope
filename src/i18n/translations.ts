@@ -23,10 +23,16 @@ export const translations = {
     dashboard: {
       title: "Dashboard",
       subtitle: "Overview of your tracked repositories",
+      onboard: {
+        title: "Start by tracking your first repository",
+        description:
+          "The dashboard reflects the repositories you track. Head over to Discover, pick something interesting from today's feed or search, and hit ⭐ Track — this page will come alive.",
+        cta: "Go to Discover",
+      },
       stats: {
         totalRepos: "Tracked Repos",
         totalStars: "Total Stars",
-        weeklyStars: "Weekly Stars",
+        weeklyStars: "Stars (7d)",
         activeAlerts: "Active Alerts",
       },
       velocityDistribution: "Velocity Distribution",
@@ -53,8 +59,8 @@ export const translations = {
         },
       },
       weekly: {
-        title: "Weekly Summary",
-        starsThisWeek: "stars this week",
+        title: "Last 7 Days",
+        starsThisWeek: "stars in the last 7 days",
         topMovers: "Top Movers",
         signals: "Signals",
         hnMentions: "HN Mentions",
@@ -62,8 +68,8 @@ export const translations = {
         earlySignals: "Early Signals",
         accelerating: "accelerating",
         decelerating: "decelerating",
-        noData: "No movement this week",
-        noHnMentions: "No HN mentions this week",
+        noData: "No movement in the last 7 days",
+        noHnMentions: "No HN mentions in the last 7 days",
         loadError: "Failed to load weekly summary",
       },
       portfolioHistory: {
@@ -900,11 +906,17 @@ export const translations = {
     // 儀表板頁面
     dashboard: {
       title: "儀表板",
+      onboard: {
+        title: "先追蹤第一個專案",
+        description:
+          "儀表板顯示的是你追蹤中的專案。到探索頁看看今天的推薦或直接搜尋，按下 ⭐ 追蹤，這裡就會活起來。",
+        cta: "前往探索",
+      },
       subtitle: "追蹤儲存庫總覽",
       stats: {
         totalRepos: "追蹤數量",
         totalStars: "星星總數",
-        weeklyStars: "本週星數",
+        weeklyStars: "近 7 天星數",
         activeAlerts: "活躍警報",
       },
       velocityDistribution: "增長速度分佈",
@@ -931,17 +943,17 @@ export const translations = {
         },
       },
       weekly: {
-        title: "本週摘要",
-        starsThisWeek: "本週新增星數",
+        title: "近 7 天摘要",
+        starsThisWeek: "近 7 天新增星數",
         topMovers: "漲跌排行",
         signals: "訊號總覽",
         hnMentions: "HN 提及",
         alertsTriggered: "觸發警報",
-        earlySignals: "早期信號",
+        earlySignals: "早期訊號",
         accelerating: "加速中",
         decelerating: "減速中",
-        noData: "本週無變動",
-        noHnMentions: "本週無 HN 提及",
+        noData: "近 7 天無變動",
+        noHnMentions: "近 7 天無 HN 提及",
         loadError: "載入週報摘要失敗",
       },
       portfolioHistory: {
@@ -1128,13 +1140,13 @@ export const translations = {
       statusTags: {
         hot: "熱門",
         stale: "過時",
-        signal: "信號",
+        signal: "訊號",
       },
       summary: {
         title: "摘要",
         topVelocity: "最高成長速度",
         hotRepos: "熱門儲存庫",
-        signalRepos: "有信號",
+        signalRepos: "有訊號",
         staleRepos: "過時",
       },
       batch: {
@@ -1173,7 +1185,7 @@ export const translations = {
       exportHistory: "匯出",
       remove: "移除",
       removeFromCategory: "從分類移除",
-      activeSignals: "{count} 個活躍信號",
+      activeSignals: "{count} 個活躍訊號",
       loadingBadges: "載入徽章中...",
       delta7d: "7天",
       delta30d: "30天",

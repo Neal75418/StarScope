@@ -25,7 +25,8 @@ export function formatNumber(num: number | null): string {
  */
 export function formatDelta(num: number | null): string {
   if (num === null) return "—";
-  const sign = num >= 0 ? "+" : "";
+  // 正號只給非零：零沒有方向，「+0」是誤導
+  const sign = num > 0 ? "+" : "";
   if (Math.abs(num) >= 1_000_000) {
     return sign + (num / 1_000_000).toFixed(1) + "M";
   }

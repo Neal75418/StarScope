@@ -9,6 +9,7 @@ import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { DataFreshnessBar } from "../components/DataFreshnessBar";
 import { useAppStatus } from "../contexts/AppStatusContext";
+import { useNavigation } from "../contexts/NavigationContext";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
@@ -62,11 +63,11 @@ const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) 
         trend={stats.weeklyStars > 0 ? "up" : stats.weeklyStars < 0 ? "down" : "neutral"}
         variant="success"
       />
+      {/* danger 只在真的有警報時亮：紅色永遠掛著，警報觸發時就沒有任何變化感 */}
       <StatCard
         label={t.dashboard.stats.activeAlerts}
         value={stats.activeAlerts}
-        trend={stats.activeAlerts > 0 ? "up" : "neutral"}
-        variant="danger"
+        variant={stats.activeAlerts > 0 ? "danger" : undefined}
       />
     </div>
   );
@@ -151,6 +152,7 @@ export function Dashboard() {
   const [widgetVisibility, setWidgetVisibility] = useState<WidgetVisibility>(loadWidgetVisibility);
 
   const { level } = useAppStatus();
+  const { navigateTo } = useNavigation();
 
   if (isLoading) {
     return (
@@ -216,6 +218,30 @@ export function Dashboard() {
           <p>{message}</p>
           <button onClick={refresh} className="btn btn-primary">
             {t.common.retry}
+          </button>
+        </div>
+      </AnimatedPage>
+    );
+  }
+
+  // watchlist 為空時整個監測層都沒有資料——與其渲染六個各自喊「沒資料」的模組，
+  // 收斂成一張說明 + 出口的引導卡，把人導向唯一每天有新內容的探索頁
+  if (stats.totalRepos === 0) {
+    return (
+      <AnimatedPage className="page dashboard-page">
+        <header className="page-header">
+          <h1 data-testid="page-title">{t.dashboard.title}</h1>
+          <p className="subtitle">{t.dashboard.subtitle}</p>
+        </header>
+        <div className="dashboard-onboard" data-testid="dashboard-onboard">
+          <h2>{t.dashboard.onboard.title}</h2>
+          <p>{t.dashboard.onboard.description}</p>
+          <button
+            className="btn btn-primary"
+            data-testid="dashboard-onboard-cta"
+            onClick={() => navigateTo("discovery")}
+          >
+            {t.dashboard.onboard.cta}
           </button>
         </div>
       </AnimatedPage>

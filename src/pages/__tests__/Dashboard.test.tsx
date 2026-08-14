@@ -7,6 +7,15 @@ import type { DashboardStats, RecentActivity } from "../../hooks/useDashboard";
 import type { EarlySignal, SignalSummary } from "../../api/client";
 
 const mockRefresh = vi.fn();
+const mockNavigateTo = vi.fn();
+
+vi.mock("../../contexts/NavigationContext", () => ({
+  useNavigation: () => ({
+    navigateTo: mockNavigateTo,
+    navigationState: null,
+    consumeNavigationState: () => null,
+  }),
+}));
 const mockAcknowledgeSignal = vi.fn();
 
 function makeSignal(overrides: Partial<EarlySignal> = {}): EarlySignal {
@@ -156,6 +165,33 @@ describe("Dashboard", () => {
     };
   });
 
+  it("collapses to an onboarding card with a Discover CTA when nothing is tracked", async () => {
+    const user = userEvent.setup();
+    mockDashboard.stats = { totalRepos: 0, totalStars: 0, weeklyStars: 0, activeAlerts: 0 };
+    render(<Dashboard />);
+    expect(screen.getByTestId("dashboard-onboard")).toBeInTheDocument();
+    // 六個空模組一個都不該渲染
+    expect(screen.queryByTestId("weekly-summary")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("portfolio-history")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("portfolio-health-score")).not.toBeInTheDocument();
+    await user.click(screen.getByTestId("dashboard-onboard-cta"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("discovery");
+  });
+
+  it("applies the danger accent only when alerts are active (red must mean something)", () => {
+    mockDashboard.stats.activeAlerts = 0;
+    render(<Dashboard />);
+    const card = screen.getByText("Active Alerts").closest(".stat-card");
+    expect(card).not.toHaveClass("stat-card--danger");
+  });
+
+  it("applies the danger accent when alerts exist", () => {
+    mockDashboard.stats.activeAlerts = 3;
+    render(<Dashboard />);
+    const card = screen.getByText("Active Alerts").closest(".stat-card");
+    expect(card).toHaveClass("stat-card--danger");
+  });
+
   it("shows loading skeletons when loading", () => {
     mockDashboard.isLoading = true;
     render(<Dashboard />);
@@ -200,10 +236,11 @@ describe("Dashboard", () => {
     expect(screen.getByText("+1.2K")).toBeInTheDocument();
   });
 
-  it("formats weekly stars with plus sign for zero", () => {
+  it("formats zero weekly stars without a sign (zero has no direction)", () => {
     mockDashboard.stats.weeklyStars = 0;
     render(<Dashboard />);
-    expect(screen.getByText("+0")).toBeInTheDocument();
+    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.queryByText("+0")).not.toBeInTheDocument();
   });
 
   it("formats large numbers with M suffix", () => {

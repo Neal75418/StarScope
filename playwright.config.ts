@@ -38,7 +38,10 @@ export default defineConfig({
     ? undefined // Skip webServer in CI - servers are started manually or tests are skipped
     : [
         {
-          command: "cd sidecar && .venv/bin/python main.py",
+          // 隔離資料目錄——只在 playwright 自己啟動 sidecar 時生效；
+          // 若開發者的 sidecar 已在跑（reuseExistingServer），重用的是真實資料庫，
+          // 所以會寫入資料的測試仍必須自我清理（見 watchlist-flow.spec）。
+          command: "cd sidecar && STARSCOPE_DATA_DIR=/tmp/starscope-e2e .venv/bin/python main.py",
           url: "http://127.0.0.1:8008/api/health",
           reuseExistingServer: true,
           timeout: 60000,
