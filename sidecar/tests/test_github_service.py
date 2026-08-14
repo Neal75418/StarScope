@@ -265,9 +265,12 @@ class TestGitHubService:
         # Reset to ensure clean state
         reset_github_service()
 
-        service1 = get_github_service()
-        service2 = get_github_service()
-        assert service1 is service2
+        # patch 掉 token 讀取：不得碰真實 Keychain / 真實 DB 檔
+        with patch('services.settings.get_setting', return_value=None), \
+             patch.dict(os.environ, {}, clear=True):
+            service1 = get_github_service()
+            service2 = get_github_service()
+            assert service1 is service2
 
         # Clean up
         reset_github_service()
@@ -276,11 +279,13 @@ class TestGitHubService:
         """Test that reset_github_service creates new instance."""
         from services.github import get_github_service, reset_github_service
 
-        service1 = get_github_service()
-        reset_github_service()
-        service2 = get_github_service()
+        with patch('services.settings.get_setting', return_value=None), \
+             patch.dict(os.environ, {}, clear=True):
+            service1 = get_github_service()
+            reset_github_service()
+            service2 = get_github_service()
 
-        assert service1 is not service2
+            assert service1 is not service2
 
         # Clean up
         reset_github_service()

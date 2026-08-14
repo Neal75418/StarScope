@@ -40,11 +40,33 @@ class TestGetScheduler:
     def test_returns_singleton(self):
         """Test that scheduler is a singleton."""
         import services.scheduler as scheduler_module
-        scheduler_module._scheduler = None
 
-        s1 = get_scheduler()
-        s2 = get_scheduler()
-        assert s1 is s2
+        # 存還原全域 singleton，且 jobstore 指向 in-memory 避免碰真實 DB 檔
+        original = scheduler_module._scheduler
+        try:
+            scheduler_module._scheduler = None
+            with patch('services.scheduler.DATABASE_URL', 'sqlite:///:memory:'):
+                s1 = get_scheduler()
+                s2 = get_scheduler()
+                assert s1 is s2
+        finally:
+            scheduler_module._scheduler = original
+
+
+@pytest.fixture(autouse=True)
+def _isolate_failure_counts():
+    """模組級隔離：失敗計數與健康狀態這兩個模組全域不得跨測試洩漏。"""
+    import services.scheduler as scheduler_module
+
+    original_counts = dict(scheduler_module._repo_failure_counts)
+    original_health = dict(scheduler_module._scheduler_health)
+    scheduler_module._repo_failure_counts.clear()
+    yield
+    scheduler_module._repo_failure_counts.clear()
+    scheduler_module._repo_failure_counts.update(original_counts)
+    with scheduler_module._health_lock:
+        scheduler_module._scheduler_health.clear()
+        scheduler_module._scheduler_health.update(original_health)
 
 
 class TestFetchAllReposJob:
@@ -82,6 +104,62 @@ class TestFetchAllReposJob:
             assert call_args[0][0] == mock_repo
             assert call_args[0][1] == mock_fetch.return_value
             assert call_args[0][2] is test_db
+
+    @pytest.mark.asyncio
+    async def test_one_failure_does_not_stop_the_rest(self, test_db, mock_multiple_repos):
+        """核心語意：3 個 repo 中間一個炸，其餘照抓、簿記正確、健康狀態記到失敗。"""
+        import services.scheduler as scheduler_module
+        from services.github import GitHubAPIError
+        from services.scheduler import get_scheduler_health
+
+        failing_repo = mock_multiple_repos[1]
+
+        async def fetch_side_effect(owner, name):
+            if owner == failing_repo.owner and name == failing_repo.name:
+                raise GitHubAPIError("boom")
+            return {"stargazers_count": 1, "forks_count": 1, "open_issues_count": 0}
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new=AsyncMock(side_effect=fetch_side_effect)), \
+             patch('services.scheduler.update_repo_from_github') as mock_update:
+            await fetch_all_repos_job()
+
+        # 其餘兩個 repo 照樣被更新
+        updated_ids = {call.args[0].id for call in mock_update.call_args_list}
+        assert updated_ids == {mock_multiple_repos[0].id, mock_multiple_repos[2].id}
+        # 只有失敗的那個累加計數
+        assert scheduler_module._repo_failure_counts == {failing_repo.id: 1}
+        # 健康狀態記錄到失敗
+        health = get_scheduler_health()
+        assert health["last_fetch_error"] == "1 repos 抓取失敗"
+        assert health["last_fetch_failure"] is not None
+
+    @pytest.mark.asyncio
+    async def test_skip_recent_minutes_skips_freshly_fetched(self, test_db, mock_multiple_repos):
+        """近期已抓取的 repo 必須被跳過（skip_recent_minutes 子查詢）。"""
+        from datetime import timedelta
+        from db.models import RepoSnapshot
+        from utils.time import utc_now
+
+        fresh, stale = mock_multiple_repos[0], mock_multiple_repos[1]
+        test_db.add_all([
+            RepoSnapshot(repo_id=fresh.id, snapshot_date=utc_now().date(),
+                         fetched_at=utc_now() - timedelta(minutes=5), stars=1),
+            RepoSnapshot(repo_id=stale.id, snapshot_date=utc_now().date(),
+                         fetched_at=utc_now() - timedelta(hours=2), stars=1),
+        ])
+        test_db.commit()
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             patch('services.scheduler.update_repo_from_github'):
+            mock_fetch.return_value = {"stargazers_count": 1}
+            await fetch_all_repos_job(skip_recent_minutes=30)
+
+        fetched = {(call.args[0], call.args[1]) for call in mock_fetch.call_args_list}
+        assert (fresh.owner, fresh.name) not in fetched     # 5 分鐘前抓過 → 跳過
+        assert (stale.owner, stale.name) in fetched          # 2 小時前 → 要抓
+        assert (mock_multiple_repos[2].owner, mock_multiple_repos[2].name) in fetched  # 無快照 → 要抓
 
     @pytest.mark.asyncio
     async def test_handles_fetch_error(self, test_db, mock_repo):
@@ -203,17 +281,7 @@ class TestTriggerFetchNow:
 
 
 class TestTrackRepoFailure:
-    """Tests for _track_repo_failure function."""
-
-    @pytest.fixture(autouse=True)
-    def reset_failure_counts(self):
-        """Reset failure counts before each test and restore after."""
-        import services.scheduler as scheduler_module
-        original = dict(scheduler_module._repo_failure_counts)
-        scheduler_module._repo_failure_counts.clear()
-        yield
-        scheduler_module._repo_failure_counts.clear()
-        scheduler_module._repo_failure_counts.update(original)
+    """Tests for _track_repo_failure function.（計數隔離由模組級 autouse fixture 保證）"""
 
     def test_increments_count(self):
         """Test failure count increments."""
@@ -329,14 +397,20 @@ class TestBackupJob:
 
     def test_skips_memory_database(self):
         """Test skips backup for :memory: database."""
-        with patch('services.scheduler.DATABASE_URL', 'sqlite:///:memory:'):
-            backup_job()  # Should return without calling backup_database
+        with patch('services.scheduler.DATABASE_URL', 'sqlite:///:memory:'), \
+             patch('services.scheduler.backup_database') as mock_backup:
+            backup_job()
+
+            mock_backup.assert_not_called()
 
     def test_skips_test_environment(self):
         """Test skips backup when ENV=test."""
         with patch('services.scheduler.DATABASE_URL', 'sqlite:///test.db'), \
-             patch.dict('os.environ', {'ENV': 'test'}):
-            backup_job()  # Should return without calling backup_database
+             patch.dict('os.environ', {'ENV': 'test'}), \
+             patch('services.scheduler.backup_database') as mock_backup:
+            backup_job()
+
+            mock_backup.assert_not_called()
 
     def test_backup_success(self):
         """Test successful backup."""
@@ -356,7 +430,9 @@ class TestBackupJob:
              patch('services.scheduler.backup_database') as mock_backup:
             mock_backup.return_value = None
 
-            backup_job()  # Should not raise
+            backup_job()  # 失敗不得外洩例外（APScheduler job 不該炸）
+
+            mock_backup.assert_called_once()
 
     def test_backup_os_error(self):
         """Test handles OSError during backup."""
@@ -365,19 +441,26 @@ class TestBackupJob:
              patch('services.scheduler.backup_database') as mock_backup:
             mock_backup.side_effect = OSError("Disk full")
 
-            backup_job()  # Should not raise
+            backup_job()  # 失敗不得外洩例外（APScheduler job 不該炸）
+
+            mock_backup.assert_called_once()
 
 
 class TestCheckAlertsJobImportError:
     """Tests for check_alerts_job edge cases."""
 
-    def test_handles_import_error(self, test_db):
+    def test_handles_import_error(self, test_db, caplog):
         """Test handles ImportError when alerts service unavailable."""
+        import logging
+
         # check_alerts_job uses lazy import (from services.alerts import check_all_alerts),
         # so patching sys.modules with None correctly triggers ImportError
-        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+        with caplog.at_level(logging.DEBUG), \
+             patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch.dict('sys.modules', {'services.alerts': None}):
-            check_alerts_job()  # Should not raise
+            check_alerts_job()  # 不得外洩例外
+
+        assert any("警報服務尚未可用" in r.getMessage() for r in caplog.records)
 
     def test_handles_sqlalchemy_error(self, test_db):
         """Test handles SQLAlchemyError during alert check."""

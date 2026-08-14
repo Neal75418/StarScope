@@ -103,9 +103,9 @@ describe("ContextBadges", () => {
 
   // ==================== 未覆蓋分支的新測試 ====================
 
-  it("uses fallback config for unknown badge type", () => {
+  it("formatValue falls back to the full label when it contains no number", () => {
     const unknownBadge: ContextBadge = {
-      type: "hn", // hn is the only type, but to cover the fallback in BADGE_CONFIG
+      type: "hn",
       label: "no-number-here",
       url: "https://example.com",
       score: null,

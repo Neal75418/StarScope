@@ -125,11 +125,25 @@ class TestDetectSuddenSpike:
     """Tests for detect_sudden_spike method."""
 
     def test_returns_none_with_insufficient_snapshots(self, test_db, mock_repo):
-        """Test returns None with less than 2 snapshots."""
+        """Fewer than 3 snapshots → None（2 筆只有 1 個 delta，無法與歷史平均比較）。"""
         test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
 
         snapshot = RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000)
         test_db.add(snapshot)
+        test_db.commit()
+
+        result = AnomalyDetector.detect_sudden_spike(mock_repo, test_db)
+        assert result is None
+
+    def test_returns_none_with_exactly_two_snapshots(self, test_db, mock_repo):
+        """邊界：恰好 2 筆快照仍不足（門檻是 ≥3）。"""
+        from datetime import timedelta
+
+        test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today() - timedelta(days=1), stars=1000),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=2000),
+        ])
         test_db.commit()
 
         result = AnomalyDetector.detect_sudden_spike(mock_repo, test_db)
@@ -326,6 +340,70 @@ class TestRunDetection:
 
         assert "repos_scanned" in result
         assert "signals_detected" in result
+
+
+class TestDetectAllBatchPath:
+    """生產路徑（detect_all 批次預載）必須與逐 repo fallback 路徑得到相同結果。
+
+    背景：所有偵測器都有「預載 map」與「逐筆查 DB」雙實作，先前測試只走 fallback，
+    批次路徑（生產每 30 分鐘實際在跑的那條）處於覆蓋假象。
+    """
+
+    @pytest.fixture
+    def spiking_repo(self, test_db, mock_repo):
+        """給 mock_repo 灌出一個 sudden spike + viral HN 的資料形狀。"""
+        test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
+
+        today = utc_today()
+        stars = 1000
+        # 10 天平緩成長（每日 +10），最後一天暴增 +500（> 平均 3 倍且 >= 100）
+        for i in range(10, 0, -1):
+            stars += 500 if i == 1 else 10
+            test_db.add(RepoSnapshot(
+                repo_id=mock_repo.id,
+                snapshot_date=today - timedelta(days=i - 1),
+                fetched_at=utc_now() - timedelta(days=i - 1),
+                stars=stars, forks=10, watchers=5, open_issues=1,
+            ))
+
+        # 兩筆 HN 訊號：批次 map 取最高分（150），fallback 查詢 order_by score desc 同義
+        for ext_id, score in [("hn-1", 120), ("hn-2", 150)]:
+            test_db.add(ContextSignal(
+                repo_id=mock_repo.id,
+                signal_type=ContextSignalType.HACKER_NEWS,
+                external_id=ext_id,
+                title=f"Post {ext_id}",
+                url="https://news.ycombinator.com/item",
+                score=score,
+                fetched_at=utc_now(),
+            ))
+        test_db.commit()
+        return mock_repo
+
+    def test_batch_path_matches_fallback_path(self, test_db, spiking_repo):
+        """同一份資料，批次路徑與 fallback 路徑的偵測結果必須一致且非空。"""
+        detector = AnomalyDetector()
+
+        batch_signals = detector.detect_all(test_db)
+        batch_types = {(s.repo_id, s.signal_type) for s in batch_signals}
+
+        fallback_signals = detector.detect_all_for_repo(spiking_repo, test_db)
+        fallback_types = {(s.repo_id, s.signal_type) for s in fallback_signals}
+
+        # 有實際偵測到東西（測試有牙齒），且兩條路徑一致
+        assert (spiking_repo.id, EarlySignalType.SUDDEN_SPIKE) in batch_types
+        assert (spiking_repo.id, EarlySignalType.VIRAL_HN) in batch_types
+        assert batch_types == fallback_types
+
+    def test_batch_viral_hn_uses_highest_score(self, test_db, spiking_repo):
+        """批次 hn_signal_map 對同 repo 多筆 HN 訊號必須取最高分（150 非 120）。"""
+        detector = AnomalyDetector()
+        batch_signals = detector.detect_all(test_db)
+
+        viral = [s for s in batch_signals
+                 if s.repo_id == spiking_repo.id and s.signal_type == EarlySignalType.VIRAL_HN]
+        assert len(viral) == 1
+        assert "(150 points)" in viral[0].description
 
 
 class TestGetAnomalyDetector:

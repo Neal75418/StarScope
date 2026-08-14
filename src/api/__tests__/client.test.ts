@@ -248,26 +248,32 @@ describe("API Client", () => {
   });
 
   describe("Error handling", () => {
-    it("handles network errors", async () => {
-      mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+    // 這個 describe 內多用 generateFeed（retries: 0）：錯誤語意跟重試無關，
+    // 用零重試端點斷言可以精準到訊息內容，也不用吃退避延遲。
+    it("wraps network errors as ApiError(0) with the原始訊息", async () => {
+      mockFetch.mockRejectedValue(new Error("Network failure"));
 
-      await expect(checkHealth()).rejects.toThrow(Error);
+      await expect(generateFeed()).rejects.toMatchObject({
+        status: 0,
+        detail: expect.stringContaining("Network error: Network failure"),
+      });
     });
 
-    it("handles JSON parse errors", async () => {
-      mockFetch.mockResolvedValueOnce({
+    it("wraps 200-with-invalid-JSON as retryable ApiError(0)（記錄現狀：無優雅處理路徑）", async () => {
+      mockFetch.mockResolvedValue({
         ok: true,
         json: async () => {
           throw new Error("Invalid JSON");
         },
       });
 
-      await expect(checkHealth()).rejects.toThrow(Error);
+      await expect(generateFeed()).rejects.toMatchObject({
+        status: 0,
+        detail: expect.stringContaining("Invalid JSON"),
+      });
     });
 
     it("handles non-ok response with JSON parse failure", async () => {
-      expect.assertions(3);
-      // Must mock all retry attempts (MAX_RETRIES + 1 = 3) since 500 errors trigger retries
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
@@ -276,14 +282,11 @@ describe("API Client", () => {
         },
       });
 
-      try {
-        await checkHealth();
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect((e as ApiError).status).toBe(500);
-        // Falls back to "Unknown error" when JSON parse fails
-        expect((e as ApiError).detail).toContain("Unknown error");
-      }
+      // Falls back to "Unknown error" when JSON parse fails
+      await expect(generateFeed()).rejects.toMatchObject({
+        status: 500,
+        detail: expect.stringContaining("Unknown error"),
+      });
     });
 
     it("uses error.detail when present in non-ok response", async () => {
@@ -318,18 +321,67 @@ describe("API Client", () => {
       }
     });
 
+    // {success: false} envelope 是所有已遷移端點的錯誤出口——
+    // 四層 message 優先序（json.message > error.code > 字串 error > fallback）
+    // 改壞會讓全站錯誤訊息靜默劣化，逐層釘住。
+    describe("{success: false} envelope unwrapping", () => {
+      function mockEnvelopeError(payload: Record<string, unknown>) {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ success: false, data: null, ...payload }),
+        });
+      }
+
+      it("json.message wins; code and details ride along", async () => {
+        mockEnvelopeError({
+          message: "Friendly message",
+          error: { code: "ERR_X", details: { field: "term" } },
+        });
+
+        await expect(getRepos()).rejects.toMatchObject({
+          status: 200,
+          detail: "Friendly message",
+          code: "ERR_X",
+          details: { field: "term" },
+        });
+      });
+
+      it("falls back to error.code when message is absent", async () => {
+        mockEnvelopeError({ error: { code: "ERR_CODE_ONLY" } });
+
+        await expect(getRepos()).rejects.toMatchObject({
+          detail: "ERR_CODE_ONLY",
+          code: "ERR_CODE_ONLY",
+        });
+      });
+
+      it("uses string-typed error as the message", async () => {
+        mockEnvelopeError({ error: "plain string error" });
+
+        await expect(getRepos()).rejects.toMatchObject({
+          detail: "plain string error",
+          code: null,
+        });
+      });
+
+      it("falls back to generic message when envelope carries nothing", async () => {
+        mockEnvelopeError({});
+
+        await expect(getRepos()).rejects.toMatchObject({
+          detail: "API request failed",
+        });
+      });
+    });
+
     it("handles DOMException AbortError as timeout when no caller signal", async () => {
-      expect.assertions(2);
       const abortError = new DOMException("Aborted", "AbortError");
-      // Must mock all retry attempts since timeout errors (status 0) trigger retries
       mockFetch.mockRejectedValue(abortError);
 
-      try {
-        await checkHealth();
-      } catch (e) {
-        expect(e).toBeInstanceOf(ApiError);
-        expect((e as ApiError).detail).toBe("Request timed out");
-      }
+      await expect(generateFeed()).rejects.toMatchObject({
+        status: 0,
+        detail: "Request timed out",
+      });
     });
 
     it("handles AbortError as cancelled when caller signal is aborted", async () => {
@@ -339,7 +391,11 @@ describe("API Client", () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(getRepos()).rejects.toThrow(ApiError);
+      // signal 必須真的傳進去，才會走 CANCELLED 分支而非 timeout 分支
+      await expect(getRepos(controller.signal)).rejects.toMatchObject({
+        status: 0,
+        detail: "Request cancelled",
+      });
     });
 
     it("throws CANCELLED (not stale error) when aborted during retry backoff", async () => {

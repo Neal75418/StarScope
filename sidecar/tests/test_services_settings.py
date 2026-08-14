@@ -168,8 +168,8 @@ class TestGetSettingToken:
             mock_keyring.get_password.assert_called_once_with("starscope", "github_token")
             assert result == "ghp_keyring_token"
 
-    def test_token_keyring_error_falls_back_to_db(self, test_db):
-        """Test falls back to DB when keyring raises KeyringError."""
+    def test_token_keyring_error_raises_migration_failure(self, test_db):
+        """Keyring 不可用時：DB 有 token 但遷移失敗 → 擲 RuntimeError（沒有靜默 fallback 路徑）。"""
         from keyring.errors import KeyringError
 
         setting = AppSetting(key="github_token", value="ghp_db_token")

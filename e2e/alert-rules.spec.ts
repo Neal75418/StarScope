@@ -28,20 +28,17 @@ test.describe("Alert Rules", () => {
     expect(hasRules + hasEmpty).toBeGreaterThan(0);
   });
 
-  test("add rule button opens form", async ({ page }) => {
+  // 建立按鈕的實際文案是 "Create Alert"／「建立警報」。舊版 selector 找
+  // "Add"／「新增」永遠 0 命中，兩條測試從誕生起就一直靜默 skip——
+  // 條件 skip 改為硬斷言：按鈕找不到就該紅，不是跳過。
+  const CREATE_BTN = 'button:has-text("Create Alert"), button:has-text("建立警報")';
+
+  test("create alert button opens form", async ({ page }) => {
     const alertsSection = page.locator('[data-testid="alerts-section"]');
     await expect(alertsSection).toBeVisible({ timeout: 10000 });
 
-    // 找到新增規則按鈕
-    const addBtn = alertsSection.locator('button:has-text("Add"), button:has-text("新增")');
-    if ((await addBtn.count()) === 0) {
-      test.skip(true, "Add button not found (may need GitHub connection)");
-      return;
-    }
+    await alertsSection.locator(CREATE_BTN).click();
 
-    await addBtn.click();
-
-    // 表單應出現
     const form = page.locator(".alert-rule-form");
     await expect(form).toBeVisible({ timeout: 5000 });
   });
@@ -50,19 +47,15 @@ test.describe("Alert Rules", () => {
     const alertsSection = page.locator('[data-testid="alerts-section"]');
     await expect(alertsSection).toBeVisible({ timeout: 10000 });
 
-    const addBtn = alertsSection.locator('button:has-text("Add"), button:has-text("新增")');
-    if ((await addBtn.count()) === 0) {
-      test.skip(true, "Add button not found");
-      return;
-    }
-
-    await addBtn.click();
+    await alertsSection.locator(CREATE_BTN).click();
 
     const form = page.locator(".alert-rule-form");
     await expect(form).toBeVisible({ timeout: 5000 });
 
-    // 表單應有名稱、指標、運算符、門檻值欄位
-    await expect(form.locator('input, select, textarea').first()).toBeVisible();
+    // 名稱 input、訊號類型/運算子 select、門檻 input、送出按鈕——逐一驗證
+    await expect(form.locator("input").first()).toBeVisible();
+    expect(await form.locator("select").count()).toBeGreaterThanOrEqual(2);
+    expect(await form.locator("input").count()).toBeGreaterThanOrEqual(2);
     await expect(form.locator('button[type="submit"]')).toBeVisible();
   });
 });

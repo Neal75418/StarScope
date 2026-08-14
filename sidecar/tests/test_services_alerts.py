@@ -329,6 +329,47 @@ class TestCheckAllAlerts:
         # Both rules should trigger (10 > 5 and 10 < 100)
         assert len(result) == 2
 
+    def _add_rule_and_signal(self, test_db, mock_repo, *, enabled=True):
+        rule = AlertRule(
+            name="Cooldown rule",
+            signal_type="velocity",
+            operator=AlertOperator.GT,
+            threshold=5.0,
+            enabled=enabled,
+        )
+        signal = Signal(
+            repo_id=mock_repo.id,
+            signal_type="velocity",
+            value=10.0,
+            calculated_at=utc_now(),
+        )
+        test_db.add_all([rule, signal])
+        test_db.commit()
+        return rule
+
+    def test_second_run_suppressed_by_cooldown(self, test_db, mock_repo):
+        """批次路徑的冷卻抑制：連跑兩次，第二次不得重複觸發（否則每個排程週期都轟炸）。"""
+        self._add_rule_and_signal(test_db, mock_repo)
+
+        first = check_all_alerts(test_db)
+        assert len(first) == 1
+
+        second = check_all_alerts(test_db)
+        assert second == []
+        assert test_db.query(TriggeredAlert).count() == 1
+
+    def test_disabled_rule_not_checked(self, test_db, mock_repo):
+        """停用規則即使條件符合也不觸發（批次路徑的 enabled 過濾）。"""
+        self._add_rule_and_signal(test_db, mock_repo, enabled=False)
+
+        result = check_all_alerts(test_db)
+        assert result == []
+        assert test_db.query(TriggeredAlert).count() == 0
+
+    # 註：「同 repo 多筆同型 Signal 取最新」不需要測——schema 的
+    # UNIQUE(repo_id, signal_type) 約束使該狀態不可能存在，
+    # signal_lookup 的 calculated_at 比較是防禦性代碼。
+
 
 class TestGetUnacknowledgedAlerts:
     """Tests for get_unacknowledged_alerts function."""

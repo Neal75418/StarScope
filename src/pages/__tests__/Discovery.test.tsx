@@ -439,15 +439,23 @@ describe("Discovery", () => {
       expect(document.activeElement).toBe(searchInput);
     });
 
-    it("does not focus search when / is pressed inside an input", () => {
-      render(<Discovery />);
+    it("does not steal focus when / is typed inside another input", () => {
+      // guard 的意義：在別的輸入框打「/」（例如打路徑）不能被搶去搜尋框。
+      // 必須用「另一個」input 測——按在搜尋框自己身上時 focus() 是 no-op，測不到 guard。
+      render(
+        <>
+          <input data-testid="other-input" />
+          <Discovery />
+        </>
+      );
+      const otherInput = screen.getByTestId("other-input");
       const searchInput = screen.getByTestId("search-bar");
-      searchInput.focus();
+      otherInput.focus();
 
-      // pressing "/" inside input should not call preventDefault
-      fireEvent.keyDown(searchInput, { key: "/" });
-      // input should remain focused (normal behavior, not re-triggered)
-      expect(document.activeElement).toBe(searchInput);
+      fireEvent.keyDown(otherInput, { key: "/" });
+
+      expect(document.activeElement).toBe(otherInput);
+      expect(document.activeElement).not.toBe(searchInput);
     });
 
     it("does not focus search when modifier key is held", () => {

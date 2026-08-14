@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Toolbar } from "../Toolbar";
 
@@ -46,16 +46,27 @@ describe("Toolbar", () => {
   });
 
   it("debounces search input by 300ms", async () => {
-    const user = userEvent.setup();
-    render(<Toolbar {...defaultProps} />);
+    // fake timers 才守得住 debounce：打完字不得立即呼叫、299ms 仍不得呼叫、
+    // 滿 300ms 才以最終值呼叫一次。舊版只 waitFor(被呼叫)，拔掉 debounce 也綠。
+    vi.useFakeTimers();
+    try {
+      render(<Toolbar {...defaultProps} />);
 
-    const input = screen.getByTestId("watchlist-search");
-    await user.type(input, "react");
+      const input = screen.getByTestId("watchlist-search");
+      // fireEvent.change 是同步事件，避免 userEvent 與 fake timers 的互鎖
+      fireEvent.change(input, { target: { value: "re" } });
+      fireEvent.change(input, { target: { value: "react" } });
+      expect(defaultProps.onSearchChange).not.toHaveBeenCalled();
 
-    // Wait for the debounce
-    await waitFor(() => {
+      await vi.advanceTimersByTimeAsync(299);
+      expect(defaultProps.onSearchChange).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(defaultProps.onSearchChange).toHaveBeenCalledTimes(1);
       expect(defaultProps.onSearchChange).toHaveBeenCalledWith("react");
-    });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("disables refresh button when isRefreshing", () => {

@@ -34,13 +34,15 @@ test.describe("Watchlist Flow", () => {
     await expect(submitBtn).toBeEnabled();
   });
 
-  test("can add a repo and see it in the list", async ({ page }) => {
-    await removeRepoByFullName(page.request, "vitejs/vite"); // 上次中斷的殘留會讓「新增」變成重複而失敗
+  test("can add a repo and see it in the list", async ({ page, browserName }) => {
+    // 只跑 chromium：三個瀏覽器平行對同一 fixture repo 做 pre-clean/新增/刪除會互踩
+    test.skip(browserName !== "chromium", "DB-mutating test runs on chromium only");
+    await removeRepoByFullName(page.request, "octocat/Hello-World"); // 上次中斷的殘留會讓「新增」變成重複而失敗
     await page.locator('[data-testid="add-repo-btn"]').click();
     const dialog = page.locator('div[role="dialog"]');
     await expect(dialog).toBeVisible({ timeout: 5000 });
 
-    await page.locator("#add-repo-input").fill("vitejs/vite");
+    await page.locator("#add-repo-input").fill("octocat/Hello-World");
     await dialog.locator('button[type="submit"]').click();
 
     // 等待 dialog 關閉（成功）
@@ -48,9 +50,9 @@ test.describe("Watchlist Flow", () => {
 
     // 驗證 repo 出現
     try {
-      await expect(page.locator("text=vitejs/vite").first()).toBeVisible({ timeout: 15000 });
+      await expect(page.locator("text=octocat/Hello-World").first()).toBeVisible({ timeout: 15000 });
     } finally {
-      await removeRepoByFullName(page.request, "vitejs/vite"); // 不留資料在（可能是真實的）DB 裡
+      await removeRepoByFullName(page.request, "octocat/Hello-World"); // 不留資料在（可能是真實的）DB 裡
     }
   });
 

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { CategorySidebar, CategoryTreeData } from "../CategorySidebar";
 import type { CategoryTreeNode } from "../../api/client";
@@ -349,22 +349,25 @@ describe("CategorySidebar", () => {
       return input;
     });
 
-    // Now resolve the slow Frontend request - it should be discarded
-    resolveFirst({
-      id: 1,
-      name: "Frontend-stale",
-      description: null,
-      icon: "🎨",
-      color: "#3b82f6",
-      parent_id: null,
-      sort_order: 0,
-      created_at: "2024-01-01",
-      repo_count: 5,
+    // Now resolve the slow Frontend request - it should be discarded.
+    // 用 act 包住並 flush microtask：舊寫法的 waitFor 會在 stale promise 的
+    // .then 落地「之前」同步先跑一次斷言就通過——stale-guard 拔掉也綠。
+    await act(async () => {
+      resolveFirst({
+        id: 1,
+        name: "Frontend-stale",
+        description: null,
+        icon: "🎨",
+        color: "#3b82f6",
+        parent_id: null,
+        sort_order: 0,
+        created_at: "2024-01-01",
+        repo_count: 5,
+      });
+      await Promise.resolve(); // flush stale promise 的 .then 鏈
     });
 
-    // Verify the stale response didn't overwrite
-    await waitFor(() => {
-      expect(nameInput.value).toBe("Backend-fresh");
-    });
+    // stale 回應已完整落地後，斷言它沒有覆寫
+    expect(nameInput.value).toBe("Backend-fresh");
   });
 });

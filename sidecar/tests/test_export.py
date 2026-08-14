@@ -469,8 +469,8 @@ class TestExportWatchlistCsv:
         assert by_owner["user1"]["stars"] == "10000"
 
 
-class TestExportBatchQueryOptimization:
-    """Test batch query optimization to avoid N+1 queries."""
+class TestExportMultiRepoCorrectness:
+    """多 repo 匯出的結果正確性（不驗查詢次數——批次化只由結果間接保證）。"""
 
     def test_batch_snapshot_loading(self, client, test_db):
         """Test snapshots are loaded in batch, not one-by-one."""

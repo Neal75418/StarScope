@@ -16,6 +16,37 @@ import type { APIRequestContext } from "@playwright/test";
 
 export const SIDECAR = "http://127.0.0.1:8008";
 
+/**
+ * 測試用 repo 一律取自 GitHub 官方 fixture 帳號 octocat——真實存在（新增流程
+ * 需要真的 GitHub repo，純 sentinel 假名會 404）、永遠在、沒有人會真的追蹤，
+ * 所以 pre-clean 刪掉殘留不會誤刪使用者的真資料（教訓：vitejs/vite）。
+ * fullyParallel 之下各 spec 平行跑，fixture 不得跨 spec 共用，撞名會互刪。
+ */
+export const FIXTURES = {
+  watchlistFlow: "octocat/Hello-World",
+  compare: ["octocat/Spoon-Knife", "octocat/octocat.github.io"],
+} as const;
+
+export async function isRepoTracked(request: APIRequestContext, fullName: string) {
+  const res = await request.get(`${SIDECAR}/api/repos`);
+  if (!res.ok()) return false;
+  const body = await res.json();
+  return Boolean(
+    body?.data?.repos?.some((r: { full_name: string }) => r.full_name === fullName)
+  );
+}
+
+/**
+ * 透過 API 新增 repo（會觸發 sidecar 向 GitHub 抓 metadata）。冪等：
+ * 「已存在」也算成功——平行 worker 同時播種同一 fixture 時後到者拿 400。
+ */
+export async function addRepoViaApi(request: APIRequestContext, fullName: string) {
+  const [owner, name] = fullName.split("/");
+  const res = await request.post(`${SIDECAR}/api/repos`, { data: { owner, name } });
+  if (res.ok()) return true;
+  return isRepoTracked(request, fullName);
+}
+
 export async function removeRepoByFullName(request: APIRequestContext, fullName: string) {
   const res = await request.get(`${SIDECAR}/api/repos`);
   if (!res.ok()) return;

@@ -186,24 +186,23 @@ describe("StarsChart", () => {
     expect(chartContainer).toBeInTheDocument();
   });
 
-  it("cleans up async operations on unmount", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
+  it("aborts the in-flight request on unmount", async () => {
+    // 舊版斷言驗的是 React 18 已移除的 console 警告（恆空集合、永不可能失敗）。
+    // 真正要守的行為：queryFn 的 AbortSignal 有接進 API 呼叫，unmount 即取消。
+    let capturedSignal: AbortSignal | undefined;
+    vi.mocked(apiClient.getStarsChart).mockImplementation((_id, _range, signal) => {
+      capturedSignal = signal ?? undefined;
+      return new Promise(() => {}); // 永不 resolve，模擬 in-flight
+    });
 
     const { unmount } = renderWithClient(<StarsChart repoId={1} />);
 
-    // Unmount before API call resolves
+    await waitFor(() => expect(capturedSignal).toBeDefined());
+    expect(capturedSignal!.aborted).toBe(false);
+
     unmount();
 
-    // Flush microtasks — should not trigger state updates on unmounted component
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Verify no React "state update on unmounted component" errors
-    const reactErrors = errorSpy.mock.calls.filter(
-      (args) => typeof args[0] === "string" && args[0].includes("unmounted")
-    );
-    expect(reactErrors).toHaveLength(0);
-    errorSpy.mockRestore();
+    await waitFor(() => expect(capturedSignal!.aborted).toBe(true));
   });
 
   it("refetches data when repo ID changes", async () => {

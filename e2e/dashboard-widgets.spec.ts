@@ -34,22 +34,31 @@ test.describe("Dashboard", () => {
   });
 
   test("theme persists after page reload", async ({ page }) => {
-    const themeToggle = page.locator('[data-testid="theme-toggle"]');
-    await themeToggle.click();
-
-    const themeAfterToggle = await page.evaluate(() =>
+    const initialTheme = await page.evaluate(() =>
       document.documentElement.getAttribute("data-theme")
     );
-
-    await page.reload();
-    await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
-
-    const themeAfterReload = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-theme")
-    );
-    expect(themeAfterReload).toBe(themeAfterToggle);
-
-    // 還原：再切回去
     await page.locator('[data-testid="theme-toggle"]').click();
+
+    try {
+      const themeAfterToggle = await page.evaluate(() =>
+        document.documentElement.getAttribute("data-theme")
+      );
+
+      await page.reload();
+      await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
+
+      const themeAfterReload = await page.evaluate(() =>
+        document.documentElement.getAttribute("data-theme")
+      );
+      expect(themeAfterReload).toBe(themeAfterToggle);
+    } finally {
+      // 還原放 finally：斷言失敗也不能把使用者主題留在切過的狀態
+      const current = await page.evaluate(() =>
+        document.documentElement.getAttribute("data-theme")
+      );
+      if (current !== initialTheme) {
+        await page.locator('[data-testid="theme-toggle"]').click();
+      }
+    }
   });
 });

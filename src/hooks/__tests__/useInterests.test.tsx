@@ -47,7 +47,7 @@ describe("useInterests", () => {
     expect(result.current.exclusions[0].term).toBe("awesome");
   });
 
-  it("create calls API and refetches", async () => {
+  it("create calls the API with the given input", async () => {
     vi.mocked(apiClient.createInterest).mockResolvedValue({
       id: 2,
       term: "rust",

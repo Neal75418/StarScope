@@ -158,6 +158,9 @@ describe("useAlertRuleOperations", () => {
 
     // setRules called twice: optimistic + revert
     expect(setRules).toHaveBeenCalledTimes(2);
+    // 只數呼叫次數守不住 revert 寫錯值——驗最終狀態真的還原為 enabled: true
+    expect(rules.find((r) => r.id === 1)?.enabled).toBe(true);
+    expect(rules.find((r) => r.id === 2)?.enabled).toBe(false); // 其他規則不受影響
     expect(mockToast.error).toHaveBeenCalled();
   });
 

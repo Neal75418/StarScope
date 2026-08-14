@@ -22,18 +22,25 @@ test.describe("App Navigation", () => {
   });
 
   test("theme toggle switches between light and dark", async ({ page }) => {
+    // 還原放 finally：中途斷言失敗不能把使用者的主題留在切過的狀態
     const themeToggle = page.locator('[data-testid="theme-toggle"]');
     const initialTheme = await page.evaluate(() =>
       document.documentElement.getAttribute("data-theme")
     );
 
-    await themeToggle.click();
-    const newTheme = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-theme")
-    );
-    expect(newTheme).not.toBe(initialTheme);
+    try {
+      await themeToggle.click();
+      const newTheme = await page.evaluate(() =>
+        document.documentElement.getAttribute("data-theme")
+      );
+      expect(newTheme).not.toBe(initialTheme);
+    } finally {
+      const current = await page.evaluate(() =>
+        document.documentElement.getAttribute("data-theme")
+      );
+      if (current !== initialTheme) await themeToggle.click();
+    }
 
-    await themeToggle.click();
     const restored = await page.evaluate(() =>
       document.documentElement.getAttribute("data-theme")
     );
@@ -44,11 +51,14 @@ test.describe("App Navigation", () => {
     const langToggle = page.locator('[data-testid="lang-toggle"]');
     const initial = await langToggle.textContent();
 
-    await langToggle.click();
-    const changed = await langToggle.textContent();
-    expect(changed).not.toBe(initial);
+    try {
+      await langToggle.click();
+      const changed = await langToggle.textContent();
+      expect(changed).not.toBe(initial);
+    } finally {
+      if ((await langToggle.textContent()) !== initial) await langToggle.click();
+    }
 
-    await langToggle.click();
     const restored = await langToggle.textContent();
     expect(restored).toBe(initial);
   });

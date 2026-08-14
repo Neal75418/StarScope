@@ -20,7 +20,7 @@ test.describe("GitHub Connection", () => {
     ).toBeVisible({ timeout: 5000 });
   });
 
-  test("diagnostics section shows scheduler health", async ({ page }) => {
+  test("diagnostics section shows version and database size", async ({ page }) => {
     await page.goto("/");
     await page.locator('[data-testid="nav-settings"]').click();
 

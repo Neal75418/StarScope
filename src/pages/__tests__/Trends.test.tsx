@@ -30,8 +30,13 @@ let mockTrendsReturn: {
   dataUpdatedAt: number;
 };
 
+// spy 捕捉 useTrends 收到的參數：auto-refresh 的價值全在 {refetchInterval} 有沒有真的傳進去
+const useTrendsSpy = vi.hoisted(() => vi.fn());
 vi.mock("../../hooks/useTrends", () => ({
-  useTrends: () => mockTrendsReturn,
+  useTrends: (opts: unknown) => {
+    useTrendsSpy(opts);
+    return mockTrendsReturn;
+  },
 }));
 
 vi.mock("../../contexts/AppStatusContext", () => ({
@@ -558,9 +563,26 @@ describe("Trends", () => {
     const user = userEvent.setup();
     mockTrendsReturn.trends = [makeTrending()];
     renderTrends();
-    await user.selectOptions(screen.getByTestId("trends-refresh-select"), "300000");
-    const select = screen.getByTestId("trends-refresh-select") as HTMLSelectElement;
-    expect(select.value).toBe("300000");
+    try {
+      await user.selectOptions(screen.getByTestId("trends-refresh-select"), "300000");
+      // 只驗 select.value 等於在測 React 受控元件——真行為是把 interval 接進
+      // useTrends 並持久化到 localStorage，兩者都驗
+      expect(useTrendsSpy).toHaveBeenLastCalledWith({ refetchInterval: 300000 });
+      expect(localStorage.getItem("starscope_trends_auto_refresh")).toBe("300000");
+    } finally {
+      localStorage.removeItem("starscope_trends_auto_refresh");
+    }
+  });
+
+  it("restores the persisted auto-refresh interval on mount", () => {
+    localStorage.setItem("starscope_trends_auto_refresh", "900000");
+    try {
+      mockTrendsReturn.trends = [makeTrending()];
+      renderTrends();
+      expect(useTrendsSpy).toHaveBeenLastCalledWith({ refetchInterval: 900000 });
+    } finally {
+      localStorage.removeItem("starscope_trends_auto_refresh");
+    }
   });
 
   it("shows last updated text with time value when auto-refresh is active", async () => {
