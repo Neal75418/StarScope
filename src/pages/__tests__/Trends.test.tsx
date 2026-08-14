@@ -206,10 +206,27 @@ describe("Trends", () => {
     expect(screen.getByTestId("sort-stars_delta_7d")).toBeInTheDocument();
   });
 
-  it("shows empty state when no trends", () => {
+  it("empty state routes to Discover when nothing is tracked (trends rank the watchlist)", async () => {
+    const user = userEvent.setup();
+    mockWatchlistRepos = [];
     renderTrends();
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-    expect(screen.getByText("No trending repositories found.")).toBeInTheDocument();
+    expect(screen.getByText(/trends rank the repositories in your watchlist/)).toBeInTheDocument();
+    await user.click(screen.getByTestId("trends-go-discover"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("discovery");
+  });
+
+  it("empty state explains filters when repos are tracked but excluded", () => {
+    mockWatchlistRepos = [{ full_name: "facebook/react" }];
+    renderTrends();
+    expect(screen.getByText(/No results under the current filters/)).toBeInTheDocument();
+    expect(screen.queryByTestId("trends-go-discover")).not.toBeInTheDocument();
+  });
+
+  it("disables selection and export when there are no results", () => {
+    renderTrends();
+    expect(screen.getByTestId("trends-selection-enter")).toBeDisabled();
+    expect(screen.getByTestId("trends-export-btn")).toBeDisabled();
   });
 
   it("calls setSortBy when sort tab is clicked", async () => {

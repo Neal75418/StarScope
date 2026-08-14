@@ -10,9 +10,16 @@ interface TrendsExportDropdownProps {
   sortBy: string;
   language: string;
   minStars: number | null;
+  /** 零筆結果時停用——匯出空檔案沒有意義 */
+  disabled?: boolean;
 }
 
-export function TrendsExportDropdown({ sortBy, language, minStars }: TrendsExportDropdownProps) {
+export function TrendsExportDropdown({
+  sortBy,
+  language,
+  minStars,
+  disabled,
+}: TrendsExportDropdownProps) {
   const { t } = useI18n();
   const langParam = language || undefined;
   const starsParam = minStars ?? undefined;
@@ -22,6 +29,7 @@ export function TrendsExportDropdown({ sortBy, language, minStars }: TrendsExpor
       label={t.trends.export.button}
       buttonTestId="trends-export-btn"
       menuTestId="trends-export-menu"
+      disabled={disabled}
     >
       {(close) => (
         <>

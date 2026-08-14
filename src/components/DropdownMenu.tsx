@@ -11,6 +11,7 @@ import { useEscapeKey } from "../hooks/useEscapeKey";
 interface DropdownMenuProps {
   label: string;
   buttonTestId?: string;
+  disabled?: boolean;
   menuTestId?: string;
   menuClassName?: string;
   onClose?: () => void;
@@ -24,6 +25,7 @@ export function DropdownMenu({
   menuClassName,
   onClose,
   children,
+  disabled,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,7 @@ export function DropdownMenu({
         ref={buttonRef}
         type="button"
         className="btn btn-sm"
+        disabled={disabled}
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="menu"

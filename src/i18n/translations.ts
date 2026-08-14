@@ -312,7 +312,7 @@ export const translations = {
     // 趨勢頁面
     trends: {
       title: "Trends",
-      subtitle: "Top performing repositories by velocity",
+      subtitle: "Your tracked repositories ranked by momentum",
       period: {
         "7d": "7 Days",
         "30d": "30 Days",
@@ -331,7 +331,10 @@ export const translations = {
       loading: "Loading trends...",
       loadingError: "Error loading trends",
       retry: "Retry",
-      empty: "No trending repositories found.",
+      emptyNoRepos:
+        "You aren't tracking anything yet — trends rank the repositories in your watchlist.",
+      emptyFiltered:
+        "No results under the current filters. Newly added repositories appear after their first data refresh; try loosening language or minimum stars.",
       columns: {
         rank: "#",
         repo: "Repository",
@@ -1197,7 +1200,7 @@ export const translations = {
     // 趨勢頁面
     trends: {
       title: "趨勢分析",
-      subtitle: "依成長速度排名的熱門儲存庫",
+      subtitle: "你追蹤清單中依動能排序的儲存庫",
       period: {
         "7d": "7 天",
         "30d": "30 天",
@@ -1216,7 +1219,9 @@ export const translations = {
       loading: "載入趨勢中...",
       loadingError: "載入趨勢失敗",
       retry: "重試",
-      empty: "未找到趨勢儲存庫。",
+      emptyNoRepos: "你還沒有追蹤任何儲存庫——趨勢排行的對象是你追蹤清單中的專案。",
+      emptyFiltered:
+        "目前的篩選條件下沒有結果。剛加入的儲存庫要等第一次資料更新後才會出現；也可以放寬語言或最低星數。",
       columns: {
         rank: "#",
         repo: "儲存庫",

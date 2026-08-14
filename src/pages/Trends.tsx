@@ -11,6 +11,7 @@ import { useI18n } from "../i18n";
 import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
 import { addRepo } from "../api/client";
 import { useWatchlistState } from "../contexts/WatchlistContext";
+import { useNavigation } from "../contexts/NavigationContext";
 import { queryKeys } from "../lib/react-query";
 import { useViewMode } from "../hooks/useViewMode";
 import { useSelectionMode } from "../hooks/useSelectionMode";
@@ -138,6 +139,7 @@ export function Trends() {
 
   // Watchlist 狀態 — 從 Context 讀取，避免重複 API 請求
   const watchlistState = useWatchlistState();
+  const { navigateTo } = useNavigation();
   const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
   const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
   const [addError, setAddError] = useState<string | null>(null);
@@ -409,6 +411,7 @@ export function Trends() {
             <button
               className="btn btn-sm"
               onClick={selection.enter}
+              disabled={displayedTrends.length === 0}
               data-testid="trends-selection-enter"
             >
               {t.trends.selection.enter}
@@ -419,14 +422,20 @@ export function Trends() {
             sortBy={sortBy}
             language={languageFilter}
             minStars={minStarsFilter}
+            disabled={displayedTrends.length === 0}
           />
 
           <div className="trends-refresh-controls" data-testid="trends-refresh-controls">
+            {/* 可見標籤：收合的下拉只顯示當前值（例如「關閉」），沒有標籤時它讀起來
+                像一顆意義不明的按鈕；aria-label 只有螢幕閱讀器受益 */}
+            <label className="trends-refresh-label" htmlFor="trends-refresh-select">
+              {t.trends.autoRefresh.interval}
+            </label>
             <select
+              id="trends-refresh-select"
               className="trends-filter-select"
               value={refreshInterval === false ? "false" : String(refreshInterval)}
               onChange={(e) => handleRefreshIntervalChange(e.target.value)}
-              aria-label={t.trends.autoRefresh.interval}
               data-testid="trends-refresh-select"
             >
               {REFRESH_INTERVALS.map((opt) => (
@@ -457,7 +466,23 @@ export function Trends() {
 
       {displayedTrends.length === 0 ? (
         <div className="empty-state" data-testid="empty-state">
-          <p>{t.trends.empty}</p>
+          {watchlistState.repos.length === 0 ? (
+            // 沒追蹤任何東西：這頁排的是 watchlist，導向取得 repo 的主線（與儀表板/追蹤清單同一敘事）
+            <>
+              <p>{t.trends.emptyNoRepos}</p>
+              <button
+                className="btn btn-primary"
+                data-testid="trends-go-discover"
+                style={{ marginTop: "0.75rem" }}
+                onClick={() => navigateTo("discovery")}
+              >
+                {t.dashboard.onboard.cta}
+              </button>
+            </>
+          ) : (
+            // 有追蹤但被條件排除：原因與解法都不同，不能與上面共用同一句話
+            <p>{t.trends.emptyFiltered}</p>
+          )}
         </div>
       ) : viewMode === "grid" ? (
         <TrendGrid
