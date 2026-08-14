@@ -5463,3 +5463,11 @@ a:focus-visible {
 .empty-state-cta {
   margin-top: 0.75rem;
 }
+
+/* 設定區塊標題列右側的動作按鈕群（原本無樣式，按鈕會貼死） */
+.settings-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
