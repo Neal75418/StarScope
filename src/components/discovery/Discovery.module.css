@@ -555,10 +555,11 @@
   margin: 0.5rem 0 0;
 }
 
-.feedActions {
+.cardHeaderActions {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .dismissButton {
@@ -877,7 +878,7 @@
     gap: 0.75rem;
   }
 
-  .addButton {
+  .cardHeaderActions {
     align-self: flex-start;
   }
 }

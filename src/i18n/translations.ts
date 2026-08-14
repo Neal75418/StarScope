@@ -202,9 +202,10 @@ export const translations = {
         empty: "No feed today. Add interests in Settings to activate.",
         generating: "Building today's feed…",
         reason: {
-          matched: "matched",
+          matched: "Matched interests: ",
           stars: "stars",
           daysOld: "days old",
+          createdToday: "created today",
         },
         addToWatchlist: "Track",
         dismiss: "Not interested",
@@ -1085,9 +1086,10 @@ export const translations = {
         empty: "今天沒有 feed。到設定頁新增興趣以啟用。",
         generating: "正在產生今日 feed…",
         reason: {
-          matched: "命中",
+          matched: "命中興趣：",
           stars: "stars",
           daysOld: "天前建立",
+          createdToday: "今天建立",
         },
         addToWatchlist: "追蹤",
         dismiss: "不感興趣",

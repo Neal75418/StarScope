@@ -1,5 +1,11 @@
 /**
- * Feed 單卡：repo 資訊 + 推薦理由行 + 回饋動作。
+ * Feed 單卡。資訊分層的職責（改動前先讀）：
+ *
+ * - 標題列：repo 名稱 + 全部動作（dismiss 與 track 集中右上，決策區只有一處）
+ * - meta 列：repo 本身的事實——語言、星數、fork、最近更新、建立時間。
+ *   「新專案＋還活著」要能在同一行讀完
+ * - 理由行：只放「命中了哪些興趣詞」。星數/年齡不再重複出現在這裡——
+ *   同一個數字在卡片上出現兩次是雜訊，不是強調
  */
 import { useState } from "react";
 import { useI18n } from "../../i18n";
@@ -16,17 +22,20 @@ interface FeedItemCardProps {
   onDismiss: (item: FeedItem) => void;
 }
 
+/**
+ * 命中詞的顯示格式：topic 是常態（使用者的興趣幾乎都是 topic），前綴只有噪音；
+ * language / keyword 命中較罕見，保留前綴才知道「它是怎麼被撈進來的」。
+ */
+function displayMatchedTerm(matched: string): string {
+  return matched.startsWith("topic:") ? matched.slice("topic:".length) : matched;
+}
+
 export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
   const { t } = useI18n();
   // 追蹤中鎖住按鈕：連點會送出兩次 addRepo，第二次回 400「已在追蹤清單」，
   // 使用者會同時看到成功與失敗兩個 toast。
   const [starring, setStarring] = useState(false);
   const reason = t.discovery.forYou.reason;
-  const reasonParts = [
-    item.reason.matched.join(", "),
-    `${item.reason.stars.toLocaleString()} ${reason.stars}`,
-    item.reason.age_days !== null ? `${item.reason.age_days} ${reason.daysOld}` : null,
-  ].filter(Boolean);
 
   return (
     <article className={styles.resultCard} data-testid={`feed-item-${item.id}`}>
@@ -42,21 +51,30 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
           {item.full_name}
           <LinkExternalIcon size={14} className={styles.externalIcon} />
         </a>
-        <button
-          className={styles.addButton}
-          data-testid={`feed-star-${item.id}`}
-          disabled={starring}
-          onClick={async () => {
-            setStarring(true);
-            try {
-              await onStar(item);
-            } finally {
-              setStarring(false);
-            }
-          }}
-        >
-          ⭐ {t.discovery.forYou.addToWatchlist}
-        </button>
+        <div className={styles.cardHeaderActions}>
+          <button
+            className={styles.dismissButton}
+            data-testid={`feed-dismiss-${item.id}`}
+            onClick={() => onDismiss(item)}
+          >
+            🚫 {t.discovery.forYou.dismiss}
+          </button>
+          <button
+            className={styles.addButton}
+            data-testid={`feed-star-${item.id}`}
+            disabled={starring}
+            onClick={async () => {
+              setStarring(true);
+              try {
+                await onStar(item);
+              } finally {
+                setStarring(false);
+              }
+            }}
+          >
+            ⭐ {t.discovery.forYou.addToWatchlist}
+          </button>
+        </div>
       </div>
 
       {item.description && <p className={styles.description}>{item.description}</p>}
@@ -79,27 +97,26 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
           <ForkIcon size={14} />
           {formatNumber(item.forks)}
         </span>
-        {/* 放在 meta 列而非推薦理由行：這是 repo 本身的事實，而且是判斷「還活著嗎」的主要依據 */}
         {item.reason.pushed_at && (
           <span className={styles.stat} data-testid={`feed-pushed-${item.id}`}>
             {t.discovery.forYou.lastPush} {formatRelativeTime(item.reason.pushed_at)}
           </span>
         )}
+        {item.reason.age_days !== null && (
+          <span className={styles.stat} data-testid={`feed-age-${item.id}`}>
+            {item.reason.age_days === 0
+              ? reason.createdToday
+              : `${item.reason.age_days} ${reason.daysOld}`}
+          </span>
+        )}
       </div>
 
-      <p className={styles.feedReason} data-testid={`feed-reason-${item.id}`}>
-        {reasonParts.join(" · ")}
-      </p>
-
-      <div className={styles.feedActions}>
-        <button
-          className={styles.dismissButton}
-          data-testid={`feed-dismiss-${item.id}`}
-          onClick={() => onDismiss(item)}
-        >
-          🚫 {t.discovery.forYou.dismiss}
-        </button>
-      </div>
+      {item.reason.matched.length > 0 && (
+        <p className={styles.feedReason} data-testid={`feed-reason-${item.id}`}>
+          {reason.matched}
+          {item.reason.matched.map(displayMatchedTerm).join(" · ")}
+        </p>
+      )}
     </article>
   );
 }

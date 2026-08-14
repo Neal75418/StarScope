@@ -47,10 +47,34 @@ beforeEach(() => {
 });
 
 describe("ForYouFeed", () => {
-  it("renders feed items with reason line", async () => {
+  it("reason line shows matched interests without the noisy topic: prefix", async () => {
     renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
     expect(await screen.findByText("a/one")).toBeInTheDocument();
-    expect(screen.getByText(/topic:tauri/)).toBeInTheDocument();
+    const reasonLine = screen.getByTestId("feed-reason-1");
+    expect(reasonLine).toHaveTextContent("tauri");
+    expect(reasonLine.textContent).not.toContain("topic:");
+    // 星數只在 meta 列出現一次，理由行不再重複同一個數字
+    expect(reasonLine.textContent).not.toContain("380");
+  });
+
+  it("keeps the kind prefix for non-topic matches (that is how it got pulled in)", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      items: [{ ...ITEM, reason: { ...ITEM.reason, matched: ["topic:tauri", "language:rust"] } }],
+    });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByText("a/one");
+    expect(screen.getByTestId("feed-reason-1")).toHaveTextContent("tauri · language:rust");
+  });
+
+  it("shows 'created today' instead of the awkward '0 days old'", async () => {
+    vi.mocked(client.getFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      items: [{ ...ITEM, reason: { ...ITEM.reason, age_days: 0 } }],
+    });
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} />);
+    await screen.findByText("a/one");
+    expect(screen.getByTestId("feed-age-1")).toHaveTextContent("created today");
   });
 
   it("dismiss button sends feedback", async () => {
