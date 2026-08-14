@@ -214,7 +214,7 @@ class GitHubAuthService:
         try:
             token = get_setting(AppSettingKey.GITHUB_TOKEN)
         except RuntimeError:
-            logger.error("[GitHub Auth] Token 讀取失敗（可能是 Keyring 遷移問題）", exc_info=True)
+            logger.error("[GitHub 驗證] Token 讀取失敗（可能是 Keyring 遷移問題）", exc_info=True)
             return ConnectionStatus(connected=False)
 
         if not token:
@@ -258,7 +258,7 @@ class GitHubAuthService:
                                 set_setting(AppSettingKey.GITHUB_USERNAME, username)
                         except Exception:
                             logger.warning(
-                                "[GitHub Auth] username 補抓失敗（不影響連線狀態）",
+                                "[GitHub 驗證] username 補抓失敗（不影響連線狀態）",
                                 exc_info=True)
 
                     return ConnectionStatus(

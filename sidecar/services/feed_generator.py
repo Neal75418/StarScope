@@ -60,7 +60,7 @@ def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
     for term in exclude:
         norm = _normalize_words(term.lower())
         if len(norm) < 2:
-            logger.warning(f"[feed] 黑名單詞 {term!r} 正規化後過短（{norm!r}），已忽略")
+            logger.warning(f"[Feed] 黑名單詞 {term!r} 正規化後過短（{norm!r}），已忽略")
             continue
         # y → ies（library/libraries）需要單獨處理，不能只靠 (?:e?s)?
         stem = (rf"{re.escape(norm[:-1])}(?:y|ys|ies)" if norm.endswith("y")
@@ -99,11 +99,11 @@ async def _fetch_candidates(github, interests: list[Interest],
             # 但**保留已經取得的候選**而非整輪丟棄——寫得出幾筆，當日的 existing>0
             # 短路才會成立，否則前端每次重新掛載又會從第一個興趣重跑一整輪。
             logger.warning(
-                f"[feed] GitHub 配額耗盡，於興趣 {interest.term!r} 中止；"
+                f"[Feed] GitHub 配額耗盡，於興趣 {interest.term!r} 中止；"
                 f"保留已取得的 {len(merged)} 個候選")
             break
         except Exception as e:  # 單一查詢失敗不拖垮整批
-            logger.warning(f"[feed] 興趣 {interest.term} 搜尋失敗: {e}")
+            logger.warning(f"[Feed] 興趣 {interest.term} 搜尋失敗: {e}")
             continue
         for item in result.get("items", []):
             merged.setdefault(item["id"], item)
@@ -216,10 +216,10 @@ async def generate_feed(db: Session, github, feed_date: date,
         existing_after_race = db.query(FeedItem).filter(
             FeedItem.feed_date == feed_date).count()
         logger.warning(
-            f"[feed] {feed_date} 併發寫入衝突，已由其他 writer 產生 "
+            f"[Feed] {feed_date} 併發寫入衝突，已由其他 writer 產生 "
             f"{existing_after_race} 條，捨棄本次結果"
         )
         return existing_after_race
 
-    logger.info(f"[feed] {feed_date} 產生 {written} 條（候選 {len(merged)}）")
+    logger.info(f"[Feed] {feed_date} 產生 {written} 條（候選 {len(merged)}）")
     return written
