@@ -404,10 +404,13 @@ export const translations = {
     // 對比頁面
     compare: {
       title: "Compare",
-      subtitle: "Compare star trends across repositories",
+      subtitle: "Compare star, fork and issue trends across repositories",
       selectRepos: "Select repositories to compare",
       searchPlaceholder: "Search watchlist...",
       minRepos: "Select at least 2 repos",
+      needMoreRepos:
+        "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",
+      noMatch: "No repositories match your search.",
       maxRepos: "Maximum 5 repos",
       normalize: "Normalize (%)",
       metrics: "Metrics",
@@ -1291,10 +1294,13 @@ export const translations = {
     // 對比頁面
     compare: {
       title: "對比",
-      subtitle: "比較多個儲存庫的星數趨勢",
+      subtitle: "比較多個儲存庫的星數、Fork 與 Issue 趨勢",
       selectRepos: "選擇要對比的儲存庫",
       searchPlaceholder: "搜尋追蹤清單...",
       minRepos: "至少選擇 2 個儲存庫",
+      needMoreRepos:
+        "對比需要至少 2 個追蹤中的儲存庫（目前 {count} 個）。到探索頁把感興趣的專案加入追蹤。",
+      noMatch: "沒有符合搜尋的儲存庫。",
       maxRepos: "最多 5 個儲存庫",
       normalize: "正規化 (%)",
       metrics: "指標",

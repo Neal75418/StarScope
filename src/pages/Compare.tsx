@@ -87,7 +87,7 @@ export function Compare() {
   } = useComparison(selectedIds, timeRange, normalize);
 
   const { signalsByRepoId } = useTrendEarlySignals(selectedIds);
-  const { navigationState, consumeNavigationState } = useNavigation();
+  const { navigateTo, navigationState, consumeNavigationState } = useNavigation();
 
   // mount 時消費 NavigationContext 的 preselectedIds
   const consumedRef = useRef(false);
@@ -165,6 +165,7 @@ export function Compare() {
           repos={repos}
           selectedIds={selectedIds}
           onToggle={toggleRepo}
+          onGoDiscover={() => navigateTo("discovery")}
           t={t}
         />
       </FadeIn>

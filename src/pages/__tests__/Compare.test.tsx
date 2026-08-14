@@ -48,9 +48,15 @@ vi.mock("../../contexts/NavigationContext", () => ({
 }));
 
 vi.mock("../../i18n", () => ({
+  interpolate: (str: string, vars: Record<string, string | number>) =>
+    str.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? "")),
   useI18n: () => ({
     t: {
+      dashboard: { onboard: { cta: "Go to Discover" } },
       compare: {
+        needMoreRepos:
+          "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",
+        noMatch: "No repositories match your search.",
         title: "Compare",
         subtitle: "Compare star trends across repositories",
         selectRepos: "Select repositories to compare",

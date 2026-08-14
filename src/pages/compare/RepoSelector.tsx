@@ -4,7 +4,7 @@
 
 import { useState, useMemo, memo, useImperativeHandle, forwardRef } from "react";
 import type { Ref } from "react";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 import type { RepoWithSignals } from "../../api/types";
 import { normalizeRepoName } from "../../utils/format";
 
@@ -21,11 +21,13 @@ export const RepoSelector = memo(
       repos,
       selectedIds,
       onToggle,
+      onGoDiscover,
       t,
     }: {
       repos: RepoWithSignals[];
       selectedIds: number[];
       onToggle: (id: number) => void;
+      onGoDiscover: () => void;
       t: ReturnType<typeof useI18n>["t"];
     },
     ref: Ref<RepoSelectorHandle>
@@ -48,6 +50,26 @@ export const RepoSelector = memo(
       return repos.filter((r) => normalizeRepoName(r.full_name).includes(q));
     }, [repos, search]);
 
+    // 追蹤數 < 2 時對比在數學上不可能：不渲染搜尋框（搜空集合）與
+    // 「至少選擇 2 個」（不可能完成的指令），換成原因說明＋出口
+    if (repos.length < 2) {
+      return (
+        <div className="compare-selector" data-testid="compare-need-repos">
+          <h3>{t.compare.selectRepos}</h3>
+          <p className="compare-hint">
+            {interpolate(t.compare.needMoreRepos, { count: repos.length })}
+          </p>
+          <button
+            className="btn btn-primary"
+            data-testid="compare-go-discover"
+            onClick={onGoDiscover}
+          >
+            {t.dashboard.onboard.cta}
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="compare-selector">
         <h3>{t.compare.selectRepos}</h3>
@@ -65,6 +87,11 @@ export const RepoSelector = memo(
           </p>
         )}
         <div className="compare-repo-list">
+          {filtered.length === 0 && (
+            <p className="compare-hint" role="status">
+              {t.compare.noMatch}
+            </p>
+          )}
           {filtered.map((repo) => {
             const isSelected = selectedIds.includes(repo.id);
             const isDisabled = !isSelected && atLimit;
