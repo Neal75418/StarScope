@@ -3,6 +3,11 @@
  * 驗證 Discovery 預設顯示 feed（或空狀態）、Settings 興趣管理可操作、搜尋時 feed 隱藏。
  */
 import { test, expect } from "@playwright/test";
+import { removeInterestByTerm } from "./helpers";
+
+// sentinel：絕不與使用者真實興趣撞名；就算清理前恰好觸發 feed 產生，
+// 這個 topic 在 GitHub 上也搜不到任何結果，不會污染 feed
+const PROBE_TERM = "e2e-probe-interest";
 
 test.describe("For You Feed", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,15 +22,21 @@ test.describe("For You Feed", () => {
     await expect(feed.or(empty)).toBeVisible({ timeout: 15000 });
   });
 
-  test("interests section visible in settings and accepts a term", async ({ page }) => {
+  test("interests section visible in settings and accepts a term", async ({ page, request }) => {
+    await removeInterestByTerm(request, PROBE_TERM); // 上次中斷的殘留會讓新增變成 409
     await page.locator('[data-testid="nav-settings"]').click();
     const section = page.locator('[data-testid="interests-section"]');
     await expect(section).toBeVisible({ timeout: 10000 });
 
-    await section.locator('[data-testid="interest-term-input"]').fill("tauri");
-    await section.locator('[data-testid="interest-add-btn"]').click();
-    await expect(section.locator(".interest-item", { hasText: "tauri" }).first())
-      .toBeVisible({ timeout: 10000 });
+    try {
+      await section.locator('[data-testid="interest-term-input"]').fill(PROBE_TERM);
+      await section.locator('[data-testid="interest-add-btn"]').click();
+      await expect(section.locator(".interest-item", { hasText: PROBE_TERM }).first()).toBeVisible({
+        timeout: 10000,
+      });
+    } finally {
+      await removeInterestByTerm(request, PROBE_TERM); // 斷言失敗也不能留在真實 DB
+    }
   });
 
   test("search still works from discovery search bar", async ({ page }) => {

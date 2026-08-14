@@ -4,6 +4,7 @@
  */
 
 import { test, expect } from "@playwright/test";
+import { removeCategoryByName } from "./helpers";
 
 test.describe("Category Management", () => {
   test.beforeEach(async ({ page }) => {
@@ -46,20 +47,14 @@ test.describe("Category Management", () => {
     const uniqueName = `E2E-Test-${Date.now()}`;
     const input = form.locator("input");
     await input.fill(uniqueName);
-    await form.locator('button[type="submit"]').click();
+    try {
+      await form.locator('button[type="submit"]').click();
 
-    // 新分類應出現在側邊欄
-    await expect(sidebar.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 10000 });
-
-    // 清理：透過 API 刪除測試分類
-    const treeRes = await request.get("http://127.0.0.1:8008/api/categories/tree");
-    const treeData = await treeRes.json();
-    if (treeData.success && Array.isArray(treeData.data?.tree)) {
-      for (const cat of treeData.data.tree) {
-        if (cat.name === uniqueName) {
-          await request.delete(`http://127.0.0.1:8008/api/categories/${cat.id}`);
-        }
-      }
+      // 新分類應出現在側邊欄
+      await expect(sidebar.locator(`text=${uniqueName}`)).toBeVisible({ timeout: 10000 });
+    } finally {
+      // 斷言失敗也要清：不能把測試分類留在（可能是真實的）DB 裡
+      await removeCategoryByName(request, uniqueName);
     }
   });
 
