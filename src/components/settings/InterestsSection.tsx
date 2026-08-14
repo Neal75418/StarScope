@@ -123,7 +123,7 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                   <div className="interest-item-info">
                     <span className="interest-term">{i.term}</span>
                     <span className="interest-meta">
-                      {i.kind} · w{i.weight}
+                      {i.kind} · {t.settings.interests.weightLabel} {i.weight}
                     </span>
                   </div>
                   <button

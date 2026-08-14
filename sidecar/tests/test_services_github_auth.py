@@ -290,6 +290,55 @@ class TestGetConnectionStatus:
                 assert result.rate_limit_total == 5000
 
     @pytest.mark.asyncio
+    async def test_backfills_username_when_missing(self):
+        """env/PAT 連線沒跑過 Device Flow，username 從未寫入——status 應補抓一次並快取。"""
+        rate_response = MagicMock()
+        rate_response.status_code = 200
+        rate_response.json.return_value = {"resources": {"core": {"remaining": 4500, "limit": 5000}}}
+
+        with patch('services.github_auth.get_setting') as mock_get, \
+             patch('services.github_auth.set_setting') as mock_set, \
+             patch('services.github_auth.httpx.AsyncClient') as mock_client_class, \
+             patch.object(GitHubAuthService, '_get_username', new=AsyncMock(return_value="enviro-user")):
+            mock_get.side_effect = lambda key: {
+                "github_token": "valid_token",
+                "github_username": None,
+            }.get(key.value if hasattr(key, 'value') else key)
+            mock_client = AsyncMock()
+            mock_client.get.return_value = rate_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await GitHubAuthService.get_connection_status()
+
+            assert result.connected is True
+            assert result.username == "enviro-user"
+            mock_set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_username_backfill_failure_is_fail_open(self):
+        """username 是顯示性欄位：補抓失敗不得影響連線狀態。"""
+        rate_response = MagicMock()
+        rate_response.status_code = 200
+        rate_response.json.return_value = {"resources": {"core": {"remaining": 4500, "limit": 5000}}}
+
+        with patch('services.github_auth.get_setting') as mock_get, \
+             patch('services.github_auth.httpx.AsyncClient') as mock_client_class, \
+             patch.object(GitHubAuthService, '_get_username',
+                          new=AsyncMock(side_effect=RuntimeError("boom"))):
+            mock_get.side_effect = lambda key: {
+                "github_token": "valid_token",
+                "github_username": None,
+            }.get(key.value if hasattr(key, 'value') else key)
+            mock_client = AsyncMock()
+            mock_client.get.return_value = rate_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await GitHubAuthService.get_connection_status()
+
+            assert result.connected is True
+            assert result.username is None
+
+    @pytest.mark.asyncio
     async def test_handles_401_invalid_token(self):
         """Test handles 401 (invalid token) and cleans up."""
         mock_response = MagicMock()

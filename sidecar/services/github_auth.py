@@ -247,6 +247,20 @@ class GitHubAuthService:
                     core_limit = data.get("resources", {}).get("core", {})
                     username = get_setting(AppSettingKey.GITHUB_USERNAME)
 
+                    if not username:
+                        # env/PAT 連線不會經過 Device Flow，username 從未被寫入，
+                        # 前端會渲染出懸空的「已連接 @」。補抓一次並快取；
+                        # 抓不到也不影響連線狀態（fail-open）——username 是顯示性欄位，
+                        # 不能讓它拖垮連線查詢。
+                        try:
+                            username = await GitHubAuthService._get_username(token)
+                            if username:
+                                set_setting(AppSettingKey.GITHUB_USERNAME, username)
+                        except Exception:
+                            logger.warning(
+                                "[GitHub Auth] username 補抓失敗（不影響連線狀態）",
+                                exc_info=True)
+
                     return ConnectionStatus(
                         connected=True,
                         username=username,

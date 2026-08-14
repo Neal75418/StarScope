@@ -80,7 +80,14 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
       </div>
       <div className="status-content">
         <div className="status-text">
-          {t.githubConnection.connectedAs} <strong>@{status.username}</strong>
+          {/* username 為空（env token 首次補抓前）不渲染懸空的 @ */}
+          {status.username ? (
+            <>
+              {t.githubConnection.connectedAs} <strong>@{status.username}</strong>
+            </>
+          ) : (
+            t.githubConnection.connectedPlain
+          )}
         </div>
         {status.rate_limit_remaining !== undefined && (
           <div className="status-rate-limit">

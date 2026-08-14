@@ -197,4 +197,16 @@ describe("ConnectionConnected", () => {
 
     expect(screen.queryByText(/API:/)).not.toBeInTheDocument();
   });
+
+  it("does not render a dangling @ when username is missing (env-token before backfill)", () => {
+    render(
+      <ConnectionConnected
+        status={makeStatus({ username: undefined })}
+        onDisconnect={onDisconnect}
+        onRefresh={onRefresh}
+      />
+    );
+    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+    expect(screen.getByText(translations.en.githubConnection.connectedPlain)).toBeInTheDocument();
+  });
 });
