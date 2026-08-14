@@ -106,7 +106,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   // 分類切換用 AbortController，防止快速切換時競態
   const categoryAbortRef = useRef<AbortController | null>(null);
 
-  // 用 ref 持有 showToast，讓 toast 便利方法不依賴自身
+  // 空 deps 的 useCallback：只依賴穩定的 dispatch，讓 toast 便利方法引用永遠穩定
   const showToastFn = useCallback((type: ToastMessage["type"], message: string) => {
     const id = generateId();
     dispatch({

@@ -107,7 +107,7 @@ export const BatchActionBar = memo(function BatchActionBar({
         setShowRemoveConfirm(false);
         onDone();
       } else if (result.success > 0) {
-        // Partial — close dialog, prune selection to only failed IDs for retry
+        // 部分成功 — 關閉對話框，選取只留下失敗的 IDs 供重試
         setShowRemoveConfirm(false);
         onPruneSelection(result.failedIds);
         onError(
@@ -117,11 +117,11 @@ export const BatchActionBar = memo(function BatchActionBar({
           })
         );
       } else {
-        // Full failure — keep dialog open for retry
+        // 全部失敗 — 保持對話框開啟供重試
         onError(t.watchlist.batch.error);
       }
     } catch {
-      // Unexpected error — keep dialog open for retry
+      // 非預期錯誤 — 保持對話框開啟供重試
       onError(t.watchlist.batch.error);
     } finally {
       setIsRemoving(false);

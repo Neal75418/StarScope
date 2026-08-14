@@ -1,5 +1,5 @@
 /**
- * 頁面切換動畫元件（純 CSS 實作，取代 framer-motion）。
+ * 頁面切換動畫元件（純 CSS 實作）。
  */
 
 import type { ReactNode } from "react";

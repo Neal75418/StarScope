@@ -1,3 +1,6 @@
+/**
+ * 追蹤清單的虛擬滾動列表檢視（react-window）。
+ */
 import { useCallback, useState } from "react";
 import { List, RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";

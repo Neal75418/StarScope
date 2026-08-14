@@ -153,7 +153,7 @@ export function useWindowedBatchRepoData(
         if (loadingSet.has(id)) loadingSet.delete(id);
       });
     };
-    // 用 missingIdsKey（JSON 字串）代替 missingIds 陣列，避免引用變化觸發重複請求
+    // 用 missingIdsKey（逗號串接字串）代替 missingIds 陣列，避免引用變化觸發重複請求
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
 

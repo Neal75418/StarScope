@@ -1,6 +1,6 @@
 /* StarScope - GitHub Theme System (Dark/Light) */
 
-/* Motion: CSS animations replacing framer-motion */
+/* Motion: 純 CSS 動畫 */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -5056,9 +5056,9 @@ a:focus-visible {
   }
 }
 
-/* 個人化推薦樣式已遷移至 Discovery.module.css */
+/* 個人化推薦樣式在 Discovery.module.css */
 
-/* Settings 新增區塊樣式 */
+/* Settings 區塊樣式 */
 
 /* 通用設定區塊欄位 */
 .settings-field {
@@ -5464,7 +5464,7 @@ a:focus-visible {
   margin-top: 0.75rem;
 }
 
-/* 設定區塊標題列右側的動作按鈕群（原本無樣式，按鈕會貼死） */
+/* 設定區塊標題列右側的動作按鈕群（無此規則時按鈕會貼死） */
 .settings-section-actions {
   display: flex;
   align-items: center;

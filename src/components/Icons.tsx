@@ -1,9 +1,8 @@
-import type { SVGProps } from "react";
-
 /**
  * StarScope SVG icon 元件，採用 GitHub Octicons 風格。
  * 裝飾性 icon 預設 aria-hidden="true"；功能性 icon 須傳入 ariaLabel。
  */
+import type { SVGProps } from "react";
 
 interface IconProps {
   size?: number;

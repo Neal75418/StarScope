@@ -47,7 +47,6 @@ fn disable_fullscreen_button(window: &tauri::WebviewWindow) {
         unsafe {
             let ns_window_ptr = webview.ns_window();
 
-            // Verify pointer is non-null before dereferencing
             if ns_window_ptr.is_null() {
                 warn!("取得 NSWindow 指標失敗 — 指標為 null");
                 return;

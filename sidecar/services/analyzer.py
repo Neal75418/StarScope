@@ -80,7 +80,7 @@ def calculate_delta(
     if not current_snapshot or not past_snapshot:
         return None
 
-    # 若兩個快照為同一天，無法計算差值
+    # 兩個快照為同一天：視為無變化（delta=0），與「資料不足回 None」有意區分
     if current_snapshot.snapshot_date == past_snapshot.snapshot_date:
         return 0.0
 
@@ -178,7 +178,7 @@ def calculate_trend(
     if velocity is None:
         return 0
 
-    # 強勢上升：正向 velocity 且正向 acceleration
+    # 上升：velocity 高於門檻，且未明顯減速（acceleration 缺值時視為未減速放行）
     if velocity > TREND_VELOCITY_UPWARD_THRESHOLD and (
         acceleration is None or acceleration > TREND_ACCELERATION_DECLINE_THRESHOLD
     ):
@@ -198,7 +198,7 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
     """
     計算 repo 的所有訊號並儲存至資料庫。
     回傳訊號值的字典。
-    預載所有需要的快照（1 次查詢取代原本 15+ 次）。
+    快照以一次查詢預載，避免逐訊號查 DB。
     """
     signals = {}
 
@@ -244,7 +244,7 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
         if value is not None:
             signals[signal_type] = value
 
-            # 使用 SQLite 的 INSERT OR REPLACE 模式進行 upsert
+            # 使用 SQLite 的 INSERT ... ON CONFLICT DO UPDATE 進行 upsert
             # 此操作為原子性，可防止競態條件
             stmt = sqlite_insert(Signal).values(
                 repo_id=repo_id,

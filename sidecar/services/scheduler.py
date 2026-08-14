@@ -191,7 +191,6 @@ async def _fetch_and_update_single_repo(
     """
     repo_id = int(repo.id)
     try:
-        # 從 GitHub 取得最新資料
         github_data = await fetch_repo_data(repo.owner, repo.name)
 
         if github_data:
@@ -436,7 +435,6 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
 def backup_job() -> None:
     """資料庫備份工作（模組層級，供 APScheduler 序列化引用）。"""
     try:
-        # 取得資料庫檔案路徑
         from sqlalchemy.engine import make_url
         db_file = make_url(DATABASE_URL).database or ""
 
@@ -516,7 +514,7 @@ def _register_cleanup_jobs(scheduler) -> None:
     # 每日資料庫備份（凌晨 2 點，保留 7 天）
     scheduler.add_job(
         backup_job,
-        trigger=CronTrigger(hour=2, minute=0),  # 每天凌晨 2 點
+        trigger=CronTrigger(hour=2, minute=0),
         id="database_backup",
         name="Daily database backup (7d retention)",
         replace_existing=True,

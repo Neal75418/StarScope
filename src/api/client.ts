@@ -129,14 +129,13 @@ async function doFetch<T>(
     );
   }
 
-  // 處理 204 No Content 回應
   if (response.status === 204) {
     return null as T;
   }
 
   const json = await response.json();
 
-  // 自動解包統一 API 響應格式 (ApiResponse[T])
+  // 自動解包統一 API 回應格式 (ApiResponse[T])
   // 已遷移的端點回傳 {success, data, message, error} 結構
   if (json && typeof json === "object" && "success" in json && "data" in json) {
     if (!json.success) {
@@ -918,7 +917,7 @@ export async function resetAllData(signal?: AbortSignal): Promise<ResetDataRespo
   });
 }
 
-// --- For You Feed (Phase A) ---
+// --- For You Feed ---
 
 /** 取得興趣清單。 */
 export async function getInterests(signal?: AbortSignal): Promise<InterestListResponse> {

@@ -414,7 +414,7 @@ class AppSetting(Base):
         return f"<AppSetting key={self.key}>"
 
 
-# --- For You Feed (Phase A) ---
+# --- For You Feed ---
 
 class InterestKind(StrEnum):
     """興趣項目的匹配種類。"""

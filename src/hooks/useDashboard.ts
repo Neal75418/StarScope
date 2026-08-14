@@ -184,7 +184,7 @@ export function useDashboard() {
     }));
   }, [repos]);
 
-  // 語言分佈（前 10 種具名語言 + Other，null 統一歸 Other）
+  // 語言分佈（合計 10 片：前 9 種具名語言 + Other，null 統一歸 Other）
   const languageDistribution: LanguageSlice[] = useMemo(() => {
     const langMap: Record<string, number> = {};
     for (const repo of repos) {

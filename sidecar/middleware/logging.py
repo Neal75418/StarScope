@@ -57,28 +57,22 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         """處理 request 並記錄詳情。"""
-        # 跳過排除路徑的日誌記錄
         if self._should_exclude(request.url.path):
             response: Response = await call_next(request)
             return response
 
-        # 產生唯一 request ID 用於追蹤
         request_id = str(uuid.uuid4())[:8]
 
-        # 取得 client 資訊
         client_ip = self._get_client_ip(request)
 
-        # 記錄 request
         self._log_request(request, request_id, client_ip)
 
-        # 追蹤回應時間
         start_time = time.perf_counter()
 
         try:
             response = await call_next(request)
             duration_ms = (time.perf_counter() - start_time) * 1000
 
-            # 記錄 response
             self._log_response(request, response, request_id, duration_ms)
 
             # 將 request ID 加入 response headers 以利除錯

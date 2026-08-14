@@ -1,6 +1,6 @@
 /**
- * Velocity 分佈長條圖（Recharts 版本）。
- * 取代原本純 CSS 實作，支援 hover tooltip 與動畫效果。
+ * Velocity 分佈長條圖（Recharts）。
+ * 支援 hover tooltip 與動畫效果。
  */
 
 import { memo, useMemo } from "react";

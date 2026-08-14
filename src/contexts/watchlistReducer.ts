@@ -21,7 +21,7 @@ export type LoadingState =
   | { type: "recalculating" };
 
 /**
- * Watchlist 主要狀態（2 層嵌套，比原本的 4 層簡化）
+ * Watchlist 主要狀態（2 層嵌套）
  */
 export interface WatchlistState {
   // 主要資料

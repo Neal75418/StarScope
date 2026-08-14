@@ -324,7 +324,6 @@ async def update_category(
         if request.parent_id is not None:
             _validate_parent_category(request.parent_id, category_id, db)
 
-    # 使用映射更新欄位以簡化程式碼
     _apply_category_updates(category, request)
 
     db.commit()

@@ -1,3 +1,6 @@
+/**
+ * 單則通知項目：相對時間顯示、點擊導頁、關閉操作。
+ */
 import { memo } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { XIcon } from "../Icons";

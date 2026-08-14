@@ -118,8 +118,7 @@ class GitHubAuthService:
         Returns:
             包含以下 key 的字典：
                 - status: "success" | "pending" | "expired" | "error"
-                - access_token:（僅成功時）
-                - username:（僅成功時）
+                - username:（僅成功時；token 不回傳，直接存入 Keyring/DB）
                 - error:（僅錯誤時）
         """
         logger.info(f"[GitHub 驗證] 正在輪詢 token，device_code: {device_code[:8]}...")

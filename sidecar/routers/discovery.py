@@ -56,9 +56,8 @@ async def search_repos(
     回傳符合搜尋條件的 repo（含可選篩選條件）。
     結果不快取 — 每次請求直接呼叫 GitHub API。
 
-    速率限制：
-    - 未認證：10 次/分鐘
-    - 已認證：30 次/分鐘
+    本端點限流固定 30 次/分鐘（見 @limiter.limit）；GitHub Search API
+    上游另有自己的配額（未認證 10 次/分鐘、已認證 30 次/分鐘）。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     github = get_github_service()

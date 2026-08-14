@@ -1,3 +1,6 @@
+/**
+ * 通知中心的鈴鐺觸發按鈕，含未讀數 badge。
+ */
 import { BellIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 

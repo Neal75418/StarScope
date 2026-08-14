@@ -216,6 +216,23 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 
 ---
 
+## 註解與日誌慣例
+
+### 註解
+
+- 一律繁體中文，技術術語保留英文；用語統一「回應」不用「響應」
+- 只寫程式碼本身看不出來的約束或原因（why），不重述下一行在做什麼，不寫變更史（「原本」「新增」「取代」「簡化後」句式禁用——改寫成現在式的約束句）
+- 檔案頭一律 `/** */`（TS）／`"""docstring"""`（Python）描述模組職責；公開函式配一行說明（與 Python docstring 全覆蓋的立場一致），行內註解只留 why
+- **豁免區**（維持原樣，勿翻譯或改寫）：`sidecar/alembic/`（模板產物）、Rust `SAFETY:` 區塊（生態慣例用英文）、`src/test/` 測試基建
+
+### 日誌
+
+- Python：`[模組名] 繁中訊息`，同一模組固定同一個 prefix；middleware 的 `[request_id]` 動態 prefix 是刻意的請求追蹤格式
+- 前端：一律走 `utils/logger`（生產環境 no-op），訊息帶 `[元件名]` prefix；唯一例外是 `main.tsx` 的全域 error handler（裸 console，理由見該處註解）
+- Rust：不加 bracket prefix（tracing target 已提供模組上下文）
+
+---
+
 ## 前端架構模式
 
 ### React Query 資料層

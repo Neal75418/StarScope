@@ -67,7 +67,7 @@ class ExportedRepo(BaseModel):
 
 
 class WatchlistExportResponse(BaseModel):
-    """Watchlist JSON 匯出響應。"""
+    """Watchlist JSON 匯出回應。"""
     exported_at: str = Field(..., description="匯出時間（ISO 格式）")
     total: int = Field(..., description="Repo 總數")
     repos: list[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
@@ -233,9 +233,7 @@ async def export_watchlist_csv(
     )
 
 
-# ──────────────────────────────────────────────────────────────
-# 趨勢匯出
-# ──────────────────────────────────────────────────────────────
+# --- 趨勢匯出 ---
 
 TrendsSortBy = Literal[
     "velocity", "stars_delta_7d", "stars_delta_30d",

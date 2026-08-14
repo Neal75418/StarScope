@@ -160,7 +160,7 @@ export function parseJSON(content: string): ParsedRepo[] {
     const data: unknown = JSON.parse(content);
     const repos: ParsedRepo[] = [];
 
-    // StarScope export wrapper: { repos: [...] }
+    // StarScope 匯出格式外層包裝：{ repos: [...] }
     const unwrapped =
       !Array.isArray(data) &&
       typeof data === "object" &&

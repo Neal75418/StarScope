@@ -599,7 +599,7 @@ export interface ResetDataResponse {
   deleted_repos: number;
 }
 
-// --- For You Feed (Phase A) ---
+// --- For You Feed ---
 
 export type InterestKind = "topic" | "language" | "keyword";
 

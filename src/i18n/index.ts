@@ -6,7 +6,7 @@ import { createContext, useContext } from "react";
 import { translations, Language, TranslationKeys } from "./translations";
 import { STORAGE_KEYS } from "../constants/storage";
 
-// 從 localStorage 或瀏覽器偏好取得初始語言
+/** 從 localStorage 或瀏覽器偏好取得初始語言。 */
 export function getInitialLanguage(): Language {
   // 優先檢查 localStorage
   const stored = localStorage.getItem(STORAGE_KEYS.LANGUAGE);
@@ -23,7 +23,7 @@ export function getInitialLanguage(): Language {
   return "en";
 }
 
-// 儲存語言偏好
+/** 儲存語言偏好。 */
 export function saveLanguage(lang: Language): void {
   try {
     localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
@@ -32,7 +32,7 @@ export function saveLanguage(lang: Language): void {
   }
 }
 
-// 語言狀態的 Context
+/** 語言狀態的 Context。 */
 interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
@@ -41,7 +41,7 @@ interface I18nContextType {
 
 export const I18nContext = createContext<I18nContextType | null>(null);
 
-// 使用翻譯的 Hook
+/** 使用翻譯的 Hook。 */
 export function useI18n() {
   const context = useContext(I18nContext);
   if (!context) {
@@ -50,12 +50,12 @@ export function useI18n() {
   return context;
 }
 
-// 取得指定語言的翻譯
+/** 取得指定語言的翻譯。 */
 export function getTranslations(lang: Language): TranslationKeys {
   return translations[lang];
 }
 
-// 在翻譯字串中插入變數的輔助函式
+/** 在翻譯字串中插入變數的輔助函式。 */
 export function interpolate(str: string, vars: Record<string, string | number>): string {
   return str.replace(/{(\w+)}/g, (_, key) => String(vars[key] ?? `{${key}}`));
 }

@@ -1,5 +1,5 @@
 /**
- * 淡入動畫元件（純 CSS 實作，取代 framer-motion）。
+ * 淡入動畫元件（純 CSS 實作）。
  */
 
 import type { ReactNode, CSSProperties } from "react";

@@ -126,7 +126,7 @@ app = FastAPI(
 
     ### 資料更新
 
-    - 背景排程器每小時自動更新所有追蹤專案
+    - 背景排程器自動更新所有追蹤專案（預設每 30 分鐘，可由設定調整）
     - 支援手動觸發更新 (`POST /api/repos/{id}/fetch`)
     """,
     version=APP_VERSION,
@@ -285,5 +285,5 @@ if __name__ == "__main__":
         "main:app",
         host="127.0.0.1",
         port=int(os.getenv("PORT", "8008")),
-        reload=DEBUG,  # DEBUG=true 時才啟用 hot reload
+        reload=DEBUG,
     )

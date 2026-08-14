@@ -12,6 +12,8 @@ from . import early_signals
 from . import export
 from . import github_auth
 from . import discovery
+from . import interests
+from . import feed
 from . import star_history
 from . import weekly_summary
 from . import comparison
@@ -30,6 +32,8 @@ __all__ = [
     "export",
     "github_auth",
     "discovery",
+    "interests",
+    "feed",
     "star_history",
     "weekly_summary",
     "comparison",

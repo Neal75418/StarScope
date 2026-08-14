@@ -1,3 +1,6 @@
+/**
+ * 通知中心下拉面板：通知清單與全部已讀操作。
+ */
 import { BellIcon, CheckIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import type { Notification } from "../../hooks/useNotifications";

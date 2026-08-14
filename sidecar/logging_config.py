@@ -38,7 +38,6 @@ def setup_logging(
         )
         handlers.append(file_handler)
 
-    # 設定 root logger
     logging.basicConfig(
         level=getattr(logging, level.upper()),
         format=log_format,
@@ -52,6 +51,5 @@ def setup_logging(
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
 
-    # 取得應用程式 logger
     logger = logging.getLogger("starscope")
     logger.info(f"[日誌] 日誌層級已設定為 {level}")

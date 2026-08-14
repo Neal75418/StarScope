@@ -1,6 +1,6 @@
 """
 情境訊號抓取服務。
-簡化為僅從 Hacker News 抓取。
+僅從 Hacker News 抓取。
 """
 
 import logging

@@ -4,7 +4,6 @@
 提供 SQLAlchemy event listeners 用於：
 - 記錄慢查詢
 - 統計查詢時間
-- 偵測 N+1 查詢問題
 """
 
 import logging
@@ -87,6 +86,6 @@ def setup_query_logging(engine: Engine, enable: bool = True) -> None:
         elif logger.isEnabledFor(logging.DEBUG):
             logger.debug(f"[查詢日誌] 查詢完成 ({elapsed:.3f}s)")
 
-    # PRAGMA 設定已統一在 database.py set_sqlite_pragma 中管理
+    # PRAGMA 由 database.py set_sqlite_pragma 統一管理，勿在此重複設定
 
     logger.info(f"[查詢日誌] 資料庫查詢日誌已啟用（慢查詢閾值: {SLOW_QUERY_THRESHOLD:.1f}s）")

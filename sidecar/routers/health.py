@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 
 class HealthStatus(BaseModel):
-    """健康狀態響應資料模型"""
+    """健康狀態回應資料模型。"""
     status: str
     service: str
     timestamp: str

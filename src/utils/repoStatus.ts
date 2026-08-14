@@ -12,7 +12,7 @@ export function isHotRepo(repo: RepoWithSignals): boolean {
   return repo.velocity != null && repo.velocity > HOT_VELOCITY_THRESHOLD;
 }
 
-/** 判斷 Repo 是否過期（超過 30 天未更新）。 */
+/** 判斷 Repo 資料是否過期（超過 30 天未重新抓取，非指 repo 本身無 commit）。 */
 export function isStaleRepo(repo: RepoWithSignals): boolean {
   if (!repo.last_fetched) return true;
   const lastFetched = new Date(repo.last_fetched);

@@ -40,7 +40,6 @@ import { BatchActionBar } from "./watchlist/BatchActionBar";
 export function Watchlist() {
   const { t } = useI18n();
 
-  // 新的 Context hooks
   const state = useWatchlistState();
   const actions = useWatchlistActions();
   const { navigateTo } = useNavigation();
@@ -87,7 +86,7 @@ export function Watchlist() {
     if (selection.isActive) {
       selection.reconcile(displayedRepoIdSet);
     }
-    // selection is a plain object literal — decompose to stable refs to avoid infinite loop
+    // selection 是普通 object literal — 拆成穩定引用進 deps，避免無限迴圈
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayedRepoIdSet, selection.isActive, selection.reconcile]);
 
