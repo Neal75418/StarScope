@@ -3,14 +3,13 @@
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, get_args
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session, joinedload
 
 from db.database import get_db
-from constants import SignalType
 from db.models import AlertRule, TriggeredAlert, Repo
 from schemas.response import ApiResponse, StatusResponse, success_response
 from services.alerts import (
@@ -27,6 +26,17 @@ ValidSignalType = Literal[
     "stars_delta_7d", "stars_delta_30d", "velocity", "acceleration", "trend"
 ]
 ValidOperator = Literal[">", "<", ">=", "<=", "=="]
+
+# /signal-types 端點的顯示資訊。key 必須與 ValidSignalType 成員一一對應——
+# 端點清單由此衍生，兩者不同步時 import 階段即失敗，不會靜默漂移。
+_SIGNAL_TYPE_DISPLAY: dict[str, tuple[str, str]] = {
+    "stars_delta_7d": ("7-Day Star Delta", "Number of stars gained in the last 7 days"),
+    "stars_delta_30d": ("30-Day Star Delta", "Number of stars gained in the last 30 days"),
+    "velocity": ("Star Velocity", "Average stars per day (7-day average)"),
+    "acceleration": ("Acceleration", "Rate of change in velocity"),
+    "trend": ("Trend", "Overall trend direction (-1=down, 0=stable, 1=up)"),
+}
+assert set(_SIGNAL_TYPE_DISPLAY) == set(get_args(ValidSignalType))
 
 # 錯誤訊息常數
 ERROR_RULE_NOT_FOUND = "Rule not found"
@@ -157,53 +167,10 @@ def _to_triggered_alert_response(alert: TriggeredAlert) -> TriggeredAlertRespons
 
 @router.get("/signal-types", response_model=ApiResponse[list[SignalTypeInfo]])
 async def list_signal_types() -> dict:
-    """列出警報規則可用的訊號類型。"""
+    """列出警報規則可接受的訊號類型（與 ValidSignalType 同源，見 _SIGNAL_TYPE_DISPLAY）。"""
     signal_types = [
-        SignalTypeInfo(
-            type=SignalType.STARS_DELTA_7D,
-            name="7-Day Star Delta",
-            description="Number of stars gained in the last 7 days"
-        ),
-        SignalTypeInfo(
-            type=SignalType.STARS_DELTA_30D,
-            name="30-Day Star Delta",
-            description="Number of stars gained in the last 30 days"
-        ),
-        SignalTypeInfo(
-            type=SignalType.VELOCITY,
-            name="Star Velocity",
-            description="Average stars per day (7-day average)"
-        ),
-        SignalTypeInfo(
-            type=SignalType.ACCELERATION,
-            name="Acceleration",
-            description="Rate of change in velocity"
-        ),
-        SignalTypeInfo(
-            type=SignalType.TREND,
-            name="Trend",
-            description="Overall trend direction (-1=down, 0=stable, 1=up)"
-        ),
-        SignalTypeInfo(
-            type=SignalType.FORKS_DELTA_7D,
-            name="7-Day Fork Delta",
-            description="Number of forks gained in the last 7 days"
-        ),
-        SignalTypeInfo(
-            type=SignalType.FORKS_DELTA_30D,
-            name="30-Day Fork Delta",
-            description="Number of forks gained in the last 30 days"
-        ),
-        SignalTypeInfo(
-            type=SignalType.ISSUES_DELTA_7D,
-            name="7-Day Issue Delta",
-            description="Change in open issues in the last 7 days"
-        ),
-        SignalTypeInfo(
-            type=SignalType.ISSUES_DELTA_30D,
-            name="30-Day Issue Delta",
-            description="Change in open issues in the last 30 days"
-        ),
+        SignalTypeInfo(type=value, name=name, description=description)
+        for value, (name, description) in _SIGNAL_TYPE_DISPLAY.items()
     ]
     return success_response(data=signal_types)
 

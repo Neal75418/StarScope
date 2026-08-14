@@ -6,39 +6,20 @@
 import { memo } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useI18n } from "../../i18n";
+import { lookupLanguageColor } from "../../constants/languageColors";
 
 export interface LanguageSlice {
   language: string;
   count: number;
 }
 
-// 常見語言對應色彩
-const LANGUAGE_COLORS: Record<string, string> = {
-  TypeScript: "#3178c6",
-  JavaScript: "#f7df1e",
-  Python: "#3572A5",
-  Rust: "#dea584",
-  Go: "#00ADD8",
-  Java: "#b07219",
-  "C++": "#f34b7d",
-  C: "#8b949e",
-  Swift: "#F05138",
-  Kotlin: "#A97BFF",
-  Ruby: "#701516",
-  PHP: "#4F5D95",
-  "C#": "#178600",
-  Dart: "#00B4AB",
-  Scala: "#c22d40",
-  Shell: "#89e051",
-  Vue: "#41b883",
-  Svelte: "#ff3e00",
-  Other: "var(--fg-muted)",
-};
-
+// 已知語言色彩來自 constants/languageColors（全 app 單一來源）；
+// 未知語言用分片專屬 fallback 輪替，確保相鄰分片仍可區分。
 const FALLBACK_COLORS = ["#58a6ff", "#3fb950", "#a371f7", "#d29922", "#f85149", "#79c0ff"];
 
-function getLanguageColor(language: string, index: number): string {
-  return LANGUAGE_COLORS[language] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+function sliceColor(language: string, index: number, otherLabel: string): string {
+  if (language === otherLabel) return "var(--fg-muted)";
+  return lookupLanguageColor(language) ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
 interface TooltipPayload {
@@ -98,7 +79,10 @@ export const LanguageDistribution = memo(function LanguageDistribution({ data }:
             paddingAngle={2}
           >
             {data.map((entry, index) => (
-              <Cell key={entry.language} fill={getLanguageColor(entry.language, index)} />
+              <Cell
+                key={entry.language}
+                fill={sliceColor(entry.language, index, t.dashboard.languageDistribution.other)}
+              />
             ))}
           </Pie>
           <Tooltip content={<LangTooltip />} />

@@ -42,3 +42,8 @@ const DEFAULT_COLORS = { bg: "#6b7280", text: "#f3f4f6" };
 export function getLanguageColor(language: string): string {
   return (LANGUAGE_COLORS[language] || DEFAULT_COLORS).bg;
 }
+
+/** 查表版：未知語言回傳 undefined，讓呼叫端自行決定 fallback（如圓餅圖的分片配色）。 */
+export function lookupLanguageColor(language: string): string | undefined {
+  return LANGUAGE_COLORS[language]?.bg;
+}

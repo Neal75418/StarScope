@@ -47,31 +47,39 @@ class TestSignalTypes:
     """Test cases for GET /api/alerts/signal-types."""
 
     def test_list_signal_types(self, client):
-        """Test listing all available signal types."""
+        """Endpoint must list exactly the types create/update accepts (ValidSignalType)."""
+        from typing import get_args
+
+        from routers.alerts import ValidSignalType
+
         response = client.get("/api/alerts/signal-types")
         assert response.status_code == 200
         resp = response.json()
         assert resp["success"] is True
         data = resp["data"]
         assert isinstance(data, list)
-        assert len(data) == 9
 
-        type_values = [item["type"] for item in data]
-        assert "stars_delta_7d" in type_values
-        assert "stars_delta_30d" in type_values
-        assert "velocity" in type_values
-        assert "acceleration" in type_values
-        assert "trend" in type_values
-        assert "forks_delta_7d" in type_values
-        assert "forks_delta_30d" in type_values
-        assert "issues_delta_7d" in type_values
-        assert "issues_delta_30d" in type_values
+        # 與 ValidSignalType 集合完全相等 — 清單漂移（多列或漏列）都要炸
+        type_values = {item["type"] for item in data}
+        assert type_values == set(get_args(ValidSignalType))
 
         # Verify each item has required fields
         for item in data:
             assert "type" in item
             assert "name" in item
             assert "description" in item
+
+    def test_signal_types_all_creatable(self, client):
+        """Every advertised signal type must be accepted by rule creation (anti-422 guard)."""
+        response = client.get("/api/alerts/signal-types")
+        for item in response.json()["data"]:
+            create = client.post("/api/alerts/rules", json={
+                "name": f"probe-{item['type']}",
+                "signal_type": item["type"],
+                "operator": ">",
+                "threshold": 1,
+            })
+            assert create.status_code == 200, f"{item['type']} advertised but rejected"
 
 
 class TestAlertRules:
