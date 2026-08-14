@@ -15,7 +15,6 @@ vi.mock("../../api/client", async (importOriginal) => {
     ...actual,
     getInterests: vi.fn(),
     createInterest: vi.fn(),
-    updateInterest: vi.fn(),
     deleteInterest: vi.fn(),
     getExclusions: vi.fn(),
     addExclusion: vi.fn(),

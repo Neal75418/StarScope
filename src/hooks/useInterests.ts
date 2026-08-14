@@ -9,7 +9,6 @@ import {
   getExclusions,
   getInterests,
   removeExclusion,
-  updateInterest,
 } from "../api/client";
 import type { InterestCreate } from "../api/types";
 import { queryKeys } from "../lib/react-query";
@@ -34,10 +33,6 @@ export function useInterests() {
     mutationFn: (input: InterestCreate) => createInterest(input),
     onSuccess: invalidate,
   });
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: number; input: InterestCreate }) => updateInterest(id, input),
-    onSuccess: invalidate,
-  });
   const removeMutation = useMutation({
     mutationFn: (id: number) => deleteInterest(id),
     onSuccess: invalidate,
@@ -58,7 +53,6 @@ export function useInterests() {
     // create/remove 回傳 Promise（mutateAsync）：呼叫端可用 try/catch 依實際結果決定 toast，
     // 避免 fire-and-forget 導致失敗時仍顯示成功訊息。
     create: (input: InterestCreate) => createMutation.mutateAsync(input),
-    update: (id: number, input: InterestCreate) => updateMutation.mutate({ id, input }),
     remove: (id: number) => removeMutation.mutateAsync(id),
     addExclude: (term: string) => addExcludeMutation.mutateAsync(term),
     removeExclude: (id: number) => removeExcludeMutation.mutateAsync(id),

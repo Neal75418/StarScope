@@ -930,11 +930,6 @@ export async function createInterest(input: InterestCreate): Promise<Interest> {
   return apiCall<Interest>("/interests", { method: "POST", body: JSON.stringify(input) });
 }
 
-/** 更新興趣。 */
-export async function updateInterest(id: number, input: InterestCreate): Promise<Interest> {
-  return apiCall<Interest>(`/interests/${id}`, { method: "PUT", body: JSON.stringify(input) });
-}
-
 /** 刪除興趣。 */
 export async function deleteInterest(id: number): Promise<void> {
   return apiCall<void>(`/interests/${id}`, { method: "DELETE" });

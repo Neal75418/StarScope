@@ -11,8 +11,9 @@ import type { WatchlistSortKey, SortDirection } from "../useWatchlistSort";
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
  * 純 selector — 從 state 讀取 categoryRepoIds，無副作用。
+ * 僅供檔內 useSortedFilteredRepos 組合使用，故不 export。
  */
-export function useFilteredRepos(): RepoWithSignals[] {
+function useFilteredRepos(): RepoWithSignals[] {
   const state = useWatchlistState();
   const { searchQuery, categoryRepoIds } = state.filters;
 

@@ -239,7 +239,7 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 - 資料層由 React Query 管理，Context 只負責 UI 狀態
 - `LoadingState` 使用 Discriminated Unions 消除不可能狀態
 - Context 分層（優化 re-render）：`WatchlistStateContext`（只讀狀態）／ `WatchlistActionsContext`（業務邏輯）
-- Selector hooks 精準訂閱：`useFilteredRepos()`、`useLoadingRepo()`、`useIsRefreshing()`、`useIsRecalculating()`
+- Selector hooks 精準訂閱：`useSortedFilteredRepos()`、`useLoadingRepo()`、`useIsRefreshing()`、`useIsRecalculating()`
 - 測試策略 — Mock Context hooks：`useWatchlistState`、`useWatchlistActions`
 
 ### React-Window 虛擬滾動（v2 API，陷阱多）

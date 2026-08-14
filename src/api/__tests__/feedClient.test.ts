@@ -7,7 +7,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   getInterests,
   createInterest,
-  updateInterest,
   deleteInterest,
   getExclusions,
   addExclusion,
@@ -53,15 +52,6 @@ describe("interests client", () => {
     expect(url).toContain("/interests");
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body as string).weight).toBe(3);
-  });
-
-  it("updateInterest puts body with id", async () => {
-    mockEnvelopeOnce({ id: 1, term: "tauri", kind: "topic", weight: 5 });
-    const result = await updateInterest(1, { term: "tauri", kind: "topic", weight: 5 });
-    expect(result.weight).toBe(5);
-    const [url, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("/interests/1");
-    expect(opts.method).toBe("PUT");
   });
 
   it("deleteInterest calls DELETE with id", async () => {
