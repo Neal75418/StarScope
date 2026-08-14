@@ -62,6 +62,15 @@ let mockState: WatchlistState;
 let mockActions: WatchlistActions;
 let mockSelectors: MockSelectors;
 
+const mockNavigateTo = vi.fn();
+vi.mock("../../contexts/NavigationContext", () => ({
+  useNavigation: () => ({
+    navigateTo: mockNavigateTo,
+    navigationState: null,
+    consumeNavigationState: () => null,
+  }),
+}));
+
 vi.mock("../../contexts/AppStatusContext", () => ({
   useAppStatus: () => ({
     isOnline: true,
@@ -189,6 +198,8 @@ vi.mock("../../components/EmptyState", () => ({
   EmptyState: ({
     title,
     description,
+    actionLabel,
+    onAction,
   }: {
     title: string;
     description?: string;
@@ -199,6 +210,11 @@ vi.mock("../../components/EmptyState", () => ({
     <div data-testid="empty-inner">
       <span>{title}</span>
       {description && <span>{description}</span>}
+      {actionLabel && (
+        <button data-testid="empty-action" onClick={onAction}>
+          {actionLabel}
+        </button>
+      )}
     </div>
   ),
 }));
@@ -282,12 +298,14 @@ describe("Watchlist", () => {
     expect(mockHandleRetry).toHaveBeenCalled();
   });
 
-  it("shows empty state when no repos", () => {
+  it("shows empty state when no repos, routing to Discover as the primary path", async () => {
+    const user = userEvent.setup();
     render(<Watchlist />);
     expect(screen.getByText("No repositories in your watchlist yet.")).toBeInTheDocument();
-    expect(
-      screen.getByText('Click "Add Repository" to start tracking GitHub projects.')
-    ).toBeInTheDocument();
+    // 主線是「feed → ⭐」；手動新增的入口在工具列，說明文字負責指路
+    expect(screen.getByText(/Head over to Discover/)).toBeInTheDocument();
+    await user.click(screen.getByTestId("empty-action"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("discovery");
   });
 
   it("renders repo cards when repos exist", () => {
@@ -395,6 +413,6 @@ describe("Watchlist", () => {
 
   it("shows page title with correct text", () => {
     render(<Watchlist />);
-    expect(screen.getByTestId("page-title")).toHaveTextContent("StarScope");
+    expect(screen.getByTestId("page-title")).toHaveTextContent("Watchlist");
   });
 });

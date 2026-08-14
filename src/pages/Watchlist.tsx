@@ -10,6 +10,7 @@ import { ToastContainer } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
+import { useNavigation } from "../contexts/NavigationContext";
 import {
   useSortedFilteredRepos,
   useLoadingRepo,
@@ -42,6 +43,7 @@ export function Watchlist() {
   // 新的 Context hooks
   const state = useWatchlistState();
   const actions = useWatchlistActions();
+  const { navigateTo } = useNavigation();
 
   // 排序 + 檢視模式 hooks
   const { sortKey, sortDirection, setSort } = useWatchlistSort();
@@ -208,7 +210,7 @@ export function Watchlist() {
                 <EmptyStateView
                   hasRepos={state.repos.length > 0}
                   hasSearch={state.filters.searchQuery.trim().length > 0}
-                  onAddRepo={actions.openDialog}
+                  onGoDiscover={() => navigateTo("discovery")}
                 />
               </div>
             ) : viewMode === "grid" ? (

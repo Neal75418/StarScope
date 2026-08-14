@@ -216,8 +216,8 @@ export const translations = {
     },
     // 追蹤清單頁面
     watchlist: {
-      title: "StarScope",
-      subtitle: "GitHub Project Intelligence",
+      title: "Watchlist",
+      subtitle: "Repositories you track and their momentum signals",
       addRepo: "Add Repository",
       refreshAll: "Refresh All",
       refreshing: "Refreshing...",
@@ -228,7 +228,8 @@ export const translations = {
       searchPlaceholder: "Search watchlist...",
       empty: {
         noRepos: "No repositories in your watchlist yet.",
-        addPrompt: 'Click "Add Repository" to start tracking GitHub projects.',
+        addPrompt:
+          'Head over to Discover and hit ⭐ Track on today\'s picks. Already know the repo? Use "Add Repository" above to enter it directly.',
         noCategory: "No repositories in this category.",
         noCategoryDesc: "Try selecting a different category or add new repositories.",
         noFilter: "No repositories match the current filter.",
@@ -1100,8 +1101,8 @@ export const translations = {
     },
     // 追蹤清單頁面
     watchlist: {
-      title: "StarScope",
-      subtitle: "GitHub 專案情報分析",
+      title: "追蹤清單",
+      subtitle: "你追蹤中的儲存庫與其動能訊號",
       addRepo: "新增儲存庫",
       refreshAll: "全部重新整理",
       refreshing: "重新整理中...",
@@ -1112,7 +1113,8 @@ export const translations = {
       searchPlaceholder: "搜尋追蹤清單...",
       empty: {
         noRepos: "追蹤清單中還沒有儲存庫。",
-        addPrompt: "點擊「新增儲存庫」開始追蹤 GitHub 專案。",
+        addPrompt:
+          "到探索頁看看今天的推薦，按下 ⭐ 追蹤。已經知道要追哪個專案？用上方的「新增儲存庫」直接輸入。",
         noCategory: "此分類中沒有儲存庫。",
         noCategoryDesc: "試試選擇其他分類，或新增儲存庫。",
         noFilter: "沒有符合篩選條件的儲存庫。",

@@ -8,19 +8,22 @@ import { EmptyState } from "../../components/EmptyState";
 interface EmptyStateViewProps {
   hasRepos: boolean;
   hasSearch: boolean;
-  onAddRepo: () => void;
+  onGoDiscover: () => void;
 }
 
-export function EmptyStateView({ hasRepos, hasSearch, onAddRepo }: EmptyStateViewProps) {
+export function EmptyStateView({ hasRepos, hasSearch, onGoDiscover }: EmptyStateViewProps) {
   const { t } = useI18n();
 
   if (!hasRepos) {
+    // 主按鈕導向探索頁：取得 repo 的主線是「feed → ⭐」（與儀表板引導卡同一敘事）。
+    // 手動輸入仍可用，但入口是工具列上方的「新增儲存庫」，說明文字有指路——
+    // 面板裡不再放第二顆按鈕，避免與正上方的工具列按鈕同屏做同一件事。
     return (
       <EmptyState
         title={t.watchlist.empty.noRepos}
         description={t.watchlist.empty.addPrompt}
-        actionLabel={t.watchlist.addRepo}
-        onAction={onAddRepo}
+        actionLabel={t.dashboard.onboard.cta}
+        onAction={onGoDiscover}
       />
     );
   }
