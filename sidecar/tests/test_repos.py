@@ -135,14 +135,24 @@ class TestReposEndpoints:
         assert data["success"] is True
         assert data["data"]["full_name"] == "testowner/testrepo"
 
-    def test_delete_repo_success(self, client, mock_repo):
-        """Test deleting an existing repo."""
-        response = client.delete(f"/api/repos/{mock_repo.id}")
-        assert response.status_code == 204
+    def test_delete_refuses_a_tracked_repo(self, client, mock_repo):
+        """永久刪除只接受已封存的 repo。
 
-        # Verify repo is gone
-        response = client.get(f"/api/repos/{mock_repo.id}")
-        assert response.status_code == 404
+        追蹤清單上的「移除」現在是取消追蹤（POST /unstar），會保留快照與訊號。
+        永久刪除會 cascade 掉快照、訊號與警示規則且不可復原，所以只能從封存清單
+        發動，不能是追蹤清單上的一次誤點。
+        """
+        response = client.delete(f"/api/repos/{mock_repo.id}")
+        assert response.status_code == 400
+
+    def test_delete_removes_an_archived_repo(self, client, test_db, mock_repo):
+        from utils.time import utc_now
+
+        mock_repo.unstarred_at = utc_now()
+        test_db.commit()
+
+        assert client.delete(f"/api/repos/{mock_repo.id}").status_code == 204
+        assert client.get(f"/api/repos/{mock_repo.id}").status_code == 404
 
     def test_delete_nonexistent_repo(self, client):
         """Test deleting a repo that doesn't exist."""

@@ -456,6 +456,20 @@ async def batch_add_repos(
 # --- 帶路徑參數的路由放在最後，避免覆蓋固定路徑 ---
 
 
+@router.get("/repos/archived", response_model=ApiResponse[RepoListResponse])
+def list_archived(db: Session = Depends(get_db)) -> dict:
+    """已取消 star 但資料仍保留的 repo。
+
+    必須宣告在 /repos/{repo_id} 之前：FastAPI 依宣告順序比對，
+    排在後面的話 "archived" 會被當成 repo_id 解析而回 422。
+    """
+    rows = (include_archived(db.query(Repo))
+            .filter(Repo.unstarred_at.isnot(None))
+            .order_by(desc(Repo.unstarred_at)).all())
+    return success_response(RepoListResponse(
+        repos=[get_repo_with_signals(r, db) for r in rows], total=len(rows)))
+
+
 @router.get("/repos/{repo_id}", response_model=ApiResponse[RepoWithSignals])
 async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """
@@ -466,13 +480,43 @@ async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     return success_response(data=repo_with_signals)
 
 
-@router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
-    """
-    從追蹤清單移除 repo。
-    同時刪除所有關聯的快照與訊號。
+@router.post("/repos/{repo_id}/unstar", response_model=ApiResponse[dict])
+async def unstar_repo_endpoint(repo_id: int, db: Session = Depends(get_db)) -> dict:
+    """取消追蹤：在 GitHub 取消 star，本機封存。不刪任何資料。
+
+    先寫 GitHub 才改本機，理由同 add_repo：反向順序會在遠端失敗時讓本機與 GitHub
+    不一致，而且沒有任何跡象。
     """
     repo = get_repo_or_404(repo_id, db)
+    await get_github_service().unstar_repo(repo.owner, repo.name)
+    repo.unstarred_at = utc_now()
+    db.commit()
+    return success_response({"archived": repo_id})
+
+
+@router.post("/repos/{repo_id}/restar", response_model=ApiResponse[dict])
+async def restar_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
+    """從封存清單復原：重新 star 並清除封存標記。快照與訊號原本就還在。"""
+    repo = get_repo_or_404(repo_id, db, allow_archived=True)
+    await get_github_service().star_repo(repo.owner, repo.name)
+    repo.unstarred_at = None
+    db.commit()
+    return success_response({"restored": repo_id})
+
+
+@router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
+    """永久刪除。
+
+    連同快照、訊號、context signals、early signals 與**警示規則**一併 cascade
+    刪除，不可復原。只接受已封存的 repo——取消追蹤請用 /unstar，那個保留資料。
+    這道限制是為了讓不可逆的操作只能從封存清單發動，而不是追蹤清單上的一次誤點。
+    """
+    repo = get_repo_or_404(repo_id, db, allow_archived=True)
+    if repo.unstarred_at is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Repository is still tracked; unstar it before deleting")
     db.delete(repo)
     db.commit()
     return None
