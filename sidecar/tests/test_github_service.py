@@ -497,3 +497,22 @@ class TestStarWrites:
         service = self._service_with(httpx.MockTransport(handler))
         with pytest.raises(GitHubAPIError):
             await service.star_repo("a", "missing")
+
+
+class TestRedirects:
+    """GitHub 對改名或轉移過的 repo 回 301。
+
+    httpx 預設不跟隨導向，所以那種 repo 的抓取會直接失敗——而且是無聲的：
+    排程抓取記一筆錯誤就跳過，那個 repo 從此不再更新，畫面上看不出來。
+    實測 facebook/react 就是 301 → /repositories/10270250。
+    """
+
+    def test_the_real_client_follows_redirects(self):
+        """斷言 production 建立的 client 本身，而不是測試自己設好的那一個。
+
+        若在測試裡自建帶 follow_redirects=True 的 client，測到的是測試設定，
+        production 改壞了也不會紅。
+        """
+        service = GitHubService(token="gho_test")
+
+        assert service.client.follow_redirects is True

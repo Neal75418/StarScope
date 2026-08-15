@@ -208,7 +208,10 @@ class GitHubService:
     def client(self) -> httpx.AsyncClient:
         """取得共用的 httpx.AsyncClient（連線池復用）。"""
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(timeout=self.timeout)
+            # follow_redirects：GitHub 對改名或轉移過的 repo 回 301，httpx 預設不跟隨，
+            # 那個 repo 的抓取就會失敗——而且是無聲的，排程記一筆錯誤跳過，
+            # 它從此不再更新（實測 facebook/react → /repositories/10270250）
+            self._client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
         return self._client
 
     async def aclose(self) -> None:
