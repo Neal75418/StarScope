@@ -253,6 +253,11 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     # 從 GitHub 抓取 repo 資訊
     # GitHub 例外由 main.py 中的全域例外處理器處理。
     github = get_github_service()
+
+    # 先寫 GitHub 再建本機列。反向順序會在寫入失敗時留下本機有、遠端沒有的狀態，
+    # 而下一次同步會把它判成「使用者取消了 star」而封存——加進去的東西自己消失。
+    await github.star_repo(owner, name)
+
     github_data = await github.get_repo(owner, name)
 
     # 建立 repo 紀錄
@@ -404,6 +409,9 @@ async def batch_add_repos(
             continue
 
         try:
+            # 同 add_repo：先 star 才建列
+            await github.star_repo(owner, name)
+
             # 從 GitHub 抓取 repo 資訊
             github_data = await github.get_repo(owner, name)
 

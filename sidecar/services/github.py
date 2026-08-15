@@ -3,6 +3,7 @@ GitHub API 服務。
 負責從 GitHub 取得 repo 資料。
 """
 
+import asyncio
 import logging
 import os
 import threading
@@ -174,6 +175,12 @@ def handle_github_list_response(
     data: list[dict] = response.json()
     return data
 
+
+
+# star 寫入被次級限制擋下時的重試上限。retry 本身是安全的——PUT/DELETE 都是冪等的。
+STAR_WRITE_MAX_RETRIES = 2
+# Retry-After 若異常地大就不照單全收，寧可讓這一筆失敗、由下次同步補上
+STAR_WRITE_MAX_BACKOFF_SECONDS = 60.0
 
 
 def _parse_star_datetime(value: str | None) -> "datetime | None":
@@ -465,6 +472,42 @@ class GitHubService:
 
         logger.info(f"[GitHub API] 已取得 {len(stars)} 個 starred repos（含日期）")
         return stars
+
+
+    async def _write_star(self, method: str, owner: str, name: str) -> None:
+        """對 /user/starred 發出寫入請求，遇到次級速率限制時照 Retry-After 退避。
+
+        GitHub 對會改變資料的請求另有一套次級限制，門檻未公開且會變動。與其猜一個
+        固定間隔，不如直接讀它在 429/403 回應裡給的 Retry-After——那是當下真正的
+        答案，而任何預先量好的常數都只是某一刻的快照。
+        """
+        url = f"{GITHUB_API_BASE}/user/starred/{owner}/{name}"
+        for attempt in range(STAR_WRITE_MAX_RETRIES + 1):
+            response = await self.client.request(method, url, headers=self.headers)
+            if response.status_code not in (403, 429):
+                break
+            retry_after = response.headers.get("retry-after")
+            if retry_after is None or attempt == STAR_WRITE_MAX_RETRIES:
+                break
+            try:
+                delay = float(retry_after)
+            except ValueError:
+                break
+            logger.warning(
+                f"[GitHub API] star 寫入被限流，依 Retry-After 等待 {delay}s "
+                f"({owner}/{name})")
+            await asyncio.sleep(min(delay, STAR_WRITE_MAX_BACKOFF_SECONDS))
+
+        handle_github_response(
+            response, raise_on_error=True, context=f"{method} star {owner}/{name}")
+
+    async def star_repo(self, owner: str, name: str) -> None:
+        """在 GitHub 上 star 這個 repo。冪等——已 star 時同樣回 204。"""
+        await self._write_star("PUT", owner, name)
+
+    async def unstar_repo(self, owner: str, name: str) -> None:
+        """取消 star。冪等——未 star 時同樣回 204。"""
+        await self._write_star("DELETE", owner, name)
 
 
 # 供排程器使用的模組層級便利函式
