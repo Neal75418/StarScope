@@ -20,7 +20,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "html",
 
   use: {
-    baseURL: "http://localhost:1420",
+    baseURL: "http://localhost:1421",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -63,26 +63,26 @@ export default defineConfig({
   ],
 
   /* Run local dev server before starting tests */
+  // e2e 一律跑自己的 sidecar（port 8009 + /tmp 資料目錄）與自己的 vite（1421），
+  // 而且不重用既有 server。理由：reuseExistingServer 會接管開發者正在跑的 sidecar，
+  // 那是真實資料庫——測試進到探索頁就會用使用者的真實興趣清單觸發當日 feed 產生，
+  // 把當天的 feed 提前用掉（seen_repos 是永久的），配額吃緊時甚至會把縮水的 feed
+  // 鎖成當天結果。改成專屬 port 後，開著 app 也能安全跑 e2e。
+  // 殘留風險：GitHub 配額仍是同一顆 token 共用，隔離 DB 擋不住。
   webServer: process.env.CI
     ? undefined // Skip webServer in CI - servers are started manually or tests are skipped
     : [
         {
-          // 隔離資料目錄——只在 playwright 自己啟動 sidecar 時生效；
-          // 若開發者的 sidecar 已在跑（reuseExistingServer），重用的是真實資料庫，
-          // 所以會寫入資料的測試仍必須自我清理（見 watchlist-flow.spec）。
-          // DEBUG=false 關掉 uvicorn hot reload：測試中 lazy import 產生的 __pycache__
-          // 會觸發 WatchFiles 重啟 server，in-flight 請求全部 ECONNRESET。
-          // （load_dotenv 不覆蓋既有環境變數，此處設定優先於 sidecar/.env）
           command:
-            "cd sidecar && STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false .venv/bin/python main.py",
-          url: "http://127.0.0.1:8008/api/health",
-          reuseExistingServer: true,
+            "cd sidecar && PORT=8009 STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false .venv/bin/python main.py",
+          url: "http://127.0.0.1:8009/api/health",
+          reuseExistingServer: false,
           timeout: 60000,
         },
         {
-          command: "npm run dev",
-          url: "http://localhost:1420",
-          reuseExistingServer: true,
+          command: "VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort",
+          url: "http://localhost:1421",
+          reuseExistingServer: false,
           timeout: 30000,
         },
       ],

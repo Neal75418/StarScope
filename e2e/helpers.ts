@@ -14,7 +14,12 @@
 
 import type { APIRequestContext } from "@playwright/test";
 
-export const SIDECAR = "http://127.0.0.1:8008";
+/**
+ * e2e 專屬的 sidecar（見 playwright.config 的 webServer）。
+ * 刻意不是開發用的 8008：測試永遠跑在自己的 port + 自己的資料目錄上，
+ * 不會接管開發者正在跑的 sidecar、也就碰不到真實資料庫。
+ */
+export const SIDECAR = "http://127.0.0.1:8009";
 
 /**
  * 測試用 repo 一律取自 GitHub 官方 fixture 帳號 octocat——真實存在（新增流程

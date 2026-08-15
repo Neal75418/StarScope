@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from "@playwright/test";
-import { removeCategoryByName } from "./helpers";
+import { SIDECAR, removeCategoryByName } from "./helpers";
 
 test.describe("Category Management", () => {
   test.beforeEach(async ({ page }) => {
@@ -62,7 +62,7 @@ test.describe("Category Management", () => {
     // 自備前置資料：API 播種一個 sentinel 分類再驗節點——舊版在空 DB 直接 skip，
     // 隔離環境下等於永遠不跑。
     const uniqueName = `E2E-Count-${browserName}-${Date.now()}`;
-    const created = await request.post("http://127.0.0.1:8008/api/categories", {
+    const created = await request.post(`${SIDECAR}/api/categories`, {
       data: { name: uniqueName },
     });
     expect(created.ok()).toBe(true);

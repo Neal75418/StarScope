@@ -269,6 +269,10 @@ def get_allowed_origins() -> list[str]:
     ]
     if ENV != "production":
         origins.append("http://localhost:1420")  # Vite 開發伺服器
+        # e2e 的 vite 跑在 1421（配 port 8009 的專屬 sidecar），這樣測試就不必
+        # 接管開發者的 server 與真實資料庫。少了這條，測試前端所有 API 呼叫
+        # 都會被 CORS 擋掉——症狀是畫面空白、與「後端掛掉」難以區分。
+        origins.append("http://localhost:1421")  # Vite（e2e 專用）
     return origins
 
 
