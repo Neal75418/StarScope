@@ -118,3 +118,28 @@ def test_add_still_works_without_a_token(client, test_db, monkeypatch):
 
     assert resp.status_code == 201
     assert test_db.query(Repo).filter(Repo.full_name == "a/one").first() is not None
+
+
+def test_adding_an_archived_repo_restores_it(client, test_db, fake_github):
+    """取消追蹤過的 repo 必須能再次追蹤。
+
+    封存的列還在（那是刻意的，快照要保留），存在性檢查也看得到它——但那時回 400
+    等於告訴使用者「已經在清單裡」，而畫面上根本沒有它。使用者被永久擋住。
+    """
+    from datetime import datetime
+
+    from db.soft_delete import include_archived
+
+    repo = Repo(owner="a", name="one", full_name="a/one",
+                url="https://github.com/a/one", github_id=1,
+                unstarred_at=datetime(2026, 8, 16))
+    test_db.add(repo)
+    test_db.commit()
+
+    resp = client.post("/api/repos", json={"owner": "a", "name": "one"})
+
+    assert resp.status_code == 201
+    assert fake_github.starred == [("a", "one")], "復原必須也在 GitHub 上重新 star"
+    rows = include_archived(test_db.query(Repo)).all()
+    assert len(rows) == 1, "不得建立第二列"
+    assert rows[0].unstarred_at is None

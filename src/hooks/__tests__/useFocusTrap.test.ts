@@ -175,4 +175,21 @@ describe("useFocusTrap", () => {
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it("restores focus without scrolling the page", () => {
+    // 元素在對話框打開前就在視野內，.focus() 預設會把它捲進視野——關閉確認框時
+    // 把頁面捲走，使用者突然找不到自己剛操作的那一列。
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    const focusSpy = vi.spyOn(trigger, "focus");
+
+    const container = createContainer("button");
+    document.body.appendChild(container);
+    const { unmount } = renderTrap(container, true, false);
+    unmount();
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    trigger.remove();
+  });
 });

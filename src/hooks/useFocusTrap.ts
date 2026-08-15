@@ -56,8 +56,10 @@ export function useFocusTrap(
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      // 還原先前的焦點元素
-      previousFocusRef.current?.focus();
+      // 還原先前的焦點元素。preventScroll：那個元素在對話框打開前就在視野內，
+      // 而 .focus() 預設會把元素捲進視野——關閉確認框時把頁面捲走，使用者會
+      // 突然找不到自己剛操作的那一列。
+      previousFocusRef.current?.focus({ preventScroll: true });
     };
   }, [isActive, autoFocus]);
 

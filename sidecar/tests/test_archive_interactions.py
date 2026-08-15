@@ -74,21 +74,25 @@ def test_comparison_skips_archived_instead_of_404ing_everything(client, test_db,
     assert data["skipped_archived"] == [gone.id]
 
 
-def test_adding_an_archived_repo_short_circuits_before_touching_github(
-        client, test_db, archived_and_live, monkeypatch):
+def test_adding_an_archived_repo_restores_the_same_row(client, test_db,
+                                                       archived_and_live, monkeypatch):
     """存在性檢查必須看得到封存的列。
 
-    看不到的話會一路往下：先打 GitHub，再 INSERT 撞 full_name 唯一鍵回 500。
-    這裡讓 GitHub service 一被取用就爆炸，以證明檢查在那之前就短路了。
+    看不到的話會一路往下 INSERT，撞上 full_name 唯一鍵回 500。看得到之後的行為是
+    「復原」而不是報錯——封存的列代表使用者取消過又反悔，回 400 說「已經在清單裡」
+    會讓他被永久擋住，因為畫面上根本沒有那一列。
     """
-    def _explode():
-        raise AssertionError("存在性檢查沒攔住，已經往下打 GitHub 了")
+    from db.soft_delete import include_archived
+    from tests.test_star_push import FakeGitHub
 
-    monkeypatch.setattr("routers.repos.get_github_service", _explode)
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: FakeGitHub())
 
     resp = client.post("/api/repos", json={"owner": "a", "name": "gone"})
 
-    assert resp.status_code == 400
+    assert resp.status_code == 201
+    rows = include_archived(test_db.query(Repo)).filter(Repo.full_name == "a/gone").all()
+    assert len(rows) == 1, "不得建立第二列"
+    assert rows[0].unstarred_at is None
 
 
 def test_feed_does_not_recommend_an_archived_repo(test_db, archived_and_live):

@@ -242,6 +242,19 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     # 打 GitHub 再 INSERT 撞鍵回 500
     existing = include_archived(
         db.query(Repo)).filter(Repo.full_name == full_name).first()
+    if existing is not None and existing.unstarred_at is not None:
+        # 封存的列＝使用者取消過又反悔。重新 star 並復原，而不是回 400——那會說
+        # 「已經在清單裡」，但畫面上根本沒有它，使用者被永久擋住。
+        github = get_github_service()
+        if github.can_write:
+            await github.star_repo(owner, name)
+        existing.unstarred_at = None
+        db.commit()
+        db.refresh(existing)
+        return success_response(
+            data=get_repo_with_signals(existing, db),
+            message=f"Repository {full_name} restored to watchlist",
+        )
     if existing:
         raise HTTPException(
             status_code=400,
