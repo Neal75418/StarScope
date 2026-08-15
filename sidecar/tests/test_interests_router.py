@@ -141,7 +141,9 @@ def test_trending_already_added_follows_the_live_interest_list(client):
 
     def added_flag() -> bool:
         topics = client.get("/api/interests/trending").json()["data"]["topics"]
-        return next(t["already_added"] for t in topics if t["topic"] == "claude")
+        # 不用 bool() 包：那會把非 bool 的真值也吞掉，下面的 `is True` 就白斷言了
+        flag: bool = next(t["already_added"] for t in topics if t["topic"] == "claude")
+        return flag
 
     assert added_flag() is False
 
