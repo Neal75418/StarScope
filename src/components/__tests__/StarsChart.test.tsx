@@ -189,20 +189,20 @@ describe("StarsChart", () => {
   it("aborts the in-flight request on unmount", async () => {
     // 舊版斷言驗的是 React 18 已移除的 console 警告（恆空集合、永不可能失敗）。
     // 真正要守的行為：queryFn 的 AbortSignal 有接進 API 呼叫，unmount 即取消。
-    let capturedSignal: AbortSignal | undefined;
+    const captured: { signal?: AbortSignal } = {};
     vi.mocked(apiClient.getStarsChart).mockImplementation((_id, _range, signal) => {
-      capturedSignal = signal ?? undefined;
+      captured.signal = signal ?? undefined;
       return new Promise(() => {}); // 永不 resolve，模擬 in-flight
     });
 
     const { unmount } = renderWithClient(<StarsChart repoId={1} />);
 
-    await waitFor(() => expect(capturedSignal).toBeDefined());
-    expect(capturedSignal!.aborted).toBe(false);
+    await waitFor(() => expect(captured.signal).toBeDefined());
+    expect(captured.signal?.aborted).toBe(false);
 
     unmount();
 
-    await waitFor(() => expect(capturedSignal!.aborted).toBe(true));
+    await waitFor(() => expect(captured.signal?.aborted).toBe(true));
   });
 
   it("refetches data when repo ID changes", async () => {
