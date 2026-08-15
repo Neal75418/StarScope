@@ -174,6 +174,7 @@ export const queryKeys = {
   feed: {
     all: ["feed"] as const,
     today: () => [...queryKeys.feed.all, "today"] as const,
+    stats: () => [...queryKeys.feed.all, "stats"] as const,
   },
 
   // 興趣（For You Feed）

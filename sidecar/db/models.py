@@ -489,6 +489,10 @@ class FeedItem(Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
     reason_json: Mapped[str] = mapped_column(String(2048), nullable=False)
     feedback: Mapped[str | None] = mapped_column(String(20), nullable=True)  # FeedFeedback
+    # 第一次點開連結的時間。刻意獨立於 feedback 而不是多加一個列舉值：
+    # 「點開」與「加入/略過」不互斥（先看一眼再決定是常態），共用一欄會讓後者
+    # 覆蓋掉前者。存時間而非布林同樣成本，卻能分辨「當天就點」與「三天後才回頭點」。
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     candidate: Mapped["FeedCandidate"] = relationship(

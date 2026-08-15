@@ -68,6 +68,7 @@ import type {
   TrendingResponse,
   TrendingProgress,
   FeedResponse,
+  FeedStats,
   GenerateFeedResult,
   FeedItem,
   FeedFeedbackAction,
@@ -1018,4 +1019,19 @@ export async function sendFeedFeedback(
     method: "POST",
     body: JSON.stringify({ action }),
   });
+}
+
+/**
+ * 記錄使用者點開了這則 feed 的連結。
+ *
+ * 不重試：這是統計訊號，漏掉一筆的代價遠低於讓失敗的請求排隊拖住後續操作。
+ * 呼叫端也不該 await 它——見 markFeedItemOpened 的使用處。
+ */
+export async function markFeedItemOpened(itemId: number): Promise<void> {
+  return apiCall<void>(`/feed/items/${itemId}/opened`, { method: "POST" }, { retries: 0 });
+}
+
+/** 取得近 N 天的 feed 成效。 */
+export async function getFeedStats(days = 30, signal?: AbortSignal): Promise<FeedStats> {
+  return apiCall<FeedStats>(`/feed/stats?days=${days}`, { signal });
 }

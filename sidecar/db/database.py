@@ -5,7 +5,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -100,6 +100,42 @@ def get_db_session():
         db.close()
 
 
+# 既有資料表要補的欄位：{資料表: [(欄位名, SQLite 型別宣告)]}
+#
+# create_all() 只建新表，對已存在的表完全不動——所以在模型上加欄位，對開發者的
+# 空資料庫是無感的，對使用者既有的資料庫卻會在第一次查詢時炸「no such column」。
+#
+# 這裡刻意不走 alembic：這個專案至今沒有版本表，接上去得先 stamp 一個版本，
+# stamp 錯會讓之後所有 migration 對不上。相較之下，補一個可為空的欄位在 SQLite
+# 是 O(1) 且不重寫資料的操作。等到需要改型別或搬資料時再正式引入 alembic。
+_ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
+    "feed_items": [("opened_at", "DATETIME")],
+}
+
+
+def ensure_columns(target_engine: Engine | None = None) -> None:
+    """補上既有資料表缺少的欄位。可重複執行。
+
+    target_engine 只為了讓測試能對「舊 schema + 有資料」的資料庫執行真正的這段
+    邏輯——正式呼叫不帶參數，用模組層級的 engine。
+    """
+    from sqlalchemy import text
+
+    engine_ = target_engine if target_engine is not None else engine
+    with engine_.begin() as conn:
+        for table, columns in _ADDITIVE_COLUMNS.items():
+            existing = {
+                row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))
+            }
+            if not existing:
+                continue  # 表還不存在，create_all 會用最新的模型直接建好
+            for name, decl in columns:
+                if name in existing:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {decl}"))
+                logger.info(f"[資料庫] 已補上欄位 {table}.{name}")
+
+
 def init_db():
     """
     建立所有資料表以初始化資料庫。
@@ -107,6 +143,7 @@ def init_db():
     """
     from .models import Base
     Base.metadata.create_all(bind=engine)
+    ensure_columns()
     logger.info(f"[資料庫] 初始化完成: {DATABASE_PATH}")
 
     # 啟用查詢效能監控（慢查詢日誌）

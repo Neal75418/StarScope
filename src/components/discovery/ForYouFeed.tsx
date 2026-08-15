@@ -18,7 +18,8 @@ interface ForYouFeedProps {
 
 export function ForYouFeed({ onAddToWatchlist, watchlistFullNames }: ForYouFeedProps) {
   const { t } = useI18n();
-  const { items, feedDate, isLoading, isGenerating, isError, feedback } = useFeed();
+  const { items, feedDate, isLoading, isGenerating, isError, feedback, stats } = useFeed();
+  const statsCopy = t.discovery.forYou.stats;
 
   if (isLoading) {
     return (
@@ -54,6 +55,15 @@ export function ForYouFeed({ onAddToWatchlist, watchlistFullNames }: ForYouFeedP
             {t.discovery.forYou.subtitle}
             {feedDate && <span data-testid="feed-date"> · {feedDate}</span>}
           </p>
+          {/* 成效摘要。三個數字一起看才有意義：出現多但點開少＝推的東西不想點，
+              點開多但加入少＝點了卻不值得收藏。缺 stats 時整行不顯示，
+              不用 0 佔位——「還沒有資料」與「真的是 0」是兩件事。 */}
+          {stats && (
+            <p className={styles.recSubtitle} data-testid="feed-stats">
+              {statsCopy.label} · {statsCopy.shown} {stats.shown} · {statsCopy.opened}{" "}
+              {stats.opened} · {statsCopy.starred} {stats.starred}
+            </p>
+          )}
         </div>
       </div>
       {visible.length === 0 ? (

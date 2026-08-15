@@ -1,7 +1,7 @@
 """For You feed API 端點。"""
 import json
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, field_validator
@@ -13,7 +13,7 @@ from middleware.rate_limit import limiter
 from schemas.response import ApiResponse, success_response
 from services.feed_generator import generate_feed
 from services.github import get_github_service
-from utils.time import local_today
+from utils.time import local_today, utc_now
 
 router = APIRouter(prefix="/api/feed", tags=["feed"])
 logger = logging.getLogger(__name__)
@@ -49,6 +49,15 @@ class FeedItemOut(BaseModel):
 class FeedResponse(BaseModel):
     feed_date: str
     items: list[FeedItemOut]
+
+
+class FeedStats(BaseModel):
+    """近 N 天的 feed 成效。shown 是分母，其餘三個是分子。"""
+    days: int
+    shown: int
+    opened: int
+    starred: int
+    dismissed: int
 
 
 class GenerateResult(BaseModel):
@@ -146,3 +155,42 @@ def submit_feedback(item_id: int, payload: FeedbackPayload,
     db.commit()
     db.refresh(item)
     return success_response(_to_out(item))
+
+
+@router.post("/items/{item_id}/opened", response_model=ApiResponse[dict])
+def mark_opened(item_id: int, db: Session = Depends(get_db)) -> dict:
+    """記錄使用者點開了這個 repo 的連結。
+
+    為什麼需要它：feedback 只記「加入」與「略過」，而這兩個動作都很稀疏
+    （實測基準約每月 2 次）——光靠它們要幾個月才看得出 feed 準不準。「點開來看
+    一眼」頻繁得多，是能在幾週內判讀的訊號，而且它跟 feedback 不互斥。
+
+    只寫第一次：重複點不覆蓋，保留的是「這則 feed 多久之後首次引起興趣」。
+    """
+    item = db.get(FeedItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Feed item not found")
+    if item.opened_at is None:
+        item.opened_at = utc_now()
+        db.commit()
+    return success_response({"item_id": item_id})
+
+
+@router.get("/stats", response_model=ApiResponse[FeedStats])
+def get_feed_stats(days: int = Query(30, ge=1, le=365),
+                   db: Session = Depends(get_db)) -> dict:
+    """近 N 天的 feed 成效。
+
+    四個數字要一起看才有意義：shown 高但 opened 低代表推的東西你根本不想點，
+    opened 高但 starred 低代表你點了卻不值得收藏——兩者要修的地方完全不同，
+    只看 starred 分不出來。
+    """
+    since = local_today() - timedelta(days=days - 1)
+    rows = db.query(FeedItem).filter(FeedItem.feed_date >= since).all()
+    return success_response(FeedStats(
+        days=days,
+        shown=len(rows),
+        opened=sum(1 for r in rows if r.opened_at is not None),
+        starred=sum(1 for r in rows if r.feedback == FeedFeedback.STARRED),
+        dismissed=sum(1 for r in rows if r.feedback == FeedFeedback.DISMISSED),
+    ))

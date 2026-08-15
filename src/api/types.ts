@@ -691,3 +691,12 @@ export interface GenerateFeedResult {
   feed_date: string;
   generated: number;
 }
+
+/** 近 N 天的 feed 成效。shown 是分母，其餘三個是分子。 */
+export interface FeedStats {
+  days: number;
+  shown: number;
+  opened: number;
+  starred: number;
+  dismissed: number;
+}

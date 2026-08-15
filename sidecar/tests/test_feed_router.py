@@ -120,3 +120,81 @@ def test_feedback_invalid_action_422(client, test_db):
 def test_feedback_missing_item_404(client):
     assert client.post("/api/feed/items/999/feedback",
                        json={"action": "dismissed"}).status_code == 404
+
+
+# --- 點開記錄與成效統計 ---
+
+
+def test_opened_records_first_click_and_does_not_overwrite(client, test_db):
+    """重複點只留第一次的時間。
+
+    保留的資訊是「這則 feed 多久之後首次引起興趣」；若每次點都覆蓋，
+    那個間隔就變成「最後一次點」，完全是另一件事。
+    """
+    item = _seed_item(test_db)
+    assert client.post(f"/api/feed/items/{item.id}/opened").status_code == 200
+
+    test_db.expire_all()
+    first = test_db.get(FeedItem, item.id).opened_at
+    assert first is not None
+
+    assert client.post(f"/api/feed/items/{item.id}/opened").status_code == 200
+    test_db.expire_all()
+    assert test_db.get(FeedItem, item.id).opened_at == first
+
+
+def test_opened_and_feedback_coexist(client, test_db):
+    """點開與加入必須能並存。
+
+    這是「點開」不共用 feedback 欄位的全部理由：先點開看一眼、再決定要不要加，
+    是最常見的路徑。共用一欄的話，加入會把點開記錄蓋掉，等於自己弄丟資料。
+    """
+    item = _seed_item(test_db)
+    client.post(f"/api/feed/items/{item.id}/opened")
+    client.post(f"/api/feed/items/{item.id}/feedback", json={"action": "starred"})
+
+    test_db.expire_all()
+    row = test_db.get(FeedItem, item.id)
+    assert row.opened_at is not None, "加入追蹤不該抹掉點開記錄"
+    assert row.feedback == "starred"
+
+
+def test_opened_missing_item_404(client):
+    assert client.post("/api/feed/items/999/opened").status_code == 404
+
+
+def test_stats_counts_every_action_type(client, test_db):
+    from utils.time import local_today
+
+    today = local_today()
+    opened = _seed_item(test_db, gid=11, full_name="a/opened")
+    opened.feed_date = today
+    starred = _seed_item(test_db, gid=12, full_name="a/starred", feedback="starred")
+    starred.feed_date = today
+    dismissed = _seed_item(test_db, gid=13, full_name="a/dismissed", feedback="dismissed")
+    dismissed.feed_date = today
+    test_db.commit()
+    client.post(f"/api/feed/items/{opened.id}/opened")
+
+    data = client.get("/api/feed/stats", params={"days": 30}).json()["data"]
+    assert data == {"days": 30, "shown": 3, "opened": 1, "starred": 1, "dismissed": 1}
+
+
+def test_stats_window_includes_the_oldest_day_and_excludes_the_one_before(client, test_db):
+    """視窗邊界：days=7 要涵蓋今天在內的 7 個日曆日，第 8 天要被排除。
+
+    差一天的錯誤在這種統計上不會報錯，只會讓數字悄悄偏掉。
+    """
+    from datetime import timedelta
+
+    from utils.time import local_today
+
+    today = local_today()
+    inside = _seed_item(test_db, gid=21, full_name="a/inside")
+    inside.feed_date = today - timedelta(days=6)
+    outside = _seed_item(test_db, gid=22, full_name="a/outside")
+    outside.feed_date = today - timedelta(days=7)
+    test_db.commit()
+
+    data = client.get("/api/feed/stats", params={"days": 7}).json()["data"]
+    assert data["shown"] == 1

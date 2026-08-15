@@ -12,6 +12,7 @@ import { useI18n } from "../../i18n";
 import type { FeedItem } from "../../api/types";
 import { StarIcon, ForkIcon, LinkExternalIcon } from "../Icons";
 import { safeOpenUrl } from "../../utils/url";
+import { markFeedItemOpened } from "../../api/client";
 import { formatNumber, formatRelativeTime } from "../../utils/format";
 import { getLanguageColor } from "../../constants/languageColors";
 import styles from "./Discovery.module.css";
@@ -46,6 +47,10 @@ export function FeedItemCard({ item, isInWatchlist, onStar, onDismiss }: FeedIte
           className={styles.repoName}
           onClick={(e) => {
             e.preventDefault();
+            // 先送統計訊號再開連結，但兩者互不等待：這是量測，不是功能。
+            // 若 await 它，sidecar 沒回應時使用者的連結就跟著卡住；若讓它冒泡成
+            // 錯誤，統計失敗會被誤讀成「連結壞了」。所以吞掉錯誤是刻意的。
+            void markFeedItemOpened(item.id).catch(() => undefined);
             void safeOpenUrl(item.url);
           }}
         >

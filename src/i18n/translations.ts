@@ -210,6 +210,12 @@ export const translations = {
         loadError: "Couldn't load today's feed.",
         lastPush: "updated",
         allDismissed: "All caught up for today.",
+        stats: {
+          label: "Last 30 days",
+          shown: "shown",
+          opened: "opened",
+          starred: "tracked",
+        },
       },
     },
     // 追蹤清單頁面
@@ -1125,6 +1131,12 @@ export const translations = {
         loadError: "無法載入今日推薦。",
         lastPush: "最近更新",
         allDismissed: "今天的推薦都看完了。",
+        stats: {
+          label: "近 30 天",
+          shown: "出現",
+          opened: "點開",
+          starred: "加入",
+        },
       },
     },
     // 追蹤清單頁面

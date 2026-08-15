@@ -9,6 +9,7 @@ import { ForYouFeed } from "../ForYouFeed";
 import * as client from "../../../api/client";
 
 vi.mock("../../../api/client");
+vi.mock("../../../utils/url", () => ({ safeOpenUrl: vi.fn() }));
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -44,6 +45,14 @@ beforeEach(() => {
     feed_date: "2026-08-01",
     items: [ITEM],
   });
+  vi.mocked(client.getFeedStats).mockResolvedValue({
+    days: 30,
+    shown: 81,
+    opened: 12,
+    starred: 1,
+    dismissed: 3,
+  });
+  vi.mocked(client.markFeedItemOpened).mockResolvedValue(undefined);
 });
 
 describe("ForYouFeed", () => {
@@ -188,5 +197,41 @@ describe("ForYouFeed", () => {
     renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} watchlistFullNames={new Set()} />);
     expect(await screen.findByTestId("feed-all-dismissed")).toBeInTheDocument();
     expect(screen.queryByText("a/one")).not.toBeInTheDocument();
+  });
+
+  it("summary line reports the 30-day counts", async () => {
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} watchlistFullNames={new Set()} />);
+    const line = await screen.findByTestId("feed-stats");
+    expect(line).toHaveTextContent("81");
+    expect(line).toHaveTextContent("12");
+  });
+
+  it("hides the summary rather than showing zeros before stats load", async () => {
+    // 0 與「還沒載到」是兩件事：用 0 佔位會讓人以為 feed 一條都沒推過
+    vi.mocked(client.getFeedStats).mockRejectedValue(new Error("offline"));
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} watchlistFullNames={new Set()} />);
+    await screen.findByText("a/one");
+    expect(screen.queryByTestId("feed-stats")).not.toBeInTheDocument();
+  });
+});
+
+describe("ForYouFeed 點開記錄", () => {
+  it("records the click and still opens the link", async () => {
+    const { safeOpenUrl } = await import("../../../utils/url");
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} watchlistFullNames={new Set()} />);
+    fireEvent.click(await screen.findByText("a/one"));
+
+    await waitFor(() => expect(client.markFeedItemOpened).toHaveBeenCalledWith(1));
+    expect(safeOpenUrl).toHaveBeenCalledWith("https://github.com/a/one");
+  });
+
+  it("still opens the link when recording fails", async () => {
+    // 統計失敗不該被讀成「連結壞了」——這是刻意吞掉錯誤的那條路徑
+    const { safeOpenUrl } = await import("../../../utils/url");
+    vi.mocked(client.markFeedItemOpened).mockRejectedValue(new Error("sidecar down"));
+    renderWithClient(<ForYouFeed onAddToWatchlist={vi.fn()} watchlistFullNames={new Set()} />);
+    fireEvent.click(await screen.findByText("a/one"));
+
+    await waitFor(() => expect(safeOpenUrl).toHaveBeenCalledWith("https://github.com/a/one"));
   });
 });
