@@ -1,6 +1,6 @@
 import type { ReactNode, RefObject } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Discovery } from "../Discovery";
 
@@ -8,9 +8,11 @@ const mockAddRepo = vi.fn().mockResolvedValue({});
 const mockSuccess = vi.fn();
 const mockError = vi.fn();
 const mockHandleRefreshAll = vi.fn();
+const mockInvalidateRepos = vi.fn();
+const mockUnstarRepo = vi.fn();
 
 let mockDiscoveryReturn: Record<string, unknown>;
-let mockWatchlistRepos: { full_name: string }[];
+let mockWatchlistRepos: { id: number; full_name: string }[];
 
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../hooks/useDiscovery", () => ({
@@ -32,6 +34,7 @@ vi.mock("../../contexts/WatchlistContext", () => ({
   }),
   useWatchlistActions: () => ({
     refreshAll: mockHandleRefreshAll,
+    invalidateRepos: mockInvalidateRepos,
     success: mockSuccess,
     error: mockError,
     addRepo: mockAddRepo,
@@ -57,6 +60,7 @@ vi.mock("../../contexts/WatchlistContext", () => ({
 
 vi.mock("../../api/client", () => ({
   addRepo: (...args: unknown[]) => mockAddRepo(...args),
+  unstarRepo: (...args: unknown[]) => mockUnstarRepo(...args),
 }));
 
 vi.mock("../../components/Toast", () => ({
@@ -187,7 +191,23 @@ vi.mock("../../components/discovery", () => ({
   ),
   RecommendedForYou: () => null,
   BatchAddBar: () => null,
-  ForYouFeed: () => <div data-testid="for-you-feed" />,
+  // 讓 mock 能觸發真正的 handler：Discovery 的 feed 處理邏輯（要不要重抓全部）
+  // 只有在這裡才測得到
+  ForYouFeed: ({
+    onAddToWatchlist,
+    onUnstar,
+  }: {
+    onAddToWatchlist: (item: { owner: string; name: string; full_name: string }) => void;
+    onUnstar: (item: { full_name: string }) => void;
+  }) => (
+    <div data-testid="for-you-feed">
+      <button
+        data-testid="stub-feed-add"
+        onClick={() => onAddToWatchlist({ owner: "a", name: "one", full_name: "a/one" })}
+      />
+      <button data-testid="stub-feed-unstar" onClick={() => onUnstar({ full_name: "a/one" })} />
+    </div>
+  ),
 }));
 
 describe("Discovery", () => {
@@ -388,7 +408,7 @@ describe("Discovery", () => {
   });
 
   it("shows in-watchlist state for repos already in watchlist", () => {
-    mockWatchlistRepos = [{ full_name: "facebook/react" }];
+    mockWatchlistRepos = [{ id: 1, full_name: "facebook/react" }];
     mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.hasSearched = true;
     mockDiscoveryReturn.repos = [
@@ -471,6 +491,34 @@ describe("Discovery", () => {
 
       fireEvent.keyDown(document, { key: "/", altKey: true });
       expect(document.activeElement).not.toBe(searchInput);
+    });
+  });
+
+  describe("feed 動作不該重抓整份追蹤清單", () => {
+    it("unstarring invalidates the list instead of refetching every repo", async () => {
+      // refreshAll 會對每一個追蹤中的 repo 各打一次 GitHub。追蹤 95 個時，
+      // 取消一個要等 95 次請求跑完畫面才變——實際遇到過，使用者以為沒反應。
+      mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
+      mockUnstarRepo.mockResolvedValue(undefined);
+      render(<Discovery />);
+
+      fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+
+      await waitFor(() => expect(mockUnstarRepo).toHaveBeenCalledWith(7));
+      expect(mockInvalidateRepos).toHaveBeenCalled();
+      expect(mockHandleRefreshAll).not.toHaveBeenCalled();
+    });
+
+    it("adding invalidates the list instead of refetching every repo", async () => {
+      mockWatchlistRepos = [];
+      mockAddRepo.mockResolvedValue({ id: 8 });
+      render(<Discovery />);
+
+      fireEvent.click(screen.getByTestId("stub-feed-add"));
+
+      await waitFor(() => expect(mockAddRepo).toHaveBeenCalled());
+      expect(mockInvalidateRepos).toHaveBeenCalled();
+      expect(mockHandleRefreshAll).not.toHaveBeenCalled();
     });
   });
 });

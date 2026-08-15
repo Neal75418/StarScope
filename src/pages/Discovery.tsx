@@ -33,7 +33,7 @@ export function Discovery() {
   const selection = useSelectionMode();
   const { viewMode, setViewMode } = useViewMode();
   const { repos: watchlist } = useWatchlistState();
-  const { refreshAll: handleRefreshAll } = useWatchlistActions();
+  const { invalidateRepos } = useWatchlistActions();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
@@ -133,7 +133,8 @@ export function Discovery() {
       try {
         await addRepo({ owner, name });
         setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(fullName)));
-        void handleRefreshAll();
+        // 同 handleFeedAdd：只重讀本機清單，不重抓每一個 repo
+        invalidateRepos();
         toast.success(t.toast.repoAdded);
       } catch {
         toast.error(t.toast.error);
@@ -145,7 +146,7 @@ export function Discovery() {
         });
       }
     },
-    [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
+    [toast, t.toast.repoAdded, t.toast.error, invalidateRepos]
   );
 
   // 搜尋結果加入 watchlist
@@ -173,7 +174,10 @@ export function Discovery() {
       try {
         await addRepo({ owner: item.owner, name: item.name });
         setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(item.full_name)));
-        void handleRefreshAll();
+        // 只讓清單重讀本機，不要 refreshAll——那支會對每個追蹤中的 repo 各打一次
+        // GitHub，追蹤上百個時畫面要等它全部跑完才更新。新增的初始快照 POST /repos
+        // 已經建好了，沒有東西需要重抓。
+        invalidateRepos();
         toast.success(t.toast.repoAdded);
         return true;
       } catch {
@@ -181,7 +185,7 @@ export function Discovery() {
         return false;
       }
     },
-    [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
+    [toast, t.toast.repoAdded, t.toast.error, invalidateRepos]
   );
 
   const handleFeedUnstar = useCallback(
@@ -200,7 +204,8 @@ export function Discovery() {
           next.delete(key);
           return next;
         });
-        void handleRefreshAll();
+        // 同上：本機那一列已經改好，重抓整份清單只是讓使用者多等
+        invalidateRepos();
         toast.success(t.toast.repoRemoved);
         return true;
       } catch {
@@ -208,7 +213,7 @@ export function Discovery() {
         return false;
       }
     },
-    [watchlistIdByName, toast, t.toast.repoRemoved, t.toast.error, handleRefreshAll]
+    [watchlistIdByName, toast, t.toast.repoRemoved, t.toast.error, invalidateRepos]
   );
 
   // 是否「仍在」瀏覽使用者主動點選的 trending：以 period 目前是否還有值作為衍生條件，
