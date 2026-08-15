@@ -19,6 +19,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.models import Base
 from db.database import get_db
+from db.soft_delete import install_archive_filter
+
+# 正式環境在 init_db() 註冊，但測試不走 init_db——不在這裡裝的話，測試看到的是
+# 沒有封存過濾的行為，等於整組滲漏測試都在測一個不存在的預設
+install_archive_filter()
 
 
 # Create in-memory SQLite database for tests

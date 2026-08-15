@@ -59,3 +59,27 @@ def test_absent_table_is_skipped(tmp_path):
     engine = sa.create_engine(f"sqlite:///{tmp_path / 'fresh.db'}")
     ensure_columns(engine)  # 不該拋 no such table
     assert _columns(engine, "feed_items") == set()
+
+
+def test_repos_gains_both_columns_without_touching_rows(tmp_path):
+    """模擬使用者既有的 repos 表：有資料、沒有新欄位。"""
+    engine = sa.create_engine(f"sqlite:///{tmp_path / 'old_repos.db'}")
+    with engine.begin() as conn:
+        conn.execute(sa.text(
+            "CREATE TABLE repos (id INTEGER PRIMARY KEY, owner VARCHAR(255), "
+            "name VARCHAR(255), full_name VARCHAR(512), url VARCHAR(1024), "
+            "added_at DATETIME)"
+        ))
+        conn.execute(sa.text(
+            "INSERT INTO repos (id, owner, name, full_name, url) "
+            "VALUES (1, 'a', 'one', 'a/one', 'https://github.com/a/one')"
+        ))
+
+    ensure_columns(engine)
+
+    assert {"unstarred_at", "starred_at"} <= _columns(engine, "repos")
+    with engine.connect() as conn:
+        row = conn.execute(sa.text(
+            "SELECT full_name, unstarred_at, starred_at FROM repos WHERE id = 1")).one()
+    assert row[0] == "a/one", "既有資料必須原封不動"
+    assert row[1] is None and row[2] is None, "補上的欄位對既有列應為 NULL"

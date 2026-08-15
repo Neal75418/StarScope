@@ -110,6 +110,7 @@ def get_db_session():
 # 是 O(1) 且不重寫資料的操作。等到需要改型別或搬資料時再正式引入 alembic。
 _ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "feed_items": [("opened_at", "DATETIME")],
+    "repos": [("unstarred_at", "DATETIME"), ("starred_at", "DATETIME")],
 }
 
 
@@ -144,6 +145,9 @@ def init_db():
     from .models import Base
     Base.metadata.create_all(bind=engine)
     ensure_columns()
+    # 必須在任何查詢發生之前註冊，否則封存的 repo 會從尚未套用過濾的查詢滲出來
+    from .soft_delete import install_archive_filter
+    install_archive_filter()
     logger.info(f"[資料庫] 初始化完成: {DATABASE_PATH}")
 
     # 啟用查詢效能監控（慢查詢日誌）

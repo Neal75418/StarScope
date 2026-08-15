@@ -46,6 +46,12 @@ class Repo(Base):
     # 時間戳記
     created_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # GitHub 建立日期
     added_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)  # 加入追蹤清單的時間
+    # 封存標記。NULL 表示仍在追蹤清單中。取消 star 時寫入而非刪除列——快照與訊號
+    # 要保留，重新 star 時才能整組回來。
+    unstarred_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # GitHub 上 star 的時間。added_at 在批次同步後全部是同一天，表達不了收藏時長，
+    # 而「star 很久＝有價值」是判斷去留的依據。
+    starred_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # 關聯
