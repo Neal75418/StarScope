@@ -61,3 +61,30 @@ def test_local_row_without_github_id_is_never_archived():
     orphan.github_id = None
     d = diff_starred(local=[orphan], remote=[_remote(2, "a/other")])
     assert d.archived == []
+
+
+def test_matched_repo_gets_its_star_date_filled_in():
+    """同步前就存在的 repo 也要拿到 starred_at。
+
+    它以 github_id 比對得到，既不是新增也不是復原——若只在那兩個分支寫日期，
+    這種 repo 永遠沒有 starred_at，而那是判斷「收藏多久」的唯一依據。
+    實際發生過：首次同步後，唯一一筆同步前就存在的 repo 是全 DB 唯一沒有日期的。
+    """
+    local = _local(1, "a/one")
+    local.starred_at = None
+
+    d = diff_starred(local=[local], remote=[_remote(1, "a/one")])
+
+    assert d.added == [] and d.restored == []
+    assert [(r.full_name, s.starred_at) for r, s in d.restamped] == \
+        [("a/one", datetime(2026, 8, 10))]
+
+
+def test_an_unchanged_star_date_is_not_restamped():
+    """已經對的日期不用再寫一次——避免每次同步都產生無謂的 UPDATE。"""
+    local = _local(1, "a/one")
+    local.starred_at = datetime(2026, 8, 10)
+
+    d = diff_starred(local=[local], remote=[_remote(1, "a/one")])
+
+    assert d.restamped == []

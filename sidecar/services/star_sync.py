@@ -54,6 +54,9 @@ class SyncDiff:
     added: list[RemoteStar] = field(default_factory=list)
     restored: list[tuple[Repo, RemoteStar]] = field(default_factory=list)
     renamed: list[tuple[Repo, RemoteStar]] = field(default_factory=list)
+    # star 日期需要補寫的：既不是新增也不是復原，只是本機的日期缺了或跟遠端不同。
+    # 沒有這一項的話，同步前就存在的 repo 永遠拿不到 starred_at。
+    restamped: list[tuple[Repo, RemoteStar]] = field(default_factory=list)
     archived: list[Repo] = field(default_factory=list)
 
 
@@ -75,6 +78,9 @@ def diff_starred(local: list[Repo], remote: list[RemoteStar]) -> SyncDiff:
             continue
         if existing.unstarred_at is not None:
             diff.restored.append((existing, star))
+        elif existing.starred_at != star.starred_at:
+            # 復原本來就會寫日期，所以只有「單純比對到」的才需要補
+            diff.restamped.append((existing, star))
         if existing.full_name != star.full_name:
             diff.renamed.append((existing, star))
 
@@ -162,6 +168,8 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
             db.add(_repo_from_star(star))
         for repo, star in diff.restored:
             repo.unstarred_at = None
+            repo.starred_at = star.starred_at
+        for repo, star in diff.restamped:
             repo.starred_at = star.starred_at
         # 首次同步的差異是歷史遺留，之後的差異才代表使用者取消了 star。
         # 用同一套邏輯處理會把歷史遺留當成使用者的決定。
