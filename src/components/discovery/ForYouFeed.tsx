@@ -1,7 +1,9 @@
 /**
  * For You feed 清單：Discovery 頁預設畫面。
  */
-import { useI18n } from "../../i18n";
+import { useState } from "react";
+import { useI18n, interpolate } from "../../i18n";
+import { ConfirmDialog } from "../ConfirmDialog";
 import { normalizeRepoName } from "../../utils/format";
 import { useFeed } from "../../hooks/useFeed";
 import type { FeedItem } from "../../api/types";
@@ -11,12 +13,15 @@ import styles from "./Discovery.module.css";
 
 interface ForYouFeedProps {
   onAddToWatchlist: (item: FeedItem) => Promise<boolean>;
+  /** 取消追蹤（會取消 GitHub 上的 star）。確認框由本元件負責。 */
+  onUnstar: (item: FeedItem) => Promise<boolean> | boolean;
   /** 已在追蹤清單的 repo 全名（正規化後）。用來把已追蹤的卡片鎖起來，
    *  否則使用者會對同一張卡按第二次 → 後端回 400「已在追蹤清單」→ 泛用錯誤 toast。 */
   watchlistFullNames: Set<string>;
 }
 
-export function ForYouFeed({ onAddToWatchlist, watchlistFullNames }: ForYouFeedProps) {
+export function ForYouFeed({ onAddToWatchlist, onUnstar, watchlistFullNames }: ForYouFeedProps) {
+  const [pendingUnstar, setPendingUnstar] = useState<FeedItem | null>(null);
   const { t } = useI18n();
   const { items, feedDate, isLoading, isGenerating, isError, feedback, stats } = useFeed();
   const statsCopy = t.discovery.forYou.stats;
@@ -84,11 +89,29 @@ export function ForYouFeed({ onAddToWatchlist, watchlistFullNames }: ForYouFeedP
                   feedback(it.id, "starred");
                 }
               }}
+              onUnstar={(it) => setPendingUnstar(it)}
               onDismiss={(it) => feedback(it.id, "dismissed")}
             />
           ))}
         </div>
       )}
+
+      {/* 確認框與追蹤清單那邊用同一組文案：兩處做的是同一件事，講法不該不一樣 */}
+      <ConfirmDialog
+        isOpen={pendingUnstar !== null}
+        title={t.dialog.removeRepo.title}
+        message={interpolate(t.dialog.removeRepo.message, {
+          name: pendingUnstar?.full_name ?? "",
+        })}
+        confirmText={t.dialog.removeRepo.confirm}
+        variant="danger"
+        onConfirm={() => {
+          const item = pendingUnstar;
+          setPendingUnstar(null);
+          if (item) void Promise.resolve(onUnstar(item));
+        }}
+        onCancel={() => setPendingUnstar(null)}
+      />
     </div>
   );
 }

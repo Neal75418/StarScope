@@ -21,6 +21,8 @@ interface FeedItemCardProps {
   item: FeedItem;
   isInWatchlist: boolean;
   onStar: (item: FeedItem) => void | Promise<void>;
+  /** 已追蹤時按下按鈕：由呼叫端負責確認，因為這一下會改動 GitHub 帳號 */
+  onUnstar: (item: FeedItem) => void;
   onDismiss: (item: FeedItem) => void;
 }
 
@@ -32,7 +34,13 @@ function displayMatchedTerm(matched: string): string {
   return matched.startsWith("topic:") ? matched.slice("topic:".length) : matched;
 }
 
-export function FeedItemCard({ item, isInWatchlist, onStar, onDismiss }: FeedItemCardProps) {
+export function FeedItemCard({
+  item,
+  isInWatchlist,
+  onStar,
+  onUnstar,
+  onDismiss,
+}: FeedItemCardProps) {
   const { t } = useI18n();
   // 兩段鎖：starring 擋同一次請求的連點，isInWatchlist 擋「已經加成功之後再按」。
   // 少了任何一段，第二次 addRepo 都會回 400「已在追蹤清單」變成泛用錯誤 toast。
@@ -68,8 +76,14 @@ export function FeedItemCard({ item, isInWatchlist, onStar, onDismiss }: FeedIte
           <button
             className={`${styles.addButton} ${isInWatchlist ? styles.inWatchlist : ""}`}
             data-testid={`feed-star-${item.id}`}
-            disabled={starring || isInWatchlist}
+            disabled={starring}
             onClick={async () => {
+              // 已追蹤時這顆是「取消」——鏡像模型下它實質上是 GitHub 的 star 開關。
+              // 取消不在這裡直接執行：呼叫端會先確認，因為會改動公開帳號。
+              if (isInWatchlist) {
+                onUnstar(item);
+                return;
+              }
               setStarring(true);
               try {
                 await onStar(item);

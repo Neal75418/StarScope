@@ -11,7 +11,7 @@ import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistCon
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { normalizeRepoName } from "../utils/format";
-import { addRepo, DiscoveryRepo } from "../api/client";
+import { addRepo, unstarRepo, DiscoveryRepo } from "../api/client";
 import type { PersonalizedRecommendation, FeedItem as FeedItemType } from "../api/types";
 import {
   DiscoverySearchBar,
@@ -66,6 +66,13 @@ export function Discovery() {
   const watchlistFullNames = useMemo(
     () => new Set([...watchlist.map((r) => normalizeRepoName(r.full_name)), ...locallyAdded]),
     [watchlist, locallyAdded]
+  );
+
+  // full_name -> 本機 repo id。取消追蹤要打本機 id，而 feed item 只有 full_name。
+  // 剛加入但 watchlist 尚未重取時查不到 id，那時取消會被略過——下一次重取就有了。
+  const watchlistIdByName = useMemo(
+    () => new Map(watchlist.map((r) => [normalizeRepoName(r.full_name), r.id])),
+    [watchlist]
   );
 
   // 建立 watchlist 信號 map：full_name -> { velocity, trend }
@@ -175,6 +182,33 @@ export function Discovery() {
       }
     },
     [toast, t.toast.repoAdded, t.toast.error, handleRefreshAll]
+  );
+
+  const handleFeedUnstar = useCallback(
+    async (item: FeedItemType): Promise<boolean> => {
+      const key = normalizeRepoName(item.full_name);
+      const repoId = watchlistIdByName.get(key);
+      if (repoId === undefined) {
+        // 只可能發生在「剛加入、watchlist 還沒重取」的短暫空窗
+        toast.error(t.toast.error);
+        return false;
+      }
+      try {
+        await unstarRepo(repoId);
+        setLocallyAdded((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+        void handleRefreshAll();
+        toast.success(t.toast.repoRemoved);
+        return true;
+      } catch {
+        toast.error(t.toast.error);
+        return false;
+      }
+    },
+    [watchlistIdByName, toast, t.toast.repoRemoved, t.toast.error, handleRefreshAll]
   );
 
   // 是否「仍在」瀏覽使用者主動點選的 trending：以 period 目前是否還有值作為衍生條件，
@@ -291,7 +325,11 @@ export function Discovery() {
           onViewModeChange={setViewMode}
         />
       ) : (
-        <ForYouFeed onAddToWatchlist={handleFeedAdd} watchlistFullNames={watchlistFullNames} />
+        <ForYouFeed
+          onAddToWatchlist={handleFeedAdd}
+          onUnstar={handleFeedUnstar}
+          watchlistFullNames={watchlistFullNames}
+        />
       )}
 
       {selection.isActive && (
