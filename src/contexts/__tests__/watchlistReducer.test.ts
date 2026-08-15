@@ -106,6 +106,27 @@ describe("watchlistReducer", () => {
       });
       expect(next.error).toBe("Delete failed");
     });
+
+    it("REMOVE_REPO_FAILURE closes the dialog so the error is visible", () => {
+      // 錯誤是渲染在頁面上的 ErrorBanner，而 .dialog-overlay 是 position:fixed inset:0
+      // ——對話框不關的話，訊息會被整片蓋住，畫面看起來像什麼都沒發生。
+      // 取消追蹤現在會打 GitHub，失敗是真的會發生的事。
+      const open = {
+        ...initialState,
+        ui: {
+          ...initialState.ui,
+          removeConfirm: { isOpen: true, repoId: 7, repoName: "a/one" },
+        },
+      };
+
+      const next = watchlistReducer(open, {
+        type: "REMOVE_REPO_FAILURE",
+        payload: { error: "GitHub API error" },
+      });
+
+      expect(next.ui.removeConfirm.isOpen).toBe(false);
+      expect(next.error).toBe("GitHub API error");
+    });
   });
 
   describe("fetch repo", () => {

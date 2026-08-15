@@ -241,6 +241,13 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
         ...state,
         loadingState: { type: "idle" },
         error: action.payload.error,
+        // 對話框必須關閉：錯誤是頁面上的 ErrorBanner，而 .dialog-overlay 是
+        // position:fixed inset:0，不關的話訊息被整片蓋住，看起來像什麼都沒發生。
+        // 取消追蹤現在會打 GitHub，失敗是真的會發生的事。
+        ui: {
+          ...state.ui,
+          removeConfirm: { isOpen: false, repoId: null, repoName: "" },
+        },
       };
 
     // 刷新單一 Repo
