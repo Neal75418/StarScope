@@ -60,7 +60,11 @@ export function Watchlist() {
   // 視窗化批次載入：基於 displayedRepos（已排序 / 過濾）的 ID 順序，
   // 確保 RepoList/RepoGrid 回報的可見範圍 index 對齊正確的 repos
   const repoIds = useMemo(() => displayedRepos.map((r) => r.id), [displayedRepos]);
-  const { dataMap: batchData, setVisibleRange } = useWindowedBatchRepoData(repoIds, {
+  const {
+    dataMap: batchData,
+    setVisibleRange,
+    batchOwnsData,
+  } = useWindowedBatchRepoData(repoIds, {
     bufferSize: 10,
   });
 
@@ -220,6 +224,7 @@ export function Watchlist() {
                 onRemove={handleRemove}
                 selectedCategoryId={state.filters.selectedCategoryId}
                 batchData={batchData}
+                batchOwnsData={batchOwnsData}
                 onRemoveFromCategory={handleRemoveFromCategory}
                 onVisibleRangeChange={setVisibleRange}
                 isSelectionMode={selection.isActive}
@@ -234,6 +239,7 @@ export function Watchlist() {
                 onRemove={handleRemove}
                 selectedCategoryId={state.filters.selectedCategoryId}
                 batchData={batchData}
+                batchOwnsData={batchOwnsData}
                 onRemoveFromCategory={handleRemoveFromCategory}
                 onVisibleRangeChange={setVisibleRange}
                 isSelectionMode={selection.isActive}

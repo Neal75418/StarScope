@@ -41,6 +41,8 @@ interface UseWindowedBatchRepoDataResult {
   loading: boolean;
   error: Error | null;
   setVisibleRange: (range: VisibleRange) => void;
+  /** 批次是否仍是卡片的資料來源（失敗時交還給卡片自行抓取）。 */
+  batchOwnsData: boolean;
 }
 
 /**
@@ -204,5 +206,9 @@ export function useWindowedBatchRepoData(
     loading,
     error,
     setVisibleRange: handleSetVisibleRange,
+    // 批次是否仍是這些卡片的資料來源。卡片據此決定「要不要自己去抓」——
+    // 批次成功時永遠不需要（後端對沒有資料的 repo 也會回空陣列，
+    // 所以到貨後 preloaded 必為 defined）；只有批次失敗才放行個別請求當退路。
+    batchOwnsData: error === null,
   };
 }

@@ -43,6 +43,8 @@ interface RepoCardProps {
   isLoading?: boolean;
   handlers: RepoCardHandlers;
   preloadedData?: RepoCardPreloadedData;
+  /** 由清單設定：批次載入負責供資料時，卡片不自行發請求。 */
+  deferToBatch?: boolean;
   chartState?: RepoCardChartState;
   categoryContext?: RepoCardCategoryContext;
   compact?: boolean;
@@ -54,12 +56,17 @@ export const RepoCard = memo(function RepoCard({
   isLoading,
   handlers,
   preloadedData,
+  deferToBatch = false,
   chartState,
   categoryContext,
   compact,
   selectionState,
 }: RepoCardProps) {
-  const { badges, badgesLoading, activeSignalCount } = useRepoCardData(repo.id, preloadedData);
+  const { badges, badgesLoading, activeSignalCount } = useRepoCardData(
+    repo.id,
+    preloadedData,
+    deferToBatch
+  );
   // 圖表狀態：外部控制優先（虛擬滾動場景），否則使用內部狀態
   const [internalShowChart, setInternalShowChart] = useState(false);
   const showChart = chartState?.expanded ?? internalShowChart;

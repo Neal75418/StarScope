@@ -13,6 +13,8 @@ export interface RepoViewProps {
   selectedCategoryId?: number | null;
   onRemoveFromCategory?: (categoryId: number, repoId: number) => void;
   batchData: ReturnType<typeof useWindowedBatchRepoData>["dataMap"];
+  /** 批次載入是否仍負責供資料；true 時卡片不自行發個別請求（見 useRepoCardData）。 */
+  batchOwnsData: boolean;
   onVisibleRangeChange: (range: { start: number; stop: number }) => void;
   isSelectionMode?: boolean;
   selectedIds?: Set<number>;

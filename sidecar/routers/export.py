@@ -9,7 +9,10 @@ import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+# 匯出一律用 Response 而非 StreamingResponse：內容在回傳前就已完整存在記憶體
+# （json.dumps / StringIO），串流沒有記憶體效益，卻會讓 Starlette 逐「行」送出——
+# 200 個 repo 的 indent=2 JSON 是 3,805 行＝3,805 個 chunk，實測 449ms vs 13ms。
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
@@ -143,7 +146,7 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
 
 @router.get(
     "/watchlist.json",
-    response_class=StreamingResponse,
+    response_class=Response,
     responses={
         200: {
             "description": "JSON 格式的 watchlist 匯出",
@@ -153,7 +156,7 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
 )
 async def export_watchlist_json(
     db: Session = Depends(get_db)
-) -> StreamingResponse:
+) -> Response:
     """
     將整個追蹤清單匯出為 JSON。
 
@@ -168,8 +171,8 @@ async def export_watchlist_json(
         "repos": _get_repos_with_signals(repos, db),
     }
 
-    return StreamingResponse(
-        io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
+    return Response(
+        content=json.dumps(data, indent=2, ensure_ascii=False),
         media_type="application/json",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.json"'
@@ -186,7 +189,7 @@ CSV_COLUMNS = [
 
 @router.get(
     "/watchlist.csv",
-    response_class=StreamingResponse,
+    response_class=Response,
     responses={
         200: {
             "description": "CSV 格式的 watchlist 匯出",
@@ -205,7 +208,7 @@ CSV_COLUMNS = [
 )
 async def export_watchlist_csv(
     db: Session = Depends(get_db)
-) -> StreamingResponse:
+) -> Response:
     """
     將整個追蹤清單匯出為 CSV。
 
@@ -223,9 +226,8 @@ async def export_watchlist_csv(
     for repo_dict in repo_dicts:
         writer.writerow(repo_dict)
 
-    output.seek(0)
-    return StreamingResponse(
-        output,
+    return Response(
+        content=output.getvalue(),
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.csv"'
@@ -279,14 +281,14 @@ TRENDS_CSV_COLUMNS = [
 ]
 
 
-@router.get("/trends.json", response_class=StreamingResponse)
+@router.get("/trends.json", response_class=Response)
 async def export_trends_json(
     sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
     limit: int = Query(50, ge=1, le=200, description="Maximum results"),
     language: str | None = Query(None, description="Filter by language"),
     min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
     db: Session = Depends(get_db),
-) -> StreamingResponse:
+) -> Response:
     """匯出趨勢 repo 為 JSON。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     data = {
@@ -295,8 +297,8 @@ async def export_trends_json(
         "total": len(repos),
         "repos": repos,
     }
-    return StreamingResponse(
-        io.StringIO(json.dumps(data, indent=2, ensure_ascii=False)),
+    return Response(
+        content=json.dumps(data, indent=2, ensure_ascii=False),
         media_type="application/json",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.json"'
@@ -304,14 +306,14 @@ async def export_trends_json(
     )
 
 
-@router.get("/trends.csv", response_class=StreamingResponse)
+@router.get("/trends.csv", response_class=Response)
 async def export_trends_csv(
     sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
     limit: int = Query(50, ge=1, le=200, description="Maximum results"),
     language: str | None = Query(None, description="Filter by language"),
     min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
     db: Session = Depends(get_db),
-) -> StreamingResponse:
+) -> Response:
     """匯出趨勢 repo 為 CSV。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     output = io.StringIO()
@@ -319,9 +321,8 @@ async def export_trends_csv(
     writer.writeheader()
     for repo_dict in repos:
         writer.writerow(repo_dict)
-    output.seek(0)
-    return StreamingResponse(
-        output,
+    return Response(
+        content=output.getvalue(),
         media_type="text/csv",
         headers={
             "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.csv"'

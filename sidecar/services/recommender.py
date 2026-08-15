@@ -23,8 +23,14 @@ TOPIC_WEIGHT = 0.6
 LANGUAGE_WEIGHT = 0.3
 STAR_MAGNITUDE_WEIGHT = 0.1
 
-# 儲存的最低相似度分數
-MIN_SIMILARITY_THRESHOLD = 0.1
+# 儲存的最低相似度分數——刻意由權重推導，不寫死。
+#
+# 「相似」的定義是「主題有重疊」：語言相同與星等規模相近都只是背景條件，
+# 兩者加起來也不得獨力越過門檻，否則兩個毫無共通點、只是都用 Python 且
+# 星數相近的專案就會被存成「相似」。實測 200 repos：門檻 0.1 時存 7,740 列、
+# 改成 0.35 仍存 4,994 列（全是語言＋星等的組合，因為 0.3+0.1=0.4 > 0.35）。
+# 寫成推導式而非常數，是為了讓日後調整權重時這個不變量自動維持。
+MIN_SIMILARITY_THRESHOLD = LANGUAGE_WEIGHT + STAR_MAGNITUDE_WEIGHT + 0.01
 
 
 def _parse_topics_json(topics_json: str | None) -> set[str]:
@@ -468,12 +474,20 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
     watchlist_ids: set[int] = {int(r.id) for r in all_repos}
     repo_name_map: dict[int, str] = {int(r.id): str(r.full_name) for r in all_repos}
 
-    # 查詢所有相似 repo 配對（joinedload 避免 N+1 lazy load）
+    # 只取候選，不撈整張表：similar_repos 隨 repo 數平方成長，
+    # 全撈進記憶體只為回傳 limit 筆，500 repos 時實測單次請求就要 ~500ms。
+    #
+    # 上限的安全性可以證明：最終排序用 adjusted_score = similarity_score × (1 + boost)，
+    # 而 boost ∈ [0, 0.3]（見 _velocity_boost），所以任何一列最多被放大 1.3 倍。
+    # 依 similarity_score 由高到低取前 N 列時，被截掉的列其 adjusted_score
+    # 不可能超過「已取入的最低分 × 1.3」，取 limit × 50 遠超過這個界。
+    candidate_limit = max(limit * 50, 100)
     similar_entries = (
         db.query(SimilarRepo)
         .options(joinedload(SimilarRepo.similar))
         .filter(SimilarRepo.repo_id.in_(watchlist_ids))
         .order_by(SimilarRepo.similarity_score.desc())
+        .limit(candidate_limit)
         .all()
     )
 

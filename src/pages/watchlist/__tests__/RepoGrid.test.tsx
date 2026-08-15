@@ -43,6 +43,7 @@ describe("RepoGrid", () => {
     onFetch: vi.fn(),
     onRemove: vi.fn(),
     batchData: {},
+    batchOwnsData: true,
     onVisibleRangeChange: vi.fn(),
   };
 

@@ -1,20 +1,88 @@
 /**
  * 追蹤清單的虛擬滾動列表檢視（react-window）。
+ *
+ * ⚠️ `rowComponent` 必須是「模組層級的穩定引用」，資料一律走 `rowProps`。
+ * react-window v2 內部是 `useMemo(() => memo(rowComponent), [rowComponent])`
+ * （見 node_modules/react-window/dist/react-window.js）——rowComponent 換引用
+ * 就產生新的元件型別，React 會把整組可見 row **卸載重掛**而不是重繪：
+ * 每張卡的 React Query observer 全部重新註冊、DOM 子樹重建，展開中的圖表
+ * 時間範圍也會被重置。用 useCallback 包起來一樣會換引用（它有十幾個依賴，
+ * 批次資料每到貨一次、勾選任一 checkbox 都會變）。
  */
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { List, RowComponentProps } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../../components/RepoCard";
 import { STARS_CHART_HEIGHT } from "../../components/StarsChart";
 import type { RepoViewProps } from "./types";
+import type { RepoWithSignals } from "../../api/client";
+import type { BatchRepoData } from "../../hooks/useWindowedBatchRepoData";
 
 // 虛擬滾動常數
 const REPO_CARD_GAP = 16;
 const COLLAPSED_ITEM_SIZE = 220 + REPO_CARD_GAP; // 收合狀態：卡片 ≤2行描述 ~218px + 安全邊距 + 間距
 const CHART_EXTRA_HEIGHT = STARS_CHART_HEIGHT + 120; // chart + controls + padding + backfill
 const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
-// 穩定的空物件引用，避免觸發不必要的重新渲染
-const EMPTY_ROW_PROPS = {};
+
+/** 傳給 row 的所有資料。react-window 對 rowProps 做逐值淺比較，所以每個值要引用穩定。 */
+interface RepoRowProps {
+  repos: RepoWithSignals[];
+  batchData: Record<number, BatchRepoData>;
+  batchOwnsData: boolean;
+  loadingRepoId: number | null;
+  expandedCharts: Set<number>;
+  onChartToggle: (repoId: number) => void;
+  handlers: { onFetch: (id: number) => void; onRemove: (id: number) => void };
+  categoryContext?: { selectedId: number; onRemoveFromCategory?: (c: number, r: number) => void };
+  selectionState?: {
+    isSelectionMode: true;
+    selectedIds: Set<number>;
+    onToggleSelection: (repoId: number) => void;
+  };
+}
+
+function RepoRow({
+  index,
+  style,
+  repos,
+  batchData,
+  batchOwnsData,
+  loadingRepoId,
+  expandedCharts,
+  onChartToggle,
+  handlers,
+  categoryContext,
+  selectionState,
+}: RowComponentProps<RepoRowProps>) {
+  const repo = repos[index];
+  if (!repo) return null;
+
+  return (
+    <div style={style} className="virtual-repo-item">
+      <RepoCard
+        repo={repo}
+        isLoading={loadingRepoId === repo.id}
+        handlers={handlers}
+        preloadedData={batchData[repo.id]}
+        deferToBatch={batchOwnsData}
+        chartState={{
+          expanded: expandedCharts.has(repo.id),
+          onToggle: onChartToggle,
+        }}
+        categoryContext={categoryContext}
+        selectionState={
+          selectionState
+            ? {
+                isSelectionMode: true,
+                isSelected: selectionState.selectedIds.has(repo.id),
+                onToggleSelection: selectionState.onToggleSelection,
+              }
+            : undefined
+        }
+      />
+    </div>
+  );
+}
 
 export function RepoList({
   repos,
@@ -24,6 +92,7 @@ export function RepoList({
   selectedCategoryId,
   onRemoveFromCategory,
   batchData,
+  batchOwnsData,
   onVisibleRangeChange,
   isSelectionMode,
   selectedIds,
@@ -64,60 +133,50 @@ export function RepoList({
     [onVisibleRangeChange]
   );
 
-  // Row 渲染組件，由 List 調用
-  const RowComponent = useCallback(
-    ({ index, style }: RowComponentProps) => {
-      const repo = repos[index];
-      const preloaded = batchData[repo.id];
+  // 以下三個物件都要 memo：它們進 rowProps 後被逐值淺比較，
+  // 每次 render 新建物件會讓 RepoCard 的 memo 全部 miss（CLAUDE.md 明列的 pitfall）
+  const handlers = useMemo(() => ({ onFetch, onRemove }), [onFetch, onRemove]);
 
-      return (
-        <div style={style} className="virtual-repo-item">
-          <RepoCard
-            repo={repo}
-            isLoading={loadingRepoId === repo.id}
-            handlers={{
-              onFetch,
-              onRemove,
-            }}
-            preloadedData={preloaded}
-            chartState={{
-              expanded: expandedCharts.has(repo.id),
-              onToggle: handleChartToggle,
-            }}
-            categoryContext={
-              selectedCategoryId
-                ? {
-                    selectedId: selectedCategoryId,
-                    onRemoveFromCategory,
-                  }
-                : undefined
-            }
-            selectionState={
-              isSelectionMode && onToggleSelection
-                ? {
-                    isSelectionMode: true,
-                    isSelected: selectedIds?.has(repo.id) ?? false,
-                    onToggleSelection,
-                  }
-                : undefined
-            }
-          />
-        </div>
-      );
-    },
+  const categoryContext = useMemo(
+    () =>
+      selectedCategoryId ? { selectedId: selectedCategoryId, onRemoveFromCategory } : undefined,
+    [selectedCategoryId, onRemoveFromCategory]
+  );
+
+  const selectionState = useMemo(
+    () =>
+      isSelectionMode && onToggleSelection
+        ? {
+            isSelectionMode: true as const,
+            selectedIds: selectedIds ?? new Set<number>(),
+            onToggleSelection,
+          }
+        : undefined,
+    [isSelectionMode, selectedIds, onToggleSelection]
+  );
+
+  const rowProps = useMemo(
+    (): RepoRowProps => ({
+      repos,
+      batchData,
+      batchOwnsData,
+      loadingRepoId,
+      expandedCharts,
+      onChartToggle: handleChartToggle,
+      handlers,
+      categoryContext,
+      selectionState,
+    }),
     [
       repos,
       batchData,
+      batchOwnsData,
       loadingRepoId,
-      onFetch,
-      onRemove,
-      selectedCategoryId,
-      onRemoveFromCategory,
       expandedCharts,
       handleChartToggle,
-      isSelectionMode,
-      selectedIds,
-      onToggleSelection,
+      handlers,
+      categoryContext,
+      selectionState,
     ]
   );
 
@@ -128,10 +187,10 @@ export function RepoList({
           height && width ? (
             <List
               style={{ height, width }}
-              rowComponent={RowComponent}
+              rowComponent={RepoRow}
               rowCount={repos.length}
               rowHeight={getRowHeight}
-              rowProps={EMPTY_ROW_PROPS}
+              rowProps={rowProps}
               overscanCount={5}
               onRowsRendered={handleRowsRendered}
             />

@@ -14,6 +14,7 @@ export function RepoGrid({
   selectedCategoryId,
   onRemoveFromCategory,
   batchData,
+  batchOwnsData,
   onVisibleRangeChange,
   isSelectionMode,
   selectedIds,
@@ -45,6 +46,7 @@ export function RepoGrid({
             isLoading={loadingRepoId === repo.id}
             handlers={handlers}
             preloadedData={preloaded}
+            deferToBatch={batchOwnsData}
             compact
             categoryContext={categoryContext}
             selectionState={
