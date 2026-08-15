@@ -135,6 +135,29 @@ class TestFetchAllReposJob:
         assert health["last_fetch_failure"] is not None
 
     @pytest.mark.asyncio
+    async def test_fetches_repos_concurrently_not_serially(self, test_db, mock_multiple_repos):
+        """抓取必須併發：序列化時整輪耗時 = repo 數 × 單次往返，會把 event loop 佔住。
+
+        用「每次抓取固定睡 100ms」來量：3 個 repo 序列至少 300ms，併發應接近 100ms。
+        門檻設在 250ms —— 足以區分兩種行為，又不會因機器慢就誤紅。
+        """
+        import asyncio
+        import time
+
+        async def slow_fetch(owner, name):
+            await asyncio.sleep(0.1)
+            return {"stargazers_count": 1, "forks_count": 1, "open_issues_count": 0}
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new=AsyncMock(side_effect=slow_fetch)), \
+             patch('services.scheduler.update_repo_from_github'):
+            started = time.perf_counter()
+            await fetch_all_repos_job()
+            elapsed = time.perf_counter() - started
+
+        assert elapsed < 0.25, f"看起來仍是序列抓取（{elapsed*1000:.0f}ms，序列預期 ≥300ms）"
+
+    @pytest.mark.asyncio
     async def test_skip_recent_minutes_skips_freshly_fetched(self, test_db, mock_multiple_repos):
         """近期已抓取的 repo 必須被跳過（skip_recent_minutes 子查詢）。"""
         from datetime import timedelta

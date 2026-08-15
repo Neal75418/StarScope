@@ -93,6 +93,10 @@ def get_scheduler_health() -> dict[str, float | str | None]:
 
 FAILURE_ALERT_THRESHOLD = 5  # 連續失敗 N 次後記錄 WARNING
 
+# 同時對 GitHub 發出的抓取請求數。保守值：主要配額（5000/hr）與併發無關，
+# 但 GitHub 對「短時間大量並行請求」有 secondary rate limit，官方建議不要過度並行。
+FETCH_CONCURRENCY = 5
+
 
 def get_scheduler() -> AsyncIOScheduler:
     """取得全域排程器實例（使用 SQLAlchemy jobstore 持久化）。"""
@@ -193,6 +197,31 @@ async def _fetch_and_update_single_repo(
     try:
         github_data = await fetch_repo_data(repo.owner, repo.name)
 
+        return _apply_fetched_repo_data(repo, github_data, db, log, job_id)
+
+    except (GitHubAPIError, SQLAlchemyError) as e:
+        db.rollback()
+        _track_repo_failure(repo_id, repo.full_name, str(e))
+        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+        return False
+    except Exception as e:
+        # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
+        db.rollback()
+        _track_repo_failure(repo_id, repo.full_name, str(e))
+        log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
+        return False
+
+
+def _apply_fetched_repo_data(
+    repo: Repo,
+    github_data: dict | None,
+    db: Session,
+    log: logging.LoggerAdapter,
+    job_id: str,
+) -> bool:
+    """把抓回來的資料寫入 DB。**必須序列呼叫**——Session 不是 coroutine-safe。"""
+    repo_id = int(repo.id)
+    try:
         if github_data:
             # 原子性地更新中繼資料 + 快照 + 訊號
             update_repo_from_github(repo, github_data, db)
@@ -278,8 +307,33 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
             # 先載入完整清單再迭代，避免 yield_per streaming cursor 在
             # 單一 repo rollback 後失效導致後續 repo 全被跳過
             repos_to_fetch = need_fetch_query.all()
-            for repo in repos_to_fetch:
-                if await _fetch_and_update_single_repo(repo, db, log, job_id):
+
+            # 網路併發、DB 寫入序列。
+            # 序列抓取時整輪的時間 = repo 數 × 單次往返（100 個 repo 約 25 秒），
+            # 而這段時間 event loop 一直被這個 job 佔著。GitHub 的 5000/hr 配額
+            # 不受併發影響（請求總數不變），真正要避開的是 secondary rate limit，
+            # 所以用小的 Semaphore 而不是無限併發。
+            # 寫入不能一起併發：Session 既非 thread-safe 也非 coroutine-safe。
+            sem = asyncio.Semaphore(FETCH_CONCURRENCY)
+
+            async def _fetch_one(r: Repo) -> tuple[Repo, dict | None, Exception | None]:
+                async with sem:
+                    try:
+                        return r, await fetch_repo_data(r.owner, r.name), None
+                    except Exception as e:  # 單一 repo 失敗不影響其他人
+                        return r, None, e
+
+            fetched = await asyncio.gather(*(_fetch_one(r) for r in repos_to_fetch))
+
+            for repo, github_data, fetch_error in fetched:
+                if fetch_error is not None:
+                    _track_repo_failure(int(repo.id), repo.full_name, str(fetch_error))
+                    log.error(
+                        f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {fetch_error}",
+                        exc_info=fetch_error,
+                    )
+                    error_count += 1
+                elif _apply_fetched_repo_data(repo, github_data, db, log, job_id):
                     success_count += 1
                 else:
                     error_count += 1
