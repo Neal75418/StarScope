@@ -204,9 +204,12 @@
   --shadow-lg: 0 8px 24px rgba(140, 149, 159, 0.2);
   --shadow-xl: 0 12px 28px rgba(140, 149, 159, 0.3);
 
-  /* Glassmorphism (dark header preserved) */
-  --glass-bg: rgba(36, 41, 47, 0.9);
-  --glass-border: rgba(87, 96, 106, 0.6);
+  /* Glassmorphism：頁首跟隨主題。
+     曾刻意保留深色頁首（致敬舊版 GitHub），但在白底頁面上量到 14.65:1 的
+     硬邊界——深色模式同一處只有 1.09:1。單一使用者把它讀成「主題只套用一半」，
+     致敬沒有傳達到，就不值得付這個代價。分隔改由邊框負責，不靠色塊落差。 */
+  --glass-bg: rgba(246, 248, 250, 0.85);
+  --glass-border: rgba(208, 215, 222, 0.8);
   --glass-blur: 12px;
 
   /* Card hover effects */
@@ -214,15 +217,15 @@
   --card-hover-shadow: 0 8px 30px rgba(140, 149, 159, 0.25);
   --card-glow: rgba(9, 105, 218, 0.08);
 
-  /* Header specific - GitHub style dark header even in light mode */
-  --header-logo: #ffffff;
+  /* Header specific — 跟隨主題（深色文字配淺色頁首） */
+  --header-logo: var(--fg-default);
 
-  /* Navigation items (dark header in light mode) */
-  --nav-item-color: rgba(255, 255, 255, 0.7);
-  --nav-item-hover-bg: rgba(255, 255, 255, 0.1);
-  --nav-item-hover-color: rgba(255, 255, 255, 0.95);
-  --nav-item-active-bg: rgba(255, 255, 255, 0.15);
-  --nav-item-active-color: var(--fg-on-emphasis);
+  /* Navigation items — 淺色頁首上的深色文字 */
+  --nav-item-color: var(--fg-muted);
+  --nav-item-hover-bg: rgba(31, 35, 40, 0.06);
+  --nav-item-hover-color: var(--fg-default);
+  --nav-item-active-bg: rgba(31, 35, 40, 0.08);
+  --nav-item-active-color: var(--fg-default);
 
   /* Overlay */
   --overlay-bg: rgba(31, 35, 40, 0.5);
