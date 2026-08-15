@@ -93,6 +93,32 @@ class TestHandleGitHubResponse:
 
         assert exc_info.value.status_code == 403
 
+    def test_handles_429_as_rate_limit(self):
+        """429（primary/secondary 皆可能）必須拋 GitHubRateLimitError。
+
+        漏掉這個分支時 429 會落到 raise_for_status() 變成 HTTPStatusError，
+        呼叫端所有「配額耗盡就停手」的守衛都會失效（feed fan-out 會繼續打完）。
+        """
+        resp = _make_response(429, headers={"X-RateLimit-Reset": "1700000000"})
+        with pytest.raises(GitHubRateLimitError) as exc_info:
+            handle_github_response(resp, raise_on_error=True)
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.reset_at == 1700000000
+
+    def test_429_retry_after_converted_to_reset_at(self):
+        """次要限制常只給 Retry-After 秒數：換算成絕對時間才算得出回給前端的值。"""
+        import time as _time
+
+        resp = _make_response(429, headers={"Retry-After": "60"})
+        with pytest.raises(GitHubRateLimitError) as exc_info:
+            handle_github_response(resp, raise_on_error=True)
+        assert exc_info.value.reset_at is not None
+        assert 55 <= exc_info.value.reset_at - int(_time.time()) <= 65
+
+    def test_handles_429_without_raise(self):
+        resp = _make_response(429, headers={})
+        assert handle_github_response(resp, raise_on_error=False) is None
+
     def test_handles_403_without_raise(self):
         """Test returns None on 403 when raise_on_error=False."""
         resp = _make_response(403, headers={"X-RateLimit-Remaining": "0"})

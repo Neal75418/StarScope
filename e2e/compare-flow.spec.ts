@@ -14,7 +14,7 @@ import { FIXTURES, addRepoViaApi, isRepoTracked, removeRepoByFullName } from "./
 const [REPO_A, REPO_B] = FIXTURES.compare;
 
 test.describe("Compare Flow", () => {
-  // 本 spec 由 playwright.config 的 compare-db-mutating project 獨佔執行
+  // 本 spec 由 playwright.config 的 db-mutating project 獨佔執行
   // （chromium、串行、排在其他 project 之後）——describe 級的 browserName skip
   // 擋不住 beforeAll/afterAll，播種與清理仍會與平行 project 互撞，故用 project 隔離。
   let api: APIRequestContext;
@@ -35,8 +35,11 @@ test.describe("Compare Flow", () => {
   });
 
   test.afterAll(async () => {
-    // 只刪本次播種的：殘留自上次中斷的同名 fixture 也會被這裡收走
-    for (const fullName of seededByUs) {
+    // 無條件清掉兩個 fixture（不只 seededByUs）：選 octocat 的理由就是「沒有人會
+    // 真的追蹤它們」，所以刪掉一定安全；只刪 seededByUs 的話，上次中斷留下的殘留
+    // 會因為「已 tracked 所以不播種、也不記錄」而永遠沒有人收，dashboard 的空狀態
+    // 斷言從此固定紅。
+    for (const fullName of FIXTURES.compare) {
       await removeRepoByFullName(api, fullName);
     }
     await api.dispose();

@@ -354,3 +354,36 @@ async def test_rate_limit_stops_fanout_but_keeps_what_it_got(test_db):
     assert len(calls) == 2, "撞到配額後不應繼續打第三個興趣"
     assert written >= 1, "已取得的候選必須寫入，當日短路才會成立"
     assert test_db.query(FeedItem).count() == written
+
+
+@pytest.mark.asyncio
+async def test_quota_exhaustion_with_nothing_written_surfaces_as_rate_limit(test_db):
+    """配額在第一個興趣就耗盡、一筆都寫不出來時，必須讓 429 浮到 API 層。
+
+    若吞掉改回 200 {generated: 0}，前端 isError 為 false，會顯示
+    「請至設定新增興趣」——但使用者明明設了興趣，真因是配額用盡。
+    """
+    from services.github import GitHubRateLimitError
+
+    test_db.add(Interest(term="rust", kind=InterestKind.TOPIC, weight=2))
+    test_db.commit()
+
+    class FullyRateLimitedGitHub:
+        async def search_repos(self, **kwargs):
+            raise GitHubRateLimitError("quota exhausted")
+
+    with pytest.raises(GitHubRateLimitError):
+        await generate_feed(test_db, FullyRateLimitedGitHub(), TODAY)
+
+    assert test_db.query(FeedItem).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_no_interests_still_returns_zero_without_raising(test_db):
+    """沒有興趣是「零成本、非錯誤」的情境：必須維持回 0，空狀態才會是可行動的提示。"""
+
+    class NeverCalledGitHub:
+        async def search_repos(self, **kwargs):  # pragma: no cover - 不該被呼叫
+            raise AssertionError("沒有興趣時不應打 GitHub")
+
+    assert await generate_feed(test_db, NeverCalledGitHub(), TODAY) == 0

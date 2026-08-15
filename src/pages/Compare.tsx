@@ -111,6 +111,10 @@ export function Compare() {
     consumeNavigationState();
   }, [navigationState, consumeNavigationState]);
 
+  // RepoSelector 是 memo(forwardRef(...))：inline arrow 每次 render 都是新引用，
+  // 會讓 memo 永遠 miss，切換 metric/時間範圍時整份 repo chip 清單跟著重繪。
+  const handleGoDiscover = useCallback(() => navigateTo("discovery"), [navigateTo]);
+
   const toggleRepo = useCallback((id: number) => {
     setSelectedIds((prev) => {
       const next = prev.includes(id)
@@ -165,7 +169,7 @@ export function Compare() {
           repos={repos}
           selectedIds={selectedIds}
           onToggle={toggleRepo}
-          onGoDiscover={() => navigateTo("discovery")}
+          onGoDiscover={handleGoDiscover}
           t={t}
         />
       </FadeIn>

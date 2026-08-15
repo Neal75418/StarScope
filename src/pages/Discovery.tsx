@@ -291,7 +291,7 @@ export function Discovery() {
           onViewModeChange={setViewMode}
         />
       ) : (
-        <ForYouFeed onAddToWatchlist={handleFeedAdd} />
+        <ForYouFeed onAddToWatchlist={handleFeedAdd} watchlistFullNames={watchlistFullNames} />
       )}
 
       {selection.isActive && (

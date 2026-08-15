@@ -12,7 +12,7 @@ import httpx
 
 from db.models import AppSettingKey
 from services.settings import get_setting, set_setting, delete_setting
-from services.github import reset_github_service
+from services.github import reset_github_service, resolve_github_token
 from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_STATUS_CHECK_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
@@ -210,11 +210,9 @@ class GitHubAuthService:
         取得目前的 GitHub 連線狀態。
         檢查是否有有效的 token 並回傳使用者資訊。
         """
-        try:
-            token = get_setting(AppSettingKey.GITHUB_TOKEN)
-        except RuntimeError:
-            logger.error("[GitHub 驗證] Token 讀取失敗（可能是 Keyring 遷移問題）", exc_info=True)
-            return ConnectionStatus(connected=False)
+        # 必須與 GitHubService 用同一套解析（Keyring → DB → 環境變數）。
+        # 只查 get_setting 會漏掉 env token：API 明明打得通，設定頁卻顯示「未連接」。
+        token = resolve_github_token()
 
         if not token:
             return ConnectionStatus(connected=False)

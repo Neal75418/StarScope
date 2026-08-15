@@ -7,6 +7,9 @@ import { test, expect } from "@playwright/test";
 import { SIDECAR } from "./helpers";
 
 test.describe("Settings Persistence", () => {
+  // 這支會改「伺服器端全域設定」（快照保留天數不是 per-context 的 localStorage）。
+  // 三個 browser project 平行跑會互相覆寫、各自把 stale 的原值寫回去，
+  // 終態可能永久停在錯的值——故由 playwright.config 的 db-mutating project 獨佔串行執行。
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     // 導航至設定頁
@@ -54,14 +57,13 @@ test.describe("Settings Persistence", () => {
         .inputValue();
       expect(retainedValue).toBe(newValue);
     } finally {
-      // 中途任何斷言失敗都要把使用者的設定還原，不能留在改過的值
-      await page.goto("/");
-      await page.locator('[data-testid="nav-settings"]').click();
-      const restoreSection = page.locator("#snapshot-retention");
-      await expect(restoreSection).toBeVisible({ timeout: 5000 });
-      await restoreSection.locator("input[type='number']").fill(currentValue);
-      await restoreSection.locator("button", { hasText: /儲存|Save/ }).click();
-      // 直接向 API 確認已還原（若 try 在儲存前就失敗，值本來就正確，click 是 no-op）
+      // 還原走 API 而非 UI：填回原值後儲存鈕依設計是 disabled（isValid 要求
+      // parsedDays !== currentDays），用 UI 點它會一路等 actionability 到測試逾時，
+      // 把真正的斷言失敗蓋成一則 timeout。API 還原無條件成立、也不吃 UI 狀態。
+      const restore = await request.put(`${SIDECAR}/api/settings/snapshot-retention`, {
+        data: { retention_days: parseInt(currentValue, 10) },
+      });
+      expect(restore.ok(), "還原快照保留設定失敗").toBe(true);
       await expect
         .poll(
           async () => {

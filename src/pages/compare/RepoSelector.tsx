@@ -64,7 +64,7 @@ export const RepoSelector = memo(
             data-testid="compare-go-discover"
             onClick={onGoDiscover}
           >
-            {t.dashboard.onboard.cta}
+            {t.common.goDiscover}
           </button>
         </div>
       );

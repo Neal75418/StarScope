@@ -6,6 +6,7 @@ GitHub API 服務。
 import logging
 import os
 import threading
+import time
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -64,7 +65,7 @@ def _check_github_errors(
 
     Raises:
         GitHubNotFoundError: 404 且 raise_on_error=True 時
-        GitHubRateLimitError: 403 且 raise_on_error=True 時
+        GitHubRateLimitError: 403（配額 header 判定）或 429 且 raise_on_error=True 時
         GitHubAPIError: 401 或其他錯誤且 raise_on_error=True 時
     """
     if response.status_code == 404:
@@ -99,6 +100,27 @@ def _check_github_errors(
                 status_code=403,
             )
         logger.warning(f"[GitHub API] 禁止存取 (非速率限制): {context}")
+        return False
+
+    if response.status_code == 429:
+        # GitHub 對 primary 與 secondary rate limit 都可能回 429（403 只是其中一種形式）。
+        # 429 語意單一（Too Many Requests），不像 403 還要靠 header 區分「被封鎖/權限不足」，
+        # 所以無條件視為速率限制——漏掉這個分支會讓 429 落到 raise_for_status()，
+        # 呼叫端的 GitHubRateLimitError 守衛完全失效。
+        retry_after = response.headers.get("Retry-After")
+        reset_at_raw = response.headers.get("X-RateLimit-Reset")
+        reset_at = int(reset_at_raw) if reset_at_raw else None
+        if reset_at is None and retry_after and retry_after.isdigit():
+            # 次要限制常只給 Retry-After（秒數）；換算成絕對時間，
+            # 讓 main.py 的 handler 能算出正確的 Retry-After 回給前端
+            reset_at = int(time.time()) + int(retry_after)
+        if raise_on_error:
+            raise GitHubRateLimitError(
+                "GitHub API rate limit exceeded (HTTP 429)",
+                status_code=429,
+                reset_at=reset_at,
+            )
+        logger.warning(f"[GitHub API] 速率限制 (429): {context}")
         return False
 
     if response.status_code == 401:
@@ -383,8 +405,12 @@ _default_service: GitHubService | None = None
 _service_lock = threading.Lock()
 
 
-def _resolve_github_token() -> str | None:
-    """從資料庫（OAuth）或環境變數解析 GitHub token。"""
+def resolve_github_token() -> str | None:
+    """從 Keyring/資料庫（OAuth）或環境變數解析 GitHub token。
+
+    這是「目前用哪個 token」的單一來源：GitHubService 與連線狀態查詢都必須走它，
+    否則會出現「API 打得通但設定頁顯示未連接」這種不一致（env token 情境）。
+    """
     try:
         from services.settings import get_setting
         token = get_setting(AppSettingKey.GITHUB_TOKEN)
@@ -417,7 +443,7 @@ def get_github_service() -> GitHubService:
     if _default_service is None:
         with _service_lock:
             if _default_service is None:
-                _default_service = GitHubService(token=_resolve_github_token())
+                _default_service = GitHubService(token=resolve_github_token())
     return _default_service
 
 

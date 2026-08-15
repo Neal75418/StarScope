@@ -75,6 +75,21 @@ def test_add_and_remove_exclusion(client):
     assert client.delete(f"{BASE}/exclusions/{tid}").status_code == 200
 
 
+def test_validation_error_detail_is_a_readable_string(client):
+    """422 的 detail 必須是可讀字串而非陣列。
+
+    FastAPI 預設回 [{type, loc, msg, input}, ...]，前端 client.ts 取 error.detail
+    會拿到陣列、最後顯示泛用錯誤——使用者看到的跟斷網一樣，不知道哪裡不合法。
+    """
+    resp = client.post("/api/interests/exclusions", json={"term": "c++"})
+
+    assert resp.status_code == 422
+    body = resp.json()
+    assert isinstance(body["detail"], str), "detail 不能是陣列，前端無法呈現"
+    assert "at least 2 letters" in body["detail"]
+    assert body["code"] == "VALIDATION_ERROR"
+
+
 def test_exclusion_rejects_terms_that_normalize_too_short(client):
     """c++ / c# / ++ 正規化後都塌成 <2 字元，放行只會讓使用者看到無效的黑名單項。"""
     for bad in ("c++", "c#", "++"):

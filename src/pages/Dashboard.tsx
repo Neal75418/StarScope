@@ -241,7 +241,7 @@ export function Dashboard() {
             data-testid="dashboard-onboard-cta"
             onClick={() => navigateTo("discovery")}
           >
-            {t.dashboard.onboard.cta}
+            {t.common.goDiscover}
           </button>
         </div>
       </AnimatedPage>

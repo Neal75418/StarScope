@@ -475,7 +475,7 @@ export function Trends() {
                 data-testid="trends-go-discover"
                 onClick={() => navigateTo("discovery")}
               >
-                {t.dashboard.onboard.cta}
+                {t.common.goDiscover}
               </button>
             </>
           ) : (

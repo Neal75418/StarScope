@@ -21,6 +21,7 @@ const LANGUAGE_COLORS: Record<string, { bg: string; text: string }> = {
   CSS: { bg: "#563d7c", text: "#ffffff" },
   SCSS: { bg: "#c6538c", text: "#ffffff" },
   Vue: { bg: "#41b883", text: "#ffffff" },
+  Svelte: { bg: "#ff3e00", text: "#ffffff" },
   Dart: { bg: "#00B4AB", text: "#ffffff" },
   Scala: { bg: "#c22d40", text: "#ffffff" },
   Elixir: { bg: "#6e4a7e", text: "#ffffff" },

@@ -6,6 +6,7 @@ import { useI18n } from "../../i18n";
 import { useInterests } from "../../hooks/useInterests";
 import type { InterestKind } from "../../api/types";
 import { Skeleton } from "../Skeleton";
+import { getErrorMessage } from "../../utils/error";
 
 interface InterestsSectionProps {
   onToast: (message: string, type?: "success" | "error") => void;
@@ -27,8 +28,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
       await create({ term: trimmed, kind, weight });
       setTerm("");
       onToast(t.settings.interests.toast.added, "success");
-    } catch {
-      onToast(t.settings.interests.toast.error, "error");
+    } catch (err) {
+      // 顯示伺服器給的原因（例如「詞正規化後太短」），而不是跟斷網一樣的泛用訊息
+      onToast(getErrorMessage(err, t.settings.interests.toast.error), "error");
     }
   };
 
@@ -36,8 +38,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
     try {
       await remove(id);
       onToast(t.settings.interests.toast.removed, "success");
-    } catch {
-      onToast(t.settings.interests.toast.error, "error");
+    } catch (err) {
+      // 顯示伺服器給的原因（例如「詞正規化後太短」），而不是跟斷網一樣的泛用訊息
+      onToast(getErrorMessage(err, t.settings.interests.toast.error), "error");
     }
   };
 
@@ -49,8 +52,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
       await addExclude(trimmed);
       setExcludeTerm("");
       onToast(t.settings.interests.toast.added, "success");
-    } catch {
-      onToast(t.settings.interests.toast.error, "error");
+    } catch (err) {
+      // 顯示伺服器給的原因（例如「詞正規化後太短」），而不是跟斷網一樣的泛用訊息
+      onToast(getErrorMessage(err, t.settings.interests.toast.error), "error");
     }
   };
 
@@ -58,8 +62,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
     try {
       await removeExclude(id);
       onToast(t.settings.interests.toast.removed, "success");
-    } catch {
-      onToast(t.settings.interests.toast.error, "error");
+    } catch (err) {
+      // 顯示伺服器給的原因（例如「詞正規化後太短」），而不是跟斷網一樣的泛用訊息
+      onToast(getErrorMessage(err, t.settings.interests.toast.error), "error");
     }
   };
 

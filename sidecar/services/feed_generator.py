@@ -76,8 +76,14 @@ def _is_excluded(item: dict, patterns: list[re.Pattern[str]]) -> bool:
 
 
 async def _fetch_candidates(github, interests: list[Interest],
-                            created_after: str) -> dict[int, dict]:
-    """每個興趣打一次 search，以 github_id 去重合併。"""
+                            created_after: str) -> tuple[dict[int, dict], bool]:
+    """每個興趣打一次 search，以 github_id 去重合併。
+
+    Returns:
+        ``(merged, quota_tripped)``。``quota_tripped`` 為 True 表示 fan-out 是被
+        GitHub 配額中止的——呼叫端必須據此決定要不要讓錯誤浮出去，否則
+        「配額用盡」會在前端顯示成「請去新增興趣」。
+    """
     merged: dict[int, dict] = {}
     for interest in interests:
         base_q = f"created:>{created_after}"
@@ -101,13 +107,13 @@ async def _fetch_candidates(github, interests: list[Interest],
             logger.warning(
                 f"[Feed] GitHub 配額耗盡，於興趣 {interest.term!r} 中止；"
                 f"保留已取得的 {len(merged)} 個候選")
-            break
+            return merged, True
         except Exception as e:  # 單一查詢失敗不拖垮整批
             logger.warning(f"[Feed] 興趣 {interest.term} 搜尋失敗: {e}")
             continue
         for item in result.get("items", []):
             merged.setdefault(item["id"], item)
-    return merged
+    return merged, False
 
 
 def _upsert_candidate(db: Session, item: dict) -> FeedCandidate:
@@ -150,7 +156,7 @@ async def generate_feed(db: Session, github, feed_date: date,
     watchlist_names = {r.full_name.lower() for r in db.query(Repo).all()}
 
     created_after = (now - timedelta(days=CANDIDATE_WINDOW_DAYS)).date().isoformat()
-    merged = await _fetch_candidates(github, interests, created_after)
+    merged, quota_tripped = await _fetch_candidates(github, interests, created_after)
 
     scored: list[tuple[float, dict, list[str]]] = []
     for item in merged.values():
@@ -224,5 +230,15 @@ async def generate_feed(db: Session, github, feed_date: date,
         )
         return existing_after_race
 
+    if quota_tripped and written == 0:
+        # 一筆都沒寫入時必須讓錯誤浮出去：回 200 {generated: 0} 會讓前端
+        # 顯示「請至設定新增興趣」——使用者明明設了興趣，真因是配額用盡。
+        # 有寫入時則不拋（保留部分結果，當日 existing>0 短路才會成立）。
+        raise GitHubRateLimitError(
+            "GitHub API rate limit exceeded during feed generation")
+
+    if quota_tripped:
+        logger.warning(
+            f"[Feed] {feed_date} 因配額中止，僅產生 {written} 條（部分結果已保留）")
     logger.info(f"[Feed] {feed_date} 產生 {written} 條（候選 {len(merged)}）")
     return written

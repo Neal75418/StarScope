@@ -254,8 +254,13 @@ class TestGetConnectionStatus:
 
     @pytest.mark.asyncio
     async def test_returns_disconnected_without_token(self):
-        """Test returns disconnected when no token stored."""
-        with patch('services.github_auth.get_setting', return_value=None):
+        """Test returns disconnected when no token stored.
+
+        必須連 resolve_github_token 一起 patch：只 patch get_setting 的話，
+        解析鏈會回退去讀開發者真實的 Keyring / GITHUB_TOKEN 環境變數。
+        """
+        with patch('services.github_auth.resolve_github_token', return_value=None), \
+             patch('services.github_auth.get_setting', return_value=None):
             result = await GitHubAuthService.get_connection_status()
 
             assert isinstance(result, ConnectionStatus)
@@ -272,7 +277,8 @@ class TestGetConnectionStatus:
             }
         }
 
-        with patch('services.github_auth.get_setting') as mock_get:
+        with patch('services.github_auth.resolve_github_token', return_value="valid_token"), \
+             patch('services.github_auth.get_setting') as mock_get:
             mock_get.side_effect = lambda key: {
                 "github_token": "valid_token",
                 "github_username": "testuser",
@@ -290,20 +296,46 @@ class TestGetConnectionStatus:
                 assert result.rate_limit_total == 5000
 
     @pytest.mark.asyncio
-    async def test_backfills_username_when_missing(self):
-        """env/PAT 連線沒跑過 Device Flow，username 從未寫入——status 應補抓一次並快取。"""
+    async def test_env_only_token_reports_connected_and_backfills_username(self):
+        """只在環境變數設 token（沒跑過 Device Flow）時的連線狀態。
+
+        這是真正會壞的那條路徑：get_connection_status 若只查 Keyring/DB，
+        env token 使用者會拿到 connected=False —— API 明明打得通、啟動日誌也說
+        「GitHub token 已設定」，設定頁卻顯示未連接、username 永遠補不到。
+        故意不 mock resolve_github_token，讓解析鏈（Keyring/DB → env）真的跑一次。
+        """
         rate_response = MagicMock()
         rate_response.status_code = 200
         rate_response.json.return_value = {"resources": {"core": {"remaining": 4500, "limit": 5000}}}
 
-        with patch('services.github_auth.get_setting') as mock_get, \
+        with patch('services.settings.get_setting', return_value=None), \
+             patch('services.github_auth.get_setting', return_value=None), \
+             patch.dict(os.environ, {"GITHUB_TOKEN": "env_token"}), \
              patch('services.github_auth.set_setting') as mock_set, \
              patch('services.github_auth.httpx.AsyncClient') as mock_client_class, \
              patch.object(GitHubAuthService, '_get_username', new=AsyncMock(return_value="enviro-user")):
-            mock_get.side_effect = lambda key: {
-                "github_token": "valid_token",
-                "github_username": None,
-            }.get(key.value if hasattr(key, 'value') else key)
+            mock_client = AsyncMock()
+            mock_client.get.return_value = rate_response
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+
+            result = await GitHubAuthService.get_connection_status()
+
+            assert result.connected is True, "env token 必須算已連接"
+            assert result.username == "enviro-user"
+            mock_set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_backfills_username_for_db_token_without_username(self):
+        """Device Flow 早期版本可能只存了 token 沒存 username——status 應補抓一次並快取。"""
+        rate_response = MagicMock()
+        rate_response.status_code = 200
+        rate_response.json.return_value = {"resources": {"core": {"remaining": 4500, "limit": 5000}}}
+
+        with patch('services.github_auth.resolve_github_token', return_value="db_token"), \
+             patch('services.github_auth.get_setting', return_value=None), \
+             patch('services.github_auth.set_setting') as mock_set, \
+             patch('services.github_auth.httpx.AsyncClient') as mock_client_class, \
+             patch.object(GitHubAuthService, '_get_username', new=AsyncMock(return_value="dbuser")):
             mock_client = AsyncMock()
             mock_client.get.return_value = rate_response
             mock_client_class.return_value.__aenter__.return_value = mock_client
@@ -311,7 +343,7 @@ class TestGetConnectionStatus:
             result = await GitHubAuthService.get_connection_status()
 
             assert result.connected is True
-            assert result.username == "enviro-user"
+            assert result.username == "dbuser"
             mock_set.assert_called_once()
 
     @pytest.mark.asyncio

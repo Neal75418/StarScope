@@ -52,7 +52,7 @@ vi.mock("../../i18n", () => ({
     str.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? "")),
   useI18n: () => ({
     t: {
-      dashboard: { onboard: { cta: "Go to Discover" } },
+      common: { goDiscover: "Go to Discover" },
       compare: {
         needMoreRepos:
           "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",

@@ -180,8 +180,17 @@ async function apiCall<T>(
       return await doFetch<T>(url, options, callerSignal, config.timeoutMs);
     } catch (err) {
       const apiError = err instanceof ApiError ? err : new ApiError(0, String(err));
-      // 4xx 錯誤不重試（客戶端錯誤），但 429 Rate Limit 例外
-      if (apiError.status > 0 && apiError.status < 500 && apiError.status !== 429) throw apiError;
+      // 4xx 錯誤不重試（客戶端錯誤），但 429 Rate Limit 例外——
+      // 唯獨「本機節流」不重試：slowapi 的窗口以分鐘計，2s/4s 退避不可能等到窗口重置，
+      // 重試只會再打兩次同一個 limiter，還讓使用者多等 6 秒才看到錯誤。
+      const isLocalThrottle = apiError.status === 429 && apiError.code === "LOCAL_RATE_LIMIT";
+      if (
+        apiError.status > 0 &&
+        apiError.status < 500 &&
+        (apiError.status !== 429 || isLocalThrottle)
+      ) {
+        throw apiError;
+      }
       // 使用者取消不重試
       if (callerSignal?.aborted) throw apiError;
       lastError = apiError;

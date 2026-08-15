@@ -1229,6 +1229,12 @@ describe("API Client", () => {
 });
 
 describe("429 的兩種來源要能區分", () => {
+  // 這個 describe 是 "API Client" 的兄弟，不吃它的 beforeEach/afterEach——
+  // 沒有自己的 hooks 就會吃到上一個 describe 殘留的持久 mock。
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   // 用 generateFeed 測是因為它設定 retries: 0，不必等重試退避。
   function mock429(code: string | undefined) {
     mockFetch.mockResolvedValueOnce({
@@ -1268,5 +1274,17 @@ describe("429 的兩種來源要能區分", () => {
   it("錯誤回應的 code 會帶進 ApiError", async () => {
     mock429("LOCAL_RATE_LIMIT");
     await expect(generateFeed()).rejects.toMatchObject({ status: 429, code: "LOCAL_RATE_LIMIT" });
+  });
+
+  it("does not retry local throttling — the limiter window outlives any backoff", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: async () => ({ detail: "Rate limit exceeded", code: "LOCAL_RATE_LIMIT" }),
+    });
+
+    // getRepos 走預設重試設定；本機節流必須一次就丟出，不能吃兩輪退避
+    await expect(getRepos()).rejects.toMatchObject({ status: 429, code: "LOCAL_RATE_LIMIT" });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

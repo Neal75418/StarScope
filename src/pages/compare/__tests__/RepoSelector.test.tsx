@@ -14,7 +14,7 @@ const mockT = {
       "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",
     noMatch: "No repositories match your search.",
   },
-  dashboard: { onboard: { cta: "Go to Discover" } },
+  common: { goDiscover: "Go to Discover" },
 };
 
 function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {

@@ -64,14 +64,16 @@ describe("InterestsSection", () => {
     expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "error");
   });
 
-  it("shows an error toast (not success) when create fails", async () => {
+  it("surfaces the server's reason (not a generic message) when create fails", async () => {
+    // 泛用「操作失敗」跟斷網長得一模一樣，使用者不知道自己哪裡輸入錯了；
+    // 伺服器的 422 detail（例如「詞正規化後太短」）必須傳到 toast。
     vi.mocked(apiClient.createInterest).mockRejectedValue(new Error("duplicate"));
     const { onToast } = renderSection();
     await screen.findByText("tauri");
     fireEvent.change(screen.getByTestId("interest-term-input"), { target: { value: "rust" } });
     fireEvent.click(screen.getByTestId("interest-add-btn"));
     await waitFor(() => expect(apiClient.createInterest).toHaveBeenCalled());
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Operation failed", "error"));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("duplicate", "error"));
     expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "success");
   });
 
@@ -85,13 +87,13 @@ describe("InterestsSection", () => {
     expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "error");
   });
 
-  it("shows an error toast (not success) when remove fails", async () => {
+  it("surfaces the server's reason (not a generic message) when remove fails", async () => {
     vi.mocked(apiClient.deleteInterest).mockRejectedValue(new Error("network error"));
     const { onToast } = renderSection();
     await screen.findByText("tauri");
     fireEvent.click(screen.getByTestId("interest-remove-1"));
     await waitFor(() => expect(apiClient.deleteInterest).toHaveBeenCalledWith(1));
-    await waitFor(() => expect(onToast).toHaveBeenCalledWith("Operation failed", "error"));
+    await waitFor(() => expect(onToast).toHaveBeenCalledWith("network error", "error"));
     expect(onToast).not.toHaveBeenCalledWith(expect.any(String), "success");
   });
 });

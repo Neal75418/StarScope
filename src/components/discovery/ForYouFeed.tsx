@@ -2,6 +2,7 @@
  * For You feed 清單：Discovery 頁預設畫面。
  */
 import { useI18n } from "../../i18n";
+import { normalizeRepoName } from "../../utils/format";
 import { useFeed } from "../../hooks/useFeed";
 import type { FeedItem } from "../../api/types";
 import { FeedItemCard } from "./FeedItemCard";
@@ -10,9 +11,12 @@ import styles from "./Discovery.module.css";
 
 interface ForYouFeedProps {
   onAddToWatchlist: (item: FeedItem) => Promise<boolean>;
+  /** 已在追蹤清單的 repo 全名（正規化後）。用來把已追蹤的卡片鎖起來，
+   *  否則使用者會對同一張卡按第二次 → 後端回 400「已在追蹤清單」→ 泛用錯誤 toast。 */
+  watchlistFullNames: Set<string>;
 }
 
-export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
+export function ForYouFeed({ onAddToWatchlist, watchlistFullNames }: ForYouFeedProps) {
   const { t } = useI18n();
   const { items, feedDate, isLoading, isGenerating, isError, feedback } = useFeed();
 
@@ -62,6 +66,7 @@ export function ForYouFeed({ onAddToWatchlist }: ForYouFeedProps) {
             <FeedItemCard
               key={item.id}
               item={item}
+              isInWatchlist={watchlistFullNames.has(normalizeRepoName(item.full_name))}
               onStar={async (it) => {
                 // 只有加入 watchlist 成功才送出 starred feedback，避免失敗仍污染回饋訊號
                 const success = await onAddToWatchlist(it);

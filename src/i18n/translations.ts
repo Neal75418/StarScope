@@ -27,7 +27,6 @@ export const translations = {
         title: "Start by tracking your first repository",
         description:
           "The dashboard reflects the repositories you track. Head over to Discover, pick something interesting from today's feed or search, and hit ⭐ Track — this page will come alive.",
-        cta: "Go to Discover",
       },
       stats: {
         totalRepos: "Tracked Repos",
@@ -203,7 +202,6 @@ export const translations = {
         generating: "Building today's feed…",
         reason: {
           matched: "Matched interests: ",
-          stars: "stars",
           daysOld: "days old",
           createdToday: "created today",
         },
@@ -716,6 +714,9 @@ export const translations = {
     },
     // 共用
     common: {
+      /** 「前往探索」的共用 CTA：趨勢/對比/追蹤清單的空狀態都用它，
+       *  分散在各命名空間會讓改一處文案時無聲改動其他頁 */
+      goDiscover: "Go to Discover",
       loading: "Loading...",
       error: "Error",
       cancel: "Cancel",
@@ -919,7 +920,6 @@ export const translations = {
         title: "先追蹤第一個專案",
         description:
           "儀表板顯示的是你追蹤中的專案。到探索頁看看今天的推薦或直接搜尋，按下 ⭐ 追蹤，這裡就會活起來。",
-        cta: "前往探索",
       },
       subtitle: "追蹤儲存庫總覽",
       stats: {
@@ -1095,7 +1095,6 @@ export const translations = {
         generating: "正在產生今日 feed…",
         reason: {
           matched: "命中興趣：",
-          stars: "stars",
           daysOld: "天前建立",
           createdToday: "今天建立",
         },
@@ -1603,6 +1602,7 @@ export const translations = {
     },
     // 共用
     common: {
+      goDiscover: "前往探索",
       loading: "載入中...",
       error: "錯誤",
       cancel: "取消",

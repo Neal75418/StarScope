@@ -6,8 +6,10 @@ import { test, expect } from "@playwright/test";
 import { removeInterestByTerm } from "./helpers";
 
 // sentinel：絕不與使用者真實興趣撞名；就算清理前恰好觸發 feed 產生，
-// 這個 topic 在 GitHub 上也搜不到任何結果，不會污染 feed
-const PROBE_TERM = "e2e-probe-interest";
+// 這個 topic 在 GitHub 上也搜不到任何結果，不會污染 feed。
+// 必須帶 browserName——三個 browser project 平行跑同一條測試，共用同一個詞
+// 會互刪（一邊的 pre-clean 刪掉另一邊剛新增的），見 helpers.ts 檔頭紀律第 1 條。
+const probeTerm = (browserName: string) => `e2e-probe-interest-${browserName}`;
 
 test.describe("For You Feed", () => {
   test.beforeEach(async ({ page }) => {
@@ -22,7 +24,12 @@ test.describe("For You Feed", () => {
     await expect(feed.or(empty)).toBeVisible({ timeout: 15000 });
   });
 
-  test("interests section visible in settings and accepts a term", async ({ page, request }) => {
+  test("interests section visible in settings and accepts a term", async ({
+    page,
+    request,
+    browserName,
+  }) => {
+    const PROBE_TERM = probeTerm(browserName);
     await removeInterestByTerm(request, PROBE_TERM); // 上次中斷的殘留會讓新增變成 409
     await page.locator('[data-testid="nav-settings"]').click();
     const section = page.locator('[data-testid="interests-section"]');

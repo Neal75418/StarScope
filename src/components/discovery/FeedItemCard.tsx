@@ -18,6 +18,7 @@ import styles from "./Discovery.module.css";
 
 interface FeedItemCardProps {
   item: FeedItem;
+  isInWatchlist: boolean;
   onStar: (item: FeedItem) => void | Promise<void>;
   onDismiss: (item: FeedItem) => void;
 }
@@ -30,10 +31,10 @@ function displayMatchedTerm(matched: string): string {
   return matched.startsWith("topic:") ? matched.slice("topic:".length) : matched;
 }
 
-export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
+export function FeedItemCard({ item, isInWatchlist, onStar, onDismiss }: FeedItemCardProps) {
   const { t } = useI18n();
-  // 追蹤中鎖住按鈕：連點會送出兩次 addRepo，第二次回 400「已在追蹤清單」，
-  // 使用者會同時看到成功與失敗兩個 toast。
+  // 兩段鎖：starring 擋同一次請求的連點，isInWatchlist 擋「已經加成功之後再按」。
+  // 少了任何一段，第二次 addRepo 都會回 400「已在追蹤清單」變成泛用錯誤 toast。
   const [starring, setStarring] = useState(false);
   const reason = t.discovery.forYou.reason;
 
@@ -60,9 +61,9 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
             🚫 {t.discovery.forYou.dismiss}
           </button>
           <button
-            className={styles.addButton}
+            className={`${styles.addButton} ${isInWatchlist ? styles.inWatchlist : ""}`}
             data-testid={`feed-star-${item.id}`}
-            disabled={starring}
+            disabled={starring || isInWatchlist}
             onClick={async () => {
               setStarring(true);
               try {
@@ -72,7 +73,7 @@ export function FeedItemCard({ item, onStar, onDismiss }: FeedItemCardProps) {
               }
             }}
           >
-            ⭐ {t.discovery.forYou.addToWatchlist}
+            ⭐ {isInWatchlist ? t.discovery.inWatchlist : t.discovery.forYou.addToWatchlist}
           </button>
         </div>
       </div>

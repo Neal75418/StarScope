@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 
 # 從 .env 檔載入環境變數（必須在讀取環境變數前呼叫）
@@ -201,6 +202,33 @@ def _handle_rate_limit(_request: "Request", exc: Exception) -> JSONResponse:
     )
 
 app.add_exception_handler(RateLimitExceeded, _handle_rate_limit)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, exc: RequestValidationError):
+    """把 FastAPI 預設的陣列型 422 detail 攤平成一句可讀訊息。
+
+    預設形狀是 [{type, loc, msg, input}, ...]，前端 client.ts 取 error.detail
+    會拿到陣列，最後只能顯示泛用錯誤——使用者看到的跟斷網一模一樣，
+    完全不知道自己輸入哪裡不合法（例如黑名單詞正規化後太短）。
+    """
+    errors = exc.errors()
+    detail = "Invalid request"
+    if errors:
+        first = errors[0]
+        msg = str(first.get("msg", detail))
+        # Pydantic 會在自訂 ValueError 前面加上 "Value error, "
+        msg = msg.removeprefix("Value error, ")
+        field = next((str(p) for p in reversed(first.get("loc", ())) if isinstance(p, str)), None)
+        # 訊息本身已點名欄位時不再前綴，避免「term: term must ...」
+        if field and not msg.lower().startswith(field.lower()):
+            detail = f"{field}: {msg}"
+        else:
+            detail = msg
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "code": "VALIDATION_ERROR"},
+    )
 
 # GitHub API 錯誤的全域例外處理器。
 # 避免在各 router 中重複 try/except。

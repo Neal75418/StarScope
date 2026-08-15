@@ -22,7 +22,7 @@ export function EmptyStateView({ hasRepos, hasSearch, onGoDiscover }: EmptyState
       <EmptyState
         title={t.watchlist.empty.noRepos}
         description={t.watchlist.empty.addPrompt}
-        actionLabel={t.dashboard.onboard.cta}
+        actionLabel={t.common.goDiscover}
         onAction={onGoDiscover}
       />
     );
