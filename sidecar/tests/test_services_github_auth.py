@@ -252,6 +252,17 @@ class TestGetUsername:
 class TestGetConnectionStatus:
     """Tests for get_connection_status static method."""
 
+    @pytest.fixture(autouse=True)
+    def _no_real_credentials(self, monkeypatch):
+        """把真實憑證從環境中移除：Keyring/DB 查詢回 None、GITHUB_TOKEN 環境變數拿掉。
+
+        本機有真 token 時，忘了 patch token 來源的測試會靠它意外通過——
+        本地全綠、CI 紅。這裡讓兩邊的前提一致；需要 token 的測試自行 patch
+        services.github_auth.resolve_github_token。
+        """
+        monkeypatch.setattr("services.settings.get_setting", lambda *a, **k: None)
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+
     @pytest.mark.asyncio
     async def test_returns_disconnected_without_token(self):
         """Test returns disconnected when no token stored.
@@ -353,7 +364,8 @@ class TestGetConnectionStatus:
         rate_response.status_code = 200
         rate_response.json.return_value = {"resources": {"core": {"remaining": 4500, "limit": 5000}}}
 
-        with patch('services.github_auth.get_setting') as mock_get, \
+        with patch('services.github_auth.resolve_github_token', return_value="valid_token"), \
+             patch('services.github_auth.get_setting') as mock_get, \
              patch('services.github_auth.httpx.AsyncClient') as mock_client_class, \
              patch.object(GitHubAuthService, '_get_username',
                           new=AsyncMock(side_effect=RuntimeError("boom"))):
@@ -376,7 +388,8 @@ class TestGetConnectionStatus:
         mock_response = MagicMock()
         mock_response.status_code = 401
 
-        with patch('services.github_auth.get_setting', return_value="invalid_token"):
+        with patch('services.github_auth.resolve_github_token', return_value="invalid_token"), \
+             patch('services.github_auth.get_setting', return_value="invalid_token"):
             with patch('services.github_auth.delete_setting') as mock_delete, \
                  patch('services.github_auth.reset_github_service'):
                 with patch('httpx.AsyncClient') as mock_client_class:
@@ -393,7 +406,8 @@ class TestGetConnectionStatus:
     @pytest.mark.asyncio
     async def test_handles_timeout(self):
         """Test handles timeout gracefully."""
-        with patch('services.github_auth.get_setting') as mock_get:
+        with patch('services.github_auth.resolve_github_token', return_value="token"), \
+             patch('services.github_auth.get_setting') as mock_get:
             mock_get.side_effect = lambda key: "token" if "token" in str(key) else "user"
 
             with patch('httpx.AsyncClient') as mock_client_class:
