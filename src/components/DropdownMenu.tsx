@@ -91,7 +91,9 @@ export function DropdownMenu({
       >
         {label}
       </button>
-      {open && (
+      {/* 同時看 disabled：只綁按鈕的話，展開中途變成 disabled（例如結果被篩成 0 筆）
+          選單仍留在畫面上且可點，等於繞過了 disabled 的意圖 */}
+      {open && !disabled && (
         <div
           ref={menuRef}
           className={`export-dropdown-menu${menuClassName ? ` ${menuClassName}` : ""}`}

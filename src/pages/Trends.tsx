@@ -466,7 +466,8 @@ export function Trends() {
 
       {displayedTrends.length === 0 ? (
         <div className="empty-state" data-testid="empty-state">
-          {watchlistState.repos.length === 0 ? (
+          {watchlistState.repos.length === 0 &&
+          watchlistState.loadingState.type !== "initializing" ? (
             // 沒追蹤任何東西：這頁排的是 watchlist，導向取得 repo 的主線（與儀表板/追蹤清單同一敘事）
             <>
               <p>{t.trends.emptyNoRepos}</p>

@@ -14,6 +14,9 @@ const mockAddRepo = vi.fn().mockResolvedValue({});
 const mockSetViewMode = vi.fn();
 let mockViewMode = "list";
 let mockWatchlistRepos: Array<{ full_name: string }> = [];
+// mock 必須帶 loadingState：Trends 用它區分「還在載入」與「真的沒追蹤任何東西」，
+// 少了這塊的 mock 會讓元件在測試裡看到 undefined
+let mockWatchlistLoading: { type: string } = { type: "idle" };
 
 let mockTrendsReturn: {
   trends: TrendingRepo[];
@@ -57,7 +60,7 @@ vi.mock("../../api/client", () => ({
 }));
 
 vi.mock("../../contexts/WatchlistContext", () => ({
-  useWatchlistState: () => ({ repos: mockWatchlistRepos }),
+  useWatchlistState: () => ({ repos: mockWatchlistRepos, loadingState: mockWatchlistLoading }),
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -155,6 +158,7 @@ describe("Trends", () => {
     vi.clearAllMocks();
     mockViewMode = "list";
     mockWatchlistRepos = [];
+    mockWatchlistLoading = { type: "idle" };
     mockUseTrendEarlySignals.mockReturnValue({
       signalsByRepoId: {},
       loading: false,
@@ -219,6 +223,15 @@ describe("Trends", () => {
     expect(screen.getByText(/trends rank the repositories in your watchlist/)).toBeInTheDocument();
     await user.click(screen.getByTestId("trends-go-discover"));
     expect(mockNavigateTo).toHaveBeenCalledWith("discovery");
+  });
+
+  it("does not claim 'nothing tracked' while the watchlist is still initializing", () => {
+    // repos 尚未載入完成時 repos 也是 []，若不看 loadingState 就會先閃一則
+    // 「你還沒追蹤任何儲存庫」，等 repos 落地後才翻回正確的空狀態。
+    mockWatchlistRepos = [];
+    mockWatchlistLoading = { type: "initializing" };
+    renderTrends();
+    expect(screen.queryByTestId("trends-go-discover")).not.toBeInTheDocument();
   });
 
   it("empty state explains filters when repos are tracked but excluded", () => {

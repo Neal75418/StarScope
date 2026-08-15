@@ -41,6 +41,21 @@ def _normalize_words(text: str) -> str:
     return re.sub(r"[\W_]+", " ", text, flags=re.UNICODE).strip()
 
 
+def normalize_exclude_term(term: str) -> str:
+    """把黑名單詞正規化成比對用的形式（小寫、分隔符收斂為空白）。"""
+    return _normalize_words(term.lower())
+
+
+def is_usable_exclude_term(term: str) -> bool:
+    """這個黑名單詞正規化後是否還有比對能力。
+
+    「至少 2 字元」的門檻是入口驗證（routers/interests.py）與比對層
+    （compile_exclusions）共用的單一來源——分成兩份各自維護時，改一邊會讓
+    另一邊靜默失準：入口放行、比對層卻默默忽略。
+    """
+    return len(normalize_exclude_term(term)) >= 2
+
+
 def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
     """把黑名單詞預先編成 regex（每輪 feed 只做一次，不要在每個候選上重編）。
 
@@ -58,8 +73,8 @@ def compile_exclusions(exclude: set[str]) -> list[re.Pattern[str]]:
     """
     patterns = []
     for term in exclude:
-        norm = _normalize_words(term.lower())
-        if len(norm) < 2:
+        norm = normalize_exclude_term(term)
+        if not is_usable_exclude_term(term):
             logger.warning(f"[Feed] 黑名單詞 {term!r} 正規化後過短（{norm!r}），已忽略")
             continue
         # y → ies（library/libraries）需要單獨處理，不能只靠 (?:e?s)?
