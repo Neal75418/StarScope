@@ -1,4 +1,6 @@
 """興趣清單與 feed 黑名單 API。"""
+from dataclasses import asdict
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from services.trending_topics import (
     load_progress,
     save_cache,
     save_progress,
+    with_membership,
 )
 from middleware.rate_limit import limiter
 
@@ -193,7 +196,7 @@ def get_trending(db: Session = Depends(get_db)) -> dict:
     cached, computed_at = load_cached(db)
     return success_response(
         TrendingResponse(
-            topics=[TrendingTopicOut(**row) for row in cached],
+            topics=[TrendingTopicOut(**row) for row in with_membership(cached, db)],
             computed_at=computed_at,
         )
     )
@@ -218,9 +221,10 @@ async def refresh_trending(request: Request, db: Session = Depends(get_db)) -> d
     finally:
         # 失敗也要清，否則進度會永遠卡在中途，前端誤以為還在跑
         clear_progress(db)
+    rows = with_membership([asdict(t) for t in topics], db)
     return success_response(
         TrendingResponse(
-            topics=[TrendingTopicOut(**t.__dict__) for t in topics],
+            topics=[TrendingTopicOut(**row) for row in rows],
             computed_at=computed_at,
         )
     )

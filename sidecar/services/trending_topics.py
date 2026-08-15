@@ -56,11 +56,15 @@ SEARCH_INTERVAL_SECONDS = 2.2
 
 @dataclass
 class TrendingTopic:
+    """一個主題的取樣結果。
+
+    刻意不含「是否已加入興趣清單」——那是興趣清單的狀態，不是主題的屬性，
+    存進快取就會被凍結在重算的那一刻。見 with_membership()。
+    """
     topic: str
     sample_count: int      # 最近 60 天新專案中有幾個標了這個 topic
     global_count: int      # 全 GitHub 有幾個 repo 標了它
     heat: float            # 升溫比值（每十萬個 repo 中有幾個是這波新的）
-    already_added: bool    # 使用者的興趣清單裡是否已有
 
 
 async def _paced_search(github: GitHubService, **kwargs) -> dict:
@@ -173,8 +177,6 @@ async def compute_trending_topics(
     if fetched_any:
         _save_global_cache(db, global_counts)
 
-    existing = {row.term.lower() for row in db.query(Interest).all()}
-
     results: list[TrendingTopic] = []
     for topic, sample_count in candidates:
         total = global_counts.get(topic, 0)
@@ -185,11 +187,23 @@ async def compute_trending_topics(
             sample_count=sample_count,
             global_count=total,
             heat=round(sample_count / total * 100_000, 1),
-            already_added=topic.lower() in existing,
         ))
 
     results.sort(key=lambda r: -r.heat)
     return results[:RESULT_SIZE]
+
+
+def with_membership(topics: list[dict], db: Session) -> list[dict]:
+    """替每個主題標上「是否已在興趣清單裡」。
+
+    每次讀取都重算，不隨結果一起快取：主題快取一次可以放上一整週，而興趣清單
+    隨時會變。存進去的話，加入之後按鈕仍顯示「+」，再按一次拿到 409，
+    看起來就像加不進去——實際發生過。
+
+    舊快取裡若殘留這個欄位，這裡會覆蓋掉它。
+    """
+    existing = {row.term.lower() for row in db.query(Interest).all()}
+    return [{**t, "already_added": str(t.get("topic", "")).lower() in existing} for t in topics]
 
 
 def load_cached(db: Session) -> tuple[list[dict], str | None]:

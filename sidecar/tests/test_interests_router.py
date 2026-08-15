@@ -122,3 +122,33 @@ def test_trending_timestamp_carries_timezone(client, monkeypatch):
     resp = client.get("/api/interests/trending")
     assert resp.status_code == 200
     assert resp.json()["data"]["computed_at"].endswith("Z")
+
+
+def test_trending_already_added_follows_the_live_interest_list(client):
+    """already_added 必須在讀取時重算，不能跟著主題快取一起凍結。
+
+    主題快取一次可以放上一整週，興趣清單卻隨時會變。若把這個欄位存進快取，
+    加入之後按鈕仍顯示「+」，再按一次拿到 409——看起來就像加不進去。
+    """
+    from db.database import SessionLocal
+    from services.trending_topics import TrendingTopic, save_cache
+
+    db = SessionLocal()
+    try:
+        save_cache(db, [TrendingTopic("claude", sample_count=12, global_count=900, heat=1333.3)])
+    finally:
+        db.close()
+
+    def added_flag() -> bool:
+        topics = client.get("/api/interests/trending").json()["data"]["topics"]
+        return next(t["already_added"] for t in topics if t["topic"] == "claude")
+
+    assert added_flag() is False
+
+    created = client.post("/api/interests", json={"term": "claude", "kind": "topic", "weight": 2})
+    assert created.status_code == 200
+    # 快取沒有重算過，但旗標必須已經翻過來
+    assert added_flag() is True
+
+    client.delete(f"/api/interests/{created.json()['data']['id']}")
+    assert added_flag() is False
