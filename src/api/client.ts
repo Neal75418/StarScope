@@ -66,6 +66,7 @@ import type {
   ExcludeTerm,
   ExclusionListResponse,
   TrendingResponse,
+  TrendingProgress,
   FeedResponse,
   GenerateFeedResult,
   FeedItem,
@@ -942,6 +943,15 @@ export async function createInterest(input: InterestCreate): Promise<Interest> {
 /** 取得上次算好的熱門主題（純讀快取，不會觸發 GitHub 請求）。 */
 export async function getTrendingTopics(signal?: AbortSignal): Promise<TrendingResponse> {
   return apiCall<TrendingResponse>("/interests/trending", { signal });
+}
+
+/** 重算進行中的進度。輪詢用，逾時設短——拿不到就當作沒有進度，不阻塞畫面。 */
+export async function getTrendingProgress(signal?: AbortSignal): Promise<TrendingProgress> {
+  return apiCall<TrendingProgress>(
+    "/interests/trending/progress",
+    { signal },
+    { timeoutMs: 5_000 }
+  );
 }
 
 /**

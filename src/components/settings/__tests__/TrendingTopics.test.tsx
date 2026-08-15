@@ -106,3 +106,47 @@ describe("TrendingTopics 進行中的回饋", () => {
     expect(screen.queryByText(/Hit Refresh to see/)).not.toBeInTheDocument();
   });
 });
+
+describe("TrendingTopics 進度回報", () => {
+  it("shows the stage and count while a refresh is running", async () => {
+    vi.mocked(client.getTrendingTopics).mockResolvedValue({ topics: [], computed_at: null });
+    vi.mocked(client.refreshTrendingTopics).mockReturnValue(new Promise(() => {}));
+    vi.mocked(client.getTrendingProgress).mockResolvedValue({
+      running: true,
+      phase: "counting",
+      done: 12,
+      total: 25,
+    });
+
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    await screen.findByText(/Not checked yet/);
+    fireEvent.click(screen.getByTestId("trending-refresh-btn"));
+
+    // 階段與數字都要出現——只顯示「處理中」無法分辨還在跑或卡住
+    expect(
+      await screen.findByText(/Measuring how common each topic is 12\/25/)
+    ).toBeInTheDocument();
+    const bar = screen.getByRole("progressbar");
+    // counting 階段佔後 75%：25 + (12/25)*75 = 61
+    expect(bar).toHaveAttribute("aria-valuenow", "61");
+  });
+
+  it("falls back to an indeterminate bar before the first progress arrives", async () => {
+    vi.mocked(client.getTrendingTopics).mockResolvedValue({ topics: [], computed_at: null });
+    vi.mocked(client.refreshTrendingTopics).mockReturnValue(new Promise(() => {}));
+    vi.mocked(client.getTrendingProgress).mockResolvedValue({
+      running: false,
+      phase: "",
+      done: 0,
+      total: 0,
+    });
+
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    await screen.findByText(/Not checked yet/);
+    fireEvent.click(screen.getByTestId("trending-refresh-btn"));
+
+    const bar = await screen.findByRole("progressbar");
+    // 還不知道進度時不能假裝 0%，那看起來像卡住
+    expect(bar).not.toHaveAttribute("aria-valuenow");
+  });
+});

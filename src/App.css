@@ -5541,3 +5541,68 @@ a:focus-visible {
   gap: 0.125rem;
   min-width: 0;
 }
+
+/* 熱門主題的重算進度 */
+.trending-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 0 0.5rem;
+}
+
+.trending-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+.trending-progress-percent {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-default);
+  font-weight: 600;
+}
+
+.trending-progress-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-muted);
+  overflow: hidden;
+}
+
+.trending-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: var(--accent-fg);
+  transition: width 0.45s ease;
+}
+
+/* 還沒收到第一筆進度：用來回掃動表示「已開始但還不知道進度」，
+   而不是停在 0% 讓人以為沒動 */
+.trending-progress-fill.is-indeterminate {
+  width: 35%;
+  animation: trending-progress-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes trending-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(285%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trending-progress-fill {
+    transition: none;
+  }
+  .trending-progress-fill.is-indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}

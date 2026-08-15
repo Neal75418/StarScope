@@ -610,6 +610,14 @@ export interface TrendingTopic {
   already_added: boolean;
 }
 
+export interface TrendingProgress {
+  running: boolean;
+  /** "sampling"（取樣）或 "counting"（查熱度） */
+  phase: string;
+  done: number;
+  total: number;
+}
+
 export interface TrendingResponse {
   topics: TrendingTopic[];
   /** null 代表從未計算過 */

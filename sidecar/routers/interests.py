@@ -9,7 +9,14 @@ from schemas.response import ApiResponse, success_response
 from services.feed_defaults import ensure_default_exclude_terms
 from services.feed_generator import is_usable_exclude_term
 from services.github import get_github_service
-from services.trending_topics import compute_trending_topics, load_cached, save_cache
+from services.trending_topics import (
+    clear_progress,
+    compute_trending_topics,
+    load_cached,
+    load_progress,
+    save_cache,
+    save_progress,
+)
 from middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/api/interests", tags=["interests"])
@@ -168,6 +175,14 @@ class TrendingResponse(BaseModel):
     computed_at: str | None  # None 代表從未計算過
 
 
+class TrendingProgress(BaseModel):
+    """重算進行中的進度；running 為 False 時其餘欄位無意義。"""
+    running: bool
+    phase: str = ""      # "sampling"（取樣）或 "counting"（查熱度）
+    done: int = 0
+    total: int = 0
+
+
 @router.get("/trending", response_model=ApiResponse[TrendingResponse])
 def get_trending(db: Session = Depends(get_db)) -> dict:
     """讀取上次算好的熱門主題。永遠回快取，不會自己去打 GitHub。
@@ -195,11 +210,37 @@ async def refresh_trending(request: Request, db: Session = Depends(get_db)) -> d
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     github = get_github_service()
-    topics = await compute_trending_topics(db, github)
-    computed_at = save_cache(db, topics)
+    try:
+        topics = await compute_trending_topics(
+            db, github, on_progress=lambda phase, done, total: save_progress(db, phase, done, total)
+        )
+        computed_at = save_cache(db, topics)
+    finally:
+        # 失敗也要清，否則進度會永遠卡在中途，前端誤以為還在跑
+        clear_progress(db)
     return success_response(
         TrendingResponse(
             topics=[TrendingTopicOut(**t.__dict__) for t in topics],
             computed_at=computed_at,
+        )
+    )
+
+
+@router.get("/trending/progress", response_model=ApiResponse[TrendingProgress])
+def get_trending_progress(db: Session = Depends(get_db)) -> dict:
+    """重算進行中的進度，供前端輪詢。
+
+    重算是一個長達一兩分鐘的單一請求，前端在等待期間拿不到任何中間狀態，
+    只能顯示一句靜態文字——使用者無法分辨「還在跑」與「卡住了」。
+    """
+    progress = load_progress(db)
+    if not progress:
+        return success_response(TrendingProgress(running=False))
+    return success_response(
+        TrendingProgress(
+            running=True,
+            phase=str(progress.get("phase", "")),
+            done=int(progress.get("done", 0)),
+            total=int(progress.get("total", 0)),
         )
     )

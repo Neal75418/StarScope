@@ -24,6 +24,7 @@
 import asyncio
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, asdict
 from datetime import date, timedelta
 
@@ -69,7 +70,22 @@ async def _paced_search(github: GitHubService, **kwargs) -> dict:
     return result
 
 
-async def _sample_facet(github: GitHubService, star_range: str, created_after: str) -> dict[str, int]:
+# 進度回報：(階段, 已完成, 總數)。階段是 "sampling" 或 "counting"。
+# 這個操作首次要跑兩分鐘，期間前端只能顯示一句靜態文字，使用者無法分辨
+# 「還在跑」與「卡住了」——實際發生過（使用者截圖來問「我點了你看一下」）。
+ProgressFn = Callable[[str, int, int], None]
+
+PHASE_SAMPLING = "sampling"
+PHASE_COUNTING = "counting"
+
+
+async def _sample_facet(
+    github: GitHubService,
+    star_range: str,
+    created_after: str,
+    on_progress: ProgressFn | None = None,
+    done_offset: int = 0,
+) -> dict[str, int]:
     """對單一切面取樣，回傳 {topic: 出現次數}。"""
     counts: dict[str, int] = {}
     for page in range(1, PAGES_PER_FACET + 1):
@@ -84,6 +100,8 @@ async def _sample_facet(github: GitHubService, star_range: str, created_after: s
         for item in result.get("items", []):
             for topic in item.get("topics", []) or []:
                 counts[topic] = counts.get(topic, 0) + 1
+        if on_progress:
+            on_progress(PHASE_SAMPLING, done_offset + page, PAGES_PER_FACET * 2)
     return counts
 
 
@@ -111,7 +129,11 @@ def _save_global_cache(db: Session, counts: dict[str, int]) -> None:
     )
 
 
-async def compute_trending_topics(db: Session, github: GitHubService) -> list[TrendingTopic]:
+async def compute_trending_topics(
+    db: Session,
+    github: GitHubService,
+    on_progress: ProgressFn | None = None,
+) -> list[TrendingTopic]:
     """重新計算熱門主題。
 
     內部已節流（見 SEARCH_INTERVAL_SECONDS），呼叫端不需要處理配額。
@@ -119,8 +141,10 @@ async def compute_trending_topics(db: Session, github: GitHubService) -> list[Tr
     """
     created_after = (utc_now().date() - timedelta(days=SAMPLE_DAYS)).isoformat()
 
-    head = await _sample_facet(github, HEAD_FACET, created_after)
-    tail = await _sample_facet(github, TAIL_FACET, created_after)
+    head = await _sample_facet(github, HEAD_FACET, created_after, on_progress, done_offset=0)
+    tail = await _sample_facet(
+        github, TAIL_FACET, created_after, on_progress, done_offset=PAGES_PER_FACET
+    )
 
     # 交集：兩個切面都出現過才算數
     intersection = {t: head[t] + tail[t] for t in head if t in tail}
@@ -132,15 +156,20 @@ async def compute_trending_topics(db: Session, github: GitHubService) -> list[Tr
 
     global_counts = _load_global_cache(db)
     fetched_any = False
-    for topic, _ in candidates:
-        if topic in global_counts:
-            continue
+    # 只有未命中週快取的才需要查，所以總數要先算出來——否則進度條會停在
+    # 「0/30」然後突然跳完（快取全中時實際上一次都不用查）
+    to_fetch = [t for t, _ in candidates if t not in global_counts]
+    if on_progress:
+        on_progress(PHASE_COUNTING, 0, len(to_fetch))
+    for idx, topic in enumerate(to_fetch, start=1):
         # 只要 total_count，per_page=1 讓回應最小
         probe = await _paced_search(github, query=f"topic:{topic}", per_page=1)
         total = int(probe.get("total_count", 0) or 0)
         if total > 0:
             global_counts[topic] = total
             fetched_any = True
+        if on_progress:
+            on_progress(PHASE_COUNTING, idx, len(to_fetch))
     if fetched_any:
         _save_global_cache(db, global_counts)
 
@@ -187,3 +216,28 @@ def save_cache(db: Session, topics: list[TrendingTopic]) -> str:
         db,
     )
     return computed_at
+
+
+def save_progress(db: Session, phase: str, done: int, total: int) -> None:
+    """寫入進度。刻意用獨立的設定鍵：輪詢進度不該去解析整份結果 JSON。"""
+    set_setting(
+        AppSettingKey.TRENDING_PROGRESS,
+        json.dumps({"phase": phase, "done": done, "total": total}),
+        db,
+    )
+
+
+def clear_progress(db: Session) -> None:
+    set_setting(AppSettingKey.TRENDING_PROGRESS, "", db)
+
+
+def load_progress(db: Session) -> dict | None:
+    """回傳進行中的進度；沒有在跑時回 None。"""
+    raw = get_setting(AppSettingKey.TRENDING_PROGRESS, db)
+    if not raw:
+        return None
+    try:
+        payload: dict = json.loads(raw)
+        return payload
+    except Exception:
+        return None

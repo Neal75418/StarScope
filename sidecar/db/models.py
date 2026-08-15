@@ -394,6 +394,7 @@ class AppSettingKey(StrEnum):
     # 熱門主題建議（手動更新，見 services/trending_topics.py）
     TRENDING_TOPICS_CACHE = "trending_topics_cache"
     TRENDING_GLOBAL_COUNTS = "trending_global_counts"
+    TRENDING_PROGRESS = "trending_progress"
 
 
 class AppSetting(Base):
