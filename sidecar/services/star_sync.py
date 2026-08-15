@@ -38,6 +38,9 @@ class SyncResult:
     renamed: int = 0
     archived: int = 0
     skipped_reason: str | None = None
+    # 首次同步時「本機有、GitHub 沒有」的 repo。不自動封存，交由使用者決定
+    # 要推上去還是封存；其餘時候恆為空。
+    pending_local_only: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -135,15 +138,26 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
             repo.starred_at = star.starred_at
         for repo, star in diff.renamed:
             repo.full_name, repo.owner, repo.name = star.full_name, star.owner, star.name
-        for repo in diff.archived:
-            repo.unstarred_at = utc_now()
+        # 首次同步的差異是歷史遺留，之後的差異才代表使用者取消了 star。
+        # 用同一套邏輯處理會把歷史遺留當成使用者的決定。
+        is_first_sync = get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db) is None
+        pending: list[str] = []
+        if is_first_sync:
+            pending = [r.full_name for r in diff.archived]
+        else:
+            for repo in diff.archived:
+                repo.unstarred_at = utc_now()
 
         db.commit()
         set_setting(AppSettingKey.LAST_STAR_SYNC_AT, utc_now().isoformat() + "Z", db)
         logger.info(
             f"[Star 同步] 新增 {len(diff.added)}、復原 {len(diff.restored)}、"
-            f"改名 {len(diff.renamed)}、封存 {len(diff.archived)}")
+            f"改名 {len(diff.renamed)}、"
+            f"封存 {0 if is_first_sync else len(diff.archived)}"
+            + (f"、待決定 {len(pending)}" if pending else ""))
         return SyncResult(added=len(diff.added), restored=len(diff.restored),
-                          renamed=len(diff.renamed), archived=len(diff.archived))
+                          renamed=len(diff.renamed),
+                          archived=0 if is_first_sync else len(diff.archived),
+                          pending_local_only=pending)
     finally:
         set_setting(AppSettingKey.STAR_SYNC_RUNNING, "", db)

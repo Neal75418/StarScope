@@ -8,6 +8,8 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from typing import Literal
+
 from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -46,6 +48,7 @@ from services.queries import build_signal_map, build_snapshot_map
 from services.rate_limiter import fetch_repo_with_retry
 from services.settings import get_setting
 from services.star_sync import sync_starred_repos
+from utils.time import utc_now
 from db.models import AppSettingKey
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
 
@@ -495,6 +498,15 @@ class SyncResultOut(BaseModel):
     renamed: int
     archived: int
     skipped_reason: str | None
+    # 首次同步時「本機有、GitHub 沒有」的清單，由使用者決定去留
+    pending_local_only: list[str] = []
+
+
+class ResolvePayload(BaseModel):
+    # "star"（推上 GitHub）要等推送功能上線才會加進來。在那之前只提供 archive，
+    # 讓 API 契約誠實反映能做到的事，而不是提供一個會靜默失敗的選項。
+    action: Literal["archive"]
+    full_names: list[str]
 
 
 class SyncStatusOut(BaseModel):
@@ -521,3 +533,18 @@ def sync_status(db: Session = Depends(get_db)) -> dict:
         last_sync_at=get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db),
         running=bool(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db)),
     ))
+
+
+@router.post("/repos/sync/resolve", response_model=ApiResponse[dict])
+def resolve_local_only(payload: ResolvePayload, db: Session = Depends(get_db)) -> dict:
+    """處理首次同步列出的「本機有、GitHub 沒有」的 repo。"""
+    handled = 0
+    for full_name in payload.full_names:
+        repo = include_archived(
+            db.query(Repo)).filter(Repo.full_name == full_name).first()
+        if repo is None:
+            continue
+        repo.unstarred_at = utc_now()
+        handled += 1
+    db.commit()
+    return success_response({"handled": handled})
