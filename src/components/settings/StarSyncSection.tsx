@@ -13,7 +13,7 @@ import { getErrorMessage } from "../../utils/error";
 export function StarSyncSection() {
   const { t } = useI18n();
   const copy = t.settings.starSync;
-  const { status, sync, isSyncing, lastResult, error } = useStarSync();
+  const { status, sync, isSyncing, lastResult, error, resolve, isResolving } = useStarSync();
 
   const skippedMessage =
     lastResult?.skipped_reason != null
@@ -74,6 +74,28 @@ export function StarSyncSection() {
               <li key={fullName}>{fullName}</li>
             ))}
           </ul>
+          <div className="settings-section-actions">
+            <button
+              className="btn btn-sm"
+              data-testid="star-sync-pending-star"
+              disabled={isResolving}
+              onClick={() =>
+                void resolve("star", lastResult.pending_local_only).catch(() => undefined)
+              }
+            >
+              {copy.pendingStar}
+            </button>
+            <button
+              className="btn btn-sm"
+              data-testid="star-sync-pending-archive"
+              disabled={isResolving}
+              onClick={() =>
+                void resolve("archive", lastResult.pending_local_only).catch(() => undefined)
+              }
+            >
+              {copy.pendingArchive}
+            </button>
+          </div>
         </div>
       )}
     </div>

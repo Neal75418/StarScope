@@ -281,6 +281,21 @@ export async function syncStars(): Promise<SyncResult> {
   return apiCall<SyncResult>("/repos/sync", { method: "POST" }, { timeoutMs: 120_000, retries: 0 });
 }
 
+/**
+ * 處理首次同步列出的「本機有、GitHub 沒有」的 repo。
+ * star = 推上 GitHub 讓它進入鏡像；archive = 接受它已不在清單裡。
+ */
+export async function resolveLocalOnly(
+  action: "star" | "archive",
+  fullNames: string[]
+): Promise<{ handled: number }> {
+  return apiCall<{ handled: number }>(
+    "/repos/sync/resolve",
+    { method: "POST", body: JSON.stringify({ action, full_names: fullNames }) },
+    { retries: 0 }
+  );
+}
+
 export async function getSyncStatus(signal?: AbortSignal): Promise<SyncStatus> {
   return apiCall<SyncStatus>("/repos/sync/status", { signal });
 }

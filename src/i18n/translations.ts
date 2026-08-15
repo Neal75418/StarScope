@@ -585,6 +585,8 @@ export const translations = {
         pendingTitle: "In the app but not starred on GitHub",
         pendingHint:
           "The first sync leaves these alone. Star them on GitHub, or archive them here.",
+        pendingStar: "Star all on GitHub",
+        pendingArchive: "Archive all",
         skipped: {
           no_token: "Connect a GitHub account to sync.",
           already_running: "A sync is already running.",
@@ -1536,6 +1538,8 @@ export const translations = {
         error: "同步失敗。",
         pendingTitle: "app 裡有、GitHub 上沒有 star",
         pendingHint: "首次同步不會動它們。你可以到 GitHub 加 star，或在這裡封存。",
+        pendingStar: "全部加到 GitHub",
+        pendingArchive: "全部封存",
         skipped: {
           no_token: "請先連結 GitHub 帳號才能同步。",
           already_running: "已有一輪同步在進行中。",

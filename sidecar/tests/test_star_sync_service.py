@@ -119,10 +119,13 @@ async def test_added_repo_carries_the_star_date(test_db):
 async def test_a_second_sync_is_refused_while_one_is_running(test_db, monkeypatch):
     """自動同步與手動同步並行會算出同樣的新增集合，重複 insert 撞 full_name 唯一鍵。"""
     import services.star_sync as mod
+    from utils.time import utc_now
+
     monkeypatch.setattr(mod, "get_setting", _fake_settings({
         AppSettingKey.GITHUB_TOKEN: "gho_fake",
         AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
-        AppSettingKey.STAR_SYNC_RUNNING: "1",
+        # 鎖記的是開始時間；剛開始的鎖才算有效（陳舊的鎖見下一條測試）
+        AppSettingKey.STAR_SYNC_RUNNING: utc_now().isoformat(),
     }))
 
     gh = FakeGitHub(stars=[_star(1, "a/one")])
@@ -160,3 +163,48 @@ async def test_restarring_an_archived_repo_restores_it_instead_of_inserting(test
     rows = include_archived(test_db.query(Repo)).all()
     assert len(rows) == 1, "不得建立第二列"
     assert rows[0].unstarred_at is None
+
+
+async def test_a_killed_sync_does_not_wedge_every_future_sync(test_db, monkeypatch):
+    """行程被殺掉時，鎖不能永久留在 DB 裡。
+
+    sidecar 是 Tauri 的子行程，app 關閉時會被殺。首次同步要跑一段時間，使用者在
+    那期間關掉 app 是完全正常的操作——若鎖留著，之後每一次同步都回 already_running，
+    而且沒有任何介面能解除。
+    """
+    import services.star_sync as mod
+    from utils.time import utc_now
+    from datetime import timedelta
+
+    store = {
+        AppSettingKey.GITHUB_TOKEN: "gho_fake",
+        AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
+        # 上一輪在一小時前開始，之後行程被殺，finally 從未執行
+        AppSettingKey.STAR_SYNC_RUNNING: (utc_now() - timedelta(hours=1)).isoformat(),
+    }
+    monkeypatch.setattr(mod, "get_setting", lambda key, db=None: store.get(key))
+    monkeypatch.setattr(mod, "set_setting",
+                        lambda key, value, db=None: store.__setitem__(key, value))
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/one")]))
+
+    assert result.skipped_reason != "already_running", "陳舊的鎖必須被視為未上鎖"
+    assert result.added == 1
+
+
+async def test_a_rename_that_frees_a_name_someone_else_took(test_db):
+    """改名與新增撞在同一個名字上時，順序決定會不會整輪失敗。
+
+    真實情境：你追蹤的 repo 改名了，而它原本的名字被另一個你也 star 的 repo 佔走。
+    先做新增就會在舊列還持有那個 full_name 時 INSERT，撞上唯一鍵，整輪同步回滾。
+    """
+    _tracked(test_db, 1, "a/old")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[
+        _star(1, "a/new"),   # 原本那個改名了
+        _star(2, "a/old"),   # 另一個 repo 佔走了舊名字
+    ]))
+
+    assert result.skipped_reason is None
+    names = {r.full_name for r in test_db.query(Repo).all()}
+    assert names == {"a/new", "a/old"}

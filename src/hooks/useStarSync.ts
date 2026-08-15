@@ -6,7 +6,7 @@
  * 改了 star、不想關掉 app」的情況用的。
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getSyncStatus, syncStars } from "../api/client";
+import { getSyncStatus, resolveLocalOnly, syncStars } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 
 export function useStarSync() {
@@ -26,8 +26,21 @@ export function useStarSync() {
     },
   });
 
+  // 首次同步列出的待決 repo：處理完就從清單消失，所以連同 mutation 結果一起失效
+  const resolve = useMutation({
+    mutationFn: ({ action, fullNames }: { action: "star" | "archive"; fullNames: string[] }) =>
+      resolveLocalOnly(action, fullNames),
+    onSuccess: () => {
+      mutation.reset();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+    },
+  });
+
   return {
     status: statusQuery.data ?? null,
+    resolve: (action: "star" | "archive", fullNames: string[]) =>
+      resolve.mutateAsync({ action, fullNames }),
+    isResolving: resolve.isPending,
     sync: () => mutation.mutateAsync(),
     isSyncing: mutation.isPending,
     lastResult: mutation.data ?? null,

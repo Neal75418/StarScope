@@ -6,7 +6,7 @@
  * 以為 GitHub 上真的沒有變動。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { StarSyncSection } from "../StarSyncSection";
@@ -74,6 +74,21 @@ describe("StarSyncSection", () => {
     const pending = await screen.findByTestId("star-sync-pending");
     expect(pending).toHaveTextContent("a/one");
     expect(pending).toHaveTextContent("b/two");
+  });
+
+  it("offers a way out of the first sync's pending list", async () => {
+    // 只顯示清單而沒有動作，等於讓使用者看到問題卻無從處理
+    vi.mocked(client.syncStars).mockResolvedValue({
+      ...NOTHING,
+      pending_local_only: ["a/one"],
+    });
+    vi.mocked(client.resolveLocalOnly).mockResolvedValue({ handled: 1 });
+    renderWithClient(<StarSyncSection />);
+    fireEvent.click(await screen.findByTestId("star-sync-btn"));
+
+    fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
+
+    await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledWith("star", ["a/one"]));
   });
 
   it("surfaces a failed sync instead of leaving the button silent", async () => {

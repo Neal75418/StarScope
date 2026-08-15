@@ -7,7 +7,7 @@ github_id 不變，用 full_name 比對會把改名判成「舊的消失 + 新�
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -18,6 +18,12 @@ from services.settings import get_setting, set_setting
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
+
+# 同步鎖的有效期。鎖存在 DB 而非記憶體，所以行程被殺（sidecar 是 Tauri 的子行程，
+# app 關閉時會被殺）時 finally 不會執行，鎖就永遠留著——之後每次同步都回
+# already_running 且無介面可解除。以「開始時間」記錄並設有效期，讓陳舊的鎖自動失效。
+# 一次同步實際只需一到數次請求，十分鐘遠超過任何正常情況。
+STALE_LOCK_MINUTES = 10
 
 
 @dataclass
@@ -103,6 +109,18 @@ def _repo_from_star(star: RemoteStar) -> Repo:
     )
 
 
+def _lock_is_held(raw: str | None) -> bool:
+    """鎖是否仍然有效。無法解析的值視為未上鎖——寧可多跑一輪，也不要永久卡死。"""
+    if not raw:
+        return False
+    try:
+        started = datetime.fromisoformat(raw)
+    except ValueError:
+        logger.warning(f"[Star 同步] 鎖的時間格式無法解析，視為未上鎖: {raw!r}")
+        return False
+    return (utc_now() - started) < timedelta(minutes=STALE_LOCK_MINUTES)
+
+
 async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
     """把本機追蹤清單對齊 GitHub 的 star。
 
@@ -112,10 +130,10 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
     if not get_setting(AppSettingKey.GITHUB_TOKEN, db):
         return SyncResult(skipped_reason="no_token")
 
-    if get_setting(AppSettingKey.STAR_SYNC_RUNNING, db):
+    if _lock_is_held(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db)):
         return SyncResult(skipped_reason="already_running")
 
-    set_setting(AppSettingKey.STAR_SYNC_RUNNING, "1", db)
+    set_setting(AppSettingKey.STAR_SYNC_RUNNING, utc_now().isoformat(), db)
     try:
         try:
             remote = await github.get_user_starred_with_dates()
@@ -131,13 +149,20 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
         local = include_archived(db.query(Repo)).all()
         diff = diff_starred(local, remote)
 
+        # 改名先於新增，且中間 flush 一次：repo 改名後，它原本的名字可能被另一個
+        # 你也 star 的 repo 佔走。先做新增就會在舊列還持有那個 full_name 時 INSERT，
+        # 撞上唯一鍵讓整輪同步回滾。SQLAlchemy 目前的 flush 順序剛好正確，但正確性
+        # 不該依賴我們沒有選擇的排序。
+        for repo, star in diff.renamed:
+            repo.full_name, repo.owner, repo.name = star.full_name, star.owner, star.name
+        if diff.renamed:
+            db.flush()
+
         for star in diff.added:
             db.add(_repo_from_star(star))
         for repo, star in diff.restored:
             repo.unstarred_at = None
             repo.starred_at = star.starred_at
-        for repo, star in diff.renamed:
-            repo.full_name, repo.owner, repo.name = star.full_name, star.owner, star.name
         # 首次同步的差異是歷史遺留，之後的差異才代表使用者取消了 star。
         # 用同一套邏輯處理會把歷史遺留當成使用者的決定。
         is_first_sync = get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db) is None

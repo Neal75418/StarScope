@@ -77,9 +77,24 @@ def test_resolve_archives_the_named_repos(client, test_db):
     assert row.unstarred_at is not None
 
 
-def test_resolve_rejects_star_until_pushing_exists(client, test_db):
-    """推送尚未上線，契約就不該提供這個選項——靜默失敗比 422 難查得多。"""
+def test_resolve_rejects_an_unknown_action(client, test_db):
+    resp = client.post("/api/repos/sync/resolve",
+                       json={"action": "delete", "full_names": ["a/local-only"]})
+
+    assert resp.status_code == 422
+
+
+def test_resolve_star_pushes_to_github_and_keeps_the_repo(client, test_db, monkeypatch):
+    """推上去這條路徑必須真的寫 GitHub，否則下一次同步又會把它列出來。"""
+    from tests.test_star_push import FakeGitHub
+
+    gh = FakeGitHub()
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: gh)
+    _tracked(test_db, 1, "a/local-only")
+
     resp = client.post("/api/repos/sync/resolve",
                        json={"action": "star", "full_names": ["a/local-only"]})
 
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert gh.starred == [("a", "local-only")]
+    assert test_db.query(Repo).filter(Repo.full_name == "a/local-only").first() is not None

@@ -521,9 +521,7 @@ class SyncResultOut(BaseModel):
 
 
 class ResolvePayload(BaseModel):
-    # "star"（推上 GitHub）要等推送功能上線才會加進來。在那之前只提供 archive，
-    # 讓 API 契約誠實反映能做到的事，而不是提供一個會靜默失敗的選項。
-    action: Literal["archive"]
+    action: Literal["star", "archive"]
     full_names: list[str]
 
 
@@ -554,15 +552,27 @@ def sync_status(db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/repos/sync/resolve", response_model=ApiResponse[dict])
-def resolve_local_only(payload: ResolvePayload, db: Session = Depends(get_db)) -> dict:
-    """處理首次同步列出的「本機有、GitHub 沒有」的 repo。"""
+async def resolve_local_only(payload: ResolvePayload,
+                             db: Session = Depends(get_db)) -> dict:
+    """處理首次同步列出的「本機有、GitHub 沒有」的 repo。
+
+    star：推上 GitHub，讓它進入鏡像。archive：接受它已經不在清單裡。
+    兩者都由使用者明確選擇——首次同步刻意不自己決定。
+    """
+    github = get_github_service()
     handled = 0
     for full_name in payload.full_names:
         repo = include_archived(
             db.query(Repo)).filter(Repo.full_name == full_name).first()
         if repo is None:
             continue
-        repo.unstarred_at = utc_now()
+        if payload.action == "star":
+            # 先寫 GitHub 才算數，理由同 add_repo
+            if github.can_write:
+                await github.star_repo(repo.owner, repo.name)
+            repo.unstarred_at = None
+        else:
+            repo.unstarred_at = utc_now()
         handled += 1
     db.commit()
     return success_response({"handled": handled})

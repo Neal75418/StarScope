@@ -102,3 +102,28 @@ def test_feed_does_not_recommend_an_archived_repo(test_db, archived_and_live):
 
     assert 2 in ids
     assert "a/gone" in names
+
+
+# --- 滲漏掃描 ---
+
+
+LISTING_ENDPOINTS = [
+    "/api/repos",
+    "/api/export/watchlist.json",
+    "/api/export/watchlist.csv",
+    "/api/trends",
+]
+
+
+@pytest.mark.parametrize("endpoint", LISTING_ENDPOINTS)
+def test_archived_repo_does_not_leak_into_any_listing(client, archived_and_live, endpoint):
+    """封存的 repo 不得從任何列出 repo 的端點滲出來。
+
+    這一條掃的是「預設排除」這個機制本身。個別端點的作者不需要記得加條件，
+    但如果哪天有人在某支端點用了 include_archived 又忘了濾回來，這裡會抓到。
+    """
+    resp = client.get(endpoint)
+
+    assert resp.status_code == 200
+    assert "a/gone" not in resp.text, f"{endpoint} 洩漏了封存的 repo"
+    assert "a/live" in resp.text, f"{endpoint} 連未封存的都沒回，測試本身可能沒生效"
