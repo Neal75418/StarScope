@@ -19,7 +19,7 @@ export function useFeed() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: generateFeed,
+    mutationFn: () => generateFeed(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.feed.today() });
     },

@@ -43,24 +43,6 @@ export interface RepoCreate {
   url?: string;
 }
 
-// Starred Import 型別
-
-export interface StarredRepo {
-  owner: string;
-  name: string;
-  full_name: string;
-  description: string | null;
-  language: string | null;
-  stars: number;
-  url: string;
-  topics: string[];
-}
-
-export interface StarredReposResponse {
-  repos: StarredRepo[];
-  total: number;
-}
-
 export interface BatchImportResult {
   total: number;
   success: number;
@@ -699,4 +681,21 @@ export interface FeedStats {
   opened: number;
   starred: number;
   dismissed: number;
+}
+
+/** 一次 star 同步的結果。skipped_reason 非 null 時，其餘計數皆為 0。 */
+export interface SyncResult {
+  added: number;
+  restored: number;
+  renamed: number;
+  archived: number;
+  /** "no_token" | "already_running" | "fetch_failed" | "empty_response" */
+  skipped_reason: string | null;
+  /** 首次同步時「本機有、GitHub 沒有」的 repo，交由使用者決定去留 */
+  pending_local_only: string[];
+}
+
+export interface SyncStatus {
+  last_sync_at: string | null;
+  running: boolean;
 }

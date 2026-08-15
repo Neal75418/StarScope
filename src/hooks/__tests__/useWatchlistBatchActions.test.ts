@@ -6,7 +6,7 @@ import type { WatchlistActions } from "../../contexts/watchlistReducer";
 
 vi.mock("../../api/client", () => ({
   addRepoToCategory: vi.fn(),
-  removeRepo: vi.fn(),
+  unstarRepo: vi.fn(),
   fetchRepo: vi.fn(),
 }));
 
@@ -85,7 +85,7 @@ describe("useWatchlistBatchActions", () => {
   });
 
   it("batchRemove removes each repo", async () => {
-    vi.mocked(client.removeRepo).mockResolvedValue(undefined);
+    vi.mocked(client.unstarRepo).mockResolvedValue(undefined);
     const selectedIds = new Set([1, 2]);
 
     const { result } = renderHook(() => useWatchlistBatchActions(selectedIds, mockActions));
@@ -95,7 +95,7 @@ describe("useWatchlistBatchActions", () => {
       batchResult = await result.current.batchRemove();
     });
 
-    expect(client.removeRepo).toHaveBeenCalledTimes(2);
+    expect(client.unstarRepo).toHaveBeenCalledTimes(2);
     expect(batchResult?.success).toBe(2);
     expect(mockInvalidateRepos).toHaveBeenCalled();
   });
@@ -110,6 +110,6 @@ describe("useWatchlistBatchActions", () => {
     });
 
     expect(batchResult?.total).toBe(0);
-    expect(client.removeRepo).not.toHaveBeenCalled();
+    expect(client.unstarRepo).not.toHaveBeenCalled();
   });
 });

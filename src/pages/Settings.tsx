@@ -9,6 +9,8 @@ import { GitHubConnection } from "../components/GitHubConnection";
 import { AnimatedPage } from "../components/motion";
 import {
   ImportSection,
+  StarSyncSection,
+  ArchivedRepos,
   AlertRuleForm,
   AlertRuleList,
   DataManagementSection,
@@ -159,6 +161,8 @@ export function Settings() {
 
           {/* 匯入 */}
           <div id="import">
+            <StarSyncSection />
+            <ArchivedRepos />
             <ImportSection />
           </div>
 

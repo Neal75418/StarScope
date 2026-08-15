@@ -63,6 +63,8 @@ vi.mock("../../components/settings", () => ({
   SignalThresholdsSection: () => <div data-testid="signal-thresholds-section">Thresholds</div>,
   InterestsSection: () => <div data-testid="interests-section">Interests</div>,
   ImportSection: () => <div data-testid="import-section">Import</div>,
+  StarSyncSection: () => <div data-testid="star-sync-section">Star Sync</div>,
+  ArchivedRepos: () => <div data-testid="archived-repos">Archived</div>,
   AlertRuleForm: ({
     isEditMode,
     onSubmit,
@@ -158,6 +160,8 @@ describe("Settings", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
     expect(screen.getByTestId("github-section")).toBeInTheDocument();
     expect(screen.getByTestId("import-section")).toBeInTheDocument();
+    expect(screen.getByTestId("star-sync-section")).toBeInTheDocument();
+    expect(screen.getByTestId("archived-repos")).toBeInTheDocument();
     expect(screen.getByTestId("alerts-section")).toBeInTheDocument();
   });
 

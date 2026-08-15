@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { addRepoToCategory, removeRepo, fetchRepo } from "../api/client";
+import { addRepoToCategory, unstarRepo, fetchRepo } from "../api/client";
 import type { WatchlistActions } from "../contexts/watchlistReducer";
 
 interface BatchResult {
@@ -81,7 +81,7 @@ export function useWatchlistBatchActions(selectedIds: Set<number>, actions: Watc
     try {
       for (const repoId of ids) {
         try {
-          await removeRepo(repoId);
+          await unstarRepo(repoId);
           success++;
         } catch {
           failed++;

@@ -8,7 +8,8 @@ import {
   checkHealth,
   getRepos,
   addRepo,
-  removeRepo,
+  unstarRepo,
+  deleteArchivedRepo,
   fetchRepo,
   fetchAllRepos,
   getContextBadges,
@@ -165,15 +166,32 @@ describe("API Client", () => {
     });
   });
 
-  describe("removeRepo", () => {
-    it("removes repo successfully", async () => {
+  describe("unstarRepo", () => {
+    it("posts to the unstar endpoint rather than deleting", async () => {
+      // 取消追蹤保留快照與訊號；DELETE 是永久刪除，兩者不可混用
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 204,
         json: async () => ({ success: true }),
       });
 
-      await removeRepo(1);
+      await unstarRepo(1);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/repos/1/unstar"),
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+  });
+
+  describe("deleteArchivedRepo", () => {
+    it("deletes permanently", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+        json: async () => ({ success: true }),
+      });
+
+      await deleteArchivedRepo(1);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("/repos/1"),
         expect.objectContaining({ method: "DELETE" })

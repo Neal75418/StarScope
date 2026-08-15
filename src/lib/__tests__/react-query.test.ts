@@ -172,7 +172,7 @@ describe("queryKeys", () => {
 
   describe("repos extended", () => {
     it("generates starred key", () => {
-      expect(queryKeys.repos.starred()).toEqual(["repos", "starred"]);
+      expect(queryKeys.repos.archived()).toEqual(["repos", "archived"]);
     });
   });
 });

@@ -280,7 +280,8 @@ export const translations = {
         addToCategory: "Add to Category",
         refresh: "Refresh",
         remove: "Remove",
-        confirmRemove: "Remove {count} selected repos? This cannot be undone.",
+        confirmRemove:
+          "Stop tracking {count} selected repos? This also removes your stars from them on GitHub. Their history is kept.",
         processing: "Processing...",
         done: "Batch operation completed",
         partial: "Completed {success} of {total} — some items failed",
@@ -558,6 +559,39 @@ export const translations = {
           failed: "Export failed",
         },
       },
+      archived: {
+        title: "Archived",
+        description:
+          "Repositories you unstarred. Their history is kept and comes back if you star them again.",
+        empty: "Nothing archived.",
+        restar: "Track again",
+        delete: "Delete permanently",
+        confirmTitle: "Delete permanently?",
+        confirmMessage:
+          "This removes {name} and everything attached to it — snapshots, signals and any alert rules you set for it. It cannot be undone.",
+      },
+      starSync: {
+        title: "GitHub Stars",
+        description: "Your watchlist mirrors the repositories you have starred on GitHub.",
+        sync: "Sync now",
+        syncing: "Syncing…",
+        never: "Not synced yet",
+        lastSynced: "Last synced",
+        resultAdded: "added",
+        resultRestored: "restored",
+        resultRenamed: "renamed",
+        resultArchived: "archived",
+        error: "Sync failed.",
+        pendingTitle: "In the app but not starred on GitHub",
+        pendingHint:
+          "The first sync leaves these alone. Star them on GitHub, or archive them here.",
+        skipped: {
+          no_token: "Connect a GitHub account to sync.",
+          already_running: "A sync is already running.",
+          fetch_failed: "Could not reach GitHub — nothing was changed.",
+          empty_response: "GitHub returned no stars — nothing was changed.",
+        },
+      },
       import: {
         title: "Import Repositories",
         description: "Batch import repositories from CSV or JSON files.",
@@ -783,9 +817,10 @@ export const translations = {
         invalidFormat: "Invalid format. Use owner/repo or GitHub URL.",
       },
       removeRepo: {
-        title: "Remove Repository",
-        message: 'Are you sure you want to remove "{name}" from your watchlist?',
-        confirm: "Remove",
+        title: "Stop tracking",
+        message:
+          'This also removes your star from "{name}" on GitHub. Its history is kept and comes back if you star it again.',
+        confirm: "Stop tracking",
       },
     },
     // Toast 訊息
@@ -1201,7 +1236,8 @@ export const translations = {
         addToCategory: "加入分類",
         refresh: "刷新",
         remove: "移除",
-        confirmRemove: "確定要移除 {count} 個已選的 repo 嗎？此操作無法復原。",
+        confirmRemove:
+          "確定要取消追蹤 {count} 個已選的 repo 嗎？這會同時取消你在 GitHub 上的 star。歷史資料仍保留。",
         processing: "處理中...",
         done: "批次操作完成",
         partial: "完成 {success}/{total} — 部分項目失敗",
@@ -1476,6 +1512,37 @@ export const translations = {
           failed: "匯出失敗",
         },
       },
+      archived: {
+        title: "已封存",
+        description: "你取消追蹤的專案。歷史資料仍保留，重新追蹤就會整組回來。",
+        empty: "目前沒有封存的專案。",
+        restar: "重新追蹤",
+        delete: "永久刪除",
+        confirmTitle: "確定要永久刪除嗎？",
+        confirmMessage:
+          "這會刪除 {name} 以及所有附屬資料——快照、訊號，以及你為它設定的警示規則。此操作無法復原。",
+      },
+      starSync: {
+        title: "GitHub Stars",
+        description: "追蹤清單是你在 GitHub 上 star 的專案的鏡像。",
+        sync: "立即同步",
+        syncing: "同步中…",
+        never: "尚未同步",
+        lastSynced: "上次同步",
+        resultAdded: "新增",
+        resultRestored: "復原",
+        resultRenamed: "更名",
+        resultArchived: "封存",
+        error: "同步失敗。",
+        pendingTitle: "app 裡有、GitHub 上沒有 star",
+        pendingHint: "首次同步不會動它們。你可以到 GitHub 加 star，或在這裡封存。",
+        skipped: {
+          no_token: "請先連結 GitHub 帳號才能同步。",
+          already_running: "已有一輪同步在進行中。",
+          fetch_failed: "無法連上 GitHub——沒有變更任何資料。",
+          empty_response: "GitHub 回傳 0 個 star——沒有變更任何資料。",
+        },
+      },
       import: {
         title: "匯入儲存庫",
         description: "從 CSV 或 JSON 檔案批次匯入儲存庫。",
@@ -1696,9 +1763,10 @@ export const translations = {
         invalidFormat: "格式錯誤。請使用 owner/repo 或 GitHub 網址。",
       },
       removeRepo: {
-        title: "移除儲存庫",
-        message: "確定要將「{name}」從追蹤清單中移除嗎？",
-        confirm: "移除",
+        title: "取消追蹤",
+        message:
+          "這會同時取消你在 GitHub 上對「{name}」的 star。歷史資料仍保留，重新追蹤就會回來。",
+        confirm: "取消追蹤",
       },
     },
     // Toast 訊息

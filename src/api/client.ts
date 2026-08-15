@@ -50,8 +50,9 @@ import type {
   WeeklySummaryResponse,
   ComparisonChartResponse,
   ComparisonTimeRange,
+  SyncResult,
+  SyncStatus,
   PersonalizedResponse,
-  StarredReposResponse,
   BatchImportResult,
   PortfolioHistoryResponse,
   FetchIntervalResponse,
@@ -253,9 +254,39 @@ export async function addRepo(input: RepoCreate): Promise<RepoWithSignals> {
 }
 
 /**
- * 從追蹤清單移除儲存庫。
+ * 取消追蹤：在 GitHub 取消 star，本機封存。快照與訊號全部保留。
+ * 這不是刪除——永久刪除是 deleteArchivedRepo。
  */
-export async function removeRepo(repoId: number): Promise<void> {
+export async function unstarRepo(repoId: number): Promise<void> {
+  return apiCall<void>(`/repos/${repoId}/unstar`, { method: "POST" });
+}
+
+/** 從封存清單復原：重新 star 並清除封存標記。 */
+export async function restarRepo(repoId: number): Promise<void> {
+  return apiCall<void>(`/repos/${repoId}/restar`, { method: "POST" });
+}
+
+/** 已取消 star 但資料仍保留的 repo。 */
+export async function getArchivedRepos(signal?: AbortSignal): Promise<RepoListResponse> {
+  return apiCall<RepoListResponse>("/repos/archived", { signal });
+}
+
+/**
+ * 觸發 star 同步。
+ *
+ * 逾時拉長：首次同步會逐頁拉取並建立上百列。不重試：它有副作用，而且伺服器端
+ * 已有並行鎖，重試只會拿到 already_running。
+ */
+export async function syncStars(): Promise<SyncResult> {
+  return apiCall<SyncResult>("/repos/sync", { method: "POST" }, { timeoutMs: 120_000, retries: 0 });
+}
+
+export async function getSyncStatus(signal?: AbortSignal): Promise<SyncStatus> {
+  return apiCall<SyncStatus>("/repos/sync/status", { signal });
+}
+
+/** 永久刪除（只接受已封存的 repo）。連同快照、訊號與警示規則一併移除。 */
+export async function deleteArchivedRepo(repoId: number): Promise<void> {
   return apiCall<void>(`/repos/${repoId}`, {
     method: "DELETE",
   });
@@ -277,13 +308,6 @@ export async function fetchAllRepos(): Promise<RepoListResponse> {
   return apiCall<RepoListResponse>("/repos/fetch-all", {
     method: "POST",
   });
-}
-
-/**
- * 取得使用者在 GitHub 上已加星號的 repo（排除已在追蹤清單中的）。
- */
-export async function getStarredRepos(signal?: AbortSignal): Promise<StarredReposResponse> {
-  return apiCall<StarredReposResponse>("/repos/starred", { signal });
 }
 
 /**

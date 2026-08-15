@@ -11,3 +11,5 @@ export { ScheduledRefreshSection } from "./ScheduledRefreshSection";
 export { SnapshotRetentionSection } from "./SnapshotRetentionSection";
 export { SignalThresholdsSection } from "./SignalThresholdsSection";
 export { InterestsSection } from "./InterestsSection";
+export { StarSyncSection } from "./StarSyncSection";
+export { ArchivedRepos } from "./ArchivedRepos";

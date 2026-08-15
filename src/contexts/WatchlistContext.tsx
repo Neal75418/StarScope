@@ -18,7 +18,7 @@ import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   addRepo,
-  removeRepo,
+  unstarRepo,
   fetchRepo,
   fetchAllRepos,
   recalculateAllSimilarities,
@@ -178,7 +178,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         dispatch({ type: "REMOVE_REPO_START", payload: { repoId } });
 
         try {
-          await removeRepo(repoId);
+          await unstarRepo(repoId);
           dispatch({ type: "REMOVE_REPO_SUCCESS" });
           invalidateRepos();
         } catch (err) {
@@ -249,7 +249,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         dispatch({ type: "REMOVE_REPO_START", payload: { repoId } });
 
         try {
-          await removeRepo(repoId);
+          await unstarRepo(repoId);
           dispatch({ type: "REMOVE_REPO_SUCCESS" });
           invalidateRepos();
           showToastFn("success", t.toast.repoRemoved);

@@ -34,8 +34,6 @@ from schemas import (
     RepoListResponse,
     BatchRepoCreate,
     BatchImportResult,
-    StarredRepo,
-    StarredReposResponse,
 )
 from schemas.response import ApiResponse, success_response
 from services.github import (
@@ -324,50 +322,6 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
             data=repo_list,
             message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
         )
-
-
-@router.get("/repos/starred", response_model=ApiResponse[StarredReposResponse])
-@limiter.limit("10/minute")
-async def get_starred_repos(request: Request, db: Session = Depends(get_db)) -> dict:
-    """
-    取得使用者在 GitHub 上已加星號的 repo（排除已在追蹤清單中的）。
-    需要已連結 GitHub 帳號。
-    """
-    _ = request  # 由 @limiter.limit decorator 隱式使用
-    github = get_github_service()
-    if not github.token:
-        raise HTTPException(
-            status_code=401,
-            detail="GitHub account not connected",
-        )
-
-    raw_starred = await github.get_user_starred()
-
-    # 取得已在追蹤清單中的 repo full_name 集合
-    existing_full_names: set[str] = {r.full_name for r in db.query(Repo.full_name).all()}
-
-    # 篩除已追蹤的 repo，轉換為 StarredRepo
-    starred_repos: list[StarredRepo] = []
-    for repo in raw_starred:
-        full_name = repo.get("full_name", "")
-        if full_name in existing_full_names:
-            continue
-        starred_repos.append(
-            StarredRepo(
-                owner=repo["owner"]["login"],
-                name=repo["name"],
-                full_name=full_name,
-                description=repo.get("description"),
-                language=repo.get("language"),
-                stars=repo.get("stargazers_count", 0),
-                url=repo.get("html_url", ""),
-                topics=repo.get("topics", []),
-            )
-        )
-
-    return success_response(
-        data=StarredReposResponse(repos=starred_repos, total=len(starred_repos)),
-    )
 
 
 @router.post("/repos/batch", response_model=ApiResponse[BatchImportResult])
