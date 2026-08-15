@@ -1062,14 +1062,19 @@ body {
 /* Empty State */
 .empty-state {
   text-align: center;
-  /* 寬螢幕上不讓外框無限拉寬：內容只佔中間一小塊時，滿寬的框會讀成空洞的框。
-     窄於此寬度時 max-width 不生效，不影響小視窗。 */
-  max-width: 56rem;
-  margin-inline: auto;
   padding: 64px 24px;
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
+}
+
+/* 只收斂「文字行長」，不收斂外框寬度：外框必須跟上方工具列/分頁列切齊，
+   一旦給外框 max-width 置中，在有滿寬控制項的頁面（追蹤清單、趨勢）就會
+   內縮成參差的邊。行長上限則讓寬螢幕上的句子不會拉成一長條。 */
+.empty-state h3,
+.empty-state p {
+  max-width: 44rem;
+  margin-inline: auto;
 }
 
 .empty-state p {
@@ -5443,15 +5448,17 @@ a:focus-visible {
 }
 
 /* Dashboard 空狀態引導卡：說明 + 單一出口，不渲染六個各自空白的模組 */
+.dashboard-onboard p {
+  /* 同 .empty-state：收行長不收框寬 */
+  max-width: 44rem;
+}
+
 .dashboard-onboard {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
   padding: 3rem 1.5rem;
-  /* 與 .empty-state 同一套寬度節制 */
-  max-width: 56rem;
-  margin-inline: auto;
   margin-top: 1rem;
   text-align: center;
   background: var(--bg-subtle);
