@@ -12,6 +12,8 @@ from services.github import GitHubAPIError
 class FakeGitHub:
     """記錄呼叫順序，好驗證「先寫 GitHub 才改本機」。"""
 
+    can_write = True
+
     def __init__(self, fail_star: bool = False):
         self.starred: list[tuple[str, str]] = []
         self.unstarred: list[tuple[str, str]] = []
@@ -96,3 +98,23 @@ def test_batch_records_the_failure_without_creating_the_row(client, test_db,
     data = resp.json()["data"]
     assert data["failed"] == 1
     assert test_db.query(Repo).count() == 0
+
+
+def test_add_still_works_without_a_token(client, test_db, monkeypatch):
+    """star 寫入需要認證，讀取不用。沒有 token 時新增仍該成功。
+
+    不會造成漂移：同步在沒有 token 時同樣不執行；日後連結帳號時那一次是首次同步，
+    而首次同步不自動封存，會把這些列出來讓使用者決定。
+    """
+    class NoToken(FakeGitHub):
+        can_write = False
+
+        async def star_repo(self, owner: str, name: str) -> None:
+            raise AssertionError("沒有 token 時不該嘗試寫入")
+
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: NoToken())
+
+    resp = client.post("/api/repos", json={"owner": "a", "name": "one"})
+
+    assert resp.status_code == 201
+    assert test_db.query(Repo).filter(Repo.full_name == "a/one").first() is not None

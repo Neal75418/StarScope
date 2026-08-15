@@ -256,7 +256,12 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
 
     # 先寫 GitHub 再建本機列。反向順序會在寫入失敗時留下本機有、遠端沒有的狀態，
     # 而下一次同步會把它判成「使用者取消了 star」而封存——加進去的東西自己消失。
-    await github.star_repo(owner, name)
+    #
+    # 沒有 token 時只建本機列：star 寫入需要認證，但讀取可以匿名。這不會造成漂移，
+    # 因為同步在沒有 token 時同樣不執行；等到日後連結帳號，那一次就是「首次同步」，
+    # 而首次同步不自動封存，會把這些列出來讓使用者決定。
+    if github.can_write:
+        await github.star_repo(owner, name)
 
     github_data = await github.get_repo(owner, name)
 
@@ -409,8 +414,9 @@ async def batch_add_repos(
             continue
 
         try:
-            # 同 add_repo：先 star 才建列
-            await github.star_repo(owner, name)
+            # 同 add_repo：先 star 才建列（無 token 時略過，理由見該處）
+            if github.can_write:
+                await github.star_repo(owner, name)
 
             # 從 GitHub 抓取 repo 資訊
             github_data = await github.get_repo(owner, name)
@@ -488,7 +494,11 @@ async def unstar_repo_endpoint(repo_id: int, db: Session = Depends(get_db)) -> d
     不一致，而且沒有任何跡象。
     """
     repo = get_repo_or_404(repo_id, db)
-    await get_github_service().unstar_repo(repo.owner, repo.name)
+    github = get_github_service()
+    # 無 token 時只改本機，理由同 add_repo：寫入需要認證，而同步在無 token 時
+    # 同樣不執行，所以不會產生漂移
+    if github.can_write:
+        await github.unstar_repo(repo.owner, repo.name)
     repo.unstarred_at = utc_now()
     db.commit()
     return success_response({"archived": repo_id})
@@ -498,7 +508,9 @@ async def unstar_repo_endpoint(repo_id: int, db: Session = Depends(get_db)) -> d
 async def restar_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """從封存清單復原：重新 star 並清除封存標記。快照與訊號原本就還在。"""
     repo = get_repo_or_404(repo_id, db, allow_archived=True)
-    await get_github_service().star_repo(repo.owner, repo.name)
+    github = get_github_service()
+    if github.can_write:
+        await github.star_repo(repo.owner, repo.name)
     repo.unstarred_at = None
     db.commit()
     return success_response({"restored": repo_id})

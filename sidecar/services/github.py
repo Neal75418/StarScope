@@ -501,6 +501,11 @@ class GitHubService:
         handle_github_response(
             response, raise_on_error=True, context=f"{method} star {owner}/{name}")
 
+    @property
+    def can_write(self) -> bool:
+        """有沒有 token。star 寫入必須認證，讀取則可匿名（每小時 60 次）。"""
+        return bool(self.token)
+
     async def star_repo(self, owner: str, name: str) -> None:
         """在 GitHub 上 star 這個 repo。冪等——已 star 時同樣回 204。"""
         await self._write_star("PUT", owner, name)

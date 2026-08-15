@@ -59,7 +59,11 @@ export async function removeRepoByFullName(request: APIRequestContext, fullName:
   const hit = body?.data?.repos?.find(
     (r: { id: number; full_name: string }) => r.full_name === fullName
   );
-  if (hit) await request.delete(`${SIDECAR}/api/repos/${hit.id}`);
+  if (!hit) return;
+  // 永久刪除只接受已封存的 repo（追蹤中的會回 400），所以要先取消追蹤再刪。
+  // 少了第一步，清理會靜默失敗並把狀態留給下一個測試。
+  await request.post(`${SIDECAR}/api/repos/${hit.id}/unstar`);
+  await request.delete(`${SIDECAR}/api/repos/${hit.id}`);
 }
 
 export async function removeInterestByTerm(request: APIRequestContext, term: string) {

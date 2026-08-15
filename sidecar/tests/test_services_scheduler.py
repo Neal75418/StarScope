@@ -138,24 +138,33 @@ class TestFetchAllReposJob:
     async def test_fetches_repos_concurrently_not_serially(self, test_db, mock_multiple_repos):
         """抓取必須併發：序列化時整輪耗時 = repo 數 × 單次往返，會把 event loop 佔住。
 
-        用「每次抓取固定睡 100ms」來量：3 個 repo 序列至少 300ms，併發應接近 100ms。
-        門檻設在 250ms —— 足以區分兩種行為，又不會因機器慢就誤紅。
+        量的是「同時在飛的抓取數」而不是總耗時。用牆鐘時間當代理指標分不出
+        「序列執行」與「機器很慢」——CI 上實測拿到 341ms，序列與併發加負載都解釋
+        得通，於是那個門檻只是在賭 runner 的速度（實測本機併發 100ms、序列 300ms，
+        而 CI 兩者都可能落在門檻外）。改量並行度後與機器速度無關。
         """
         import asyncio
-        import time
 
-        async def slow_fetch(owner, name):
-            await asyncio.sleep(0.1)
+        in_flight = 0
+        max_in_flight = 0
+
+        async def tracked_fetch(owner, name):
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            # 讓出控制權，其他抓取才有機會開始——沒有這個 await，即使是併發實作
+            # 也會因為沒有暫停點而一個接一個跑完
+            await asyncio.sleep(0.01)
+            in_flight -= 1
             return {"stargazers_count": 1, "forks_count": 1, "open_issues_count": 0}
 
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.scheduler.fetch_repo_data', new=AsyncMock(side_effect=slow_fetch)), \
+             patch('services.scheduler.fetch_repo_data', new=AsyncMock(side_effect=tracked_fetch)), \
              patch('services.scheduler.update_repo_from_github'):
-            started = time.perf_counter()
             await fetch_all_repos_job()
-            elapsed = time.perf_counter() - started
 
-        assert elapsed < 0.25, f"看起來仍是序列抓取（{elapsed*1000:.0f}ms，序列預期 ≥300ms）"
+        assert max_in_flight > 1, (
+            f"同時最多只有 {max_in_flight} 個抓取在飛，仍是序列抓取")
 
     @pytest.mark.asyncio
     async def test_skip_recent_minutes_skips_freshly_fetched(self, test_db, mock_multiple_repos):

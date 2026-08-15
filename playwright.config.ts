@@ -82,7 +82,7 @@ export default defineConfig({
     : [
         {
           command:
-            `cd sidecar && PORT=${E2E_SIDECAR_PORT} STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false .venv/bin/python main.py`,
+            `cd sidecar && PORT=${E2E_SIDECAR_PORT} STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false ${process.env.E2E_NO_TOKEN ? "PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring GITHUB_TOKEN= " : ""} .venv/bin/python main.py`,
           url: `http://127.0.0.1:${E2E_SIDECAR_PORT}/api/health`,
           reuseExistingServer: false,
           timeout: 60000,
