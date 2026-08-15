@@ -4,6 +4,13 @@ import { defineConfig, devices } from "@playwright/test";
  * Playwright E2E test configuration for StarScope
  * @see https://playwright.dev/docs/test-configuration
  */
+/**
+ * e2e 專屬 port：刻意不同於開發用的 8008/1420，測試才不會接管開發者正在跑的
+ * server 與真實資料庫。CI 手動起 server 時必須用同一組（見 .github/workflows/test.yml）。
+ */
+const E2E_SIDECAR_PORT = 8009;
+const E2E_WEB_PORT = 1421;
+
 /** 會寫入共用狀態（DB / 伺服器端設定）的 spec —— 見下方 projects 的說明。 */
 const DB_MUTATING_SPECS = [
   "**/compare-flow.spec.ts",
@@ -20,7 +27,7 @@ export default defineConfig({
   reporter: process.env.CI ? "github" : "html",
 
   use: {
-    baseURL: "http://localhost:1421",
+    baseURL: `http://localhost:${E2E_WEB_PORT}`,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
@@ -53,7 +60,8 @@ export default defineConfig({
       name: "db-mutating",
       use: { ...devices["Desktop Chrome"] },
       testMatch: DB_MUTATING_SPECS,
-      dependencies: ["chromium", "firefox", "webkit"],
+      // CI 只安裝 chromium，列上 firefox/webkit 會讓它嘗試啟動未安裝的瀏覽器
+      dependencies: process.env.CI ? ["chromium"] : ["chromium", "firefox", "webkit"],
       // 單 worker：fullyParallel 會把同 spec 的測試分散到多個 worker，
       // 每個 worker 各跑一次 beforeAll/afterAll → 併發播種 UNIQUE 互撞、
       // 先結束的 worker 清理時會刪掉另一個 worker 正在用的資料。
@@ -74,14 +82,14 @@ export default defineConfig({
     : [
         {
           command:
-            "cd sidecar && PORT=8009 STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false .venv/bin/python main.py",
-          url: "http://127.0.0.1:8009/api/health",
+            `cd sidecar && PORT=${E2E_SIDECAR_PORT} STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false .venv/bin/python main.py`,
+          url: `http://127.0.0.1:${E2E_SIDECAR_PORT}/api/health`,
           reuseExistingServer: false,
           timeout: 60000,
         },
         {
-          command: "VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort",
-          url: "http://localhost:1421",
+          command: `VITE_API_URL=http://127.0.0.1:${E2E_SIDECAR_PORT} npm run dev -- --port ${E2E_WEB_PORT} --strictPort`,
+          url: `http://localhost:${E2E_WEB_PORT}`,
           reuseExistingServer: false,
           timeout: 30000,
         },

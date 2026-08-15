@@ -139,29 +139,33 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Start sidecar
+        # port/資料目錄必須與 playwright.config.ts 的 E2E_* 一致
         run: cd sidecar && python main.py &
         env:
           ENV: test
+          PORT: "8009"
+          STARSCOPE_DATA_DIR: /tmp/starscope-e2e
 
       - name: Wait for sidecar
         run: |
           for i in $(seq 1 30); do
-            curl -s http://127.0.0.1:8008/api/health > /dev/null 2>&1 && break
+            curl -s http://127.0.0.1:8009/api/health > /dev/null 2>&1 && break
             sleep 1
           done
 
       - name: Start Vite dev server
-        run: npm run dev &
+        run: VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort &
 
       - name: Wait for Vite
         run: |
           for i in $(seq 1 15); do
-            curl -s http://localhost:1420 > /dev/null 2>&1 && break
+            curl -s http://localhost:1421 > /dev/null 2>&1 && break
             sleep 1
           done
 
       - name: Run E2E tests
-        run: npx playwright test --project=chromium
+        # db-mutating 也要跑：先前只指定 chromium，那三支 spec 在 CI 從未執行過
+        run: npx playwright test --project=chromium --project=db-mutating
 
       - name: Upload Playwright report
         if: failure()
