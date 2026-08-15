@@ -29,6 +29,13 @@
   animation: page-enter 0.2s ease-out both;
 }
 
+/* 品牌色：刻意不隨主題變動。
+   logo 先前用的是語意化的 --warning-fg（深色 #d29922 亮金、淺色 #9a6700 深赭），
+   換模式時標誌會變色相、亮度掉一半——語意色是給「警告」用的，不該決定品牌長相。 */
+:root {
+  --brand-star: #d29922;
+}
+
 /* Default: Dark Theme */
 :root,
 [data-theme="dark"] {
@@ -325,7 +332,7 @@ body {
 }
 
 .logo-icon {
-  color: var(--warning-fg);
+  color: var(--brand-star);
 }
 
 .logo-text {
@@ -1055,6 +1062,10 @@ body {
 /* Empty State */
 .empty-state {
   text-align: center;
+  /* 寬螢幕上不讓外框無限拉寬：內容只佔中間一小塊時，滿寬的框會讀成空洞的框。
+     窄於此寬度時 max-width 不生效，不影響小視窗。 */
+  max-width: 56rem;
+  margin-inline: auto;
   padding: 64px 24px;
   background-color: var(--bg-default);
   border: 1px solid var(--border-default);
@@ -5438,6 +5449,9 @@ a:focus-visible {
   align-items: center;
   gap: 0.75rem;
   padding: 3rem 1.5rem;
+  /* 與 .empty-state 同一套寬度節制 */
+  max-width: 56rem;
+  margin-inline: auto;
   margin-top: 1rem;
   text-align: center;
   background: var(--bg-subtle);
