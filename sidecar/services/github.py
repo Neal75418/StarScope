@@ -7,6 +7,8 @@ import logging
 import os
 import threading
 import time
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -14,6 +16,9 @@ from keyring.errors import KeyringError
 
 from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
 from db.models import AppSettingKey
+
+if TYPE_CHECKING:
+    from services.star_sync import RemoteStar
 
 logger = logging.getLogger(__name__)
 
@@ -168,6 +173,21 @@ def handle_github_list_response(
         return []
     data: list[dict] = response.json()
     return data
+
+
+
+def _parse_star_datetime(value: str | None) -> "datetime | None":
+    """把 GitHub 的 ISO 字串轉成 naive UTC datetime。
+
+    存 naive 是為了與 utc_now() 及資料庫其他時間欄位一致；混用 aware 與 naive
+    在 SQLite 上比較會直接拋 TypeError。
+    """
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+    except (ValueError, TypeError):
+        return None
 
 
 class GitHubService:
@@ -398,6 +418,53 @@ class GitHubService:
 
         logger.info(f"[GitHub API] 已取得使用者的 {len(all_starred)} 個 starred repos")
         return all_starred
+
+
+    async def get_user_starred_with_dates(self, per_page: int = 100,
+                                          max_pages: int = 50) -> list["RemoteStar"]:
+        """取得 starred repos，含 star 的時間。
+
+        starred_at 只在帶 vnd.github.star+json 這個 Accept 時回傳，而它錯過同步當下
+        就補不回來——它是「收藏多久」的唯一來源，added_at 在批次同步後全部同一天。
+
+        回傳的 payload 是完整的 repo 物件，直接拿來建本機列即可；別再對每個 repo
+        呼叫一次 get_repo，首次同步有九十幾個，那是九十幾次多餘請求。
+        """
+        from services.star_sync import RemoteStar
+
+        headers = {**self.headers, "Accept": "application/vnd.github.star+json"}
+        stars: list[RemoteStar] = []
+
+        for page in range(1, max_pages + 1):
+            response = await self.client.get(
+                f"{GITHUB_API_BASE}/user/starred",
+                headers=headers,
+                params={"per_page": per_page, "page": page},
+            )
+            data = handle_github_list_response(
+                response, raise_on_error=True, context=f"user/starred?page={page}"
+            )
+            if not data:
+                break
+
+            for entry in data:
+                # 帶了 star+json 時每筆是 {starred_at, repo}；沒帶時是 repo 本身。
+                # 容忍後者，否則 header 被中間層剝掉時會整批解析失敗。
+                repo = entry.get("repo") or entry
+                stars.append(RemoteStar(
+                    github_id=repo["id"],
+                    full_name=repo["full_name"],
+                    owner=repo["owner"]["login"],
+                    name=repo["name"],
+                    starred_at=_parse_star_datetime(entry.get("starred_at")),
+                    payload=repo,
+                ))
+
+            if len(data) < per_page:
+                break
+
+        logger.info(f"[GitHub API] 已取得 {len(stars)} 個 starred repos（含日期）")
+        return stars
 
 
 # 供排程器使用的模組層級便利函式

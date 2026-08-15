@@ -73,8 +73,30 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     # 啟動背景排程器
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)
 
-    # 啟動後立即抓取資料（不等第一個排程週期）
-    startup_task = asyncio.create_task(trigger_fetch_now())
+    async def _sync_then_fetch() -> None:
+        """先對齊 star 清單，再抓資料。
+
+        順序不能反：抓取跑的是當下的追蹤清單，先抓的話這一輪會漏掉同步剛加進來的
+        repo，也會浪費請求在剛被封存的那些上面。同步失敗不擋抓取——沒有新的 star
+        時，既有清單的資料仍然該更新。
+        """
+        from db.database import SessionLocal
+        from services.github import get_github_service
+        from services.star_sync import sync_starred_repos
+
+        db = SessionLocal()
+        try:
+            result = await sync_starred_repos(db, get_github_service())
+            if result.skipped_reason:
+                logger.info(f"[啟動] star 同步略過: {result.skipped_reason}")
+        except Exception as e:
+            logger.warning(f"[啟動] star 同步失敗（已忽略）: {e}")
+        finally:
+            db.close()
+        await trigger_fetch_now()
+
+    # 啟動後立即同步並抓取資料（不等第一個排程週期）
+    startup_task = asyncio.create_task(_sync_then_fetch())
 
     logger.info(f"[啟動] StarScope Engine 已啟動 (ENV={ENV}, DEBUG={DEBUG})")
 

@@ -4,10 +4,20 @@
 github_id 不變，用 full_name 比對會把改名判成「舊的消失 + 新的出現」，於是封存舊列
 並建立新列，歷史快照從此斷成兩截。
 """
+import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
-from db.models import Repo
+from sqlalchemy.orm import Session
+
+from db.models import AppSettingKey, Repo
+from db.soft_delete import include_archived
+from services.settings import get_setting, set_setting
+from utils.time import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -19,6 +29,15 @@ class RemoteStar:
     name: str
     starred_at: datetime | None
     payload: dict
+
+
+@dataclass
+class SyncResult:
+    added: int = 0
+    restored: int = 0
+    renamed: int = 0
+    archived: int = 0
+    skipped_reason: str | None = None
 
 
 @dataclass
@@ -58,3 +77,73 @@ def diff_starred(local: list[Repo], remote: list[RemoteStar]) -> SyncDiff:
             diff.archived.append(repo)
 
     return diff
+
+
+def _repo_from_star(star: RemoteStar) -> Repo:
+    """直接用 starred 回應建列。
+
+    不要再對每個 repo 呼叫一次 get_repo——首次同步有九十幾個，那是九十幾次額外
+    請求，而且會和 main.py 啟動時已經觸發的 trigger_fetch_now() 撞在一起。
+    """
+    p = star.payload
+    return Repo(
+        owner=star.owner,
+        name=star.name,
+        full_name=star.full_name,
+        url=p.get("html_url") or f"https://github.com/{star.full_name}",
+        description=p.get("description"),
+        github_id=star.github_id,
+        default_branch=p.get("default_branch"),
+        language=p.get("language"),
+        topics=json.dumps(p.get("topics", [])) if p.get("topics") else None,
+        starred_at=star.starred_at,
+    )
+
+
+async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
+    """把本機追蹤清單對齊 GitHub 的 star。
+
+    三道守則保護的都是同一件事：資訊不足時不執行移除。封存雖可復原，但一次誤封存
+    整份清單仍是這個功能最貴的誤動作。
+    """
+    if not get_setting(AppSettingKey.GITHUB_TOKEN, db):
+        return SyncResult(skipped_reason="no_token")
+
+    if get_setting(AppSettingKey.STAR_SYNC_RUNNING, db):
+        return SyncResult(skipped_reason="already_running")
+
+    set_setting(AppSettingKey.STAR_SYNC_RUNNING, "1", db)
+    try:
+        try:
+            remote = await github.get_user_starred_with_dates()
+        except Exception as e:
+            logger.warning(f"[Star 同步] 取得 starred 失敗，不執行任何移除: {e}")
+            return SyncResult(skipped_reason="fetch_failed")
+
+        if not remote:
+            logger.warning("[Star 同步] 回傳 0 筆，不執行任何移除")
+            return SyncResult(skipped_reason="empty_response")
+
+        # 必須含封存的：否則重新 star 會被判成新增而撞 full_name 唯一鍵
+        local = include_archived(db.query(Repo)).all()
+        diff = diff_starred(local, remote)
+
+        for star in diff.added:
+            db.add(_repo_from_star(star))
+        for repo, star in diff.restored:
+            repo.unstarred_at = None
+            repo.starred_at = star.starred_at
+        for repo, star in diff.renamed:
+            repo.full_name, repo.owner, repo.name = star.full_name, star.owner, star.name
+        for repo in diff.archived:
+            repo.unstarred_at = utc_now()
+
+        db.commit()
+        set_setting(AppSettingKey.LAST_STAR_SYNC_AT, utc_now().isoformat() + "Z", db)
+        logger.info(
+            f"[Star 同步] 新增 {len(diff.added)}、復原 {len(diff.restored)}、"
+            f"改名 {len(diff.renamed)}、封存 {len(diff.archived)}")
+        return SyncResult(added=len(diff.added), restored=len(diff.restored),
+                          renamed=len(diff.renamed), archived=len(diff.archived))
+    finally:
+        set_setting(AppSettingKey.STAR_SYNC_RUNNING, "", db)

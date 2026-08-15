@@ -8,6 +8,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,8 @@ from constants import (
     MAX_REPO_NAME_LENGTH,
     MAX_REPOS_PER_PAGE,
 )
+from dataclasses import asdict
+
 from db import get_db, Repo, RepoSnapshot
 from db.soft_delete import include_archived
 from middleware.rate_limit import limiter
@@ -41,6 +44,9 @@ from services.github import (
 )
 from services.queries import build_signal_map, build_snapshot_map
 from services.rate_limiter import fetch_repo_with_retry
+from services.settings import get_setting
+from services.star_sync import sync_starred_repos
+from db.models import AppSettingKey
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
 
 logger = logging.getLogger(__name__)
@@ -481,3 +487,37 @@ async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
         data=repo_with_signals,
         message=f"Repository {repo.full_name} data refreshed"
     )
+
+
+class SyncResultOut(BaseModel):
+    added: int
+    restored: int
+    renamed: int
+    archived: int
+    skipped_reason: str | None
+
+
+class SyncStatusOut(BaseModel):
+    last_sync_at: str | None
+    running: bool
+
+
+@router.post("/repos/sync", response_model=ApiResponse[SyncResultOut])
+@limiter.limit("4/minute")
+async def sync_stars(request: Request, db: Session = Depends(get_db)) -> dict:
+    """把追蹤清單對齊 GitHub 的 star。
+
+    限流理由：這支會逐頁拉取並可能建立上百列。連按不會更快，只會讓兩輪互相
+    卡在並行鎖上。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    result = await sync_starred_repos(db, get_github_service())
+    return success_response(SyncResultOut(**asdict(result)))
+
+
+@router.get("/repos/sync/status", response_model=ApiResponse[SyncStatusOut])
+def sync_status(db: Session = Depends(get_db)) -> dict:
+    return success_response(SyncStatusOut(
+        last_sync_at=get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db),
+        running=bool(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db)),
+    ))

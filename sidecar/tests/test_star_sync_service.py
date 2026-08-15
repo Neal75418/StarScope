@@ -1,0 +1,162 @@
+"""同步流程的守則。網路以 fake GitHub 取代。
+
+三道守則的共同點：它們保護的是「不要在資訊不足時執行移除」。封存雖然可復原，
+但一次誤封存整份追蹤清單仍是這個功能最貴的誤動作。
+"""
+from datetime import datetime
+
+import pytest
+
+from db.models import AppSettingKey, Repo
+from services.settings import set_setting
+from services.star_sync import RemoteStar, sync_starred_repos
+
+
+class FakeGitHub:
+    def __init__(self, stars: list[RemoteStar] | None = None,
+                 error: Exception | None = None):
+        self.stars = stars or []
+        self.error = error
+        self.calls = 0
+
+    async def get_user_starred_with_dates(self) -> list[RemoteStar]:
+        self.calls += 1
+        if self.error:
+            raise self.error
+        return self.stars
+
+
+def _star(github_id: int, full_name: str) -> RemoteStar:
+    owner, name = full_name.split("/")
+    return RemoteStar(github_id=github_id, full_name=full_name, owner=owner,
+                      name=name, starred_at=datetime(2026, 8, 10),
+                      payload={"id": github_id, "full_name": full_name,
+                               "html_url": f"https://github.com/{full_name}",
+                               "owner": {"login": owner}, "name": name})
+
+
+def _tracked(db, github_id: int, full_name: str) -> Repo:
+    owner, name = full_name.split("/")
+    repo = Repo(owner=owner, name=name, full_name=full_name,
+                url=f"https://github.com/{full_name}", github_id=github_id)
+    db.add(repo)
+    db.commit()
+    return repo
+
+
+@pytest.fixture(autouse=True)
+def _has_token_and_not_first_sync(test_db, monkeypatch):
+    """預設情境：已設定 token、且不是首次同步（首次同步的規則見 Task 5）。"""
+    import services.star_sync as mod
+    monkeypatch.setattr(mod, "get_setting", _fake_settings({
+        AppSettingKey.GITHUB_TOKEN: "gho_fake",
+        AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
+    }))
+
+
+def _fake_settings(values: dict) -> object:
+    store = dict(values)
+
+    def _get(key, db=None):
+        return store.get(key)
+
+    return _get
+
+
+async def test_empty_response_never_archives_anything(test_db):
+    """0 筆等於清空整個追蹤清單。這不該依賴「應該不會發生」。"""
+    _tracked(test_db, 1, "a/one")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[]))
+
+    assert result.archived == 0
+    assert result.skipped_reason == "empty_response"
+    assert test_db.query(Repo).count() == 1
+
+
+async def test_fetch_failure_never_archives_anything(test_db):
+    _tracked(test_db, 1, "a/one")
+
+    result = await sync_starred_repos(
+        test_db, FakeGitHub(error=RuntimeError("offline")))
+
+    assert result.archived == 0
+    assert result.skipped_reason == "fetch_failed"
+    assert test_db.query(Repo).count() == 1
+
+
+async def test_missing_token_makes_no_request_at_all(test_db, monkeypatch):
+    """不依賴「回傳 0 筆」那道閘兜底——根本不該送出請求。"""
+    import services.star_sync as mod
+    monkeypatch.setattr(mod, "get_setting", _fake_settings({}))
+
+    gh = FakeGitHub(stars=[_star(1, "a/one")])
+    result = await sync_starred_repos(test_db, gh)
+
+    assert gh.calls == 0
+    assert result.skipped_reason == "no_token"
+
+
+async def test_a_normal_sync_adds_and_archives(test_db):
+    _tracked(test_db, 1, "a/keep")
+    _tracked(test_db, 2, "a/drop")
+
+    result = await sync_starred_repos(
+        test_db, FakeGitHub(stars=[_star(1, "a/keep"), _star(3, "a/new")]))
+
+    assert (result.added, result.archived) == (1, 1)
+    assert {r.full_name for r in test_db.query(Repo).all()} == {"a/keep", "a/new"}
+
+
+async def test_added_repo_carries_the_star_date(test_db):
+    """starred_at 錯過同步當下就補不回來。"""
+    await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/new")]))
+
+    row = test_db.query(Repo).filter(Repo.full_name == "a/new").one()
+    assert row.starred_at == datetime(2026, 8, 10)
+
+
+async def test_a_second_sync_is_refused_while_one_is_running(test_db, monkeypatch):
+    """自動同步與手動同步並行會算出同樣的新增集合，重複 insert 撞 full_name 唯一鍵。"""
+    import services.star_sync as mod
+    monkeypatch.setattr(mod, "get_setting", _fake_settings({
+        AppSettingKey.GITHUB_TOKEN: "gho_fake",
+        AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
+        AppSettingKey.STAR_SYNC_RUNNING: "1",
+    }))
+
+    gh = FakeGitHub(stars=[_star(1, "a/one")])
+    result = await sync_starred_repos(test_db, gh)
+
+    assert gh.calls == 0
+    assert result.skipped_reason == "already_running"
+
+
+async def test_rename_updates_the_row_instead_of_creating_one(test_db):
+    _tracked(test_db, 1, "a/old")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/new")]))
+
+    assert (result.added, result.archived, result.renamed) == (0, 0, 1)
+    rows = test_db.query(Repo).all()
+    assert len(rows) == 1
+    assert (rows[0].full_name, rows[0].name) == ("a/new", "new")
+
+
+async def test_restarring_an_archived_repo_restores_it_instead_of_inserting(test_db):
+    """取本機集合時必須含封存的列。
+
+    不含的話，重新 star 會被判成「新增」而 INSERT，撞上 full_name 唯一鍵回 500——
+    而這正是使用者最可能做的事：取消 star 之後又反悔。
+    """
+    repo = _tracked(test_db, 1, "a/one")
+    repo.unstarred_at = datetime(2026, 8, 1)
+    test_db.commit()
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/one")]))
+
+    assert (result.added, result.restored) == (0, 1)
+    from db.soft_delete import include_archived
+    rows = include_archived(test_db.query(Repo)).all()
+    assert len(rows) == 1, "不得建立第二列"
+    assert rows[0].unstarred_at is None

@@ -398,6 +398,8 @@ class AppSettingKey(StrEnum):
     SIGNAL_BREAKOUT_VELOCITY_THRESHOLD = "signal_breakout_velocity_threshold"
     SIGNAL_VIRAL_HN_MIN_SCORE = "signal_viral_hn_min_score"
     # 熱門主題建議（手動更新，見 services/trending_topics.py）
+    LAST_STAR_SYNC_AT = "last_star_sync_at"
+    STAR_SYNC_RUNNING = "star_sync_running"
     TRENDING_TOPICS_CACHE = "trending_topics_cache"
     TRENDING_GLOBAL_COUNTS = "trending_global_counts"
     TRENDING_PROGRESS = "trending_progress"
