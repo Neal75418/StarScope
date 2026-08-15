@@ -54,11 +54,12 @@ export const RepoSelector = memo(
     // 「至少選擇 2 個」（不可能完成的指令），換成原因說明＋出口
     if (repos.length < 2) {
       return (
-        <div className="compare-selector" data-testid="compare-need-repos">
+        // 用全 app 共用的 .empty-state（與趨勢/追蹤清單同一套置中版面），
+        // 不沿用 .compare-selector——那是「功能性選擇器」的表單面板，靠左是對的，
+        // 但套在空狀態上會變成全 app 唯一沒置中的空狀態。
+        <div className="empty-state" data-testid="compare-need-repos">
           <h3>{t.compare.selectRepos}</h3>
-          <p className="compare-hint">
-            {interpolate(t.compare.needMoreRepos, { count: repos.length })}
-          </p>
+          <p>{interpolate(t.compare.needMoreRepos, { count: repos.length })}</p>
           <button
             className="btn btn-primary empty-state-cta"
             data-testid="compare-go-discover"
