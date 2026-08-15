@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -42,7 +43,8 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
     onClose();
   };
 
-  return (
+  // 同 ConfirmDialog：頁面容器帶著 transform，position:fixed 會相對於它而不是視窗
+  return createPortal(
     <div
       className="dialog-overlay"
       onClick={isLoading ? undefined : handleClose}
@@ -109,6 +111,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

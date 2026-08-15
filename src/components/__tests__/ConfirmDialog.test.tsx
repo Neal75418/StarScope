@@ -16,7 +16,7 @@ describe("ConfirmDialog", () => {
   });
 
   it("renders nothing when isOpen is false", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <ConfirmDialog
         isOpen={false}
         title="Test"
@@ -26,7 +26,7 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(baseElement.querySelector(".dialog-overlay")).toBeNull();
   });
 
   it("renders dialog when isOpen is true", () => {
@@ -112,7 +112,7 @@ describe("ConfirmDialog", () => {
 
   it("calls onCancel when overlay clicked", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { baseElement } = render(
       <ConfirmDialog
         isOpen={true}
         title="Test"
@@ -122,7 +122,7 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const overlay = container.querySelector(".dialog-overlay") as HTMLElement;
+    const overlay = baseElement.querySelector(".dialog-overlay") as HTMLElement;
     expect(overlay).not.toBeNull();
     await user.click(overlay);
 
@@ -227,7 +227,7 @@ describe("ConfirmDialog", () => {
 
   it("does not call onCancel on overlay click when isProcessing", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { baseElement } = render(
       <ConfirmDialog
         isOpen={true}
         title="Test"
@@ -238,7 +238,7 @@ describe("ConfirmDialog", () => {
       />
     );
 
-    const overlay = container.querySelector(".dialog-overlay") as HTMLElement;
+    const overlay = baseElement.querySelector(".dialog-overlay") as HTMLElement;
     expect(overlay).not.toBeNull();
     await user.click(overlay);
 

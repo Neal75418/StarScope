@@ -3,6 +3,7 @@
  */
 
 import { useId } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -49,7 +50,11 @@ export function ConfirmDialog({
         ? "btn btn-warning"
         : "btn btn-primary";
 
-  return (
+  // 掛到 document.body：頁面容器 .animated-page 帶著動畫結束狀態的 transform，
+  // 而非 none 的 transform 會讓子孫的 position:fixed 改成相對於它定位——遮罩就
+  // 不再是一個視窗大小的固定層，而是整份文件那麼高，對話框被置中在文件正中央。
+  // 使用者點的是第一列，畫面卻捲到清單中段。
+  return createPortal(
     <div
       className="dialog-overlay"
       onClick={isProcessing ? undefined : onCancel}
@@ -88,6 +93,7 @@ export function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
