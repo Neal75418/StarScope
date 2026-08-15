@@ -5606,3 +5606,72 @@ a:focus-visible {
     opacity: 0.4;
   }
 }
+
+/* --- Star 同步與封存清單 --- */
+
+/* 沿用 interest-trending-stamp / -error 的尺寸與顏色，讓設定頁的次要文字一致 */
+.settings-hint {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+.settings-error {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--danger-fg);
+}
+
+/* 首次同步的待決清單：從屬於同步區塊，用左邊界表示層級而不是再開一個框 */
+.settings-subsection {
+  margin-top: 1rem;
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--border-muted);
+}
+
+.settings-subsection h3 {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+}
+
+.settings-plain-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.125rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  /* 首次同步可能列出數十筆，別讓它把整頁撐開 */
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.archived-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* 與 interest-trending-item 同構：兩者都是「一列資料 + 右側動作」 */
+.archived-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+}
+
+.archived-item-name {
+  font-size: 0.875rem;
+  /* 名稱過長時截斷，動作按鈕不能被擠出可視範圍 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archived-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}

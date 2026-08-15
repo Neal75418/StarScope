@@ -100,6 +100,8 @@ export function Settings() {
 
   const navItems = [
     { id: "github", label: t.githubConnection.title },
+    { id: "star-sync", label: t.settings.starSync.title },
+    { id: "archived", label: t.settings.archived.title },
     { id: "scheduled-refresh", label: t.settings.scheduledRefresh.title },
     { id: "snapshot-retention", label: t.settings.snapshotRetention.title },
     { id: "signal-thresholds", label: t.settings.signalThresholds.title },
@@ -139,6 +141,15 @@ export function Settings() {
             <GitHubConnection />
           </section>
 
+          {/* Star 同步與封存：緊接 GitHub 連線，與「先連帳號再同步」的實際順序一致 */}
+          <div id="star-sync">
+            <StarSyncSection />
+          </div>
+
+          <div id="archived">
+            <ArchivedRepos />
+          </div>
+
           {/* 定時更新 */}
           <div id="scheduled-refresh">
             <ScheduledRefreshSection onToast={handleDataToast} />
@@ -161,8 +172,6 @@ export function Settings() {
 
           {/* 匯入 */}
           <div id="import">
-            <StarSyncSection />
-            <ArchivedRepos />
             <ImportSection />
           </div>
 
