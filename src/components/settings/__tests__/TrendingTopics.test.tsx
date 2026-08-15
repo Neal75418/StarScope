@@ -89,3 +89,20 @@ describe("TrendingTopics", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 });
+
+describe("TrendingTopics 進行中的回饋", () => {
+  it("shows progress instead of the empty prompt while refreshing", async () => {
+    // 這條守的是一個真實回報：按下更新後，畫面正中央仍寫著「尚未查詢過」，
+    // 只有按鈕在轉，使用者以為沒按到。兩分鐘的操作不能讓內容區看起來沒反應。
+    vi.mocked(client.getTrendingTopics).mockResolvedValue({ topics: [], computed_at: null });
+    vi.mocked(client.refreshTrendingTopics).mockReturnValue(new Promise(() => {}));
+
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    await screen.findByText(/Not checked yet/);
+
+    fireEvent.click(screen.getByTestId("trending-refresh-btn"));
+
+    expect(await screen.findByTestId("trending-progress")).toBeInTheDocument();
+    expect(screen.queryByText(/Hit Refresh to see/)).not.toBeInTheDocument();
+  });
+});

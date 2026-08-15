@@ -44,7 +44,11 @@ export function TrendingTopics({ onAdd }: TrendingTopicsProps) {
       </div>
 
       <p className="interest-trending-stamp">
-        {computedAt ? `${copy.lastChecked} ${formatRelativeTime(computedAt)}` : copy.never}
+        {isRefreshing
+          ? copy.refreshing
+          : computedAt
+            ? `${copy.lastChecked} ${formatRelativeTime(computedAt)}`
+            : copy.never}
       </p>
 
       {refreshError && (
@@ -53,7 +57,13 @@ export function TrendingTopics({ onAdd }: TrendingTopicsProps) {
         </p>
       )}
 
-      {topics.length === 0 ? (
+      {isRefreshing && topics.length === 0 ? (
+        // 這是要跑一兩分鐘的操作。期間若還顯示「尚未查詢過」，使用者會以為沒按到
+        // ——實際發生過：按下去之後畫面正中央仍寫著空狀態提示，只有按鈕在轉。
+        <p className="interest-empty" data-testid="trending-progress">
+          {copy.refreshing}
+        </p>
+      ) : topics.length === 0 ? (
         <p className="interest-empty">{copy.empty}</p>
       ) : (
         <ul className="interest-trending-list">

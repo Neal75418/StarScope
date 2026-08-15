@@ -97,3 +97,28 @@ def test_exclusion_rejects_terms_that_normalize_too_short(client):
         assert resp.status_code == 422, f"{bad} 應被拒絕"
     # 正常詞不受影響
     assert client.post("/api/interests/exclusions", json={"term": "node.js"}).status_code == 200
+
+
+def test_trending_timestamp_carries_timezone(client, monkeypatch):
+    """computed_at 必須帶時區標記。
+
+    utc_now() 回傳 naive datetime（為了 SQLite 比較一致），直接 isoformat()
+    會產生 "2026-08-15T13:53:53" 這種沒有時區的字串——前端 new Date() 會把它
+    當成本地時間，在 UTC+8 就顯示成「8 小時前」，但其實是剛剛跑完的。
+    """
+    from services import trending_topics
+
+    monkeypatch.setattr(trending_topics, "compute_trending_topics", None)  # 不會被呼叫
+    from db.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        computed_at = trending_topics.save_cache(db, [])
+    finally:
+        db.close()
+
+    assert computed_at.endswith("Z"), f"缺少時區標記，前端會誤判時間: {computed_at}"
+
+    resp = client.get("/api/interests/trending")
+    assert resp.status_code == 200
+    assert resp.json()["data"]["computed_at"].endswith("Z")

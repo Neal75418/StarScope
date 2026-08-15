@@ -107,9 +107,9 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
               value={weight}
               onChange={(e) => setWeight(Number(e.target.value))}
             >
-              <option value={1}>1</option>
-              <option value={2}>2</option>
-              <option value={3}>3</option>
+              <option value={1}>{t.settings.interests.weight1}</option>
+              <option value={2}>{t.settings.interests.weight2}</option>
+              <option value={3}>{t.settings.interests.weight3}</option>
             </select>
             <button
               className="btn btn-primary"
@@ -120,6 +120,10 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
             </button>
           </div>
 
+          <p className="settings-description interest-weight-hint">
+            {t.settings.interests.weightHint}
+          </p>
+
           {interests.length === 0 ? (
             <p className="interest-empty">{t.settings.interests.empty}</p>
           ) : (
@@ -129,7 +133,12 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                   <div className="interest-item-info">
                     <span className="interest-term">{i.term}</span>
                     <span className="interest-meta">
-                      {i.kind} · {t.settings.interests.weightLabel} {i.weight}
+                      {i.kind} ·{" "}
+                      {i.weight === 3
+                        ? t.settings.interests.weight3
+                        : i.weight === 1
+                          ? t.settings.interests.weight1
+                          : t.settings.interests.weight2}
                     </span>
                   </div>
                   <button

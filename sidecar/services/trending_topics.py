@@ -177,7 +177,10 @@ def load_cached(db: Session) -> tuple[list[dict], str | None]:
 
 
 def save_cache(db: Session, topics: list[TrendingTopic]) -> str:
-    computed_at = utc_now().isoformat()
+    # 必須帶 Z：utc_now() 回傳 naive datetime（為了 SQLite 比較一致），
+    # 直接 isoformat() 會產生沒有時區標記的字串，前端 new Date() 會把它
+    # 當成「本地時間」——實測在 UTC+8 顯示成「8 小時前」，但其實是剛剛。
+    computed_at = utc_now().isoformat() + "Z"
     set_setting(
         AppSettingKey.TRENDING_TOPICS_CACHE,
         json.dumps({"computed_at": computed_at, "topics": [asdict(t) for t in topics]}),
