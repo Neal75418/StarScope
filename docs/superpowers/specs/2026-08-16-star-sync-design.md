@@ -57,10 +57,23 @@ repo 的查詢點有 29 處，而且需要相反的行為——列表與計數�
 | `routers/repos.py` 的 `full_name` 存在性檢查（兩處）| `full_name` 是 `unique=True`，所以不會產生重複列，而是 INSERT 撞唯一鍵回 500。失敗是響亮的，不是安靜的 |
 | `services/feed_generator.py` 的已追蹤排除集 | 封存的 repo 重新成為 feed 候選——刻意取消 star 的東西下週又被推薦。`SeenRepo` 擋不住從 star 匯入、未經 feed 的那些 |
 | `routers/dependencies.py` 的 `get_repo_or_404` | 檢視與復原封存 repo 的端點一律 404 |
+| `routers/comparison.py` 的 `id.in_()` 查詢 | 該處把找不到的 id 收集成 `missing` 後整個請求回 404。比較組合中只要有一個被取消 star，整頁就壞掉而不是少一項。應改為略過並在回應中標示 |
+
+**關聯載入會回 `None` 而不是滲漏。** 已實測：`SimilarRepo.similar` 指向封存的 repo
+時取得 `None`。滲漏被擋住了，但 `services/recommender.py` 直接把它當 `Repo` 使用，
+會拋 `AttributeError` 變成 500。讀取相似專案時必須濾掉 `similar is None` 的列。
 
 **這個事件只攔截 SELECT。** 已實測：`query(Repo).delete()` 仍會刪掉全部，包含封存的。
 這對「清空所有資料」（`routers/app_settings.py`）是正確行為，但日後若新增 bulk
 update 需自行處理。
+
+### Schema 如何進到既有資料庫
+
+`Base.metadata.create_all()` 只建新表，不會改既有表。沿用 `db/database.py` 既有的
+`_ADDITIVE_COLUMNS` / `ensure_columns()`：把兩個欄位登記進去即可，啟動時冪等執行。
+
+不要改用 alembic。這個專案沒有版本表，接上去得先 stamp 一個版本，stamp 錯會讓之後
+所有 migration 對不上；補可為空的欄位在 SQLite 是不重寫資料的操作。
 
 ## 同步流程
 
@@ -79,6 +92,11 @@ update 需自行處理。
 `github_id` 不變；用 `full_name` 比對會把改名判成「舊的消失 + 新的出現」，於是封存
 舊列並建立新列，歷史快照從此斷成兩截。`_create_repo_from_github` 一律寫入
 `github_id`，所以每一列都有值。
+
+未設定 token 時同步不執行，也不發出請求——不依賴「回傳 0 筆」那道閘兜底。
+
+自動同步與手動同步必須互斥。兩者若並行，會從同一份狀態算出相同的「新增」集合而
+重複 insert，撞上 `full_name` 唯一鍵回 500。
 
 0 筆等於清空整個追蹤清單，是這個功能最昂貴的誤動作，不應依賴「應該不會發生」。
 
@@ -120,14 +138,23 @@ star 的 repo，是性質上的排除，而不是逐條堵。
 權限已驗證：token 的 `X-OAuth-Scopes` 為 `read:user, repo`，`repo` 涵蓋 star 寫入，
 不需要重新授權。
 
+### 推送的節流
+
+首次同步的「推上去」可能一次 star 數十個。GitHub 對會改變資料的請求另有次級速率
+限制，**本設計未量測其門檻**——實作推送批次前先量，再依實測值決定間隔，不要沿用
+搜尋那條 2.2 秒（那是為每分鐘 30 次的搜尋配額訂的，與寫入無關）。
+
 ### 永久刪除
 
-`DELETE /repos/{id}` 現行為硬刪並 cascade 掉快照與訊號。改為：
+`DELETE /repos/{id}` 現行為硬刪並 cascade。改為：
 
 - 追蹤清單的「取消追蹤」→ 取消 star + 封存，不刪任何資料
 - 封存清單保留一個明確的「永久刪除」動作，維持現行的硬刪行為
 
 兩者分開，讓不可逆的操作只存在於一個需要刻意前往的位置。
+
+永久刪除會 cascade 掉 `repo_id` 為外鍵的五張表：快照、訊號、context signals、
+early signals，以及**警示規則**。最後一項使用者不會預期，確認訊息必須寫明。
 
 ## 第一次同步
 
@@ -160,6 +187,12 @@ star 的 repo，是性質上的排除，而不是逐條堵。
 - 三條建立路徑都會 star
 - 推送失敗時本機不得改變
 - 首次同步不自動封存
+- 封存後的相似專案端點不得 500（`similar is None` 的列要被濾掉）
+- 封存後的比較頁不得整批 404
+- 自動同步與手動同步並行時不得重複建立
+- 未設定 token 時同步不發出請求
+
+移除匯入區塊會動到 e2e：`e2e/` 下有七處引用，需一併調整。
 
 ## 風險
 
