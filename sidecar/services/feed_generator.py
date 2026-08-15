@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from db.soft_delete import include_archived
 from db.models import (
     Interest, InterestKind, ExcludeTerm, FeedCandidate, FeedItem, SeenRepo, Repo,
 )
@@ -28,6 +29,17 @@ MAX_PER_TERM = math.ceil(FEED_SIZE / 3)  # 同一 term 來源的多樣性上限�
 CANDIDATE_WINDOW_DAYS = 60   # 只搜此天數內建立的 repo
 MIN_STARS = 20               # 過濾雜訊下限
 PER_QUERY_RESULTS = 30
+
+
+def collect_watchlist_keys(db: Session) -> tuple[set[int], set[str]]:
+    """建立 feed 候選的排除集。
+
+    必須含封存的 repo：使用者刻意取消 star 的東西不該重新被推薦，而 SeenRepo
+    擋不住當初從 star 匯入、未經 feed 的那些——它們沒有 SeenRepo 記錄。
+    """
+    rows = include_archived(db.query(Repo)).all()
+    return ({r.github_id for r in rows if r.github_id},
+            {r.full_name.lower() for r in rows})
 
 
 def _parse_dt(value: str | None) -> datetime | None:
@@ -167,8 +179,7 @@ async def generate_feed(db: Session, github, feed_date: date,
     ensure_default_exclude_terms(db)
     exclude_patterns = compile_exclusions({e.term.lower() for e in db.query(ExcludeTerm).all()})
     seen_ids = {s.github_id for s in db.query(SeenRepo).all()}
-    watchlist_ids = {r.github_id for r in db.query(Repo).all() if r.github_id}
-    watchlist_names = {r.full_name.lower() for r in db.query(Repo).all()}
+    watchlist_ids, watchlist_names = collect_watchlist_keys(db)
 
     created_after = (now - timedelta(days=CANDIDATE_WINDOW_DAYS)).date().isoformat()
     merged, quota_tripped = await _fetch_candidates(github, interests, created_after)

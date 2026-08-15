@@ -259,6 +259,10 @@ class RecommenderService:
         source_repo: Repo | None = db.query(Repo).filter(Repo.id == repo_id).first()
         source_topics = _get_repo_topics(source_repo) if source_repo else set()
 
+        # 已封存的 repo 在關聯載入時回 None（見 db/soft_delete.py）。快取列本身還在，
+        # 所以要在這裡濾掉，否則下面把 None 當 Repo 用會拋 AttributeError。
+        similar_entries = [e for e in similar_entries if e.similar is not None]
+
         # 批次載入所有需要的 star 數（1 次查詢取代 N+1）
         # noinspection PyTypeChecker
         all_repo_ids = [repo_id] + [int(e.similar.id) for e in similar_entries]
@@ -490,6 +494,9 @@ def get_personalized_recommendations(db: Session, limit: int = 10) -> dict:
         .limit(candidate_limit)
         .all()
     )
+
+    # 同 find_similar_repos：封存的 repo 在關聯載入時回 None，快取列卻還在
+    similar_entries = [e for e in similar_entries if e.similar is not None]
 
     if not similar_entries:
         return {

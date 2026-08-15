@@ -20,6 +20,7 @@ from constants import (
     MAX_REPOS_PER_PAGE,
 )
 from db import get_db, Repo, RepoSnapshot
+from db.soft_delete import include_archived
 from middleware.rate_limit import limiter
 from routers.dependencies import get_repo_or_404
 from schemas import (
@@ -230,8 +231,10 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
 
     full_name = f"{owner}/{name}"
 
-    # 檢查是否已存在
-    existing = db.query(Repo).filter(Repo.full_name == full_name).first()
+    # 檢查是否已存在。必須看得到封存的列：full_name 是唯一鍵，看不到就會一路往下
+    # 打 GitHub 再 INSERT 撞鍵回 500
+    existing = include_archived(
+        db.query(Repo)).filter(Repo.full_name == full_name).first()
     if existing:
         raise HTTPException(
             status_code=400,
@@ -384,8 +387,9 @@ async def batch_add_repos(
             errors.append(f"{full_name}: {e.detail}")
             continue
 
-        # 檢查是否已存在
-        existing = db.query(Repo).filter(Repo.full_name == full_name).first()
+        # 同上：必須看得到封存的列，否則會撞 full_name 唯一鍵
+        existing = include_archived(
+            db.query(Repo)).filter(Repo.full_name == full_name).first()
         if existing:
             skipped += 1
             continue

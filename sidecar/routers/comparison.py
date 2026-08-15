@@ -12,6 +12,7 @@ from sqlalchemy import asc
 
 from constants import SignalType, TimeRange
 from db.database import get_db
+from db.soft_delete import include_archived
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
 from services.queries import build_signal_map, build_snapshot_map
@@ -82,6 +83,8 @@ class ComparisonRepoData(BaseModel):
 class ComparisonChartResponse(BaseModel):
     repos: list[ComparisonRepoData]
     time_range: str
+    # 被略過的封存 repo。存好的比較組合裡有人被取消 star 時，回報而不是整批 404
+    skipped_archived: list[int] = []
 
 
 @router.post("/chart", response_model=ApiResponse[ComparisonChartResponse])
@@ -93,10 +96,16 @@ async def comparison_chart(
     取得多個 repo 的對比圖表資料。
     支援 2-5 個 repo，可選正規化為百分比變化。
     """
-    # 驗證所有 repo 存在
+    # 驗證所有 repo 存在。封存的與真的不存在的必須分開：把前者也當成 missing 會讓
+    # 存好的比較組合在其中一個被取消 star 時整頁 404，而不是少一項
     repos = db.query(Repo).filter(Repo.id.in_(req.repo_ids)).all()
     repo_map = {r.id: r for r in repos}
-    missing = [rid for rid in req.repo_ids if rid not in repo_map]
+    archived_ids = [
+        r.id for r in include_archived(db.query(Repo)).filter(
+            Repo.id.in_(req.repo_ids), Repo.unstarred_at.isnot(None)).all()
+    ]
+    missing = [rid for rid in req.repo_ids
+               if rid not in repo_map and rid not in archived_ids]
     if missing:
         raise HTTPException(status_code=404, detail=f"Repos not found: {missing}")
 
@@ -129,6 +138,9 @@ async def comparison_chart(
 
     result_repos: list[ComparisonRepoData] = []
     for i, repo_id in enumerate(req.repo_ids):
+        # 封存的不在 repo_map 裡，已列入 skipped_archived
+        if repo_id not in repo_map:
+            continue
         repo = repo_map[repo_id]
         snaps = snapshots_by_repo[repo_id]
 
@@ -167,5 +179,6 @@ async def comparison_chart(
     chart_data = ComparisonChartResponse(
         repos=result_repos,
         time_range=req.time_range,
+        skipped_archived=archived_ids,
     )
     return success_response(data=chart_data)
