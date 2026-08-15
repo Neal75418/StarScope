@@ -1,5 +1,5 @@
 """興趣清單與 feed 黑名單 API。"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
@@ -8,6 +8,9 @@ from db.models import Interest, ExcludeTerm, InterestKind
 from schemas.response import ApiResponse, success_response
 from services.feed_defaults import ensure_default_exclude_terms
 from services.feed_generator import is_usable_exclude_term
+from services.github import get_github_service
+from services.trending_topics import compute_trending_topics, load_cached, save_cache
+from middleware.rate_limit import limiter
 
 router = APIRouter(prefix="/api/interests", tags=["interests"])
 
@@ -147,3 +150,56 @@ def remove_exclusion(term_id: int, db: Session = Depends(get_db)) -> dict:
     db.delete(row)
     db.commit()
     return success_response({"deleted": term_id})
+
+
+# --- 熱門主題建議 ---
+
+
+class TrendingTopicOut(BaseModel):
+    topic: str
+    sample_count: int
+    global_count: int
+    heat: float
+    already_added: bool
+
+
+class TrendingResponse(BaseModel):
+    topics: list[TrendingTopicOut]
+    computed_at: str | None  # None 代表從未計算過
+
+
+@router.get("/trending", response_model=ApiResponse[TrendingResponse])
+def get_trending(db: Session = Depends(get_db)) -> dict:
+    """讀取上次算好的熱門主題。永遠回快取，不會自己去打 GitHub。
+
+    刻意不自動更新：趨勢以週為單位變動，每日重算多半是在重算同一份答案，
+    卻要吃掉與搜尋共用的每分鐘 30 次配額。由使用者按下更新才重算。
+    """
+    cached, computed_at = load_cached(db)
+    return success_response(
+        TrendingResponse(
+            topics=[TrendingTopicOut(**row) for row in cached],
+            computed_at=computed_at,
+        )
+    )
+
+
+@router.post("/trending/refresh", response_model=ApiResponse[TrendingResponse])
+@limiter.limit("2/minute")
+async def refresh_trending(request: Request, db: Session = Depends(get_db)) -> dict:
+    """重新計算熱門主題。會連打 6–36 次搜尋請求，故限流。
+
+    限流理由：搜尋配額是每分鐘 30 次，且與 feed 產生、探索頁搜尋共用。
+    連按更新會把配額吃光，症狀會出現在別的頁面（探索搜尋突然失敗），
+    很難聯想到是這裡造成的。
+    """
+    _ = request  # 由 @limiter.limit decorator 隱式使用
+    github = get_github_service()
+    topics = await compute_trending_topics(db, github)
+    computed_at = save_cache(db, topics)
+    return success_response(
+        TrendingResponse(
+            topics=[TrendingTopicOut(**t.__dict__) for t in topics],
+            computed_at=computed_at,
+        )
+    )

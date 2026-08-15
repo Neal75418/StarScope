@@ -599,6 +599,23 @@ export interface ResetDataResponse {
   deleted_repos: number;
 }
 
+export interface TrendingTopic {
+  topic: string;
+  /** 最近 60 天新專案中有幾個標了這個 topic */
+  sample_count: number;
+  /** 全 GitHub 有幾個 repo 標了它 */
+  global_count: number;
+  /** 升溫比值：每十萬個 repo 中有幾個是這波新的。排序用，不是精確指標 */
+  heat: number;
+  already_added: boolean;
+}
+
+export interface TrendingResponse {
+  topics: TrendingTopic[];
+  /** null 代表從未計算過 */
+  computed_at: string | null;
+}
+
 // --- For You Feed ---
 
 export type InterestKind = "topic" | "language" | "keyword";

@@ -5495,3 +5495,49 @@ a:focus-visible {
   gap: 0.5rem;
   flex-shrink: 0;
 }
+
+/* 熱門主題建議（設定 → 興趣清單） */
+.interest-trending {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-default);
+}
+
+.interest-trending-stamp {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+.interest-trending-error {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--danger-fg);
+}
+
+.interest-trending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.interest-trending-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+}
+
+.interest-trending-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}

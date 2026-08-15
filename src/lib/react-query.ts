@@ -181,6 +181,7 @@ export const queryKeys = {
     all: ["interests"] as const,
     list: () => [...queryKeys.interests.all, "list"] as const,
     exclusions: () => [...queryKeys.interests.all, "exclusions"] as const,
+    trending: () => [...queryKeys.interests.all, "trending"] as const,
   },
 } as const;
 

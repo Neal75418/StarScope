@@ -689,6 +689,21 @@ export const translations = {
         exclusionsTitle: "Excluded terms",
         exclusionsSubtitle: "Repos matching these terms never appear in your feed",
         toast: { added: "Interest added", removed: "Interest removed", error: "Operation failed" },
+        trending: {
+          title: "What's heating up",
+          subtitle:
+            "Topics on projects created in the last 60 days, ranked by how much of their total usage is recent. Ranking is rough — a few points apart means nothing.",
+          refresh: "Refresh",
+          refreshing: "Checking GitHub… this takes a minute or two",
+          never: "Not checked yet",
+          lastChecked: "Last checked",
+          added: "Added",
+          addThis: "Add to interests",
+          sampleLabel: "new projects",
+          error:
+            "Couldn't reach GitHub. The search quota is shared with your feed — try again in a minute.",
+          empty: "Hit Refresh to see which topics are picking up.",
+        },
       },
     },
     // 通知
@@ -1577,6 +1592,20 @@ export const translations = {
         exclusionsTitle: "黑名單",
         exclusionsSubtitle: "命中這些關鍵字的 repo 永不出現在 feed",
         toast: { added: "已新增興趣", removed: "已移除興趣", error: "操作失敗" },
+        trending: {
+          title: "正在升溫的主題",
+          subtitle:
+            "最近 60 天新建專案所標的主題，依「這波用量佔全站總量的比例」排序。名次只是粗略參考，差幾名沒有意義。",
+          refresh: "更新",
+          refreshing: "正在查詢 GitHub…需要一兩分鐘",
+          never: "尚未查詢過",
+          lastChecked: "上次查詢",
+          added: "已加入",
+          addThis: "加入興趣清單",
+          sampleLabel: "個新專案",
+          error: "連不上 GitHub。搜尋配額與 feed 共用，請過一分鐘再試。",
+          empty: "按「更新」看看現在有哪些主題正在升溫。",
+        },
       },
     },
     // 通知

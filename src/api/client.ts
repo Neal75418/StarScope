@@ -65,6 +65,7 @@ import type {
   InterestListResponse,
   ExcludeTerm,
   ExclusionListResponse,
+  TrendingResponse,
   FeedResponse,
   GenerateFeedResult,
   FeedItem,
@@ -936,6 +937,26 @@ export async function getInterests(signal?: AbortSignal): Promise<InterestListRe
 /** 新增興趣。 */
 export async function createInterest(input: InterestCreate): Promise<Interest> {
   return apiCall<Interest>("/interests", { method: "POST", body: JSON.stringify(input) });
+}
+
+/** 取得上次算好的熱門主題（純讀快取，不會觸發 GitHub 請求）。 */
+export async function getTrendingTopics(signal?: AbortSignal): Promise<TrendingResponse> {
+  return apiCall<TrendingResponse>("/interests/trending", { signal });
+}
+
+/**
+ * 重新計算熱門主題。
+ *
+ * 首次約 135 秒（36 次搜尋 × 節流），全站總量命中週快取後約 36 秒——
+ * 所以逾時要放到 4 分鐘，且不重試：它有副作用（寫快取）又不冪等，
+ * 逾時重試會讓兩輪計算同時在跑、把搜尋配額吃光。
+ */
+export async function refreshTrendingTopics(): Promise<TrendingResponse> {
+  return apiCall<TrendingResponse>(
+    "/interests/trending/refresh",
+    { method: "POST" },
+    { timeoutMs: 240_000, retries: 0 }
+  );
 }
 
 /** 刪除興趣。 */

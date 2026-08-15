@@ -7,6 +7,7 @@ import { useInterests } from "../../hooks/useInterests";
 import type { InterestKind } from "../../api/types";
 import { Skeleton } from "../Skeleton";
 import { getErrorMessage } from "../../utils/error";
+import { TrendingTopics } from "./TrendingTopics";
 
 interface InterestsSectionProps {
   onToast: (message: string, type?: "success" | "error") => void;
@@ -143,6 +144,19 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
               ))}
             </div>
           )}
+
+          <TrendingTopics
+            onAdd={async (topic) => {
+              try {
+                await create({ term: topic, kind: "topic", weight: 2 });
+                onToast(t.settings.interests.toast.added, "success");
+                return true;
+              } catch (err) {
+                onToast(getErrorMessage(err, t.settings.interests.toast.error), "error");
+                return false;
+              }
+            }}
+          />
 
           <div className="interest-exclusions">
             <h3>{t.settings.interests.exclusionsTitle}</h3>

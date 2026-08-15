@@ -391,6 +391,9 @@ class AppSettingKey(StrEnum):
     SIGNAL_SUDDEN_SPIKE_MULTIPLIER = "signal_sudden_spike_multiplier"
     SIGNAL_BREAKOUT_VELOCITY_THRESHOLD = "signal_breakout_velocity_threshold"
     SIGNAL_VIRAL_HN_MIN_SCORE = "signal_viral_hn_min_score"
+    # 熱門主題建議（手動更新，見 services/trending_topics.py）
+    TRENDING_TOPICS_CACHE = "trending_topics_cache"
+    TRENDING_GLOBAL_COUNTS = "trending_global_counts"
 
 
 class AppSetting(Base):
