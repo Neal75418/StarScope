@@ -239,6 +239,55 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
         os.remove(db_path)
 
 
+@pytest.mark.asyncio
+async def test_concurrent_generate_race_with_multiple_candidates():
+    """同一競態、候選 >= 2（FEED_SIZE=20 下的常態規模，單候選才是特例）。
+
+    上面那條單候選測試守不住真正的失效模式：只有一筆待寫入時，INSERT 是被
+    db.commit() 送出的，剛好落在 try 內。候選 >= 2 時，迴圈第二輪的
+    db.flush() 會先把第一筆 FeedItem/SeenRepo 送進 DB —— 若 IntegrityError
+    的保護沒有涵蓋整個寫入迴圈，例外會從 flush 逃出去變成 500。
+    """
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        Base.metadata.create_all(bind=engine)
+        session_local = sessionmaker(
+            autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
+        db = session_local()
+        db.add(Interest(term="tauri", kind=InterestKind.TOPIC, weight=3))
+        db.commit()
+        race_state = {"done": False}
+
+        class RaceGitHub:
+            async def search_repos(self, **kwargs):
+                if not race_state["done"]:
+                    other = session_local()
+                    try:
+                        cand = FeedCandidate(
+                            github_id=1, full_name="a/one", owner="a", name="one",
+                            url="https://github.com/a/one", stars=200, forks=5,
+                            topics=json.dumps(["tauri"]))
+                        other.add(cand)
+                        other.flush()
+                        other.add(FeedItem(candidate_id=cand.id, feed_date=TODAY,
+                                           score=1.0, reason_json="{}"))
+                        other.add(SeenRepo(github_id=1, full_name="a/one"))
+                        other.commit()
+                    finally:
+                        other.close()
+                    race_state["done"] = True
+                return {"items": [_gh_item(1, "a/one", topics=["tauri"]),
+                                  _gh_item(2, "b/two", topics=["tauri"])], "total_count": 0}
+
+        count = await generate_feed(db, RaceGitHub(), TODAY, now=NOW)
+        assert count == 1
+        db.close()
+    finally:
+        os.remove(db_path)
+
+
 def test_exclude_matching_rules():
     """黑名單比對規約。每個 assert 都對應一個實際踩過的 bug，改動實作前先讓這些通過。"""
     from services.feed_generator import _is_excluded, compile_exclusions

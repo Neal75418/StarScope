@@ -180,31 +180,34 @@ async def generate_feed(db: Session, github, feed_date: date,
     # 多樣性上限：以首個命中 term 為該項目的來源分組
     per_term_count: dict[str, int] = {}
     written = 0
-    for score, item, matched in scored:
-        if written >= FEED_SIZE:
-            break
-        primary = matched[0] if matched else "unknown"
-        if per_term_count.get(primary, 0) >= MAX_PER_TERM:
-            continue
-        cand = _upsert_candidate(db, item)
-        db.flush()  # 取得 cand.id
-        age_days = None
-        if cand.repo_created_at:
-            age_days = int((now - cand.repo_created_at).total_seconds() // 86400)
-        reason = {
-            "matched": matched,
-            "stars": cand.stars,
-            "age_days": age_days,
-            "pushed_at": item.get("pushed_at"),
-        }
-        db.add(FeedItem(candidate_id=cand.id, feed_date=feed_date,
-                        score=score, reason_json=json.dumps(reason)))
-        db.add(SeenRepo(github_id=cand.github_id, full_name=cand.full_name,
-                        last_shown_at=now))
-        per_term_count[primary] = per_term_count.get(primary, 0) + 1
-        written += 1
-
+    # try 必須涵蓋「整個寫入迴圈」而不只是 db.commit()：迴圈內的 db.flush()
+    # 會把上一輪 pending 的 FeedItem/SeenRepo INSERT 送進 DB，競態下的
+    # IntegrityError 多數是在那裡爆的，只包 commit 等於只保護到最後一筆。
     try:
+        for score, item, matched in scored:
+            if written >= FEED_SIZE:
+                break
+            primary = matched[0] if matched else "unknown"
+            if per_term_count.get(primary, 0) >= MAX_PER_TERM:
+                continue
+            cand = _upsert_candidate(db, item)
+            db.flush()  # 取得 cand.id
+            age_days = None
+            if cand.repo_created_at:
+                age_days = int((now - cand.repo_created_at).total_seconds() // 86400)
+            reason = {
+                "matched": matched,
+                "stars": cand.stars,
+                "age_days": age_days,
+                "pushed_at": item.get("pushed_at"),
+            }
+            db.add(FeedItem(candidate_id=cand.id, feed_date=feed_date,
+                            score=score, reason_json=json.dumps(reason)))
+            db.add(SeenRepo(github_id=cand.github_id, full_name=cand.full_name,
+                            last_shown_at=now))
+            per_term_count[primary] = per_term_count.get(primary, 0) + 1
+            written += 1
+
         db.commit()
     except IntegrityError:
         # cron 與 API on-demand 同時觸發時，count==0 檢查與寫入之間的 await
