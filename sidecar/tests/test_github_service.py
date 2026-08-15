@@ -448,3 +448,52 @@ class TestGitHubServiceStargazers:
 
         assert len(result) == 2
         assert result[0]["user"]["login"] == "user1"
+
+
+class TestStarWrites:
+    """star 寫入的真實 HTTP 行為。
+
+    這裡刻意用真的 httpx.Response 與 MockTransport，不用 MagicMock：star 端點回的是
+    204 No Content（body 為空），而 MagicMock 的 .json() 是假造的，永遠不會像真的
+    一樣拋 JSONDecodeError——本檔其餘測試都用 MagicMock，所以完全測不到這個形狀。
+    實際發生過：star 送達 GitHub、回應 204、解析炸掉，端點回 500，本機沒建列，
+    使用者看到「加了又自己消失」。
+    """
+
+    @staticmethod
+    def _service_with(transport: httpx.MockTransport) -> GitHubService:
+        service = GitHubService(token="gho_test")
+        service._client = httpx.AsyncClient(transport=transport)
+        return service
+
+    async def test_star_accepts_an_empty_204_body(self):
+        seen: list[tuple[str, str]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append((request.method, request.url.path))
+            return httpx.Response(204)
+
+        service = self._service_with(httpx.MockTransport(handler))
+        await service.star_repo("a", "one")
+
+        assert seen == [("PUT", "/user/starred/a/one")]
+
+    async def test_unstar_accepts_an_empty_204_body(self):
+        seen: list[tuple[str, str]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append((request.method, request.url.path))
+            return httpx.Response(204)
+
+        service = self._service_with(httpx.MockTransport(handler))
+        await service.unstar_repo("a", "one")
+
+        assert seen == [("DELETE", "/user/starred/a/one")]
+
+    async def test_star_still_raises_on_a_real_error(self):
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"message": "Not Found"})
+
+        service = self._service_with(httpx.MockTransport(handler))
+        with pytest.raises(GitHubAPIError):
+            await service.star_repo("a", "missing")

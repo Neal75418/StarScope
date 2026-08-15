@@ -498,7 +498,10 @@ class GitHubService:
                 f"({owner}/{name})")
             await asyncio.sleep(min(delay, STAR_WRITE_MAX_BACKOFF_SECONDS))
 
-        handle_github_response(
+        # 只檢查錯誤，不解析 body：star 端點成功時回 204 No Content，body 是空的，
+        # 走 handle_github_response 會在 response.json() 拋 JSONDecodeError——
+        # 那時 star 其實已經送達 GitHub，端點卻回 500 且本機沒建列。
+        _check_github_errors(
             response, raise_on_error=True, context=f"{method} star {owner}/{name}")
 
     @property
