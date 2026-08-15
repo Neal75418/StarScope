@@ -91,6 +91,14 @@ describe("StarSyncSection", () => {
     await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledWith("star", ["a/one"]));
   });
 
+  it("does not claim it has never synced before the status arrives", async () => {
+    vi.mocked(client.getSyncStatus).mockReturnValue(new Promise(() => {}));
+    renderWithClient(<StarSyncSection />);
+
+    await screen.findByTestId("star-sync-btn");
+    expect(screen.queryByTestId("star-sync-stamp")).not.toBeInTheDocument();
+  });
+
   it("surfaces a failed sync instead of leaving the button silent", async () => {
     vi.mocked(client.syncStars).mockRejectedValue(new Error("sidecar down"));
     renderWithClient(<StarSyncSection />);

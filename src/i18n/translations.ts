@@ -424,6 +424,8 @@ export const translations = {
       download: "Download PNG",
       downloadFailed: "Download failed",
       timeRange: "Time range",
+      skippedArchived:
+        "{count} of the selected repositories are archived and were left out of this comparison.",
       timeRangeLabels: {
         "7d": "7 days",
         "30d": "30 days",
@@ -1381,6 +1383,7 @@ export const translations = {
       download: "下載 PNG",
       downloadFailed: "下載失敗",
       timeRange: "時間範圍",
+      skippedArchived: "所選的 {count} 個專案已封存，未納入這次比較。",
       timeRangeLabels: {
         "7d": "7 天",
         "30d": "30 天",

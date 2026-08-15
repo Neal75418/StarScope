@@ -515,6 +515,8 @@ export interface ComparisonRepoData {
 export interface ComparisonChartResponse {
   repos: ComparisonRepoData[];
   time_range: string;
+  /** 被略過的封存 repo id。存好的比較組合中有人取消追蹤時，後端回報而非整批 404 */
+  skipped_archived: number[];
 }
 
 export type ComparisonTimeRange = "7d" | "30d" | "90d" | "all";

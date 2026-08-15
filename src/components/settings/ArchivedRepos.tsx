@@ -11,6 +11,7 @@ import { useI18n } from "../../i18n";
 import { deleteArchivedRepo, getArchivedRepos, restarRepo } from "../../api/client";
 import { queryKeys } from "../../lib/react-query";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { Skeleton } from "../Skeleton";
 import { interpolate } from "../../i18n";
 
 export function ArchivedRepos() {
@@ -55,7 +56,11 @@ export function ArchivedRepos() {
         </div>
       </div>
 
-      {repos.length === 0 ? (
+      {/* 載入中不能顯示「沒有封存」——那與「還不知道」是兩件事，
+          而使用者分辨不出畫面上那句是哪一種 */}
+      {query.isLoading ? (
+        <Skeleton width="40%" height={14} />
+      ) : repos.length === 0 ? (
         <p className="settings-hint" data-testid="archived-empty">
           {copy.empty}
         </p>

@@ -38,6 +38,7 @@ export function useStarSync() {
 
   return {
     status: statusQuery.data ?? null,
+    isStatusLoading: statusQuery.isLoading,
     resolve: (action: "star" | "archive", fullNames: string[]) =>
       resolve.mutateAsync({ action, fullNames }),
     isResolving: resolve.isPending,

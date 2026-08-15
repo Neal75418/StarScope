@@ -13,7 +13,8 @@ import { getErrorMessage } from "../../utils/error";
 export function StarSyncSection() {
   const { t } = useI18n();
   const copy = t.settings.starSync;
-  const { status, sync, isSyncing, lastResult, error, resolve, isResolving } = useStarSync();
+  const { status, isStatusLoading, sync, isSyncing, lastResult, error, resolve, isResolving } =
+    useStarSync();
 
   const skippedMessage =
     lastResult?.skipped_reason != null
@@ -39,11 +40,15 @@ export function StarSyncSection() {
         </div>
       </div>
 
-      <p className="settings-hint">
-        {status?.last_sync_at
-          ? `${copy.lastSynced} ${formatRelativeTime(status.last_sync_at)}`
-          : copy.never}
-      </p>
+      {/* 狀態未到之前不顯示這行：「尚未同步」在載入中是一句錯的話，而使用者無從
+          分辨它是事實還是還沒載到 */}
+      {!isStatusLoading && (
+        <p className="settings-hint" data-testid="star-sync-stamp">
+          {status?.last_sync_at
+            ? `${copy.lastSynced} ${formatRelativeTime(status.last_sync_at)}`
+            : copy.never}
+        </p>
+      )}
 
       {error != null && (
         <p className="settings-error" role="alert">

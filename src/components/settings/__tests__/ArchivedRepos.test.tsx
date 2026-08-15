@@ -84,6 +84,22 @@ describe("ArchivedRepos", () => {
     expect(dialog.textContent ?? "").toMatch(/警示規則|alert rule/i);
   });
 
+  it("does not claim the archive is empty before it has loaded", async () => {
+    // 「沒有封存」與「還不知道」是兩件事；先講前者會在資料到達前顯示錯的句子
+    let resolveIt: (v: { repos: []; total: number }) => void = () => {};
+    vi.mocked(client.getArchivedRepos).mockReturnValue(
+      new Promise((r) => {
+        resolveIt = r;
+      })
+    );
+    renderWithClient(<ArchivedRepos />);
+
+    expect(screen.queryByTestId("archived-empty")).not.toBeInTheDocument();
+
+    resolveIt({ repos: [], total: 0 });
+    expect(await screen.findByTestId("archived-empty")).toBeInTheDocument();
+  });
+
   it("shows an empty state when nothing is archived", async () => {
     vi.mocked(client.getArchivedRepos).mockResolvedValue({ repos: [], total: 0 });
     renderWithClient(<ArchivedRepos />);

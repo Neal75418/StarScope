@@ -16,7 +16,7 @@ import {
   Brush,
   ResponsiveContainer,
 } from "recharts";
-import { useI18n } from "../i18n";
+import { useI18n, interpolate } from "../i18n";
 import { useComparison } from "../hooks/useComparison";
 import { useReposQuery } from "../hooks/useReposQuery";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
@@ -85,6 +85,10 @@ export function Compare() {
     error: chartError,
     refetch,
   } = useComparison(selectedIds, timeRange, normalize);
+
+  // ?? 0：這只是一行提示，不值得為它讓整頁掛掉——開發時前端可能比 sidecar 新，
+  // 那時回應裡沒有這個欄位
+  const skippedArchivedCount = data?.skipped_archived?.length ?? 0;
 
   const { signalsByRepoId } = useTrendEarlySignals(selectedIds);
   const { navigateTo, navigationState, consumeNavigationState } = useNavigation();
@@ -339,6 +343,14 @@ export function Compare() {
             )}
           </div>
         </FadeIn>
+      )}
+
+      {/* 後端刻意回報被略過的封存成員，而不是整批 404。前端若丟掉這個欄位，
+          使用者只會看到圖表少一條線而沒有任何說明 */}
+      {skippedArchivedCount > 0 && (
+        <p className="compare-skipped-note" data-testid="compare-skipped-archived">
+          {interpolate(t.compare.skippedArchived, { count: skippedArchivedCount })}
+        </p>
       )}
 
       {canCompare && data && data.repos.length > 0 && (

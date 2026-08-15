@@ -3,13 +3,18 @@ import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Compare } from "../Compare";
 import type { ReactNode } from "react";
-import type { ComparisonRepoData, ChartDataPoint, RepoWithSignals } from "../../api/types";
+import type {
+  ComparisonChartResponse,
+  ComparisonRepoData,
+  ChartDataPoint,
+  RepoWithSignals,
+} from "../../api/types";
 
 // ==================== Mocks ====================
 
 const mockRefetch = vi.fn();
 let mockComparisonReturn: {
-  data: { repos: ComparisonRepoData[]; time_range: string } | undefined;
+  data: ComparisonChartResponse | undefined;
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
@@ -57,6 +62,8 @@ vi.mock("../../i18n", () => ({
         needMoreRepos:
           "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",
         noMatch: "No repositories match your search.",
+        skippedArchived:
+          "{count} of the selected repositories are archived and were left out of this comparison.",
         title: "Compare",
         subtitle: "Compare star trends across repositories",
         selectRepos: "Select repositories to compare",
@@ -280,6 +287,7 @@ describe("Compare", () => {
           makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
         ],
         time_range: "30d",
+        skipped_archived: [],
       },
       isLoading: false,
       error: null,
@@ -287,6 +295,23 @@ describe("Compare", () => {
     };
     render(<Compare />);
     expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+  });
+
+  it("says when an archived member was left out", async () => {
+    // 後端刻意回報而不是整批 404；前端丟掉的話，使用者只看到圖表少一條線
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2, 3]));
+    mockComparisonReturn = {
+      data: {
+        repos: [makeComparisonRepo({ repo_id: 1, repo_name: "facebook/react" })],
+        time_range: "30d",
+        skipped_archived: [3],
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    render(<Compare />);
+    expect(screen.getByTestId("compare-skipped-archived")).toBeInTheDocument();
   });
 
   it("renders MetricsTable below chart", () => {
@@ -298,6 +323,7 @@ describe("Compare", () => {
           makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
         ],
         time_range: "30d",
+        skipped_archived: [],
       },
       isLoading: false,
       error: null,
@@ -364,7 +390,7 @@ describe("Compare", () => {
   it("shows noData message when chart data is empty", () => {
     localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
     mockComparisonReturn = {
-      data: { repos: [], time_range: "30d" },
+      data: { repos: [], time_range: "30d", skipped_archived: [] },
       isLoading: false,
       error: null,
       refetch: mockRefetch,
@@ -412,6 +438,7 @@ describe("Compare", () => {
           makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
         ],
         time_range: "30d",
+        skipped_archived: [],
       },
       isLoading: false,
       error: null,
@@ -450,6 +477,7 @@ describe("Compare", () => {
           makeComparisonRepo({ repo_id: 2, repo_name: "vuejs/vue", color: "#dc2626" }),
         ],
         time_range: "30d",
+        skipped_archived: [],
       },
       isLoading: false,
       error: null,
@@ -557,6 +585,7 @@ describe("Compare", () => {
           }),
         ],
         time_range: "30d",
+        skipped_archived: [],
       },
       isLoading: false,
       error: null,
