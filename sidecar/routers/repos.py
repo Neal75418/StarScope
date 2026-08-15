@@ -88,8 +88,15 @@ def _validate_github_identifier(owner: str, name: str) -> None:
 
 
 def _create_repo_from_github(owner: str, name: str, github_data: dict) -> Repo:
-    """從 GitHub API 回傳資料建立 Repo ORM 物件。"""
-    full_name = f"{owner}/{name}"
+    """從 GitHub API 回傳資料建立 Repo ORM 物件。
+
+    名稱以回應為準，不是以輸入為準：用舊名新增改名過的 repo 時，請求會被 301
+    導向，回應描述的是新名字。沿用輸入的字串會讓那一列帶著一個已經不存在的名稱，
+    之後每次抓取都得靠導向撐著——而舊名總有一天會被別人佔走。
+    """
+    full_name = github_data.get("full_name") or f"{owner}/{name}"
+    owner = (github_data.get("owner") or {}).get("login") or owner
+    name = github_data.get("name") or name
     return Repo(
         owner=owner,
         name=name,

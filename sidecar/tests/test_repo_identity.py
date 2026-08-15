@@ -59,3 +59,26 @@ def test_a_renamed_repo_updates_its_stored_name(test_db):
     assert repo.full_name == "a/new"
     assert repo.name == "new"
     assert repo.description == "renamed"
+
+
+def test_adding_by_an_old_name_stores_the_current_one(test_db):
+    """用舊名新增改名過的 repo，存下來的必須是現在的名字。
+
+    請求被 301 導向到新位置後，回應描述的是新名字。若沿用輸入的字串，那一列會
+    帶著一個已經不存在的名字，之後每次抓取都得靠導向撐著——而舊名總有一天會
+    被別人佔走。
+    """
+    from routers.repos import _create_repo_from_github
+
+    repo = _create_repo_from_github("a", "old", {
+        "id": 111,
+        "full_name": "a/new",
+        "name": "new",
+        "owner": {"login": "a"},
+        "description": "moved",
+    })
+
+    assert repo.full_name == "a/new"
+    assert repo.owner == "a"
+    assert repo.name == "new"
+    assert repo.url == "https://github.com/a/new"
