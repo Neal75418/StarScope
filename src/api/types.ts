@@ -17,6 +17,8 @@ export interface RepoWithSignals {
   updated_at: string;
   stars: number | null;
   forks: number | null;
+  /** 單日 star 變化量。七日快照尚未累積時，「在動」面板改用這個窗口 */
+  stars_delta_1d: number | null;
   stars_delta_7d: number | null;
   stars_delta_30d: number | null;
   velocity: number | null;
@@ -507,6 +509,9 @@ export interface WeeklySummaryResponse {
   early_signals_by_type: Record<string, number>;
   hn_mentions: WeeklyHNMention[];
   releases: WeeklyRelease[];
+  /** 版本抓取是否至少成功執行過一次。標成 optional 原因同 repos_compared——
+   *  版本 skew 時舊 sidecar 不會回這個欄位，缺席要當成「還沒查」而不是「沒事」。 */
+  releases_ever_fetched?: boolean;
   accelerating: number;
   decelerating: number;
 }

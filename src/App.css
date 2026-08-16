@@ -5727,3 +5727,76 @@ a:focus-visible {
   font-size: 0.8125rem;
   color: var(--fg-muted);
 }
+
+/* 「在動」排行。分隔線是資訊不是裝飾——它標的是雜訊的起點，
+   所以用文字加細線，不用純視覺的分隔符。 */
+.mover-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+}
+
+.mover-name {
+  /* grid item 預設 min-width 是 auto（撐開到內容寬），不歸零就不會截斷——
+     repo 全名常常很長，沒有這行會把後面兩欄擠出可視範圍 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mover-relative {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* 與 .stat-value.trend-up / .trend-down 用同一組語意色權杖，
+   但獨立成 modifier class：沿用 trend-up/trend-down 這兩個舊類名的話，
+   會落在 .stat-value 的 compound selector 之外而完全不生效 */
+.mover-relative--up {
+  color: var(--success-fg);
+}
+
+.mover-relative--down {
+  color: var(--danger-fg);
+}
+
+.mover-delta {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  min-width: 64px;
+  text-align: right;
+}
+
+.movers-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.movers-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--border-default);
+}
+
+.movers-total {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.movers-fallers {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.movers-fallers summary {
+  cursor: pointer;
+  color: var(--fg-muted);
+}

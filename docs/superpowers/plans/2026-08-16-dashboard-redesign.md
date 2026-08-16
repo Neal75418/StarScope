@@ -186,7 +186,7 @@ git commit -m "fix(analyzer): scale the snapshot backtrack to the window asked f
 
 **Files:**
 - Modify: `sidecar/constants.py:67-78`（`SignalType`）
-- Modify: `sidecar/services/analyzer.py:217-245`（`calculate_repo_signals`）
+- Modify: `sidecar/services/analyzer.py:217-245`（`calculate_signals`）
 - Modify: `sidecar/schemas/repo.py:110`
 - Modify: `sidecar/routers/repos.py:132`
 - Modify: `src/api/types.ts`（`RepoWithSignals`）
@@ -205,7 +205,7 @@ class TestOneDayStarDelta:
         from datetime import timedelta
 
         from db.models import RepoSnapshot
-        from services.analyzer import calculate_repo_signals
+        from services.analyzer import calculate_signals
         from utils.time import utc_today
 
         today = utc_today()
@@ -217,21 +217,21 @@ class TestOneDayStarDelta:
         ])
         test_db.commit()
 
-        signals = calculate_repo_signals(mock_repo.id, test_db)
+        signals = calculate_signals(mock_repo.id, test_db)
 
         assert signals["stars_delta_1d"] == 100.0
 
     def test_one_day_delta_is_absent_without_yesterday(self, test_db, mock_repo):
         """只存有值的訊號是既有行為，缺資料時該鍵不存在而不是 0。"""
         from db.models import RepoSnapshot
-        from services.analyzer import calculate_repo_signals
+        from services.analyzer import calculate_signals
         from utils.time import utc_today
 
         test_db.add(RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
                                  open_issues=0, snapshot_date=utc_today()))
         test_db.commit()
 
-        assert "stars_delta_1d" not in calculate_repo_signals(mock_repo.id, test_db)
+        assert "stars_delta_1d" not in calculate_signals(mock_repo.id, test_db)
 ```
 
 - [ ] **Step 2: 跑測試確認失敗**
@@ -247,7 +247,7 @@ Expected: FAIL — `KeyError: 'stars_delta_1d'`
     STARS_DELTA_1D = "stars_delta_1d"  # 單日 star 變化量，七日資料出現前的替代窗口
 ```
 
-`sidecar/services/analyzer.py` 的 `calculate_repo_signals`：
+`sidecar/services/analyzer.py` 的 `calculate_signals`：
 
 ```python
     delta_1d = calculate_delta(repo_id, 1, db, snap_by_date=snap_by_date)
@@ -1614,12 +1614,12 @@ cd sidecar && STARSCOPE_DATA_DIR=$S PYTHONPATH=$PWD ./.venv/bin/python - <<'PY'
 from db.database import SessionLocal, init_db
 from db.soft_delete import install_archive_filter
 from db.models import Repo
-from services.analyzer import calculate_repo_signals
+from services.analyzer import calculate_signals
 init_db(); install_archive_filter()
 db = SessionLocal()
 rows = []
 for r in db.query(Repo).all():
-    s = calculate_repo_signals(r.id, db)
+    s = calculate_signals(r.id, db)
     d = s.get("stars_delta_1d")
     if d is None:
         continue

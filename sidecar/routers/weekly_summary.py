@@ -56,6 +56,10 @@ class WeeklySummaryResponse(BaseModel):
     early_signals_by_type: dict[str, int]
     hn_mentions: list[HNMention]
     releases: list[ReleaseItem]
+    # 版本抓取是否至少成功執行過一次。為 False 時前端不能宣稱「這週沒有需要注意的
+    # 版本」，只能說還在檢查——releases=[] 沒辦法分辨「抓過、沒東西」與
+    # 「抓取器沒跑過」，兩者在這個欄位補上之前完全無法區分。
+    releases_ever_fetched: bool
     accelerating: int
     decelerating: int
 

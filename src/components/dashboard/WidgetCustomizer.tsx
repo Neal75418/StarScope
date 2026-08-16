@@ -9,6 +9,7 @@ import { useClickOutside } from "../../hooks/useClickOutside";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export type WidgetId =
+  | "statsGrid"
   | "portfolioHealth"
   | "signalSpotlight"
   | "weeklySummary"
@@ -20,17 +21,24 @@ export type WidgetId =
 
 export type WidgetVisibility = Record<WidgetId, boolean>;
 
-const STORAGE_KEY = "starscope-dashboard-widgets";
+// 版面的 widget 組成在 2026-08-16 的重設計中改變了，舊偏好對不上新版面。
+// loadWidgetVisibility 用 {...DEFAULT, ...parsed}，已存的鍵會蓋過新預設值，
+// 所以只改 DEFAULT_VISIBILITY 對「曾經打開過這個選單的人」完全沒有作用——
+// 換一把新 key 才能讓新的預設值真的生效，重置是正確結果而不是損失。
+const STORAGE_KEY = "starscope-dashboard-widgets-v2";
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
-  portfolioHealth: true,
+  // 四張卡的數字已經各有去處（AttentionBar 的狀態列、MoversPanel 的標題），
+  // 這一排改為預設關閉，但程式碼與開關都保留——留不留是使用者的判斷
+  statsGrid: false,
+  portfolioHealth: false,
   signalSpotlight: true,
   weeklySummary: true,
-  portfolioHistory: true,
-  velocityChart: true,
+  portfolioHistory: false,
+  velocityChart: false,
   languageDistribution: false,
   categorySummary: false,
-  recentActivity: true,
+  recentActivity: false,
 };
 
 export function loadWidgetVisibility(): WidgetVisibility {
@@ -84,6 +92,8 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
     { id: "languageDistribution", label: t.dashboard.languageDistribution.title },
     { id: "categorySummary", label: t.dashboard.categorySummary.title },
     { id: "recentActivity", label: t.dashboard.recentActivity },
+    // 加在最後：StatsGrid 剛拿到 widget key，開關要看得到，但不必打亂既有排序
+    { id: "statsGrid", label: t.dashboard.stats.title },
   ];
 
   return (

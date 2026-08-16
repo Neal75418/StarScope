@@ -11,7 +11,6 @@ import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
-import { getSignalDisplayName } from "../../utils/signalTypeHelpers";
 import type { WeeklyRepoSummary, WeeklyHNMention, WeeklyRelease } from "../../api/types";
 
 const MAX_HN_MENTIONS_DISPLAY = 6;
@@ -60,52 +59,6 @@ const TopMovers = memo(function TopMovers({
           <span className="weekly-mover-trend">{TREND_ARROWS[r.trend] ?? "→"}</span>
         </div>
       ))}
-    </div>
-  );
-});
-
-const SignalsOverview = memo(function SignalsOverview({
-  alertsTriggered,
-  earlySignalsDetected,
-  earlySignalsByType,
-  accelerating,
-  decelerating,
-  t,
-}: {
-  alertsTriggered: number;
-  earlySignalsDetected: number;
-  earlySignalsByType: Record<string, number>;
-  accelerating: number;
-  decelerating: number;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  return (
-    <div className="weekly-column">
-      <h4>{t.dashboard.weekly.signals}</h4>
-      <div className="weekly-stat-row">
-        <span className="weekly-stat-label">{t.dashboard.weekly.alertsTriggered}</span>
-        <span className="weekly-stat-value">{alertsTriggered}</span>
-      </div>
-      <div className="weekly-stat-row">
-        <span className="weekly-stat-label">{t.dashboard.weekly.earlySignals}</span>
-        <span className="weekly-stat-value">{earlySignalsDetected}</span>
-      </div>
-      {Object.entries(earlySignalsByType).map(([type, count]) => (
-        <div key={type} className="weekly-stat-row weekly-stat-row--sub">
-          <span className="weekly-stat-label">
-            {getSignalDisplayName(type, t.dashboard.signals.types)}
-          </span>
-          <span className="weekly-stat-value">{count}</span>
-        </div>
-      ))}
-      <div className="weekly-momentum">
-        <span className="trend-up">
-          {accelerating} {t.dashboard.weekly.accelerating}
-        </span>
-        <span className="trend-down">
-          {decelerating} {t.dashboard.weekly.decelerating}
-        </span>
-      </div>
     </div>
   );
 });
@@ -269,14 +222,6 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
           gainers={data.top_gainers}
           losers={data.top_losers}
           reposCompared={data.repos_compared ?? 0}
-          t={t}
-        />
-        <SignalsOverview
-          alertsTriggered={data.alerts_triggered}
-          earlySignalsDetected={data.early_signals_detected}
-          earlySignalsByType={data.early_signals_by_type}
-          accelerating={data.accelerating}
-          decelerating={data.decelerating}
           t={t}
         />
         <ReleasesList releases={data.releases ?? []} t={t} />

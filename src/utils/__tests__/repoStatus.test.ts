@@ -15,6 +15,7 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
     updated_at: "2024-01-01T00:00:00Z",
     stars: 100,
     forks: 10,
+    stars_delta_1d: null,
     stars_delta_7d: null,
     stars_delta_30d: null,
     velocity: null,

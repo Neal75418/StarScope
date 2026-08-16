@@ -129,6 +129,7 @@ def _build_repo_with_signals(
         updated_at=repo.updated_at,
         stars=snapshot.stars if snapshot else None,
         forks=snapshot.forks if snapshot else None,
+        stars_delta_1d=signals.get(SignalType.STARS_DELTA_1D),
         stars_delta_7d=signals.get(SignalType.STARS_DELTA_7D),
         stars_delta_30d=signals.get(SignalType.STARS_DELTA_30D),
         velocity=signals.get(SignalType.VELOCITY),

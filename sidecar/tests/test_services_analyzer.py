@@ -3,8 +3,9 @@ Tests for services/analyzer.py - Signal calculation engine.
 """
 
 import pytest
-from datetime import timedelta
+from datetime import date, timedelta
 
+from db.models import RepoSnapshot
 from utils.time import utc_today
 
 from services.analyzer import (
@@ -92,9 +93,9 @@ class TestCalculateDelta:
         """Test delta calculation with historical data."""
         repo, _ = mock_repo_with_snapshots
         delta = calculate_delta(repo.id, 7, test_db)
-        # Snapshots: day -30 to -1, 50 stars/day growth
-        # Day -1: 2450 stars, Day -7: 2150 stars → delta = 300
-        assert delta == 300
+        # Snapshots: day -30 to today (day 0), 50 stars/day growth
+        # Day 0: 2500 stars, Day -7: 2150 stars → delta = 350
+        assert delta == 350
 
     def test_calculate_delta_no_data(self, test_db, mock_repo):
         """Test delta calculation with no snapshot data."""
@@ -109,8 +110,8 @@ class TestCalculateVelocity:
         """Test velocity calculation."""
         repo, _ = mock_repo_with_snapshots
         velocity = calculate_velocity(repo.id, test_db, days=7)
-        # 300 stars over 7 days ≈ 42.857 stars/day
-        assert velocity == pytest.approx(300.0 / 7)
+        # 350 stars over 7 days = 50 stars/day
+        assert velocity == pytest.approx(350.0 / 7)
 
     def test_calculate_velocity_no_data(self, test_db, mock_repo):
         """Test velocity returns None with no data."""
@@ -125,9 +126,11 @@ class TestCalculateAcceleration:
         """Test acceleration calculation."""
         repo, _ = mock_repo_with_snapshots
         acceleration = calculate_acceleration(repo.id, test_db)
-        # Linear growth but "today" resolves to day -1, making this_week 6 days vs last_week 7 days
-        # this_week: 300/7, last_week: 350/7 → acceleration = -50/350 = -1/7
-        assert acceleration == pytest.approx(-1 / 7)
+        # Linear growth with constant 50 stars/day
+        # this_week (day 0 to day -7): 350 stars / 7 = 50 stars/day
+        # last_week (day -7 to day -14): 350 stars / 7 = 50 stars/day
+        # acceleration = (50 - 50) / 50 = 0
+        assert acceleration == pytest.approx(0.0)
 
     def test_calculate_acceleration_no_data(self, test_db, mock_repo):
         """Test acceleration returns None with no data."""
@@ -171,3 +174,191 @@ class TestCalculateSignals:
         signal_types = [s.signal_type for s in db_signals]
         assert len(signal_types) >= 1, "Expected at least one signal to be stored"
         assert len(signal_types) == len(set(signal_types))  # No duplicates
+
+
+class TestBacktrackScalesWithWindow:
+    """回溯上限寫死七天時，單日窗會拿七天前的快照冒充「一天」。
+
+    段二的排行完全按相對成長排序，被放大七倍的成長會直接變成假的第一名，
+    而畫面上看不出任何異常。
+    """
+
+    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+        return RepoSnapshot(repo_id=1, stars=stars, forks=0,
+                            watchers=0, open_issues=0, snapshot_date=day)
+
+    def test_one_day_window_requires_an_exact_match(self, test_db):
+        today = utc_today()
+        # 今天有、昨天沒有、七天前有
+        snap_by_date = {
+            today: self._snap(today, 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 100),
+        }
+
+        result = calculate_delta(1, 1, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "昨天沒有快照時應回 None，不得拿七天前的來比"
+
+    def test_one_day_window_works_when_yesterday_exists(self, test_db):
+        today = utc_today()
+        snap_by_date = {
+            today: self._snap(today, 1000),
+            today - timedelta(days=1): self._snap(today - timedelta(days=1), 900),
+        }
+
+        assert calculate_delta(1, 1, test_db, snap_by_date=snap_by_date) == 100.0
+
+    def test_seven_day_window_backtracks_at_most_three_days(self, test_db):
+        today = utc_today()
+        # 目標是 today-7，往前三天內（today-8..today-10）有；再更早的不算
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=10): self._snap(today - timedelta(days=10), 500)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=11): self._snap(today - timedelta(days=11), 500)}
+
+        assert calculate_delta(1, 7, test_db, snap_by_date=near) == 500.0
+        assert calculate_delta(1, 7, test_db, snap_by_date=far) is None
+
+    def test_thirty_day_window_keeps_the_existing_seven_day_cap(self, test_db):
+        """days // 2 會把三十日窗放寬到十五天回溯；min(..., 7) 必須擋住。"""
+        today = utc_today()
+        at_cap = {today: self._snap(today, 1000),
+                  today - timedelta(days=37): self._snap(today - timedelta(days=37), 500)}
+        beyond = {today: self._snap(today, 1000),
+                  today - timedelta(days=38): self._snap(today - timedelta(days=38), 500)}
+
+        assert calculate_delta(1, 30, test_db, snap_by_date=at_cap) == 500.0
+        assert calculate_delta(1, 30, test_db, snap_by_date=beyond) is None
+
+    def test_current_snapshot_requires_an_exact_match_regardless_of_window(self, test_db):
+        """current 側的回溯上限寫死是 0（_find_snapshot(snap_by_date, today, 0)），
+        不隨 days 變動——這條專門把它釘住。
+
+        現有的 test_one_day_window_requires_an_exact_match 測不出這件事：那條測試
+        today 本身就有快照，就算 current 側的 0 被誤改成別的數字，「今天」的精確
+        比對還是會先命中，數字不會變。這裡刻意讓 today 完全沒有快照，只在
+        today-3（days=7 的回溯上限 min(7//2,7)=3 之內）跟 today-7（baseline 的
+        精確落點）放快照：如果 current 側的上限被放寬到 >= 3，就會錯把 today-3
+        的快照當成「現在」，算出一個非 None 的值；只有維持精確比對才會整體回
+        None。
+        """
+        today = utc_today()
+        snap_by_date = {
+            today - timedelta(days=3): self._snap(today - timedelta(days=3), 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 500),
+        }
+
+        result = calculate_delta(1, 7, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "today 沒有精確快照時必須整體回 None，不能拿 today-3 冒充「現在」"
+
+
+class TestAccelerationBacktrackCaps:
+    """驗證 calculate_acceleration 的回溯上限實際生效。
+
+    加速度計算調用 _find_snapshot 三次：today (backtrack=0)、one_week_ago (backtrack=3)、two_weeks_ago (backtrack=7)。
+    當快照有間隙時，這些上限需要被強制執行，不能因為快照密集就忽略。
+    """
+
+    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+        return RepoSnapshot(repo_id=1, stars=stars, forks=0,
+                            watchers=0, open_issues=0, snapshot_date=day)
+
+    def test_acceleration_week_ago_backtrack_cap_fires(self, test_db):
+        """one_week_ago 回溯上限為 3 天；超過 3 天的快照不應被用。"""
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        # 今天有、一週前時間點沒有，但往前 3 天內（day -7 到 day -10 之間）有
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=9): self._snap(today - timedelta(days=9), 500),
+                today - timedelta(days=14): self._snap(today - timedelta(days=14), 200)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=11): self._snap(today - timedelta(days=11), 500),
+               today - timedelta(days=14): self._snap(today - timedelta(days=14), 200)}
+
+        # near 有 day -9 快照，在回溯 3 天的範圍內（target: day -7，搜 day -7..-10）
+        result_near = calculate_acceleration(1, test_db, snap_by_date=near)
+        assert result_near is not None
+
+        # far 最近的是 day -11，超過回溯 3 天限制（target: day -7，搜 day -7..-10，day -11 不在範圍）
+        result_far = calculate_acceleration(1, test_db, snap_by_date=far)
+        assert result_far is None
+
+    def test_acceleration_two_weeks_ago_backtrack_cap_fires(self, test_db):
+        """two_weeks_ago 回溯上限為 7 天；超過 7 天的快照不應被用。"""
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        # 今天、一週前、兩週前都有
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+                today - timedelta(days=20): self._snap(today - timedelta(days=20), 500)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+               today - timedelta(days=22): self._snap(today - timedelta(days=22), 500)}
+
+        # near day -20，在回溯 7 天的範圍內（target: day -14，搜 -14..-21）
+        result_near = calculate_acceleration(1, test_db, snap_by_date=near)
+        assert result_near is not None
+
+        # far day -22，超過回溯 7 天限制（target: day -14，搜 -14..-21，day -22 不在範圍）
+        result_far = calculate_acceleration(1, test_db, snap_by_date=far)
+        assert result_far is None
+
+    def test_current_snapshot_requires_an_exact_match_regardless_of_the_other_caps(self, test_db):
+        """current（今天）的回溯上限寫死是 0，跟 week_ago(3) / two_weeks_ago(7)
+        不一樣——那兩個本來就非零，這條專門釘住「今天」不能被放寬。
+
+        today 完全沒有快照，只在 today-2（一個小的、容易被誤放寬吃進去的距離）
+        放一筆；week_ago 與 two_weeks_ago 兩側都給精確命中，排除其他兩個上限
+        造成 None 的可能性，這樣結果如果不是 None，唯一原因只能是 current 側
+        的 0 被放寬了。
+        """
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        snap_by_date = {
+            today - timedelta(days=2): self._snap(today - timedelta(days=2), 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+            today - timedelta(days=14): self._snap(today - timedelta(days=14), 500),
+        }
+
+        result = calculate_acceleration(1, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "today 沒有精確快照時必須整體回 None，不能拿 today-2 冒充「現在」"
+
+
+class TestOneDayStarDelta:
+    def test_signals_include_a_one_day_star_delta(self, test_db, mock_repo):
+        """段二在七日資料出現前只有單日窗可用。"""
+        from datetime import timedelta
+
+        from db.models import RepoSnapshot
+        from services.analyzer import calculate_signals
+        from utils.time import utc_today
+
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, stars=900, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today - timedelta(days=1)),
+            RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today),
+        ])
+        test_db.commit()
+
+        signals = calculate_signals(mock_repo.id, test_db)
+
+        assert signals["stars_delta_1d"] == 100.0
+
+    def test_one_day_delta_is_absent_without_yesterday(self, test_db, mock_repo):
+        """只存有值的訊號是既有行為，缺資料時該鍵不存在而不是 0。"""
+        from db.models import RepoSnapshot
+        from services.analyzer import calculate_signals
+        from utils.time import utc_today
+
+        test_db.add(RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
+                                 open_issues=0, snapshot_date=utc_today()))
+        test_db.commit()
+
+        assert "stars_delta_1d" not in calculate_signals(mock_repo.id, test_db)

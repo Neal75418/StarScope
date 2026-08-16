@@ -31,6 +31,7 @@ const ROW = {
   updated_at: "2026-08-01T00:00:00Z",
   stars: 120,
   forks: 3,
+  stars_delta_1d: null,
   stars_delta_7d: null,
   stars_delta_30d: null,
   velocity: null,

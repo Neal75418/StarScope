@@ -103,3 +103,14 @@ describe("WeeklySummary against an older sidecar", () => {
     );
   });
 });
+
+describe("WeeklySummary after signals refactor", () => {
+  it("不再渲染訊號總覽——那四個數字都有更好的去處", () => {
+    // 觸發警報 → 段一；早期訊號 → 段二上層的項目本身；加速/減速 → 段二的排行。
+    // 「早期訊號 2」不能點、不能確認、不告訴你是哪兩個。
+    renderWith(summary({ alerts_triggered: 3, early_signals_detected: 2 }));
+
+    expect(screen.queryByText(/alerts triggered/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/early signals/i)).not.toBeInTheDocument();
+  });
+});
