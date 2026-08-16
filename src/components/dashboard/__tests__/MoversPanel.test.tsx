@@ -85,4 +85,15 @@ describe("MoversPanel", () => {
     expect(details).not.toHaveAttribute("open");
     expect(within(details).getByText("c/three")).toBeInTheDocument();
   });
+
+  it("正負相對成長分別套上 up/down 顏色 modifier", () => {
+    // class 沒套對就等於「漲跌看起來一樣」——這是唯一分辨兩者的視覺線索。
+    // 這個面板先前就出過 class 名稱和實際 CSS 規則對不上、悄悄不生效的例子
+    // （trend-up/trend-down 只在 .stat-value 底下生效），所以在這裡把類名釘死。
+    const { container } = render(
+      <MoversPanel result={{ ...base, fallers: [mover("c/three", -0.02, -20)] }} />
+    );
+    expect(container.querySelector(".mover-relative--up")).toHaveTextContent("+7.74%");
+    expect(container.querySelector(".mover-relative--down")).toHaveTextContent("-2.00%");
+  });
 });

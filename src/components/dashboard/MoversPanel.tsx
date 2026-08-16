@@ -17,7 +17,9 @@ const MoverRow = memo(function MoverRow({ mover }: { mover: Mover }) {
   return (
     <div className="mover-row" data-testid="mover-row">
       <span className="mover-name">{mover.repo.full_name}</span>
-      <span className={`mover-relative ${mover.relative > 0 ? "trend-up" : "trend-down"}`}>
+      <span
+        className={`mover-relative ${mover.relative > 0 ? "mover-relative--up" : "mover-relative--down"}`}
+      >
         {formatPercent(mover.relative)}
       </span>
       <span className="mover-delta">{formatDelta(mover.delta)}</span>

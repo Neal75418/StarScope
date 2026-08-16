@@ -5738,9 +5738,29 @@ a:focus-visible {
   padding: 6px 0;
 }
 
+.mover-name {
+  /* grid item 預設 min-width 是 auto（撐開到內容寬），不歸零就不會截斷——
+     repo 全名常常很長，沒有這行會把後面兩欄擠出可視範圍 */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .mover-relative {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/* 與 .stat-value.trend-up / .trend-down 用同一組語意色權杖，
+   但獨立成 modifier class：沿用 trend-up/trend-down 這兩個舊類名的話，
+   會落在 .stat-value 的 compound selector 之外而完全不生效 */
+.mover-relative--up {
+  color: var(--success-fg);
+}
+
+.mover-relative--down {
+  color: var(--danger-fg);
 }
 
 .mover-delta {
