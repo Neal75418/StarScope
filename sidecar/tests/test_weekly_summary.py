@@ -150,7 +150,11 @@ class TestWeeklySummaryEndpoint:
         assert "breakout" not in data["early_signals_by_type"]
 
     def test_hn_mentions(self, client, mock_repo, test_db):
-        """Test HN mentions in weekly summary."""
+        """Test HN mentions in weekly summary.
+
+        這條原本只設 fetched_at 就期待故事出現，等於把 bug 寫成規格：
+        「本週」看的必須是故事何時發表，不是我們何時抓到它。
+        """
         now = utc_now()
 
         hn = ContextSignal(
@@ -161,6 +165,7 @@ class TestWeeklySummaryEndpoint:
             url="https://news.ycombinator.com/item?id=12345",
             score=150,
             comment_count=42,
+            published_at=now - timedelta(days=1),
             fetched_at=now - timedelta(days=1),
         )
         test_db.add(hn)
@@ -171,6 +176,43 @@ class TestWeeklySummaryEndpoint:
         assert len(data["hn_mentions"]) == 1
         assert data["hn_mentions"][0]["hn_title"] == "Show HN: TestRepo"
         assert data["hn_mentions"][0]["hn_score"] == 150
+
+    def test_hn_mentions_excludes_old_stories_refetched_today(
+        self, client, mock_repo, test_db
+    ):
+        """七年前的故事不該出現在「近 7 天」裡。
+
+        抓取每半小時會把既有訊號的 fetched_at 更新成現在，所以拿 fetched_at
+        當時間條件等於沒有條件。實測使用者的資料庫：1130 筆全部通過，
+        而真正屬於這 7 天的只有 9 筆——面板因此是一份永遠不變的歷史最高分排行。
+        """
+        now = utc_now()
+
+        test_db.add_all([
+            ContextSignal(
+                repo_id=mock_repo.id, signal_type="hacker_news", external_id="old",
+                title="A uBlock Origin update was rejected from the Chrome Web Store",
+                url="https://example.com/old", score=1757,
+                published_at=now - timedelta(days=2500),  # 七年前
+                fetched_at=now,                            # 剛剛才重新抓過
+            ),
+            ContextSignal(
+                repo_id=mock_repo.id, signal_type="hacker_news", external_id="new",
+                title="Something that actually happened this week",
+                url="https://example.com/new", score=10,
+                published_at=now - timedelta(days=2),
+                fetched_at=now,
+            ),
+        ])
+        test_db.commit()
+
+        response = client.get("/api/summary/weekly")
+        data = response.json()["data"]
+
+        titles = [m["hn_title"] for m in data["hn_mentions"]]
+        assert titles == ["Something that actually happened this week"], (
+            "分數高的舊故事會排在前面，把真正本週的東西擠掉"
+        )
 
     def test_accelerating_decelerating(self, client, mock_repo, test_db):
         """Test accelerating/decelerating repo counts."""

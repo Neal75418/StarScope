@@ -189,12 +189,19 @@ def _get_hn_mentions(
     week_ago: datetime,
     repo_info: dict[int, Repo],
 ) -> list[dict[str, Any]]:
-    """查詢本週 Hacker News 上的提及（最多 10 筆，依分數排序）。"""
+    """查詢本週 Hacker News 上的提及（最多 10 筆，依分數排序）。
+
+    用 published_at（故事何時發表）而不是 fetched_at（我們何時抓到）。
+    抓取每半小時會把既有訊號的 fetched_at 更新成現在，所以拿它當時間條件
+    等於沒有條件——實測 1130 筆全部通過，而真正屬於這 7 天的只有 9 筆。
+    面板因此變成一份靜止的歷史最高分排行，掛在寫著「近 7 天」的標題底下，
+    裡面有 2019 年和 2021 年的故事，而且永遠不會變。
+    """
     hn_signals = (
         db.query(ContextSignal)
         .filter(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
-            ContextSignal.fetched_at >= week_ago,
+            ContextSignal.published_at >= week_ago,
         )
         .order_by(ContextSignal.score.desc().nullslast())
         .limit(10)
