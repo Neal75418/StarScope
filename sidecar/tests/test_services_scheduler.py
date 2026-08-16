@@ -515,7 +515,8 @@ class TestFetchContextSignalsJobCleanup:
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch, \
              patch('services.context_fetcher.cleanup_old_context_signals') as mock_cleanup:
 
-            mock_fetch.return_value = {"new_hn_signals": 3, "errors": 0}
+            # 與 fetch_all_context_signals 的真實回傳形狀一致
+            mock_fetch.return_value = {"repos_processed": 2, "new_hn_signals": 3, "errors": 0}
             mock_cleanup.return_value = {"deleted_by_age": 5, "deleted_by_limit": 0}
 
             await fetch_context_signals_job()

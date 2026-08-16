@@ -404,9 +404,12 @@ async def fetch_context_signals_job() -> None:
     with get_db_session() as db:
         try:
             result = await fetch_all_context_signals(db)
+            # 明講「新增」：這個數字是本輪新存下的訊號數，穩定運轉時本來就會是 0
+            # （故事早就存過了）。只寫「HN=0」會讓一個健康的系統看起來像什麼都沒抓到。
             log.info(
                 f"[排程] [{job_id}] 上下文訊號抓取完成: "
-                f"HN={result['new_hn_signals']}、"
+                f"掃描 {result['repos_processed']} 個 repo、"
+                f"新增 HN 訊號 {result['new_hn_signals']} 筆、"
                 f"錯誤={result['errors']}"
             )
 

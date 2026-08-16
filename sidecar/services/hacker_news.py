@@ -156,7 +156,10 @@ class HackerNewsService:
         ]
         filtered_count = before_count - len(stories)
         if filtered_count > 0:
-            logger.info(
+            # DEBUG 而非 INFO：Algolia 的模糊匹配本來就會帶回不相關的結果，過濾掉是
+            # 每一次、每一個 repo 都會發生的常態。追蹤上百個 repo 時，這行會在每半小時
+            # 產生上百筆 INFO，把真正需要注意的訊息淹掉。
+            logger.debug(
                 f"[HN] 過濾了 {filtered_count} 筆與 {owner}/{repo_name} 不相關的模糊匹配結果"
             )
 
