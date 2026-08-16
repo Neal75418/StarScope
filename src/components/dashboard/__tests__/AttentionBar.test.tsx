@@ -37,7 +37,11 @@ describe("AttentionBar", () => {
     // 等於在沒有檢查過任何東西的情況下說沒事。
     render(<AttentionBar {...base} hasAlertRules={false} />);
 
-    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/no alert rules/i);
+    const bar = screen.getByTestId("attention-bar");
+    expect(bar).toHaveTextContent(/no alert rules/i);
+    // 這是複合宣稱：版本那邊確實沒事，但警報那邊沒檢查。少了前半段，
+    // 「no alert rules set」單獨出現時使用者看不出版本檢查其實是有跑、有過關的。
+    expect(bar).toHaveTextContent(/nothing needs attention this week/i);
   });
 
   it("版本還沒抓過時說正在檢查，不說沒事", () => {
@@ -45,6 +49,17 @@ describe("AttentionBar", () => {
 
     const bar = screen.getByTestId("attention-bar");
     expect(bar).toHaveTextContent(/still checking/i);
+    expect(bar).not.toHaveTextContent(/nothing needs/i);
+  });
+
+  it("版本沒抓、也沒設警報規則時，兩個原因都要講", () => {
+    // 三元短路的舊寫法在兩個檢查同時缺席時只會講其中一個——使用者會以為
+    // 版本一補上，這個段落就全覆蓋了，但警報那個來源其實從頭到尾沒被提到。
+    render(<AttentionBar {...base} hasAlertRules={false} releasesChecked={false} />);
+
+    const bar = screen.getByTestId("attention-bar");
+    expect(bar).toHaveTextContent(/still checking/i);
+    expect(bar).toHaveTextContent(/no alert rules/i);
     expect(bar).not.toHaveTextContent(/nothing needs/i);
   });
 

@@ -38,11 +38,10 @@ export const AttentionBar = memo(function AttentionBar({
   const { t } = useI18n();
   const copy = t.dashboard.attention;
 
-  const status = !releasesChecked
-    ? copy.checking
-    : hasAlertRules
-      ? copy.clear
-      : `${copy.clear} · ${copy.noAlertRules}`;
+  // 兩個檢查各自獨立：版本沒抓到就不能說「沒事」，而沒設規則是另一件要講的事。
+  // 用三元短路的話，兩者同時發生時只會講其中一個，使用者會以為補上另一半就全覆蓋了。
+  const base = releasesChecked ? copy.clear : copy.checking;
+  const status = hasAlertRules ? base : `${base} · ${copy.noAlertRules}`;
 
   return (
     <section className="attention-bar" data-testid="attention-bar">
