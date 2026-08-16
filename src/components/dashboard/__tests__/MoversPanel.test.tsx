@@ -79,11 +79,17 @@ describe("MoversPanel", () => {
   });
 
   it("下滑中另組並預設折疊", () => {
-    render(<MoversPanel result={{ ...base, fallers: [mover("c/three", -0.02, -20)] }} />);
+    // 用兩個以上的下滑者：數字要跟畫面上其他數字（例如視窗「1」）不同，
+    // 才驗證得出摘要文字裡的計數真的來自 fallers.length，而不是巧合湊對、
+    // 或是被寫死成別的數字也測不出來
+    const fallers = [mover("c/three", -0.02, -20), mover("e/five", -0.03, -30)];
+    render(<MoversPanel result={{ ...base, fallers }} />);
 
     const details = screen.getByTestId("movers-fallers");
     expect(details).not.toHaveAttribute("open");
     expect(within(details).getByText("c/three")).toBeInTheDocument();
+    expect(within(details).getByText("e/five")).toBeInTheDocument();
+    expect(details).toHaveTextContent("Declining (2)");
   });
 
   it("正負相對成長分別套上 up/down 顏色 modifier", () => {
