@@ -28,6 +28,13 @@ export const translations = {
         description:
           "The dashboard reflects the repositories you track. Head over to Discover, pick something interesting from today's feed or search, and hit ⭐ Track — this page will come alive.",
       },
+      attention: {
+        title: "Needs attention",
+        clear: "Nothing needs attention this week",
+        noAlertRules: "no alert rules set",
+        checking: "Still checking — releases not fetched yet",
+        tracking: "{count} tracked",
+      },
       stats: {
         totalRepos: "Tracked Repos",
         totalStars: "Total Stars",
@@ -1002,6 +1009,13 @@ export const translations = {
           "儀表板顯示的是你追蹤中的專案。到探索頁看看今天的推薦或直接搜尋，按下 ⭐ 追蹤，這裡就會活起來。",
       },
       subtitle: "追蹤儲存庫總覽",
+      attention: {
+        title: "需要注意",
+        clear: "本週無需注意的事",
+        noAlertRules: "未設定警報規則",
+        checking: "正在檢查（版本資料尚未抓取）",
+        tracking: "{count} 個追蹤中",
+      },
       stats: {
         totalRepos: "追蹤數量",
         totalStars: "星星總數",
