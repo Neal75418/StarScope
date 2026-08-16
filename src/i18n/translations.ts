@@ -35,6 +35,15 @@ export const translations = {
         checking: "Still checking — releases not fetched yet",
         tracking: "{count} tracked",
       },
+      movers: {
+        title: "Moving",
+        window1: "last 1 day",
+        window7: "last 7 days",
+        total: "{delta} overall",
+        empty: "Building history — no growth to compare yet",
+        fallers: "Declining ({count})",
+        noise: "below the noise line",
+      },
       stats: {
         totalRepos: "Tracked Repos",
         totalStars: "Total Stars",
@@ -1015,6 +1024,15 @@ export const translations = {
         noAlertRules: "未設定警報規則",
         checking: "正在檢查（版本資料尚未抓取）",
         tracking: "{count} 個追蹤中",
+      },
+      movers: {
+        title: "在動",
+        window1: "近 1 天",
+        window7: "近 7 天",
+        total: "全體 {delta}",
+        empty: "快照累積中——還沒有可比較的成長",
+        fallers: "下滑中（{count}）",
+        noise: "雜訊線以下",
       },
       stats: {
         totalRepos: "追蹤數量",

@@ -5727,3 +5727,56 @@ a:focus-visible {
   font-size: 0.8125rem;
   color: var(--fg-muted);
 }
+
+/* 「在動」排行。分隔線是資訊不是裝飾——它標的是雜訊的起點，
+   所以用文字加細線，不用純視覺的分隔符。 */
+.mover-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+}
+
+.mover-relative {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.mover-delta {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  min-width: 64px;
+  text-align: right;
+}
+
+.movers-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+.movers-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px dashed var(--border-default);
+}
+
+.movers-total {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.movers-fallers {
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.movers-fallers summary {
+  cursor: pointer;
+  color: var(--fg-muted);
+}
