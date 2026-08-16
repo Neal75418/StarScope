@@ -107,6 +107,7 @@ class RepoWithSignals(RepoResponse):
     forks: int | None = None
 
     # 信號
+    stars_delta_1d: float | None = None
     stars_delta_7d: float | None = None
     stars_delta_30d: float | None = None
     velocity: float | None = None  # 每日星數

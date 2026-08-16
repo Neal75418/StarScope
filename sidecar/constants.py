@@ -66,6 +66,7 @@ TREND_STRONG_DECLINE_THRESHOLD = -0.3       # 低於此值視為強烈衰退
 
 class SignalType(StrEnum):
     """Signal 類型常數。"""
+    STARS_DELTA_1D = "stars_delta_1d"  # 單日 star 變化量，七日資料出現前的替代窗口
     STARS_DELTA_7D = "stars_delta_7d"
     STARS_DELTA_30D = "stars_delta_30d"
     VELOCITY = "velocity"  # 每日 star 數

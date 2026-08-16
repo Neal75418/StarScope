@@ -32,6 +32,7 @@ function makeRepo(overrides: Partial<apiClient.RepoWithSignals> = {}): apiClient
     updated_at: "2024-01-15T00:00:00Z",
     stars: 200000,
     forks: 40000,
+    stars_delta_1d: 20,
     stars_delta_7d: 100,
     stars_delta_30d: 400,
     velocity: 14.3,

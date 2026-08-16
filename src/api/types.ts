@@ -17,6 +17,8 @@ export interface RepoWithSignals {
   updated_at: string;
   stars: number | null;
   forks: number | null;
+  /** 單日 star 變化量。七日快照尚未累積時，「在動」面板改用這個窗口 */
+  stars_delta_1d: number | null;
   stars_delta_7d: number | null;
   stars_delta_30d: number | null;
   velocity: number | null;

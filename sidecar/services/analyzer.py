@@ -224,6 +224,7 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
     snap_by_date = {s.snapshot_date: s for s in snapshots}
 
     # 計算各項訊號（使用預載快照，無額外 DB 查詢）
+    delta_1d = calculate_delta(repo_id, 1, db, snap_by_date=snap_by_date)
     delta_7d = calculate_delta(repo_id, 7, db, snap_by_date=snap_by_date)
     delta_30d = calculate_delta(repo_id, 30, db, snap_by_date=snap_by_date)
     velocity = calculate_velocity(repo_id, db, snap_by_date=snap_by_date)
@@ -238,6 +239,7 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
 
     # 儲存訊號
     signal_values = [
+        (SignalType.STARS_DELTA_1D, delta_1d),
         (SignalType.STARS_DELTA_7D, delta_7d),
         (SignalType.STARS_DELTA_30D, delta_30d),
         (SignalType.VELOCITY, velocity),

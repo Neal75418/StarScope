@@ -283,3 +283,38 @@ class TestAccelerationBacktrackCaps:
         # far day -22，超過回溯 7 天限制（target: day -14，搜 -14..-21，day -22 不在範圍）
         result_far = calculate_acceleration(1, test_db, snap_by_date=far)
         assert result_far is None
+
+
+class TestOneDayStarDelta:
+    def test_signals_include_a_one_day_star_delta(self, test_db, mock_repo):
+        """段二在七日資料出現前只有單日窗可用。"""
+        from datetime import timedelta
+
+        from db.models import RepoSnapshot
+        from services.analyzer import calculate_signals
+        from utils.time import utc_today
+
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, stars=900, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today - timedelta(days=1)),
+            RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today),
+        ])
+        test_db.commit()
+
+        signals = calculate_signals(mock_repo.id, test_db)
+
+        assert signals["stars_delta_1d"] == 100.0
+
+    def test_one_day_delta_is_absent_without_yesterday(self, test_db, mock_repo):
+        """只存有值的訊號是既有行為，缺資料時該鍵不存在而不是 0。"""
+        from db.models import RepoSnapshot
+        from services.analyzer import calculate_signals
+        from utils.time import utc_today
+
+        test_db.add(RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
+                                 open_issues=0, snapshot_date=utc_today()))
+        test_db.commit()
+
+        assert "stars_delta_1d" not in calculate_signals(mock_repo.id, test_db)
