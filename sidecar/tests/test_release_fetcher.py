@@ -122,6 +122,8 @@ class TestStoreRelease:
         # 三種寫法都是實測到的
         ("v0.19.1", "", "v0.19.1"),
         ("v6.2.0", "v6.2.0", "v6.2.0"),
+        # 實際遇到的：tag 帶 v 前綴、name 沒有，接起來會變成「v8.0.0 8.0.0」
+        ("v8.0.0", "8.0.0", "v8.0.0"),
         ("v1.9.0", "v1.9.0 - Command Code & safer specs", "v1.9.0 - Command Code & safer specs"),
         ("release-29.0.2", "Manticore Search 29.0.2", "release-29.0.2 Manticore Search 29.0.2"),
         ("autogpt-beta-v0.7.1", "Release `autogpt-beta-v0.7.1`", "Release `autogpt-beta-v0.7.1`"),
@@ -173,3 +175,51 @@ class TestFetchAllReleases:
         assert result["errors"] == 1
         assert result["new_releases"] == 2
         assert sorted(attempted) == ["bad", "good", "other"]
+
+
+class TestSkipGuard:
+    """3 小時的排程在「開一小時就關掉」的 app 上可能一次都跑不到，所以啟動時也跑一次。
+
+    代價是反覆開關會重掃 94 個 repo，時間戳就是用來擋這個的。
+    """
+
+    def test_a_fresh_database_is_not_recent(self, test_db):
+        from services.release_fetcher import fetched_recently
+        assert fetched_recently(test_db) is False
+
+    def test_a_completed_fetch_marks_the_time(self, test_db, target, monkeypatch):
+        import asyncio
+
+        from services.release_fetcher import fetched_recently
+
+        class OneRelease:
+            async def get_latest_release(self, owner, name):
+                return make_release()
+
+        monkeypatch.setattr("services.release_fetcher.get_github_service", lambda: OneRelease())
+        asyncio.run(fetch_all_releases(test_db))
+
+        assert fetched_recently(test_db) is True
+
+    def test_an_old_stamp_does_not_block_the_next_fetch(self, test_db):
+        from datetime import timedelta
+
+        from db.models import AppSettingKey
+        from services.release_fetcher import fetched_recently
+        from services.settings import set_setting
+        from utils.time import utc_now
+
+        set_setting(AppSettingKey.LAST_RELEASE_FETCH_AT,
+                    (utc_now() - timedelta(hours=4)).isoformat(), test_db)
+
+        assert fetched_recently(test_db) is False
+
+    def test_an_unparseable_stamp_means_fetch_rather_than_silence(self, test_db):
+        # 壞掉的字串不該讓這個功能永遠靜默——寧可多抓一次
+        from db.models import AppSettingKey
+        from services.release_fetcher import fetched_recently
+        from services.settings import set_setting
+
+        set_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, "not a timestamp", test_db)
+
+        assert fetched_recently(test_db) is False

@@ -15,9 +15,10 @@ from typing import Any, NamedTuple
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from constants import ContextSignalType, RELEASE_NOTE_TAGS
-from db.models import ContextSignal, Repo
+from constants import ContextSignalType, RELEASE_FETCH_INTERVAL_MINUTES, RELEASE_NOTE_TAGS
+from db.models import AppSettingKey, ContextSignal, Repo
 from services.github import GitHubAPIError, get_github_service
+from services.settings import get_setting, set_setting
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -60,8 +61,10 @@ def _build_title(release: dict[str, Any]) -> str:
     有的把 tag 包在 name 裡再加說明。實測出來的三種寫法：
         v0.19.1        / (空)                              -> v0.19.1
         v1.9.0         / "v1.9.0 - Command Code"           -> v1.9.0 - Command Code
+        v8.0.0         / "8.0.0"                           -> v8.0.0
         release-29.0.2 / "Manticore Search 29.0.2"         -> release-29.0.2 Manticore Search 29.0.2
-    只有第三種需要兩個都留——前兩種硬接起來會變成「v1.9.0 v1.9.0 - ...」。
+    只有最後一種需要兩個都留：其餘的其中一邊已經完整包含另一邊，硬接起來會變成
+    「v1.9.0 v1.9.0 - ...」或「v8.0.0 8.0.0」。
     """
     tag = (release.get("tag_name") or "").strip()
     name = (release.get("name") or "").strip()
@@ -69,6 +72,8 @@ def _build_title(release: dict[str, Any]) -> str:
         return tag or "release"
     if not tag or tag in name:
         return name
+    if name in tag:
+        return tag
     return f"{tag} {name}"
 
 
@@ -128,6 +133,25 @@ def store_release(target: _ReleaseTarget, release: dict[str, Any], db: Session) 
     return True
 
 
+def fetched_recently(db: Session, within_minutes: int = RELEASE_FETCH_INTERVAL_MINUTES) -> bool:
+    """距上次抓取是否還在間隔內。
+
+    這個 app 每次開啟都會觸發一次抓取，否則 3 小時的排程在「開一小時就關掉」
+    的使用方式下可能一次都跑不到。但反覆開關就不該每次都重掃 94 個 repo，
+    所以記一個時間戳來擋。時間戳解析失敗一律當成「該抓了」——寧可多抓一次，
+    也不要因為一個壞掉的字串讓這個功能永遠靜默。
+    """
+    raw = get_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, db)
+    if not raw:
+        return False
+    try:
+        last = datetime.fromisoformat(raw)
+    except (ValueError, TypeError):
+        logger.warning(f"[版本] 無法解析上次抓取時間 {raw!r}，視為需要重抓")
+        return False
+    return (utc_now() - last).total_seconds() < within_minutes * 60
+
+
 async def fetch_all_releases(db: Session) -> dict[str, int]:
     """為追蹤清單中所有 repo 抓取最新版本。
 
@@ -179,6 +203,8 @@ async def fetch_all_releases(db: Session) -> dict[str, int]:
             db.rollback()
             errors += 1
             logger.error(f"[版本] {target.full_name} 版本訊號儲存失敗: {e}", exc_info=True)
+
+    set_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, utc_now().isoformat(), db)
 
     return {
         "repos_processed": len(repos),

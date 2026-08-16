@@ -32,7 +32,7 @@ from db.database import DATABASE_URL, get_db_session
 from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
 from services.feed_generator import generate_feed
-from services.release_fetcher import fetch_all_releases
+from services.release_fetcher import fetch_all_releases, fetched_recently
 from services.github import fetch_repo_data, get_github_service, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
@@ -434,6 +434,9 @@ async def fetch_releases_job() -> None:
 
     with get_db_session() as db:
         try:
+            if fetched_recently(db):
+                log.debug(f"[排程] [{job_id}] 距上次抓取未滿間隔，跳過")
+                return
             result = await fetch_all_releases(db)
             # 明講「新增」：穩定運轉時本來就會是 0（版本早就存過了）。
             # 沒發過版的 repo 單獨算一欄，那是常態不是失敗——94 個裡有 34 個
@@ -698,3 +701,7 @@ async def trigger_fetch_now() -> None:
     await asyncio.to_thread(check_alerts_job)
     # 同時抓取 HN 情境訊號
     await fetch_context_signals_job()
+    # 以及新版本。這個 job 的排程間隔是 3 小時，而這個 app 常常開不到 3 小時就關掉——
+    # 少了這一行，「新版本」那一欄在很多使用方式下永遠是空的。
+    # 重複開關不會重掃：fetch_releases_job 自己有時間戳擋著。
+    await fetch_releases_job()
