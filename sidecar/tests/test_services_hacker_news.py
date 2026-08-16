@@ -197,14 +197,16 @@ class TestExecuteHnQuery:
 class TestHackerNewsService:
     """Tests for HackerNewsService class."""
 
+    # 名字都用有識別度的 ripgrep：像 "repo" 這種四個字元的通用字，關聯判定會要求
+    # 故事同時提到 owner（規則見 test_hn_relevance.py），那不是這一組要測的東西。
     @pytest.mark.asyncio
     async def test_search_repo_success(self):
         """Test successful repo search with relevant title."""
         service = _service_answering(_hits(
-            {"objectID": "1", "title": "Introducing repo: a new tool", "points": 100}
+            {"objectID": "1", "title": "Introducing ripgrep: a new tool", "points": 100}
         ))
 
-        result = await service.search_repo("repo", "owner")
+        result = await service.search_repo("ripgrep", "burntsushi")
 
         assert len(result) == 1
         assert isinstance(result[0], HNStory)
@@ -228,12 +230,12 @@ class TestHackerNewsService:
     async def test_search_repo_sorts_by_points(self):
         """Test results are sorted by points descending."""
         service = _service_answering(_hits(
-            {"objectID": "1", "title": "Low score repo mention", "points": 10},
-            {"objectID": "2", "title": "High score repo mention", "points": 100},
-            {"objectID": "3", "title": "Medium score repo mention", "points": 50},
+            {"objectID": "1", "title": "Low score ripgrep mention", "points": 10},
+            {"objectID": "2", "title": "High score ripgrep mention", "points": 100},
+            {"objectID": "3", "title": "Medium score ripgrep mention", "points": 50},
         ))
 
-        result = await service.search_repo("repo", "owner")
+        result = await service.search_repo("ripgrep", "burntsushi")
 
         # Should be sorted by points descending
         assert result[0].points >= result[1].points >= result[2].points
@@ -248,7 +250,7 @@ class TestHackerNewsService:
         service = _service_answering(_always_times_out)
 
         with pytest.raises(HackerNewsAPIError):
-            await service.search_repo("repo", "owner")
+            await service.search_repo("ripgrep", "burntsushi")
         await service.aclose()
 
 
@@ -299,7 +301,7 @@ class TestSharedClient:
             return [], []
 
         with patch.object(hn_module, '_execute_hn_query', new=_capture):
-            await service.search_repo("repo", "owner")
+            await service.search_repo("ripgrep", "burntsushi")
             await service.search_repo("other", "owner")
 
         assert len(seen) == 4, "兩次呼叫各查兩種寫法"

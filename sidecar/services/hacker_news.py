@@ -5,6 +5,7 @@ API: https://hn.algolia.com/api
 """
 
 import logging
+import re
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -43,6 +44,82 @@ def _parse_created_at(created_at_str: str) -> datetime:
         return datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return datetime.now(timezone.utc)
+
+
+# repo 名字本身是普通英文字時，裸名匹配會撈進一整批毫不相干的熱門故事——
+# 而且它們分數高，會直接霸佔儀表板的前幾名。實測命中的例子：
+#   TheAlgorithms/Java        <- Google's copying of the Java SE API was fair use
+#   TheAlgorithms/Python      <- Uv is the best thing to happen to the Python ecosystem
+#   modelcontextprotocol/registry <- ...leaked via a map file in their NPM registry
+#   mattpocock/skills         <- Tech sector job interviews assess anxiety, not software skills
+# 這類名字要求故事同時提到 owner 才算數。名單寧可漏列也不要誤列：漏列只是少擋掉
+# 一些雜訊，誤列會讓真正的提及消失。發現新的就加進來。
+# 只收「幾乎不會是某個專案完整身分」的字。像 react、mermaid、stagehand、godot
+# 這種本身就是專案識別的名字不列——實測列進去會把
+# 「Show HN: Stagehand – the open source SDK for browser agents」這種真正的提及刪掉。
+# 語言名（java、python…）留著是安全的：官方 repo 多半是 rust-lang/rust、ruby/ruby
+# 這種 owner 含自己名字的形式，會先被下面的例外放行。
+GENERIC_REPO_NAMES = frozenset({
+    # 常被借用的語言名。名為 Java／Python 但 owner 無關的，多半是教材彙整類 repo
+    "java", "python", "ruby", "scala", "perl", "php", "kotlin",
+    # 一般名詞
+    "registry", "skills", "core", "common", "shared", "utils", "tools", "docs",
+    "examples", "samples", "templates", "starter", "boilerplate", "framework",
+    "library", "engine", "platform", "service", "server", "client", "gateway",
+    "proxy", "cache", "queue", "stream", "graph", "chart", "table", "form",
+    "theme", "layout", "grid", "list", "menu", "modal", "dialog", "badge",
+    "card", "panel", "tree", "path", "route", "page", "view", "model", "data",
+    "store", "state", "action", "event", "hook", "plugin", "module", "package",
+    "bundle", "build", "deploy", "release", "version", "branch", "commit",
+    "patch", "merge", "issue", "task", "job", "work", "flow", "chain", "block",
+    "batch", "item", "entry", "record", "field", "value", "name", "type",
+    "class", "method", "config", "console", "portal", "studio", "workshop",
+    "playground", "sandbox", "notebook", "album", "agent", "monitor",
+})
+
+# 詞邊界：不能用子字串。實測 Java 會命中 JavaScript，名為 cas 的 repo 會命中
+# case / Cassette / cashflow / cashless——那 40 筆訊號沒有一筆是對的。
+_BOUNDARY = r"(?<![0-9a-z]){}(?![0-9a-z])"
+
+
+def _mentions(term: str, haystack: str) -> bool:
+    """term 是否以完整詞的形式出現在 haystack（兩者都必須已轉小寫）。"""
+    return re.search(_BOUNDARY.format(re.escape(term)), haystack) is not None
+
+
+def _mentions_project(name: str, haystack: str) -> bool:
+    """比 _mentions 多認一種寫法：直接把 JS 接在後面的 MermaidJS、VueJS。
+
+    「mermaid.js」本來就過得了（點號不是字母），過不了的是黏在一起那種，
+    而實測就是這樣把「Sequence Diagrams in MermaidJS」判成不相關的。
+    """
+    return _mentions(name, haystack) or _mentions(f"{name}js", haystack)
+
+
+def _is_generic_name(name: str) -> bool:
+    """名字短到或普通到不足以單獨識別一個專案。"""
+    return len(name) <= 4 or name in GENERIC_REPO_NAMES
+
+
+def is_relevant_story(title: str, url: str, owner: str, name: str) -> bool:
+    """這則 HN 故事是否真的在講這個 repo。
+
+    兩個條件：名字必須以完整的詞出現；名字若是普通字，故事還得同時提到 owner。
+
+    指向 github.com/owner/name 的連結會自動滿足這兩者——URL 裡的斜線讓 owner 與
+    name 各自成為獨立的詞——所以不必為「有連結」或「出現完整 owner/name」另外開一層。
+    寫成獨立的分支看起來比較周全，但沒有任何輸入會因此得到不同結果。
+    """
+    hay = f"{title} {url}".lower()
+    owner_l, name_l = owner.lower(), name.lower()
+
+    if not _mentions_project(name_l, hay):
+        return False
+    # owner 名稱本身就含 repo 名時（godotengine/godot、ruby-lang/ruby、n8n-io/n8n），
+    # 要求 owner 出現不會多提供任何證據——這種專案就是以自己的名字為識別
+    if name_l in owner_l:
+        return True
+    return not _is_generic_name(name_l) or _mentions(owner_l, hay)
 
 
 def _parse_hn_hit(hit: dict, seen_ids: set) -> HNStory | None:
@@ -162,15 +239,11 @@ class HackerNewsService:
         if not stories and errors:
             raise HackerNewsAPIError(f"All queries failed: {'; '.join(errors)}")
 
-        # 過濾 Algolia 模糊匹配的假結果：
-        # 標題或 URL 中必須包含 repo 名稱（大小寫不敏感）
-        full_name_lower = f"{owner}/{repo_name}".lower()
-        repo_lower = repo_name.lower()
+        # 過濾 Algolia 模糊匹配的假結果，規則見 is_relevant_story
         before_count = len(stories)
         stories = [
             s for s in stories
-            if full_name_lower in f"{s.title} {s.url}".lower()
-            or repo_lower in f"{s.title} {s.url}".lower()
+            if is_relevant_story(s.title, s.url, owner, repo_name)
         ]
         filtered_count = before_count - len(stories)
         if filtered_count > 0:

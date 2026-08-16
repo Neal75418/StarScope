@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from constants import CONTEXT_SIGNAL_MAX_AGE_DAYS, CONTEXT_SIGNAL_MAX_PER_REPO, ContextSignalType
 from db.models import Repo, ContextSignal
-from services.hacker_news import fetch_hn_mentions, HNStory
+from services.hacker_news import fetch_hn_mentions, is_relevant_story, HNStory
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -272,6 +272,33 @@ def _cleanup_signals_by_limit(db: Session, max_per_repo: int) -> int:
     return total_deleted
 
 
+def _cleanup_irrelevant_signals(db: Session) -> int:
+    """刪除以現行關聯規則來看不該存在的 HN 訊號。
+
+    收緊比對規則只會影響之後抓的；已經存進來的錯誤訊號會一直留到過期為止，
+    而它們往往分數很高（借用普通字命中的都是熱門故事），會一直霸佔畫面前幾名。
+    每次抓取後重跑一次判定，規則日後再調整也會自動收斂，不必記得跑一次性腳本。
+    """
+    rows = (
+        db.query(ContextSignal, Repo.owner, Repo.name)
+        .join(Repo, Repo.id == ContextSignal.repo_id)
+        .filter(ContextSignal.signal_type == ContextSignalType.HACKER_NEWS)
+        .all()
+    )
+
+    stale_ids = [
+        signal.id
+        for signal, owner, name in rows
+        if not is_relevant_story(signal.title or "", signal.url or "", owner, name)
+    ]
+    if not stale_ids:
+        return 0
+
+    return db.query(ContextSignal).filter(ContextSignal.id.in_(stale_ids)).delete(
+        synchronize_session=False
+    )
+
+
 def cleanup_old_context_signals(
     db: Session,
     max_age_days: int = CONTEXT_SIGNAL_MAX_AGE_DAYS,
@@ -283,6 +310,7 @@ def cleanup_old_context_signals(
     策略：
     1. 移除超過 max_age_days 的訊號
     2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
+    3. 移除以現行關聯規則來看不該存在的訊號
 
     Args:
         db: 資料庫 session
@@ -290,7 +318,7 @@ def cleanup_old_context_signals(
         max_per_repo: 每個 repo 最多保留的訊號數（預設 100）
 
     Returns:
-        清理統計：{deleted_by_age, deleted_by_limit}
+        清理統計：{deleted_by_age, deleted_by_limit, deleted_as_irrelevant}
     """
     # 1. 刪除超過 max_age_days 的訊號
     cutoff_date = utc_now() - timedelta(days=max_age_days)
@@ -299,12 +327,20 @@ def cleanup_old_context_signals(
     # 2. 每個 repo 僅保留最新的 max_per_repo 筆訊號
     deleted_by_limit = _cleanup_signals_by_limit(db, max_per_repo)
 
+    # 3. 刪除比對規則收緊後不再成立的訊號
+    deleted_as_irrelevant = _cleanup_irrelevant_signals(db)
+
     db.commit()
 
-    if deleted_by_age > 0 or deleted_by_limit > 0:
+    if deleted_by_age > 0 or deleted_by_limit > 0 or deleted_as_irrelevant > 0:
         logger.info(
             f"[上下文] 上下文訊號清理: 依時間刪除 {deleted_by_age} 筆、"
-            f"依上限刪除 {deleted_by_limit} 筆"
+            f"依上限刪除 {deleted_by_limit} 筆、"
+            f"因與 repo 無關刪除 {deleted_as_irrelevant} 筆"
         )
 
-    return {"deleted_by_age": deleted_by_age, "deleted_by_limit": deleted_by_limit}
+    return {
+        "deleted_by_age": deleted_by_age,
+        "deleted_by_limit": deleted_by_limit,
+        "deleted_as_irrelevant": deleted_as_irrelevant,
+    }
