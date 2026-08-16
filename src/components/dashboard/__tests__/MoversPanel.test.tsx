@@ -31,14 +31,31 @@ describe("MoversPanel", () => {
   });
 
   it("門檻以上與以下之間畫一條線", () => {
-    render(<MoversPanel result={base} />);
+    const { container } = render(<MoversPanel result={base} />);
     expect(screen.getByTestId("movers-divider")).toBeInTheDocument();
+
+    // 只驗證線存在還不夠：線兩側都要有真的列，且不能左右歸類顛倒——
+    // 否則「above 整組沒畫出來」或「above/below 判斷寫反」照樣是綠的
+    const order = Array.from(
+      container.querySelectorAll('[data-testid="mover-row"], [data-testid="movers-divider"]')
+    ).map((el) =>
+      el.getAttribute("data-testid") === "movers-divider" ? "divider" : el.textContent
+    );
+    expect(order).toHaveLength(3);
+    expect(order[0]).toContain("a/one");
+    expect(order[1]).toBe("divider");
+    expect(order[2]).toContain("b/two");
   });
 
   it("中位數為零時不畫線", () => {
-    // 沒有東西稱得上顯著，就不要假裝有分界
-    render(<MoversPanel result={{ ...base, threshold: null }} />);
+    // 沒有東西稱得上顯著，就不要假裝有分界。
+    // 混入一顆非正值的 relative：真實 risers 只會是正值（computeMovers 已濾過），
+    // 但元件對 null 門檻的特判要能獨立扛住驗證——兩顆都給正值的話，null 被當數字
+    // 比較會巧合等於 0，below 照樣算出空陣列，測不出特判被拿掉。
+    const risers = [...base.risers, mover("d/four", -0.01, -5)];
+    render(<MoversPanel result={{ ...base, risers, threshold: null }} />);
     expect(screen.queryByTestId("movers-divider")).not.toBeInTheDocument();
+    expect(screen.getByText("d/four")).toBeInTheDocument();
   });
 
   it("全部都在門檻以上時不畫線", () => {
@@ -53,6 +70,12 @@ describe("MoversPanel", () => {
       />
     );
     expect(screen.getByTestId("movers-empty")).toBeInTheDocument();
+  });
+
+  it("沒有下滑者時不顯示折疊區", () => {
+    // 空的「下滑中（0）」正是這個面板一直想避免的雜訊——沒有下滑者就不該有這一區
+    render(<MoversPanel result={base} />);
+    expect(screen.queryByTestId("movers-fallers")).not.toBeInTheDocument();
   });
 
   it("下滑中另組並預設折疊", () => {
