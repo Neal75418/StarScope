@@ -335,13 +335,24 @@ export function useDashboard() {
   // 段一：只收「值得打斷你」的。deprecation 單獨出現不算，那是預告不是行動——
   // 它仍然會以 tag 的身分出現在下面段三的版本清單，只是不會被搬進這裡打斷使用者。
   const attentionItems: AttentionItem[] = useMemo(() => {
+    // id 不能用 kind-title 湊：一條全域規則（repo_id=null）對每個觸發的 repo
+    // 各寫一筆 TriggeredAlert，rule_name 因此完全相同，湊出來的 key 會重複，
+    // React 可能在重新渲染後把某一列的 detail 錯配到另一個 repo 上。alert 自己的
+    // DB 主鍵（a.id）本來就唯一，直接用；release 沒有獨立主鍵可用，退而求其次
+    // 用 repo_id + title——真正的碰撞（同一頁上兩個不同 repo）已經被 repo_id 擋掉。
     const fromAlerts: AttentionItem[] = alerts
       .filter((a) => !a.acknowledged)
-      .map((a) => ({ kind: "alert" as const, title: a.rule_name, detail: a.repo_name }));
+      .map((a) => ({
+        id: `alert-${a.id}`,
+        kind: "alert" as const,
+        title: a.rule_name,
+        detail: a.repo_name,
+      }));
 
     const fromReleases: AttentionItem[] = (weekly?.releases ?? [])
       .filter((r) => r.tags.some((tag) => tag === "breaking" || tag === "security"))
       .map((r) => ({
+        id: `release-${r.repo_id}-${r.title}`,
         kind: "release" as const,
         title: `${r.repo_name} ${r.title}`,
         detail: r.tags.join(" · "),
@@ -354,9 +365,11 @@ export function useDashboard() {
   // 一條警報規則都沒有時，「alert」這個來源永遠不會有東西可以收進 attentionItems，
   // AttentionBar 必須把這件事講出來，而不是讓沒有規則看起來跟「規則都沒觸發」一樣。
   const hasAlertRules = alertRules.length > 0;
-  // weekly 在請求完成前是 undefined（區分「還沒查」與「查過、這週沒有版本」），
-  // AttentionBar 用這個旗標決定要說「正在檢查」還是可以講「沒事」。
-  const releasesChecked = weekly !== undefined;
+  // weekly !== undefined 只代表「HTTP 呼叫回來了」，不代表「版本真的抓過」——
+  // _get_releases 找不到資料時一律回 []，抓取器從沒跑過跟跑過但這週沒有版本
+  // 兩種情況在這裡長得一模一樣。後端另外用 releases_ever_fetched 明講「有沒有
+  // 至少成功抓過一次」，AttentionBar 要看的是這個旗標，不是 weekly 本身是否有值。
+  const releasesChecked = weekly?.releases_ever_fetched ?? false;
 
   // Signal Spotlight 用的 earlySignals（取前 5 筆）
   const spotlightSignals = useMemo(() => earlySignals.slice(0, 5), [earlySignals]);

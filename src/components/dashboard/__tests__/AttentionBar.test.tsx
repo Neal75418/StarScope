@@ -76,8 +76,14 @@ describe("AttentionBar", () => {
       <AttentionBar
         {...base}
         items={[
-          { kind: "release", title: "redis/jedis v8.0.0", detail: "breaking", url: "https://x" },
-          { kind: "alert", title: "Star spike", detail: "ollama/ollama" },
+          {
+            id: "release-1-v8.0.0",
+            kind: "release",
+            title: "redis/jedis v8.0.0",
+            detail: "breaking",
+            url: "https://x",
+          },
+          { id: "alert-1", kind: "alert", title: "Star spike", detail: "ollama/ollama" },
         ]}
       />
     );
@@ -86,5 +92,34 @@ describe("AttentionBar", () => {
     expect(screen.getByRole("link", { name: /jedis/ })).toBeInTheDocument();
     // 沒有 url 的項目不該變成可點連結——不然「沒有 url」這個分支邏輯永遠測不出來。
     expect(screen.getAllByRole("link")).toHaveLength(1);
+  });
+
+  it("同一個 title 出現兩次時，各自的 detail 仍對得上自己的 title", () => {
+    // 一條全域警報規則對每個觸發的 repo 各寫一筆，rule_name（title）因此相同。
+    // 用舊的 `${kind}-${title}` 當 key 時，這兩筆會撞成同一個 key，React 會在
+    // render 當下就用 console.error 警告 key 不唯一——用 id 當 key 之後不該再看到它。
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(
+      <AttentionBar
+        {...base}
+        items={[
+          { id: "alert-101", kind: "alert", title: "Star spike", detail: "facebook/react" },
+          { id: "alert-102", kind: "alert", title: "Star spike", detail: "vuejs/vue" },
+        ]}
+      />
+    );
+
+    const rows = screen.getAllByTestId("attention-item");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("facebook/react");
+    expect(rows[1]).toHaveTextContent("vuejs/vue");
+
+    const duplicateKeyWarning = errorSpy.mock.calls.some((args) =>
+      String(args[0]).includes("same key")
+    );
+    expect(duplicateKeyWarning).toBe(false);
+
+    errorSpy.mockRestore();
   });
 });

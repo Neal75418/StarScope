@@ -509,6 +509,9 @@ export interface WeeklySummaryResponse {
   early_signals_by_type: Record<string, number>;
   hn_mentions: WeeklyHNMention[];
   releases: WeeklyRelease[];
+  /** 版本抓取是否至少成功執行過一次。標成 optional 原因同 repos_compared——
+   *  版本 skew 時舊 sidecar 不會回這個欄位，缺席要當成「還沒查」而不是「沒事」。 */
+  releases_ever_fetched?: boolean;
   accelerating: number;
   decelerating: number;
 }

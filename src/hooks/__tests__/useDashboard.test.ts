@@ -133,6 +133,11 @@ function makeWeeklySummary(
     early_signals_by_type: {},
     hn_mentions: [],
     releases,
+    // 預設「抓過了」：大部分測試在意的是 weekly 摘要本身的內容，不是
+    // releasesChecked 這個旗標——那個旗標有自己專屬的測試（見下方
+    // releasesChecked 那組），在這裡把它釘死可以避免所有其他測試意外
+    // 依賴一個沒人特別設定的預設值。
+    releases_ever_fetched: true,
     accelerating: 0,
     decelerating: 0,
     ...overrides,
@@ -586,18 +591,59 @@ describe("useDashboard", () => {
       expect(titles).toContain("c/c v3.0.0"); // security（即使同時帶 deprecation）：該收
       expect(titles).not.toContain("a/a v1.0.0"); // 只有 deprecation：該排除
 
-      // 順便釘住兩種 kind 的形狀，不只是標題字串對得上
+      // 順便釘住兩種 kind 的形狀，不只是標題字串對得上——包含 id：它是 React key
+      // 唯一性的依據，不能只驗字串內容對了就算數。
       expect(items).toContainEqual({
+        id: "alert-1",
         kind: "alert",
         title: "Star spike",
         detail: "facebook/react",
       });
       expect(items).toContainEqual({
+        id: "release-1-v2.0.0",
         kind: "release",
         title: "b/b v2.0.0",
         detail: "breaking",
         url: "https://x/b",
       });
+    });
+
+    it("同一條全域規則觸發多個 repo 時，attentionItems 給每一筆不同的 id", async () => {
+      // 全域規則（repo_id=null）對每個觸發的 repo 各寫一筆 TriggeredAlert，
+      // rule_name 因此完全相同。舊的 key（kind-title）只看得到 rule_name，
+      // 同一條規則觸發多個 repo 就會產生重複的 key，React 用 key 對位重用 DOM，
+      // re-render 後某一列可能繼續顯示上一輪別的 repo。這裡同時涵蓋兩個軸：
+      // 同規則不同 repo（101/102）、同 repo 不同規則（103），確保 id 不是
+      // 只靠其中一邊撐起唯一性。
+      vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([
+        makeAlert({
+          id: 101,
+          rule_name: "Star spike",
+          repo_name: "facebook/react",
+          acknowledged: false,
+        }),
+        makeAlert({
+          id: 102,
+          rule_name: "Star spike",
+          repo_name: "vuejs/vue",
+          acknowledged: false,
+        }),
+        makeAlert({
+          id: 103,
+          rule_name: "Fork spike",
+          repo_name: "facebook/react",
+          acknowledged: false,
+        }),
+      ]);
+
+      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      const ids = result.current.attentionItems.map((i) => i.id);
+      expect(new Set(ids).size).toBe(ids.length);
+      expect(ids).toEqual(["alert-101", "alert-102", "alert-103"]);
     });
 
     it("hasAlertRules 反映是否真的有規則，而不是猜規則有沒有觸發過", async () => {
@@ -667,6 +713,23 @@ describe("useDashboard", () => {
       await waitFor(() => {
         expect(result.current.releasesChecked).toBe(true);
       });
+    });
+
+    it("releasesChecked 在版本從未抓取過時維持 false，即使 weekly 摘要已經載入", async () => {
+      // 這是這個旗標存在的唯一理由：只看「摘要載完了沒」分不出「查過、這週
+      // 沒有版本」跟「抓取器根本沒跑過」——releases: [] 在兩種情況下長得
+      // 一模一樣。weekly 在這裡是成功 resolve 的（不是 undefined），
+      // releases_ever_fetched 才是真正該看的訊號。
+      vi.mocked(apiClient.getWeeklySummary).mockResolvedValue(
+        makeWeeklySummary([], { releases_ever_fetched: false })
+      );
+
+      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.releasesChecked).toBe(false);
     });
 
     it("releasesChecked 在 weekly 摘要取得失敗時維持 false，且不會污染整體 error", async () => {

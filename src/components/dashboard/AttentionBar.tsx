@@ -9,6 +9,13 @@ import { useI18n, interpolate } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 
 export interface AttentionItem {
+  /**
+   * 穩定且唯一的識別碼，跟 title 分開存在——title 不保證唯一：一條全域警報規則
+   * （repo_id=null）對每個觸發的 repo 各寫一筆，rule_name 因此會重複。React 用
+   * key 對位重用 DOM，key 撞在一起時同一列可能在重新渲染後留著上一輪的 detail，
+   * 在整頁唯一的行動區塊裡點名錯 repo。
+   */
+  id: string;
   kind: "alert" | "release";
   title: string;
   detail: string;
@@ -62,11 +69,7 @@ export const AttentionBar = memo(function AttentionBar({
       {items.length > 0 && (
         <ul className="attention-list">
           {items.map((item) => (
-            <li
-              key={`${item.kind}-${item.title}`}
-              className="attention-item"
-              data-testid="attention-item"
-            >
+            <li key={item.id} className="attention-item" data-testid="attention-item">
               {item.url ? (
                 <a
                   href={item.url}
