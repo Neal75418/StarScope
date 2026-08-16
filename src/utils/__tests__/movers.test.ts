@@ -84,13 +84,17 @@ describe("computeMovers 的相對成長", () => {
 
 describe("computeMovers 的門檻與取樣", () => {
   it("門檻是中位數的十倍，母體含零與負值", () => {
+    // 非對稱資料：多個負值，一個正值。母體中位數會被負值拉負。
+    // 若濾掉負值只看正值，中位數會變成正數，門檻會被啟用。
+    // 這禁絕「把 filter(m => m.relative >= 0)」的突變。
     const repos = [
-      repo({ id: 1, stars: 1100, stars_delta_1d: 100 }),
-      repo({ id: 2, stars: 1000, stars_delta_1d: 0 }),
-      repo({ id: 3, stars: 1000, stars_delta_1d: 0 }),
-      repo({ id: 4, stars: 990, stars_delta_1d: -10 }),
+      repo({ id: 1, stars: 1100, stars_delta_1d: -100 }), // base=1200, relative=-100/1200=-0.0833
+      repo({ id: 2, stars: 950, stars_delta_1d: -50 }), // base=1000, relative=-50/1000=-0.05
+      repo({ id: 3, stars: 990, stars_delta_1d: -10 }), // base=1000, relative=-10/1000=-0.01
+      repo({ id: 4, stars: 1010, stars_delta_1d: 10 }), // base=1000, relative=10/1000=0.01
     ];
-    // 相對值排序後為 [-0.01, 0, 0, 0.1]，中位數 0 → 不畫線
+    // 母體: [-0.0833, -0.05, -0.01, 0.01] → 中位數 (-0.05 + -0.01)/2 = -0.03 → threshold = null
+    // 若只看 >= 0: [0.01] → 中位數 0.01 → threshold = 0.1 (不該這樣，會被測試抓到)
     expect(computeMovers(repos).threshold).toBeNull();
   });
 
@@ -104,15 +108,24 @@ describe("computeMovers 的門檻與取樣", () => {
     expect(computeMovers(repos).threshold).toBeCloseTo(median * 10, 6);
   });
 
-  it("最多五個，只取正成長", () => {
-    const repos = Array.from({ length: 8 }, (_, i) =>
-      repo({ id: i + 1, stars: 1000 + (i + 1) * 10, stars_delta_1d: (i + 1) * 10 })
-    );
-    repos.push(repo({ id: 99, stars: 990, stars_delta_1d: -10 }));
+  it("最多五個，只取正成長，按相對值排序", () => {
+    // 插入順序和相對值排序必須不同，這樣未排序的實作會失敗
+    const repos = [
+      repo({ id: 1, stars: 1050, stars_delta_1d: 50 }), // relative = 50/1000 = 0.05
+      repo({ id: 2, stars: 1010, stars_delta_1d: 10 }), // relative = 10/1000 = 0.01
+      repo({ id: 3, stars: 1040, stars_delta_1d: 40 }), // relative = 40/1000 = 0.04
+      repo({ id: 4, stars: 1020, stars_delta_1d: 20 }), // relative = 20/1000 = 0.02
+      repo({ id: 5, stars: 1030, stars_delta_1d: 30 }), // relative = 30/1000 = 0.03
+      repo({ id: 6, stars: 1060, stars_delta_1d: 60 }), // relative = 60/1000 = 0.06
+      repo({ id: 7, stars: 1015, stars_delta_1d: 15 }), // relative = 15/1000 = 0.015
+      repo({ id: 99, stars: 990, stars_delta_1d: -10 }), // relative = -10/1000 = -0.01
+    ];
 
     const result = computeMovers(repos);
     expect(result.risers).toHaveLength(5);
     expect(result.risers.every((m) => m.relative > 0)).toBe(true);
+    // 按相對值排序（降冪）：0.06 > 0.05 > 0.04 > 0.03 > 0.02 = id [6, 1, 3, 5, 4]
+    expect(result.risers.map((m) => m.repo.id)).toEqual([6, 1, 3, 5, 4]);
     expect(result.fallers.map((m) => m.repo.id)).toEqual([99]);
   });
 
