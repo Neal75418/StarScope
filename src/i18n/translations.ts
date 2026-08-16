@@ -41,6 +41,7 @@ export const translations = {
         medium: "10-50",
         high: "50-100",
         veryHigh: "100+",
+        unknown: "No data",
       },
       recentActivity: "Recent Activity",
       activity: {
@@ -96,6 +97,9 @@ export const translations = {
       healthScore: {
         title: "Portfolio Health",
         noData: "Add repos to see health score",
+        awaitingHistory:
+          "Building history — {count} repos need more daily snapshots before growth can be measured",
+        awaitingHistoryLabel: "Building history",
         activeAlerts: "Active Alerts",
         withSignals: "With Signals",
         highVelocity: "High Velocity",
@@ -1002,6 +1006,7 @@ export const translations = {
         medium: "10-50",
         high: "50-100",
         veryHigh: "100+",
+        unknown: "資料不足",
       },
       recentActivity: "最近活動",
       activity: {
@@ -1057,6 +1062,8 @@ export const translations = {
       healthScore: {
         title: "組合健康分數",
         noData: "新增 repo 後即可查看健康分數",
+        awaitingHistory: "快照累積中——還有 {count} 個 repo 的每日快照不足以計算成長速度",
+        awaitingHistoryLabel: "資料累積中",
         activeAlerts: "活躍警報",
         withSignals: "有訊號",
         highVelocity: "高速成長",

@@ -27,6 +27,8 @@ const VELOCITY_COLORS: Record<string, string> = {
   medium: "var(--accent-fg)",
   high: "var(--success-fg)",
   veryHigh: "var(--accent-emphasis)",
+  // 「資料不足」不是一個成長區間，用比 low 更弱的灰，才不會被讀成一種成績
+  unknown: "var(--border-default)",
 };
 
 interface TooltipPayload {

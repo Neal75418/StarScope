@@ -4069,6 +4069,11 @@ a:focus-visible {
   gap: 8px 16px;
 }
 
+/* 「資料累積中」是暫時性的補充說明，跨滿整行，讓上面四項維持整齊的 2×2 */
+.health-factor--full {
+  grid-column: 1 / -1;
+}
+
 .health-factor {
   display: flex;
   justify-content: space-between;

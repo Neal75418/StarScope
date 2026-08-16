@@ -175,7 +175,10 @@ describe("useDashboard", () => {
     expect(result.current.stats.activeAlerts).toBe(1);
   });
 
-  it("handles null values in stats computation", async () => {
+  it("reports weeklyStars as null when no repo has a 7-day baseline", async () => {
+    // 這條原本斷言 weeklyStars === 0，把 bug 寫成了規格：全新安裝的 app 沒有 7 天
+    // 快照，畫面因此顯示「近 7 天星數 0」，讀起來像「這週一顆星都沒漲」。
+    // stars 仍然是 0：那個 ?? 0 是對的，null 星數的 repo 就是沒有星數可加。
     vi.mocked(apiClient.getRepos).mockResolvedValue({
       repos: [makeRepo({ stars: null, stars_delta_7d: null })],
       total: 1,
@@ -188,7 +191,27 @@ describe("useDashboard", () => {
     });
 
     expect(result.current.stats.totalStars).toBe(0);
-    expect(result.current.stats.weeklyStars).toBe(0);
+    expect(result.current.stats.weeklyStars).toBeNull();
+  });
+
+  it("sums only the repos that have a 7-day delta", async () => {
+    // 部分有值時要加總有值的，不能因為有人是 null 就整個放棄
+    vi.mocked(apiClient.getRepos).mockResolvedValue({
+      repos: [
+        makeRepo({ id: 1, stars_delta_7d: 30 }),
+        makeRepo({ id: 2, stars_delta_7d: null }),
+        makeRepo({ id: 3, stars_delta_7d: -5 }),
+      ],
+      total: 3,
+    });
+
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.stats.weeklyStars).toBe(25);
   });
 
   it("produces recentActivity sorted by timestamp and limited to 10", async () => {
@@ -248,13 +271,105 @@ describe("useDashboard", () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    // 原本 low 是 3：velocity 為 null 的那個被 ?? 0 併進了 0-10 桶。
+    // 剛裝好的 app 每個 repo 都是 null，整張圖會全部擠在最低那一格，
+    // 看起來像「所有 repo 都幾乎不成長」，而實際上只是還沒得算。
     const dist = result.current.velocityDistribution;
-    expect(dist).toHaveLength(5);
+    expect(dist).toHaveLength(6);
     expect(dist[0]).toEqual({ key: "negative", count: 1 });
-    expect(dist[1]).toEqual({ key: "low", count: 3 });
+    expect(dist[1]).toEqual({ key: "low", count: 2 });
     expect(dist[2]).toEqual({ key: "medium", count: 1 });
     expect(dist[3]).toEqual({ key: "high", count: 1 });
     expect(dist[4]).toEqual({ key: "veryHigh", count: 1 });
+    expect(dist[5]).toEqual({ key: "unknown", count: 1 });
+  });
+
+  it("omits the unknown bucket when every repo has a velocity", async () => {
+    // 穩定運轉時不該永遠掛一個空的「資料不足」欄位
+    vi.mocked(apiClient.getRepos).mockResolvedValue({
+      repos: [makeRepo({ id: 1, velocity: 5 }), makeRepo({ id: 2, velocity: 25 })],
+      total: 2,
+    });
+
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.velocityDistribution).toHaveLength(5);
+    expect(result.current.velocityDistribution.map((d) => d.key)).not.toContain("unknown");
+  });
+
+  describe("healthScoreInput", () => {
+    // 這段原本沒有任何測試，而它就是實測中把「94 個 repo 全部還沒有歷史」
+    // 算成「停滯中 94」並給出 75 分「良好」的地方。
+    async function renderWith(repos: apiClient.RepoWithSignals[]) {
+      vi.mocked(apiClient.getRepos).mockResolvedValue({ repos, total: repos.length });
+      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      return result;
+    }
+
+    it("gives no score at all when nothing can be measured yet", async () => {
+      const result = await renderWith([
+        makeRepo({ id: 1, velocity: null }),
+        makeRepo({ id: 2, velocity: null }),
+      ]);
+
+      const input = result.current.healthScoreInput;
+      expect(input.score).toBeNull();
+      expect(input.staleRepos).toBe(0);
+      expect(input.reposAwaitingHistory).toBe(2);
+    });
+
+    it("does not count a repo without history as stale", async () => {
+      // 一個真的停滯、三個還沒得算。停滯比例是 1/1，不是 1/4，也不是 4/4。
+      const result = await renderWith([
+        makeRepo({ id: 1, velocity: 0 }),
+        makeRepo({ id: 2, velocity: null }),
+        makeRepo({ id: 3, velocity: null }),
+        makeRepo({ id: 4, velocity: null }),
+      ]);
+
+      const input = result.current.healthScoreInput;
+      expect(input.staleRepos).toBe(1);
+      expect(input.reposAwaitingHistory).toBe(3);
+      expect(input.totalRepos).toBe(4);
+    });
+
+    it("scores a genuinely stagnant portfolio the same as one that is merely new", async () => {
+      // 相同的「全部不成長」在有資料與沒資料兩種情況下必須被區分：
+      // 前者是可以下判斷的壞消息，後者只是還不知道。
+      const measured = await renderWith([
+        makeRepo({ id: 1, velocity: 0 }),
+        makeRepo({ id: 2, velocity: 0 }),
+      ]);
+      const measuredScore = measured.current.healthScoreInput.score;
+
+      const unmeasured = await renderWith([
+        makeRepo({ id: 3, velocity: null }),
+        makeRepo({ id: 4, velocity: null }),
+      ]);
+
+      expect(measuredScore).not.toBeNull();
+      expect(unmeasured.current.healthScoreInput.score).toBeNull();
+    });
+
+    it("keeps the stale ratio on the measurable repos, not the whole watchlist", async () => {
+      // 分母若用總數，歷史不足的 repo 會稀釋掉真實的停滯比例，
+      // 讓一組全部停滯的 repo 因為旁邊有很多「還沒算」而顯得健康。
+      const allStale = await renderWith([makeRepo({ id: 1, velocity: 0 })]);
+      const diluted = await renderWith([
+        makeRepo({ id: 1, velocity: 0 }),
+        makeRepo({ id: 2, velocity: null }),
+        makeRepo({ id: 3, velocity: null }),
+      ]);
+
+      expect(diluted.current.healthScoreInput.score).toBe(allStale.current.healthScoreInput.score);
+    });
   });
 
   it("acknowledgeSignal calls API and invalidates cache", async () => {

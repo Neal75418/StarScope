@@ -30,8 +30,20 @@ const EMPTY_SIGNALS: EarlySignal[] = [];
 export interface DashboardStats {
   totalRepos: number;
   totalStars: number;
-  weeklyStars: number;
+  /**
+   * null 代表沒有任何 repo 算得出 7 日差值（快照歷史不足），與「淨變化為 0」是兩件事。
+   * 後端已經刻意用 null 表達「資料不足」（見 analyzer.calculate_delta），這裡不能抹平。
+   */
+  weeklyStars: number | null;
   activeAlerts: number;
+}
+
+/** velocity 分佈的桶。unknown = 快照歷史不足以計算，不屬於任何數值區間。 */
+export type VelocityBucketKey = "negative" | "low" | "medium" | "high" | "veryHigh" | "unknown";
+
+export interface VelocityBucket {
+  key: VelocityBucketKey;
+  count: number;
 }
 
 export interface RecentActivity {
@@ -108,10 +120,12 @@ export function useDashboard() {
   const stats: DashboardStats = useMemo(() => {
     const totalRepos = repos.length;
     const totalStars = repos.reduce((sum: number, r: RepoWithSignals) => sum + (r.stars ?? 0), 0);
-    const weeklyStars = repos.reduce(
-      (sum: number, r: RepoWithSignals) => sum + (r.stars_delta_7d ?? 0),
-      0
-    );
+    // 只加總算得出來的。全都算不出來時回 null 而不是 0——把「還沒有 7 天歷史」
+    // 顯示成「這週一顆星都沒漲」是在說謊，而且新裝的 app 一定會落在這個狀態。
+    const knownDeltas = repos
+      .map((r: RepoWithSignals) => r.stars_delta_7d)
+      .filter((d): d is number => d != null);
+    const weeklyStars = knownDeltas.length > 0 ? knownDeltas.reduce((sum, d) => sum + d, 0) : null;
     const activeAlerts = alerts.filter((a: TriggeredAlert) => !a.acknowledged).length;
 
     return { totalRepos, totalStars, weeklyStars, activeAlerts };
@@ -166,7 +180,7 @@ export function useDashboard() {
   }, [repos, alerts, earlySignals, t]);
 
   // 計算 velocity 分佈供圖表使用
-  const velocityDistribution = useMemo(() => {
+  const velocityDistribution: VelocityBucket[] = useMemo(() => {
     const ranges = [
       { key: "negative" as const, min: -Infinity, max: 0, inclusive: false },
       { key: "low" as const, min: 0, max: 10, inclusive: false },
@@ -175,13 +189,19 @@ export function useDashboard() {
       { key: "veryHigh" as const, min: 100, max: Infinity, inclusive: true },
     ];
 
-    return ranges.map((range) => ({
+    // velocity 為 null 的不落進 0-10 桶：那會讓「還沒算出來」看起來像「幾乎沒成長」，
+    // 而剛裝好的 app 每一個 repo 都是 null，整張圖會全部擠在最低那一格。
+    const known = repos.filter((r: RepoWithSignals) => r.velocity != null);
+    const buckets: VelocityBucket[] = ranges.map((range) => ({
       key: range.key,
-      count: repos.filter((r: RepoWithSignals) => {
-        const v = r.velocity ?? 0;
+      count: known.filter((r: RepoWithSignals) => {
+        const v = r.velocity as number;
         return v >= range.min && (range.inclusive ? v <= range.max : v < range.max);
       }).length,
     }));
+
+    const unknown = repos.length - known.length;
+    return unknown > 0 ? [...buckets, { key: "unknown", count: unknown }] : buckets;
   }, [repos]);
 
   // 語言分佈（合計 10 片：前 9 種具名語言 + Other，null 統一歸 Other）
@@ -224,25 +244,57 @@ export function useDashboard() {
         reposWithSignals: 0,
         highVelocityRepos: 0,
         staleRepos: 0,
+        reposAwaitingHistory: 0,
       };
     }
 
     const activeAlerts = alerts.filter((a) => !a.acknowledged).length;
-    const staleRepos = repos.filter((r) => (r.velocity ?? 0) <= 0).length;
     const reposWithSignals = signalSummary?.repos_with_signals ?? 0;
     const highVelocityRepos =
       (velocityDistribution.find((d) => d.key === "high")?.count ?? 0) +
       (velocityDistribution.find((d) => d.key === "veryHigh")?.count ?? 0);
 
+    // 停滯 = 算得出 velocity 且不成長。velocity 為 null 是「快照歷史還不夠算」，
+    // 兩者混為一談的話，剛加入的 repo 在補滿歷史前都會被當成停滯而一直扣分。
+    const measurable = repos.filter((r) => r.velocity != null);
+    const staleRepos = measurable.filter((r) => (r.velocity as number) <= 0).length;
+    const reposAwaitingHistory = totalRepos - measurable.length;
+
+    // 一個 repo 都量不到成長時不給分數。這時候唯一有效的輸入只剩警報，
+    // 硬算出來的分數是用四分之一的資訊冒充整體評估——寧可講「還在累積」。
+    if (measurable.length === 0) {
+      return {
+        score: null,
+        activeAlerts,
+        totalRepos,
+        reposWithSignals,
+        highVelocityRepos,
+        staleRepos,
+        reposAwaitingHistory,
+      };
+    }
+
+    // 三個比例共用同一個分母「量得到的 repo 數」。混用的話，加入一個還沒有歷史的
+    // repo 會讓分數自己往下跳——它什麼都沒貢獻，卻稀釋了每一項的比例。
+    // 訊號比例另外夾在 1 以內：repos_with_signals 由後端跨全部 repo 統計，
+    // 理論上可能超過分母。
     const alertPenalty = Math.min(activeAlerts * 8, 40);
-    const stalePenalty = (staleRepos / totalRepos) * 25;
-    const signalBonus = (reposWithSignals / totalRepos) * 10;
-    const accelBonus = (highVelocityRepos / totalRepos) * 10;
+    const stalePenalty = (staleRepos / measurable.length) * 25;
+    const signalBonus = Math.min(1, reposWithSignals / measurable.length) * 10;
+    const accelBonus = (highVelocityRepos / measurable.length) * 10;
 
     const raw = 100 - alertPenalty - stalePenalty + signalBonus + accelBonus;
     const score = Math.max(0, Math.min(100, Math.round(raw)));
 
-    return { score, activeAlerts, totalRepos, reposWithSignals, highVelocityRepos, staleRepos };
+    return {
+      score,
+      activeAlerts,
+      totalRepos,
+      reposWithSignals,
+      highVelocityRepos,
+      staleRepos,
+      reposAwaitingHistory,
+    };
   }, [repos, alerts, signalSummary, velocityDistribution]);
 
   // Signal Spotlight 用的 earlySignals（取前 5 筆）

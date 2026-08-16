@@ -57,11 +57,21 @@ const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) 
         value={formatNumber(stats.totalStars)}
         variant="warning"
       />
+      {/* null = 還沒有 7 天快照可比。顯示 0 會被讀成「這週沒漲」，那是另一件事。
+          success 也只在真的有成長時亮，理由與下面的 danger 相同 */}
       <StatCard
         label={t.dashboard.stats.weeklyStars}
-        value={formatDelta(stats.weeklyStars)}
-        trend={stats.weeklyStars > 0 ? "up" : stats.weeklyStars < 0 ? "down" : "neutral"}
-        variant="success"
+        value={stats.weeklyStars === null ? "—" : formatDelta(stats.weeklyStars)}
+        trend={
+          stats.weeklyStars === null
+            ? undefined
+            : stats.weeklyStars > 0
+              ? "up"
+              : stats.weeklyStars < 0
+                ? "down"
+                : "neutral"
+        }
+        variant={stats.weeklyStars !== null && stats.weeklyStars > 0 ? "success" : undefined}
       />
       {/* danger 只在真的有警報時亮：紅色永遠掛著，警報觸發時就沒有任何變化感 */}
       <StatCard

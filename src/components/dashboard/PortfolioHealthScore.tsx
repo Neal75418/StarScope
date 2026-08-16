@@ -4,7 +4,7 @@
  */
 
 import { memo } from "react";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 
 export interface HealthScoreInput {
   score: number | null; // 0-100，null 表示無資料
@@ -12,7 +12,8 @@ export interface HealthScoreInput {
   totalRepos: number;
   reposWithSignals: number;
   highVelocityRepos: number; // velocity 分佈 high + veryHigh 的數量
-  staleRepos: number; // velocity <= 0 的數量
+  staleRepos: number; // 算得出 velocity 且 <= 0 的數量（不含歷史不足的）
+  reposAwaitingHistory: number; // velocity 尚無法計算（快照歷史不足）的數量
 }
 
 type HealthRating = "excellent" | "good" | "fair" | "poor";
@@ -77,11 +78,26 @@ interface Props {
 export const PortfolioHealthScore = memo(function PortfolioHealthScore({ input }: Props) {
   const { t } = useI18n();
 
-  if (input.score === null || input.totalRepos === 0) {
+  // 兩種「沒有分數」要分開講：沒有 repo 是叫人去加，有 repo 但歷史不夠是叫人等。
+  // 對著 94 個 repo 顯示「新增 repo 後即可查看健康分數」只會讓人以為壞掉了。
+  if (input.totalRepos === 0) {
     return (
       <div className="dashboard-section health-score-section">
         <h3>{t.dashboard.healthScore.title}</h3>
         <div className="health-score-empty">{t.dashboard.healthScore.noData}</div>
+      </div>
+    );
+  }
+
+  if (input.score === null) {
+    return (
+      <div className="dashboard-section health-score-section">
+        <h3>{t.dashboard.healthScore.title}</h3>
+        <div className="health-score-empty" data-testid="health-awaiting-history">
+          {interpolate(t.dashboard.healthScore.awaitingHistory, {
+            count: input.reposAwaitingHistory,
+          })}
+        </div>
       </div>
     );
   }
@@ -121,15 +137,27 @@ export const PortfolioHealthScore = memo(function PortfolioHealthScore({ input }
               {input.highVelocityRepos}
             </span>
           </div>
+          {/* 帶上分母：只有「量得到成長」的 repo 才進得了這個比例。單寫一個數字時，
+              94 個 repo 裡有 74 個還沒有歷史的情況會被讀成「94 個裡有 20 個停滯」。 */}
           <div className="health-factor">
             <span className="health-factor-label">{t.dashboard.healthScore.stale}</span>
             <span
               className="health-factor-value"
               style={{ color: input.staleRepos > 0 ? "var(--fg-muted)" : "var(--success-fg)" }}
             >
-              {input.staleRepos}
+              {input.staleRepos}/{input.totalRepos - input.reposAwaitingHistory}
             </span>
           </div>
+          {input.reposAwaitingHistory > 0 && (
+            <div className="health-factor health-factor--full" data-testid="health-awaiting-count">
+              <span className="health-factor-label">
+                {t.dashboard.healthScore.awaitingHistoryLabel}
+              </span>
+              <span className="health-factor-value" style={{ color: "var(--fg-muted)" }}>
+                {input.reposAwaitingHistory}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
