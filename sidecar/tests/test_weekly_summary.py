@@ -351,6 +351,48 @@ class TestWeeklyReleases:
         assert [m["hn_title"] for m in data["hn_mentions"]] == ["Show HN: something"]
 
 
+class TestWeeklyDeltaRespectsTheBacktrackLimit:
+    """摘要原本沒有回溯上限，可以拿三個月前的快照當「七天前」。
+
+    KPI 卡與摘要徽章顯示的是同一個概念，規則不同就會各說各話。
+    """
+
+    def test_a_snapshot_far_outside_the_window_is_not_a_baseline(
+        self, client, mock_repo, test_db
+    ):
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=90),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["repos_compared"] == 0
+        assert data["total_new_stars"] == 0
+
+    def test_a_snapshot_inside_the_backtrack_window_still_counts(
+        self, client, mock_repo, test_db
+    ):
+        """七日窗回溯三天：today-10 仍算數，today-11 不算。"""
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=10),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["repos_compared"] == 1
+        assert data["total_new_stars"] == 900
+
+
 class TestTheWireCarriesEveryField:
     """response_model 會濾掉沒宣告的欄位，而且不會有任何錯誤訊息。
 

@@ -51,12 +51,20 @@ def _fetch_snapshot_deltas(
     )
 
     # 子查詢：每個 repo 最接近 7 天前的快照
+    # 回溯上限與 analyzer.calculate_delta 一致（七日窗回溯三天）。
+    # 沒有下界時，三個月前的快照也會被當成「七天前」，而 KPI 卡那一側不會，
+    # 同一頁上兩個同名的數字就會各說各話。
+    # 3 是 min(7 // 2, 7) 在 analyzer.calculate_delta 中的展開值。
+    earliest_allowed = period_start - timedelta(days=3)
     old_sub = (
         db.query(
             RepoSnapshot.repo_id,
             func.max(RepoSnapshot.snapshot_date).label("max_date"),
         )
-        .filter(RepoSnapshot.snapshot_date <= period_start)
+        .filter(
+            RepoSnapshot.snapshot_date <= period_start,
+            RepoSnapshot.snapshot_date >= earliest_allowed,
+        )
         .group_by(RepoSnapshot.repo_id)
         .subquery()
     )
