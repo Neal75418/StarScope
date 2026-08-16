@@ -276,6 +276,17 @@ describe("Dashboard", () => {
     expect(mockRefresh).toHaveBeenCalled();
   });
 
+  it("clicking AttentionBar's refresh button calls the hook's refresh — DataFreshnessBar is gone, this is the page's only manual refresh entry point now", async () => {
+    // AttentionBar 是真的元件（不 mock），跟下面 acknowledge 那條測試對 SignalSpotlight
+    // 的待遇一致：onAcknowledge 有端對端點擊測試釘住，onRefresh 之前沒有，
+    // 錯接一個什麼都不做的函式會 tsc 通過、沒有任何測試發現——按鈕還在、還能點，
+    // 只是點了沒反應，畫面上也不會有任何提示。
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await user.click(screen.getByRole("button", { name: /refresh/i }));
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("renders stats grid", () => {
     render(<Dashboard />);
     expect(screen.getByText("Tracked Repos")).toBeInTheDocument();
