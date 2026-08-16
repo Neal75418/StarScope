@@ -1,7 +1,59 @@
 import { test, expect } from "@playwright/test";
 
+/**
+ * 探索頁的搜尋一律攔截，回傳固定資料。
+ *
+ * 這些測試要驗的是 UI 接線——按下去會不會發搜尋、結果會不會顯示、清空後能不能
+ * 再搜一次。打真實 GitHub 只是讓它們額外依賴一個我們控制不了的東西：未認證的
+ * 搜尋配額是每分鐘 10 次，而本檔有四條測試都在搜尋，跑一輪就會撞上限
+ * （實測 sidecar 日誌：GitHub API rate limit exceeded, remaining: 0）。
+ * CI runner 的 IP 還是共用的，配額可能在測試開始前就被別人用掉了。
+ *
+ * GitHub 整合本身由 sidecar 的單元測試涵蓋，不需要在這裡再賭一次。
+ */
+function makeRepo(id: number, fullName: string) {
+  const [owner, name] = fullName.split("/");
+  return {
+    id,
+    full_name: fullName,
+    owner,
+    name,
+    description: `${name} description`,
+    language: "TypeScript",
+    stars: 1000 + id,
+    forks: 100 + id,
+    url: `https://github.com/${fullName}`,
+    topics: ["testing"],
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-08-01T00:00:00Z",
+    owner_avatar_url: null,
+    open_issues_count: 3,
+    license_spdx: "MIT",
+    license_name: "MIT License",
+  };
+}
+
 test.describe("Discovery Flow", () => {
   test.beforeEach(async ({ page }) => {
+    await page.route("**/api/discovery/search*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: true,
+          data: {
+            repos: [makeRepo(1, "facebook/react"), makeRepo(2, "vuejs/vue")],
+            total_count: 2,
+            page: 1,
+            per_page: 30,
+            has_more: false,
+          },
+          message: null,
+          error: null,
+        }),
+      });
+    });
+
     await page.goto("/");
     await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
     await page.locator('[data-testid="nav-discovery"]').click();
