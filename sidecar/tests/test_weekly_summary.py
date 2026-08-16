@@ -287,3 +287,85 @@ class TestReposComparedDistinguishesNoDataFromNoChange:
 
         assert result["repos_compared"] == 1
         assert result["total_new_stars"] == 80
+
+
+class TestWeeklyReleases:
+    """本週新版本。排序決定了它有沒有用：有標記的必須浮到最上面。"""
+
+    def _add(self, test_db, repo_id, ext, title, days_ago, tags=None):
+        from db.models import ContextSignal
+        test_db.add(ContextSignal(
+            repo_id=repo_id, signal_type="release", external_id=ext,
+            title=title, url=f"https://example.com/{ext}",
+            published_at=utc_now() - timedelta(days=days_ago), tags=tags,
+        ))
+
+    def test_tagged_releases_come_first_even_when_older(self, client, mock_repo, test_db):
+        """一週 14 個新版本裡通常只有 1-2 個標記得到，那就是該先看的。
+
+        單純照時間排的話，那一兩個會被埋在中間——等於沒有標記。
+        """
+        self._add(test_db, mock_repo.id, "a", "v3.0.0", days_ago=1)
+        self._add(test_db, mock_repo.id, "b", "v2.9.0", days_ago=4, tags="breaking")
+        self._add(test_db, mock_repo.id, "c", "v2.8.0", days_ago=2)
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert [r["title"] for r in data["releases"]] == ["v2.9.0", "v3.0.0", "v2.8.0"]
+        assert data["releases"][0]["tags"] == ["breaking"]
+
+    def test_untagged_releases_stay_newest_first(self, client, mock_repo, test_db):
+        self._add(test_db, mock_repo.id, "a", "old", days_ago=5)
+        self._add(test_db, mock_repo.id, "b", "new", days_ago=1)
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert [r["title"] for r in data["releases"]] == ["new", "old"]
+
+    def test_last_months_release_is_not_this_week(self, client, mock_repo, test_db):
+        self._add(test_db, mock_repo.id, "old", "v1.0.0", days_ago=30, tags="breaking")
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["releases"] == []
+
+    def test_hn_mentions_and_releases_do_not_leak_into_each_other(
+        self, client, mock_repo, test_db
+    ):
+        """兩者共用 context_signals，靠 signal_type 分開。"""
+        from db.models import ContextSignal
+        self._add(test_db, mock_repo.id, "rel", "v1.2.3", days_ago=1)
+        test_db.add(ContextSignal(
+            repo_id=mock_repo.id, signal_type="hacker_news", external_id="hn1",
+            title="Show HN: something", url="https://example.com/hn", score=99,
+            published_at=utc_now() - timedelta(days=1),
+        ))
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert [r["title"] for r in data["releases"]] == ["v1.2.3"]
+        assert [m["hn_title"] for m in data["hn_mentions"]] == ["Show HN: something"]
+
+
+class TestTheWireCarriesEveryField:
+    """response_model 會濾掉沒宣告的欄位，而且不會有任何錯誤訊息。
+
+    repos_compared 就是這樣掉的：service 算出來了、前端也讀了，中間被 Pydantic
+    無聲擋下。而「欄位不存在」與「欄位為 0」在前端走同一個分支，所以畫面看起來
+    完全正確——真正的症狀要等使用者累積滿 7 天快照才會出現，那時它會固執地
+    繼續說「還沒得比」。
+    """
+
+    def test_every_key_the_service_produces_survives_the_endpoint(self, client, test_db):
+        from services.weekly_summary import get_weekly_summary
+
+        produced = set(get_weekly_summary(test_db).keys())
+        delivered = set(client.get("/api/summary/weekly").json()["data"].keys())
+
+        assert produced - delivered == set(), (
+            f"service 算了但送不出去的欄位: {produced - delivered}"
+        )

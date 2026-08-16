@@ -210,7 +210,7 @@ class TriggeredAlert(Base):
 class ContextSignal(Base):
     """
     repo 的外部情境訊號。
-    追蹤 Hacker News 上的提及。
+    追蹤 Hacker News 上的提及與 GitHub 新版本發布。
     """
     __tablename__ = "context_signals"
 
@@ -218,8 +218,8 @@ class ContextSignal(Base):
     repo_id: Mapped[int] = mapped_column(Integer, ForeignKey(FK_REPOS_ID, ondelete="CASCADE"), nullable=False)
 
     # 訊號識別
-    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # 僅 hacker_news
-    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN 文章 ID
+    signal_type: Mapped[str] = mapped_column(String(50), nullable=False)  # hacker_news | release
+    external_id: Mapped[str] = mapped_column(String(255), nullable=False)  # HN 文章 ID 或 release ID
 
     # 內容
     title: Mapped[str] = mapped_column(String(1024), nullable=False)
@@ -229,6 +229,10 @@ class ContextSignal(Base):
     score: Mapped[int | None] = mapped_column(Integer, nullable=True)  # HN 分數
     comment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # release 專用：從 release notes 掃出的標記（逗號分隔，如 "breaking,security"）。
+    # HN 訊號留空。不存 notes 全文——我們只需要「值不值得先看」這個判斷，
+    # 而全文會讓這張表在 90 天保留期內長得很快。
+    tags: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # 時間戳記
     published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # 外部發布時間

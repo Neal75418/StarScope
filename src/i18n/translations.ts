@@ -72,6 +72,13 @@ export const translations = {
         awaitingBaseline: "No snapshot from 7 days ago to compare against yet",
         awaitingBaselineShort: "not comparable yet",
         noHnMentions: "No HN mentions in the last 7 days",
+        releases: "New Releases",
+        noReleases: "No new releases in the last 7 days",
+        releaseTags: {
+          breaking: "breaking",
+          security: "security",
+          deprecation: "deprecation",
+        },
         loadError: "Failed to load weekly summary",
       },
       portfolioHistory: {
@@ -1039,6 +1046,13 @@ export const translations = {
         awaitingBaseline: "還沒有 7 天前的快照可以比對",
         awaitingBaselineShort: "尚無可比對的基準",
         noHnMentions: "近 7 天無 HN 提及",
+        releases: "新版本",
+        noReleases: "近 7 天無新版本",
+        releaseTags: {
+          breaking: "破壞性變更",
+          security: "安全性",
+          deprecation: "即將移除",
+        },
         loadError: "載入週報摘要失敗",
       },
       portfolioHistory: {

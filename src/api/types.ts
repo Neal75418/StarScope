@@ -480,6 +480,17 @@ export interface WeeklyHNMention {
   hn_url: string;
 }
 
+export interface WeeklyRelease {
+  repo_id: number;
+  repo_name: string;
+  /** 版本標題，通常是 tag（可能再加上 release 名稱） */
+  title: string;
+  url: string;
+  /** 從 release notes 掃出的標記：breaking / security / deprecation */
+  tags: string[];
+  published_at: string | null;
+}
+
 export interface WeeklySummaryResponse {
   period_start: string;
   period_end: string;
@@ -495,6 +506,7 @@ export interface WeeklySummaryResponse {
   early_signals_detected: number;
   early_signals_by_type: Record<string, number>;
   hn_mentions: WeeklyHNMention[];
+  releases: WeeklyRelease[];
   accelerating: number;
   decelerating: number;
 }

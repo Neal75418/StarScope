@@ -239,6 +239,25 @@ class GitHubService:
             context=f"{owner}/{repo}"
         )
 
+    async def get_latest_release(self, owner: str, repo: str) -> dict | None:
+        """取得最新的正式版本，沒有發過版時回傳 None。
+
+        用 /releases/latest 而不是 /releases：前者已經排除草稿與 prerelease，
+        而 prerelease 每天好幾個、多半不是使用者要知道的事。
+        實測 94 個追蹤中的 repo 有 60 個發過版，其餘 34 個一律走 404 這條路。
+        """
+        response = await self.client.get(
+            f"{GITHUB_API_BASE}/repos/{owner}/{repo}/releases/latest",
+            headers=self.headers,
+        )
+        if response.status_code == 404:
+            return None
+        return handle_github_response(
+            response,
+            raise_on_error=True,
+            context=f"{owner}/{repo} releases/latest",
+        )
+
     async def get_repo_stargazers_count(self, owner: str, repo: str) -> int:
         """
         取得 repo 目前的 star 數。

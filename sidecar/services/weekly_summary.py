@@ -238,6 +238,43 @@ def _count_acceleration(
     return accelerating, decelerating
 
 
+def _get_releases(
+    db: Session,
+    week_ago: datetime,
+    repo_info: dict[int, Repo],
+) -> list[dict[str, Any]]:
+    """查詢本週發布的新版本。
+
+    被標記的（breaking / security / deprecation）排在前面：一週 14 個新版本裡
+    通常只有 1-2 個標記得到，那就是「今天該點進去」的那幾個，不該混在時間序裡。
+    """
+    signals = (
+        db.query(ContextSignal)
+        .filter(
+            ContextSignal.signal_type == ContextSignalType.RELEASE,
+            ContextSignal.published_at >= week_ago,
+        )
+        .order_by(ContextSignal.published_at.desc().nullslast())
+        .limit(20)
+        .all()
+    )
+    items = [
+        {
+            "repo_id": s.repo_id,
+            "repo_name": repo_info[s.repo_id].full_name if s.repo_id in repo_info else "unknown",
+            "title": s.title,
+            "url": s.url,
+            "tags": s.tags.split(",") if s.tags else [],
+            "published_at": s.published_at.isoformat() if s.published_at else None,
+        }
+        for s in signals
+    ]
+    # 兩次穩定排序，方向不同不能塞進同一個 key：先讓新的在前，再把有標記的提到最上面
+    items.sort(key=lambda i: str(i["published_at"] or ""), reverse=True)
+    items.sort(key=lambda i: not i["tags"])
+    return items[:10]
+
+
 def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     """
     建構涵蓋最近 N 天的摘要。
@@ -271,6 +308,9 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     # --- HN 提及 ---
     hn_mentions = _get_hn_mentions(db, week_ago, repo_info)
 
+    # --- 本週新版本 ---
+    releases = _get_releases(db, week_ago, repo_info)
+
     # --- 加速 / 減速中的 repo ---
     accelerating, decelerating = _count_acceleration(signal_map)
 
@@ -288,6 +328,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
         "early_signals_detected": early_signals_detected,
         "early_signals_by_type": early_signals_by_type,
         "hn_mentions": hn_mentions,
+        "releases": releases,
         "accelerating": accelerating,
         "decelerating": decelerating,
     }

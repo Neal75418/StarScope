@@ -12,7 +12,7 @@ import { safeOpenUrl } from "../../utils/url";
 import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
 import { getSignalDisplayName } from "../../utils/signalTypeHelpers";
-import type { WeeklyRepoSummary, WeeklyHNMention } from "../../api/types";
+import type { WeeklyRepoSummary, WeeklyHNMention, WeeklyRelease } from "../../api/types";
 
 const MAX_HN_MENTIONS_DISPLAY = 6;
 
@@ -151,6 +151,57 @@ const HNMentionsList = memo(function HNMentionsList({
   );
 });
 
+const ReleasesList = memo(function ReleasesList({
+  releases,
+  t,
+}: {
+  releases: WeeklyRelease[];
+  t: ReturnType<typeof useI18n>["t"];
+}) {
+  const handleClick = useCallback((url: string) => {
+    void safeOpenUrl(url);
+  }, []);
+
+  return (
+    <div className="weekly-column weekly-column--wide" data-testid="weekly-releases">
+      <h4>{t.dashboard.weekly.releases}</h4>
+      {releases.length === 0 ? (
+        <div className="weekly-empty">{t.dashboard.weekly.noReleases}</div>
+      ) : (
+        <div className="weekly-hn-grid">
+          {releases.map((r) => (
+            <a
+              key={`${r.repo_name}-${r.url}`}
+              href={r.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="weekly-hn-item"
+              onClick={(e) => {
+                e.preventDefault();
+                handleClick(r.url);
+              }}
+            >
+              <span className="weekly-hn-repo">{r.repo_name}</span>
+              <span className="weekly-hn-title">{r.title}</span>
+              {/* 標記排在右邊、與版本號同一列：一週十幾個版本裡通常只有一兩個有，
+                  它們是唯一需要今天就點進去的，不該混在時間序裡看不出來 */}
+              <span className="weekly-release-tags">
+                {r.tags.map((tag) => (
+                  <span key={tag} className={`weekly-release-tag weekly-release-tag--${tag}`}>
+                    {t.dashboard.weekly.releaseTags[
+                      tag as keyof typeof t.dashboard.weekly.releaseTags
+                    ] ?? tag}
+                  </span>
+                ))}
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 // 主元件
 
 interface WeeklySummaryProps {
@@ -228,6 +279,7 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
           decelerating={data.decelerating}
           t={t}
         />
+        <ReleasesList releases={data.releases ?? []} t={t} />
         <HNMentionsList mentions={data.hn_mentions} t={t} />
       </div>
     </div>

@@ -40,6 +40,7 @@ function summary(overrides: Partial<WeeklySummaryResponse> = {}): WeeklySummaryR
     early_signals_detected: 0,
     early_signals_by_type: {},
     hn_mentions: [],
+    releases: [],
     accelerating: 0,
     decelerating: 0,
     ...overrides,

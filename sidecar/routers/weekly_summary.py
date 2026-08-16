@@ -31,17 +31,31 @@ class HNMention(BaseModel):
     hn_url: str
 
 
+class ReleaseItem(BaseModel):
+    repo_id: int
+    repo_name: str
+    title: str
+    url: str
+    tags: list[str]
+    published_at: str | None
+
+
 class WeeklySummaryResponse(BaseModel):
     period_start: str
     period_end: str
     total_repos: int
     total_new_stars: int
+    # 這個 response_model 會濾掉沒宣告的欄位。少宣告一個不會有任何錯誤訊息，
+    # 前端只會收到「欄位不存在」——而 repos_compared 不存在時的預設行為
+    # 正好跟它為 0 一樣，所以整條鏈看起來是對的，實際上永遠停在同一個分支。
+    repos_compared: int
     top_gainers: list[RepoSummary]
     top_losers: list[RepoSummary]
     alerts_triggered: int
     early_signals_detected: int
     early_signals_by_type: dict[str, int]
     hn_mentions: list[HNMention]
+    releases: list[ReleaseItem]
     accelerating: int
     decelerating: int
 
@@ -57,6 +71,7 @@ async def weekly_summary(
     - Top gainers / losers
     - 指定期間觸發的警報與早期信號
     - HN 提及
+    - 本週發布的新版本
     - 加速/減速 repo 統計
 
     Args:

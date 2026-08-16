@@ -4563,6 +4563,36 @@ a:focus-visible {
 }
 
 /* Weekly Summary */
+
+/* release 標記。三種都用外框而非填色：一列裡通常只有一兩個 release 有標記，
+   填色塊會比版本號本身還搶眼，反而看不出哪一列是重點。 */
+.weekly-release-tags {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.weekly-release-tag {
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.weekly-release-tag--breaking {
+  color: var(--danger-fg);
+}
+
+.weekly-release-tag--security {
+  color: var(--warning-fg);
+}
+
+.weekly-release-tag--deprecation {
+  color: var(--fg-muted);
+}
+
 .weekly-header {
   display: flex;
   align-items: center;

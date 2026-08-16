@@ -24,6 +24,7 @@ from sqlalchemy.orm import Query, Session
 
 from constants import (
     CONTEXT_FETCH_INTERVAL_MINUTES,
+    RELEASE_FETCH_INTERVAL_MINUTES,
     DEFAULT_SNAPSHOT_RETENTION_DAYS,
     SCHEDULER_SHUTDOWN_TIMEOUT_SECONDS,
 )
@@ -31,6 +32,7 @@ from db.database import DATABASE_URL, get_db_session
 from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
 from services.feed_generator import generate_feed
+from services.release_fetcher import fetch_all_releases
 from services.github import fetch_repo_data, get_github_service, GitHubAPIError
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
@@ -424,6 +426,30 @@ async def fetch_context_signals_job() -> None:
             log.critical(f"[排程] [{job_id}] 上下文訊號未預期錯誤: {e}", exc_info=True)
 
 
+async def fetch_releases_job() -> None:
+    """背景工作：抓取所有 repo 的最新版本。"""
+    job_id = uuid.uuid4().hex[:8]
+    log = logging.LoggerAdapter(logger, {"job_id": job_id})
+    log.info(f"[排程] [{job_id}] 開始抓取新版本...")
+
+    with get_db_session() as db:
+        try:
+            result = await fetch_all_releases(db)
+            # 明講「新增」：穩定運轉時本來就會是 0（版本早就存過了）。
+            # 沒發過版的 repo 單獨算一欄，那是常態不是失敗——94 個裡有 34 個
+            log.info(
+                f"[排程] [{job_id}] 新版本抓取完成: "
+                f"掃描 {result['repos_processed']} 個 repo、"
+                f"新增 {result['new_releases']} 個版本、"
+                f"未發過版 {result['repos_without_releases']} 個、"
+                f"錯誤={result['errors']}"
+            )
+        except SQLAlchemyError as e:
+            log.error(f"[排程] [{job_id}] 新版本資料庫錯誤: {e}", exc_info=True)
+        except Exception as e:
+            log.critical(f"[排程] [{job_id}] 新版本未預期錯誤: {e}", exc_info=True)
+
+
 async def generate_feed_job() -> None:
     """
     背景工作：每日產生 For You feed。
@@ -554,6 +580,21 @@ def _register_context_job(scheduler) -> None:
     )
 
 
+def _register_release_job(scheduler) -> None:
+    """註冊新版本抓取工作。
+
+    間隔比情境訊號長很多：發版不像 star 數持續變動，30 分鐘一次只是白燒配額。
+    """
+    scheduler.add_job(
+        fetch_releases_job,
+        trigger=IntervalTrigger(minutes=RELEASE_FETCH_INTERVAL_MINUTES),
+        id="fetch_releases",
+        name="Fetch latest releases",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+
 def _register_cleanup_jobs(scheduler) -> None:
     """註冊清理工作（快照清理 + 資料庫備份）。"""
     from apscheduler.triggers.cron import CronTrigger
@@ -620,6 +661,7 @@ def start_scheduler(fetch_interval_minutes: int = 60) -> None:
     _register_fetch_job(scheduler, fetch_interval_minutes)
     _register_alert_job(scheduler, fetch_interval_minutes)
     _register_context_job(scheduler)
+    _register_release_job(scheduler)
     _register_cleanup_jobs(scheduler)
     _register_feed_job(scheduler)
 

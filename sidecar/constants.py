@@ -89,6 +89,25 @@ class AlertOperator(StrEnum):
 class ContextSignalType(StrEnum):
     """Context Signal 類型常數。"""
     HACKER_NEWS = "hacker_news"
+    RELEASE = "release"
+
+
+# release notes 裡出現這些字時標記出來，讓「這禮拜有 14 個新版本」變成
+# 「這兩個你今天該點進去」。字串刻意保守：寧可漏標也不要每一則都標，
+# 全部都亮起來的標記等於沒有標記。
+RELEASE_NOTE_TAGS: dict[str, tuple[str, ...]] = {
+    # 「breaking」單獨出現太浮濫（"breaking down"、"record breaking"），要求它接著變更語意
+    "breaking": ("breaking change", "breaking:", "backwards incompatible",
+                 "backward incompatible", "incompatible change"),
+    # 「security」同理：security fix/advisory/release 才算，單一個字不算
+    "security": ("security fix", "security advisory", "security release",
+                 "security update", "security patch", "cve-"),
+    "deprecation": ("deprecated", "deprecation"),
+}
+
+# 抓取新版本的間隔。發版不像 star 數那樣持續變動，30 分鐘一次只是白燒配額；
+# 三小時一次即使剛好錯過也只延遲半天不到，而使用者本來就不是即時在等這個。
+RELEASE_FETCH_INTERVAL_MINUTES = 180
 
 
 class EarlySignalType(StrEnum):

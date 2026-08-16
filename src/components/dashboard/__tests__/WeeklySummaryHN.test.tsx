@@ -41,6 +41,7 @@ vi.mock("../../../hooks/useWeeklySummary", () => ({
           hn_url: "https://news.ycombinator.com/item?id=12345",
         },
       ],
+      releases: [],
       accelerating: 1,
       decelerating: 0,
     },

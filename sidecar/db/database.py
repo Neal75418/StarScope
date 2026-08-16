@@ -111,6 +111,7 @@ def get_db_session():
 _ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "feed_items": [("opened_at", "DATETIME")],
     "repos": [("unstarred_at", "DATETIME"), ("starred_at", "DATETIME")],
+    "context_signals": [("tags", "VARCHAR(255)")],
 }
 
 
