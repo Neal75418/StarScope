@@ -71,12 +71,14 @@ describe("computeMovers 的相對成長", () => {
   });
 
   it("相對成長會把絕對值排序的錯誤翻正", () => {
-    // 實測案例：+574 在 18k 上是真的在飛，+431 在 218k 上是雜訊
+    // 兩種排法必須給出不同答案，這條測試才擋得住有人改回絕對值：
+    // 絕對值排序會把 B 放前面（500 > 200），相對成長排序把 A 放前面（4.17% vs 0.25%）
     const result = computeMovers([
-      repo({ id: 1, stars: 19025, stars_delta_1d: 574 }),
-      repo({ id: 2, stars: 218707, stars_delta_1d: 431 }),
+      repo({ id: 1, stars: 5000, stars_delta_1d: 200 }),
+      repo({ id: 2, stars: 200000, stars_delta_1d: 500 }),
     ]);
     expect(result.risers[0].repo.id).toBe(1);
+    expect(result.risers[1].repo.id).toBe(2);
   });
 });
 
