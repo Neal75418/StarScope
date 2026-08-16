@@ -6,8 +6,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient } from "../../../lib/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { createTestQueryClient, queryKeys } from "../../../lib/react-query";
 
 vi.mock("../../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
@@ -124,5 +124,30 @@ describe("DiagnosticsSection", () => {
     await waitFor(() => {
       expect(screen.getByText(/Export failed|匯出失敗/)).toBeInTheDocument();
     });
+  });
+
+  it("shares the connection status query with the rest of the app", async () => {
+    // 兩個消費端各用一把 key 時，同一支端點會被抓兩次——而它每次都實際打一趟
+    // GitHub 驗證 token（實測 414ms 與 766ms），且 Diagnostics 還每分鐘輪詢一次。
+    mockGetDiagnostics.mockResolvedValue({ sidecar: { status: "ok" } });
+    mockGetGitHubConnectionStatus.mockResolvedValue({ connected: true });
+
+    const qc = createTestQueryClient();
+    function Probe() {
+      useQuery({
+        queryKey: queryKeys.connection.status(),
+        queryFn: () => mockGetGitHubConnectionStatus(),
+      });
+      return null;
+    }
+    render(
+      createElement(QueryClientProvider, { client: qc }, [
+        createElement(DiagnosticsSection, { key: "d" }),
+        createElement(Probe, { key: "p" }),
+      ])
+    );
+
+    await waitFor(() => expect(mockGetGitHubConnectionStatus).toHaveBeenCalled());
+    expect(mockGetGitHubConnectionStatus).toHaveBeenCalledTimes(1);
   });
 });

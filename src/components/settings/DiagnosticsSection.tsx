@@ -34,8 +34,11 @@ export function DiagnosticsSection() {
     refetchInterval: diagnosticsInterval,
   });
 
+  // 與 useConnectionStatus 共用同一把 key：這支端點每次都實際打一趟 GitHub 驗證
+  // token（實測 414ms 與 766ms），兩把 key 就是同一份資料抓兩次，而這裡還每分鐘
+  // 輪詢。共用之後輪詢也順便讓連線面板保持新鮮。
   const ghQuery = useQuery({
-    queryKey: [...queryKeys.connection.all, "rate-limit"],
+    queryKey: queryKeys.connection.status(),
     queryFn: ({ signal }) => getGitHubConnectionStatus(signal),
     staleTime: 60_000,
     refetchInterval: diagnosticsInterval,
