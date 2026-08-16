@@ -13,10 +13,30 @@ from services.hacker_news import (
     HackerNewsAPIError,
     HNStory,
     get_hn_service,
+    close_hn_service,
     fetch_hn_mentions,
 )
 # Import module for accessing protected members in tests
 from services import hacker_news as hn_module
+
+
+def _service_answering(handler) -> HackerNewsService:
+    """裝上真的 httpx.AsyncClient，只把傳輸層換成 MockTransport。
+
+    不用 MagicMock 假冒 client：它的 .json() 是樁，回應想長什麼樣就長什麼樣，
+    測不出真實回應的形狀（GitHub 那邊的 204 空 body 解析錯誤就是這樣整組躲過測試的）。
+    順帶一提，這樣寫也不再綁定「client 是不是每次呼叫新建」這個實作細節。
+    """
+    service = HackerNewsService()
+    service._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    return service
+
+
+def _hits(*hits: dict):
+    """每次查詢都回同一批 hits 的 handler。"""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"hits": list(hits)})
+    return handler
 
 
 class TestParseCreatedAt:
@@ -180,82 +200,56 @@ class TestHackerNewsService:
     @pytest.mark.asyncio
     async def test_search_repo_success(self):
         """Test successful repo search with relevant title."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "hits": [{"objectID": "1", "title": "Introducing repo: a new tool", "points": 100}]
-        }
+        service = _service_answering(_hits(
+            {"objectID": "1", "title": "Introducing repo: a new tool", "points": 100}
+        ))
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        result = await service.search_repo("repo", "owner")
 
-            service = HackerNewsService()
-            result = await service.search_repo("repo", "owner")
-
-            assert len(result) == 1
-            assert isinstance(result[0], HNStory)
+        assert len(result) == 1
+        assert isinstance(result[0], HNStory)
+        await service.aclose()
 
     @pytest.mark.asyncio
     async def test_search_repo_filters_irrelevant(self):
         """Test irrelevant results are filtered out by relevance check."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "hits": [
-                {"objectID": "1", "title": "About myrepo project", "points": 100},
-                {"objectID": "2", "title": "Unrelated article about cats", "points": 50},
-            ]
-        }
+        service = _service_answering(_hits(
+            {"objectID": "1", "title": "About myrepo project", "points": 100},
+            {"objectID": "2", "title": "Unrelated article about cats", "points": 50},
+        ))
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        result = await service.search_repo("myrepo", "owner")
 
-            service = HackerNewsService()
-            result = await service.search_repo("myrepo", "owner")
-
-            assert len(result) == 1
-            assert result[0].title == "About myrepo project"
+        assert len(result) == 1
+        assert result[0].title == "About myrepo project"
+        await service.aclose()
 
     @pytest.mark.asyncio
     async def test_search_repo_sorts_by_points(self):
         """Test results are sorted by points descending."""
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "hits": [
-                {"objectID": "1", "title": "Low score repo mention", "points": 10},
-                {"objectID": "2", "title": "High score repo mention", "points": 100},
-                {"objectID": "3", "title": "Medium score repo mention", "points": 50},
-            ]
-        }
+        service = _service_answering(_hits(
+            {"objectID": "1", "title": "Low score repo mention", "points": 10},
+            {"objectID": "2", "title": "High score repo mention", "points": 100},
+            {"objectID": "3", "title": "Medium score repo mention", "points": 50},
+        ))
 
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        result = await service.search_repo("repo", "owner")
 
-            service = HackerNewsService()
-            result = await service.search_repo("repo", "owner")
-
-            # Should be sorted by points descending
-            assert result[0].points >= result[1].points >= result[2].points
+        # Should be sorted by points descending
+        assert result[0].points >= result[1].points >= result[2].points
+        await service.aclose()
 
     @pytest.mark.asyncio
     async def test_search_repo_raises_on_all_failures(self):
         """Test raises error when all queries fail."""
-        with patch('httpx.AsyncClient') as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.side_effect = httpx.TimeoutException("Timeout")
-            mock_client_class.return_value.__aenter__.return_value = mock_client
+        def _always_times_out(request: httpx.Request) -> httpx.Response:
+            raise httpx.TimeoutException("Timeout")
 
-            service = HackerNewsService()
+        service = _service_answering(_always_times_out)
 
-            with pytest.raises(HackerNewsAPIError):
-                await service.search_repo("repo", "owner")
+        with pytest.raises(HackerNewsAPIError):
+            await service.search_repo("repo", "owner")
+        await service.aclose()
 
 
 class TestGetHnService:
@@ -275,6 +269,55 @@ class TestGetHnService:
 
         assert s1 is s2
 
+    @pytest.mark.asyncio
+    async def test_close_hn_service_closes_the_client(self):
+        """client 現在活過單次呼叫，所以關機時得有人負責關掉它。"""
+        service = get_hn_service()
+        client = service.client
+
+        await close_hn_service()
+
+        assert client.is_closed
+        assert hn_module._default_service is None
+
+
+class TestSharedClient:
+    """client 的生命週期：整批掃描的成本主要在這裡。"""
+
+    @pytest.mark.asyncio
+    async def test_one_client_is_reused_across_calls(self):
+        """每次呼叫開新 client 等於每次重跑 TLS 握手。
+
+        94 個 repo × 2 次查詢實測 104 秒，光是改成共用連線就降到 80 秒——這條測的是
+        那個 80 秒不會被改回去。
+        """
+        service = HackerNewsService()
+        seen: list[httpx.AsyncClient] = []
+
+        async def _capture(client, query, seen_ids):
+            seen.append(client)
+            return [], []
+
+        with patch.object(hn_module, '_execute_hn_query', new=_capture):
+            await service.search_repo("repo", "owner")
+            await service.search_repo("other", "owner")
+
+        assert len(seen) == 4, "兩次呼叫各查兩種寫法"
+        assert len({id(c) for c in seen}) == 1, "四次查詢應共用同一個 client"
+
+        await service.aclose()
+
+    @pytest.mark.asyncio
+    async def test_a_closed_client_is_replaced_rather_than_reused(self):
+        """關掉之後再用會炸，所以 property 要能重建。"""
+        service = HackerNewsService()
+        first = service.client
+
+        await service.aclose()
+
+        assert first.is_closed
+        assert service.client is not first
+        await service.aclose()
 
 
 class TestFetchHnMentions:

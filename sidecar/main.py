@@ -29,6 +29,7 @@ from middleware import LoggingMiddleware, SessionAuthMiddleware
 from middleware.rate_limit import limiter
 from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings, interests, feed
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
+from services.hacker_news import close_hn_service
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
 
 # 環境設定
@@ -112,8 +113,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     except (asyncio.CancelledError, Exception) as e:
         if not isinstance(e, asyncio.CancelledError):
             logger.warning(f"[啟動] startup task 失敗（已忽略）: {e}")
-    # 最後關閉 GitHub HTTP client（確保所有 jobs 已停止）
+    # 最後關閉對外的 HTTP client（確保所有 jobs 已停止）
     await close_github_service()
+    await close_hn_service()
     logger.info("[啟動] StarScope Engine 已停止")
 
 

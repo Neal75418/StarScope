@@ -3,9 +3,10 @@
 僅從 Hacker News 抓取。
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
@@ -99,6 +100,16 @@ def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
     return count
 
 
+def _store_and_commit(repo_id: int, stories: list[HNStory] | None, db: Session) -> int:
+    """寫入抓到的 HN 文章並 commit。SQLAlchemyError 交由呼叫端處理。
+
+    單一 repo 抓取與整批掃描共用這一段，兩條路徑才不會在儲存語意上分岔。
+    """
+    count = _store_hn_signals(repo_id, stories, db) if stories else 0
+    db.commit()
+    return count
+
+
 async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     """
     為單一 repo 抓取 HN 情境訊號。
@@ -112,8 +123,7 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     """
     try:
         hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
-        hn_count = _store_hn_signals(repo.id, hn_stories, db) if hn_stories else 0
-        db.commit()
+        hn_count = _store_and_commit(int(repo.id), hn_stories, db)
     except SQLAlchemyError as e:
         db.rollback()
         logger.warning(f"[上下文] {repo.full_name} HN 訊號儲存失敗: {e}")
@@ -122,9 +132,30 @@ async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
     return hn_count
 
 
+# 同時對 HN 發出的查詢數。整批掃描是 repo 數 × 2 次查詢，序列跑完 94 個 repo 實測
+# 104 秒，共用連線 + 併發 5 降到 16 秒。不開更大：請求總數不變、再往上只換到個位數
+# 秒差，卻讓 Algolia 更容易把這串請求當成突發流量。
+CONTEXT_FETCH_CONCURRENCY = 5
+
+
+class _FetchTarget(NamedTuple):
+    """併發抓取時帶的純值。
+
+    coroutine 裡不碰 ORM 物件：Session 既非 thread-safe 也非 coroutine-safe，
+    而且 commit 後屬性會過期，之後每次讀取都會回頭打一次 DB。
+    """
+    repo_id: int
+    owner: str
+    name: str
+    full_name: str
+
+
 async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     """
     為追蹤清單中所有 repo 抓取情境訊號。
+
+    網路併發、DB 寫入序列：先把所有 repo 的 HN 查詢跑完，再依序寫入。
+    寫入不能一起併發，理由見 _FetchTarget。
 
     Args:
         db: 資料庫 session
@@ -134,22 +165,43 @@ async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     """
     # noinspection PyTypeChecker
     repos: list[Repo] = db.query(Repo).all()
+    targets = [
+        _FetchTarget(int(r.id), str(r.owner), str(r.name), str(r.full_name))
+        for r in repos
+    ]
+
+    sem = asyncio.Semaphore(CONTEXT_FETCH_CONCURRENCY)
+
+    async def _fetch_one(
+        target: _FetchTarget,
+    ) -> tuple[_FetchTarget, list[HNStory] | None, Exception | None]:
+        async with sem:
+            try:
+                return target, await fetch_hn_mentions(target.owner, target.name), None
+            except Exception as e:  # 安全網：單一 repo 失敗不中斷整個 batch
+                return target, None, e
+
+    fetched = await asyncio.gather(*(_fetch_one(t) for t in targets))
 
     total_hn = 0
     errors = 0
 
-    for repo in repos:
+    for target, stories, fetch_error in fetched:
+        if fetch_error is not None:
+            errors += 1
+            logger.error(
+                f"[上下文] 抓取 {target.full_name} 上下文訊號失敗: {fetch_error}",
+                exc_info=fetch_error,
+            )
+            continue
         try:
-            hn = await fetch_context_signals_for_repo(repo, db)
+            hn = _store_and_commit(target.repo_id, stories, db)
             total_hn += hn
-            logger.debug(f"[上下文] {repo.full_name} 上下文訊號: HN={hn}")
+            logger.debug(f"[上下文] {target.full_name} 上下文訊號: HN={hn}")
         except SQLAlchemyError as e:
+            db.rollback()
             errors += 1
-            logger.error(f"[上下文] 抓取 {repo.full_name} 上下文訊號失敗: {e}", exc_info=True)
-        except Exception as e:
-            # 安全網：防止單一 repo 失敗中斷整個 batch
-            errors += 1
-            logger.error(f"[上下文] 抓取 {repo.full_name} 上下文訊號非預期錯誤: {e}", exc_info=True)
+            logger.error(f"[上下文] {target.full_name} HN 訊號儲存失敗: {e}", exc_info=True)
 
     return {
         "repos_processed": len(repos),
