@@ -143,3 +143,30 @@ def test_adding_an_archived_repo_restores_it(client, test_db, fake_github):
     rows = include_archived(test_db.query(Repo)).all()
     assert len(rows) == 1, "不得建立第二列"
     assert rows[0].unstarred_at is None
+
+
+def test_adding_records_when_we_starred_it(client, test_db, fake_github):
+    """app 內加入時就寫下 star 時間。
+
+    拿不到 GitHub 的精確值（PUT 回 204 空 body），但「剛剛」是夠好的近似，
+    下次同步會用 GitHub 的值覆蓋。留 NULL 的話，若使用者馬上又取消追蹤，
+    那一列就永遠沒有收藏日期——而那是判斷去留的依據。
+    """
+    resp = client.post("/api/repos", json={"owner": "a", "name": "one"})
+
+    assert resp.status_code == 201
+    row = test_db.query(Repo).filter(Repo.full_name == "a/one").one()
+    assert row.starred_at is not None
+
+
+def test_adding_without_a_token_records_no_star_time(client, test_db, monkeypatch):
+    """沒有 token 時我們沒有 star 它，就不該假裝有。"""
+    class NoToken(FakeGitHub):
+        can_write = False
+
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: NoToken())
+
+    client.post("/api/repos", json={"owner": "a", "name": "one"})
+
+    row = test_db.query(Repo).filter(Repo.full_name == "a/one").one()
+    assert row.starred_at is None

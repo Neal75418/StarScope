@@ -278,13 +278,20 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
     # 沒有 token 時只建本機列：star 寫入需要認證，但讀取可以匿名。這不會造成漂移，
     # 因為同步在沒有 token 時同樣不執行；等到日後連結帳號，那一次就是「首次同步」，
     # 而首次同步不自動封存，會把這些列出來讓使用者決定。
+    starred_now = False
     if github.can_write:
         await github.star_repo(owner, name)
+        starred_now = True
 
     github_data = await github.get_repo(owner, name)
 
     # 建立 repo 紀錄
     repo = _create_repo_from_github(owner, name, github_data)
+    if starred_now:
+        # PUT 回 204 空 body，拿不到 GitHub 的精確時間，但「剛剛」是夠好的近似，
+        # 下次同步會用 GitHub 的值覆蓋。留 NULL 的話，使用者若馬上又取消追蹤，
+        # 那一列就永遠沒有收藏日期——而那是判斷去留的依據。
+        repo.starred_at = utc_now()
     db.add(repo)
     db.flush()
     db.refresh(repo)
@@ -389,14 +396,18 @@ async def batch_add_repos(
 
         try:
             # 同 add_repo：先 star 才建列（無 token 時略過，理由見該處）
+            starred_now = False
             if github.can_write:
                 await github.star_repo(owner, name)
+                starred_now = True
 
             # 從 GitHub 抓取 repo 資訊
             github_data = await github.get_repo(owner, name)
 
             # 建立 repo 紀錄
             repo = _create_repo_from_github(owner, name, github_data)
+            if starred_now:
+                repo.starred_at = utc_now()
             db.add(repo)
             db.flush()
             db.refresh(repo)
