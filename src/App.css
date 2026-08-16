@@ -3718,6 +3718,25 @@ a:focus-visible {
 
 .dashboard-page {
   /* 流式佈局：填滿視窗寬度 */
+  /* 卡片間距由容器統一負責。先前是每個 widget 自己掛 margin-bottom，
+     結果只有 stats-grid 與 weekly-summary 有，健康分數甚至被明確設成 0，
+     於是「健康分數 / 近 7 天摘要」與「星數歷史 / 速度分佈 / 最近活動」整組貼在一起。
+     放在這裡之後，日後新增的 widget 不必記得補 margin。 */
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2vw, 24px);
+}
+
+/* 標題與內容之間留得比卡片之間多；這個 margin 會疊在上面的 gap 之上 */
+.dashboard-page > .page-header {
+  margin-bottom: clamp(4px, 1vw, 16px);
+}
+
+/* 會依資料決定要不要出現的 widget（例如沒有訊號時的 SignalSpotlight）回傳 null，
+   但外層的動畫包裹仍然存在。高度是 0 卻仍是 flex item，兩側各吃一份 gap，
+   在畫面上就是某兩張卡之間憑空多出一倍的距離。 */
+.dashboard-page > .fade-in:empty {
+  display: none;
 }
 
 /* Stats Grid */
@@ -3725,7 +3744,6 @@ a:focus-visible {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: clamp(12px, 1.5vw, 20px);
-  margin-bottom: clamp(16px, 2vw, 24px);
 }
 
 .stat-card {
@@ -4034,10 +4052,6 @@ a:focus-visible {
 }
 
 /* Portfolio Health Score */
-.health-score-section {
-  margin-bottom: 0;
-}
-
 .health-score-body {
   display: flex;
   align-items: center;
@@ -4549,10 +4563,6 @@ a:focus-visible {
 }
 
 /* Weekly Summary */
-.weekly-summary {
-  margin-bottom: 24px;
-}
-
 .weekly-header {
   display: flex;
   align-items: center;

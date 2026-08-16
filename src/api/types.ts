@@ -485,8 +485,10 @@ export interface WeeklySummaryResponse {
   period_end: string;
   total_repos: number;
   total_new_stars: number;
-  /** 有幾個 repo 存在可比對的 7 天前快照。0 = total_new_stars 與 movers 都不具意義 */
-  repos_compared: number;
+  /** 有幾個 repo 存在可比對的 7 天前快照。0 = total_new_stars 與 movers 都不具意義。
+   *  標成 optional 是因為舊版 sidecar 不會回這個欄位（開發時前後端版本會錯開），
+   *  消費端必須把「缺席」和 0 當同一件事處理。 */
+  repos_compared?: number;
   top_gainers: WeeklyRepoSummary[];
   top_losers: WeeklyRepoSummary[];
   alerts_triggered: number;

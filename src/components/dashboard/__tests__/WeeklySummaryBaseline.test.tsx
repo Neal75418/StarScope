@@ -88,3 +88,17 @@ describe("WeeklySummary without a 7-day baseline", () => {
     expect(screen.getByTestId("weekly-total-stars")).toHaveTextContent("+1.2K");
   });
 });
+
+describe("WeeklySummary against an older sidecar", () => {
+  it("treats a missing repos_compared as nothing compared", () => {
+    // 前端比後端新時（開發常態）欄位不存在。舊寫法 `undefined === 0` 是 false，
+    // 於是走進有把握的那一支，把「沒得比」講成「0 顆星」——正是要消掉的行為。
+    const { repos_compared: _omitted, ...withoutField } = summary({ total_new_stars: 0 });
+    renderWith(withoutField as WeeklySummaryResponse);
+
+    expect(screen.getByTestId("weekly-total-stars")).toHaveTextContent(/not comparable/i);
+    expect(screen.getByTestId("weekly-movers-empty")).toHaveTextContent(
+      /no snapshot from 7 days ago/i
+    );
+  });
+});

@@ -205,9 +205,11 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
         </h3>
         {/* 一個 repo 都比對不了時，總和不是 0，是還算不出來 */}
         <span className="weekly-total-stars" data-testid="weekly-total-stars">
-          {data.repos_compared === 0
-            ? t.dashboard.weekly.awaitingBaselineShort
-            : `${formatDelta(data.total_new_stars)} ${t.dashboard.weekly.starsThisWeek}`}
+          {/* 只有「確定比對過至少一個 repo」才報總和。欄位缺席時（前端比後端新，
+              開發時常態）舊行為是走進有把握的那一支，把沒得比講成 0 —— 正是要消掉的東西 */}
+          {(data.repos_compared ?? 0) > 0
+            ? `${formatDelta(data.total_new_stars)} ${t.dashboard.weekly.starsThisWeek}`
+            : t.dashboard.weekly.awaitingBaselineShort}
         </span>
       </div>
 
@@ -215,7 +217,7 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
         <TopMovers
           gainers={data.top_gainers}
           losers={data.top_losers}
-          reposCompared={data.repos_compared}
+          reposCompared={data.repos_compared ?? 0}
           t={t}
         />
         <SignalsOverview
