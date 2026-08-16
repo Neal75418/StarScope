@@ -12,20 +12,26 @@ import {
   listTriggeredAlerts,
   listEarlySignals,
   getSignalSummary,
+  listAlertRules,
   acknowledgeSignal,
   RepoWithSignals,
   TriggeredAlert,
+  AlertRule,
 } from "../api/client";
 import type { EarlySignal } from "../api/types";
 import { ALERT_FETCH_LIMIT } from "../constants/api";
 import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
+import { computeMovers, type MoversResult } from "../utils/movers";
 import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
 import type { HealthScoreInput } from "../components/dashboard/PortfolioHealthScore";
+import type { AttentionItem } from "../components/dashboard/AttentionBar";
+import { useWeeklySummary } from "./useWeeklySummary";
 
 const EMPTY_REPOS: RepoWithSignals[] = [];
 const EMPTY_ALERTS: TriggeredAlert[] = [];
 const EMPTY_SIGNALS: EarlySignal[] = [];
+const EMPTY_ALERT_RULES: AlertRule[] = [];
 
 export interface DashboardStats {
   totalRepos: number;
@@ -85,23 +91,49 @@ export function useDashboard() {
     queryFn: () => getSignalSummary(),
   });
 
+  // 供段一（AttentionBar）判斷 hasAlertRules。這裡沒有獨立的「已檢查」旗標可用
+  // （不像 weekly 有 releasesChecked），所以規則是否載完必須併進整體 isLoading，
+  // 不然頁面會在規則資料還沒到的那一瞬間，把「還沒查」誤顯示成「沒有規則」。
+  const alertRulesQuery = useQuery<AlertRule[], Error>({
+    queryKey: queryKeys.alerts.rules(),
+    queryFn: () => listAlertRules(),
+  });
+
+  // 週報摘要獨立於整體 isLoading 之外：releasesChecked 就是特地為了不讓
+  // 這一頁的其餘部分等它而設計的旗標，見下方 attentionItems。
+  const { data: weekly } = useWeeklySummary();
+
   const repos = reposQuery.data ?? EMPTY_REPOS;
   const alerts = alertsQuery.data ?? EMPTY_ALERTS;
   const earlySignals = signalsQuery.data ?? EMPTY_SIGNALS;
   const signalSummary = summaryQuery.data ?? null;
+  const alertRules = alertRulesQuery.data ?? EMPTY_ALERT_RULES;
   const isLoading =
     reposQuery.isLoading ||
     alertsQuery.isLoading ||
     signalsQuery.isLoading ||
-    summaryQuery.isLoading;
+    summaryQuery.isLoading ||
+    alertRulesQuery.isLoading;
 
   // 合併錯誤訊息
   const error = useMemo(() => {
-    const errors = [reposQuery.error, alertsQuery.error, signalsQuery.error, summaryQuery.error]
+    const errors = [
+      reposQuery.error,
+      alertsQuery.error,
+      signalsQuery.error,
+      summaryQuery.error,
+      alertRulesQuery.error,
+    ]
       .filter((e): e is Error => e instanceof Error)
       .map((e) => e.message);
     return errors.length > 0 ? errors.join("; ") : null;
-  }, [reposQuery.error, alertsQuery.error, signalsQuery.error, summaryQuery.error]);
+  }, [
+    reposQuery.error,
+    alertsQuery.error,
+    signalsQuery.error,
+    summaryQuery.error,
+    alertRulesQuery.error,
+  ]);
 
   const handleAcknowledgeSignal = useCallback(
     async (signalId: number) => {
@@ -297,6 +329,35 @@ export function useDashboard() {
     };
   }, [repos, alerts, signalSummary, velocityDistribution]);
 
+  // 段二：「在動」排行，運算全交給 computeMovers（挑窗口、算相對成長、算門檻）
+  const movers: MoversResult = useMemo(() => computeMovers(repos), [repos]);
+
+  // 段一：只收「值得打斷你」的。deprecation 單獨出現不算，那是預告不是行動——
+  // 它仍然會以 tag 的身分出現在下面段三的版本清單，只是不會被搬進這裡打斷使用者。
+  const attentionItems: AttentionItem[] = useMemo(() => {
+    const fromAlerts: AttentionItem[] = alerts
+      .filter((a) => !a.acknowledged)
+      .map((a) => ({ kind: "alert" as const, title: a.rule_name, detail: a.repo_name }));
+
+    const fromReleases: AttentionItem[] = (weekly?.releases ?? [])
+      .filter((r) => r.tags.some((tag) => tag === "breaking" || tag === "security"))
+      .map((r) => ({
+        kind: "release" as const,
+        title: `${r.repo_name} ${r.title}`,
+        detail: r.tags.join(" · "),
+        url: r.url,
+      }));
+
+    return [...fromAlerts, ...fromReleases];
+  }, [alerts, weekly]);
+
+  // 一條警報規則都沒有時，「alert」這個來源永遠不會有東西可以收進 attentionItems，
+  // AttentionBar 必須把這件事講出來，而不是讓沒有規則看起來跟「規則都沒觸發」一樣。
+  const hasAlertRules = alertRules.length > 0;
+  // weekly 在請求完成前是 undefined（區分「還沒查」與「查過、這週沒有版本」），
+  // AttentionBar 用這個旗標決定要說「正在檢查」還是可以講「沒事」。
+  const releasesChecked = weekly !== undefined;
+
   // Signal Spotlight 用的 earlySignals（取前 5 筆）
   const spotlightSignals = useMemo(() => earlySignals.slice(0, 5), [earlySignals]);
 
@@ -315,6 +376,10 @@ export function useDashboard() {
     healthScoreInput,
     earlySignals: spotlightSignals,
     signalSummary,
+    movers,
+    attentionItems,
+    hasAlertRules,
+    releasesChecked,
     acknowledgeSignal: handleAcknowledgeSignal,
     isLoading,
     isFetching: reposQuery.isFetching || alertsQuery.isFetching,
