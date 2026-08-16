@@ -84,17 +84,17 @@ describe("computeMovers 的相對成長", () => {
 
 describe("computeMovers 的門檻與取樣", () => {
   it("門檻是中位數的十倍，母體含零與負值", () => {
-    // 非對稱資料：多個負值，一個正值。母體中位數會被負值拉負。
-    // 若濾掉負值只看正值，中位數會變成正數，門檻會被啟用。
-    // 這禁絕「把 filter(m => m.relative >= 0)」的突變。
+    // 三種元素都必須包含：負值、零、正值。中位數必須同時取決於這三者。
+    // 濾掉任一類都會改變中位數，測試才能抓到三種突變：
+    // 1. filter(m => m.relative >= 0) 濾掉負值 → [0, 0.01] → 中位數 0.005 → threshold = 0.05 ✗
+    // 2. filter(m => m.relative !== 0) 濾掉零 → [-0.0098, 0.01] → 中位數 0.0001 → threshold = 0.001 ✗
+    // 3. filter(m => m.relative > 0) 只保留正值 → [0.01] → 中位數 0.01 → threshold = 0.1 ✗
     const repos = [
-      repo({ id: 1, stars: 1100, stars_delta_1d: -100 }), // base=1200, relative=-100/1200=-0.0833
-      repo({ id: 2, stars: 950, stars_delta_1d: -50 }), // base=1000, relative=-50/1000=-0.05
-      repo({ id: 3, stars: 990, stars_delta_1d: -10 }), // base=1000, relative=-10/1000=-0.01
-      repo({ id: 4, stars: 1010, stars_delta_1d: 10 }), // base=1000, relative=10/1000=0.01
+      repo({ id: 1, stars: 1010, stars_delta_1d: -10 }), // base=1020, relative=-10/1020≈-0.0098
+      repo({ id: 2, stars: 1000, stars_delta_1d: 0 }), // base=1000, relative=0
+      repo({ id: 3, stars: 1010, stars_delta_1d: 10 }), // base=1000, relative=10/1000=0.01
     ];
-    // 母體: [-0.0833, -0.05, -0.01, 0.01] → 中位數 (-0.05 + -0.01)/2 = -0.03 → threshold = null
-    // 若只看 >= 0: [0.01] → 中位數 0.01 → threshold = 0.1 (不該這樣，會被測試抓到)
+    // 母體: [-0.0098, 0, 0.01] (3 elements, odd) → 中位數 = sorted[1] = 0 → threshold = null
     expect(computeMovers(repos).threshold).toBeNull();
   });
 
