@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
 def _fetch_snapshot_deltas(
     db: Session,
     period_start: date,
+    days: int = 7,
 ) -> tuple[dict[int, int], dict[int, int], dict[int, int], int]:
-    """取得每個 repo 的最新 / 7 天前快照並計算星數差異。
+    """取得每個 repo 的最新 / N 天前快照並計算星數差異。
 
     Returns:
         ``(latest_map, old_map, repo_deltas, total_new_stars)``
@@ -50,12 +51,12 @@ def _fetch_snapshot_deltas(
         .all()
     )
 
-    # 子查詢：每個 repo 最接近 7 天前的快照
-    # 回溯上限與 analyzer.calculate_delta 一致（七日窗回溯三天）。
+    # 子查詢：每個 repo 最接近 N 天前的快照
+    # 回溯上限與 analyzer.calculate_delta 一致：min(days // 2, 7)。
     # 沒有下界時，三個月前的快照也會被當成「七天前」，而 KPI 卡那一側不會，
     # 同一頁上兩個同名的數字就會各說各話。
-    # 3 是 min(7 // 2, 7) 在 analyzer.calculate_delta 中的展開值。
-    earliest_allowed = period_start - timedelta(days=3)
+    backtrack_limit = min(days // 2, 7)
+    earliest_allowed = period_start - timedelta(days=backtrack_limit)
     old_sub = (
         db.query(
             RepoSnapshot.repo_id,
@@ -302,7 +303,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
     # --- 每個 repo 的星數差值（最新快照 vs N 天前快照）---
-    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start)
+    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start, days)
 
     # --- 訊號對映 & repo 資訊 ---
     signal_map, repo_info = _preload_signal_and_repo_maps(db)

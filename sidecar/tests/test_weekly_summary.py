@@ -355,29 +355,12 @@ class TestWeeklyDeltaRespectsTheBacktrackLimit:
     """摘要原本沒有回溯上限，可以拿三個月前的快照當「七天前」。
 
     KPI 卡與摘要徽章顯示的是同一個概念，規則不同就會各說各話。
+
+    回溯規則 = min(days // 2, 7)。對於 days=7 是 3 天，days=14 是 7 天。
     """
 
-    def test_a_snapshot_far_outside_the_window_is_not_a_baseline(
-        self, client, mock_repo, test_db
-    ):
-        today = utc_today()
-        test_db.add_all([
-            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=90),
-                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
-            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
-                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
-        ])
-        test_db.commit()
-
-        data = client.get("/api/summary/weekly").json()["data"]
-
-        assert data["repos_compared"] == 0
-        assert data["total_new_stars"] == 0
-
-    def test_a_snapshot_inside_the_backtrack_window_still_counts(
-        self, client, mock_repo, test_db
-    ):
-        """七日窗回溯三天：today-10 仍算數，today-11 不算。"""
+    def test_days_7_boundary_at_limit_inclusive(self, client, mock_repo, test_db):
+        """days=7 回溯 3 天：today-10 (邊界) 算數，today-11 不算。"""
         today = utc_today()
         test_db.add_all([
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=10),
@@ -388,9 +371,53 @@ class TestWeeklyDeltaRespectsTheBacktrackLimit:
         test_db.commit()
 
         data = client.get("/api/summary/weekly").json()["data"]
-
-        assert data["repos_compared"] == 1
+        assert data["repos_compared"] == 1, "today-10 應在 min(7//2, 7)=3 的回溯窗內"
         assert data["total_new_stars"] == 900
+
+    def test_days_7_boundary_beyond_limit_exclusive(self, client, mock_repo, test_db):
+        """days=7 回溯 3 天：today-11 超過邊界，不計入。"""
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=11),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+        assert data["repos_compared"] == 0, "today-11 超過 min(7//2, 7)=3 的回溯窗"
+        assert data["total_new_stars"] == 0
+
+    def test_days_14_boundary_at_limit_inclusive(self, client, mock_repo, test_db):
+        """days=14 回溯 7 天：today-21 (邊界) 算數，today-22 不算。"""
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=21),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly?days=14").json()["data"]
+        assert data["repos_compared"] == 1, "today-21 應在 min(14//2, 7)=7 的回溯窗內"
+        assert data["total_new_stars"] == 900
+
+    def test_days_14_boundary_beyond_limit_exclusive(self, client, mock_repo, test_db):
+        """days=14 回溯 7 天：today-22 超過邊界，不計入。"""
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=22),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today,
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly?days=14").json()["data"]
+        assert data["repos_compared"] == 0, "today-22 超過 min(14//2, 7)=7 的回溯窗"
+        assert data["total_new_stars"] == 0
 
 
 class TestTheWireCarriesEveryField:
