@@ -355,12 +355,20 @@ export function useDashboard() {
         id: `release-${r.repo_id}-${r.title}`,
         kind: "release" as const,
         title: `${r.repo_name} ${r.title}`,
-        detail: r.tags.join(" · "),
+        // 走 i18n 而不是直接印原始 tag：同一份標記在下方的「新版本」面板顯示成
+        // 「破壞性變更」，段一若印 "breaking"，同一頁上同一件事會有兩種語言
+        detail: r.tags
+          .map(
+            (tag) =>
+              t.dashboard.weekly.releaseTags[tag as keyof typeof t.dashboard.weekly.releaseTags] ??
+              tag
+          )
+          .join(" · "),
         url: r.url,
       }));
 
     return [...fromAlerts, ...fromReleases];
-  }, [alerts, weekly]);
+  }, [alerts, weekly, t]);
 
   // 一條警報規則都沒有時，「alert」這個來源永遠不會有東西可以收進 attentionItems，
   // AttentionBar 必須把這件事講出來，而不是讓沒有規則看起來跟「規則都沒觸發」一樣。
