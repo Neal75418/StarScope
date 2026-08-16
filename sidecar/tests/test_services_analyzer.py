@@ -3,8 +3,9 @@ Tests for services/analyzer.py - Signal calculation engine.
 """
 
 import pytest
-from datetime import timedelta
+from datetime import date, timedelta
 
+from db.models import RepoSnapshot
 from utils.time import utc_today
 
 from services.analyzer import (
@@ -92,9 +93,9 @@ class TestCalculateDelta:
         """Test delta calculation with historical data."""
         repo, _ = mock_repo_with_snapshots
         delta = calculate_delta(repo.id, 7, test_db)
-        # Snapshots: day -30 to -1, 50 stars/day growth
-        # Day -1: 2450 stars, Day -7: 2150 stars → delta = 300
-        assert delta == 300
+        # Snapshots: day -30 to today (day 0), 50 stars/day growth
+        # Day 0: 2500 stars, Day -7: 2150 stars → delta = 350
+        assert delta == 350
 
     def test_calculate_delta_no_data(self, test_db, mock_repo):
         """Test delta calculation with no snapshot data."""
@@ -109,8 +110,8 @@ class TestCalculateVelocity:
         """Test velocity calculation."""
         repo, _ = mock_repo_with_snapshots
         velocity = calculate_velocity(repo.id, test_db, days=7)
-        # 300 stars over 7 days ≈ 42.857 stars/day
-        assert velocity == pytest.approx(300.0 / 7)
+        # 350 stars over 7 days = 50 stars/day
+        assert velocity == pytest.approx(350.0 / 7)
 
     def test_calculate_velocity_no_data(self, test_db, mock_repo):
         """Test velocity returns None with no data."""
@@ -125,9 +126,11 @@ class TestCalculateAcceleration:
         """Test acceleration calculation."""
         repo, _ = mock_repo_with_snapshots
         acceleration = calculate_acceleration(repo.id, test_db)
-        # Linear growth but "today" resolves to day -1, making this_week 6 days vs last_week 7 days
-        # this_week: 300/7, last_week: 350/7 → acceleration = -50/350 = -1/7
-        assert acceleration == pytest.approx(-1 / 7)
+        # Linear growth with constant 50 stars/day
+        # this_week (day 0 to day -7): 350 stars / 7 = 50 stars/day
+        # last_week (day -7 to day -14): 350 stars / 7 = 50 stars/day
+        # acceleration = (50 - 50) / 50 = 0
+        assert acceleration == pytest.approx(0.0)
 
     def test_calculate_acceleration_no_data(self, test_db, mock_repo):
         """Test acceleration returns None with no data."""
@@ -171,3 +174,58 @@ class TestCalculateSignals:
         signal_types = [s.signal_type for s in db_signals]
         assert len(signal_types) >= 1, "Expected at least one signal to be stored"
         assert len(signal_types) == len(set(signal_types))  # No duplicates
+
+
+class TestBacktrackScalesWithWindow:
+    """回溯上限寫死七天時，單日窗會拿七天前的快照冒充「一天」。
+
+    段二的排行完全按相對成長排序，被放大七倍的成長會直接變成假的第一名，
+    而畫面上看不出任何異常。
+    """
+
+    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+        return RepoSnapshot(repo_id=1, stars=stars, forks=0,
+                            watchers=0, open_issues=0, snapshot_date=day)
+
+    def test_one_day_window_requires_an_exact_match(self, test_db):
+        today = utc_today()
+        # 今天有、昨天沒有、七天前有
+        snap_by_date = {
+            today: self._snap(today, 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 100),
+        }
+
+        result = calculate_delta(1, 1, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "昨天沒有快照時應回 None，不得拿七天前的來比"
+
+    def test_one_day_window_works_when_yesterday_exists(self, test_db):
+        today = utc_today()
+        snap_by_date = {
+            today: self._snap(today, 1000),
+            today - timedelta(days=1): self._snap(today - timedelta(days=1), 900),
+        }
+
+        assert calculate_delta(1, 1, test_db, snap_by_date=snap_by_date) == 100.0
+
+    def test_seven_day_window_backtracks_at_most_three_days(self, test_db):
+        today = utc_today()
+        # 目標是 today-7，往前三天內（today-8..today-10）有；再更早的不算
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=10): self._snap(today - timedelta(days=10), 500)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=11): self._snap(today - timedelta(days=11), 500)}
+
+        assert calculate_delta(1, 7, test_db, snap_by_date=near) == 500.0
+        assert calculate_delta(1, 7, test_db, snap_by_date=far) is None
+
+    def test_thirty_day_window_keeps_the_existing_seven_day_cap(self, test_db):
+        """days // 2 會把三十日窗放寬到十五天回溯；min(..., 7) 必須擋住。"""
+        today = utc_today()
+        at_cap = {today: self._snap(today, 1000),
+                  today - timedelta(days=37): self._snap(today - timedelta(days=37), 500)}
+        beyond = {today: self._snap(today, 1000),
+                  today - timedelta(days=38): self._snap(today - timedelta(days=38), 500)}
+
+        assert calculate_delta(1, 30, test_db, snap_by_date=at_cap) == 500.0
+        assert calculate_delta(1, 30, test_db, snap_by_date=beyond) is None

@@ -71,8 +71,12 @@ def calculate_delta(
     past_date = today - timedelta(days=days)
 
     if snap_by_date is not None:
-        current_snapshot = _find_snapshot(snap_by_date, today)
-        past_snapshot = _find_snapshot(snap_by_date, past_date)
+        # 與窗口成比例，但保留原本的絕對上限：只寫 days // 2 會把三十日窗的回溯
+        # 放寬到十五天，修好短窗卻弄壞長窗
+        backtrack = min(days // 2, 7)
+
+        current_snapshot = _find_snapshot(snap_by_date, today, 0)
+        past_snapshot = _find_snapshot(snap_by_date, past_date, backtrack)
     else:
         current_snapshot = get_snapshot_for_date(repo_id, today, db)
         past_snapshot = get_snapshot_for_date(repo_id, past_date, db)
@@ -88,14 +92,19 @@ def calculate_delta(
 
 
 def _find_snapshot(
-    snap_by_date: dict[date, "RepoSnapshot"], target_date: date
+    snap_by_date: dict[date, "RepoSnapshot"],
+    target_date: date,
+    max_backtrack_days: int,
 ) -> "RepoSnapshot | None":
-    """從預載的快照 dict 找到最接近 target_date 的快照（等於或更早）。"""
+    """從預載的快照 dict 找到最接近 target_date 的快照（等於或更早）。
+
+    回溯上限由呼叫端給，因為它必須跟窗口成比例：七日窗回溯七天，誤差最多一倍；
+    單日窗回溯七天是七倍誤差，而那個被放大的成長會直接變成排行的第一名。
+    """
     snap = snap_by_date.get(target_date)
     if snap:
         return snap
-    # 向前搜尋最接近的快照（最多 7 天）
-    for offset in range(1, 8):
+    for offset in range(1, max_backtrack_days + 1):
         earlier = target_date - timedelta(days=offset)
         snap = snap_by_date.get(earlier)
         if snap:
@@ -133,9 +142,9 @@ def calculate_acceleration(
     two_weeks_ago = today - timedelta(days=14)
 
     if snap_by_date is not None:
-        current_snapshot = _find_snapshot(snap_by_date, today)
-        week_ago_snapshot = _find_snapshot(snap_by_date, one_week_ago)
-        two_week_ago_snapshot = _find_snapshot(snap_by_date, two_weeks_ago)
+        current_snapshot = _find_snapshot(snap_by_date, today, 0)
+        week_ago_snapshot = _find_snapshot(snap_by_date, one_week_ago, 3)
+        two_week_ago_snapshot = _find_snapshot(snap_by_date, two_weeks_ago, 7)
     else:
         current_snapshot = get_snapshot_for_date(repo_id, today, db)
         week_ago_snapshot = get_snapshot_for_date(repo_id, one_week_ago, db)

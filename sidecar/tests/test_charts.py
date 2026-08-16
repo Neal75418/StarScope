@@ -14,8 +14,8 @@ class TestChartEndpoints:
     def test_get_stars_chart_valid_time_ranges(self, client, mock_repo_with_snapshots):
         """Test that valid time_range values return real data points, not just 200."""
         repo, _ = mock_repo_with_snapshots
-        # fixture: 30 天快照，stars 從 1000 線性長到 2450
-        expected_points = {"7d": 7, "30d": 30, "90d": 30}
+        # fixture: 31 天快照（day -30 to 0），stars 從 1000 線性長到 2500
+        expected_points = {"7d": 8, "30d": 31, "90d": 31}
         for time_range, expected in expected_points.items():
             response = client.get(f"/api/charts/{repo.id}/stars?time_range={time_range}")
             assert response.status_code == 200
@@ -27,7 +27,7 @@ class TestChartEndpoints:
             stars = [p["stars"] for p in data["data_points"]]
             assert stars == sorted(stars)
             assert data["min_stars"] == stars[0]
-            assert data["max_stars"] == stars[-1] == 2450
+            assert data["max_stars"] == stars[-1] == 2500
 
     def test_get_stars_chart_invalid_time_range(self, client, mock_repo_with_snapshots):
         """Test that invalid time_range returns 422."""

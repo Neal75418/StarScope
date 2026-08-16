@@ -127,11 +127,11 @@ def mock_repo_with_snapshots(test_db, mock_repo):
     today = utc_now().date()
     snapshots = []
 
-    # Create 30 days of snapshots with growing stars
-    for i in range(30, 0, -1):
+    # Create 31 days of snapshots with growing stars (including today)
+    for i in range(30, -1, -1):
         snapshot = RepoSnapshot(
             repo_id=mock_repo.id,
-            stars=1000 + (30 - i) * 50,  # Growing from 1000 to 2450
+            stars=1000 + (30 - i) * 50,  # Growing from 1000 to 2500
             forks=100 + (30 - i) * 5,
             watchers=50,
             open_issues=10,
