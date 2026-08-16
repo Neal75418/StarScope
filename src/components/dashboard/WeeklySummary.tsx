@@ -28,17 +28,23 @@ function formatDateRange(start: string, end: string): string {
 const TopMovers = memo(function TopMovers({
   gainers,
   losers,
+  reposCompared,
   t,
 }: {
   gainers: WeeklyRepoSummary[];
   losers: WeeklyRepoSummary[];
+  reposCompared: number;
   t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <div className="weekly-column">
       <h4>{t.dashboard.weekly.topMovers}</h4>
+      {/* 沒有 repo 比對得成時，空清單代表「還沒得比」而不是「都沒動」。
+          兩者都是空的，但講錯的那個會讓人以為追蹤的東西全部沒有動靜。 */}
       {gainers.length === 0 && losers.length === 0 && (
-        <div className="weekly-empty">{t.dashboard.weekly.noData}</div>
+        <div className="weekly-empty" data-testid="weekly-movers-empty">
+          {reposCompared === 0 ? t.dashboard.weekly.awaitingBaseline : t.dashboard.weekly.noData}
+        </div>
       )}
       {gainers.map((r) => (
         <div key={r.repo_id} className="weekly-mover weekly-mover--up">
@@ -197,13 +203,21 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
         <h3>
           {t.dashboard.weekly.title} ({formatDateRange(data.period_start, data.period_end)})
         </h3>
-        <span className="weekly-total-stars">
-          {formatDelta(data.total_new_stars)} {t.dashboard.weekly.starsThisWeek}
+        {/* 一個 repo 都比對不了時，總和不是 0，是還算不出來 */}
+        <span className="weekly-total-stars" data-testid="weekly-total-stars">
+          {data.repos_compared === 0
+            ? t.dashboard.weekly.awaitingBaselineShort
+            : `${formatDelta(data.total_new_stars)} ${t.dashboard.weekly.starsThisWeek}`}
         </span>
       </div>
 
       <div className="weekly-grid">
-        <TopMovers gainers={data.top_gainers} losers={data.top_losers} t={t} />
+        <TopMovers
+          gainers={data.top_gainers}
+          losers={data.top_losers}
+          reposCompared={data.repos_compared}
+          t={t}
+        />
         <SignalsOverview
           alertsTriggered={data.alerts_triggered}
           earlySignalsDetected={data.early_signals_detected}

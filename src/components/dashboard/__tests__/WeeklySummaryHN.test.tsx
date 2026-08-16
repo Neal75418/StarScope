@@ -26,6 +26,7 @@ vi.mock("../../../hooks/useWeeklySummary", () => ({
       period_end: "2026-03-22",
       total_repos: 5,
       total_new_stars: 1000,
+      repos_compared: 5,
       top_gainers: [],
       top_losers: [],
       alerts_triggered: 0,

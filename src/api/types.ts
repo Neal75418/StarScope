@@ -485,6 +485,8 @@ export interface WeeklySummaryResponse {
   period_end: string;
   total_repos: number;
   total_new_stars: number;
+  /** 有幾個 repo 存在可比對的 7 天前快照。0 = total_new_stars 與 movers 都不具意義 */
+  repos_compared: number;
   top_gainers: WeeklyRepoSummary[];
   top_losers: WeeklyRepoSummary[];
   alerts_triggered: number;

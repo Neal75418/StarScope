@@ -197,3 +197,51 @@ class TestWeeklySummaryEndpoint:
         from datetime import date
         date.fromisoformat(data["period_start"])
         date.fromisoformat(data["period_end"])
+
+
+class TestReposComparedDistinguishesNoDataFromNoChange:
+    """total_new_stars 是 0 有兩種完全不同的原因，回應必須分得出來。
+
+    實測時使用者的快照只有兩天，7 天前那一端撈不到任何東西，repo_deltas 是空的，
+    sum({}) 就是 0——畫面因此顯示「0 近 7 天新增星數」「近 7 天無變動」，
+    而同一個畫面的健康分數已經改口說「快照累積中」。
+    """
+
+    def test_no_baseline_reports_nothing_compared(self, test_db):
+        from db.models import Repo
+        from services.weekly_summary import get_weekly_summary
+        repo = Repo(owner="a", name="b", full_name="a/b",
+                    url="https://github.com/a/b", github_id=1)
+        test_db.add(repo)
+        test_db.flush()
+        # 只有最近兩天，沒有 7 天前那一端
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=repo.id, stars=100, forks=1, snapshot_date=today - timedelta(days=1)),
+            RepoSnapshot(repo_id=repo.id, stars=150, forks=1, snapshot_date=today),
+        ])
+        test_db.commit()
+
+        result = get_weekly_summary(test_db)
+
+        assert result["repos_compared"] == 0
+        assert result["total_new_stars"] == 0, "沒有基準線時總和仍是 0，這正是要靠另一個欄位分辨的原因"
+
+    def test_a_real_baseline_is_counted(self, test_db):
+        from db.models import Repo
+        from services.weekly_summary import get_weekly_summary
+        repo = Repo(owner="a", name="c", full_name="a/c",
+                    url="https://github.com/a/c", github_id=2)
+        test_db.add(repo)
+        test_db.flush()
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=repo.id, stars=100, forks=1, snapshot_date=today - timedelta(days=8)),
+            RepoSnapshot(repo_id=repo.id, stars=180, forks=1, snapshot_date=today),
+        ])
+        test_db.commit()
+
+        result = get_weekly_summary(test_db)
+
+        assert result["repos_compared"] == 1
+        assert result["total_new_stars"] == 80

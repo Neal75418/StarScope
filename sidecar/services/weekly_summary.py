@@ -73,7 +73,9 @@ def _fetch_snapshot_deltas(
     latest_map: dict[int, int] = {s.repo_id: s.stars for s in latest_snapshots}
     old_map: dict[int, int] = {s.repo_id: s.stars for s in old_snapshots}
 
-    # 每個 repo 的星數差值
+    # 每個 repo 的星數差值。沒有 7 天前快照的 repo 不會出現在這裡——
+    # 呼叫端要靠 len(repo_deltas) 才分得出「淨變化是 0」與「沒有東西可比」，
+    # 光看 total_new_stars 兩者都是 0。
     repo_deltas: dict[int, int] = {}
     for repo_id, current_stars in latest_map.items():
         old_stars = old_map.get(repo_id)
@@ -270,6 +272,9 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
         "period_end": period_end.isoformat(),
         "total_repos": total_repos,
         "total_new_stars": total_new_stars,
+        # 有幾個 repo 真的存在可比對的 7 天前快照。0 代表 total_new_stars 與
+        # top_gainers/top_losers 全都不具意義——不是「這週沒動」，是還沒得比。
+        "repos_compared": len(repo_deltas),
         "top_gainers": top_gainers,
         "top_losers": top_losers,
         "alerts_triggered": alerts_triggered,
