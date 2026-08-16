@@ -230,6 +230,28 @@ class TestBacktrackScalesWithWindow:
         assert calculate_delta(1, 30, test_db, snap_by_date=at_cap) == 500.0
         assert calculate_delta(1, 30, test_db, snap_by_date=beyond) is None
 
+    def test_current_snapshot_requires_an_exact_match_regardless_of_window(self, test_db):
+        """current 側的回溯上限寫死是 0（_find_snapshot(snap_by_date, today, 0)），
+        不隨 days 變動——這條專門把它釘住。
+
+        現有的 test_one_day_window_requires_an_exact_match 測不出這件事：那條測試
+        today 本身就有快照，就算 current 側的 0 被誤改成別的數字，「今天」的精確
+        比對還是會先命中，數字不會變。這裡刻意讓 today 完全沒有快照，只在
+        today-3（days=7 的回溯上限 min(7//2,7)=3 之內）跟 today-7（baseline 的
+        精確落點）放快照：如果 current 側的上限被放寬到 >= 3，就會錯把 today-3
+        的快照當成「現在」，算出一個非 None 的值；只有維持精確比對才會整體回
+        None。
+        """
+        today = utc_today()
+        snap_by_date = {
+            today - timedelta(days=3): self._snap(today - timedelta(days=3), 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 500),
+        }
+
+        result = calculate_delta(1, 7, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "today 沒有精確快照時必須整體回 None，不能拿 today-3 冒充「現在」"
+
 
 class TestAccelerationBacktrackCaps:
     """驗證 calculate_acceleration 的回溯上限實際生效。
@@ -283,6 +305,28 @@ class TestAccelerationBacktrackCaps:
         # far day -22，超過回溯 7 天限制（target: day -14，搜 -14..-21，day -22 不在範圍）
         result_far = calculate_acceleration(1, test_db, snap_by_date=far)
         assert result_far is None
+
+    def test_current_snapshot_requires_an_exact_match_regardless_of_the_other_caps(self, test_db):
+        """current（今天）的回溯上限寫死是 0，跟 week_ago(3) / two_weeks_ago(7)
+        不一樣——那兩個本來就非零，這條專門釘住「今天」不能被放寬。
+
+        today 完全沒有快照，只在 today-2（一個小的、容易被誤放寬吃進去的距離）
+        放一筆；week_ago 與 two_weeks_ago 兩側都給精確命中，排除其他兩個上限
+        造成 None 的可能性，這樣結果如果不是 None，唯一原因只能是 current 側
+        的 0 被放寬了。
+        """
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        snap_by_date = {
+            today - timedelta(days=2): self._snap(today - timedelta(days=2), 1000),
+            today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+            today - timedelta(days=14): self._snap(today - timedelta(days=14), 500),
+        }
+
+        result = calculate_acceleration(1, test_db, snap_by_date=snap_by_date)
+
+        assert result is None, "today 沒有精確快照時必須整體回 None，不能拿 today-2 冒充「現在」"
 
 
 class TestOneDayStarDelta:

@@ -240,6 +240,39 @@ class TestReposEndpoints:
         assert "1 failed" in data["message"]
 
 
+class TestStarsDelta1dOnTheWire:
+    """stars_delta_1d 原本只在 service 層驗過（test_services_analyzer.py），沒有人
+    驗過它真的活著走出 RepoWithSignals 這個 response_model——weekly summary 就是
+    在這個位置漏過一次欄位（repos_compared），而且完全沒有錯誤訊息。掉了的話
+    computeMovers 會永遠回傳一個 null 窗口，movers 面板會永遠卡在
+    「Building history」，沒有任何地方會報錯。
+    """
+
+    def test_stars_delta_1d_survives_the_repos_endpoint(self, client, mock_repo, test_db):
+        from datetime import timedelta
+        from db.models import RepoSnapshot
+        from services.analyzer import calculate_signals
+        from utils.time import utc_today
+
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, stars=900, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today - timedelta(days=1)),
+            RepoSnapshot(repo_id=mock_repo.id, stars=1000, forks=0, watchers=0,
+                         open_issues=0, snapshot_date=today),
+        ])
+        test_db.commit()
+        calculate_signals(mock_repo.id, test_db)
+        test_db.commit()
+
+        response = client.get("/api/repos")
+        repo_data = response.json()["data"]["repos"][0]
+
+        assert repo_data["stars_delta_1d"] == 100.0, (
+            "service 算出來的值要能原封不動送到線上；掉了的話這裡會看到 None 而不是報錯"
+        )
+
+
 class TestInputValidation:
     """Test input validation for repository endpoints."""
 

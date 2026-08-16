@@ -420,6 +420,81 @@ class TestWeeklyDeltaRespectsTheBacktrackLimit:
         assert data["total_new_stars"] == 0
 
 
+class TestLatestSideBoundToToday:
+    """latest 端原本沒有下限，`func.max(snapshot_date)` 不管多舊都當「最新」。
+
+    baseline 端已經有回溯上限（見 TestWeeklyDeltaRespectsTheBacktrackLimit），但那
+    只保護了「基準抓太舊」；latest 端沒有下限的話，抓取斷了好幾天的 repo 照樣會
+    被算進本週數字，跟 analyzer 那側「今天沒有精確快照就整個回 None」互相矛盾——
+    同一頁上「近 7 天新增 900」與「還沒有可比較的成長」同時出現。
+    """
+
+    def test_stale_latest_snapshot_drops_the_repo_from_weekly_numbers(
+        self, client, mock_repo, test_db
+    ):
+        """newest 快照停在 today-4（抓取已經斷 4 天），baseline 落在 today-9。
+
+        修好之前：latest 端撿到 today-4 當「最新」，跟 today-9 配對出 900——
+        實際只跨了 5 天，不是宣稱的 7 天。這個 repo 在 analyzer 那側因為今天
+        沒有精確快照，stars_delta_7d/velocity 全部是 None；weekly_summary
+        必須跟它站在同一邊，今天沒快照就整個不算。
+        """
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=9),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=4),
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["repos_compared"] == 0, "沒有今天的快照，這個 repo 不該被算進本週數字"
+        assert data["total_new_stars"] == 0
+
+    def test_latest_must_be_exact_not_merely_recent(self, client, mock_repo, test_db):
+        """今天前一兩天也不夠——標準是精確等於 period_end，不是「離今天夠近」。
+
+        如果誤把 baseline 端的回溯規則（min(days//2,7)=3 天）也套在 latest 端，
+        today-2 會被誤判成「夠近，當最新」；但 analyzer 那側今天沒快照一律回
+        None，沒有「夠近」這回事，latest 端不能另開一組容許範圍。
+        """
+        today = utc_today()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=7),
+                         fetched_at=utc_now(), stars=100, forks=0, watchers=0, open_issues=0),
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=today - timedelta(days=2),
+                         fetched_at=utc_now(), stars=1000, forks=0, watchers=0, open_issues=0),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["repos_compared"] == 0, "today-2 不是精確的今天，不該被當成最新快照"
+        assert data["total_new_stars"] == 0
+
+
+class TestReleasesEverFetchedFlag:
+    """releases=[] 沒辦法分辨「抓過、這週沒有版本」跟「抓取器根本沒跑過」，
+    AttentionBar 需要這個旗標才能決定要顯示「本週無需注意」還是「正在檢查」。
+    """
+
+    def test_false_when_the_fetcher_has_never_run(self, client):
+        data = client.get("/api/summary/weekly").json()["data"]
+        assert data["releases_ever_fetched"] is False
+
+    def test_true_after_the_fetcher_has_recorded_a_run(self, client, test_db):
+        from db.models import AppSettingKey
+        from services.settings import set_setting
+
+        set_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, utc_now().isoformat(), test_db)
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+        assert data["releases_ever_fetched"] is True
+
+
 class TestTheWireCarriesEveryField:
     """response_model 會濾掉沒宣告的欄位，而且不會有任何錯誤訊息。
 

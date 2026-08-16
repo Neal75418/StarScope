@@ -14,9 +14,10 @@ from sqlalchemy.orm import Session
 
 from db.models import (
     Repo, RepoSnapshot, Signal, TriggeredAlert,
-    EarlySignal, ContextSignal,
+    EarlySignal, ContextSignal, AppSettingKey,
 )
 from constants import SignalType, ContextSignalType
+from services.settings import get_setting
 from utils.time import utc_now, utc_today
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 def _fetch_snapshot_deltas(
     db: Session,
     period_start: date,
+    period_end: date,
     days: int = 7,
 ) -> tuple[dict[int, int], dict[int, int], dict[int, int], int]:
     """取得每個 repo 的最新 / N 天前快照並計算星數差異。
@@ -32,22 +34,14 @@ def _fetch_snapshot_deltas(
     Returns:
         ``(latest_map, old_map, repo_deltas, total_new_stars)``
     """
-    # 子查詢：每個 repo 的最新快照
-    latest_sub = (
-        db.query(
-            RepoSnapshot.repo_id,
-            func.max(RepoSnapshot.snapshot_date).label("max_date"),
-        )
-        .group_by(RepoSnapshot.repo_id)
-        .subquery()
-    )
+    # 「最新」端要求精確落在 period_end（今天），與 analyzer.calculate_delta 的
+    # current_snapshot 一致（backtrack=0，見 _find_snapshot(snap_by_date, today, 0)）。
+    # 原本用不設下限的 func.max 取「這個 repo 有史以來最新一筆」，抓取斷了好幾天
+    # 的 repo 會拿過期快照冒充「最新」，跟更早的基準配對出一個涵蓋範圍遠超過
+    # 宣稱窗口的 delta（例如「7 天」實際跨了 12 天），而且畫面上看不出任何異常。
     latest_snapshots = (
         db.query(RepoSnapshot)
-        .join(
-            latest_sub,
-            (RepoSnapshot.repo_id == latest_sub.c.repo_id)
-            & (RepoSnapshot.snapshot_date == latest_sub.c.max_date),
-        )
+        .filter(RepoSnapshot.snapshot_date == period_end)
         .all()
     )
 
@@ -82,7 +76,7 @@ def _fetch_snapshot_deltas(
     latest_map: dict[int, int] = {s.repo_id: s.stars for s in latest_snapshots}
     old_map: dict[int, int] = {s.repo_id: s.stars for s in old_snapshots}
 
-    # 每個 repo 的星數差值。沒有 7 天前快照的 repo 不會出現在這裡——
+    # 每個 repo 的星數差值。沒有今天快照或沒有 7 天前快照的 repo 都不會出現在這裡——
     # 呼叫端要靠 len(repo_deltas) 才分得出「淨變化是 0」與「沒有東西可比」，
     # 光看 total_new_stars 兩者都是 0。
     repo_deltas: dict[int, int] = {}
@@ -303,7 +297,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
     # --- 每個 repo 的星數差值（最新快照 vs N 天前快照）---
-    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start, days)
+    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start, period_end, days)
 
     # --- 訊號對映 & repo 資訊 ---
     signal_map, repo_info = _preload_signal_and_repo_maps(db)
@@ -323,6 +317,12 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     # --- 加速 / 減速中的 repo ---
     accelerating, decelerating = _count_acceleration(signal_map)
 
+    # --- 版本抓取是否至少成功執行過一次 ---
+    # release_fetcher.fetch_all_releases 每次成功跑完都會寫這個設定。沒有它，
+    # releases=[] 沒辦法分辨「抓過、這週沒有版本」與「抓取器根本沒跑過」——
+    # AttentionBar 就沒有訊號可以決定要顯示「本週無需注意」還是「正在檢查」。
+    releases_ever_fetched = get_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, db) is not None
+
     return {
         "period_start": period_start.isoformat(),
         "period_end": period_end.isoformat(),
@@ -338,6 +338,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
         "early_signals_by_type": early_signals_by_type,
         "hn_mentions": hn_mentions,
         "releases": releases,
+        "releases_ever_fetched": releases_ever_fetched,
         "accelerating": accelerating,
         "decelerating": decelerating,
     }
