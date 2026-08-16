@@ -229,3 +229,57 @@ class TestBacktrackScalesWithWindow:
 
         assert calculate_delta(1, 30, test_db, snap_by_date=at_cap) == 500.0
         assert calculate_delta(1, 30, test_db, snap_by_date=beyond) is None
+
+
+class TestAccelerationBacktrackCaps:
+    """驗證 calculate_acceleration 的回溯上限實際生效。
+
+    加速度計算調用 _find_snapshot 三次：today (backtrack=0)、one_week_ago (backtrack=3)、two_weeks_ago (backtrack=7)。
+    當快照有間隙時，這些上限需要被強制執行，不能因為快照密集就忽略。
+    """
+
+    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+        return RepoSnapshot(repo_id=1, stars=stars, forks=0,
+                            watchers=0, open_issues=0, snapshot_date=day)
+
+    def test_acceleration_week_ago_backtrack_cap_fires(self, test_db):
+        """one_week_ago 回溯上限為 3 天；超過 3 天的快照不應被用。"""
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        # 今天有、一週前時間點沒有，但往前 3 天內（day -7 到 day -10 之間）有
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=9): self._snap(today - timedelta(days=9), 500),
+                today - timedelta(days=14): self._snap(today - timedelta(days=14), 200)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=11): self._snap(today - timedelta(days=11), 500),
+               today - timedelta(days=14): self._snap(today - timedelta(days=14), 200)}
+
+        # near 有 day -9 快照，在回溯 3 天的範圍內（target: day -7，搜 day -7..-10）
+        result_near = calculate_acceleration(1, test_db, snap_by_date=near)
+        assert result_near is not None
+
+        # far 最近的是 day -11，超過回溯 3 天限制（target: day -7，搜 day -7..-10，day -11 不在範圍）
+        result_far = calculate_acceleration(1, test_db, snap_by_date=far)
+        assert result_far is None
+
+    def test_acceleration_two_weeks_ago_backtrack_cap_fires(self, test_db):
+        """two_weeks_ago 回溯上限為 7 天；超過 7 天的快照不應被用。"""
+        from services.analyzer import calculate_acceleration
+
+        today = utc_today()
+        # 今天、一週前、兩週前都有
+        near = {today: self._snap(today, 1000),
+                today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+                today - timedelta(days=20): self._snap(today - timedelta(days=20), 500)}
+        far = {today: self._snap(today, 1000),
+               today - timedelta(days=7): self._snap(today - timedelta(days=7), 900),
+               today - timedelta(days=22): self._snap(today - timedelta(days=22), 500)}
+
+        # near day -20，在回溯 7 天的範圍內（target: day -14，搜 -14..-21）
+        result_near = calculate_acceleration(1, test_db, snap_by_date=near)
+        assert result_near is not None
+
+        # far day -22，超過回溯 7 天限制（target: day -14，搜 -14..-21，day -22 不在範圍）
+        result_far = calculate_acceleration(1, test_db, snap_by_date=far)
+        assert result_far is None
