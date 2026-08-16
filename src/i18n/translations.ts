@@ -45,6 +45,7 @@ export const translations = {
         noise: "below the noise line",
       },
       stats: {
+        title: "Overview stats",
         totalRepos: "Tracked Repos",
         totalStars: "Total Stars",
         weeklyStars: "Stars (7d)",
@@ -1035,6 +1036,7 @@ export const translations = {
         noise: "雜訊線以下",
       },
       stats: {
+        title: "總覽數字",
         totalRepos: "追蹤數量",
         totalStars: "星星總數",
         weeklyStars: "近 7 天星數",

@@ -7,10 +7,11 @@ import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
-import { DataFreshnessBar } from "../components/DataFreshnessBar";
 import { useAppStatus } from "../contexts/AppStatusContext";
 import { useNavigation } from "../contexts/NavigationContext";
 import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
+import { AttentionBar } from "../components/dashboard/AttentionBar";
+import { MoversPanel } from "../components/dashboard/MoversPanel";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
 import { VelocityChartRecharts } from "../components/dashboard/VelocityChartRecharts";
@@ -147,9 +148,12 @@ export function Dashboard() {
     healthScoreInput,
     earlySignals,
     signalSummary,
+    movers,
+    attentionItems,
+    hasAlertRules,
+    releasesChecked,
     acknowledgeSignal,
     isLoading,
-    isFetching,
     dataUpdatedAt,
     error,
     refresh,
@@ -258,6 +262,13 @@ export function Dashboard() {
     );
   }
 
+  // 更新時間就地算：dataUpdatedAt 已經在 useDashboard 的回傳值裡，
+  // 不必為了段一另開一個 hook 輸出，這裡只是格式化成字串給 AttentionBar 用
+  const freshnessLabel = formatCompactRelativeTime(
+    new Date(dataUpdatedAt).toISOString(),
+    t.dashboard.activity.justNow
+  );
+
   return (
     <AnimatedPage className="page dashboard-page">
       <header className="page-header dashboard-page-header">
@@ -268,34 +279,54 @@ export function Dashboard() {
         <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
 
-      <DataFreshnessBar dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} onRefresh={refresh} />
+      {/* 段一：需要注意。取代原本的四張統計卡與健康分數卡——那些合計 293px，
+          只為了說「沒事」。同時取代 DataFreshnessBar：更新時間與手動重整
+          都在這裡，沒有別的入口了，所以不放進 FadeIn 的延遲佇列——這是
+          使用者最先要看到的東西 */}
+      <AttentionBar
+        items={attentionItems}
+        totalRepos={stats.totalRepos}
+        hasAlertRules={hasAlertRules}
+        releasesChecked={releasesChecked}
+        updatedLabel={freshnessLabel}
+        onRefresh={refresh}
+      />
 
-      <FadeIn delay={0.1}>
-        <StatsGrid stats={stats} />
-      </FadeIn>
-
-      {/* 健康分數 */}
-      {widgetVisibility.portfolioHealth && (
-        <FadeIn delay={0.12}>
-          <PortfolioHealthScore input={healthScoreInput} />
+      {/* 四張卡的數字已各有去處（見上方 AttentionBar 與下方 MoversPanel 的標題），
+          預設關閉但保留——是否留著這一排是使用者的判斷，不是實作者能替他決定的事 */}
+      {widgetVisibility.statsGrid && (
+        <FadeIn delay={0.1}>
+          <StatsGrid stats={stats} />
         </FadeIn>
       )}
 
-      {/* Signal Spotlight */}
-      {widgetVisibility.signalSpotlight && (
-        <FadeIn delay={0.15}>
+      {/* 段二：持久在上、即時在下。SignalSpotlight 會記得幾天前的暴衝，
+          排行只知道此刻——「不要錯過」需要前者 */}
+      <FadeIn delay={0.12}>
+        {widgetVisibility.signalSpotlight && (
           <SignalSpotlight
             signals={earlySignals}
             summary={signalSummary}
             onAcknowledge={acknowledgeSignal}
           />
-        </FadeIn>
-      )}
+        )}
+      </FadeIn>
+      <FadeIn delay={0.15}>
+        <MoversPanel result={movers} />
+      </FadeIn>
 
-      {/* 週期摘要（固定 7 天，與 Portfolio History 時間範圍獨立） */}
+      {/* 段三：可讀（固定 7 天，與 Portfolio History 的時間範圍獨立） */}
       {widgetVisibility.weeklySummary && (
         <FadeIn delay={0.18}>
           <WeeklySummary />
+        </FadeIn>
+      )}
+
+      {/* 健康分數：原本緊接在統計卡之後，現在跟其餘 widget 一樣歸在段三之後——
+          維持原本整張卡的條件渲染，只有預設值從開改成關 */}
+      {widgetVisibility.portfolioHealth && (
+        <FadeIn delay={0.19}>
+          <PortfolioHealthScore input={healthScoreInput} />
         </FadeIn>
       )}
 

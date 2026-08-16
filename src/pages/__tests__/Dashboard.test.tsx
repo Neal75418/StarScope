@@ -2,9 +2,17 @@ import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { Dashboard } from "../Dashboard";
 import type { DashboardStats, RecentActivity } from "../../hooks/useDashboard";
 import type { EarlySignal, SignalSummary } from "../../api/client";
+import type { MoversResult } from "../../utils/movers";
+import type { AttentionItem } from "../../components/dashboard/AttentionBar";
+import {
+  saveWidgetVisibility,
+  type WidgetVisibility,
+} from "../../components/dashboard/WidgetCustomizer";
+import { createTestQueryClient } from "../../lib/react-query";
 
 const mockRefresh = vi.fn();
 const mockNavigateTo = vi.fn();
@@ -73,8 +81,13 @@ let mockDashboard: {
   };
   earlySignals: EarlySignal[];
   signalSummary: SignalSummary | null;
+  movers: MoversResult;
+  attentionItems: AttentionItem[];
+  hasAlertRules: boolean;
+  releasesChecked: boolean;
   acknowledgeSignal: (id: number) => void;
   isLoading: boolean;
+  dataUpdatedAt: number;
   error: string | null;
   refresh: () => void;
 };
@@ -105,8 +118,16 @@ vi.mock("../../components/Skeleton", () => ({
   Skeleton: () => <span data-testid="skeleton" />,
 }));
 
+// 段三維持 stub：WeeklySummary 內部的 useWeeklySummary 會打真的 react-query，
+// 組裝測試不需要真的版本清單內容，只需要一個穩定的位置標記代表「段三在哪裡」。
+// weekly-releases 這個 testid 借用真實 ReleasesList 的名字，是段三在排序測試裡
+// 的定位點；清單本身的渲染邏輯已經由 WeeklyReleases.test.tsx 等既有測試涵蓋。
 vi.mock("../../components/dashboard/WeeklySummary", () => ({
-  WeeklySummary: () => <div data-testid="weekly-summary" />,
+  WeeklySummary: () => (
+    <div data-testid="weekly-summary">
+      <div data-testid="weekly-releases" />
+    </div>
+  ),
 }));
 
 vi.mock("../../components/dashboard/VelocityChartRecharts", () => ({
@@ -137,9 +158,49 @@ vi.mock("../../components/dashboard/PortfolioHealthScore", () => ({
   PortfolioHealthScore: () => <div data-testid="portfolio-health-score" />,
 }));
 
+// AttentionBar 與 MoversPanel 刻意不 mock，跟既有的 SignalSpotlight 待遇一致——
+// 組裝測試要驗證的正是這兩個元件真的被放進頁面、真的吃到對的 props，
+// mock 掉反而測不出「有沒有接上」這件事。
+
+// 段一與段二現在會渲染真的內容，movers/attentionItems 不能再缺席：
+// 缺席時 MoversPanel 會對 undefined 取 .window，直接讓整個測試檔炸掉
+const EMPTY_MOVERS: MoversResult = {
+  window: null,
+  risers: [],
+  fallers: [],
+  threshold: null,
+  totalDelta: null,
+};
+
+// 重設計把大部分 widget 的預設值改成關閉（見 WidgetCustomizer 的 DEFAULT_VISIBILITY），
+// 但下面這些既有測試是在「使用者已經打開全部 widget」的前提下寫的——那正是重設計前
+// 唯一存在過的狀態，不是憑空捏造的情境。用 localStorage 把這個前提補回來，
+// 讓這些測試繼續驗證各 widget 自己的渲染邏輯，不必逐條測試加開關。
+// 真正的「預設狀態長怎樣」由下面的「三段排列」describe 另外驗證。
+const ALL_WIDGETS_VISIBLE: WidgetVisibility = {
+  statsGrid: true,
+  portfolioHealth: true,
+  signalSpotlight: true,
+  weeklySummary: true,
+  portfolioHistory: true,
+  velocityChart: true,
+  languageDistribution: true,
+  categorySummary: true,
+  recentActivity: true,
+};
+
+function createWrapper() {
+  const client = createTestQueryClient();
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  };
+}
+
 describe("Dashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
+    saveWidgetVisibility(ALL_WIDGETS_VISIBLE);
     mockDashboard = {
       stats: { totalRepos: 10, totalStars: 50000, weeklyStars: 1200, activeAlerts: 2 },
       recentActivity: [],
@@ -158,8 +219,15 @@ describe("Dashboard", () => {
       },
       earlySignals: [],
       signalSummary: null,
+      movers: EMPTY_MOVERS,
+      attentionItems: [],
+      hasAlertRules: true,
+      releasesChecked: true,
       acknowledgeSignal: mockAcknowledgeSignal,
       isLoading: false,
+      // 固定在遙遠的過去：formatCompactRelativeTime 對它的輸出（locale 日期字串）
+      // 不會跟任何一條既有測試斷言的相對時間文字（"Just now"／"2h"／"3d"……）撞在一起
+      dataUpdatedAt: new Date("2024-01-20T12:00:00Z").getTime(),
       error: null,
       refresh: mockRefresh,
     };
@@ -382,5 +450,60 @@ describe("Dashboard", () => {
     mockDashboard.stats.weeklyStars = -500;
     render(<Dashboard />);
     expect(screen.getByText("-500")).toBeInTheDocument();
+  });
+
+  describe("三段排列", () => {
+    // 排序測的是「使用者第一次打開」這個預設狀態，不是被使用者調整過的畫面，
+    // 所以要蓋掉外層 beforeEach 為了相容舊測試而塞回去的「全部打開」。
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it("段一在段二之前，段二在段三之前", () => {
+      // 順序就是設計本身：依「漏看的代價」由高到低。
+      // 原題目只查 order[0] 與 order[order.length-1]：只要頭尾對，中間即使
+      // 整段消失（例如 MoversPanel 整個被刪掉）也測不出來，這裡改成比對
+      // 完整序列，任何一段被拿掉、重排、或多插一段都會讓陣列對不上。
+      render(<Dashboard />, { wrapper: createWrapper() });
+
+      const titleEl = screen.getByTestId("page-title");
+      const page = titleEl.closest(".dashboard-page");
+      if (!page) throw new Error("找不到 .dashboard-page");
+
+      const order = [...page.querySelectorAll("[data-testid]")]
+        .map((el) => el.getAttribute("data-testid"))
+        .filter(
+          (id): id is string =>
+            id !== null &&
+            ["attention-bar", "movers-title", "movers-empty", "weekly-releases"].includes(id)
+        );
+
+      expect(order).toEqual(["attention-bar", "movers-empty", "weekly-releases"]);
+    });
+
+    it("SignalSpotlight 排在排行之前——持久層在上、即時層在下", () => {
+      // 原本這條只斷言 movers-empty 存在，不管兩者誰先誰後都會通過（見 task-8-brief
+      // 的已知缺陷記錄）。改成先讓 SignalSpotlight 真的有訊號可顯示，
+      // 再比較它與 MoversPanel 在 DOM 中的相對位置。
+      mockDashboard.signalSummary = makeSummary();
+      mockDashboard.earlySignals = [makeSignal()];
+      render(<Dashboard />, { wrapper: createWrapper() });
+
+      const titleEl = screen.getByTestId("page-title");
+      const page = titleEl.closest(".dashboard-page");
+      if (!page) throw new Error("找不到 .dashboard-page");
+
+      const order = [
+        ...page.querySelectorAll(
+          '.signal-spotlight, [data-testid="movers-title"], [data-testid="movers-empty"]'
+        ),
+      ].map((el) =>
+        el.classList.contains("signal-spotlight")
+          ? "signal-spotlight"
+          : el.getAttribute("data-testid")
+      );
+
+      expect(order).toEqual(["signal-spotlight", "movers-empty"]);
+    });
   });
 });
