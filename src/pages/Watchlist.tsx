@@ -17,6 +17,7 @@ import {
   useIsRefreshing,
   useIsRecalculating,
   useIsInitializing,
+  findEmptySortKeys,
 } from "../hooks/selectors/useWatchlistSelectors";
 import { useCategoryOperations } from "../hooks/useCategoryOperations";
 import { useCategoryTree } from "../hooks/useCategoryTree";
@@ -47,6 +48,8 @@ export function Watchlist() {
   // 排序 + 檢視模式 hooks
   const { sortKey, sortDirection, setSort } = useWatchlistSort();
   const { viewMode, setViewMode } = useViewMode(STORAGE_KEYS.WATCHLIST_VIEW_MODE);
+
+  const emptySortKeys = useMemo(() => findEmptySortKeys(state.repos), [state.repos]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -189,6 +192,7 @@ export function Watchlist() {
             searchQuery={state.filters.searchQuery}
             onSearchChange={actions.setSearchQuery}
             sortKey={sortKey}
+            emptySortKeys={emptySortKeys}
             sortDirection={sortDirection}
             onSortChange={setSort}
             viewMode={viewMode}

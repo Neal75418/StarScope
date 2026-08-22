@@ -1,15 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { RepoCardStats } from "../RepoCardStats";
 import type { RepoWithSignals } from "../../../api/client";
-
-vi.mock("../../TrendArrow", () => ({
-  TrendArrow: ({ trend }: { trend: number | null }) => (
-    <span data-testid="trend-arrow">
-      {trend === null ? "—" : trend > 0 ? "↑" : trend < 0 ? "↓" : "→"}
-    </span>
-  ),
-}));
 
 function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
   return {
@@ -56,9 +48,14 @@ describe("RepoCardStats", () => {
     expect(screen.getByText("71.4/day")).toBeInTheDocument();
   });
 
-  it("renders trend arrow", () => {
-    render(<RepoCardStats repo={makeRepo({ trend: 1 })} />);
-    expect(screen.getByTestId("trend-arrow")).toHaveTextContent("↑");
+  it("以期初星數算相對變化，不是用現在的星數", () => {
+    // deepseek-harness 的真實數字：113,968 → 182,687，七天 +68,719。
+    // 期初當分母是 +60.3%，拿現在的 182,687 當分母只有 +37.6%——
+    // 兩個基期差得夠遠，這條才分辨得出用錯分母
+    render(<RepoCardStats repo={makeRepo({ stars: 182687, stars_delta_7d: 68719 })} />);
+
+    expect(screen.getByText("+60.3%")).toBeInTheDocument();
+    expect(screen.queryByText("+37.6%")).not.toBeInTheDocument();
   });
 
   it("displays dash for null values", () => {
@@ -69,5 +66,35 @@ describe("RepoCardStats", () => {
     );
     const dashes = screen.getAllByText("—");
     expect(dashes.length).toBe(4);
+  });
+
+  // 以下三條斷言 class 而不是實際顏色：jsdom 不處理 CSS，取不到 computed color。
+  // class 對應到的顏色是在 Chrome 裡量過的（正 #3fb950、負 #f85149、中性灰）。
+  describe("增量的顏色由值決定", () => {
+    it("負成長不能是綠色——pathwaycom/pathway 掉了 58 顆星卻顯示綠字", () => {
+      render(<RepoCardStats repo={makeRepo({ stars: 62458, stars_delta_7d: -58 })} />);
+
+      expect(screen.getByText("-58")).toHaveClass("delta-negative");
+    });
+
+    it("正成長是正向色", () => {
+      render(<RepoCardStats repo={makeRepo()} />);
+
+      expect(screen.getByText("+500")).toHaveClass("delta-positive");
+    });
+
+    it("沒有資料不能被畫成正成長——「—」原本跟「+500」同一個綠", () => {
+      render(<RepoCardStats repo={makeRepo({ stars_delta_30d: null })} />);
+
+      const dash = screen.getAllByText("—")[0];
+      expect(dash).toHaveClass("delta-neutral");
+      expect(dash).not.toHaveClass("delta-positive");
+    });
+
+    it("零沒有方向，用中性色而不是正向色", () => {
+      render(<RepoCardStats repo={makeRepo({ stars_delta_7d: 0 })} />);
+
+      expect(screen.getByText("0")).toHaveClass("delta-neutral");
+    });
   });
 });

@@ -7,6 +7,7 @@ import { useWatchlistState } from "../../contexts/WatchlistContext";
 import type { RepoWithSignals } from "../../api/client";
 import { normalizeRepoName } from "../../utils/format";
 import type { WatchlistSortKey, SortDirection } from "../useWatchlistSort";
+import { relativeDelta } from "../../utils/relativeDelta";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
@@ -73,6 +74,31 @@ export function useSortedFilteredRepos(
   }, [filtered, sortKey, sortDirection]);
 }
 
+const ALL_SORT_KEYS: WatchlistSortKey[] = [
+  "stars",
+  "velocity",
+  "stars_delta_7d",
+  "relative_7d",
+  "acceleration",
+  "full_name",
+  "added_at",
+];
+
+/**
+ * 找出每一筆都沒有值的排序鍵。
+ *
+ * 按這種鍵排序，順序一個都不會動（null 全部排到最後），但按鈕會亮起方向箭頭，
+ * 看起來像生效了。acceleration 需要 14 天前的快照、30 天增量需要 30 天前的——
+ * 新裝的資料庫在累積夠歷史之前這些鍵是空的，補齊後這個清單會自己變空。
+ *
+ * 刻意共用 getSortValue：換一份寫法的話，「排序看到的值」和「判斷有沒有值」
+ * 會各自漂移，然後某個鍵明明排得動卻被停用。
+ */
+export function findEmptySortKeys(repos: RepoWithSignals[]): WatchlistSortKey[] {
+  if (repos.length === 0) return [];
+  return ALL_SORT_KEYS.filter((key) => repos.every((repo) => getSortValue(repo, key) === null));
+}
+
 function getSortValue(repo: RepoWithSignals, key: WatchlistSortKey): string | number | null {
   switch (key) {
     case "stars":
@@ -81,6 +107,10 @@ function getSortValue(repo: RepoWithSignals, key: WatchlistSortKey): string | nu
       return repo.velocity;
     case "stars_delta_7d":
       return repo.stars_delta_7d;
+    // 這份清單從 1K 到 400K 星都有，絕對增量排出來永遠是大專案在前面。
+    // 期初為零的會回 null，照既有規則排到最後
+    case "relative_7d":
+      return relativeDelta(repo.stars, repo.stars_delta_7d);
     case "acceleration":
       return repo.acceleration;
     case "full_name":

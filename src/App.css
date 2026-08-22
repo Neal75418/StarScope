@@ -1191,8 +1191,19 @@ body {
   min-width: 70px;
 }
 
-.stat-value.delta {
+/* 增量的顏色由值決定。原本是無條件的 .delta 一律塗成成功色，
+   於是「-58」和「沒有資料的 —」都是綠的 */
+.stat-value.delta-positive {
   color: var(--success-fg);
+}
+
+.stat-value.delta-negative {
+  color: var(--danger-fg);
+}
+
+/* null 與 0 都不帶方向。兩者的區別由文字表達（"—" vs "0"），不靠顏色 */
+.stat-value.delta-neutral {
+  color: var(--fg-muted);
 }
 
 .repo-stats .stat-value {

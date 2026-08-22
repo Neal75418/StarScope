@@ -32,6 +32,8 @@ interface ToolbarProps {
   onExitSelectionMode?: () => void;
   onSelectAll?: () => void;
   selectedCount?: number;
+  /** 目前每一筆都沒有值的排序鍵。按了不會有任何變化，所以停用 */
+  emptySortKeys?: WatchlistSortKey[];
 }
 
 const SORT_OPTIONS: WatchlistSortKey[] = [
@@ -39,6 +41,7 @@ const SORT_OPTIONS: WatchlistSortKey[] = [
   "stars",
   "velocity",
   "stars_delta_7d",
+  "relative_7d",
   "acceleration",
   "full_name",
 ];
@@ -65,6 +68,7 @@ export function Toolbar({
   onExitSelectionMode,
   onSelectAll,
   selectedCount,
+  emptySortKeys,
 }: ToolbarProps) {
   const { t } = useI18n();
   const [localQuery, setLocalQuery] = useState(searchQuery);
@@ -192,30 +196,37 @@ export function Toolbar({
       <div className="toolbar-sort-row" data-testid="sort-tabs">
         <span className="sort-label">{t.watchlist.sort.label}</span>
         <div className="sort-tabs" role="toolbar" aria-label={t.watchlist.sort.label}>
-          {SORT_OPTIONS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`sort-tab${sortKey === key ? " active" : ""}`}
-              onClick={() => onSortChange(key)}
-              data-testid={`sort-tab-${key}`}
-              aria-pressed={sortKey === key}
-            >
-              {sortLabels[key]}
-              {sortKey === key && (
-                <span
-                  className="sort-direction"
-                  aria-label={
-                    sortDirection === "asc"
-                      ? t.watchlist.sort.ascending
-                      : t.watchlist.sort.descending
-                  }
-                >
-                  {sortDirection === "asc" ? " ↑" : " ↓"}
-                </span>
-              )}
-            </button>
-          ))}
+          {SORT_OPTIONS.map((key) => {
+            // 每一筆都沒值的鍵排出來順序不會變，但按鈕會亮起方向箭頭，
+            // 看起來像生效了。停用並說明原因，資料補齊後會自己恢復
+            const empty = emptySortKeys?.includes(key) ?? false;
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`sort-tab${sortKey === key ? " active" : ""}`}
+                onClick={() => onSortChange(key)}
+                data-testid={`sort-tab-${key}`}
+                aria-pressed={sortKey === key}
+                disabled={empty}
+                title={empty ? sortLabels.notEnoughData : undefined}
+              >
+                {sortLabels[key]}
+                {sortKey === key && (
+                  <span
+                    className="sort-direction"
+                    aria-label={
+                      sortDirection === "asc"
+                        ? t.watchlist.sort.ascending
+                        : t.watchlist.sort.descending
+                    }
+                  >
+                    {sortDirection === "asc" ? " ↑" : " ↓"}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@
  * 一個 20 萬星的 repo 一天多 100 顆是死水，5 千星的 repo 一天多 100 顆是爆發。
  */
 import type { RepoWithSignals } from "../api/types";
+import { relativeDelta } from "./relativeDelta";
 
 export type MoverWindow = 1 | 7;
 
@@ -64,10 +65,9 @@ export function computeMovers(repos: RepoWithSignals[]): MoversResult {
     if (delta == null) continue;
     totalDelta += delta;
 
-    // 基期為 0 的排除：從 0 漲到 5 是無限大成長，會永遠霸佔第一名
-    const base = (repo.stars ?? 0) - delta;
-    if (base <= 0) continue;
-    movers.push({ repo, delta, relative: delta / base });
+    const relative = relativeDelta(repo.stars, delta);
+    if (relative === null) continue;
+    movers.push({ repo, delta, relative });
   }
 
   // 母體含零與負值。只取正成長子集會讓門檻隨「今天有幾個在漲」跳動，

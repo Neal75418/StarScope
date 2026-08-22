@@ -88,7 +88,10 @@ vi.mock("../../contexts/WatchlistContext", () => ({
 }));
 
 // noinspection JSUnusedGlobalSymbols — mock exports consumed by Watchlist component
-vi.mock("../../hooks/selectors/useWatchlistSelectors", () => ({
+// 只換掉 hook，findEmptySortKeys 保留真實實作——換成 stub 的話
+// 「哪些排序鍵該停用」在這個檔裡就永遠是假的，測不出接線有沒有斷
+vi.mock("../../hooks/selectors/useWatchlistSelectors", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../hooks/selectors/useWatchlistSelectors")>()),
   useFilteredRepos: () => mockSelectors.displayedRepos,
   useSortedFilteredRepos: () => mockSelectors.displayedRepos,
   useLoadingRepo: () => mockSelectors.loadingRepoId,

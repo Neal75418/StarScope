@@ -135,8 +135,11 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               type="button"
               className={`context-badge context-badge-${badge.type} ${badge.is_recent ? "recent" : ""} ${repoId ? "expandable" : ""}`}
               style={{ "--badge-color": config.color } as CSSProperties}
-              title={`${tooltip}: ${badge.label}`}
-              aria-label={`${config.label}: ${badge.label}`}
+              // badge.label 由後端組成，本身已含前綴（例如 "HN: 528 pts"）。
+              // 再前綴一次會得到 "Hacker News 討論分數: HN: 528 pts"，
+              // 而 aria-label 會變成 "HN: HN: 528 pts"——螢幕閱讀器唸兩遍
+              title={`${tooltip}（${badge.label}）`}
+              aria-label={badge.label}
               onClick={repoId ? toggleExpand : undefined}
             >
               <span className="badge-icon">{config.icon}</span>

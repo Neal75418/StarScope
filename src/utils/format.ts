@@ -117,6 +117,22 @@ export function trendClass(value: number | null | undefined): "trend-up" | "tren
 /**
  * 格式化增長速度（每日星數）。
  */
+/**
+ * 格式化相對變化（0.6 -> "+60.3%"）。
+ *
+ * 小數位數取到「非零的值不會顯示成零」為止：eugenp/tutorials 這週 +1 顆星，
+ * 期初 37,324，相對變化是 0.003%——固定兩位小數會印成 "+0.00%"，
+ * 而旁邊的絕對值欄位明明寫著 +1。
+ */
+export function formatRelativeDelta(ratio: number | null): string {
+  if (ratio === null) return "—";
+  const pct = ratio * 100;
+  let digits = Math.abs(pct) >= 10 ? 1 : 2;
+  while (digits < 6 && pct !== 0 && Number(pct.toFixed(digits)) === 0) digits++;
+  // 正號只給非零：零沒有方向，「+0%」是誤導（與 formatDelta 同一條規則）
+  return (pct > 0 ? "+" : "") + pct.toFixed(digits) + "%";
+}
+
 export function formatVelocity(num: number | null): string {
   if (num === null) return "—";
   return num.toFixed(1) + "/day";

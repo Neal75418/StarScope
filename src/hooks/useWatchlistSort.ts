@@ -9,6 +9,8 @@ export type WatchlistSortKey =
   | "stars"
   | "velocity"
   | "stars_delta_7d"
+  // 衍生欄位，不是 repo 上的屬性：星數增量除以期初星數
+  | "relative_7d"
   | "acceleration"
   | "full_name"
   | "added_at";
