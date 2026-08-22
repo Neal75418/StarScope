@@ -1302,8 +1302,18 @@ body {
   transition: all 0.15s ease;
 }
 
-.sort-tab:hover {
+/* :hover 在 disabled 的按鈕上仍然會觸發，不排除的話滑過去會變亮，
+   等於再說一次「可以點」 */
+.sort-tab:hover:not(:disabled) {
   color: var(--fg-default);
+}
+
+/* 停用的排序頁籤原本跟可用的計算樣式完全一樣——同一個顏色、同樣的
+   cursor: pointer。測試斷言 toBeDisabled() 會過，但 jsdom 不處理 CSS，
+   看不出「這個狀態沒有任何外觀」。沿用 .btn:disabled 的表現方式 */
+.sort-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .sort-tab.active {
