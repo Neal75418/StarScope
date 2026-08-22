@@ -108,6 +108,22 @@ describe("computeMovers 的門檻與取樣", () => {
     expect(computeMovers(repos).threshold).toBeCloseTo(median * 10, 6);
   });
 
+  it("母體為偶數時取中間兩個的平均——那是實際上跑的那條路", () => {
+    // 追蹤 94 個 repo 時母體是偶數，所以正式環境每次都走 median() 的平均分支，
+    // 而先前的測試資料全是 3 個元素（奇數），那條路從來沒被斷言過。
+    // 畫出雜訊線的門檻就是這裡算出來的。
+    const repos = [
+      repo({ id: 1, stars: 1010, stars_delta_1d: 10 }), // base=1000, relative=0.01
+      repo({ id: 2, stars: 1020, stars_delta_1d: 20 }), // base=1000, relative=0.02
+      repo({ id: 3, stars: 1040, stars_delta_1d: 40 }), // base=1000, relative=0.04
+      repo({ id: 4, stars: 1080, stars_delta_1d: 80 }), // base=1000, relative=0.08
+    ];
+    // 排序後 [0.01, 0.02, 0.04, 0.08]，中間兩個是 0.02 與 0.04。
+    // 平均 0.03 —— 刻意讓它不等於 sorted[mid]（0.04）也不等於 sorted[mid-1]（0.02），
+    // 拿掉平均改回任一端都會被抓到。
+    expect(computeMovers(repos).threshold).toBeCloseTo(0.03 * 10, 6);
+  });
+
   it("最多五個，只取正成長，按相對值排序", () => {
     // 插入順序和相對值排序必須不同，這樣未排序的實作會失敗
     const repos = [
