@@ -49,6 +49,7 @@ const defaultResponse = {
   repos: [makeTrendingRepo()],
   total: 1,
   sort_by: "velocity",
+  empty_sorts: [],
 };
 
 function createWrapper() {
@@ -199,6 +200,7 @@ describe("useTrends", () => {
       ],
       total: 4,
       sort_by: "velocity",
+      empty_sorts: [],
     });
 
     // Should be deduplicated and sorted

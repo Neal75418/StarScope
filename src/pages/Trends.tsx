@@ -107,6 +107,7 @@ export function Trends() {
 
   const {
     trends,
+    emptySorts,
     loading,
     error,
     sortBy,
@@ -325,17 +326,26 @@ export function Trends() {
           role="group"
           aria-label={t.trends.filters.sortLabel}
         >
-          {SORT_KEYS.map((key) => (
-            <button
-              key={key}
-              data-testid={`sort-${key}`}
-              className={`sort-tab ${sortBy === key ? "active" : ""}`}
-              onClick={() => setSortBy(key)}
-              aria-pressed={sortBy === key}
-            >
-              {sortLabels[key]}
-            </button>
-          ))}
+          {SORT_KEYS.map((key) => {
+            // 整個 signals 表都沒有這個指標時停用。按下去只會是空榜單，
+            // 而空狀態那句話叫人「放寬語言或最低星數」——對這個情境是錯的建議，
+            // 真正的原因是歷史資料還不夠（加速度要 14 天、30 天增量要 30 天）。
+            // 由後端判斷：前端只拿得到目前排序下的前 N 筆，看不到全貌
+            const empty = emptySorts.includes(key);
+            return (
+              <button
+                key={key}
+                data-testid={`sort-${key}`}
+                className={`sort-tab ${sortBy === key ? "active" : ""}`}
+                onClick={() => setSortBy(key)}
+                aria-pressed={sortBy === key}
+                disabled={empty}
+                title={empty ? t.trends.filters.notEnoughData : undefined}
+              >
+                {sortLabels[key]}
+              </button>
+            );
+          })}
         </div>
 
         <div className="trends-filters">

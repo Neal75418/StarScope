@@ -20,6 +20,7 @@ let mockWatchlistLoading: { type: string } = { type: "idle" };
 
 let mockTrendsReturn: {
   trends: TrendingRepo[];
+  emptySorts: string[];
   loading: boolean;
   error: string | null;
   sortBy: string;
@@ -166,6 +167,7 @@ describe("Trends", () => {
     });
     mockTrendsReturn = {
       trends: [],
+      emptySorts: [],
       loading: false,
       error: null,
       sortBy: "velocity",
@@ -245,6 +247,35 @@ describe("Trends", () => {
     renderTrends();
     expect(screen.getByTestId("trends-selection-enter")).toBeDisabled();
     expect(screen.getByTestId("trends-export-btn")).toBeDisabled();
+  });
+
+  // 整個 signals 表都沒有這個指標時，按下去只會是空榜單，而空狀態那句話
+  // 叫人「放寬語言或最低星數」——對這個情境是錯的建議
+  it("停用整份資料都沒有的排序鍵，並說明原因", () => {
+    mockTrendsReturn.emptySorts = ["stars_delta_30d", "acceleration"];
+    renderTrends();
+
+    const dead = screen.getByTestId("sort-stars_delta_30d");
+    expect(dead).toBeDisabled();
+    expect(dead).toHaveAttribute("title");
+    expect(screen.getByTestId("sort-acceleration")).toBeDisabled();
+  });
+
+  it("有資料的排序鍵維持可用", () => {
+    mockTrendsReturn.emptySorts = ["stars_delta_30d"];
+    renderTrends();
+
+    expect(screen.getByTestId("sort-velocity")).toBeEnabled();
+    expect(screen.getByTestId("sort-stars_delta_7d")).toBeEnabled();
+  });
+
+  it("後端沒回報空鍵時不停用任何東西——那是「還沒載入」不是「這個鍵沒用」", () => {
+    mockTrendsReturn.emptySorts = [];
+    renderTrends();
+
+    for (const key of ["velocity", "stars_delta_7d", "stars_delta_30d", "acceleration"]) {
+      expect(screen.getByTestId(`sort-${key}`)).toBeEnabled();
+    }
   });
 
   it("calls setSortBy when sort tab is clicked", async () => {

@@ -12,7 +12,9 @@ from datetime import date, datetime
 
 import pytest
 
-from db.models import Repo, RepoSnapshot, SimilarRepo
+from constants import SignalType
+from db.models import Repo, RepoSnapshot, Signal, SimilarRepo
+from utils.time import utc_now
 
 
 @pytest.fixture
@@ -29,6 +31,15 @@ def archived_and_live(test_db):
     test_db.add_all([
         RepoSnapshot(repo_id=live.id, stars=100, forks=1, snapshot_date=today),
         RepoSnapshot(repo_id=gone.id, stars=120, forks=2, snapshot_date=today)])
+    # /api/trends 只排有該指標訊號的 repo（見 query_trending_repos）。兩個都給
+    # velocity，否則下面的滲漏掃描會拿到空榜單，「未封存的有回來」那條守衛就會
+    # 因為錯誤的理由失敗——而封存的那個也必須有訊號，否則是靠「沒訊號」而不是
+    # 靠「已封存」被擋掉，等於沒測到東西
+    test_db.add_all([
+        Signal(repo_id=live.id, signal_type=SignalType.VELOCITY,
+               value=5.0, calculated_at=utc_now()),
+        Signal(repo_id=gone.id, signal_type=SignalType.VELOCITY,
+               value=9.0, calculated_at=utc_now())])
     test_db.commit()
     return live, gone
 

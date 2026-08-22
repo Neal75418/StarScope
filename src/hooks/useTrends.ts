@@ -20,6 +20,7 @@ export type SortOption =
   | "issues_delta_7d";
 
 const EMPTY_TRENDS: TrendingRepo[] = [];
+const EMPTY_SORTS: string[] = [];
 
 interface UseTrendsOptions {
   refetchInterval?: number | false;
@@ -48,6 +49,9 @@ export function useTrends(options?: UseTrendsOptions) {
 
   const trends = data?.repos ?? EMPTY_TRENDS;
 
+  // 由後端算：它看得到整個 signals 表，而這裡只拿得到目前排序下的前 N 筆
+  const emptySorts = data?.empty_sorts ?? EMPTY_SORTS;
+
   // 從目前結果動態提取語言選項
   const availableLanguages = useMemo(() => {
     const langs = new Set<string>();
@@ -59,6 +63,7 @@ export function useTrends(options?: UseTrendsOptions) {
 
   return {
     trends,
+    emptySorts,
     loading: isLoading,
     error: error instanceof Error ? error.message : error ? String(error) : null,
     sortBy,

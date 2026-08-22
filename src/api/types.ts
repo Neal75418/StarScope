@@ -329,6 +329,11 @@ export interface TrendsResponse {
   repos: TrendingRepo[];
   total: number;
   sort_by: string;
+  /**
+   * 目前完全沒有訊號的排序鍵。按下去只會得到空榜單，而空狀態的文案講的是
+   * 「放寬語言或最低星數」，對這個情境是錯的建議——真正的原因是歷史資料還不夠。
+   */
+  empty_sorts: string[];
 }
 
 // GitHub 驗證型別

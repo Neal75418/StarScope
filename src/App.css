@@ -1613,13 +1613,22 @@ body {
   border-bottom: 1px solid var(--border-default);
 }
 
+/* 不用 text-transform: uppercase：中文表頭不受影響，只有含拉丁字母的
+   「Fork 7天Δ」「Issue 7天Δ」會被大寫成 FORK／ISSUE，變成一排表頭裡
+   只有那兩欄長得不一樣 */
 .trends-table th {
   font-size: 12px;
   font-weight: 600;
   color: var(--fg-muted);
-  text-transform: uppercase;
   letter-spacing: 0.05em;
   background-color: var(--bg-subtle);
+  white-space: nowrap;
+}
+
+/* B1：排名欄放展開箭頭(14px+4px margin)與徽章(28px)共 46px，但儲存格扣掉
+   左右各 16px 的 padding 只剩 28px 可用，箭頭會被擠到徽章上面一行，
+   看起來像每個名次上方有個雜點 */
+.trends-table td:first-child {
   white-space: nowrap;
 }
 

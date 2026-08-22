@@ -23,6 +23,19 @@ TREND_SORT_SIGNAL_MAP: dict[str, str] = {
 }
 
 
+def find_empty_trend_sorts(db: Session) -> list[str]:
+    """
+    找出目前完全沒有訊號的排序鍵。
+
+    這些鍵按下去只會得到空榜單，而前端的空狀態文案講的是「放寬語言或最低星數」
+    ——對這個情境是錯的建議，真正的原因是歷史資料還不夠（acceleration 要 14 天
+    前的快照、30 天增量要 30 天前的）。前端據此停用對應頁籤並說明原因，
+    資料補齊後這個清單會自己變空。
+    """
+    present = {row[0] for row in db.query(Signal.signal_type).distinct()}
+    return [key for key, signal_type in TREND_SORT_SIGNAL_MAP.items() if signal_type not in present]
+
+
 def query_trending_repos(
     db: Session,
     sort_by: str,
@@ -37,9 +50,14 @@ def query_trending_repos(
     sort_signal_type = TREND_SORT_SIGNAL_MAP.get(sort_by, SignalType.VELOCITY)
     sort_signal = aliased(Signal)
 
+    # INNER JOIN 而非 OUTER：沒有這個指標的 repo 不該出現在「依這個指標排序」的
+    # 榜單上。原本是 OUTER JOIN 配 coalesce(value, 0)，把「沒資料」當成「零成長」，
+    # 於是 2026-08-22 的 30 天榜第 5 名是七天只漲 62 顆星的專案，而漲了 2,033 的
+    # 不在前六——因為 signals 表裡根本沒有半筆 stars_delta_30d，全部並列 0，
+    # 順序由資料庫決定，看起來卻像一份真的排行。
     query = (
         db.query(Repo)
-        .outerjoin(
+        .join(
             sort_signal,
             (Repo.id == sort_signal.repo_id) &
             (sort_signal.signal_type == sort_signal_type)
@@ -58,9 +76,11 @@ def query_trending_repos(
             ).exists()
         )
 
+    # INNER JOIN 之後 value 必然存在（Signal.value 是 nullable=False），
+    # 不需要 coalesce
     return (
         query
-        .order_by(desc(func.coalesce(sort_signal.value, 0)))
+        .order_by(desc(sort_signal.value))
         .limit(limit)
         .all()
     )
