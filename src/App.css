@@ -2730,6 +2730,15 @@ body {
   color: var(--fg-muted);
 }
 
+/* 這個 textarea 明確設了 color 與 background-color，蓋掉了瀏覽器對 :disabled
+   的預設灰化——匯入進行中時它看起來跟可以打字的時候一模一樣（實測前景、背景、
+   邊框三者計算值完全相同）。同一批檢查裡的 .input／.modal-close／file input
+   沒有這個問題：它們沒覆寫顏色，預設仍然生效 */
+.import-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .import-error {
   padding: 10px 12px;
   font-size: 13px;
