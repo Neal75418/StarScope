@@ -387,3 +387,46 @@ async def test_no_interests_still_returns_zero_without_raising(test_db):
             raise AssertionError("沒有興趣時不應打 GitHub")
 
     assert await generate_feed(test_db, NeverCalledGitHub(), TODAY) == 0
+
+
+class TestCandidateWindowMustNotTruncate:
+    """
+    候選窗口不能大到讓單一興趣的結果被 PER_QUERY_RESULTS 截斷。
+
+    2026-08-23 的實例：窗口是 60 天時，feed 從第八天起枯竭
+    （20 / 20 / 20 / 19 / 16 / 7 / 4 筆，單調下降）。原因不是 GitHub 沒東西
+    ——當時 7 個興趣在 60 天窗口內合計有 3033 個符合條件的 repo，候選池卻只
+    累積 167 個 ≈ 7 興趣 × 前 30 名去重。
+
+    每次查詢都取 `sort=stars desc` 的前 30 名，而星數排名一天之內幾乎不變，
+    所以回來的是同一批、全部已 seen。窗口縮到 7 天之後每個興趣的總數都
+    小於 30（實測 claude-code 22、ai-agents 26、mcp 9），第一頁就是全部。
+    """
+
+    def test_window_is_small_enough_that_page_one_is_the_whole_set(self):
+        from services.feed_generator import CANDIDATE_WINDOW_DAYS, PER_QUERY_RESULTS
+
+        # 這條不是驗某個數字，是釘住「窗口」與「每次查詢筆數」的關係。
+        # 2026-08-23 實測各興趣在 7 天窗口下的供給量最高是 26 < 30；
+        # 14 天會跳到 105，遠超過上限，截斷與凍結會一起回來。
+        assert CANDIDATE_WINDOW_DAYS <= 7, (
+            f"窗口放大到 {CANDIDATE_WINDOW_DAYS} 天之前，先實測各興趣的供給量是否仍"
+            f"小於 PER_QUERY_RESULTS={PER_QUERY_RESULTS}；超過就會有候選被藏在第二頁，"
+            "而第一頁的排名穩定不變，feed 會再次枯竭"
+        )
+
+    @pytest.mark.asyncio
+    async def test_query_asks_github_for_the_window(self, test_db):
+        """窗口真的有進到送給 GitHub 的查詢字串裡——改了常數卻沒生效就白改了。"""
+        from datetime import timedelta
+        from services.feed_generator import CANDIDATE_WINDOW_DAYS
+
+        test_db.add(Interest(term="ai", kind=InterestKind.TOPIC, weight=2))
+        test_db.commit()
+        gh = FakeGitHub({"ai": []})
+
+        await generate_feed(test_db, gh, TODAY, now=NOW)
+
+        expected = (NOW - timedelta(days=CANDIDATE_WINDOW_DAYS)).date().isoformat()
+        assert gh.calls, "沒有對 GitHub 發出任何查詢"
+        assert f"created:>{expected}" in gh.calls[0]["query"]

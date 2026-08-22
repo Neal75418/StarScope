@@ -26,7 +26,32 @@ logger = logging.getLogger(__name__)
 
 FEED_SIZE = 20
 MAX_PER_TERM = math.ceil(FEED_SIZE / 3)  # 同一 term 來源的多樣性上限（=7）
-CANDIDATE_WINDOW_DAYS = 60   # 只搜此天數內建立的 repo
+
+# 只搜此天數內建立的 repo。
+#
+# 曾經是 60，導致 feed 在第八天就枯竭：2026-08-15 起每天 20 / 20 / 20 / 19 /
+# 16 / 7 / 4 筆，單調下降。原因不是 GitHub 沒東西——當時 7 個興趣在 60 天窗口
+# 內合計有 3033 個符合條件的 repo，而候選池從頭到尾只累積 167 個。
+#
+# 真正的瓶頸是「每個興趣只取 sort=stars desc 的前 PER_QUERY_RESULTS 名」：
+# 星數排名一天之內幾乎不變，所以每次查詢回來的是同一批，全部已 seen 而被濾掉。
+#
+# 縮到 7 天同時解掉兩件事：
+#   1. **不再被截斷**——實測 7 天窗口下每個興趣的總數都 < PER_QUERY_RESULTS
+#      （claude-code 22、ai-agents 26、mcp 9），第一頁就是全部，沒有候選被藏起來。
+#      14 天就會回到 87 / 105 / 51，截斷與凍結一起回來。
+#   2. **抓取端與評分端同向**——score_candidate 的 momentum 是
+#      log1p(stars / age_days)，偏好年輕的 repo；而 sort=stars desc 偏好星數總量高的
+#      （通常也就是比較老的）。窗口縮短後每個候選的 age_days 都很小，
+#      抓回來的正好是評分器想要的那一層。
+#
+# ⚠️ 調大這個值之前先確認供給量仍 < PER_QUERY_RESULTS，否則截斷與凍結會一起回來。
+#    test_feed_generator 有一條測試釘住這個關係。
+#
+# 註：GitHub 的 search API **不支援 sort=created**（無效值會被靜默忽略、
+#    退回 best match，實測 sort=created / sort=stars / 無 sort 回傳完全相同），
+#    所以「改用建立時間排序」不是可行的替代方案。
+CANDIDATE_WINDOW_DAYS = 7
 MIN_STARS = 20               # 過濾雜訊下限
 PER_QUERY_RESULTS = 30
 
