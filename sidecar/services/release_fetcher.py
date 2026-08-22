@@ -9,6 +9,7 @@
 
 import asyncio
 import logging
+import re
 from datetime import datetime
 from typing import Any, NamedTuple
 
@@ -54,6 +55,16 @@ def _parse_published_at(value: str | None) -> datetime | None:
         return None
 
 
+def _same_version(a: str, b: str) -> bool:
+    """去掉大小寫與非英數字元後是否相同。
+
+    tag 與 release 名稱常常是同一個版本號的兩種寫法：jax-v0.11.1 / JAX v0.11.1、
+    jsoup-1.23.1 / jsoup 1.23.1。字面比對看不出來，接起來就變成重複的標題。
+    """
+    norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())
+    return bool(norm(a)) and norm(a) == norm(b)
+
+
 def _build_title(release: dict[str, Any]) -> str:
     """組出一行看得懂的版本標題。
 
@@ -70,7 +81,14 @@ def _build_title(release: dict[str, Any]) -> str:
     name = (release.get("name") or "").strip()
     if not name:
         return tag or "release"
-    if not tag or tag in name:
+    if not tag:
+        return name
+    # 正規化後再比：實測 jax-v0.11.1 與「JAX v0.11.1」是同一個版本號，
+    # 但區分大小寫的子字串比對看不出來，於是接成「jax-v0.11.1 JAX v0.11.1」。
+    # 81 個版本裡有 5 個是這種寫法。相同時留 name，它是給人看的那一個。
+    if _same_version(tag, name):
+        return name
+    if tag in name:
         return name
     if name in tag:
         return tag

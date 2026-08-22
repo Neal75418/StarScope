@@ -125,6 +125,11 @@ class TestStoreRelease:
         # 實際遇到的：tag 帶 v 前綴、name 沒有，接起來會變成「v8.0.0 8.0.0」
         ("v8.0.0", "8.0.0", "v8.0.0"),
         ("v1.9.0", "v1.9.0 - Command Code & safer specs", "v1.9.0 - Command Code & safer specs"),
+        # 同一個版本號的兩種寫法。區分大小寫的子字串比對看不出來，會接成
+        # 「jax-v0.11.1 JAX v0.11.1」；81 個版本裡有 5 個是這種
+        ("jax-v0.11.1", "JAX v0.11.1", "JAX v0.11.1"),
+        ("jsoup-1.23.1", "jsoup 1.23.1", "jsoup 1.23.1"),
+        ("desktop/v1.12.0", "Desktop v1.12.0", "Desktop v1.12.0"),
         ("release-29.0.2", "Manticore Search 29.0.2", "release-29.0.2 Manticore Search 29.0.2"),
         ("autogpt-beta-v0.7.1", "Release `autogpt-beta-v0.7.1`", "Release `autogpt-beta-v0.7.1`"),
     ])

@@ -182,3 +182,46 @@ class TestExistingSignalsGetCleanedUp:
 
         assert stats["deleted_as_irrelevant"] == 0
         assert test_db.query(ContextSignal).count() == 1
+
+
+class TestALinkToSomeoneElsesRepoIsDisqualifying:
+    """標題比對永遠分不出「衍生專案」與「本尊」，URL 分得出來。
+
+    實測 1150 筆訊號裡有 164 筆（14%）的連結指向 GitHub 上別的 repo——多半是
+    「受 X 啟發做的 Y」。那些故事講的是別人的東西，不該掛在被致敬的那個 repo 上。
+    """
+
+    @pytest.mark.parametrize("owner,name,title,url", [
+        # 都是實際存進資料庫的
+        ("doocs", "leetcode", "Show HN: Openleetcode – Local LeetCode runner where tests live in the repo",
+         f"{GH}/therepanic/openleetcode"),
+        ("garrytan", "gstack", "Gstack++ – Garry Tan's gstack adapted for C++ developers",
+         f"{GH}/bulyaki/gstackplusplus"),
+        ("deepseek-ai", "deepseek-harness", "DeepSeek Harness Desktop Version",
+         f"{GH}/hairyf/deepseek-harness-desktop"),
+    ])
+    def test_a_derivative_project_is_not_the_original(self, owner, name, title, url):
+        assert not is_relevant_story(title, url, owner, name)
+
+    def test_a_link_to_this_repo_still_counts(self):
+        assert is_relevant_story(
+            "A neat collection", f"{GH}/TheAlgorithms/Python", "TheAlgorithms", "Python"
+        )
+
+    def test_a_deeper_path_in_this_repo_still_counts(self):
+        # issues／releases 等更深的路徑仍屬於同一個 repo
+        assert is_relevant_story(
+            "AI Course for Golang incorrectly generates content about the Go board game",
+            f"{GH}/nilbuild/developer-roadmap/issues/10226",
+            "nilbuild", "developer-roadmap",
+        )
+
+    def test_a_non_github_link_does_not_veto(self):
+        # 只有 GitHub 連結能表態；一般新聞連結交給後面的名稱比對
+        assert is_relevant_story(
+            "uBlock Origin is no longer available on the Chrome Store",
+            "https://www.theverge.com/some-article", "gorhill", "uBlock",
+        )
+
+    def test_a_git_suffix_is_still_the_same_repo(self):
+        assert is_relevant_story("Clone it", f"{GH}/gorhill/uBlock.git", "gorhill", "uBlock")

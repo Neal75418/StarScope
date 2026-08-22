@@ -101,17 +101,42 @@ def _is_generic_name(name: str) -> bool:
     return len(name) <= 4 or name in GENERIC_REPO_NAMES
 
 
+def _linked_github_repo(url: str) -> tuple[str, str] | None:
+    """故事的連結若指向某個 GitHub repo，回傳 (owner, name)，否則 None。
+
+    只認 github.com 的 owner/name 這一層；issues、releases 等更深的路徑同樣適用，
+    因為它們仍然屬於那個 repo。非 GitHub 的連結不表態，交給後面的比對。
+    """
+    m = re.search(r"github\.com/([^/\s]+)/([^/\s?#]+)", url.lower())
+    if not m:
+        return None
+    # .git 後綴與尾端標點不影響 repo 身分
+    return m.group(1), m.group(2).removesuffix(".git").rstrip(".,)")
+
+
 def is_relevant_story(title: str, url: str, owner: str, name: str) -> bool:
     """這則 HN 故事是否真的在講這個 repo。
 
-    兩個條件：名字必須以完整的詞出現；名字若是普通字，故事還得同時提到 owner。
+    一個否決條件加兩個必要條件：
 
-    指向 github.com/owner/name 的連結會自動滿足這兩者——URL 裡的斜線讓 owner 與
+    1. 連結指向 GitHub 上別的 repo -> 直接否決
+    2. 名字必須以完整的詞出現
+    3. 名字若是普通字，故事還得同時提到 owner
+
+    指向 github.com/owner/name 的連結會自動滿足 2 與 3——URL 裡的斜線讓 owner 與
     name 各自成為獨立的詞——所以不必為「有連結」或「出現完整 owner/name」另外開一層。
     寫成獨立的分支看起來比較周全，但沒有任何輸入會因此得到不同結果。
     """
     hay = f"{title} {url}".lower()
     owner_l, name_l = owner.lower(), name.lower()
+
+    # 連結指向 GitHub 上「別的」repo 時直接否決，標題比對得多好都不算。
+    # 這是否定訊號，比任何正面比對可靠：「有人做了一個叫 gstackplusplus 的東西」
+    # 跟 garrytan/gstack 之間，標題永遠分不出來，URL 分得出來。
+    # 實測 1150 筆訊號裡有 164 筆（14%）是這種衍生專案。
+    linked = _linked_github_repo(url)
+    if linked is not None and linked != (owner_l, name_l):
+        return False
 
     if not _mentions_project(name_l, hay):
         return False
