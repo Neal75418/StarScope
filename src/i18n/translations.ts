@@ -103,7 +103,6 @@ export const translations = {
       languageDistribution: {
         title: "Language Distribution",
         empty: "No language data available",
-        repos: "repos",
         other: "Other",
       },
       categorySummary: {
@@ -1070,7 +1069,6 @@ export const translations = {
       languageDistribution: {
         title: "語言分佈",
         empty: "尚無語言資料",
-        repos: "個儲存庫",
         other: "其他",
       },
       categorySummary: {

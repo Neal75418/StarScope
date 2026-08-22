@@ -3822,6 +3822,19 @@ a:focus-visible {
   overflow: hidden;
 }
 
+/* 兩張長條圖並排時 grid 會把矮的那張拉高到跟高的一樣，固定高度的圖表
+   就在下方留一大塊空白，看起來像沒渲染完。讓圖表區吃掉多出來的高度。
+   min-height 由資料列數決定（元件內 inline 帶入）：少了它，flex 高度與
+   圖表的百分比高度會互相等待，容器直接塌成 0 */
+.dashboard-section--chart {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-chart-fill {
+  flex: 1;
+}
+
 .dashboard-section h3 {
   font-size: 16px;
   font-weight: 600;

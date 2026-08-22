@@ -13,8 +13,10 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts";
 import { useI18n } from "../../i18n";
+import { barChartMinHeight } from "./chartLayout";
 
 interface VelocityBarProps {
   data: { key: string; count: number }[];
@@ -73,41 +75,54 @@ export const VelocityChartRecharts = memo(function VelocityChartRecharts({
   );
 
   return (
-    <div className="dashboard-section">
+    <div className="dashboard-section dashboard-section--chart">
       <h3>{t.dashboard.velocityDistribution}</h3>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart
-          data={chartData}
-          layout="vertical"
-          margin={{ top: 0, right: 32, left: 8, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
-          <XAxis
-            type="number"
-            tick={{ fontSize: 11, fill: "var(--fg-muted)" }}
-            allowDecimals={false}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            dataKey="label"
-            type="category"
-            tick={{ fontSize: 12, fill: "var(--fg-muted)" }}
-            width={48}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip
-            content={<VelocityTooltip />}
-            cursor={{ fill: "var(--bg-muted)", opacity: 0.4 }}
-          />
-          <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20}>
-            {chartData.map((entry) => (
-              <Cell key={entry.key} fill={VELOCITY_COLORS[entry.key] ?? "var(--accent-fg)"} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <div
+        className="dashboard-chart-fill"
+        style={{ minHeight: barChartMinHeight(chartData.length) }}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11, fill: "var(--fg-muted)" }}
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              dataKey="label"
+              type="category"
+              tick={{ fontSize: 12, fill: "var(--fg-muted)" }}
+              width={48}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip
+              content={<VelocityTooltip />}
+              cursor={{ fill: "var(--bg-muted)", opacity: 0.4 }}
+            />
+            {/* isAnimationActive={false}：Recharts 要等長條動畫跑完才畫 LabelList。
+                旁邊的語言分佈同理，兩張圖的數字要一起出現 */}
+            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20} isAnimationActive={false}>
+              {chartData.map((entry) => (
+                <Cell key={entry.key} fill={VELOCITY_COLORS[entry.key] ?? "var(--accent-fg)"} />
+              ))}
+              {/* 數量直接標在長條末端；tooltip 留著是因為它多說了單位（N 個儲存庫） */}
+              <LabelList
+                dataKey="count"
+                position="right"
+                style={{ fill: "var(--fg-muted)", fontSize: 11 }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 });

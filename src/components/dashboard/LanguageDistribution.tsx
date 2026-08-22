@@ -1,50 +1,42 @@
 /**
- * 語言分佈圓餅圖。
- * 從追蹤 repo 的 language 欄位計算分佈，使用 Recharts PieChart。
+ * 語言分佈橫向長條圖。
+ *
+ * 原本是甜甜圈。實測那個版本要讀出一個數字得做四件事：在圖例找到語言、記住顏色、
+ * 回圓環上找回那個顏色、再把滑鼠停上去——因為
+ *   1. Recharts 把圖例照字母重排，而資料是照數量排的，兩份清單順序不一致
+ *   2. 整個面板沒有任何數字，數值只存在於 tooltip
+ *   3. 最大的兩塊 TypeScript(#3178c6) 與 Python(#3572A5) 加權色距只有 56.8，
+ *      是所有配對中位數 294.9 的五分之一，而且在環上相鄰
+ * 長條圖把名稱、長度、數字排在同一列，順序天然就是數量序，不需要顏色配對。
  */
 
-import { memo } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { memo, useMemo } from "react";
+import {
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+} from "recharts";
 import { useI18n } from "../../i18n";
 import { lookupLanguageColor } from "../../constants/languageColors";
+import { barChartMinHeight } from "./chartLayout";
 
 export interface LanguageSlice {
   language: string;
   count: number;
 }
 
-// 已知語言色彩來自 constants/languageColors（全 app 單一來源）；
-// 未知語言用分片專屬 fallback 輪替，確保相鄰分片仍可區分。
+// 未知語言用輪替的 fallback，確保相鄰長條仍可區分。
+// 顏色在這裡只是點綴——要讀的資訊已經寫在每一列上，不靠顏色傳達。
 const FALLBACK_COLORS = ["#58a6ff", "#3fb950", "#a371f7", "#d29922", "#f85149", "#79c0ff"];
 
-function sliceColor(language: string, index: number, otherLabel: string): string {
+function barColor(language: string, index: number, otherLabel: string): string {
   if (language === otherLabel) return "var(--fg-muted)";
   return lookupLanguageColor(language) ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
-
-interface TooltipPayload {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; payload: LanguageSlice }>;
-}
-
-function LangTooltip({ active, payload }: TooltipPayload) {
-  const { t } = useI18n();
-  if (!active || !payload?.length) return null;
-  const { language, count } = payload[0].payload;
-  return (
-    <div
-      style={{
-        background: "var(--bg-default)",
-        border: "1px solid var(--border-default)",
-        borderRadius: 6,
-        padding: "8px 12px",
-        fontSize: 13,
-        color: "var(--fg-default)",
-      }}
-    >
-      <strong>{language}</strong>: {count} {t.dashboard.languageDistribution.repos}
-    </div>
-  );
 }
 
 interface Props {
@@ -53,6 +45,11 @@ interface Props {
 
 export const LanguageDistribution = memo(function LanguageDistribution({ data }: Props) {
   const { t } = useI18n();
+  const otherLabel = t.dashboard.languageDistribution.other;
+
+  // 面板高度隨語言數量長，寫死高度會讓十種語言擠成一團。
+  // 算法與旁邊的增長速度分佈共用，兩張圖的列距才會一致
+  const height = useMemo(() => barChartMinHeight(data.length), [data.length]);
 
   if (data.length === 0) {
     return (
@@ -64,37 +61,49 @@ export const LanguageDistribution = memo(function LanguageDistribution({ data }:
   }
 
   return (
-    <div className="dashboard-section">
+    <div className="dashboard-section dashboard-section--chart" data-testid="language-distribution">
       <h3>{t.dashboard.languageDistribution.title}</h3>
-      <ResponsiveContainer width="100%" height={200}>
-        <PieChart>
-          <Pie
+      <div className="dashboard-chart-fill" data-testid="chart-area" style={{ minHeight: height }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
             data={data}
-            dataKey="count"
-            nameKey="language"
-            cx="50%"
-            cy="50%"
-            innerRadius={48}
-            outerRadius={80}
-            paddingAngle={2}
+            layout="vertical"
+            margin={{ top: 0, right: 40, left: 8, bottom: 0 }}
           >
-            {data.map((entry, index) => (
-              <Cell
-                key={entry.language}
-                fill={sliceColor(entry.language, index, t.dashboard.languageDistribution.other)}
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11, fill: "var(--fg-muted)" }}
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              dataKey="language"
+              type="category"
+              tick={{ fontSize: 12, fill: "var(--fg-muted)" }}
+              width={116}
+              axisLine={false}
+              tickLine={false}
+            />
+            {/* isAnimationActive={false}：Recharts 會等長條動畫跑完才畫 LabelList，
+                數字要慢一拍才出現——而數字正是這次改版的重點。靜態的分佈本來也
+                不需要長出來的動畫 */}
+            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={16} isAnimationActive={false}>
+              {data.map((entry, index) => (
+                <Cell key={entry.language} fill={barColor(entry.language, index, otherLabel)} />
+              ))}
+              {/* 數字直接標在長條末端：沒有它就得靠 hover 才知道數量，
+                  而使用者掃儀表板時不會逐個 hover */}
+              <LabelList
+                dataKey="count"
+                position="right"
+                style={{ fill: "var(--fg-muted)", fontSize: 11 }}
               />
-            ))}
-          </Pie>
-          <Tooltip content={<LangTooltip />} />
-          <Legend
-            iconType="circle"
-            iconSize={8}
-            formatter={(value) => (
-              <span style={{ fontSize: 12, color: "var(--fg-muted)" }}>{value}</span>
-            )}
-          />
-        </PieChart>
-      </ResponsiveContainer>
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 });
