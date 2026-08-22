@@ -66,19 +66,11 @@ describe("WeeklySummary without a 7-day baseline", () => {
     );
   });
 
-  it("does not claim the watchlist was flat when nothing could be compared", () => {
-    renderWith(summary({ repos_compared: 0 }));
-
-    expect(screen.getByTestId("weekly-movers-empty")).toHaveTextContent(
-      /no snapshot from 7 days ago/i
-    );
-  });
-
-  it("still says 'no movement' when repos were compared and genuinely did not move", () => {
-    // 這是真正的 0：94 個都比對過了，就是沒動。兩種空清單必須講不同的話。
+  it("reports a real zero as a total, not as 'not comparable'", () => {
+    // 94 個都比對過了、就是沒動——這個 0 是有意義的，徽章要照常顯示總和。
+    // 漲跌排行已移除，「兩種空清單講不同的話」現在由「在動」那一段負責。
     renderWith(summary({ repos_compared: 94, total_new_stars: 0 }));
 
-    expect(screen.getByTestId("weekly-movers-empty")).toHaveTextContent(/no movement/i);
     expect(screen.getByTestId("weekly-total-stars")).toHaveTextContent(/stars in the last 7 days/i);
   });
 
@@ -98,9 +90,6 @@ describe("WeeklySummary against an older sidecar", () => {
     renderWith(withoutField as WeeklySummaryResponse);
 
     expect(screen.getByTestId("weekly-total-stars")).toHaveTextContent(/not comparable/i);
-    expect(screen.getByTestId("weekly-movers-empty")).toHaveTextContent(
-      /no snapshot from 7 days ago/i
-    );
   });
 });
 

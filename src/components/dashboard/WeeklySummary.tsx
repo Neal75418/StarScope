@@ -1,6 +1,9 @@
 /**
  * Dashboard 每週摘要元件。
- * 展示一週概覽：漲跌幅排行、信號，以及 HN 提及。
+ * 展示一週概覽：新版本與 HN 提及。
+ *
+ * 漲跌排行已移除——「在動」那一段用相對成長排序，在 1k 到 40 萬星的跨度上
+ * 才比較得起來。兩者同頁時對「誰第二」會給出不同答案，而絕對值那個是錯的。
  */
 
 import { memo, useCallback } from "react";
@@ -9,9 +12,8 @@ import { useI18n } from "../../i18n";
 import type { DashboardTimeRange } from "../../api/types";
 import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
-import { TREND_ARROWS } from "../../constants/trends";
 import { Skeleton } from "../Skeleton";
-import type { WeeklyRepoSummary, WeeklyHNMention, WeeklyRelease } from "../../api/types";
+import type { WeeklyHNMention, WeeklyRelease } from "../../api/types";
 
 const MAX_HN_MENTIONS_DISPLAY = 6;
 
@@ -23,45 +25,6 @@ function formatDateRange(start: string, end: string): string {
 }
 
 // 子元件
-
-const TopMovers = memo(function TopMovers({
-  gainers,
-  losers,
-  reposCompared,
-  t,
-}: {
-  gainers: WeeklyRepoSummary[];
-  losers: WeeklyRepoSummary[];
-  reposCompared: number;
-  t: ReturnType<typeof useI18n>["t"];
-}) {
-  return (
-    <div className="weekly-column">
-      <h4>{t.dashboard.weekly.topMovers}</h4>
-      {/* 沒有 repo 比對得成時，空清單代表「還沒得比」而不是「都沒動」。
-          兩者都是空的，但講錯的那個會讓人以為追蹤的東西全部沒有動靜。 */}
-      {gainers.length === 0 && losers.length === 0 && (
-        <div className="weekly-empty" data-testid="weekly-movers-empty">
-          {reposCompared === 0 ? t.dashboard.weekly.awaitingBaseline : t.dashboard.weekly.noData}
-        </div>
-      )}
-      {gainers.map((r) => (
-        <div key={r.repo_id} className="weekly-mover weekly-mover--up">
-          <span className="weekly-mover-name">{r.full_name}</span>
-          <span className="weekly-mover-delta trend-up">{formatDelta(r.stars_delta_7d)}</span>
-          <span className="weekly-mover-trend">{TREND_ARROWS[r.trend] ?? "→"}</span>
-        </div>
-      ))}
-      {losers.map((r) => (
-        <div key={r.repo_id} className="weekly-mover weekly-mover--down">
-          <span className="weekly-mover-name">{r.full_name}</span>
-          <span className="weekly-mover-delta trend-down">{formatDelta(r.stars_delta_7d)}</span>
-          <span className="weekly-mover-trend">{TREND_ARROWS[r.trend] ?? "→"}</span>
-        </div>
-      ))}
-    </div>
-  );
-});
 
 const HNMentionsList = memo(function HNMentionsList({
   mentions,
@@ -218,12 +181,6 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
       </div>
 
       <div className="weekly-grid">
-        <TopMovers
-          gainers={data.top_gainers}
-          losers={data.top_losers}
-          reposCompared={data.repos_compared ?? 0}
-          t={t}
-        />
         <ReleasesList releases={data.releases ?? []} t={t} />
         <HNMentionsList mentions={data.hn_mentions} t={t} />
       </div>
