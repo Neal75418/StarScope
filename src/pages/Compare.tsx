@@ -181,6 +181,17 @@ export function Compare() {
     return span < requested ? span : null;
   }, [chartData, timeRange]);
 
+  // 正規化算的是 (現值-基期)/基期，基期為 0 就算不出來，後端回 null，
+  // Recharts 於是整條線都不畫——圖例還列著它，看起來像圖表壞了。
+  // 把「哪個 repo 在這個指標下沒有百分比」講出來
+  const uncomputableNames = useMemo(() => {
+    if (!normalize || !data?.repos.length) return [];
+    const key = metric === "issues" ? "open_issues" : metric;
+    return data.repos
+      .filter((r) => r.data_points.length > 0 && r.data_points.every((dp) => dp[key] === null))
+      .map((r) => r.repo_name);
+  }, [data, metric, normalize]);
+
   const repos = reposQuery.data ?? [];
   const showBrush = chartData.length > 14;
 
@@ -304,6 +315,11 @@ export function Compare() {
             {coverage !== null && (
               <p className="compare-coverage-note">
                 {interpolate(t.compare.coverageNote, { days: String(coverage) })}
+              </p>
+            )}
+            {uncomputableNames.length > 0 && (
+              <p className="compare-coverage-note">
+                {interpolate(t.compare.zeroBaseNote, { repos: uncomputableNames.join("、") })}
               </p>
             )}
             {chartData.length === 0 ? (

@@ -77,6 +77,8 @@ vi.mock("../../i18n", () => ({
         maxRepos: "Maximum 5 repos",
         normalize: "Normalize (%)",
         coverageNote: "Only {days} days of snapshots so far — longer ranges show the same chart",
+        zeroBaseNote:
+          "{repos} started at 0, so a percentage change cannot be computed — no line is drawn",
         logScale: "Log Scale",
         growthRate: "Growth Rate",
         share: "Share",
@@ -697,5 +699,70 @@ describe("Compare — 涵蓋天數提示只在需要時出現", () => {
     await user.click(screen.getByText("All time"));
 
     expect(screen.queryByText(/days of snapshots/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Compare — 算不出百分比時說明原因", () => {
+  // 正規化算 (現值-基期)/基期，基期為 0 就算不出來，後端回 null，
+  // Recharts 整條線都不畫——圖例還列著它，看起來像圖表壞了。
+  // 實測 2026-08-15 有兩個追蹤中的 repo 的 open_issues 是 0。
+  const withNullMetric = () => {
+    mockComparisonReturn = {
+      data: {
+        repos: [
+          makeComparisonRepo({
+            repo_id: 1,
+            repo_name: "deepseek-ai/deepseek-harness",
+            data_points: [
+              makeDataPoint({ open_issues: null }),
+              makeDataPoint({ date: "2024-01-02", open_issues: null }),
+            ],
+          }),
+          makeComparisonRepo({
+            repo_id: 2,
+            repo_name: "rapid7/metasploit-framework",
+            data_points: [
+              makeDataPoint({ open_issues: 0 }),
+              makeDataPoint({ date: "2024-01-02", open_issues: 20 }),
+            ],
+          }),
+        ],
+        skipped_archived: [],
+        time_range: "30d" as const,
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
+  };
+
+  it("點名那個沒有線的 repo，而不是讓它無聲消失", async () => {
+    const user = userEvent.setup();
+    withNullMetric();
+    render(<Compare />);
+    await user.click(screen.getByText("Issues"));
+
+    expect(screen.getByText(/deepseek-ai\/deepseek-harness started at 0/)).toBeInTheDocument();
+  });
+
+  it("關掉正規化就不提示——那句話只在算百分比時成立", async () => {
+    const user = userEvent.setup();
+    withNullMetric();
+    render(<Compare />);
+    await user.click(screen.getByText("Issues"));
+    expect(screen.getByText(/started at 0/)).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText(/Normalize/));
+
+    expect(screen.queryByText(/started at 0/)).not.toBeInTheDocument();
+  });
+
+  it("換到有值的指標時就不提示", async () => {
+    withNullMetric();
+    render(<Compare />);
+    // 預設是星數，那個 repo 的星數算得出來
+
+    expect(screen.queryByText(/started at 0/)).not.toBeInTheDocument();
   });
 });

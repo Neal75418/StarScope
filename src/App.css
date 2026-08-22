@@ -5114,6 +5114,14 @@ a:focus-visible {
   color: var(--fg-muted);
 }
 
+/* 摘要與指標表永遠講星數，圖表卻會跟著 Fork／Issue 切換。用一句小標說明，
+   而不是把每個欄位標籤都改成「星數…」 */
+.compare-panel-unit {
+  margin: -8px 0 12px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
 .compare-empty {
   text-align: center;
   color: var(--fg-muted);

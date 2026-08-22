@@ -439,6 +439,9 @@ export const translations = {
       maxRepos: "Maximum 5 repos",
       normalize: "Normalize (%)",
       coverageNote: "Only {days} days of snapshots so far — longer ranges show the same chart",
+      zeroBaseNote:
+        "{repos} started at 0, so a percentage change cannot be computed — no line is drawn",
+      starMetricsOnly: "Star metrics",
       metrics: "Metrics",
       noData: "No data available for selected time range",
       retry: "Retry",
@@ -1415,6 +1418,8 @@ export const translations = {
       maxRepos: "最多 5 個儲存庫",
       normalize: "正規化 (%)",
       coverageNote: "目前只有 {days} 天的快照，選更長的範圍也是同一張圖",
+      zeroBaseNote: "{repos} 在期初的數值是 0，算不出百分比變化，所以圖上沒有這條線",
+      starMetricsOnly: "星數指標",
       metrics: "指標",
       noData: "所選時間範圍內無資料",
       retry: "重試",

@@ -27,6 +27,7 @@ export const MetricsTable = memo(function MetricsTable({
   return (
     <div className="compare-metrics">
       <h3>{t.compare.metrics}</h3>
+      <p className="compare-panel-unit">{t.compare.starMetricsOnly}</p>
       <div className="compare-table-wrapper">
         <table className="compare-table">
           <thead>

@@ -8,6 +8,7 @@ vi.mock("../../../i18n", () => ({
     t: {
       compare: {
         perDay: "/day",
+        starMetricsOnly: "Star metrics",
         diff: {
           title: "Summary",
           leader: "Leader",
@@ -148,5 +149,15 @@ describe("差距那張卡的主詞會換人", () => {
 
     const dot = cardFor("Widening")?.querySelector(".compare-color-dot") as HTMLElement;
     expect(dot.style.background).toBe("rgb(220, 38, 38)"); // 領先者的 #dc2626
+  });
+});
+
+describe("標明摘要講的是星數", () => {
+  // 這些卡片永遠算星數（後端只有星數的訊號），但圖表會跟著 Fork／Issue 切換。
+  // 不標的話「10011.4/天」貼在 issue 圖表下面會被讀成每天一萬個 issue。
+  it("摘要標題底下註明是星數指標", () => {
+    render(<DiffSummaryPanel repos={[makeRepo(), makeRepo({ repo_id: 2 })]} />);
+
+    expect(screen.getByText("Star metrics")).toBeInTheDocument();
   });
 });

@@ -101,6 +101,11 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
   return (
     <div className="diff-summary-panel" data-testid="diff-summary-panel">
       <h3>{t.compare.diff.title}</h3>
+      {/* 摘要與指標表算的一律是星數（後端只有星數的訊號：velocity／acceleration／
+          trend／stars_delta_*）。切到「Fork 數」或「Issue 數」時圖表會換，這裡不會——
+          不標單位的話「10011.4/天」貼在 issue 圖表下面會被讀成每天一萬個 issue。
+          與其把九個標籤逐一改成「星數…」，用一句小標一次講完 */}
+      <p className="compare-panel-unit">{t.compare.starMetricsOnly}</p>
       <div className="diff-summary-cards">
         {insights.map((insight) => (
           <div key={insight.label} className="diff-summary-card" data-testid="diff-summary-card">

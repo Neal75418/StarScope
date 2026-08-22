@@ -10,6 +10,7 @@ vi.mock("../../trends/BreakoutBadge", () => ({
 const mockT = {
   compare: {
     metrics: "Metrics",
+    starMetricsOnly: "Star metrics",
     columns: {
       repo: "Repository",
       stars: "Stars",
@@ -197,5 +198,15 @@ describe("MetricsTable", () => {
       <MetricsTable repos={[makeComparisonRepo({ trend: 999 as never })]} t={mockT as never} />
     );
     expect(screen.getByText("→")).toBeInTheDocument();
+  });
+});
+
+describe("標明這張表講的是星數", () => {
+  // 圖表會跟著「Fork 數／Issue 數」切換，這張表不會——欄位一律是星數。
+  // 不標的話「速度 10011.4」貼在 issue 圖表下面會被讀成每天一萬個 issue。
+  it("表格標題底下註明是星數指標", () => {
+    render(<MetricsTable repos={[makeComparisonRepo()]} t={mockT as never} />);
+
+    expect(screen.getByText("Star metrics")).toBeInTheDocument();
   });
 });
