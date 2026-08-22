@@ -78,6 +78,37 @@ describe("TrendCard", () => {
     expect(screen.getByText("#1")).toBeInTheDocument();
   });
 
+  // 這張卡的 7 天 Δ 原本寫死 className="trend-card-metric-value positive"，
+  // 掉星的 repo 會顯示綠字。斷言 class 而非顏色：jsdom 不處理 CSS，
+  // class 對應的顏色是在 Chrome 裡量過的
+  it("掉星時用負向色，不是寫死的正向色", () => {
+    render(
+      <TrendCard
+        repo={makeTrending({ stars_delta_7d: -58 })}
+        isInWatchlist={false}
+        isAdding={false}
+        onAddToWatchlist={vi.fn()}
+        t={mockT}
+      />
+    );
+    const el = screen.getByText("-58");
+    expect(el.className).toContain("negative");
+    expect(el.className).not.toContain("positive");
+  });
+
+  it("漲星時用正向色", () => {
+    render(
+      <TrendCard
+        repo={makeTrending({ stars_delta_7d: 500 })}
+        isInWatchlist={false}
+        isAdding={false}
+        onAddToWatchlist={vi.fn()}
+        t={mockT}
+      />
+    );
+    expect(screen.getByText("+500").className).toContain("positive");
+  });
+
   it("applies gold class for rank 1", () => {
     render(
       <TrendCard

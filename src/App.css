@@ -1191,19 +1191,15 @@ body {
   min-width: 70px;
 }
 
-/* 增量的顏色由值決定。原本是無條件的 .delta 一律塗成成功色，
-   於是「-58」和「沒有資料的 —」都是綠的 */
-.stat-value.delta-positive {
+/* 增量的顏色由值決定（deltaClass）。原本是無條件的 .delta 一律塗成成功色，
+   於是「-58」和「沒有資料的 —」都是綠的。
+   null 與 0 不帶方向，deltaClass 回空字串、沿用預設字色——與趨勢頁一致 */
+.stat-value.positive {
   color: var(--success-fg);
 }
 
-.stat-value.delta-negative {
+.stat-value.negative {
   color: var(--danger-fg);
-}
-
-/* null 與 0 都不帶方向。兩者的區別由文字表達（"—" vs "0"），不靠顏色 */
-.stat-value.delta-neutral {
-  color: var(--fg-muted);
 }
 
 .repo-stats .stat-value {
@@ -1864,6 +1860,11 @@ body {
   color: var(--success-fg);
 }
 
+/* deltaClass 會回 "negative"，少了這條規則等於那個 className 是死的 */
+.trend-metric-value.negative {
+  color: var(--danger-fg);
+}
+
 .trend-expanded-chart {
   margin-top: 8px;
 }
@@ -1968,6 +1969,10 @@ body {
 }
 .trend-card-metric-value.positive {
   color: var(--success-fg);
+}
+
+.trend-card-metric-value.negative {
+  color: var(--danger-fg);
 }
 
 .trend-card-footer {

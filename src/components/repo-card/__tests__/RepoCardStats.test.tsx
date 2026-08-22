@@ -68,33 +68,34 @@ describe("RepoCardStats", () => {
     expect(dashes.length).toBe(4);
   });
 
-  // 以下三條斷言 class 而不是實際顏色：jsdom 不處理 CSS，取不到 computed color。
-  // class 對應到的顏色是在 Chrome 裡量過的（正 #3fb950、負 #f85149、中性灰）。
+  // 以下斷言 class 而不是實際顏色：jsdom 不處理 CSS，取不到 computed color。
+  // class 對應的顏色是在 Chrome 裡量過的（.stat-value.positive #3fb950、
+  // .stat-value.negative #f85149），用的是全站共用的 deltaClass 詞彙。
   describe("增量的顏色由值決定", () => {
     it("負成長不能是綠色——pathwaycom/pathway 掉了 58 顆星卻顯示綠字", () => {
       render(<RepoCardStats repo={makeRepo({ stars: 62458, stars_delta_7d: -58 })} />);
 
-      expect(screen.getByText("-58")).toHaveClass("delta-negative");
+      expect(screen.getByText("-58")).toHaveClass("negative");
     });
 
     it("正成長是正向色", () => {
       render(<RepoCardStats repo={makeRepo()} />);
 
-      expect(screen.getByText("+500")).toHaveClass("delta-positive");
+      expect(screen.getByText("+500")).toHaveClass("positive");
     });
 
     it("沒有資料不能被畫成正成長——「—」原本跟「+500」同一個綠", () => {
       render(<RepoCardStats repo={makeRepo({ stars_delta_30d: null })} />);
 
       const dash = screen.getAllByText("—")[0];
-      expect(dash).toHaveClass("delta-neutral");
-      expect(dash).not.toHaveClass("delta-positive");
+      expect(dash).not.toHaveClass("positive");
+      expect(dash).not.toHaveClass("negative");
     });
 
-    it("零沒有方向，用中性色而不是正向色", () => {
+    it("零沒有方向，不塗成正向色", () => {
       render(<RepoCardStats repo={makeRepo({ stars_delta_7d: 0 })} />);
 
-      expect(screen.getByText("0")).toHaveClass("delta-neutral");
+      expect(screen.getByText("0")).not.toHaveClass("positive");
     });
   });
 });
