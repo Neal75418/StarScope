@@ -20,8 +20,13 @@ let mockComparisonReturn: {
   refetch: () => void;
 };
 
+// spy 捕捉 useComparison 收到的參數：正規化是否預設開啟，只有從這裡看得出來
+const useComparisonSpy = vi.hoisted(() => vi.fn());
 vi.mock("../../hooks/useComparison", () => ({
-  useComparison: () => mockComparisonReturn,
+  useComparison: (...args: unknown[]) => {
+    useComparisonSpy(...args);
+    return mockComparisonReturn;
+  },
 }));
 
 let mockRepos: RepoWithSignals[];
@@ -71,6 +76,7 @@ vi.mock("../../i18n", () => ({
         minRepos: "Select at least 2 repos",
         maxRepos: "Maximum 5 repos",
         normalize: "Normalize (%)",
+        coverageNote: "Only {days} days of snapshots so far — longer ranges show the same chart",
         logScale: "Log Scale",
         growthRate: "Growth Rate",
         share: "Share",
@@ -239,6 +245,7 @@ describe("Compare", () => {
       error: null,
       refetch: mockRefetch,
     };
+    useComparisonSpy.mockClear();
     // Reset localStorage
     localStorage.removeItem("starscope-compare-repos");
   });
@@ -597,5 +604,98 @@ describe("Compare", () => {
     await userEvent.click(issuesButton);
     // Verify the Issues button is now the active/pressed metric
     expect(issuesButton).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("Compare — 正規化與涵蓋天數", () => {
+  // 這頁的副標寫的是「比較…趨勢」，而趨勢是形狀。不正規化時兩個規模差 6 倍的
+  // repo 只會畫出兩條平行水平線——實測資料線垂直跨度 0px 與 0.2px（繪圖區 289px）。
+  it("正規化預設開啟——否則第一眼看到的是兩條平線", () => {
+    render(<Compare />);
+
+    const lastCall = useComparisonSpy.mock.calls[useComparisonSpy.mock.calls.length - 1];
+    expect(lastCall?.[2]).toBe(true);
+  });
+
+  it("勾選框預設是勾的，跟實際送出的參數一致", () => {
+    mockComparisonReturn = {
+      data: {
+        repos: [makeComparisonRepo(), makeComparisonRepo({ repo_id: 2 })],
+        skipped_archived: [],
+        time_range: "30d" as const,
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
+    render(<Compare />);
+
+    const cb = screen.getByLabelText(/Normalize/) as HTMLInputElement;
+    expect(cb.checked).toBe(true);
+  });
+
+  it("資料涵蓋天數少於選定範圍時說出來，而不是停用按鈕", () => {
+    // 資料點只有 2024-01-01 與 01-02 兩天，而預設範圍是 30 天
+    mockComparisonReturn = {
+      data: {
+        repos: [makeComparisonRepo(), makeComparisonRepo({ repo_id: 2 })],
+        skipped_archived: [],
+        time_range: "30d" as const,
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
+    render(<Compare />);
+
+    expect(screen.getByText(/Only 2 days of snapshots/)).toBeInTheDocument();
+    // 範圍按鈕沒壞，不該被停用——「30 天」回傳的是「你有的那幾天」
+    for (const label of ["7d", "30d", "90d", "all"]) {
+      const btn = screen.queryByTestId(`time-range-${label}`);
+      if (btn) expect(btn).toBeEnabled();
+    }
+  });
+});
+
+describe("Compare — 涵蓋天數提示只在需要時出現", () => {
+  const withSpan = (days: number) => {
+    const points = Array.from({ length: days }, (_, i) =>
+      makeDataPoint({ date: `2024-01-${String(i + 1).padStart(2, "0")}`, stars: 100 + i })
+    );
+    mockComparisonReturn = {
+      data: {
+        repos: [
+          makeComparisonRepo({ data_points: points }),
+          makeComparisonRepo({ repo_id: 2, data_points: points }),
+        ],
+        skipped_archived: [],
+        time_range: "30d" as const,
+      },
+      isLoading: false,
+      error: null,
+      refetch: mockRefetch,
+    };
+    localStorage.setItem("starscope-compare-repos", JSON.stringify([1, 2]));
+  };
+
+  it("資料涵蓋滿選定範圍時不提示", async () => {
+    const user = userEvent.setup();
+    withSpan(10);
+    render(<Compare />);
+    // 切到 7 天：10 天的資料涵蓋得住，不該提示
+    await user.click(screen.getByText("7 days"));
+
+    expect(screen.queryByText(/days of snapshots/)).not.toBeInTheDocument();
+  });
+
+  it("選「全部」時永遠不提示——「全部」不可能涵蓋不足", async () => {
+    const user = userEvent.setup();
+    withSpan(2);
+    render(<Compare />);
+    await user.click(screen.getByText("All time"));
+
+    expect(screen.queryByText(/days of snapshots/)).not.toBeInTheDocument();
   });
 });

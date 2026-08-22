@@ -20,7 +20,7 @@ import { useI18n, interpolate } from "../i18n";
 import { useComparison } from "../hooks/useComparison";
 import { useReposQuery } from "../hooks/useReposQuery";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
-import type { ComparisonTimeRange } from "../api/types";
+import type { ComparisonTimeRange, ChartDataPoint } from "../api/types";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { TIME_RANGES } from "../constants/chart";
@@ -50,7 +50,11 @@ export function Compare() {
   const { t } = useI18n();
   const [selectedIds, setSelectedIds] = useState<number[]>(loadSavedRepoIds);
   const [timeRange, setTimeRange] = useState<ComparisonTimeRange>("30d");
-  const [normalize, setNormalize] = useState(false);
+  // 預設開啟：這頁的副標寫的是「比較…趨勢」，而趨勢是形狀。不正規化時
+  // 兩個規模差 6 倍的 repo 只會畫出兩條平行的水平線——實測資料線的垂直
+  // 跨度只有 0px 與 0.2px（繪圖區 289px），第一眼沒有任何資訊。
+  // 絕對值沒有因此消失：摘要卡仍然給「領先者 223.9K」與「星數差距 185.1K」
+  const [normalize, setNormalize] = useState(true);
   const [metric, setMetric] = useState<CompareMetric>("stars");
   const [chartType, setChartType] = useState<CompareChartType>("line");
   const chartRef = useRef<HTMLDivElement>(null);
@@ -138,16 +142,17 @@ export function Compare() {
   const canCompare = selectedIds.length >= 2;
 
   // 建構統一圖表資料：[{date, metric_repoId, ...}]
-  type ChartRow = { date: string; [key: string]: string | number };
+  type ChartRow = { date: string; [key: string]: string | number | null };
   const chartData = useMemo<ChartRow[]>(() => {
     if (!data?.repos.length) return [];
-    const getMetricValue = (dp: { stars: number; forks: number; open_issues: number }) =>
+    const getMetricValue = (dp: ChartDataPoint) =>
       metric === "issues" ? dp.open_issues : dp[metric];
-    const dateMap = new Map<string, Record<string, number>>();
+    const dateMap = new Map<string, Record<string, number | null>>();
     for (const repo of data.repos) {
       for (const dp of repo.data_points) {
         const key = dp.date;
         const existing = dateMap.get(key) ?? {};
+        // null 照原樣傳給 Recharts：它會把該點斷開，而不是畫成 0
         existing[`${metric}_${repo.repo_id}`] = getMetricValue(dp);
         dateMap.set(key, existing);
       }
@@ -156,6 +161,25 @@ export function Compare() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, values]) => ({ date, ...values }));
   }, [data, metric]);
+
+  // 按下「30 天」時後端回的是「今天往前 30 天內的資料」——那些按鈕沒有壞，
+  // 只是新裝的資料庫還沒累積那麼久，四個按鈕會給出同一張圖。停用它們是錯的
+  // （「全部」永遠有意義），正確的做法是把實際涵蓋的天數講出來
+  const coverage = useMemo(() => {
+    const dates = chartData.map((row) => row.date as string).sort();
+    if (dates.length < 2) return null;
+    const span =
+      Math.round(
+        (Date.parse(`${dates[dates.length - 1]}T00:00:00Z`) - Date.parse(`${dates[0]}T00:00:00Z`)) /
+          86_400_000
+      ) + 1;
+    // 「全部」的意思就是「你有的通通給我」，涵蓋範圍不可能少於要求，所以不提示。
+    // 這行拿掉的話 requested 會是 undefined、`span < undefined` 恆為 false，
+    // 行為其實一樣——留著是把意圖寫明，順便讓下面的 map 查表在型別上是完整的
+    if (timeRange === "all") return null;
+    const requested = { "7d": 7, "30d": 30, "90d": 90 }[timeRange];
+    return span < requested ? span : null;
+  }, [chartData, timeRange]);
 
   const repos = reposQuery.data ?? [];
   const showBrush = chartData.length > 14;
@@ -277,6 +301,11 @@ export function Compare() {
       {canCompare && data && (
         <FadeIn delay={0.2}>
           <div className="dashboard-section compare-chart-section" ref={chartRef}>
+            {coverage !== null && (
+              <p className="compare-coverage-note">
+                {interpolate(t.compare.coverageNote, { days: String(coverage) })}
+              </p>
+            )}
             {chartData.length === 0 ? (
               <p className="compare-empty">{t.compare.noData}</p>
             ) : (
@@ -285,7 +314,10 @@ export function Compare() {
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v: number) => (normalize ? `${v}%` : String(v))}
+                    />
                     <Tooltip content={<CompareTooltip normalize={normalize} />} />
                     <Legend />
                     {data.repos.map((repo) => (
@@ -313,7 +345,10 @@ export function Compare() {
                   <AreaChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v: number) => (normalize ? `${v}%` : String(v))}
+                    />
                     <Tooltip content={<CompareTooltip normalize={normalize} />} />
                     <Legend />
                     {data.repos.map((repo) => (

@@ -75,16 +75,21 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
         color: sortedByStars[0].color,
       });
 
-      // 追趕/拉開 — 領先者與追趕者的速度差
+      // 追趕/拉開 — 領先者與追趕者的速度差。
+      // 主詞會換人：「追趕中」講的是第二名（他在逼近），「拉開中」講的是領先者
+      // （他在甩開）。原本兩種情況都寫死用第二名，於是被甩開的那個被標成
+      // 「拉開中」——2026-08-22 實測 Python 26.4/天、metasploit 3.9/天，
+      // 卡片卻寫「拉開中 metasploit 22.6/天」，跟事實相反
       const leaderVel = sortedByStars[0].velocity ?? 0;
       const runnerVel = sortedByStars[1].velocity ?? 0;
       const isClosing = runnerVel > leaderVel;
+      const subject = isClosing ? sortedByStars[1] : sortedByStars[0];
       const rate = Math.abs(runnerVel - leaderVel).toFixed(1);
       result.push({
         label: isClosing ? t.compare.diff.closing : t.compare.diff.widening,
-        repoName: sortedByStars[1].repo_name,
+        repoName: subject.repo_name,
         value: `${rate}${t.compare.perDay}`,
-        color: sortedByStars[1].color,
+        color: subject.color,
       });
     }
 

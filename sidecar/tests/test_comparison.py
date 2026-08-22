@@ -198,3 +198,77 @@ class TestComparisonEndpoint:
         data = response.json()["data"]
         colors = [r["color"] for r in data["repos"]]
         assert len(set(colors)) == len(colors)  # All unique
+
+
+class TestNormalizeWithZeroBase:
+    """
+    正規化的基期為 0 時算不出百分比，要回 None 而不是 0。
+
+    0 讀起來是「完全沒變」，跟「算不出來」是兩件事。實測 2026-08-15 有兩個
+    追蹤中的 repo 的 open_issues 是 0（deepseek-harness、doocs/advanced-java），
+    舊寫法會在 Issue 視圖上畫出一條假的水平 0 線。
+    """
+
+    def _seed(self, test_db, base_issues: int, later_issues: int, slug: str = "a"):
+        from datetime import date
+        from db.models import Repo, RepoSnapshot
+        from utils.time import utc_now
+
+        repo = Repo(owner=slug, name="r", full_name=f"{slug}/r", url=f"https://github.com/{slug}/r",
+                    added_at=utc_now(), updated_at=utc_now())
+        test_db.add(repo)
+        test_db.flush()
+        test_db.add_all([
+            RepoSnapshot(repo_id=repo.id, stars=100, forks=10,
+                         open_issues=base_issues, snapshot_date=date(2026, 8, 15)),
+            RepoSnapshot(repo_id=repo.id, stars=150, forks=20,
+                         open_issues=later_issues, snapshot_date=date(2026, 8, 16)),
+        ])
+        test_db.commit()
+        return repo
+
+    def _chart(self, client, repo_ids, normalize=True):
+        resp = client.post("/api/comparison/chart", json={
+            "repo_ids": repo_ids, "time_range": "all", "normalize": normalize})
+        assert resp.status_code == 200, resp.text
+        return resp.json()["data"]["repos"]
+
+    def test_zero_base_yields_null_not_zero(self, client, test_db):
+        repo = self._seed(test_db, base_issues=0, later_issues=7)
+        other = self._seed(test_db, base_issues=5, later_issues=6, slug="b")
+
+        repos = self._chart(client, [repo.id, other.id])
+        target = next(r for r in repos if r["repo_id"] == repo.id)
+
+        issues = [p["open_issues"] for p in target["data_points"]]
+        assert issues == [None, None], "基期為 0 卻回了數字，圖上會出現一條假的 0 線"
+
+    def test_nonzero_base_still_computes_percent(self, client, test_db):
+        repo = self._seed(test_db, base_issues=5, later_issues=6)
+        other = self._seed(test_db, base_issues=5, later_issues=5, slug="b")
+
+        repos = self._chart(client, [repo.id, other.id])
+        target = next(r for r in repos if r["repo_id"] == repo.id)
+
+        # 5 → 6 是 +20%
+        assert [p["open_issues"] for p in target["data_points"]] == [0.0, 20.0]
+
+    def test_genuine_no_change_is_zero_not_null(self, client, test_db):
+        """真的沒變化要回 0——修法不能把「沒變」也變成「算不出來」。"""
+        repo = self._seed(test_db, base_issues=5, later_issues=5)
+        other = self._seed(test_db, base_issues=5, later_issues=6, slug="b")
+
+        repos = self._chart(client, [repo.id, other.id])
+        target = next(r for r in repos if r["repo_id"] == repo.id)
+
+        assert [p["open_issues"] for p in target["data_points"]] == [0.0, 0.0]
+
+    def test_unnormalized_zero_stays_zero(self, client, test_db):
+        """沒開正規化時 0 就是 0，不該被改成 None。"""
+        repo = self._seed(test_db, base_issues=0, later_issues=7)
+        other = self._seed(test_db, base_issues=5, later_issues=6, slug="b")
+
+        repos = self._chart(client, [repo.id, other.id], normalize=False)
+        target = next(r for r in repos if r["repo_id"] == repo.id)
+
+        assert [p["open_issues"] for p in target["data_points"]] == [0, 7]

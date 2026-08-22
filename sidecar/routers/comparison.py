@@ -60,9 +60,13 @@ class ComparisonRequest(BaseModel):
 
 class ChartDataPoint(BaseModel):
     date: date
-    stars: int | float
-    forks: int | float
-    open_issues: int | float
+    # 正規化時基期為 0 的欄位算不出百分比，回 None 而不是 0——
+    # 0 讀起來是「完全沒變」，那是另一件事。實測 2026-08-15 有兩個 repo
+    # 的 open_issues 是 0（deepseek-harness、advanced-java），
+    # 舊寫法會在 Issue 視圖上畫出一條假的 0 線
+    stars: int | float | None
+    forks: int | float | None
+    open_issues: int | float | None
 
 
 class ComparisonRepoData(BaseModel):
@@ -144,18 +148,22 @@ async def comparison_chart(
         repo = repo_map[repo_id]
         snaps = snapshots_by_repo[repo_id]
 
+        def _pct(current: int, base: int) -> float | None:
+            """相對基期的百分比變化。基期為 0 時算不出來——回 None 讓圖表斷線，
+            不要回 0（那會被讀成「完全沒變」）"""
+            if base <= 0:
+                return None
+            return round((current - base) / base * 100, 2)
+
         data_points: list[ChartDataPoint] = []
         for s in snaps:
-            stars: int | float = s.stars
-            forks: int | float = s.forks
-            open_issues: int | float = s.open_issues
+            stars: int | float | None = s.stars
+            forks: int | float | None = s.forks
+            open_issues: int | float | None = s.open_issues
             if req.normalize and snaps:
-                base_stars = snaps[0].stars
-                base_forks = snaps[0].forks
-                base_issues = snaps[0].open_issues
-                stars = round((s.stars - base_stars) / max(base_stars, 1) * 100, 2) if base_stars > 0 else 0
-                forks = round((s.forks - base_forks) / max(base_forks, 1) * 100, 2) if base_forks > 0 else 0
-                open_issues = round((s.open_issues - base_issues) / max(base_issues, 1) * 100, 2) if base_issues > 0 else 0
+                stars = _pct(s.stars, snaps[0].stars)
+                forks = _pct(s.forks, snaps[0].forks)
+                open_issues = _pct(s.open_issues, snaps[0].open_issues)
             data_points.append(ChartDataPoint(date=s.snapshot_date, stars=stars, forks=forks, open_issues=open_issues))
 
         sigs = signal_map.get(repo_id, {})

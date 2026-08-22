@@ -134,9 +134,10 @@ export interface StarHistoryResponse {
 
 export interface ChartDataPoint {
   date: string;
-  stars: number;
-  forks: number;
-  open_issues: number;
+  /** 正規化且基期為 0 時為 null——算不出百分比，圖表要斷線而不是畫成 0 */
+  stars: number | null;
+  forks: number | null;
+  open_issues: number | null;
 }
 
 export interface StarsChartResponse {

@@ -5107,6 +5107,13 @@ a:focus-visible {
   margin-bottom: 20px;
 }
 
+/* 「目前只有 N 天的快照」——時間範圍按鈕沒有壞，是資料還沒累積那麼久 */
+.compare-coverage-note {
+  margin: 0 0 12px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
 .compare-empty {
   text-align: center;
   color: var(--fg-muted);
