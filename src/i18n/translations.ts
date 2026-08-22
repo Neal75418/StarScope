@@ -93,12 +93,21 @@ export const translations = {
         },
         loadError: "Failed to load weekly summary",
       },
-      portfolioHistory: {
-        title: "Portfolio Star History",
-        loadError: "Failed to load portfolio history",
-        noData: "Not enough data yet. Start tracking repos to see history.",
+      dailyStars: {
+        title: "Daily Stars Gained",
+        summary: "Last {days} days · {total} across {repos} repos",
+        loadError: "Failed to load star history",
+        noData: "Not enough data yet — needs at least two days of snapshots.",
         stars: "stars",
-        reposTracked: "repos tracked",
+        noteEstimated: "Measured once across {days} days — shown as a daily average",
+        notePartial: "Today isn't over yet",
+        noteMembership: "Tracked repo count changed on this day",
+        footnoteEstimated:
+          "Faded bars: only measured once over several days, shown as a daily average",
+        footnotePartial: "today isn't over yet",
+        footnoteMembership:
+          "The tracked repo count changed during this period — untracking a repo also lowers the total",
+        footnoteCoverage: "Only {coverage} days of snapshots so far, not {requested}",
       },
       languageDistribution: {
         title: "Language Distribution",
@@ -1059,12 +1068,19 @@ export const translations = {
         },
         loadError: "載入週報摘要失敗",
       },
-      portfolioHistory: {
-        title: "組合星數歷史",
-        loadError: "載入歷史資料失敗",
-        noData: "資料尚不足，請先追蹤 repo 以建立歷史記錄。",
+      dailyStars: {
+        title: "每日新增星數",
+        summary: "近 {days} 天 · {total} 顆星 · {repos} 個 repo",
+        loadError: "載入星數歷史失敗",
+        noData: "資料尚不足，至少需要兩天的快照。",
         stars: "顆星",
-        reposTracked: "個 repo 追蹤中",
+        noteEstimated: "這 {days} 天只量到一次，顯示為日均",
+        notePartial: "今天還沒過完",
+        noteMembership: "這一天追蹤的 repo 數量有變動",
+        footnoteEstimated: "淡色長條：那幾天只量到一次，顯示為日均",
+        footnotePartial: "今天還沒過完",
+        footnoteMembership: "這段期間追蹤的 repo 數量有變動——取消追蹤也會讓總數下降",
+        footnoteCoverage: "目前只有 {coverage} 天的快照，不是 {requested} 天",
       },
       languageDistribution: {
         title: "語言分佈",

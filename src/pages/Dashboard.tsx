@@ -16,7 +16,7 @@ import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
 import { VelocityChartRecharts } from "../components/dashboard/VelocityChartRecharts";
 import { LanguageDistribution } from "../components/dashboard/LanguageDistribution";
-import { PortfolioHistory } from "../components/dashboard/PortfolioHistory";
+import { DailyStarsChart } from "../components/dashboard/DailyStarsChart";
 import { CategorySummary } from "../components/dashboard/CategorySummary";
 import {
   WidgetCustomizer,
@@ -320,10 +320,10 @@ export function Dashboard() {
         </FadeIn>
       )}
 
-      {/* Portfolio 歷史（有自己的時間範圍選擇器） */}
+      {/* 每日新增星數（有自己的時間範圍選擇器） */}
       {widgetVisibility.portfolioHistory && (
         <FadeIn delay={0.2}>
-          <PortfolioHistory days={portfolioDays} onChangeDays={setPortfolioDays} />
+          <DailyStarsChart days={portfolioDays} onChangeDays={setPortfolioDays} />
         </FadeIn>
       )}
 

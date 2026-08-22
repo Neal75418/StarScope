@@ -134,8 +134,8 @@ vi.mock("../../components/dashboard/VelocityChartRecharts", () => ({
   ),
 }));
 
-vi.mock("../../components/dashboard/PortfolioHistory", () => ({
-  PortfolioHistory: () => <div data-testid="portfolio-history" />,
+vi.mock("../../components/dashboard/DailyStarsChart", () => ({
+  DailyStarsChart: () => <div data-testid="daily-stars-chart" />,
 }));
 
 vi.mock("../../components/dashboard/LanguageDistribution", () => ({
@@ -217,10 +217,13 @@ describe("Dashboard", () => {
     mockDashboard.stats = { totalRepos: 0, totalStars: 0, weeklyStars: 0, activeAlerts: 0 };
     render(<Dashboard />);
     expect(screen.getByTestId("dashboard-onboard")).toBeInTheDocument();
-    // 六個空模組一個都不該渲染
+    // 監測層的模組一個都不該渲染——testid 全部取自本檔上方的 mock，
+    // 打錯或元件改名時這幾條會變成必然通過的空包彈
     expect(screen.queryByTestId("weekly-summary")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("portfolio-history")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("portfolio-health-score")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("daily-stars-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("velocity-chart")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("language-distribution")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("category-summary")).not.toBeInTheDocument();
     await user.click(screen.getByTestId("dashboard-onboard-cta"));
     expect(mockNavigateTo).toHaveBeenCalledWith("discovery");
   });

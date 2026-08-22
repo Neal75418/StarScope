@@ -12,6 +12,9 @@ export type WidgetId =
   | "statsGrid"
   | "signalSpotlight"
   | "weeklySummary"
+  // 這個區塊在 2026-08-22 從「組合星數歷史」折線改成「每日新增星數」長條圖。
+  // id 沒跟著改名：它是 localStorage 的識別字，改了會讓已存的顯示偏好對不上，
+  // 使用者原本打開的區塊會無聲消失
   | "portfolioHistory"
   | "velocityChart"
   | "languageDistribution"
@@ -84,7 +87,7 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
   const widgets: { id: WidgetId; label: string }[] = [
     { id: "signalSpotlight", label: t.dashboard.signals.title },
     { id: "weeklySummary", label: t.dashboard.weekly.title },
-    { id: "portfolioHistory", label: t.dashboard.portfolioHistory.title },
+    { id: "portfolioHistory", label: t.dashboard.dailyStars.title },
     { id: "velocityChart", label: t.dashboard.velocityDistribution },
     { id: "languageDistribution", label: t.dashboard.languageDistribution.title },
     { id: "categorySummary", label: t.dashboard.categorySummary.title },
