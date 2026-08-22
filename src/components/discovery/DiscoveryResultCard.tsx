@@ -14,6 +14,7 @@ import { getLanguageColor } from "../../constants/languageColors";
 import { TREND_ARROWS } from "../../constants/trends";
 import type { WatchlistSignal } from "./DiscoveryResults";
 import styles from "./Discovery.module.css";
+import { isLicenseSentinel } from "../../utils/license";
 
 const MAX_VISIBLE_TOPICS = 5;
 
@@ -120,7 +121,7 @@ export const DiscoveryResultCard = memo(function DiscoveryResultCard({
         {repo.license_spdx && (
           <span className={styles.licenseBadge}>
             <LawIcon size={14} />
-            {repo.license_spdx}
+            {isLicenseSentinel(repo.license_spdx) ? t.discovery.licenseUnknown : repo.license_spdx}
           </span>
         )}
         {repo.updated_at && (

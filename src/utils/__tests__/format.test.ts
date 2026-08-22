@@ -9,6 +9,7 @@ import {
   formatVelocity,
   formatChartDate,
   formatRelativeTime,
+  formatDayCount,
 } from "../format";
 
 describe("formatNumber", () => {
@@ -132,5 +133,33 @@ describe("formatRelativeTime", () => {
   it("returns relative time without suffix by default", () => {
     const fiveDaysAgo = new Date(Date.now() - 5 * 86400000);
     expect(formatRelativeTime(fiveDaysAgo)).toBe("5d");
+  });
+});
+
+describe("formatDayCount", () => {
+  // 推薦卡只拿得到 age_days，但它顯示在「最近更新 4h」旁邊，
+  // 要用同一套縮寫才不會一列裡出現兩種寫法
+  it("未滿 30 天用天", () => {
+    expect(formatDayCount(0)).toBe("0d");
+    expect(formatDayCount(7)).toBe("7d");
+    expect(formatDayCount(29)).toBe("29d");
+  });
+
+  it("滿 30 天換成月，與 formatRelativeTime 的門檻一致", () => {
+    expect(formatDayCount(30)).toBe("1mo");
+    expect(formatDayCount(45)).toBe("1mo");
+    expect(formatDayCount(364)).toBe("12mo");
+  });
+
+  it("滿一年換成年", () => {
+    expect(formatDayCount(365)).toBe("1y");
+    expect(formatDayCount(800)).toBe("2y");
+  });
+
+  it("門檻與 formatRelativeTime 對得起來——同一列不能一個說 29d 一個說 1mo", () => {
+    const days = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+    for (const n of [7, 29, 30, 200, 365]) {
+      expect(formatDayCount(n)).toBe(formatRelativeTime(days(n)));
+    }
   });
 });

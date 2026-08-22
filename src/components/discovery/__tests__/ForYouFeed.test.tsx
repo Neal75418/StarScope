@@ -92,6 +92,20 @@ describe("ForYouFeed", () => {
     expect(screen.getByTestId("feed-age-1")).toHaveTextContent("created today");
   });
 
+  // 這一列旁邊就是「Last push 4h」。原本寫成 `45 days old`——跟鄰居比不只
+  // 單位不同（英文縮寫 vs 完整字），語序也相反（值+標籤 vs 標籤+值）。
+  // 全站 14 個相對時間呼叫端都用縮寫，同一頁的搜尋結果卡也是。
+  it("建立時間與鄰居同一套縮寫、同一種語序", async () => {
+    renderWithClient(
+      <ForYouFeed onAddToWatchlist={vi.fn()} onUnstar={vi.fn()} watchlistFullNames={new Set()} />
+    );
+    await screen.findByText("a/one");
+
+    // ITEM.reason.age_days = 45
+    expect(screen.getByTestId("feed-age-1")).toHaveTextContent("Created 1mo");
+    expect(screen.getByTestId("feed-age-1")).not.toHaveTextContent("days old");
+  });
+
   it("dismiss button sends feedback", async () => {
     vi.mocked(client.sendFeedFeedback).mockResolvedValue({ ...ITEM, feedback: "dismissed" });
     renderWithClient(

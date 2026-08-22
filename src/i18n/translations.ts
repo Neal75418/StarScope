@@ -130,6 +130,7 @@ export const translations = {
     },
     // 探索頁面
     discovery: {
+      licenseUnknown: "Unrecognized",
       title: "Discover",
       subtitle: "Search and explore GitHub repositories",
       searchPlaceholder: "Search repositories... (Press /)",
@@ -218,7 +219,7 @@ export const translations = {
         generating: "Building today's feed…",
         reason: {
           matched: "Matched interests: ",
-          daysOld: "days old",
+          createdLabel: "Created",
           createdToday: "created today",
         },
         addToWatchlist: "Track",
@@ -1111,6 +1112,7 @@ export const translations = {
     },
     // 探索頁面
     discovery: {
+      licenseUnknown: "未辨識",
       title: "探索",
       subtitle: "搜尋和探索 GitHub 儲存庫",
       searchPlaceholder: "搜尋儲存庫... (按 /)",
@@ -1198,7 +1200,7 @@ export const translations = {
         generating: "正在產生今日 feed…",
         reason: {
           matched: "命中興趣：",
-          daysOld: "天前建立",
+          createdLabel: "建立於",
           createdToday: "今天建立",
         },
         addToWatchlist: "追蹤",

@@ -92,6 +92,18 @@ export function formatRelativeTime(
 }
 
 /**
+ * 把「幾天前」的天數轉成與 formatRelativeTime 相同的縮寫（7 -> "7d"、45 -> "1mo"）。
+ *
+ * 推薦卡只拿得到 age_days（沒有建立日期），但它就顯示在「最近更新 4h」旁邊，
+ * 兩者要用同一套單位才不會一列裡出現兩種寫法。
+ */
+export function formatDayCount(days: number): string {
+  if (days < 30) return `${days}d`;
+  if (days < 365) return `${Math.floor(days / 30)}mo`;
+  return `${Math.floor(days / 365)}y`;
+}
+
+/**
  * 回傳 delta 值對應的 CSS class（正=positive、負=negative、零=空字串）。
  * `invert` 為 true 時語意反轉（例如 issue 增多視為 negative）。
  */
