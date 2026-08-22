@@ -3938,11 +3938,28 @@ a:focus-visible {
 }
 
 /* Dashboard Page Header */
+/* 其他五頁的 .page-header 都是 text-align: center。儀表板因為要在右上角放
+   自訂區塊的齒輪，原本改用 flex + space-between，標題就被推到左邊，只有這一頁
+   跟別人不一樣；而且載入中的骨架屏用的是沒有這個 class 的 .page-header，
+   資料到位時標題會從置中跳到左邊。
+
+   三欄格線讓標題留在正中間、齒輪待在右欄：兩側都是 minmax(32px, 1fr)，
+   寬螢幕時左右等寬所以真的置中，窄螢幕時兩側一起收到 32px 仍然對稱，
+   而且齒輪永遠不會壓到文字（絕對定位就會） */
 .dashboard-page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(32px, 1fr) auto minmax(32px, 1fr);
+  align-items: start;
   gap: 16px;
+}
+
+.dashboard-page-header > :first-child {
+  grid-column: 2;
+}
+
+.dashboard-page-header > .widget-customizer {
+  grid-column: 3;
+  justify-self: end;
 }
 
 /* Dashboard Time Range Selector */
