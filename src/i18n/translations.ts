@@ -115,23 +115,6 @@ export const translations = {
       velocityChart: {
         repos: "repos",
       },
-      healthScore: {
-        title: "Portfolio Health",
-        noData: "Add repos to see health score",
-        awaitingHistory:
-          "Building history — {count} repos need more daily snapshots before growth can be measured",
-        awaitingHistoryLabel: "Building history",
-        activeAlerts: "Active Alerts",
-        withSignals: "With Signals",
-        highVelocity: "High Velocity",
-        stale: "Stale",
-        ratings: {
-          excellent: "Excellent",
-          good: "Good",
-          fair: "Fair",
-          poor: "Needs Attention",
-        },
-      },
       widgetCustomizer: {
         title: "Show / Hide Widgets",
         customize: "Customize Dashboard",
@@ -1098,22 +1081,6 @@ export const translations = {
       },
       velocityChart: {
         repos: "個 repo",
-      },
-      healthScore: {
-        title: "組合健康分數",
-        noData: "新增 repo 後即可查看健康分數",
-        awaitingHistory: "快照累積中——還有 {count} 個 repo 的每日快照不足以計算成長速度",
-        awaitingHistoryLabel: "資料累積中",
-        activeAlerts: "活躍警報",
-        withSignals: "有訊號",
-        highVelocity: "高速成長",
-        stale: "停滯中",
-        ratings: {
-          excellent: "優秀",
-          good: "良好",
-          fair: "尚可",
-          poor: "需要關注",
-        },
       },
       widgetCustomizer: {
         title: "顯示 / 隱藏區塊",

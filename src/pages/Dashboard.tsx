@@ -18,7 +18,6 @@ import { VelocityChartRecharts } from "../components/dashboard/VelocityChartRech
 import { LanguageDistribution } from "../components/dashboard/LanguageDistribution";
 import { PortfolioHistory } from "../components/dashboard/PortfolioHistory";
 import { CategorySummary } from "../components/dashboard/CategorySummary";
-import { PortfolioHealthScore } from "../components/dashboard/PortfolioHealthScore";
 import {
   WidgetCustomizer,
   WidgetVisibility,
@@ -145,7 +144,6 @@ export function Dashboard() {
     recentActivity,
     velocityDistribution,
     languageDistribution,
-    healthScoreInput,
     earlySignals,
     signalSummary,
     movers,
@@ -319,14 +317,6 @@ export function Dashboard() {
       {widgetVisibility.weeklySummary && (
         <FadeIn delay={0.18}>
           <WeeklySummary />
-        </FadeIn>
-      )}
-
-      {/* 健康分數：原本緊接在統計卡之後，現在跟其餘 widget 一樣歸在段三之後——
-          維持原本整張卡的條件渲染，只有預設值從開改成關 */}
-      {widgetVisibility.portfolioHealth && (
-        <FadeIn delay={0.19}>
-          <PortfolioHealthScore input={healthScoreInput} />
         </FadeIn>
       )}
 

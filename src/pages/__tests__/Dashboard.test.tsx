@@ -71,14 +71,6 @@ let mockDashboard: {
   recentActivity: RecentActivity[];
   velocityDistribution: { key: string; count: number }[];
   languageDistribution: { language: string; count: number }[];
-  healthScoreInput: {
-    score: number | null;
-    activeAlerts: number;
-    totalRepos: number;
-    reposWithSignals: number;
-    highVelocityRepos: number;
-    staleRepos: number;
-  };
   earlySignals: EarlySignal[];
   signalSummary: SignalSummary | null;
   movers: MoversResult;
@@ -154,10 +146,6 @@ vi.mock("../../components/dashboard/CategorySummary", () => ({
   CategorySummary: () => <div data-testid="category-summary" />,
 }));
 
-vi.mock("../../components/dashboard/PortfolioHealthScore", () => ({
-  PortfolioHealthScore: () => <div data-testid="portfolio-health-score" />,
-}));
-
 // AttentionBar 與 MoversPanel 刻意不 mock，跟既有的 SignalSpotlight 待遇一致——
 // 組裝測試要驗證的正是這兩個元件真的被放進頁面、真的吃到對的 props，
 // mock 掉反而測不出「有沒有接上」這件事。
@@ -179,7 +167,6 @@ const EMPTY_MOVERS: MoversResult = {
 // 真正的「預設狀態長怎樣」由下面的「三段排列」describe 另外驗證。
 const ALL_WIDGETS_VISIBLE: WidgetVisibility = {
   statsGrid: true,
-  portfolioHealth: true,
   signalSpotlight: true,
   weeklySummary: true,
   portfolioHistory: true,
@@ -209,14 +196,6 @@ describe("Dashboard", () => {
         { key: "medium", count: 5 },
       ],
       languageDistribution: [],
-      healthScoreInput: {
-        score: 80,
-        activeAlerts: 2,
-        totalRepos: 10,
-        reposWithSignals: 3,
-        highVelocityRepos: 2,
-        staleRepos: 1,
-      },
       earlySignals: [],
       signalSummary: null,
       movers: EMPTY_MOVERS,

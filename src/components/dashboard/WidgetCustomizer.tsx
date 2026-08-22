@@ -10,7 +10,6 @@ import { useEscapeKey } from "../../hooks/useEscapeKey";
 
 export type WidgetId =
   | "statsGrid"
-  | "portfolioHealth"
   | "signalSpotlight"
   | "weeklySummary"
   | "portfolioHistory"
@@ -31,7 +30,6 @@ const DEFAULT_VISIBILITY: WidgetVisibility = {
   // 四張卡的數字已經各有去處（AttentionBar 的狀態列、MoversPanel 的標題），
   // 這一排改為預設關閉，但程式碼與開關都保留——留不留是使用者的判斷
   statsGrid: false,
-  portfolioHealth: false,
   signalSpotlight: true,
   weeklySummary: true,
   portfolioHistory: false,
@@ -84,7 +82,6 @@ export const WidgetCustomizer = memo(function WidgetCustomizer({ visibility, onC
   );
 
   const widgets: { id: WidgetId; label: string }[] = [
-    { id: "portfolioHealth", label: t.dashboard.healthScore.title },
     { id: "signalSpotlight", label: t.dashboard.signals.title },
     { id: "weeklySummary", label: t.dashboard.weekly.title },
     { id: "portfolioHistory", label: t.dashboard.portfolioHistory.title },

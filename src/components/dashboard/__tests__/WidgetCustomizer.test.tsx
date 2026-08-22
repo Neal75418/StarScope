@@ -12,7 +12,6 @@ vi.mock("../../../utils/logger", () => ({
 
 const defaultVisibility: WidgetVisibility = {
   statsGrid: true,
-  portfolioHealth: true,
   signalSpotlight: true,
   weeklySummary: true,
   portfolioHistory: true,
@@ -34,8 +33,11 @@ describe("WidgetCustomizer", () => {
     render(<WidgetCustomizer visibility={defaultVisibility} onChange={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button"));
+    // 對 defaultVisibility 的鍵數，不寫死數字：這條要守的是「每個 widget 都有開關」，
+    // 而不是「目前剛好有 N 個 widget」。寫死的話每次增刪 widget 都得改測試，
+    // 卻擋不住「某個 widget 沒有開關」這件真正該擋的事。
     const checkboxes = screen.getAllByRole("checkbox");
-    expect(checkboxes).toHaveLength(9);
+    expect(checkboxes).toHaveLength(Object.keys(defaultVisibility).length);
     expect(checkboxes[0]).toBeChecked();
   });
 
@@ -48,8 +50,14 @@ describe("WidgetCustomizer", () => {
     fireEvent.click(firstCheckbox);
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    const newVisibility = onChange.mock.calls[0][0];
-    expect(newVisibility.portfolioHealth).toBe(false);
+    // 不綁特定 widget：原本斷言的是 portfolioHealth，因為它剛好排第一。
+    // 改成「剛好一個鍵翻轉、其餘不動」之後，清單增刪或重排都不會弄壞這條。
+    const newVisibility = onChange.mock.calls[0][0] as WidgetVisibility;
+    const changed = (Object.keys(defaultVisibility) as (keyof WidgetVisibility)[]).filter(
+      (k) => newVisibility[k] !== defaultVisibility[k]
+    );
+    expect(changed).toHaveLength(1);
+    expect(newVisibility[changed[0]]).toBe(!defaultVisibility[changed[0]]);
   });
 
   it("uses role='group' not role='menu'", () => {

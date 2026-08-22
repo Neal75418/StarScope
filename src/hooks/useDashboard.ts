@@ -24,7 +24,6 @@ import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
 import { computeMovers, type MoversResult } from "../utils/movers";
 import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
-import type { HealthScoreInput } from "../components/dashboard/PortfolioHealthScore";
 import type { AttentionItem } from "../components/dashboard/AttentionBar";
 import { useWeeklySummary } from "./useWeeklySummary";
 
@@ -265,70 +264,6 @@ export function useDashboard() {
     ];
   }, [repos, t]);
 
-  // Portfolio 健康分數（0-100）
-  const healthScoreInput: HealthScoreInput = useMemo(() => {
-    const totalRepos = repos.length;
-    if (totalRepos === 0) {
-      return {
-        score: null,
-        activeAlerts: 0,
-        totalRepos: 0,
-        reposWithSignals: 0,
-        highVelocityRepos: 0,
-        staleRepos: 0,
-        reposAwaitingHistory: 0,
-      };
-    }
-
-    const activeAlerts = alerts.filter((a) => !a.acknowledged).length;
-    const reposWithSignals = signalSummary?.repos_with_signals ?? 0;
-    const highVelocityRepos =
-      (velocityDistribution.find((d) => d.key === "high")?.count ?? 0) +
-      (velocityDistribution.find((d) => d.key === "veryHigh")?.count ?? 0);
-
-    // 停滯 = 算得出 velocity 且不成長。velocity 為 null 是「快照歷史還不夠算」，
-    // 兩者混為一談的話，剛加入的 repo 在補滿歷史前都會被當成停滯而一直扣分。
-    const measurable = repos.filter((r) => r.velocity != null);
-    const staleRepos = measurable.filter((r) => (r.velocity as number) <= 0).length;
-    const reposAwaitingHistory = totalRepos - measurable.length;
-
-    // 一個 repo 都量不到成長時不給分數。這時候唯一有效的輸入只剩警報，
-    // 硬算出來的分數是用四分之一的資訊冒充整體評估——寧可講「還在累積」。
-    if (measurable.length === 0) {
-      return {
-        score: null,
-        activeAlerts,
-        totalRepos,
-        reposWithSignals,
-        highVelocityRepos,
-        staleRepos,
-        reposAwaitingHistory,
-      };
-    }
-
-    // 三個比例共用同一個分母「量得到的 repo 數」。混用的話，加入一個還沒有歷史的
-    // repo 會讓分數自己往下跳——它什麼都沒貢獻，卻稀釋了每一項的比例。
-    // 訊號比例另外夾在 1 以內：repos_with_signals 由後端跨全部 repo 統計，
-    // 理論上可能超過分母。
-    const alertPenalty = Math.min(activeAlerts * 8, 40);
-    const stalePenalty = (staleRepos / measurable.length) * 25;
-    const signalBonus = Math.min(1, reposWithSignals / measurable.length) * 10;
-    const accelBonus = (highVelocityRepos / measurable.length) * 10;
-
-    const raw = 100 - alertPenalty - stalePenalty + signalBonus + accelBonus;
-    const score = Math.max(0, Math.min(100, Math.round(raw)));
-
-    return {
-      score,
-      activeAlerts,
-      totalRepos,
-      reposWithSignals,
-      highVelocityRepos,
-      staleRepos,
-      reposAwaitingHistory,
-    };
-  }, [repos, alerts, signalSummary, velocityDistribution]);
-
   // 段二：「在動」排行，運算全交給 computeMovers（挑窗口、算相對成長、算門檻）
   const movers: MoversResult = useMemo(() => computeMovers(repos), [repos]);
 
@@ -394,7 +329,6 @@ export function useDashboard() {
     recentActivity,
     velocityDistribution,
     languageDistribution,
-    healthScoreInput,
     earlySignals: spotlightSignals,
     signalSummary,
     movers,
