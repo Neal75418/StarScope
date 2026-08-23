@@ -48,7 +48,11 @@ export default defineConfig(async () => ({
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 另外排除測試產物：npm run test:coverage 會在 coverage/ 寫出約 400 個
+      // HTML 檔，vite 預設會監看它們，於是跑完覆蓋率之後 npm run dev 會被
+      // 幾百次 page reload 洗版，每次都重掛整個 app 並重抓所有 API。
+      // 這些目錄都在 .gitignore 裡，但 vite 的 watcher 不看 .gitignore。
+      ignored: ["**/src-tauri/**", "**/coverage/**", "**/.venv/**", "**/htmlcov/**"],
     },
   },
 }));

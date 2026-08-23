@@ -342,4 +342,8 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=int(os.getenv("PORT", "8008")),
         reload=DEBUG,
+        # 測試產物與虛擬環境不該觸發重啟：pytest --cov 會在 sidecar/ 底下寫出
+        # .coverage 與 coverage.xml，htmlcov/ 更是好幾百個檔案。它們都在
+        # .gitignore 裡，但 watchfiles 不看 .gitignore。
+        reload_excludes=[".coverage", "coverage.xml", "htmlcov/*", ".venv/*", "*.pyc"],
     )
