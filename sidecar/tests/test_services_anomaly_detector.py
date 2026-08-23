@@ -516,3 +516,89 @@ class TestViralHnUsesPublishTimeNotFetchTime:
                   if AnomalyDetector.detect_viral_hn(r, test_db) is not None}
 
         assert batch == single, f"批次 {batch} 與單筆 {single} 不一致"
+
+
+class TestSeverityAndPercentileAreNotJustPlausibleNumbers:
+    """三個「壞掉會安靜」的計算：嚴重度分級、百分位、velocity 比率。
+
+    掃描時這三個各自的突變（high/medium 門檻對調、百分位算成 100-x、
+    比率的分子分母顛倒）全部通過 750 個測試——它們都只是把一個合理的
+    數字換成另一個合理的數字，畫面上看不出異常。
+    """
+
+    def test_severity_bands_are_not_interchangeable(self):
+        from services.anomaly_detector import _determine_severity
+        from constants import EarlySignalSeverity
+
+        # 邊界值取在門檻上：>= 而非 > 這件事本身也要釘住
+        assert _determine_severity(100.0, 100.0, 50.0) == EarlySignalSeverity.HIGH
+        assert _determine_severity(99.9, 100.0, 50.0) == EarlySignalSeverity.MEDIUM
+        assert _determine_severity(50.0, 100.0, 50.0) == EarlySignalSeverity.MEDIUM
+        assert _determine_severity(49.9, 100.0, 50.0) == EarlySignalSeverity.LOW
+
+    def test_percentile_counts_those_below_not_above(self, test_db):
+        """百分位是「贏過多少比例」。算成 100-x 的話，最慢的會顯示為最快。"""
+        from services.anomaly_detector import _calculate_velocity_percentile
+
+        values = [1.0, 2.0, 3.0, 4.0]  # 已排序，走 bisect 那條路
+        # 3.0 贏過 1.0 與 2.0 兩筆 ⇒ 2/4 = 50%
+        assert _calculate_velocity_percentile(3.0, values, test_db) == pytest.approx(50.0)
+        # 最低的一筆贏過 0 筆，不是贏過全部
+        assert _calculate_velocity_percentile(1.0, values, test_db) == pytest.approx(0.0)
+        assert _calculate_velocity_percentile(5.0, values, test_db) == pytest.approx(100.0)
+
+    def test_ratio_path_fires_for_a_small_repo_the_absolute_threshold_would_miss(self, test_db):
+        """velocity/stars 這條路存在的理由：小專案的絕對速度永遠達不到門檻。
+
+        分子分母顛倒的話這條路等於失效，rising star 就退化成「只看絕對速度」，
+        而那正是這個產品刻意要避免的偏誤。
+        """
+        from db.models import Repo, RepoSnapshot, Signal
+        from services.anomaly_detector import AnomalyDetector
+        from constants import SignalType
+        from utils.time import utc_now, utc_today
+
+        repo = Repo(owner="tiny", name="rocket", full_name="tiny/rocket",
+                    url="https://github.com/tiny/rocket", github_id=90001)
+        test_db.add(repo)
+        test_db.commit()
+
+        # 200 顆星、每天 +5：絕對速度 5 < 10（達不到門檻），
+        # 但比率 5/200 = 0.025 > 0.01 ⇒ 應該要被抓出來
+        test_db.add(RepoSnapshot(repo_id=repo.id, stars=200, forks=0, watchers=0,
+                                 open_issues=0, snapshot_date=utc_today(),
+                                 fetched_at=utc_now()))
+        test_db.add(Signal(repo_id=repo.id, signal_type=SignalType.VELOCITY,
+                           value=5.0, calculated_at=utc_now()))
+        test_db.commit()
+
+        signal = AnomalyDetector.detect_rising_star(repo, test_db)
+        assert signal is not None, "小專案靠比率這條路應該要觸發"
+        assert signal.star_count == 200
+
+    def test_ratio_does_not_fire_for_a_bigger_repo_at_the_same_absolute_speed(self, test_db):
+        """同樣每天 +5，4000 顆星的專案不該被當成 rising star。
+
+        這條是上一條的鑑別對照：只有「該觸發」那一條的話，分子分母顛倒
+        （stars/velocity = 800）一樣會觸發，測試照樣綠。要同時有一條
+        「不該觸發」的案例，顛倒才會被抓出來——800 遠大於 0.01。
+        """
+        from db.models import Repo, RepoSnapshot, Signal
+        from services.anomaly_detector import AnomalyDetector
+        from constants import SignalType
+        from utils.time import utc_now, utc_today
+
+        repo = Repo(owner="mid", name="steady", full_name="mid/steady",
+                    url="https://github.com/mid/steady", github_id=90002)
+        test_db.add(repo)
+        test_db.commit()
+
+        # 4000 星、每天 +5：絕對速度 5 < 10，比率 5/4000 = 0.00125 < 0.01 ⇒ 兩條都不過
+        test_db.add(RepoSnapshot(repo_id=repo.id, stars=4000, forks=0, watchers=0,
+                                 open_issues=0, snapshot_date=utc_today(),
+                                 fetched_at=utc_now()))
+        test_db.add(Signal(repo_id=repo.id, signal_type=SignalType.VELOCITY,
+                           value=5.0, calculated_at=utc_now()))
+        test_db.commit()
+
+        assert AnomalyDetector.detect_rising_star(repo, test_db) is None
