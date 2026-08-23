@@ -60,6 +60,7 @@ function makeSummary(overrides: Partial<SignalSummary> = {}): SignalSummary {
     by_type: { rising_star: 2, sudden_spike: 1 },
     by_severity: { high: 1, medium: 1, low: 1 },
     repos_with_signals: 2,
+    snapshot_days_covered: 40,
     ...overrides,
   };
 }
@@ -414,10 +415,16 @@ describe("Dashboard", () => {
     expect(screen.queryByText("Signal Spotlight")).not.toBeInTheDocument();
   });
 
-  it("does not render signal spotlight when total_active is 0", () => {
+  it("still renders signal spotlight when there are no signals — silence is indistinguishable from broken", () => {
+    // 這條原本斷言「total_active 為 0 時整個區塊不渲染」。2026-08-23 發現那個
+    // 行為有害：早期訊號偵測器在此之前從來沒有被呼叫過（early_signals 表歷史
+    // 總筆數 0），接上線路之後畫面完全沒有變化，因為兩種情況都是什麼都不顯示。
+    // 現在改成講「已檢查 N 個專案、目前沒有訊號」。
     mockDashboard.signalSummary = makeSummary({ total_active: 0, by_type: {} });
     render(<Dashboard />);
-    expect(screen.queryByText("Signal Spotlight")).not.toBeInTheDocument();
+    expect(screen.getByTestId("signal-spotlight-empty")).toBeInTheDocument();
+    // 涵蓋範圍要講出來——「沒事」的可信度取決於檢查了多少東西
+    expect(screen.getByTestId("signal-spotlight-empty")).toHaveTextContent("10");
   });
 
   it("formats time as 'Just now' for recent activities", () => {

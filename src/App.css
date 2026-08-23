@@ -4398,6 +4398,20 @@ a:focus-visible {
   color: var(--fg-default);
 }
 
+/* 空狀態：訊號焦點在沒有訊號時仍然渲染，講「檢查過了、涵蓋多少」。
+   直接不渲染的話，「偵測器沒被呼叫」與「跑過但沒東西」在畫面上一模一樣。 */
+.signal-spotlight-empty-text {
+  margin: 0;
+  color: var(--fg-default);
+  font-size: 14px;
+}
+
+.signal-spotlight-empty-hint {
+  margin: 6px 0 0;
+  color: var(--fg-muted);
+  font-size: 13px;
+}
+
 .signal-type-summary {
   display: flex;
   gap: 8px;

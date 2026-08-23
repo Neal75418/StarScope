@@ -3,7 +3,7 @@
  */
 
 import { memo, useMemo } from "react";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 import type { EarlySignal, SignalSummary } from "../../api/client";
 import { formatCompactRelativeTime } from "../../utils/format";
 import { getSignalTypeConfig } from "../../constants/signalTypes";
@@ -18,10 +18,13 @@ const SEVERITY_CLASS: Record<string, string> = {
 export const SignalSpotlight = memo(function SignalSpotlight({
   signals,
   summary,
+  totalRepos,
   onAcknowledge,
 }: {
   signals: EarlySignal[];
   summary: SignalSummary | null;
+  /** 追蹤中的 repo 數，用來說明「檢查涵蓋了多少東西」 */
+  totalRepos: number;
   onAcknowledge: (id: number) => void;
 }) {
   const { t } = useI18n();
@@ -36,8 +39,37 @@ export const SignalSpotlight = memo(function SignalSpotlight({
     [t]
   );
 
-  if (!summary || summary.total_active === 0) {
+  // 還沒拿到摘要＝不知道有沒有訊號，這時什麼都不說才對
+  if (!summary) {
     return null;
+  }
+
+  // 沒有訊號時仍然渲染，而且要講清楚兩件事：檢查跑過了、涵蓋了多少東西。
+  // 原本這裡直接 return null，於是「偵測器從未被呼叫」（2026-08-23 之前的真實狀況）
+  // 與「跑過但沒東西」在畫面上完全一樣——使用者唯一合理的推論是功能壞了。
+  //
+  // snapshot_days_covered 是第二句話的依據：breakout 需要 stars_delta_30d，
+  // 而那需要 30 天前的快照。少了這句，使用者無法分辨「這個功能對我沒用」
+  // 與「還沒到能判斷的時候」。
+  if (summary.total_active === 0) {
+    const warmingUp = summary.snapshot_days_covered < 30;
+    return (
+      <div className="dashboard-section signal-spotlight" data-testid="signal-spotlight-empty">
+        <div className="signal-spotlight-header">
+          <h3>{t.dashboard.signals.title}</h3>
+        </div>
+        <p className="signal-spotlight-empty-text">
+          {interpolate(t.dashboard.signals.emptyChecked, { count: totalRepos })}
+        </p>
+        {warmingUp && (
+          <p className="signal-spotlight-empty-hint">
+            {interpolate(t.dashboard.signals.emptyWarmingUp, {
+              days: summary.snapshot_days_covered,
+            })}
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (

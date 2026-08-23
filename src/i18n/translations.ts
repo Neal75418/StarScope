@@ -70,6 +70,8 @@ export const translations = {
       signals: {
         title: "Signal Spotlight",
         acknowledge: "Acknowledge",
+        emptyChecked: "Checked {count} tracked repos — nothing flagged right now.",
+        emptyWarmingUp: "Breakout detection needs 30 days of snapshots; {days} so far.",
         types: {
           risingStar: "Rising Star",
           suddenSpike: "Sudden Spike",
@@ -1058,6 +1060,8 @@ export const translations = {
       signals: {
         title: "訊號焦點",
         acknowledge: "確認",
+        emptyChecked: "已檢查 {count} 個追蹤中的專案，目前沒有訊號。",
+        emptyWarmingUp: "突破偵測需要 30 天快照，目前累積 {days} 天。",
         types: {
           risingStar: "新星崛起",
           suddenSpike: "突然飆升",

@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func
 
 from db.database import get_db
-from db.models import EarlySignal, Repo
-from utils.time import utc_now
+from db.models import EarlySignal, Repo, RepoSnapshot
+from utils.time import utc_now, utc_today
 from schemas.response import ApiResponse, success_response, StatusResponse
 
 router = APIRouter(prefix="/api/early-signals", tags=["early-signals"])
@@ -58,6 +58,10 @@ class SignalSummary(BaseModel):
     by_type: dict
     by_severity: dict
     repos_with_signals: int
+    # 「沒有訊號」有兩種：檢查跑過但沒東西，以及某些檢查還沒有足夠歷史。
+    # breakout 需要 stars_delta_30d，而那需要 30 天前的快照——追蹤新專案的
+    # 頭一個月裡它永遠算不出來。少了這個數字，畫面無法區分這兩種情況。
+    snapshot_days_covered: int
 
 
 # 輔助函式
@@ -166,6 +170,18 @@ async def get_repo_signals(
     )
 
 
+def _snapshot_days_covered(db: Session) -> int:
+    """最早的快照到今天涵蓋幾天。
+
+    用最早而非筆數：抓取中斷過的話筆數會少於天數，而決定 30 天增量算不算得出來
+    的是「有沒有那麼久以前的快照」，不是「累積了幾筆」。
+    """
+    earliest = db.query(func.min(RepoSnapshot.snapshot_date)).scalar()
+    if earliest is None:
+        return 0
+    return (utc_today() - earliest).days
+
+
 @router.get("/summary", response_model=ApiResponse[SignalSummary])
 async def get_signal_summary(
     db: Session = Depends(get_db)
@@ -211,6 +227,7 @@ async def get_signal_summary(
         by_type=by_type,
         by_severity=by_severity,
         repos_with_signals=repos_with_signals,
+        snapshot_days_covered=_snapshot_days_covered(db),
     )
     return success_response(
         data=summary,

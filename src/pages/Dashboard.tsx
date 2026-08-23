@@ -329,6 +329,7 @@ export function Dashboard() {
           <SignalSpotlight
             signals={earlySignals}
             summary={signalSummary}
+            totalRepos={stats.totalRepos}
             onAcknowledge={acknowledgeSignal}
           />
         )}

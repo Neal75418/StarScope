@@ -301,6 +301,11 @@ export interface SignalSummary {
   by_type: Record<string, number>;
   by_severity: Record<string, number>;
   repos_with_signals: number;
+  /**
+   * 最早的快照到今天涵蓋幾天。用來區分「檢查過但沒訊號」與「某些檢查還沒到期」——
+   * breakout 需要 stars_delta_30d，追蹤新專案的頭一個月裡它永遠算不出來。
+   */
+  snapshot_days_covered: number;
 }
 
 // 趨勢型別

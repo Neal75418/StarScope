@@ -149,6 +149,7 @@ const defaultSummary: apiClient.SignalSummary = {
   by_type: { sudden_spike: 1, rising_star: 1 },
   by_severity: { medium: 1, high: 1 },
   repos_with_signals: 1,
+  snapshot_days_covered: 40,
 };
 
 function setupDefaultMocks() {
