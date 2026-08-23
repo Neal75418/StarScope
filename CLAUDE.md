@@ -23,29 +23,29 @@ StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對�
 應用分兩層：**發現層**（Discovery 頁的 For You feed——依使用者興趣清單每日產生個人化推薦）與**監測層**（Watchlist、Trends、Compare、警報——對已追蹤 repo 做時序快照與訊號分析）。監測層的所有功能都依賴發現層或使用者手動把 repo 加入 watchlist，watchlist 為空時整個監測層不會有資料。
 
 ```mermaid
-graph LR
-    subgraph Desktop["Tauri Desktop"]
-        T["src-tauri/\nRust + System Tray"]
-    end
+graph TB
+    T["src-tauri/<br/>Rust · 系統匣 · OS 通知"]
+    F["src/<br/>React 19 · Pages · Hooks"]
+    B["sidecar/<br/>FastAPI · Services · SQLite"]
 
-    subgraph Frontend["React Frontend"]
-        F["src/\nPages + Components + Hooks"]
-    end
+    T -->|"WebView 載入"| F
+    T ==>|"spawn 並監管進程"| B
+    F <-->|"HTTP :8008"| B
+    B --> G["GitHub API"]
+    B --> H["Hacker News API"]
 
-    subgraph Backend["Python Sidecar"]
-        B["sidecar/\nFastAPI + Services + DB"]
-    end
-
-    subgraph APIs["External APIs"]
-        G["GitHub"]
-        H["HackerNews"]
-    end
-
-    T --> F
-    F <-->|":8008"| B
-    B --> G
-    B --> H
+    classDef rust fill:#ce422b,stroke:#8b2c1d,color:#fff
+    classDef web fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    classDef py fill:#8b5cf6,stroke:#6d28d9,color:#fff
+    classDef ext fill:#475569,stroke:#1e293b,color:#fff
+    class T rust
+    class F web
+    class B py
+    class G,H ext
 ```
+
+⚠️ 圖上那條粗線是重點：**Python sidecar 是 Rust 進程 spawn 出來的子進程**（`src-tauri/src/lib.rs`），
+不是獨立服務。App 關掉時它要跟著收——開發時手動起 sidecar 忘了關，下次會直接撞埠。
 
 ---
 

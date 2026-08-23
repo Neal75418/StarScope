@@ -31,29 +31,35 @@ StarScope 是一款開源桌面應用，幫助工程師以**動能（velocity）
 
 ## 🗺️ 功能一覽
 
+StarScope 分兩層，而且是**單向依賴**——這是它成為「雷達」而不是「目錄」的原因：
+
 ```mermaid
-graph TB
-    Root(("⭐<br/><b>StarScope</b>"))
-    Root --- Track["📡 追蹤與分析"]
-    Root --- Alert["🔔 警報與通知"]
-    Root --- Smart["🧠 智慧功能"]
-    Root --- Data["📦 資料管理"]
-    Root --- UX["✨ 使用者體驗"]
+graph LR
+    subgraph D["發現層 · 找到還沒人注意的專案"]
+        direction TB
+        Feed["For You 每日推薦<br/>依興趣清單挑選近 7 天新專案"]
+        Search["GitHub 搜尋 · 熱門趨勢"]
+    end
 
-    classDef root fill:#fbbf24,stroke:#b45309,color:#1f2937,font-weight:bold,font-size:16px
-    classDef track fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
-    classDef alert fill:#ef4444,stroke:#b91c1c,color:#fff,font-weight:bold
-    classDef smart fill:#8b5cf6,stroke:#6d28d9,color:#fff,font-weight:bold
-    classDef data fill:#10b981,stroke:#047857,color:#fff,font-weight:bold
-    classDef ux fill:#f59e0b,stroke:#d97706,color:#fff,font-weight:bold
+    subgraph M["監測層 · 追蹤已知專案的動能"]
+        direction TB
+        Watch["Watchlist<br/>velocity · 相對變化"]
+        Trend["趨勢排行 · 多專案對比"]
+        Signal["早期訊號 · 自訂警報"]
+    end
 
-    class Root root
-    class Track track
-    class Alert alert
-    class Smart smart
-    class Data data
-    class UX ux
+    Feed -->|"加入追蹤"| Watch
+    Search -->|"加入追蹤"| Watch
+    Watch --> Trend
+    Watch --> Signal
+
+    classDef discover fill:#f59e0b,stroke:#b45309,color:#1f2937,font-weight:bold
+    classDef monitor fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
+    class Feed,Search discover
+    class Watch,Trend,Signal monitor
 ```
+
+> ⚠️ **監測層沒有自己的資料來源**——watchlist 為空時，趨勢、對比、警報全部沒有東西可算。
 
 **📡 追蹤與分析** — Watchlist 追蹤 · Velocity / Acceleration 分析 · 7/30/90 天趨勢偵測 · Star 歷史回填 · 語言分佈 · For You 每日個人化推薦
 
@@ -75,8 +81,8 @@ graph TB
         direction TB
         subgraph UI["React 19 + TypeScript"]
             direction LR
-            Pages["<b>Pages</b><br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
-            Components["<b>Components</b><br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
+            Pages["Pages<br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
+            Components["Components<br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
         end
         subgraph Native["Rust Native"]
             direction LR
@@ -99,10 +105,18 @@ graph TB
         end
         DB[("SQLite")]
         Sched["APScheduler"]
-        API --> Services
-        Services --> DB
+        API --> Fetch
+        API --> Analyze
+        API --> Recommend
+        Fetch --> DB
+        Analyze --> DB
+        Detect --> DB
+        Context --> DB
+        Feed --> DB
         Sched -.->|預設 30min| Fetch
+        Fetch -.->|完成後觸發| Detect
         Sched -.->|daily 07:30| Feed
+        Sched -.->|30min| Context
     end
 
     subgraph Ext["🌐 External"]
@@ -119,12 +133,14 @@ graph TB
     classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
     classDef backend fill:#8b5cf6,stroke:#6d28d9,color:#fff,font-weight:bold
     classDef storage fill:#10b981,stroke:#047857,color:#fff,font-weight:bold
+    classDef sched fill:#0ea5e9,stroke:#0369a1,color:#fff,font-weight:bold
     classDef github fill:#24292e,stroke:#0d1117,color:#fff,font-weight:bold
     classDef hackernews fill:#ff6600,stroke:#c2410c,color:#fff,font-weight:bold
 
     class Pages,Components,Tray,Notify frontend
-    class API,Fetch,Analyze,Detect,Context,Recommend backend
-    class DB,Sched storage
+    class API,Fetch,Analyze,Detect,Context,Recommend,Feed backend
+    class DB storage
+    class Sched sched
     class GH github
     class HN hackernews
 ```
