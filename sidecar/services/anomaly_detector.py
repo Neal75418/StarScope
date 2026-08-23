@@ -26,6 +26,9 @@ from utils.time import utc_now
 logger = logging.getLogger(__name__)
 
 # 偵測門檻（可透過 app_settings 覆寫）
+# ⚠️ 這個數字被設定頁的 risingStarHint 文案引用（en 與 zh-TW 各一份，寫死
+# 「5,000」）。改這裡就要一起改那兩則文案，否則畫面會說一個不成立的條件，
+# 而使用者會照著它調 velocity 卻永遠等不到訊號。
 RISING_STAR_MAX_STARS = 5000  # 視為「新星」的最大星數
 RISING_STAR_MIN_VELOCITY = 10  # 值得注意的最低速度
 RISING_STAR_VELOCITY_RATIO = 0.01  # velocity/stars 比率門檻

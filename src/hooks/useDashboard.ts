@@ -317,8 +317,8 @@ export function useDashboard() {
 
   // 新鮮度標籤要的是「後端最後一次真的跟 GitHub 對過的時間」，不是 React Query 的
   // dataUpdatedAt——後者只是前端最後一次收到 HTTP 回應的時刻，重讀一次本機 DB 它就
-  // 變「剛剛」，跟資料有多新無關。實測差距：last_fetch_success 10:59、畫面 11:05
-  // 仍顯示「剛剛」。key 與 DiagnosticsSection 共用，兩處不會各抓一次。
+  // 變「剛剛」，跟資料有多新無關。2026-08-23 實測：後端上次真的抓取是 6 分鐘前，
+  // 畫面仍顯示「剛剛」。key 與 DiagnosticsSection 共用，兩處不會各抓一次。
   const diagnosticsQuery = useQuery<DiagnosticsResponse>({
     queryKey: [...queryKeys.connection.all, "diagnostics"],
     queryFn: ({ signal }) => getDiagnostics(signal),
