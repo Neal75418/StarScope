@@ -95,6 +95,29 @@ class TestStarMagnitudeSimilarity:
         result = recommender_module._star_magnitude_similarity(100, 100000)
         assert result < 0.1
 
+    def test_beyond_the_cutoff_clamps_to_zero_never_negative(self):
+        """截止門檻要真的截止，否則相似度會變成負數往下拖總分。
+
+        既有的 test_different_orders_of_magnitude 用 100 vs 100000，log 差
+        剛好是 3——正好落在 `if diff >= 3` 的邊界上，截止回 0.0、不截止算
+        1-3/3 也是 0.0，斷言 `< 0.1` 兩邊都過。實測把門檻改成 30，765 個
+        測試全綠。
+        """
+        # log 差 = 5：截止回 0.0；少了截止會算出 1 - 5/3 = -0.667
+        result = recommender_module._star_magnitude_similarity(10, 1_000_000)
+        assert result == pytest.approx(0.0)
+
+    def test_similarity_is_never_negative_at_any_magnitude(self):
+        """性質檢查：相似度是 [0,1] 的分數，負值沒有意義。
+
+        點狀案例只能守住挑到的那幾個值；這條掃過整個量級範圍，
+        任何「截止失效」的寫法都會在某個點被抓到。
+        """
+        for exp in range(0, 8):
+            for other in range(0, 8):
+                v = recommender_module._star_magnitude_similarity(10 ** exp or 1, 10 ** other or 1)
+                assert 0.0 <= v <= 1.0, f"10^{exp} vs 10^{other} 得到 {v}"
+
     def test_returns_zero_for_none(self):
         """Test returns 0.0 for None values."""
         assert recommender_module._star_magnitude_similarity(None, 1000) == pytest.approx(0.0)

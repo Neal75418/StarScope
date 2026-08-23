@@ -516,3 +516,40 @@ class TestRedirects:
         service = GitHubService(token="gho_test")
 
         assert service.client.follow_redirects is True
+
+
+class TestGetLatestReleaseHandlesNeverReleased:
+    """`/releases/latest` 對「從沒發過版」的 repo 回 404，那不是錯誤。
+
+    這條路徑先前沒有測試：把 `if response.status_code == 404: return None`
+    拿掉，767 個測試全綠。而該函式的 docstring 自己就記著——94 個追蹤中的
+    repo 有 34 個從沒發過版，全部走這條路。少了這個分支，每次版本檢查都會
+    對三分之一的清單拋 GitHubNotFoundError。
+    """
+
+    @pytest.mark.asyncio
+    async def test_never_released_returns_none_instead_of_raising(self):
+        service = GitHubService(token="test-token")
+
+        with _mock_http_client(_make_response(404, {"message": "Not Found"})):
+            assert await service.get_latest_release("owner", "no-releases") is None
+
+    @pytest.mark.asyncio
+    async def test_an_existing_release_still_comes_back(self):
+        """對照組：404 那條捷徑不能寬到把正常回應也吃掉。"""
+        service = GitHubService(token="test-token")
+        payload = {"tag_name": "v2.0.1", "name": "Spring AI 2.0.1"}
+
+        with _mock_http_client(_make_response(200, payload)):
+            assert await service.get_latest_release("owner", "has-releases") == payload
+
+    @pytest.mark.asyncio
+    async def test_other_errors_still_raise(self):
+        """403 之類仍要往外拋——當成「沒發過版」會讓速率限制被靜默吞掉。"""
+        service = GitHubService(token="test-token")
+        resp = _make_response(403, {"message": "rate limited"},
+                              headers={"X-RateLimit-Remaining": "0"})
+
+        with _mock_http_client(resp):
+            with pytest.raises((GitHubRateLimitError, GitHubAPIError)):
+                await service.get_latest_release("owner", "repo")
