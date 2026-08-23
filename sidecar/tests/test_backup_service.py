@@ -248,3 +248,52 @@ class TestFindLatestBackup:
         os.utime(tmp_path / "backups" / "starscope_20260821_180000.db", (future, future))
 
         assert find_latest_backup(db) == datetime(2026, 8, 21, 18, 0, tzinfo=timezone.utc)
+
+
+class TestWriteReadRoundTrip:
+    """create_backup 寫出來的檔案，find_latest_backup 必須找得到。
+
+    本檔其他測試都是手工拼檔名（starscope_20260822_180000.db）來驗讀取端，
+    等於測試自己編碼了一份格式——寫入端改了不會有任何測試變紅。實測：把
+    create_backup 的 strftime 換成 "%Y-%m-%d_%H-%M-%S"，全套 776 個測試全綠，
+    而 find_latest_backup 會靜默回 None，診斷頁就回到「明明有備份卻說沒有」，
+    正是它當初要修的那個問題。
+    """
+
+    def test_a_freshly_created_backup_is_found(self, service, temp_db, backup_dir):
+        created = service.create_backup()
+        assert created is not None and created.exists()
+
+        from services.backup import find_latest_backup
+
+        found = find_latest_backup(str(temp_db), str(backup_dir))
+        assert found is not None, "剛寫出來的備份必須找得到——找不到就是兩端格式不一致"
+
+        # 檔名解析出的時間要對得上檔案本身，不能只是「有回傳東西」
+        from datetime import datetime, timezone
+        from services.backup import BACKUP_TIMESTAMP_FORMAT
+
+        stamp = created.stem[len(temp_db.stem) + 1:]
+        expected = datetime.strptime(stamp, BACKUP_TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+        assert found == expected
+
+    def test_the_newest_of_several_real_backups_wins(self, service, temp_db, backup_dir):
+        """連續建立多份，回傳的必須是最後那份。
+
+        create_backup 的時間戳精度到秒，所以直接連做兩次可能同名；
+        這裡沿用既有 test_multiple_backups_unique_names 的做法確保檔名不同。
+        """
+        import time
+
+        first = service.create_backup()
+        time.sleep(1.05)
+        second = service.create_backup()
+        assert first is not None and second is not None and first != second
+
+        from services.backup import find_latest_backup
+        from datetime import datetime, timezone
+        from services.backup import BACKUP_TIMESTAMP_FORMAT
+
+        stamp = second.stem[len(temp_db.stem) + 1:]
+        expected = datetime.strptime(stamp, BACKUP_TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+        assert find_latest_backup(str(temp_db), str(backup_dir)) == expected

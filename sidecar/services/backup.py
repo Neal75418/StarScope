@@ -14,6 +14,12 @@ import sqlite3
 logger = logging.getLogger(__name__)
 
 
+# 備份檔名裡的時間戳格式。寫入（create_backup）與讀取（find_latest_backup）共用同一個
+# 常數：兩邊各寫一份的話，改了寫入端會讓讀取端靜默找不到備份，而診斷頁就會回到
+# 「明明有備份卻說沒有」——那正是 find_latest_backup 當初要修的問題。
+BACKUP_TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
+
+
 class BackupService:
     """資料庫備份服務"""
 
@@ -47,7 +53,7 @@ class BackupService:
         """
         try:
             # 生成備份檔案名稱 (starscope_YYYYMMDD_HHMMSS.db)
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime(BACKUP_TIMESTAMP_FORMAT)
             backup_filename = f"{self.db_path.stem}_{timestamp}.db"
             backup_path = self.backup_dir / backup_filename
 
@@ -144,7 +150,7 @@ def find_latest_backup(db_path: str, backup_dir: str | None = None) -> "datetime
         # 檔名是備份當下寫死的
         stamp = f.stem[len(db.stem) + 1:]
         try:
-            ts = datetime.strptime(stamp, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+            ts = datetime.strptime(stamp, BACKUP_TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
         except ValueError:
             continue
         if latest is None or ts > latest:
