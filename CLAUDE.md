@@ -10,9 +10,13 @@
 |---|---|---|
 | `README.md` | 對外 | 專案介紹、安裝、API 端點表 |
 | **本檔** | Claude Code | 路徑陷阱、跨層約定、設計取捨 |
-| **`docs/engineering.md`** | 貢獻者 | **工程規約——改動前必讀**：polling 必須 visibility-aware（`useSmartInterval`）、`ApiError` 四級降級、429 廣播 `starscope:rate-limited`、background task 的 shutdown 順序、E2E 一律 `data-testid`、coverage 門檻 80%、bundle 400KB gzipped |
 
-⚠️ `docs/engineering.md` 的規約**不在本檔重複**，動到 polling／錯誤處理／背景任務前先讀它。
+⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在
+`vitest.config.ts`、bundle 上限在 `scripts/check-bundle-size.sh`、前後端型別同步在
+`npm run check:api-drift`、降級等級是 `DegradationLevel` 這個 union type、事件名與錯誤訊息
+是 `constants/` 裡的具名常數、sidecar 的 shutdown 順序由
+`sidecar/tests/test_main_lifecycle.py` 斷言。**要知道規則是什麼就去看那些地方**——
+它們違反時會紅，散文不會。本檔只記錄「機器守不住、且從 code 看不出來」的部分。
 
 ---
 
@@ -172,6 +176,9 @@ npm run tauri dev                        # 終端機 2
 - ⚠️ **jsdom 不處理 CSS**：`toHaveClass("negative")` 對「有對應規則」與「規則根本不存在」
   完全無法區分，顏色／版面類的回歸測試只守得到 class 名那一層。要驗實際外觀得在瀏覽器
   量 `getComputedStyle()`
+- E2E selector：**斷言目標**一律用 `data-testid`（class 名會隨改版消失，測試會變成假綠）；
+  單純要框出一塊範圍再往裡面找時可以用 class（`page.locator(".alert-rule-form")`）——
+  這種用法壞掉時會直接找不到元素而紅，不會靜默通過
 - ⚠️ **新增會寫入共用資源的 E2E spec，要加進 `playwright.config.ts` 的 `DB_MUTATING_SPECS`**
   ——那組 spec 只在 chromium 串行跑、用專屬 port 8009/1421 與獨立 DB，
   `reuseExistingServer: false` 是刻意的：否則會接管你正在跑的真實 sidecar，
@@ -275,6 +282,18 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 - **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
 - **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
 - **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
+
+### 輪詢與計時器（兩個 hook，別選錯）
+
+`hooks/useSmartInterval.ts` 匯出兩個，差別在**暫停的條件**，不是實作細節：
+
+- `useSmartInterval(ms)` — 給 React Query 的 `refetchInterval`。隱藏**或離線**時暫停。
+- `useVisibleInterval(cb, ms | false)` — 給顯示用計時器（相對時間、倒數）。**只看可見性**，
+  因為倒數與網路無關，離線時該繼續走。恢復可見時會先補跑一次再重啟計時——
+  隱藏期間畫面上的值已經過期，只重啟計時的話使用者會盯著一個舊值直到下一次 tick。
+
+⚠️ 唯一刻意不套的地方是 `AppStatusContext` 的 health check：它**必須**在頁面隱藏時繼續跑，
+否則偵測不到 sidecar 復活，橫幅會一直掛著。該處有註解說明，不要「順手修正」。
 
 ### For You Feed 資料層
 

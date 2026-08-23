@@ -2,8 +2,9 @@
  * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
  */
 
-import { Fragment, useState, useMemo, useCallback, useEffect } from "react";
+import { Fragment, useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useVisibleInterval } from "../hooks/useSmartInterval";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
 import { formatNumber } from "../utils/format";
@@ -78,11 +79,8 @@ function LastUpdatedIndicator({
   t: { lastUpdated: string; justNow: string; minutesAgo: string; hoursAgo: string };
 }) {
   const [, setTick] = useState(0);
-  useEffect(() => {
-    if (dataUpdatedAt === 0) return;
-    const id = setInterval(() => setTick((n) => n + 1), 30_000);
-    return () => clearInterval(id);
-  }, [dataUpdatedAt]);
+  const bumpTick = useCallback(() => setTick((n) => n + 1), []);
+  useVisibleInterval(bumpTick, dataUpdatedAt === 0 ? false : 30_000);
 
   if (dataUpdatedAt === 0) return null;
 

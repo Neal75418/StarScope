@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { GitHubConnectionStatus } from "../../api/client";
 import { useI18n, interpolate } from "../../i18n";
+import { useVisibleInterval } from "../../hooks/useSmartInterval";
 
 interface ConnectionConnectedProps {
   status: GitHubConnectionStatus;
@@ -36,33 +37,24 @@ export function ConnectionConnected({ status, onDisconnect, onRefresh }: Connect
   const [countdown, setCountdown] = useState<string>("");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // 每秒計算並更新倒數
-  useEffect(() => {
-    const resetTime = status.rate_limit_reset;
+  const resetTime = status.rate_limit_reset;
+
+  const updateCountdown = useCallback(() => {
     if (!resetTime) {
       setCountdown("");
       return;
     }
+    const secondsRemaining = resetTime - Math.floor(Date.now() / 1000);
+    setCountdown(
+      secondsRemaining <= 0 ? "" : formatCountdown(secondsRemaining, t.common.timeUnits)
+    );
+  }, [resetTime, t.common.timeUnits]);
 
-    const updateCountdown = () => {
-      const now = Math.floor(Date.now() / 1000);
-      const secondsRemaining = resetTime - now;
-
-      if (secondsRemaining <= 0) {
-        setCountdown("");
-      } else {
-        setCountdown(formatCountdown(secondsRemaining, t.common.timeUnits));
-      }
-    };
-
-    // 初次更新
+  // 初次與依賴變動時立即算一次，之後每秒更新（頁面隱藏時暫停）
+  useEffect(() => {
     updateCountdown();
-
-    // 每秒更新
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [status.rate_limit_reset, t.common.timeUnits]);
+  }, [updateCountdown]);
+  useVisibleInterval(updateCountdown, resetTime ? 1000 : false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
