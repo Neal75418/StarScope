@@ -298,7 +298,7 @@ StarScope 是我的個人作品集 side project，功能範圍已於 v1.0.0 凍�
 
 - 自用 + 公開供觀摩，不預期外部使用者
 - Issues / PRs 不保證回應（這不是 OSS project，是「公開的個人專案」）
-- 想要不同方向？直接 fork 自由發揮
+- 想要不同方向？直接 fork 自由發揮（工程規約見 [`docs/engineering.md`](docs/engineering.md)）
 
 > 為什麼凍結？核心動能追蹤功能已達成設計目標。
 > 與其無止盡擴張、最後變成另一個半完成 repo，在「剛好完成」時收手，

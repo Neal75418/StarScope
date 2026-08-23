@@ -4,14 +4,13 @@
 >
 > **撰寫原則**：只記錄「從 code 看不出來的事」——路徑陷阱、跨層約定、函式庫的反直覺行為、設計取捨的理由。可以用一行指令查到的東西（有哪些服務、有哪些表、有幾個路由）**不寫進文件**，因為 `ls` 的答案永遠正確，而文件會過時。
 
-**這個 repo 有四份文件，各有分工**：
+**這個 repo 有三份文件，各有分工**：
 
 | 文件 | 讀者 | 內容 |
 |---|---|---|
 | `README.md` | 對外 | 專案介紹、安裝、API 端點表 |
 | **本檔** | Claude Code | 路徑陷阱、跨層約定、設計取捨 |
 | **`docs/engineering.md`** | 貢獻者 | **工程規約——改動前必讀**：polling 必須 visibility-aware（`useSmartInterval`）、`ApiError` 四級降級、429 廣播 `starscope:rate-limited`、background task 的 shutdown 順序、E2E 一律 `data-testid`、coverage 門檻 80%、bundle 400KB gzipped |
-| `CONTRIBUTING.md` | 對外 | commit 規範、PR 流程 |
 
 ⚠️ `docs/engineering.md` 的規約**不在本檔重複**，動到 polling／錯誤處理／背景任務前先讀它。
 
@@ -79,7 +78,7 @@ cd sidecar
 .venv/bin/python -m pytest tests/test_repos.py -v  # 單一測試檔
 .venv/bin/python -m pytest tests/ --cov=.          # 覆蓋率
 .venv/bin/alembic upgrade head                     # 資料庫遷移
-.venv/bin/ruff check --fix .                       # Python lint（CONTRIBUTING 要求，易漏）
+.venv/bin/ruff check --fix .                       # Python lint（易漏——前端有 husky 擋，Python 沒有）
 ```
 
 venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
@@ -223,6 +222,31 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 真正需要記的是扇出規模：`scheduler.py` 是排程樞紐，牽動 **9 個** service
 （alerts / anomaly_detector / backup / context_fetcher / feed_generator / github /
 release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都會碰到它。
+
+---
+
+## 提交慣例
+
+提交前跑一次（husky 的 pre-commit 只擋 token 外洩與 prettier，不跑型別與測試）：
+
+```bash
+npm run lint && npm run format:check && npm run type-check
+cd sidecar && .venv/bin/python -m pytest tests/ -q
+```
+
+Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
+
+| 類型 | 用途 | 範例 |
+|---|---|---|
+| `feat` | 新功能 | `feat(watchlist): add batch import` |
+| `fix` | 修 bug | `fix(scheduler): handle timezone edge case` |
+| `docs` | 文件 | `docs: update API endpoint table` |
+| `refactor` | 重構 | `refactor: extract logger utility` |
+| `test` | 測試 | `test: add coverage for useAsyncFetch` |
+| `perf` | 效能 | `perf: memoize expensive calculations` |
+| `chore` | 建置／工具 | `chore: bump dependencies` |
+
+程式碼風格：TypeScript 走 Prettier + ESLint（`npm run lint:fix`），Python 走 Ruff（`.venv/bin/ruff check --fix .`）。
 
 ---
 
