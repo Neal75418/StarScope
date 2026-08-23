@@ -352,6 +352,29 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
             else:
                 _update_health(last_fetch_failure=_time.time(), last_fetch_error=f"{error_count} repos 抓取失敗")
 
+            # 早期訊號偵測掛在這裡，而不是自己一個排程任務，理由有兩個：
+            #
+            # 1. **輸入新鮮度**：偵測吃的正是上面剛寫進去的快照與訊號。獨立排程
+            #    可能在舊資料上跑。
+            # 2. **啟動時就會跑**：APScheduler 的 IntervalTrigger 不會在啟動當下
+            #    觸發，要等第一個間隔過完。而這個 job 已經被 main.py 的
+            #    trigger_fetch_now() 在啟動時叫過，掛在這裡等於同時拿到
+            #    「啟動」與「定期」兩條路徑。
+            #
+            # 在此之前 run_detection 沒有任何呼叫端——early_signals 表從產品上線
+            # 到 2026-08-23 都是 0 筆，儀表板的訊號區塊因此永遠不出現。
+            # 成本：94 個 repo 實測 22 ms。
+            try:
+                from services.anomaly_detector import run_detection
+                detection = run_detection(db)
+                log.info(
+                    f"[排程] [{job_id}] 早期訊號偵測: 掃描 {detection['repos_scanned']} 個 repo、"
+                    f"寫入 {detection['signals_detected']} 個訊號 {detection['by_type']}"
+                )
+            except Exception as e:
+                # 偵測失敗不該讓整輪抓取算失敗——抓到的資料已經寫進去了
+                log.warning(f"[排程] [{job_id}] 早期訊號偵測失敗: {e}", exc_info=True)
+
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
             _update_health(last_fetch_failure=_time.time(), last_fetch_error=str(e)[:200])

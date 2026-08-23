@@ -244,6 +244,9 @@ class TestDetectViralHN:
             title="Amazing project on HN",
             url="https://news.ycombinator.com/item?id=123",
             score=200,
+            # published_at 是判斷依據；fetched_at 只是「我們什麼時候抓的」，
+            # 排程每隔幾小時就刷新它，拿它當時間窗口會恆真
+            published_at=utc_now(),
             fetched_at=utc_now(),
         )
         test_db.add(hn_signal)
@@ -265,7 +268,10 @@ class TestDetectViralHN:
             title="Old HN post",
             url="https://news.ycombinator.com/item?id=old",
             score=500,
-            fetched_at=old_time,
+            # 關鍵：發文很舊，但「剛剛才抓到」——正是排程刷新後的真實狀態。
+            # 若判斷依據錯用 fetched_at，這個貼文就會被誤判成「48 小時內爆紅」
+            published_at=old_time,
+            fetched_at=utc_now(),
         )
         test_db.add(hn_signal)
         test_db.commit()
@@ -375,6 +381,7 @@ class TestDetectAllBatchPath:
                 title=f"Post {ext_id}",
                 url="https://news.ycombinator.com/item",
                 score=score,
+                published_at=utc_now(),
                 fetched_at=utc_now(),
             ))
         test_db.commit()
@@ -438,3 +445,74 @@ class TestConstants:
         """Test spike thresholds maintain logical invariants."""
         assert SUDDEN_SPIKE_MULTIPLIER > 1  # must be a multiplier above 1x
         assert SUDDEN_SPIKE_MIN_ABSOLUTE > 0  # must require positive absolute growth
+
+
+class TestViralHnUsesPublishTimeNotFetchTime:
+    """
+    「48 小時內上 HN」要看發文時間，不是 StarScope 的抓取時間。
+
+    原本篩 ContextSignal.fetched_at，而抓取排程每隔幾小時就刷新它一次，
+    所以那個條件恆真。2026-08-23 實測：用 fetched_at 篩出 348 筆（含 2021 年的
+    uBlock Origin 與 TensorFlow 舊聞），用 published_at 篩出 0 筆。
+
+    這是同一個 session 內第二次遇到的同款缺陷——weekly_summary 的 HN 區塊
+    先前也是篩 fetched_at。
+    """
+
+    def _repo_with_hn(self, test_db, published_days_ago: int, score: int = 500):
+        from db.models import Repo, ContextSignal, RepoSnapshot
+        from constants import ContextSignalType
+        from utils.time import utc_now
+        from datetime import timedelta, date
+
+        repo = Repo(owner="a", name=f"r{published_days_ago}",
+                    full_name=f"a/r{published_days_ago}",
+                    url="https://github.com/a/r", added_at=utc_now(), updated_at=utc_now())
+        test_db.add(repo)
+        test_db.flush()
+        test_db.add(RepoSnapshot(repo_id=repo.id, stars=10_000, forks=1, open_issues=1,
+                                 snapshot_date=date(2026, 8, 23), fetched_at=utc_now()))
+        test_db.add(ContextSignal(
+            repo_id=repo.id, signal_type=ContextSignalType.HACKER_NEWS,
+            external_id=f"hn{published_days_ago}", title="Some post",
+            url="https://news.ycombinator.com/item?id=1", score=score,
+            # 關鍵：發文很久以前，但「剛剛才抓到」——正是排程刷新後的真實狀態
+            published_at=utc_now() - timedelta(days=published_days_ago),
+            fetched_at=utc_now(),
+        ))
+        test_db.commit()
+        return repo
+
+    def test_old_post_fetched_just_now_does_not_fire(self, test_db):
+        from services.anomaly_detector import AnomalyDetector
+
+        repo = self._repo_with_hn(test_db, published_days_ago=1000)
+
+        assert AnomalyDetector.detect_viral_hn(repo, test_db) is None, (
+            "五年前的 HN 貼文因為剛被重新抓取就觸發了——篩的是 fetched_at 而不是 published_at"
+        )
+
+    def test_recent_post_fires(self, test_db):
+        from services.anomaly_detector import AnomalyDetector
+
+        repo = self._repo_with_hn(test_db, published_days_ago=1)
+
+        signal = AnomalyDetector.detect_viral_hn(repo, test_db)
+        assert signal is not None, "24 小時前發布、500 分的貼文應該觸發"
+
+    def test_batch_path_agrees_with_single_path(self, test_db):
+        """
+        detect_all 的批次預載與 detect_viral_hn 的單筆查詢用的是兩份分開寫的條件。
+        不同步的話結果會不一樣，而且不會有任何錯誤浮出來。
+        """
+        from services.anomaly_detector import AnomalyDetector
+
+        old = self._repo_with_hn(test_db, published_days_ago=1000)
+        recent = self._repo_with_hn(test_db, published_days_ago=1)
+
+        batch = {s.repo_id for s in AnomalyDetector().detect_all(test_db)
+                 if s.signal_type == "viral_hn"}
+        single = {r.id for r in (old, recent)
+                  if AnomalyDetector.detect_viral_hn(r, test_db) is not None}
+
+        assert batch == single, f"批次 {batch} 與單筆 {single} 不一致"

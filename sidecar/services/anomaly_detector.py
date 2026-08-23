@@ -377,10 +377,14 @@ class AnomalyDetector:
         """
         cutoff = utc_now() - timedelta(hours=VIRAL_HN_CUTOFF_HOURS)
 
+        # 篩 published_at 而不是 fetched_at：後者是「StarScope 什麼時候抓的」，
+        # 而抓取排程每隔幾小時就刷新它一次，所以「48 小時內」這個條件恆真。
+        # 2026-08-23 實測：用 fetched_at 篩出 348 筆（含 2021 年的 uBlock Origin
+        # 與 TensorFlow 舊聞），用 published_at 篩出 0 筆。
         hn_signal = db.query(ContextSignal).filter(
             ContextSignal.repo_id == repo.id,
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
-            ContextSignal.fetched_at >= cutoff,
+            ContextSignal.published_at >= cutoff,
             ContextSignal.score >= VIRAL_HN_MIN_SCORE
         ).order_by(ContextSignal.score.desc()).first()
 
@@ -577,11 +581,13 @@ class AnomalyDetector:
         # 預載所有 active early signals，避免 detect_all_for_repo 中的 N+1 查詢
         active_signals = _build_active_signals_set(db)
 
-        # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）
+        # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）。
+        # 條件必須與 detect_viral_hn 的單筆查詢逐字一致——兩條路徑不同步的話，
+        # 批次跑出來的結果會和逐筆 fallback 不一樣，而且不會有任何錯誤浮出來
         cutoff_hn = utc_now() - timedelta(hours=VIRAL_HN_CUTOFF_HOURS)
         hn_signals_raw = db.query(ContextSignal).filter(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
-            ContextSignal.fetched_at >= cutoff_hn,
+            ContextSignal.published_at >= cutoff_hn,
             ContextSignal.score >= VIRAL_HN_MIN_SCORE,
         ).order_by(ContextSignal.score.desc()).all()
         # hn_signal_map: {repo_id: 最高分 HN 訊號}

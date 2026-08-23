@@ -578,3 +578,58 @@ class TestFeedJob:
         _register_feed_job(scheduler)
         job = scheduler.get_job("daily_feed")
         assert job is not None
+
+
+class TestEarlySignalDetectionRunsAfterFetch:
+    """
+    早期訊號偵測必須真的被呼叫。
+
+    2026-08-23 發現 run_detection 沒有任何呼叫端——不在排程的四個任務裡、
+    也不在任何路由裡。early_signals 表從產品上線起都是 0 筆，儀表板的訊號
+    區塊因此永遠不出現，而設定頁那四個門檻調了完全沒作用。測試會綠，
+    因為測試直接呼叫 run_detection。
+
+    掛在 fetch_all_repos_job 之後而不是自己一個排程任務，理由是：
+    偵測吃的正是抓取剛寫進去的資料；而且這個 job 會被 main.py 的
+    trigger_fetch_now() 在啟動時叫到，IntervalTrigger 不會。
+    """
+
+    @pytest.mark.asyncio
+    async def test_fetch_job_triggers_detection(self, monkeypatch):
+        from services import scheduler as sched
+        import services.anomaly_detector as det
+
+        calls: list[str] = []
+
+        def fake_run_detection(db):
+            calls.append("ran")
+            return {"repos_scanned": 0, "signals_detected": 0, "by_type": {}}
+
+        monkeypatch.setattr(det, "run_detection", fake_run_detection)
+        monkeypatch.setattr(sched, "_build_need_fetch_query",
+                            lambda db, m, log, jid: (_FakeQuery(), 0, None))
+
+        await sched._fetch_all_repos_inner(skip_recent_minutes=0)
+
+        assert calls == ["ran"], "抓取完成後沒有觸發早期訊號偵測"
+
+    @pytest.mark.asyncio
+    async def test_detection_failure_does_not_fail_the_fetch(self, monkeypatch):
+        """偵測炸掉不該讓整輪抓取算失敗——抓到的資料已經寫進去了。"""
+        from services import scheduler as sched
+        import services.anomaly_detector as det
+
+        def boom(db):
+            raise RuntimeError("偵測爆炸")
+
+        monkeypatch.setattr(det, "run_detection", boom)
+        monkeypatch.setattr(sched, "_build_need_fetch_query",
+                            lambda db, m, log, jid: (_FakeQuery(), 0, None))
+
+        # 不該拋出
+        await sched._fetch_all_repos_inner(skip_recent_minutes=0)
+
+
+class _FakeQuery:
+    def all(self):
+        return []

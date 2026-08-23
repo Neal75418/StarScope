@@ -723,6 +723,8 @@ export const translations = {
         description:
           "Adjust sensitivity of early signal detection. Lower values detect more signals.",
         risingStar: "Rising Star — min velocity (stars/day)",
+        risingStarHint:
+          "Also requires under 5,000 stars — large repos never trigger this, however high the velocity.",
         suddenSpike: "Sudden Spike — multiplier (vs. average)",
         breakout: "Breakout — min velocity threshold",
         viralHn: "Viral HN — min score",
@@ -1696,6 +1698,8 @@ export const translations = {
         title: "早期訊號偵測門檻",
         description: "調整早期訊號偵測的靈敏度。數值越低，偵測到的訊號越多。",
         risingStar: "Rising Star — 最低 velocity（顆/天）",
+        risingStarHint:
+          "另有一個條件：僅適用於 5,000 星以下的專案。大專案不論 velocity 多高都不會觸發。",
         suddenSpike: "Sudden Spike — 倍率（相對平均值）",
         breakout: "Breakout — velocity 門檻",
         viralHn: "Viral HN — 最低分數",

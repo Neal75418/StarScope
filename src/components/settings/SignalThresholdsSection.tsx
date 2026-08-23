@@ -86,8 +86,17 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
 
   const hasDraft = Object.keys(draft).length > 0;
 
-  const fields: { key: ThresholdKey; label: string; step: string }[] = [
-    { key: "rising_star_min_velocity", label: t.settings.signalThresholds.risingStar, step: "1" },
+  // hint：只有部分門檻在這裡調得到全部條件。Rising Star 還有一個後端寫死的
+  // stars <= 5000 上限（新星的定義），調 velocity 不會讓大專案觸發——
+  // 2026-08-23 的追蹤清單裡 velocity >= 10 的有 50 個，但同時 stars <= 5000 的是 0 個，
+  // 使用者看得到前者、看不到後者，於是合理地預期會有訊號
+  const fields: { key: ThresholdKey; label: string; step: string; hint?: string }[] = [
+    {
+      key: "rising_star_min_velocity",
+      label: t.settings.signalThresholds.risingStar,
+      step: "1",
+      hint: t.settings.signalThresholds.risingStarHint,
+    },
     { key: "sudden_spike_multiplier", label: t.settings.signalThresholds.suddenSpike, step: "0.5" },
     {
       key: "breakout_velocity_threshold",
@@ -111,7 +120,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
       ) : (
         <>
           <div className="signal-thresholds-grid">
-            {fields.map(({ key, label, step }) => (
+            {fields.map(({ key, label, step, hint }) => (
               <div key={key} className="settings-field">
                 <label className="settings-field-label" htmlFor={`threshold-${key}`}>
                   {label}
@@ -125,6 +134,7 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
                   value={getValue(key)}
                   onChange={(e) => setDraftKey(key, e.target.value)}
                 />
+                {hint && <p className="settings-field-hint">{hint}</p>}
               </div>
             ))}
           </div>
