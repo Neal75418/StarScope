@@ -81,8 +81,8 @@ graph TB
         direction TB
         subgraph UI["React 19 + TypeScript"]
             direction LR
-            Pages["Pages<br/>Dashboard · Watchlist · Trends<br/>Discovery · Compare · Settings"]
-            Components["Components<br/>RepoCard · Charts · Badges<br/>NotificationCenter"]
+            Pages["Pages<br/>Dashboard · Watchlist<br/>Trends · Discovery<br/>Compare · Settings"]
+            Components["Components<br/>RepoCard · Charts<br/>Badges<br/>NotificationCenter"]
         end
         subgraph Native["Rust Native"]
             direction LR
@@ -94,55 +94,31 @@ graph TB
     subgraph Engine["⚙️ Data Engine — Python 3.12"]
         direction TB
         API["FastAPI :8008"]
-        subgraph Services["Core Services"]
-            direction LR
-            Fetch["GitHub Fetcher"]
-            Analyze["Signal Analyzer"]
-            Detect["Anomaly Detector"]
-            Context["Context Fetcher"]
-            Recommend["Recommender"]
-            Feed["Feed Generator"]
-        end
+        Services["Core Services<br/>GitHub Fetcher<br/>Signal Analyzer<br/>Anomaly Detector<br/>Context Fetcher<br/>Recommender<br/>Feed Generator"]
+        Sched["APScheduler<br/>抓取 30min · Feed 每日 07:30 · 備份 02:00"]
         DB[("SQLite")]
-        Sched["APScheduler"]
-        API --> Fetch
-        API --> Analyze
-        API --> Recommend
-        Fetch --> DB
-        Analyze --> DB
-        Detect --> DB
-        Context --> DB
-        Feed --> DB
-        Sched -.->|預設 30min| Fetch
-        Fetch -.->|完成後觸發| Detect
-        Sched -.->|daily 07:30| Feed
-        Sched -.->|30min| Context
+        API --> Services
+        Sched -.-> Services
+        Services --> DB
     end
 
-    subgraph Ext["🌐 External"]
-        direction LR
-        GH["GitHub API"]
-        HN["Hacker News API"]
-    end
+    Ext["🌐 External APIs<br/>GitHub · Hacker News"]
 
     Components <-->|HTTP/JSON| API
     Native -.->|IPC| API
-    Fetch --> GH
-    Context --> HN
+    Services --> Ext
 
     classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold
     classDef backend fill:#8b5cf6,stroke:#6d28d9,color:#fff,font-weight:bold
     classDef storage fill:#10b981,stroke:#047857,color:#fff,font-weight:bold
     classDef sched fill:#0ea5e9,stroke:#0369a1,color:#fff,font-weight:bold
-    classDef github fill:#24292e,stroke:#0d1117,color:#fff,font-weight:bold
-    classDef hackernews fill:#ff6600,stroke:#c2410c,color:#fff,font-weight:bold
+    classDef external fill:#334155,stroke:#94a3b8,color:#fff,font-weight:bold
 
     class Pages,Components,Tray,Notify frontend
-    class API,Fetch,Analyze,Detect,Context,Recommend,Feed backend
+    class API,Services backend
     class DB storage
     class Sched sched
-    class GH github
-    class HN hackernews
+    class Ext external
 ```
 
 > 其他關鍵依賴：React Query v5（server state）· react-window v2（虛擬滾動）· SQLAlchemy（ORM）· CSS @keyframes（動畫）
