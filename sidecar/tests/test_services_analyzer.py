@@ -138,6 +138,63 @@ class TestCalculateAcceleration:
         assert result is None
 
 
+class TestAccelerationDirectionAndMagnitude:
+    """加速度的**方向**與**量級**，不是「有回傳數字」。
+
+    唯一的既有測試用線性成長（每天固定 50 顆星）⇒ 本週 velocity == 上週 ⇒
+    加速度為 0。而 0 對每一種寫錯都是不變量：兩週對調是 0、正負整個反轉是 0、
+    分母拿掉 abs() 還是 0。實測那條測試對四種突變全部不動聲色。
+
+    加速度會存成 SignalType.ACCELERATION，被警報規則、對比頁與匯出消費——
+    正負號寫反的話，減速中的 repo 會看起來在加速，而數字本身完全合理。
+    """
+
+    @staticmethod
+    def _seed(db, repo_id, *, two_weeks_ago: int, one_week_ago: int, today_stars: int):
+        """只造加速度真正會讀的三個時間點，避免被中間值干擾。"""
+        from datetime import timedelta
+        from db.models import RepoSnapshot
+        from utils.time import utc_now
+
+        today = utc_now().date()
+        for days, stars in ((14, two_weeks_ago), (7, one_week_ago), (0, today_stars)):
+            db.add(RepoSnapshot(
+                repo_id=repo_id, stars=stars, forks=0, watchers=0, open_issues=0,
+                snapshot_date=today - timedelta(days=days),
+                fetched_at=utc_now() - timedelta(days=days),
+            ))
+        db.commit()
+
+    def test_speeding_up_is_positive(self, test_db, mock_repo):
+        # 上週 +70（10/天），本週 +140（20/天）⇒ (20-10)/10 = +1.0
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1070, today_stars=1210)
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(1.0)
+
+    def test_slowing_down_is_negative(self, test_db, mock_repo):
+        # 上週 +140（20/天），本週 +70（10/天）⇒ (10-20)/20 = -0.5
+        # 這條與上一條互為鏡像：兩週對調會讓兩條同時錯，方向就釘住了
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1140, today_stars=1210)
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(-0.5)
+
+    def test_zero_baseline_growth_returns_plus_one(self, test_db, mock_repo):
+        # 上週完全沒動，本週開始漲 ⇒ 除以零的特例，回 +1.0
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=1070)
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(1.0)
+
+    def test_zero_baseline_decline_returns_minus_one(self, test_db, mock_repo):
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=930)
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(-1.0)
+
+    def test_negative_baseline_keeps_the_numerator_sign(self, test_db, mock_repo):
+        """上週是負成長時，分母必須取絕對值，否則正負號會被翻掉。
+
+        上週 -70（-10/天），本週 +70（+10/天）⇒ (10-(-10))/|-10| = +2.0。
+        少了 abs() 會得到 -2.0——「從掉星轉為漲星」被報成強烈減速。
+        """
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1070, one_week_ago=1000, today_stars=1070)
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(2.0)
+
+
 class TestCalculateSignals:
     """Tests for calculate_signals function."""
 
