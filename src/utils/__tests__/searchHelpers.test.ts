@@ -72,6 +72,26 @@ describe("searchHelpers", () => {
     it("trims keyword whitespace", () => {
       expect(buildCombinedQuery("  ", undefined, undefined)).toBe("");
     });
+
+    it("separates qualifiers with spaces — GitHub search needs that exact shape", () => {
+      // 上面幾條都用 toContain 逐片段檢查，那對「分隔符」是瞎的：
+      // "react,language:TypeScript" 一樣包含 "react" 與 "language:TypeScript"。
+      // 實測把 join(" ") 改成 join(",")，全套 1437 個測試依然綠。
+      // 而逗號會讓整串被 GitHub 當成單一搜尋詞，回傳的結果毫無關係。
+      expect(buildCombinedQuery("react", undefined, "TypeScript")).toBe(
+        "react language:TypeScript"
+      );
+    });
+
+    it("keeps every qualifier as its own space-delimited token", () => {
+      // 日期是隨當天變動的，所以不比對完整字串，改成驗「切開之後每個
+      // qualifier 各自成立」——這樣同樣看得見分隔符，又不會每天過期
+      const parts = buildCombinedQuery("web", "daily", "JavaScript").split(" ");
+      expect(parts).toContain("web");
+      expect(parts).toContain("stars:>=10");
+      expect(parts).toContain("language:JavaScript");
+      expect(parts.some((p) => p.startsWith("created:>"))).toBe(true);
+    });
   });
 
   describe("getStartDateForPeriod", () => {
