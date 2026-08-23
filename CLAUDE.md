@@ -12,11 +12,19 @@
 | **本檔** | Claude Code | 路徑陷阱、跨層約定、設計取捨 |
 
 ⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在
-`vitest.config.ts`、bundle 上限在 `scripts/check-bundle-size.sh`、前後端型別同步在
-`npm run check:api-drift`、降級等級是 `DegradationLevel` 這個 union type、事件名與錯誤訊息
-是 `constants/` 裡的具名常數、sidecar 的 shutdown 順序由
-`sidecar/tests/test_main_lifecycle.py` 斷言。**要知道規則是什麼就去看那些地方**——
-它們違反時會紅，散文不會。本檔只記錄「機器守不住、且從 code 看不出來」的部分。
+`vitest.config.ts`、bundle 上限在 `scripts/check-bundle-size.sh`、降級等級是
+`DegradationLevel` 這個 union type、事件名與錯誤訊息是 `constants/` 裡的具名常數、
+sidecar 的 shutdown 順序由 `sidecar/tests/test_main_lifecycle.py` 斷言。
+**要知道規則是什麼就去看那些地方**——它們違反時會紅，散文不會。
+本檔只記錄「機器守不住、且從 code 看不出來」的部分。
+
+⚠️ **`src/api/types.ts` 是手寫的，沒有任何機制擋前後端型別漂移。** 曾經有一支
+`scripts/check-api-drift.sh`，但它守錯方向——只檢查「後端有、前端沒宣告」（前端沒用到，
+通常無害），對「前端宣告了後端根本不送的欄位」完全瞎（執行期永遠 `undefined`
+而 TS 說它存在），加上沒有任何地方執行它，已刪除。
+**真的被漂移咬到時，正解是啟用 `npm run generate:types`（`openapi-typescript`）
+讓型別從 OpenAPI schema 產生，drift 就結構上不可能發生——不要再寫一支更好的
+檢查腳本。** 代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
 
 ⚠️ **但「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後，
 一定要做兩件事，否則你守的是一個裝飾品：
