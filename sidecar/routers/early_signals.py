@@ -3,7 +3,7 @@
 提供偵測到的異常與早期訊號存取。
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -176,7 +176,9 @@ def _snapshot_days_covered(db: Session) -> int:
     用最早而非筆數：抓取中斷過的話筆數會少於天數，而決定 30 天增量算不算得出來
     的是「有沒有那麼久以前的快照」，不是「累積了幾筆」。
     """
-    earliest = db.query(func.min(RepoSnapshot.snapshot_date)).scalar()
+    # scalar() 的回傳型別是 Any，不註記的話整個運算式都是 Any，mypy 會擋下
+    # 「宣告回 int 卻回 Any」——CI 的 mypy 步驟就是這樣紅的
+    earliest: date | None = db.query(func.min(RepoSnapshot.snapshot_date)).scalar()
     if earliest is None:
         return 0
     return (utc_today() - earliest).days
