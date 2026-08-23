@@ -55,6 +55,38 @@ class TestWeeklySummaryEndpoint:
         assert len(data["top_gainers"]) == 1
         assert data["top_gainers"][0]["stars_delta_7d"] == 200
 
+    def test_total_is_the_sum_across_repos_not_an_average(self, client, mock_repo, test_db):
+        """兩個 repo 才分得出加總與平均。
+
+        既有的 test_with_repo_and_snapshots 只有一個 repo，sum 與 sum//count
+        給出同一個答案——實測把 total_new_stars 改成除以 repo 數，760 個測試
+        全綠。加總 300 與平均 150 都是合理的數字，畫面上看不出哪個是對的。
+        """
+        from db.models import Repo
+
+        today = utc_today()
+        now = utc_now()
+        second = Repo(owner="other", name="repo", full_name="other/repo",
+                      url="https://github.com/other/repo", github_id=54321)
+        test_db.add(second)
+        test_db.commit()
+
+        for repo_id, old_stars, new_stars in (
+            (mock_repo.id, 1000, 1100),   # +100
+            (second.id, 500, 700),        # +200
+        ):
+            test_db.add_all([
+                RepoSnapshot(repo_id=repo_id, snapshot_date=today - timedelta(days=7),
+                             fetched_at=now - timedelta(days=7), stars=old_stars,
+                             forks=0, watchers=0, open_issues=0),
+                RepoSnapshot(repo_id=repo_id, snapshot_date=today, fetched_at=now,
+                             stars=new_stars, forks=0, watchers=0, open_issues=0),
+            ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+        assert data["total_new_stars"] == 300, "應為 100+200 的加總，不是平均 150"
+
     def test_top_losers(self, client, mock_repo, test_db):
         """Test that repos with negative delta appear in top_losers."""
         today = utc_today()
