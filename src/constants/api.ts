@@ -23,6 +23,14 @@ export const CLIPBOARD_FEEDBACK_MS = 2000;
 /** 預設請求逾時時間（毫秒）。30 秒適用於大部分端點。 */
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
+/**
+ * 全量抓取的逾時。94 個 repo 實測 43.3 秒，遠超過預設的 30 秒。
+ * 拉長不是為了讓 UI 知道結果——結果一律讀 diagnostics 的 fetch_in_progress——
+ * 而是避免客戶端 abort 把伺服器跑到一半的抓取砍掉。
+ * 若哪天逼近這個值，正解是後端改成「收下工作立刻回 202」，不是再把數字調大。
+ */
+export const FETCH_ALL_TIMEOUT_MS = 300_000;
+
 /** API 呼叫最大重試次數（不含首次請求）。 */
 export const MAX_RETRIES = 2;
 

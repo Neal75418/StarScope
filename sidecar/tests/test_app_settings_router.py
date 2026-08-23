@@ -256,6 +256,27 @@ class TestDiagnosticsBackupSurvivesRestart:
         )
         assert body["last_backup"].startswith("2026-08-22")
 
+    def test_exposes_whether_a_fetch_is_running_right_now(self, client):
+        """前端的「抓取中」讀這個欄位，不是自己的 promise。
+
+        手動觸發撞到排程中的抓取時，POST 立刻回 409，本機 promise 當場結束，
+        但抓取還在跑——實測 POST 14ms 返回而真正的抓取 12 秒後才完成。少了這個
+        欄位，畫面在那 12 秒裡會謊稱已完成。
+        """
+        import asyncio
+        from services.scheduler import _fetch_all_lock
+
+        assert client.get("/api/settings/diagnostics").json()["data"]["fetch_in_progress"] is False
+
+        async def _while_locked():
+            async with _fetch_all_lock:
+                return client.get("/api/settings/diagnostics").json()["data"]
+
+        assert asyncio.run(_while_locked())["fetch_in_progress"] is True
+
+        # 鎖放掉之後要跟著變回 False，否則按鈕會永遠停用
+        assert client.get("/api/settings/diagnostics").json()["data"]["fetch_in_progress"] is False
+
     def test_reports_none_when_disk_has_no_backup(self, client, monkeypatch):
         monkeypatch.setattr("services.scheduler.get_scheduler_health", lambda: {
             "last_fetch_success": None, "last_fetch_failure": None,

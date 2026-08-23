@@ -603,6 +603,11 @@ export interface DiagnosticsResponse {
   last_fetch_error: string | null;
   last_alert_check: string | null;
   last_backup: string | null;
+  /**
+   * 後端此刻是否正在跑全量抓取。UI 的「抓取中」要讀這個而不是自己的 promise——
+   * 手動觸發撞到排程中的抓取時 POST 會立刻回 409，promise 結束了但抓取還在跑。
+   */
+  fetch_in_progress: boolean;
 }
 
 export interface ResetDataResponse {

@@ -159,6 +159,7 @@ export function Dashboard() {
     acknowledgeSignal,
     isLoading,
     lastFetchAt,
+    isFetchInProgress,
     error,
     refresh,
   } = useDashboard();
@@ -166,7 +167,9 @@ export function Dashboard() {
   // 寫入操作一律走 WatchlistContext action，不在元件裡直接呼叫 mutation
   const { refreshAll } = useWatchlistActions();
   const { loadingState } = useWatchlistState();
-  const isRefreshing = loadingState.type === "refreshing";
+  // 兩個來源都要：本機旗標涵蓋「按下去到第一次輪詢回來」的空窗，伺服器旗標涵蓋
+  // 「POST 已經返回但抓取還在跑」——只看本機的話撞到排程中的抓取會謊稱已完成
+  const isRefreshing = loadingState.type === "refreshing" || isFetchInProgress;
 
   // ↻ 要做的是「讓新鮮度標籤能動」的那件事——真的去 GitHub 抓。
   // 只 invalidate 快取的話是重讀同一份本機資料，畫面不會有任何變化。

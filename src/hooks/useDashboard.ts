@@ -323,6 +323,10 @@ export function useDashboard() {
     queryKey: [...queryKeys.connection.all, "diagnostics"],
     queryFn: ({ signal }) => getDiagnostics(signal),
     staleTime: 30_000,
+    // 抓取進行中才輪詢：這是唯一能知道「什麼時候真的抓完」的訊號。手動觸發撞到
+    // 排程中的抓取時後端會立刻回 409，本機的 promise 當場結束，但抓取還在跑——
+    // 實測 POST 14ms 返回而真正的抓取 12 秒後才完成，中間畫面會謊稱已完成。
+    refetchInterval: (query) => (query.state.data?.fetch_in_progress ? 3_000 : false),
   });
 
   // Signal Spotlight 用的 earlySignals（取前 5 筆）
@@ -353,6 +357,8 @@ export function useDashboard() {
     isFetching: reposQuery.isFetching || alertsQuery.isFetching,
     /** 後端最後一次成功從 GitHub 抓取的時間；從未抓過時為 null */
     lastFetchAt: diagnosticsQuery.data?.last_fetch_success ?? null,
+    /** 後端此刻正在跑全量抓取（含排程觸發的，不只使用者按的那次） */
+    isFetchInProgress: diagnosticsQuery.data?.fetch_in_progress ?? false,
     error,
     refresh,
   };

@@ -320,8 +320,10 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
 
     from services.scheduler import _fetch_all_lock
 
+    # 409 而不是 200：一個「我沒做」的成功回應，跟「做完了」在呼叫端長得一模一樣
+    # （前端的 apiCall 只取 data，message 會被丟掉），畫面因此會謊稱抓取已完成
     if _fetch_all_lock.locked():
-        return success_response(data=_build_repo_list_response(db), message="Fetch already in progress")
+        raise HTTPException(status_code=409, detail="Fetch already in progress")
 
     async with _fetch_all_lock:
         # noinspection PyTypeChecker

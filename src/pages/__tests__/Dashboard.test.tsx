@@ -89,6 +89,7 @@ let mockDashboard: {
   acknowledgeSignal: (id: number) => void;
   isLoading: boolean;
   lastFetchAt: string | null;
+  isFetchInProgress: boolean;
   error: string | null;
   refresh: () => void;
 };
@@ -216,6 +217,7 @@ describe("Dashboard", () => {
       // 固定在遙遠的過去：formatCompactRelativeTime 對它的輸出（locale 日期字串）
       // 不會跟任何一條既有測試斷言的相對時間文字（"Just now"／"2h"／"3d"……）撞在一起
       lastFetchAt: "2024-01-20T12:00:00Z",
+      isFetchInProgress: false,
       error: null,
       refresh: mockRefresh,
     };
@@ -293,6 +295,21 @@ describe("Dashboard", () => {
     mockDashboard.lastFetchAt = null;
     render(<Dashboard />);
     expect(screen.getByTestId("attention-bar")).toHaveTextContent(/not fetched yet/i);
+  });
+
+  it("stays in the fetching state when the backend says a fetch is running, even though the local promise already settled", async () => {
+    // 使用者實際踩到的情境：手動觸發撞到排程中的抓取，後端回 409、本機 promise
+    // 14ms 就結束，但真正的抓取還有 12 秒。只看本機旗標的話畫面會謊稱已完成。
+    const user = userEvent.setup();
+    mockLoadingState = { type: "idle" };
+    mockDashboard.isFetchInProgress = true;
+    render(<Dashboard />);
+
+    const button = screen.getByRole("button", { name: /refresh/i });
+    expect(button).toBeDisabled();
+    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/fetching from github/i);
+    await user.click(button);
+    expect(mockRefreshAll).not.toHaveBeenCalled();
   });
 
   it("disables the refresh button while a fetch is in flight", async () => {

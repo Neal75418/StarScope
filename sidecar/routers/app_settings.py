@@ -217,6 +217,9 @@ class DiagnosticsResponse(BaseModel):
     last_fetch_error: str | None
     last_alert_check: str | None
     last_backup: str | None
+    # 前端的「抓取中」狀態要讀這個，而不是自己的 promise：手動觸發撞到排程中的
+    # 抓取時 POST 會立刻返回，promise 結束了但抓取還在跑，畫面就會謊稱已完成
+    fetch_in_progress: bool
 
 
 @router.get("/diagnostics", response_model=ApiResponse[DiagnosticsResponse])
@@ -268,7 +271,10 @@ def _format_scheduler_health(health: dict) -> dict:
     except Exception:  # 診斷頁不該因為讀不到備份目錄就整個掛掉
         latest_backup = None
 
+    from services.scheduler import _fetch_all_lock
+
     return {
+        "fetch_in_progress": _fetch_all_lock.locked(),
         "last_fetch_success": _ts_to_iso(health.get("last_fetch_success")),
         "last_fetch_failure": _ts_to_iso(health.get("last_fetch_failure")),
         "last_fetch_error": health.get("last_fetch_error"),

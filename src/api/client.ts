@@ -6,6 +6,7 @@ import { API_ENDPOINT } from "../config";
 import {
   GITHUB_SEARCH_PAGE_SIZE,
   DEFAULT_TIMEOUT_MS,
+  FETCH_ALL_TIMEOUT_MS,
   MAX_RETRIES,
   RETRY_DELAY_MS,
   API_ERROR_MESSAGES,
@@ -320,9 +321,12 @@ export async function fetchRepo(repoId: number): Promise<RepoWithSignals> {
  * 取得所有儲存庫的最新資料。
  */
 export async function fetchAllRepos(): Promise<RepoListResponse> {
-  return apiCall<RepoListResponse>("/repos/fetch-all", {
-    method: "POST",
-  });
+  return apiCall<RepoListResponse>(
+    "/repos/fetch-all",
+    { method: "POST" },
+    // retries: 0 —— 有副作用且不冪等，逾時重試只會再打一次已經在跑的抓取
+    { timeoutMs: FETCH_ALL_TIMEOUT_MS, retries: 0 }
+  );
 }
 
 /**

@@ -24,6 +24,7 @@ import {
   recalculateAllSimilarities,
   getCategoryRepos,
 } from "../api/client";
+import { ApiError } from "../api/types";
 import { useReposQuery } from "../hooks/useReposQuery";
 import { useAppStatus } from "./AppStatusContext";
 import { queryKeys } from "../lib/react-query";
@@ -213,6 +214,14 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
           dispatch({ type: "REFRESH_ALL_SUCCESS" });
           invalidateRepos();
         } catch (err) {
+          // 409 = 後端已經在抓（排程觸發的，或另一個視窗按的）。使用者要的結果
+          // 正在發生，這不是失敗——報錯會讓他再按一次，而那次同樣會撞到鎖。
+          // 進行中的狀態由 diagnostics 的 fetch_in_progress 接手顯示。
+          if (err instanceof ApiError && err.status === 409) {
+            dispatch({ type: "REFRESH_ALL_SUCCESS" });
+            invalidateRepos();
+            return;
+          }
           const error = getErrorMessage(err, t.common.error);
           dispatch({ type: "REFRESH_ALL_FAILURE", payload: { error } });
         }
