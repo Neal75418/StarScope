@@ -31,7 +31,26 @@ from services.scheduler import (
     backup_job,
     _track_repo_failure,
     FAILURE_ALERT_THRESHOLD,
+    get_scheduler_health,
+    _scheduler_health,
+    _health_lock,
 )
+
+
+@pytest.fixture
+def clean_health():
+    """把 _scheduler_health 清空再還原。
+
+    它是模組級全域字典，不重設的話前一個測試留下的值會讓「有沒有寫入」
+    這件事無法區分——正是這批測試原本測不到東西的原因之一。
+    """
+    with _health_lock:
+        saved = dict(_scheduler_health)
+        for k in _scheduler_health:
+            _scheduler_health[k] = None
+    yield
+    with _health_lock:
+        _scheduler_health.update(saved)
 
 
 class TestGetScheduler:
@@ -73,14 +92,21 @@ class TestFetchAllReposJob:
     """Tests for fetch_all_repos_job function."""
 
     @pytest.mark.asyncio
-    async def test_empty_watchlist(self, test_db):
-        """Test with empty watchlist."""
+    async def test_empty_watchlist(self, test_db, clean_health):
+        """空清單提早返回，而且不得留下「抓取成功」的紀錄。
+
+        儀表板的新鮮度標籤直接讀 last_fetch_success。空清單時宣稱剛抓過，
+        畫面就會說資料是新的，而實際上什麼都沒抓。
+        """
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)):
-            # Should complete without error
             await fetch_all_repos_job()
 
+        health = get_scheduler_health()
+        assert health["last_fetch_success"] is None
+        assert health["last_fetch_failure"] is None
+
     @pytest.mark.asyncio
-    async def test_fetches_repos(self, test_db, mock_repo):
+    async def test_fetches_repos(self, test_db, mock_repo, clean_health):
         """Test fetches repos from watchlist."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
@@ -104,6 +130,14 @@ class TestFetchAllReposJob:
             assert call_args[0][0] == mock_repo
             assert call_args[0][1] == mock_fetch.return_value
             assert call_args[0][2] is test_db
+
+        # 儀表板的新鮮度標籤與診斷頁都直接讀這個值。少了這段斷言，把
+        # _update_health(last_fetch_success=...) 整行刪掉不會有任何測試變紅，
+        # 而畫面會永遠顯示「尚未抓取」。
+        health = get_scheduler_health()
+        assert health["last_fetch_success"] is not None
+        assert health["last_fetch_error"] is None
+        assert health["last_fetch_failure"] is None
 
     @pytest.mark.asyncio
     async def test_one_failure_does_not_stop_the_rest(self, test_db, mock_multiple_repos):
@@ -194,37 +228,75 @@ class TestFetchAllReposJob:
         assert (mock_multiple_repos[2].owner, mock_multiple_repos[2].name) in fetched  # 無快照 → 要抓
 
     @pytest.mark.asyncio
-    async def test_handles_fetch_error(self, test_db, mock_repo):
-        """Test handles errors during fetch."""
+    async def test_handles_fetch_error(self, test_db, mock_repo, clean_health):
+        """抓不到資料要記成失敗，不能只是「沒有爆炸」。
+
+        原本這條沒有任何斷言，只驗到不拋例外。實測：把整段 _update_health
+        刪掉，750 個測試依然全綠——而診斷頁與儀表板都在讀那些值。
+        """
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.return_value = None  # Simulate fetch failure
 
-            # Should not raise, just log
             await fetch_all_repos_job()
 
+        health = get_scheduler_health()
+        assert health["last_fetch_failure"] is not None
+        assert "1" in str(health["last_fetch_error"])
+        # 失敗那輪不能同時蓋上成功的時間戳
+        assert health["last_fetch_success"] is None
+
     @pytest.mark.asyncio
-    async def test_handles_github_exception(self, test_db, mock_repo):
+    async def test_handles_github_exception(self, test_db, mock_repo, clean_health):
         """Test handles GitHub API exceptions gracefully (per-repo)."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = GitHubAPIError("API Error")
 
-            # Should not raise, just log and continue to next repo
             await fetch_all_repos_job()
 
+        health = get_scheduler_health()
+        assert health["last_fetch_failure"] is not None
+        assert health["last_fetch_success"] is None
+
     @pytest.mark.asyncio
-    async def test_handles_unexpected_exception(self, test_db, mock_repo):
+    async def test_handles_unexpected_exception(self, test_db, mock_repo, clean_health):
         """Test handles unexpected exceptions gracefully (per-repo)."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = ValueError("Unexpected error")
 
-            # Should not raise, just log and continue to next repo
             await fetch_all_repos_job()
+
+        health = get_scheduler_health()
+        assert health["last_fetch_failure"] is not None
+        assert health["last_fetch_success"] is None
+
+
+    @pytest.mark.asyncio
+    async def test_job_level_failure_is_recorded_with_the_reason(self, test_db, clean_health):
+        """整輪失敗（不是單一 repo 失敗）要把原因記進 health。
+
+        這條路徑先前一個測試都沒有：把 _update_health 那行刪掉，750 個測試
+        全綠。而設定頁的診斷區塊顯示的就是 last_fetch_error，使用者會看到
+        一片空白，以為排程一切正常。
+        """
+        from sqlalchemy.exc import SQLAlchemyError
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler._build_need_fetch_query',
+                   side_effect=SQLAlchemyError("database is locked")):
+
+            await fetch_all_repos_job()  # 可恢復的錯誤，不該讓排程中斷
+
+        health = get_scheduler_health()
+        assert health["last_fetch_failure"] is not None
+        # 記的必須是原因本身，不能只記「失敗了」——診斷頁要靠它判斷該做什麼
+        assert "database is locked" in str(health["last_fetch_error"])
+        assert health["last_fetch_success"] is None
 
 
 class TestCheckAlertsJob:
@@ -257,13 +329,20 @@ class TestCheckAlertsJob:
             call_args = mock_check.call_args
             assert call_args[0][0] is test_db
 
-    def test_handles_exception(self, test_db):
-        """Test handles exception gracefully."""
+    def test_handles_exception(self, test_db, clean_health, caplog):
+        """檢查失敗時不得留下「已檢查過」的紀錄，而且要以 critical 記錄。
+
+        診斷頁顯示 last_alert_check。失敗卻更新它，畫面會說警報剛檢查過。
+        """
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.alerts.check_all_alerts') as mock_check:
 
             mock_check.side_effect = Exception("DB Error")
-            check_alerts_job()  # Should not raise
+            check_alerts_job()  # 可恢復，不該讓排程中斷
+
+        assert get_scheduler_health()["last_alert_check"] is None
+        # 未預期的例外用 critical，與下方 SQLAlchemyError 的 error 刻意分級
+        assert any(r.levelname == "CRITICAL" for r in caplog.records)
 
 
 class TestFetchContextSignalsJob:
@@ -285,14 +364,17 @@ class TestFetchContextSignalsJob:
             mock_fetch.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_handles_exception(self, test_db):
+    async def test_handles_exception(self, test_db, caplog):
         """Test handles exception gracefully."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.fetch_all_context_signals', new_callable=AsyncMock) as mock_fetch:
 
             mock_fetch.side_effect = Exception("Network Error")
 
-            await fetch_context_signals_job()  # Should not raise
+            await fetch_context_signals_job()  # 可恢復，不該讓排程中斷
+
+        assert any(r.levelname == "CRITICAL" for r in caplog.records)
+        assert any("Network Error" in r.getMessage() for r in caplog.records)
 
 
 class TestTriggerFetchNow:
@@ -494,7 +576,7 @@ class TestCheckAlertsJobImportError:
 
         assert any("警報服務尚未可用" in r.getMessage() for r in caplog.records)
 
-    def test_handles_sqlalchemy_error(self, test_db):
+    def test_handles_sqlalchemy_error(self, test_db, clean_health, caplog):
         """Test handles SQLAlchemyError during alert check."""
         from sqlalchemy.exc import SQLAlchemyError
 
@@ -502,7 +584,12 @@ class TestCheckAlertsJobImportError:
              patch('services.alerts.check_all_alerts') as mock_check:
             mock_check.side_effect = SQLAlchemyError("Connection lost")
 
-            check_alerts_job()  # Should not raise
+            check_alerts_job()  # 可恢復，不該讓排程中斷
+
+        assert get_scheduler_health()["last_alert_check"] is None
+        # DB 錯誤是預期得到的，用 error 不用 critical
+        assert any(r.levelname == "ERROR" for r in caplog.records)
+        assert not any(r.levelname == "CRITICAL" for r in caplog.records)
 
 
 class TestFetchContextSignalsJobCleanup:
@@ -524,7 +611,7 @@ class TestFetchContextSignalsJobCleanup:
             mock_cleanup.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_handles_sqlalchemy_error(self, test_db):
+    async def test_handles_sqlalchemy_error(self, test_db, caplog):
         """Test handles SQLAlchemyError during context signal fetch."""
         from sqlalchemy.exc import SQLAlchemyError
 
@@ -533,7 +620,10 @@ class TestFetchContextSignalsJobCleanup:
 
             mock_fetch.side_effect = SQLAlchemyError("DB error")
 
-            await fetch_context_signals_job()  # Should not raise
+            await fetch_context_signals_job()  # 可恢復，不該讓排程中斷
+
+        assert any(r.levelname == "ERROR" for r in caplog.records)
+        assert not any(r.levelname == "CRITICAL" for r in caplog.records)
 
 
 class TestFeedJob:
