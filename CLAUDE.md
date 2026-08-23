@@ -4,6 +4,17 @@
 >
 > **撰寫原則**：只記錄「從 code 看不出來的事」——路徑陷阱、跨層約定、函式庫的反直覺行為、設計取捨的理由。可以用一行指令查到的東西（有哪些服務、有哪些表、有幾個路由）**不寫進文件**，因為 `ls` 的答案永遠正確，而文件會過時。
 
+**這個 repo 有四份文件，各有分工**：
+
+| 文件 | 讀者 | 內容 |
+|---|---|---|
+| `README.md` | 對外 | 專案介紹、安裝、API 端點表 |
+| **本檔** | Claude Code | 路徑陷阱、跨層約定、設計取捨 |
+| **`docs/engineering.md`** | 貢獻者 | **工程規約——改動前必讀**：polling 必須 visibility-aware（`useSmartInterval`）、`ApiError` 四級降級、429 廣播 `starscope:rate-limited`、background task 的 shutdown 順序、E2E 一律 `data-testid`、coverage 門檻 80%、bundle 400KB gzipped |
+| `CONTRIBUTING.md` | 對外 | commit 規範、PR 流程 |
+
+⚠️ `docs/engineering.md` 的規約**不在本檔重複**，動到 polling／錯誤處理／背景任務前先讀它。
+
 ---
 
 ## 專案概述
@@ -56,23 +67,30 @@ npm run build:analyze    # Bundle 大小分析
 
 ### Python Sidecar
 
+⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest` / `alembic`。**
+macOS 內建的 `python3` 是 3.9，而 `constants.py` 與 `db/models.py` 用了 `StrEnum`
+（Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
+CI 是綠的，因為 `actions/setup-python` 裝 3.12——**別把 CI 的指令原樣抄到本機**。
+
 ```bash
 cd sidecar
-python main.py                           # 啟動 FastAPI :8008
-pytest tests/ -v                         # 執行所有測試
-pytest tests/test_repos.py -v            # 執行單一測試檔
-pytest tests/ --cov=. --cov-report=html  # 覆蓋率報告
-alembic upgrade head                     # 資料庫遷移
-alembic revision -m "description"        # 建立新遷移
+.venv/bin/python main.py                           # 啟動 FastAPI :8008
+.venv/bin/python -m pytest tests/ -v               # 執行所有測試
+.venv/bin/python -m pytest tests/test_repos.py -v  # 單一測試檔
+.venv/bin/python -m pytest tests/ --cov=.          # 覆蓋率
+.venv/bin/alembic upgrade head                     # 資料庫遷移
+.venv/bin/ruff check --fix .                       # Python lint（CONTRIBUTING 要求，易漏）
 ```
+
+venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 
 ### 單元測試（Vitest）
 
 ```bash
-npm run test              # 執行所有單元測試
+npx vitest run            # 跑一次就退出 ← 要「跑完拿結果」用這個
+npm run test              # ⚠️ 等同 `vitest`，是 watch 模式，不會退出
 npm run test:ui           # Vitest UI 模式
 npm run test:coverage     # 覆蓋率報告
-npm run test:watch        # Watch 模式
 ```
 
 ### E2E 測試
@@ -87,42 +105,28 @@ npm run test:e2e:headed   # 顯示瀏覽器視窗
 ### 完整開發流程
 
 ```bash
-cd sidecar && python main.py    # 終端機 1 — sidecar
-npm run tauri dev               # 終端機 2 — Tauri
+./start-dev.sh                  # 建議：檢查 venv、清掉佔用 8008 的殘留 process、
+                                # trap 訊號時一併關掉 sidecar
+```
+
+手動兩個終端機的話要自己記得清 port（上次沒關乾淨會直接撞埠）：
+
+```bash
+lsof -ti:8008 | xargs kill -9   # 先清殘留
+cd sidecar && .venv/bin/python main.py   # 終端機 1
+npm run tauri dev                        # 終端機 2
 ```
 
 ---
 
 ## 專案結構
 
-### 前端 `src/`
+目錄結構用 `ls` 就看得到（README 有完整樹狀圖），這裡只記從名字看不出來的：
 
-| 目錄              | 說明                                                    |
-|-----------------|-------------------------------------------------------|
-| `pages/`        | Watchlist、Trends、Discovery、Dashboard、Compare、Settings |
-| `components/`   | RepoCard、StarsChart、ContextBadges、GitHubConnection 等  |
-| `hooks/`        | 自訂 Hooks（React Query、狀態管理、通知、匯入等）                     |
-| `api/client.ts` | 與 sidecar 通訊的 API 客戶端                                 |
-| `lib/`          | React Query 設定（queryKeys、QueryClient）                 |
-| `utils/`        | 工具函式（logger、error handling 等）                         |
-| `**/__tests__/` | Vitest 單元測試                                           |
-
-### Sidecar `sidecar/`
-
-| 目錄             | 說明                                              |
-|----------------|-------------------------------------------------|
-| `routers/`     | FastAPI 路由。⚠️ `dependencies.py` 不是端點模組，是 `Depends()` 共用注入 helper |
-| `services/`    | 業務邏輯                                            |
-| `db/models.py` | SQLAlchemy 模型                                    |
-| `tests/`       | pytest 測試，fixtures 在 `conftest.py`              |
-
-### Tauri `src-tauri/`
-
-| 檔案                | 說明                  |
-|-------------------|---------------------|
-| `src/main.rs`     | Rust 進入點（呼叫 lib.rs） |
-| `src/lib.rs`      | Sidecar 管理、系統匣、視窗控制 |
-| `tauri.conf.json` | Tauri 設定、CSP、視窗設定   |
+- `sidecar/routers/dependencies.py` **不是端點模組**，是 `Depends()` 的共用注入 helper
+  ——數路由模組時要扣掉它
+- `src-tauri/src/main.rs` 只是進入點，實作全在 `lib.rs`（sidecar 管理、系統匣、視窗控制）
+- 前端測試散在各目錄的 `__tests__/`，不是集中一處
 
 ---
 
@@ -143,16 +147,12 @@ npm run tauri dev               # 終端機 2 — Tauri
 
 ## 環境設定
 
-複製 `sidecar/.env.example` 至 `sidecar/.env`：
+⚠️ **repo 裡有兩份 `.env.example`，用途不同**：
 
-```bash
-GITHUB_CLIENT_ID=...    # OAuth Device Flow（建議）
-# 或
-GITHUB_TOKEN=ghp_...    # Personal Access Token（舊版）
-ENV=development
-DEBUG=false
-PORT=8008
-```
+- `sidecar/.env.example` → Python 端（`GITHUB_CLIENT_ID` / `GITHUB_TOKEN` / `PORT` 等）
+- 根目錄的 `.env.example` → Vite 端（`VITE_API_URL`）
+
+內容直接 `cat` 該檔，這裡不複製一份免得漂移。不設 token 也能跑，只是 GitHub 配額降到 60/hr。
 
 ---
 
@@ -168,8 +168,15 @@ PORT=8008
 ### 注意事項
 
 - 重構 hooks 時需同步更新測試 mocks（例：`useWatchlist` → `useWatchlistState` + `useWatchlistActions`）
-- 測試單一檔案 - `npm run test -- path/to/file.test.tsx`
+- 測試單一檔案 - `npx vitest run path/to/file.test.tsx`
 - Context Provider 包裹順序 - `WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部
+- ⚠️ **jsdom 不處理 CSS**：`toHaveClass("negative")` 對「有對應規則」與「規則根本不存在」
+  完全無法區分，顏色／版面類的回歸測試只守得到 class 名那一層。要驗實際外觀得在瀏覽器
+  量 `getComputedStyle()`
+- ⚠️ **新增會寫入共用資源的 E2E spec，要加進 `playwright.config.ts` 的 `DB_MUTATING_SPECS`**
+  ——那組 spec 只在 chromium 串行跑、用專屬 port 8009/1421 與獨立 DB，
+  `reuseExistingServer: false` 是刻意的：否則會接管你正在跑的真實 sidecar，
+  把當天 feed 提前消耗掉，而 `seen_repos` 是永久的（推薦過的 repo 不會再出現）
 
 ---
 
@@ -208,11 +215,14 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 
 ### 服務間依賴
 
-`services/` 之間有隱性依賴，改動時要留意連動：
+查法：`grep -rn "from services\." sidecar/services/`
 
-- `scheduler.py` 驅動 `github.py` + `snapshot.py`
-- `context_fetcher.py` 依賴 `hacker_news.py`
-- `feed_generator.py` 依賴 `feed_scoring.py` + `feed_defaults.py` + `github.py`
+⚠️ **頂層 grep 抓不全**——`scheduler.py` 與 `github.py` 有函式內延遲 import 用來迴避循環依賴，
+不掃函式體會漏掉。
+
+真正需要記的是扇出規模：`scheduler.py` 是排程樞紐，牽動 **9 個** service
+（alerts / anomaly_detector / backup / context_fetcher / feed_generator / github /
+release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都會碰到它。
 
 ---
 
@@ -239,12 +249,13 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 
 - **QueryClient 設定**（`lib/react-query.ts`）— staleTime 5min、gcTime 30min、retry 1
 - **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
-- **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll），成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
+- **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
 - **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
 
 ### For You Feed 資料層
 
-- `useFeed()` 回傳 `{ items, feedDate, isLoading, isGenerating, isError, feedback }`
+- `useFeed()` 回傳 `{ items, feedDate, isLoading, isGenerating, isError, stats, feedback }`
+  - `stats` 尚未載到時是 `null`，**不要用 0 佔位**——那會被讀成「真的是 0 次」
   - **自動產生機制**：當日 feed 為空時自動觸發一次 `generateFeed`，用 `autoGenerated` ref 確保每次 mount 至多一次。產生後仍為空（例如興趣清單未設定）不會重試，避免無限迴圈
   - **刻意沒有手動重試按鈕**：feed 一天一批，有內容時後端冪等、無興趣時 `generate_feed` 直接 `return 0`，按了都不會有變化；真正需要重試的「產生失敗」情境，離開頁面再回來就會重新掛載並自動重試
   - `isError` 必須同時涵蓋查詢與產生失敗——generate 掛掉時 query 仍會成功回傳空清單，只看查詢會把 API 失敗誤報成「還沒設定興趣」
@@ -261,8 +272,13 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 
 ### React-Window 虛擬滾動（v2 API，陷阱多）
 
-- 版本 `react-window@2.2.5`，**v2 使用 `rowComponent` prop，不是 v1 的 `children` render prop**
-- `List` 需 4 個必要 props：`rowComponent`、`rowCount`、`rowHeight`、`style`（含 height/width）
+- **v2 使用 `rowComponent` prop，不是 v1 的 `children` render prop**（版本查 `package.json`，別寫死在這裡）
+- `List` 的必填 props 是 `rowComponent`、`rowCount`、`rowHeight`、**`rowProps`**
+  ——`style` 是**選填**（型別定義裡有 `?`）。實務上 `style` 要給高度才捲得動，
+  但漏掉 `rowProps` 才是唯一會讓 `tsc` 紅字的那個
+- ⚠️ `rowComponent` **必須是模組層級的穩定引用**，資料一律走 `rowProps`。
+  v2 內部是 `useMemo(() => memo(rowComponent), [rowComponent])`——在元件內定義 row component
+  會讓每次 render 整張表重掛
 - 動態行高：`rowHeight` 支援 `(index: number) => number`，收合／展開兩種高度定義在 `pages/watchlist/RepoList.tsx`（`COLLAPSED_ITEM_SIZE` / `EXPANDED_ITEM_SIZE`）——**卡片改版時務必同步調整，行高寫死在 JS、CSS 改了不會自動反映**
 - 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理
 - **避免**：直接傳 `itemData` 到 `List`（改用 `rowProps`）；在 `RowComponent` 中用 inline arrow 當 memoized 子元件的 callback（會破壞 `RepoCard` 的 `memo`）——`onChartToggle` 因此設計成接受 `(repoId: number)` 參數

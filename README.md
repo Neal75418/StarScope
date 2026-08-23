@@ -65,7 +65,7 @@ graph TB
 
 **✨ 使用者體驗** — 中／英雙語 · 淺色／深色主題 · 虛擬滾動 · 頁面過場動畫
 
-> **測試覆蓋**：前端 1,256 + 後端 541 = **1,797 個測試案例**，E2E 12 specs / 45 tests
+> **測試覆蓋**：前後端合計 **2,000+ 個測試案例**，另有 45 個 E2E 案例；CI 門檻 coverage 80%、bundle 400KB gzipped
 
 ## 🏗️ 技術架構
 
@@ -101,7 +101,7 @@ graph TB
         Sched["APScheduler"]
         API --> Services
         Services --> DB
-        Sched -.->|hourly| Fetch
+        Sched -.->|預設 30min| Fetch
         Sched -.->|daily 07:30| Feed
     end
 
@@ -182,8 +182,8 @@ cd StarScope
 # 前端依賴
 npm install
 
-# Python 依賴
-cd sidecar && pip install -r requirements.txt && cd ..
+# Python 依賴（必須用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
+cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..
 
 # 環境設定（選用，提升 GitHub API 配額）
 cp sidecar/.env.example sidecar/.env
@@ -193,11 +193,14 @@ cp sidecar/.env.example sidecar/.env
 ### 開發模式
 
 ```bash
-# 終端機 1 — Python sidecar
-cd sidecar && python main.py
+./start-dev.sh    # 一鍵啟動：檢查 venv、清掉佔用 8008 的殘留 process、關閉時一併收掉 sidecar
+```
 
-# 終端機 2 — Tauri 開發模式
-npm run tauri dev
+或手動兩個終端機：
+
+```bash
+cd sidecar && .venv/bin/python main.py   # 終端機 1 — Python sidecar
+npm run tauri dev                        # 終端機 2 — Tauri 開發模式
 ```
 
 ### 建置與測試
@@ -205,9 +208,9 @@ npm run tauri dev
 ```bash
 npm run tauri build              # 建置桌面應用
 
-npm run test                     # 前端單元測試
-cd sidecar && pytest tests/ -v   # 後端測試
-npm run test:e2e                 # E2E 測試
+npx vitest run                                  # 前端單元測試（npm run test 是 watch 模式）
+cd sidecar && .venv/bin/python -m pytest tests/ # 後端測試
+npm run test:e2e                                # E2E 測試
 ```
 
 ## 📂 專案結構
@@ -222,7 +225,7 @@ StarScope/
 │   │   └── ...
 │   ├── constants/                 #   API、訊號類型、語言色彩
 │   ├── contexts/                  #   WatchlistContext + Reducer
-│   ├── hooks/                     #   55 個 Custom Hooks
+│   ├── hooks/                     #   Custom Hooks
 │   │   └── selectors/             #     Watchlist selector hooks
 │   ├── i18n/                      #   英／繁中翻譯
 │   ├── lib/                       #   React Query 設定
@@ -235,7 +238,7 @@ StarScope/
 │   │   └── Settings.tsx           #     設定與警報管理
 │   ├── theme/                     #   淺色／深色主題
 │   ├── types/                     #   共用 TypeScript 型別
-│   └── utils/                     #   工具函式（13 個模組）
+│   └── utils/                     #   工具函式
 │
 ├── src-tauri/                     # Tauri 桌面層（Rust）
 │   ├── src/
@@ -246,13 +249,13 @@ StarScope/
 │
 ├── sidecar/                       # Python 資料引擎
 │   ├── main.py                    #   FastAPI 入口（port 8008）
-│   ├── routers/                   #   18 個路由模組
-│   ├── services/                  #   18 個業務邏輯服務
+│   ├── routers/                   #   FastAPI 路由模組
+│   ├── services/                  #   業務邏輯服務
 │   ├── schemas/                   #   Pydantic 資料模型
 │   ├── db/                        #   SQLite + SQLAlchemy（16 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
 │   ├── alembic/                   #   資料庫遷移
-│   └── tests/                     #   pytest 後端測試（536 個）
+│   └── tests/                     #   pytest 後端測試
 │
 ├── e2e/                           # Playwright E2E 測試
 └── .github/workflows/             # CI/CD（test + release）

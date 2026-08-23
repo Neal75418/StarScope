@@ -584,7 +584,7 @@ class TestEarlySignalDetectionRunsAfterFetch:
     """
     早期訊號偵測必須真的被呼叫。
 
-    2026-08-23 發現 run_detection 沒有任何呼叫端——不在排程的四個任務裡、
+    2026-08-23 發現 run_detection 沒有任何呼叫端——不在排程的任何一個任務裡、
     也不在任何路由裡。early_signals 表從產品上線起都是 0 筆，儀表板的訊號
     區塊因此永遠不出現，而設定頁那四個門檻調了完全沒作用。測試會綠，
     因為測試直接呼叫 run_detection。
