@@ -2,14 +2,20 @@
  * Dashboard 頁面，總覽追蹤中的 repo 與關鍵指標。
  */
 
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
 import { useAppStatus } from "../contexts/AppStatusContext";
 import { useNavigation } from "../contexts/NavigationContext";
-import { formatNumber, formatDelta, formatCompactRelativeTime } from "../utils/format";
+import { useWatchlistActions, useWatchlistState } from "../contexts/WatchlistContext";
+import {
+  formatNumber,
+  formatDelta,
+  formatCompactRelativeTime,
+  formatRelativeTime,
+} from "../utils/format";
 import { AttentionBar } from "../components/dashboard/AttentionBar";
 import { MoversPanel } from "../components/dashboard/MoversPanel";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
@@ -152,10 +158,22 @@ export function Dashboard() {
     releasesChecked,
     acknowledgeSignal,
     isLoading,
-    dataUpdatedAt,
+    lastFetchAt,
     error,
     refresh,
   } = useDashboard();
+
+  // 寫入操作一律走 WatchlistContext action，不在元件裡直接呼叫 mutation
+  const { refreshAll } = useWatchlistActions();
+  const { loadingState } = useWatchlistState();
+  const isRefreshing = loadingState.type === "refreshing";
+
+  // ↻ 要做的是「讓新鮮度標籤能動」的那件事——真的去 GitHub 抓。
+  // 只 invalidate 快取的話是重讀同一份本機資料，畫面不會有任何變化。
+  const handleRefresh = useCallback(async () => {
+    await refreshAll();
+    refresh();
+  }, [refreshAll, refresh]);
 
   // Portfolio History 的時間範圍（獨立 state，不影響 WeeklySummary）
   const [portfolioDays, setPortfolioDays] = useState<DashboardTimeRange>(30);
@@ -260,12 +278,14 @@ export function Dashboard() {
     );
   }
 
-  // 更新時間就地算：dataUpdatedAt 已經在 useDashboard 的回傳值裡，
-  // 不必為了段一另開一個 hook 輸出，這裡只是格式化成字串給 AttentionBar 用
-  const freshnessLabel = formatCompactRelativeTime(
-    new Date(dataUpdatedAt).toISOString(),
-    t.dashboard.activity.justNow
-  );
+  // 顯示的是後端最後一次真的跟 GitHub 對過的時間（lastFetchAt），不是前端最後一次
+  // 收到 HTTP 回應的時間——後者重讀一次本機 DB 就會變「剛剛」，跟資料新舊無關
+  // 用 formatRelativeTime 而非同頁其他地方的 formatCompactRelativeTime：後者一小時內
+  // 一律回「剛剛」，而排程是每 30 分鐘抓一次——沒有分鐘刻度的話這個標籤幾乎永遠是
+  // 「剛剛」，換了資料來源也還是分不出「剛抓完」與「已經 59 分鐘沒抓」
+  const freshnessLabel = lastFetchAt
+    ? formatRelativeTime(lastFetchAt, { justNowText: t.dashboard.activity.justNow })
+    : t.dashboard.attention.neverFetched;
 
   return (
     <AnimatedPage className="page dashboard-page">
@@ -287,7 +307,8 @@ export function Dashboard() {
         hasAlertRules={hasAlertRules}
         releasesChecked={releasesChecked}
         updatedLabel={freshnessLabel}
-        onRefresh={refresh}
+        isRefreshing={isRefreshing}
+        onRefresh={handleRefresh}
       />
 
       {/* 四張卡的數字已各有去處（見上方 AttentionBar 與下方 MoversPanel 的標題），

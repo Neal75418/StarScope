@@ -30,7 +30,12 @@ interface AttentionBarProps {
   /** 版本尚未抓取時不能說「沒事」，只能說還在檢查 */
   releasesChecked: boolean;
   updatedLabel: string;
-  /** 取代 DataFreshnessBar 時一併搬過來的手動重整，沒有別的入口 */
+  /**
+   * 抓取進行中。搬離 DataFreshnessBar 時這個回饋掉了——舊元件會顯示「同步中」
+   * 並把按鈕藏起來，而抓取 94 個 repo 要好幾秒，沒有回饋的話按鈕與壞掉無法區分。
+   */
+  isRefreshing: boolean;
+  /** 真的去 GitHub 抓（POST /repos/fetch-all），不是重讀本機快取 */
   onRefresh: () => void;
 }
 
@@ -40,6 +45,7 @@ export const AttentionBar = memo(function AttentionBar({
   hasAlertRules,
   releasesChecked,
   updatedLabel,
+  isRefreshing,
   onRefresh,
 }: AttentionBarProps) {
   const { t } = useI18n();
@@ -55,12 +61,15 @@ export const AttentionBar = memo(function AttentionBar({
       <div className="attention-status">
         <span className="attention-status-text">{items.length > 0 ? copy.title : status}</span>
         <span className="attention-status-meta">
-          {interpolate(copy.tracking, { count: totalRepos })} · {updatedLabel}
+          {interpolate(copy.tracking, { count: totalRepos })} ·{" "}
+          {isRefreshing ? copy.fetching : updatedLabel}
         </span>
         <button
           type="button"
           className="attention-refresh"
           onClick={onRefresh}
+          disabled={isRefreshing}
+          aria-busy={isRefreshing}
           aria-label={t.common.refresh}
         >
           ↻

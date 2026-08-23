@@ -4650,9 +4650,18 @@ a:focus-visible {
   border-radius: var(--radius-sm, 4px);
 }
 
-.attention-refresh:hover {
+/* :hover 在 disabled 元素上仍會觸發，不排除的話滑過去會變亮，等於再說一次「可以點」 */
+.attention-refresh:hover:not(:disabled) {
   color: var(--fg-default);
   background-color: var(--bg-muted);
+}
+
+/* 這個 class 自己設了 color，會蓋掉瀏覽器對 disabled 的預設灰化——
+   不寫這條的話停用與可用的計算樣式完全相同，看不出差別 */
+.attention-refresh:disabled {
+  color: var(--fg-subtle, #6e7681);
+  opacity: 0.5;
+  cursor: default;
 }
 
 .attention-list {

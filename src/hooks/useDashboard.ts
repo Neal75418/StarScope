@@ -14,11 +14,12 @@ import {
   getSignalSummary,
   listAlertRules,
   acknowledgeSignal,
+  getDiagnostics,
   RepoWithSignals,
   TriggeredAlert,
   AlertRule,
 } from "../api/client";
-import type { EarlySignal } from "../api/types";
+import type { EarlySignal, DiagnosticsResponse } from "../api/types";
 import { ALERT_FETCH_LIMIT } from "../constants/api";
 import { queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
@@ -314,6 +315,16 @@ export function useDashboard() {
   // 至少成功抓過一次」，AttentionBar 要看的是這個旗標，不是 weekly 本身是否有值。
   const releasesChecked = weekly?.releases_ever_fetched ?? false;
 
+  // 新鮮度標籤要的是「後端最後一次真的跟 GitHub 對過的時間」，不是 React Query 的
+  // dataUpdatedAt——後者只是前端最後一次收到 HTTP 回應的時刻，重讀一次本機 DB 它就
+  // 變「剛剛」，跟資料有多新無關。實測差距：last_fetch_success 10:59、畫面 11:05
+  // 仍顯示「剛剛」。key 與 DiagnosticsSection 共用，兩處不會各抓一次。
+  const diagnosticsQuery = useQuery<DiagnosticsResponse>({
+    queryKey: [...queryKeys.connection.all, "diagnostics"],
+    queryFn: ({ signal }) => getDiagnostics(signal),
+    staleTime: 30_000,
+  });
+
   // Signal Spotlight 用的 earlySignals（取前 5 筆）
   const spotlightSignals = useMemo(() => earlySignals.slice(0, 5), [earlySignals]);
 
@@ -322,6 +333,8 @@ export function useDashboard() {
     void qc.invalidateQueries({ queryKey: queryKeys.alerts.all });
     void qc.invalidateQueries({ queryKey: queryKeys.signals.all });
     void qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
+    // 少了這行，抓取完成後標籤還會停在舊的 last_fetch_success
+    void qc.invalidateQueries({ queryKey: [...queryKeys.connection.all, "diagnostics"] });
   }, [qc]);
 
   return {
@@ -338,7 +351,8 @@ export function useDashboard() {
     acknowledgeSignal: handleAcknowledgeSignal,
     isLoading,
     isFetching: reposQuery.isFetching || alertsQuery.isFetching,
-    dataUpdatedAt: reposQuery.dataUpdatedAt,
+    /** 後端最後一次成功從 GitHub 抓取的時間；從未抓過時為 null */
+    lastFetchAt: diagnosticsQuery.data?.last_fetch_success ?? null,
     error,
     refresh,
   };

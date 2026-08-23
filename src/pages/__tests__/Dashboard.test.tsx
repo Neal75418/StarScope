@@ -16,6 +16,8 @@ import { createTestQueryClient } from "../../lib/react-query";
 
 const mockRefresh = vi.fn();
 const mockNavigateTo = vi.fn();
+const mockRefreshAll = vi.fn(() => Promise.resolve());
+let mockLoadingState: { type: string } = { type: "idle" };
 
 vi.mock("../../contexts/NavigationContext", () => ({
   useNavigation: () => ({
@@ -23,6 +25,13 @@ vi.mock("../../contexts/NavigationContext", () => ({
     navigationState: null,
     consumeNavigationState: () => null,
   }),
+}));
+
+// 與 NavigationContext 同樣的處理：正式 app 有 WatchlistProvider 包著頁面
+// （App.tsx:100），這裡只需要 Dashboard 真正用到的兩個出口
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistActions: () => ({ refreshAll: mockRefreshAll }),
+  useWatchlistState: () => ({ loadingState: mockLoadingState }),
 }));
 const mockAcknowledgeSignal = vi.fn();
 
@@ -79,7 +88,7 @@ let mockDashboard: {
   releasesChecked: boolean;
   acknowledgeSignal: (id: number) => void;
   isLoading: boolean;
-  dataUpdatedAt: number;
+  lastFetchAt: string | null;
   error: string | null;
   refresh: () => void;
 };
@@ -206,7 +215,7 @@ describe("Dashboard", () => {
       isLoading: false,
       // 固定在遙遠的過去：formatCompactRelativeTime 對它的輸出（locale 日期字串）
       // 不會跟任何一條既有測試斷言的相對時間文字（"Just now"／"2h"／"3d"……）撞在一起
-      dataUpdatedAt: new Date("2024-01-20T12:00:00Z").getTime(),
+      lastFetchAt: "2024-01-20T12:00:00Z",
       error: null,
       refresh: mockRefresh,
     };
@@ -214,6 +223,7 @@ describe("Dashboard", () => {
 
   it("collapses to an onboarding card with a Discover CTA when nothing is tracked", async () => {
     const user = userEvent.setup();
+    mockLoadingState = { type: "idle" };
     mockDashboard.stats = { totalRepos: 0, totalStars: 0, weeklyStars: 0, activeAlerts: 0 };
     render(<Dashboard />);
     expect(screen.getByTestId("dashboard-onboard")).toBeInTheDocument();
@@ -258,7 +268,7 @@ describe("Dashboard", () => {
     expect(mockRefresh).toHaveBeenCalled();
   });
 
-  it("clicking AttentionBar's refresh button calls the hook's refresh — DataFreshnessBar is gone, this is the page's only manual refresh entry point now", async () => {
+  it("clicking AttentionBar's refresh actually fetches from GitHub, then invalidates — invalidating alone re-reads the same local rows and changes nothing on screen", async () => {
     // AttentionBar 是真的元件（不 mock），跟下面 acknowledge 那條測試對 SignalSpotlight
     // 的待遇一致：onAcknowledge 有端對端點擊測試釘住，onRefresh 之前沒有，
     // 錯接一個什麼都不做的函式會 tsc 通過、沒有任何測試發現——按鈕還在、還能點，
@@ -266,7 +276,33 @@ describe("Dashboard", () => {
     const user = userEvent.setup();
     render(<Dashboard />);
     await user.click(screen.getByRole("button", { name: /refresh/i }));
+    expect(mockRefreshAll).toHaveBeenCalledTimes(1);
     expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the backend's last GitHub fetch time, not React Query's dataUpdatedAt", () => {
+    // 這條釘住的是被修掉的缺陷本身：舊版顯示前端最後一次收到 HTTP 回應的時間，
+    // 重讀一次本機 DB 它就變「剛剛」，跟資料有多新無關。實測後端 last_fetch_success
+    // 是 10:59 而畫面在 11:05 仍顯示「剛剛」。
+    mockDashboard.lastFetchAt = new Date(Date.now() - 42 * 60 * 1000).toISOString();
+    render(<Dashboard />);
+    expect(screen.getByTestId("attention-bar")).toHaveTextContent("42m");
+  });
+
+  it("says so when the backend has never fetched, instead of implying the data is fresh", () => {
+    mockDashboard.lastFetchAt = null;
+    render(<Dashboard />);
+    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/not fetched yet/i);
+  });
+
+  it("disables the refresh button while a fetch is in flight", async () => {
+    const user = userEvent.setup();
+    mockLoadingState = { type: "refreshing" };
+    render(<Dashboard />);
+    const button = screen.getByRole("button", { name: /refresh/i });
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(mockRefreshAll).not.toHaveBeenCalled();
   });
 
   it("renders stats grid", () => {

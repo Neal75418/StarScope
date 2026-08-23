@@ -13,6 +13,7 @@ const base = {
   hasAlertRules: true,
   releasesChecked: true,
   updatedLabel: "3 分鐘前",
+  isRefreshing: false,
   onRefresh: () => {},
 };
 
@@ -69,6 +70,26 @@ describe("AttentionBar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /refresh/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("抓取中時停用按鈕，並用進行中文案蓋掉更新時間", () => {
+    const onRefresh = vi.fn();
+    render(<AttentionBar {...base} isRefreshing onRefresh={onRefresh} />);
+
+    const button = screen.getByRole("button", { name: /refresh/i });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+
+    // 停用不只是屬性——重複點擊會對 94 個 repo 再打一輪 GitHub
+    fireEvent.click(button);
+    expect(onRefresh).not.toHaveBeenCalled();
+
+    const bar = screen.getByTestId("attention-bar");
+    expect(bar).toHaveTextContent(/fetching from github/i);
+    // 舊時間必須讓位：抓取途中還顯示「3 分鐘前」等於在說已經抓完了
+    expect(bar).not.toHaveTextContent("3 分鐘前");
+    // ⚠️ 停用的視覺差異靠 .attention-refresh:disabled，jsdom 不跑 CSS 測不到，
+    // 那條規則是在瀏覽器量過計算樣式的（此 class 自設 color 會蓋掉預設灰化）
   });
 
   it("有項目時展開成清單", () => {

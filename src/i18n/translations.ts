@@ -34,6 +34,8 @@ export const translations = {
         noAlertRules: "no alert rules set",
         checking: "Still checking — releases not fetched yet",
         tracking: "{count} tracked",
+        fetching: "Fetching from GitHub…",
+        neverFetched: "not fetched yet",
       },
       movers: {
         title: "Moving",
@@ -1020,6 +1022,8 @@ export const translations = {
         noAlertRules: "未設定警報規則",
         checking: "正在檢查（版本資料尚未抓取）",
         tracking: "{count} 個追蹤中",
+        fetching: "正在從 GitHub 抓取…",
+        neverFetched: "尚未抓取",
       },
       movers: {
         title: "在動",
