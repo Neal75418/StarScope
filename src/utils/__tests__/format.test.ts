@@ -4,12 +4,14 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  formatNumber,
-  formatDelta,
-  formatVelocity,
+  deltaClass,
   formatChartDate,
-  formatRelativeTime,
   formatDayCount,
+  formatDelta,
+  formatNumber,
+  formatRelativeTime,
+  formatVelocity,
+  trendClass,
 } from "../format";
 
 describe("formatNumber", () => {
@@ -161,5 +163,53 @@ describe("formatDayCount", () => {
     for (const n of [7, 29, 30, 200, 365]) {
       expect(formatDayCount(n)).toBe(formatRelativeTime(days(n)));
     }
+  });
+});
+
+describe("deltaClass", () => {
+  // 掃描時把 invert 分支整個拿掉（isPositive = v > 0），全套測試依然綠——
+  // deltaClass 一條測試都沒有。它決定趨勢頁與 repo 卡片上每個增量的顏色。
+  it("colours a rise as positive and a fall as negative by default", () => {
+    expect(deltaClass(120)).toBe("positive");
+    expect(deltaClass(-58)).toBe("negative");
+  });
+
+  it("flips the meaning when invert is set — more open issues is bad news", () => {
+    // 唯一的 invert 消費者是 TrendRow 的「Issue 7 天Δ」。壞掉的話 issue 暴增
+    // 會顯示成綠色，而數字本身完全正常，看不出哪裡不對。
+    expect(deltaClass(30, true)).toBe("negative");
+    expect(deltaClass(-30, true)).toBe("positive");
+  });
+
+  it("gives zero no direction at all — neither colour", () => {
+    // 「持平」不是好消息也不是壞消息。回任一方向色都會讓一整排沒動的東西
+    // 染上顏色，而顏色是這兩頁唯一的視覺重點。
+    expect(deltaClass(0)).toBe("");
+    expect(deltaClass(0, true)).toBe("");
+  });
+
+  it("treats missing data as no direction, not as a rise", () => {
+    // null 是「量不到」不是「值為零」，但兩者在這裡的**顯示**必須一致：
+    // 都不該染色。染成 positive 的話沒有資料的欄位會看起來像在成長。
+    expect(deltaClass(null)).toBe("");
+    expect(deltaClass(undefined)).toBe("");
+  });
+});
+
+describe("trendClass", () => {
+  it("maps direction to the trend-up / trend-down pair", () => {
+    expect(trendClass(5)).toBe("trend-up");
+    expect(trendClass(-5)).toBe("trend-down");
+    expect(trendClass(0)).toBe("");
+    expect(trendClass(null)).toBe("");
+  });
+});
+
+describe("formatRelativeTime 的未來時間 guard", () => {
+  it("treats a future timestamp as just now rather than a negative age", () => {
+    // GitHub 偶爾回傳未來的 pushed_at（時鐘偏差）。少了 `diffMs < 0` 那個 guard
+    // 會一路算下去印出「-3m」之類的負數年齡——掃描時拿掉它全套測試依然綠。
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    expect(formatRelativeTime(future, { justNowText: "剛剛" })).toBe("剛剛");
   });
 });
