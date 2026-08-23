@@ -18,6 +18,9 @@ const DB_MUTATING_SPECS = [
   "**/settings-persistence.spec.ts",
 ];
 
+// noinspection JSUnusedGlobalSymbols — Playwright 依檔名慣例載入本檔，不經由 import。
+// 證據：CI 跑 `playwright test --project=db-mutating`，而該 project 名稱定義在下方，
+// 設定檔若沒被載入這道指令會直接失敗。
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
