@@ -88,3 +88,6 @@ Desktop.ini
 src-tauri/target/
 src-tauri/gen/
 coverage/
+
+# TypeScript incremental build info (composite projects)
+*.tsbuildinfo
