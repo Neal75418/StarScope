@@ -4,7 +4,7 @@
 >
 > **撰寫原則**：只記錄「從 code 看不出來的事」——路徑陷阱、跨層約定、函式庫的反直覺行為、設計取捨的理由。可以用一行指令查到的東西（有哪些服務、有哪些表、有幾個路由）**不寫進文件**，因為 `ls` 的答案永遠正確，而文件會過時。
 
-**這個 repo 有三份文件，各有分工**：
+**這個 repo 有兩份文件，各有分工**：
 
 | 文件 | 讀者 | 內容 |
 |---|---|---|
@@ -17,6 +17,27 @@
 是 `constants/` 裡的具名常數、sidecar 的 shutdown 順序由
 `sidecar/tests/test_main_lifecycle.py` 斷言。**要知道規則是什麼就去看那些地方**——
 它們違反時會紅，散文不會。本檔只記錄「機器守不住、且從 code 看不出來」的部分。
+
+⚠️ **但「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後，
+一定要做兩件事，否則你守的是一個裝飾品：
+
+1. **grep 誰執行它。** 找不到引用點就是死的。本專案踩過兩次：`tsconfig.node.json`
+   與 `e2e/tsconfig.json` 都存在、看起來在運作，實際上沒有任何地方執行——
+   實測往 `vite.config.ts` 塞 `const x: number = "字串"`，`npm run type-check`
+   退出碼 0。當時 `tsconfig.json` 靠 `references` 指向前者，但 plain `tsc`
+   **只有 `tsc -b` 才會**跟著檢查 referenced project，而全 repo 沒有一處跑 `tsc -b`。
+   現在的做法是**不用 `references`，改在 `type-check` 裡明確串接三個 `tsc -p`**——
+   要看目前串了哪些，讀 `package.json` 的 `type-check`，不要相信這裡的敘述。
+2. **注入一個必被抓到的錯，確認它真的紅**（`const __g = 1; __g.toUpperCase();`）。
+   我第一次補這個檢查時只加了 `allowJs` 沒加 `checkJs`，`.js` 進得來但根本不檢查，
+   拿到的「零錯誤」是假的。
+   ⚠️ 驗證用的**指令與旗標要跟真實消費者一致**：CI 跑 `npm run type-check`，
+   IDE 跑不帶旗標的 `tsc -p`。我只驗前者，漏掉 `composite: true` 會強制 emit 而
+   `allowJs` 沒配 `outDir` ⇒ `TS5055` 想把編譯結果寫回原始碼。
+   ⚠️ **「跑個檢查指令」不等於唯讀**——那次不帶 `--noEmit` 的重現真的在根目錄寫出了
+   `vite.config.js`、`playwright.config.js` 等七個檔案，同名 `.js` 會遮蔽 `.ts`。
+   ⚠️ 判涵蓋範圍用 `tsc -p <config> --listFilesOnly`，不要自己 parse tsconfig
+   （JSON with comments，`//.*` 這種剝法會把 `/* Bundler mode */` 弄壞）。
 
 ---
 
@@ -61,7 +82,7 @@ graph TB
 npm run dev              # Vite 開發伺服器（僅前端）
 npm run tauri dev        # 完整 Tauri 應用程式
 npm run build            # 建構前端
-npm run type-check       # TypeScript 型別檢查
+npm run type-check       # 型別檢查（src + 設定檔 + e2e 三個 project 串接）
 npm run lint             # ESLint 檢查
 npm run lint:fix         # ESLint 自動修復
 npm run format           # Prettier 格式化
