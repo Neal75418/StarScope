@@ -231,3 +231,40 @@ class TestResetAllData:
         test_db.commit()
         client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert test_db.query(AppSetting).filter_by(key=AppSettingKey.FETCH_INTERVAL_MINUTES).count() == 1
+
+
+class TestDiagnosticsBackupSurvivesRestart:
+    """
+    診斷的 last_backup 必須反映檔案系統，不是記憶體旗標——
+    否則每次重開 App 都會謊稱「沒有備份」。
+    """
+
+    def test_reports_backup_from_disk_even_with_empty_health(self, client, monkeypatch):
+        from datetime import datetime, timezone
+        # get_scheduler_health 在函式內 import，要 patch 來源模組
+        monkeypatch.setattr("services.scheduler.get_scheduler_health", lambda: {
+            "last_fetch_success": None, "last_fetch_failure": None,
+            "last_fetch_error": None, "last_alert_check": None, "last_backup": None,
+        })
+        monkeypatch.setattr("services.backup.find_latest_backup",
+                            lambda *a, **k: datetime(2026, 8, 22, 18, 0, tzinfo=timezone.utc))
+
+        body = client.get("/api/settings/diagnostics").json()["data"]
+
+        assert body["last_backup"] is not None, (
+            "記憶體旗標空著就回報沒有備份——但磁碟上有一個"
+        )
+        assert body["last_backup"].startswith("2026-08-22")
+
+    def test_reports_none_when_disk_has_no_backup(self, client, monkeypatch):
+        monkeypatch.setattr("services.scheduler.get_scheduler_health", lambda: {
+            "last_fetch_success": None, "last_fetch_failure": None,
+            "last_fetch_error": None, "last_alert_check": None,
+            # 記憶體說有，但磁碟沒有——以磁碟為準
+            "last_backup": 1_700_000_000.0,
+        })
+        monkeypatch.setattr("services.backup.find_latest_backup", lambda *a, **k: None)
+
+        body = client.get("/api/settings/diagnostics").json()["data"]
+
+        assert body["last_backup"] is None

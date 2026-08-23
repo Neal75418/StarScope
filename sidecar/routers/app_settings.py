@@ -253,12 +253,27 @@ def _format_scheduler_health(health: dict) -> dict:
     def _ts_to_iso(ts: float | None) -> str | None:
         return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None
 
+    # last_backup 不讀記憶體：備份是每天凌晨兩點的 cron，而 _scheduler_health
+    # 重啟就歸零，所以當天重開過 App 這一格就會顯示「—」。2026-08-23 實測：
+    # 當天 02:00 明明成功備份了、檔案就在目錄裡，畫面卻說沒有備份。
+    # 檔案系統才是這個問題的答案來源。
+    #
+    # 另外兩個欄位維持讀記憶體：last_fetch_success 由啟動時的 trigger_fetch_now()
+    # 一分鐘內就填上，last_alert_check 的 interval 也夠密——只有「一天一次」的
+    # 備份會長時間停在空值。
+    from sqlalchemy.engine import make_url
+    from services.backup import find_latest_backup
+    try:
+        latest_backup = find_latest_backup(make_url(DATABASE_URL).database or "")
+    except Exception:  # 診斷頁不該因為讀不到備份目錄就整個掛掉
+        latest_backup = None
+
     return {
         "last_fetch_success": _ts_to_iso(health.get("last_fetch_success")),
         "last_fetch_failure": _ts_to_iso(health.get("last_fetch_failure")),
         "last_fetch_error": health.get("last_fetch_error"),
         "last_alert_check": _ts_to_iso(health.get("last_alert_check")),
-        "last_backup": _ts_to_iso(health.get("last_backup")),
+        "last_backup": latest_backup.isoformat() if latest_backup else None,
     }
 
 

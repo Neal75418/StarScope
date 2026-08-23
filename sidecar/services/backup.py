@@ -113,6 +113,45 @@ class BackupService:
             return 0
 
 
+def find_latest_backup(db_path: str, backup_dir: str | None = None) -> "datetime | None":
+    """
+    從備份目錄找出最新一次備份的時間。
+
+    診斷頁的「最近備份」原本讀的是 _scheduler_health["last_backup"]，那是**記憶體**
+    狀態，重啟就歸零。而備份是每天凌晨兩點的 cron，所以只要當天重開過 App，
+    那一格就會顯示「—」——2026-08-23 實測：當天 02:00 明明成功備份了
+    （starscope_20260822_180000.db 就在目錄裡），畫面卻說沒有備份。
+
+    改看檔案系統：它是這個問題的真正答案來源，重啟後照樣正確，
+    也不需要為一個診斷顯示引入新的持久化機制。
+
+    只認 create_backup 寫出的檔名格式（`{stem}_YYYYMMDD_HHMMSS.db`），
+    使用者自己丟進去的檔案或目錄不算——那些不是這個 App 產生的備份。
+
+    Returns:
+        最新備份的建立時間（UTC），沒有任何備份時回 None
+    """
+    db = Path(db_path)
+    directory = Path(backup_dir) if backup_dir else db.parent / "backups"
+    if not directory.is_dir():
+        return None
+
+    latest: datetime | None = None
+    for f in directory.glob(f"{db.stem}_*.db"):
+        if not f.is_file():
+            continue
+        # 時間取自檔名而非 mtime：mtime 會被複製／同步工具改掉，
+        # 檔名是備份當下寫死的
+        stamp = f.stem[len(db.stem) + 1:]
+        try:
+            ts = datetime.strptime(stamp, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if latest is None or ts > latest:
+            latest = ts
+    return latest
+
+
 def backup_database(db_path: str, retention_days: int = 7) -> Path | None:
     """
     便利函式：建立備份並清理過期備份。

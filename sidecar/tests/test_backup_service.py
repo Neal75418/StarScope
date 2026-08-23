@@ -164,3 +164,87 @@ class TestBackupDatabase:
         """DB 不存在時應拋出例外。"""
         with pytest.raises(FileNotFoundError):
             backup_database(str(tmp_path / "missing.db"))
+
+
+class TestFindLatestBackup:
+    """
+    診斷頁的「最近備份」要看檔案系統，不是記憶體旗標。
+
+    原本讀 _scheduler_health["last_backup"]，那是記憶體狀態、重啟就歸零；
+    而備份是每天凌晨兩點的 cron。2026-08-23 實測：當天 02:00 成功備份了
+    （starscope_20260822_180000.db 就在目錄裡），但因為之後重開過 App，
+    畫面顯示「—」——告訴使用者沒有備份，實際上有一個 12 小時前的。
+    """
+
+    def _make(self, tmp_path, *names):
+        db = tmp_path / "starscope.db"
+        db.write_bytes(b"x")
+        backups = tmp_path / "backups"
+        backups.mkdir()
+        for n in names:
+            (backups / n).write_bytes(b"x")
+        return str(db)
+
+    def test_returns_newest_of_several(self, tmp_path):
+        from datetime import datetime, timezone
+        from services.backup import find_latest_backup
+
+        db = self._make(tmp_path,
+                        "starscope_20260821_180000.db",
+                        "starscope_20260822_180000.db",
+                        "starscope_20260820_180000.db")
+
+        assert find_latest_backup(db) == datetime(2026, 8, 22, 18, 0, tzinfo=timezone.utc)
+
+    def test_no_backups_returns_none(self, tmp_path):
+        from services.backup import find_latest_backup
+
+        assert find_latest_backup(self._make(tmp_path)) is None
+
+    def test_missing_directory_returns_none(self, tmp_path):
+        from services.backup import find_latest_backup
+
+        db = tmp_path / "starscope.db"
+        db.write_bytes(b"x")
+
+        assert find_latest_backup(str(db)) is None
+
+    def test_ignores_files_that_are_not_app_backups(self, tmp_path):
+        """使用者自己丟進去的東西不算——那不是這個 App 產生的備份。"""
+        from services.backup import find_latest_backup
+
+        db = self._make(tmp_path,
+                        "starscope_20260821_180000.db",
+                        "starscope_manual_copy.db",
+                        "something_20991231_235959.db")
+        result = find_latest_backup(db)
+
+        from datetime import datetime, timezone
+        assert result == datetime(2026, 8, 21, 18, 0, tzinfo=timezone.utc), (
+            "撿到了不是 create_backup 產生的檔案"
+        )
+
+    def test_ignores_directories(self, tmp_path):
+        """我手動建的 pre-feed-regen-* 是目錄，不該被當成備份檔。"""
+        from services.backup import find_latest_backup
+
+        db = self._make(tmp_path, "starscope_20260821_180000.db")
+        (tmp_path / "backups" / "starscope_20991231_235959.db").mkdir()
+
+        from datetime import datetime, timezone
+        assert find_latest_backup(db) == datetime(2026, 8, 21, 18, 0, tzinfo=timezone.utc)
+
+    def test_time_comes_from_filename_not_mtime(self, tmp_path):
+        """
+        mtime 會被複製／同步工具改掉，檔名是備份當下寫死的。
+        """
+        import os
+        from datetime import datetime, timezone
+        from services.backup import find_latest_backup
+
+        db = self._make(tmp_path, "starscope_20260821_180000.db")
+        # 把 mtime 改成很久以後——若讀 mtime，結果會跟著跑掉
+        future = datetime(2030, 1, 1, tzinfo=timezone.utc).timestamp()
+        os.utime(tmp_path / "backups" / "starscope_20260821_180000.db", (future, future))
+
+        assert find_latest_backup(db) == datetime(2026, 8, 21, 18, 0, tzinfo=timezone.utc)
