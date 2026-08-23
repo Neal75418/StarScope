@@ -22,5 +22,6 @@ indent_size = 4
 indent_style = space
 indent_size = 2
 
-[Makefile]
-indent_style = tab
+# Markdown 用行尾兩個空白表示強制換行，被 trim 掉會靜默弄壞排版
+[*.md]
+trim_trailing_whitespace = false
