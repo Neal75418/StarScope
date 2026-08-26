@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.nealchen.starscope.collector</string>
+
+    <!-- venv 的絕對路徑：repo 搬家要跟著改，症狀是 jobs.log 停止更新
+         （Daredevil 的教訓：launchd 的東西會靜默過時，靠心跳判生死） -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/nealchen/RustroverProjects/StarScope/sidecar/.venv/bin/python</string>
+        <string>/Users/nealchen/RustroverProjects/StarScope/sidecar/run_jobs.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/nealchen/RustroverProjects/StarScope/sidecar</string>
+
+    <!-- 每小時；睡眠期間跳過，開蓋後合併補跑一次 -->
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <!-- 載入（含登入）當下先跑一次：重開機後不用等第一個整點 -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/nealchen/.starscope/jobs.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/nealchen/.starscope/jobs.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

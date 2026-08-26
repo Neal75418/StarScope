@@ -262,6 +262,19 @@ release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都�
 
 ---
 
+## 無頭收集器（不開 App 也收資料）
+
+`sidecar/run_jobs.py` 由 launchd 每小時跑一次（plist 在 `scripts/launchd/`，
+裝在 `~/Library/LaunchAgents/`）。**做什麼、為什麼安全、離線怎麼辦，都寫在
+它的 docstring 裡**——不在這裡複述。
+
+- 生死看心跳：`~/.starscope/jobs.log` 每輪一行。停止更新＝launchd 斷了
+  （最常見原因：repo 搬家後 plist 裡的絕對路徑失效）
+- 與開著的 App 併發安全的關鍵是「skip 查 DB 的 fetched_at」，不是行程內的鎖
+- ⚠️ dev 模式下改 `sidecar/` 的檔案會觸發 uvicorn 熱重載＝重跑啟動序列
+  （star 同步＋抓取）。重載風暴可能把 star 同步殺在半路留下鎖——
+  鎖有 10 分鐘 TTL 會自癒，看到「already_running」先看時間再懷疑卡死
+
 ## 提交慣例
 
 提交前跑一次（husky 的 pre-commit 只擋 token 外洩與 prettier，不跑型別與測試）：
