@@ -602,3 +602,92 @@ class TestSeverityAndPercentileAreNotJustPlausibleNumbers:
         test_db.commit()
 
         assert AnomalyDetector.detect_rising_star(repo, test_db) is None
+
+
+class TestDeltasAreNormalisedByActualDaySpan:
+    """快照序列有缺口時，每一對的增量要除以實際相隔天數。
+
+    抓取只在 App 執行時進行，所以缺口是常態而非例外。把跨三天的增量當成單日，
+    數字直接膨脹三倍——而所有既有測試用的都是連續日期，span 恆為 1，歸一化是
+    no-op，所以它們對這個缺陷完全不敏感（實測：修好前後 30 條全過）。
+
+    2026-08-26 的真實誤報：tensorflow/tensorflow 在 08-23 → 08-26 增加 266 顆星，
+    偵測器報「今天 +266，平均 65」而觸發暴增。那是 early_signals 表有史以來的
+    第一筆訊號，而它是錯的。
+    """
+
+    @staticmethod
+    def _snaps(pairs):
+        """(日期, 星數) 由新到舊，與 detect_sudden_spike 收到的順序一致。"""
+        from datetime import date
+
+        class _S:
+            def __init__(self, d, stars):
+                self.snapshot_date = date.fromisoformat(d)
+                self.stars = stars
+
+        return [_S(d, n) for d, n in pairs]
+
+    def test_the_real_false_positive_no_longer_fires(self):
+        from services.anomaly_detector import (
+            AnomalyDetector, SUDDEN_SPIKE_MULTIPLIER, SUDDEN_SPIKE_MIN_ABSOLUTE,
+        )
+
+        # 取自正式資料庫的實際序列
+        snaps = self._snaps([
+            ("2026-08-26", 197634), ("2026-08-23", 197368), ("2026-08-22", 197330),
+            ("2026-08-21", 197210), ("2026-08-18", 197022), ("2026-08-16", 197059),
+            ("2026-08-15", 197041),
+        ])
+        latest, avg = AnomalyDetector._calculate_star_deltas(snaps)
+
+        # 266 顆星跨三天 = 88.7/天，不是 266/天
+        assert latest == pytest.approx(266 / 3, abs=0.1)
+        assert avg == pytest.approx(44.0, abs=0.5)
+        assert not (latest > avg * SUDDEN_SPIKE_MULTIPLIER and latest >= SUDDEN_SPIKE_MIN_ABSOLUTE)
+
+    def test_a_genuine_single_day_spike_still_fires(self):
+        """對照組：真的在一天內暴增，仍然要觸發。
+
+        少了這條，把 _calculate_star_deltas 改成永遠回 (0, 0) 也會讓上一條通過。
+        """
+        from services.anomaly_detector import (
+            AnomalyDetector, SUDDEN_SPIKE_MULTIPLIER, SUDDEN_SPIKE_MIN_ABSOLUTE,
+        )
+
+        # 每天穩定 +20，最後一天 +400
+        snaps = self._snaps([
+            ("2026-08-26", 10500), ("2026-08-25", 10100), ("2026-08-24", 10080),
+            ("2026-08-23", 10060), ("2026-08-22", 10040), ("2026-08-21", 10020),
+        ])
+        latest, avg = AnomalyDetector._calculate_star_deltas(snaps)
+
+        assert latest == pytest.approx(400.0)
+        assert avg == pytest.approx(20.0)
+        assert latest > avg * SUDDEN_SPIKE_MULTIPLIER and latest >= SUDDEN_SPIKE_MIN_ABSOLUTE
+
+    def test_same_day_duplicates_are_skipped_not_divided_by_zero(self):
+        """同一天兩筆快照 span=0，直接除會炸。"""
+        from services.anomaly_detector import AnomalyDetector
+
+        snaps = self._snaps([
+            ("2026-08-26", 10500), ("2026-08-26", 10490), ("2026-08-25", 10400),
+            ("2026-08-24", 10300),
+        ])
+        latest, avg = AnomalyDetector._calculate_star_deltas(snaps)
+
+        # 第一對（同一天，span=0）被跳過，於是：
+        #   最新 = 10490 → 10400 跨 1 天 = +90/天
+        #   平均 = 其餘的 10400 → 10300 跨 1 天 = +100/天
+        assert latest == pytest.approx(90.0)
+        assert avg == pytest.approx(100.0)
+
+    def test_a_gap_that_would_have_tripled_the_number_is_not_inflated(self):
+        """同樣的絕對增量，跨越天數不同就該得到不同的日均。"""
+        from services.anomaly_detector import AnomalyDetector
+
+        one_day = self._snaps([("2026-08-26", 1300), ("2026-08-25", 1000), ("2026-08-24", 900)])
+        three_day = self._snaps([("2026-08-26", 1300), ("2026-08-23", 1000), ("2026-08-22", 900)])
+
+        assert AnomalyDetector._calculate_star_deltas(one_day)[0] == pytest.approx(300.0)
+        assert AnomalyDetector._calculate_star_deltas(three_day)[0] == pytest.approx(100.0)

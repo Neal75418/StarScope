@@ -242,22 +242,35 @@ class AnomalyDetector:
         )
 
     @staticmethod
-    def _calculate_star_deltas(snapshots: list["RepoSnapshot"]) -> tuple[int, float]:
+    def _calculate_star_deltas(snapshots: list["RepoSnapshot"]) -> tuple[float, float]:
         """
-        計算每日 star 差值。
-        回傳 (latest_delta, avg_delta)。
+        計算**每日**平均 star 差值（snapshots 由新到舊）。
+
+        每一對相鄰快照要除以它們實際相隔的天數。抓取只在 App 執行時進行，
+        所以快照序列本來就會有缺口——把跨三天的增量當成單日，數字會被膨脹三倍。
+
+        2026-08-26 的真實誤報：tensorflow/tensorflow 在 08-23 → 08-26 之間
+        增加 266 顆星，偵測器當成「今天 +266」而平均是 65，266 > 65×3 於是觸發
+        「暴增」。按實際天數歸一化之後是 88.7/天，而平均是 44/天——88.7 < 44×3，
+        根本不該觸發。那是 early_signals 表有史以來的第一筆訊號，而它是錯的。
+
+        回傳 (latest_daily, avg_daily)，兩者都是「每天」。
         """
-        deltas = []
+        rates: list[float] = []
         for i in range(len(snapshots) - 1):
-            delta = snapshots[i].stars - snapshots[i + 1].stars
-            deltas.append(delta)
+            newer, older = snapshots[i], snapshots[i + 1]
+            span = (newer.snapshot_date - older.snapshot_date).days
+            if span < 1:
+                # 同一天有兩筆（或日期順序異常）：除以零會炸，而且那一對沒有意義
+                continue
+            rates.append((newer.stars - older.stars) / span)
 
-        if not deltas:
-            return 0, 0.0
+        if not rates:
+            return 0.0, 0.0
 
-        latest_delta = deltas[0]
-        avg_delta = sum(deltas[1:]) / len(deltas[1:]) if len(deltas) > 1 else 0.0
-        return latest_delta, avg_delta
+        latest_daily = rates[0]
+        avg_daily = sum(rates[1:]) / len(rates[1:]) if len(rates) > 1 else 0.0
+        return latest_daily, avg_daily
 
     @staticmethod
     def detect_sudden_spike(
@@ -310,7 +323,8 @@ class AnomalyDetector:
             repo_id=repo.id,
             signal_type=EarlySignalType.SUDDEN_SPIKE,
             severity=severity,
-            description=f"Sudden spike: +{latest_delta:,} stars today (vs avg {avg_delta:.0f}/day)",
+            # 不能說 "today"：latest_delta 現在是日均值，而它跨越的可能是好幾天
+            description=f"Sudden spike: +{latest_delta:,.0f} stars/day (vs avg {avg_delta:.0f}/day)",
             velocity_value=float(latest_delta),
             star_count=latest_stars if latest_stars else None,
             detected_at=utc_now(),
