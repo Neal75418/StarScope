@@ -10,6 +10,7 @@ import type { CategoryTreeNode } from "../../api/types";
 import { queryKeys } from "../../lib/react-query";
 import { Skeleton } from "../Skeleton";
 import { useI18n } from "../../i18n";
+import { useNavigation } from "../../contexts/NavigationContext";
 
 function flattenTree(nodes: CategoryTreeNode[]): CategoryTreeNode[] {
   const result: CategoryTreeNode[] = [];
@@ -47,6 +48,7 @@ function CategoryCard({ category }: CategoryCardProps) {
 
 export const CategorySummary = memo(function CategorySummary() {
   const { t } = useI18n();
+  const { navigateTo } = useNavigation();
 
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.dashboard.categories(),
@@ -78,10 +80,21 @@ export const CategorySummary = memo(function CategorySummary() {
   const categories = data ? flattenTree(data.tree).filter((c) => c.repo_count > 0) : [];
 
   if (categories.length === 0) {
+    // --fit：空狀態不跟著並排的「最近活動」撐到整欄高，
+    // 一片幾乎全空的巨大卡片比沒有分類本身更違和
     return (
-      <div className="dashboard-section">
+      <div className="dashboard-section dashboard-section--fit">
         <h3>{t.dashboard.categorySummary.title}</h3>
-        <div className="category-summary-empty">{t.dashboard.categorySummary.empty}</div>
+        <div className="category-summary-empty">
+          <div>{t.dashboard.categorySummary.empty}</div>
+          <button
+            type="button"
+            className="category-summary-cta"
+            onClick={() => navigateTo("watchlist")}
+          >
+            {t.dashboard.categorySummary.emptyCta}
+          </button>
+        </div>
       </div>
     );
   }

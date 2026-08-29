@@ -56,7 +56,7 @@ export interface VelocityBucket {
 
 export interface RecentActivity {
   id: string;
-  type: "repo_added" | "alert_triggered" | "early_signal_detected";
+  type: "repo_added" | "alert_triggered";
   title: string;
   description: string;
   timestamp: string;
@@ -198,23 +198,13 @@ export function useDashboard() {
       });
     }
 
-    for (const signal of earlySignals) {
-      sources.push({
-        ts: signal.detected_at,
-        build: () => ({
-          id: `signal-${signal.id}`,
-          type: "early_signal_detected",
-          title: signal.repo_name,
-          description: signal.description,
-          timestamp: signal.detected_at,
-        }),
-      });
-    }
+    // early signals 刻意不放進來：它們已有專區（Signal Spotlight），
+    // 放進來會讓同一頁出現兩份一模一樣的清單
 
     const withTime = sources.map((s) => ({ ...s, time: new Date(s.ts).getTime() }));
     withTime.sort((a, b) => b.time - a.time);
     return withTime.slice(0, 10).map((s) => s.build());
-  }, [repos, alerts, earlySignals, t]);
+  }, [repos, alerts, t]);
 
   // 計算 velocity 分佈供圖表使用
   const velocityDistribution: VelocityBucket[] = useMemo(() => {

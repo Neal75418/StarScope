@@ -10,12 +10,7 @@ import { Skeleton } from "../components/Skeleton";
 import { useAppStatus } from "../contexts/AppStatusContext";
 import { useNavigation } from "../contexts/NavigationContext";
 import { useWatchlistActions, useWatchlistState } from "../contexts/WatchlistContext";
-import {
-  formatNumber,
-  formatDelta,
-  formatCompactRelativeTime,
-  formatRelativeTime,
-} from "../utils/format";
+import { formatNumber, formatDelta, formatRelativeTime } from "../utils/format";
 import { AttentionBar } from "../components/dashboard/AttentionBar";
 import { MoversPanel } from "../components/dashboard/MoversPanel";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
@@ -37,22 +32,48 @@ function StatCard({
   value,
   trend,
   variant,
+  muted,
+  onClick,
 }: {
   label: string;
   value: string | number;
   trend?: "up" | "down" | "neutral";
   variant?: "accent" | "warning" | "success" | "danger";
+  /** 值以說明文字呈現（非數字），縮小字級避免撐爆卡片 */
+  muted?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div className={`stat-card${variant ? ` stat-card--${variant}` : ""}`}>
+  const className = `stat-card${variant ? ` stat-card--${variant}` : ""}`;
+  const body = (
+    <>
       <div className="stat-label">{label}</div>
-      <div className={`stat-value ${trend ? `trend-${trend}` : ""}`}>{value}</div>
-    </div>
+      <div
+        className={`stat-value ${trend ? `trend-${trend}` : ""}${muted ? " stat-value--muted" : ""}`}
+      >
+        {value}
+      </div>
+    </>
   );
+  if (onClick) {
+    return (
+      <button type="button" className={`${className} stat-card--clickable`} onClick={onClick}>
+        {body}
+      </button>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
 // 統計數據網格
-const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) {
+const StatsGrid = memo(function StatsGrid({
+  stats,
+  hasAlertRules,
+  onSetupRules,
+}: {
+  stats: DashboardStats;
+  hasAlertRules: boolean;
+  onSetupRules: () => void;
+}) {
   const { t } = useI18n();
 
   return (
@@ -79,12 +100,23 @@ const StatsGrid = memo(function StatsGrid({ stats }: { stats: DashboardStats }) 
         }
         variant={stats.weeklyStars !== null && stats.weeklyStars > 0 ? "success" : undefined}
       />
-      {/* danger 只在真的有警報時亮：紅色永遠掛著，警報觸發時就沒有任何變化感 */}
-      <StatCard
-        label={t.dashboard.stats.activeAlerts}
-        value={stats.activeAlerts}
-        variant={stats.activeAlerts > 0 ? "danger" : undefined}
-      />
+      {/* danger 只在真的有警報時亮：紅色永遠掛著，警報觸發時就沒有任何變化感。
+          沒有任何規則時，0 是沒有資訊量的假安心（沒設規則永遠是 0）——
+          改顯示「未設定規則」並讓卡片可點去設定 */}
+      {hasAlertRules ? (
+        <StatCard
+          label={t.dashboard.stats.activeAlerts}
+          value={stats.activeAlerts}
+          variant={stats.activeAlerts > 0 ? "danger" : undefined}
+        />
+      ) : (
+        <StatCard
+          label={t.dashboard.stats.activeAlerts}
+          value={t.dashboard.stats.noRulesYet}
+          muted
+          onClick={onSetupRules}
+        />
+      )}
     </div>
   );
 });
@@ -103,8 +135,6 @@ const RecentActivityList = memo(function RecentActivityList({
         return "+";
       case "alert_triggered":
         return "!";
-      case "early_signal_detected":
-        return "★";
       default:
         return "*";
     }
@@ -133,7 +163,11 @@ const RecentActivityList = memo(function RecentActivityList({
               )}
             </div>
             <div className="activity-time">
-              {formatCompactRelativeTime(activity.timestamp, t.dashboard.activity.justNow)}
+              {/* 全相對時間（2w、3mo），不落回絕對日期：清單裡混著
+                  「14h」與「2026/8/15」兩種格式，掃讀時要換兩次腦 */}
+              {formatRelativeTime(activity.timestamp, {
+                justNowText: t.dashboard.activity.justNow,
+              })}
             </div>
           </div>
         ))}
@@ -318,7 +352,11 @@ export function Dashboard() {
           預設關閉但保留——是否留著這一排是使用者的判斷，不是實作者能替他決定的事 */}
       {widgetVisibility.statsGrid && (
         <FadeIn delay={0.1}>
-          <StatsGrid stats={stats} />
+          <StatsGrid
+            stats={stats}
+            hasAlertRules={hasAlertRules}
+            onSetupRules={() => navigateTo("settings")}
+          />
         </FadeIn>
       )}
 

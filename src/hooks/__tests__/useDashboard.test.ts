@@ -322,6 +322,18 @@ describe("useDashboard", () => {
     }
   });
 
+  it("recentActivity 不含 early signals（Signal Spotlight 已有專區，避免同頁重複）", async () => {
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    // 預設 mock 有 1 筆 early signal（earlySignals 專區看得到），活動清單不得再列一次
+    expect(result.current.earlySignals).toHaveLength(1);
+    expect(result.current.recentActivity.some((a) => a.id.startsWith("signal-"))).toBe(false);
+  });
+
   it("computes velocityDistribution buckets correctly", async () => {
     const repos = [
       makeRepo({ id: 1, velocity: -5 }),

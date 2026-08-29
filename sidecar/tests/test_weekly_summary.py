@@ -272,6 +272,16 @@ class TestWeeklySummaryEndpoint:
         date.fromisoformat(data["period_start"])
         date.fromisoformat(data["period_end"])
 
+    def test_period_label_spans_exactly_seven_calendar_days(self, client):
+        """「近 7 天」的標籤兩端含入共 7 個日曆天。先前 period_start 用星數
+        基準日（today−7），前端 (start – end) 顯示出來讀起來是 8 天。"""
+        from datetime import date
+        response = client.get("/api/summary/weekly")
+        data = response.json()["data"]
+        start = date.fromisoformat(data["period_start"])
+        end = date.fromisoformat(data["period_end"])
+        assert (end - start).days == 6  # 含兩端 = 7 天
+
 
 class TestReposComparedDistinguishesNoDataFromNoChange:
     """total_new_stars 是 0 有兩種完全不同的原因，回應必須分得出來。

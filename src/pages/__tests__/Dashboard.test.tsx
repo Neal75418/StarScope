@@ -255,6 +255,21 @@ describe("Dashboard", () => {
     expect(card).toHaveClass("stat-card--danger");
   });
 
+  it("沒有任何警報規則時顯示「未設定規則」而非 0，點卡片導去設定頁", async () => {
+    // 沒設規則時 0 是沒有資訊量的假安心（永遠是 0）
+    const user = userEvent.setup();
+    mockDashboard.hasAlertRules = false;
+    mockDashboard.stats.activeAlerts = 0;
+    render(<Dashboard />);
+
+    const card = screen.getByText("Active Alerts").closest(".stat-card");
+    expect(card).toHaveTextContent("No rules set");
+    expect(card).not.toHaveTextContent("0");
+
+    await user.click(screen.getByText("No rules set"));
+    expect(mockNavigateTo).toHaveBeenCalledWith("settings");
+  });
+
   it("shows loading skeletons when loading", () => {
     mockDashboard.isLoading = true;
     render(<Dashboard />);
@@ -451,16 +466,15 @@ describe("Dashboard", () => {
     expect(screen.getByText("3d")).toBeInTheDocument();
   });
 
-  it("formats time as date for activities older than a week", () => {
-    const twoWeeksAgoDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = twoWeeksAgoDate.toISOString();
+  it("超過一週的活動仍顯示相對時間，不落回絕對日期", () => {
+    // 之前超過 7 天會轉 toLocaleDateString()——同一清單混著「14h」與
+    // 「2026/8/15」兩種格式；改用 formatRelativeTime 全程相對時間
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
     mockDashboard.recentActivity = [makeActivity({ title: "Old action", timestamp: twoWeeksAgo })];
     render(<Dashboard />);
     expect(screen.getByText("Old action")).toBeInTheDocument();
-    // For activities older than 7 days, formatCompactRelativeTime returns toLocaleDateString()
-    // Both source and test use default locale — consistent within the same runtime
-    const expectedDate = twoWeeksAgoDate.toLocaleDateString();
-    expect(screen.getByText(expectedDate)).toBeInTheDocument();
+    expect(screen.getByText("14d")).toBeInTheDocument();
+    expect(screen.queryByText(new Date(twoWeeksAgo).toLocaleDateString())).not.toBeInTheDocument();
   });
 
   it("renders signal with unknown type using fallback", () => {

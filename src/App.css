@@ -3809,7 +3809,9 @@ a:focus-visible {
 .stat-card {
   background-color: var(--bg-subtle);
   border: 1px solid var(--border-default);
-  border-left: 3px solid var(--accent-emphasis);
+  /* 左框色只在有語意時上色（variant）：預設藍會跟 accent 卡撞色，
+     四張卡出現兩張藍讓配色節奏斷掉 */
+  border-left: 3px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: 20px;
   display: flex;
@@ -3835,6 +3837,23 @@ a:focus-visible {
 
 .stat-card--danger {
   border-left-color: var(--danger-fg);
+}
+
+/* 以 button 呈現的可點統計卡（例如「未設定規則」導去設定頁） */
+button.stat-card {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+}
+
+.stat-card--clickable {
+  cursor: pointer;
+}
+
+.stat-value--muted {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fg-muted);
 }
 
 .stat-card:hover {
@@ -4157,6 +4176,25 @@ a:focus-visible {
   color: var(--fg-muted);
   padding: 32px 20px;
   font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.category-summary-cta {
+  background: none;
+  border: none;
+  color: var(--accent-fg, #58a6ff);
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+/* 空狀態卡片不跟並排的高欄一起被 grid 撐滿 */
+.dashboard-section--fit {
+  align-self: start;
 }
 
 /* section-badge（分類數量標籤） */

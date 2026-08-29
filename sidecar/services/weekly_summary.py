@@ -18,7 +18,7 @@ from db.models import (
 )
 from constants import SignalType, ContextSignalType
 from services.settings import get_setting
-from utils.time import utc_now, utc_today
+from utils.time import utc_today
 
 logger = logging.getLogger(__name__)
 
@@ -289,15 +289,18 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     """
     today = utc_today()
     period_end = today
-    period_start = today - timedelta(days=days)
-    now = utc_now()
-    week_ago = now - timedelta(days=days)
+    # 顯示窗口＝含今天的 N 個日曆天；星數基準＝窗口前一天的快照
+    # （窗口內成長 = 最新快照 − 窗口起點前一日快照）。先前 period_start 直接
+    # 用基準日且事件窗口用 now−N×24h，標籤 (start – end) 讀起來是 N+1 天
+    period_start = today - timedelta(days=days - 1)
+    baseline_date = today - timedelta(days=days)
+    week_ago = datetime.combine(period_start, datetime.min.time())
 
     # --- Repo 總數 ---
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
     # --- 每個 repo 的星數差值（最新快照 vs N 天前快照）---
-    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, period_start, period_end, days)
+    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, baseline_date, period_end, days)
 
     # --- 訊號對映 & repo 資訊 ---
     signal_map, repo_info = _preload_signal_and_repo_maps(db)

@@ -52,6 +52,7 @@ export const translations = {
         totalStars: "Total Stars",
         weeklyStars: "Stars (7d)",
         activeAlerts: "Active Alerts",
+        noRulesYet: "No rules set",
       },
       velocityDistribution: "Velocity Distribution",
       velocityRanges: {
@@ -123,6 +124,7 @@ export const translations = {
       categorySummary: {
         title: "Category Summary",
         empty: "No categories with repos yet",
+        emptyCta: "Set up categories in the watchlist",
         loadError: "Failed to load categories",
         repos: "repos",
       },
@@ -1052,6 +1054,7 @@ export const translations = {
         totalStars: "星星總數",
         weeklyStars: "近 7 天星數",
         activeAlerts: "活躍警報",
+        noRulesYet: "未設定規則",
       },
       velocityDistribution: "增長速度分佈",
       velocityRanges: {
@@ -1080,7 +1083,7 @@ export const translations = {
         },
       },
       weekly: {
-        hnPoints: "{n} 分",
+        hnPoints: "{n} pts",
         title: "近 7 天摘要",
         starsThisWeek: "近 7 天新增星數",
         hnMentions: "HN 提及",
@@ -1094,7 +1097,7 @@ export const translations = {
         releaseTags: {
           breaking: "破壞性變更",
           security: "安全性",
-          deprecation: "即將移除",
+          deprecation: "棄用公告",
         },
         loadError: "載入週報摘要失敗",
       },
@@ -1121,6 +1124,7 @@ export const translations = {
       categorySummary: {
         title: "分類摘要",
         empty: "尚無含 repo 的分類",
+        emptyCta: "到追蹤清單建立分類",
         loadError: "載入分類失敗",
         repos: "個 repo",
       },
