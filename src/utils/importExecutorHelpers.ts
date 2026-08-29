@@ -34,7 +34,14 @@ async function runImportLoop(
     else if (outcome === "failed" && !abortController.signal.aborted) failed++;
 
     if (!abortController.signal.aborted && onProgress) {
-      await onProgress();
+      try {
+        await onProgress();
+      } catch {
+        // abortableDelay 在延遲窗口內被取消會 reject。這裡必須帶著已累積的
+        // 計數正常返回，不能讓 reject 穿出去：呼叫端靠回傳值決定要不要
+        // invalidate（取消前已成功的 repo 一樣進了後端）
+        break;
+      }
     }
   }
 

@@ -626,6 +626,7 @@ export const translations = {
           already_running: "A sync is already running.",
           fetch_failed: "Could not reach GitHub — nothing was changed.",
           empty_response: "GitHub returned no stars — nothing was changed.",
+          race_lost: "Another sync finished this round first — your data was updated by it.",
         },
       },
       import: {
@@ -1615,6 +1616,7 @@ export const translations = {
           already_running: "已有一輪同步在進行中。",
           fetch_failed: "無法連上 GitHub——沒有變更任何資料。",
           empty_response: "GitHub 回傳 0 個 star——沒有變更任何資料。",
+          race_lost: "另一輪同步搶先完成了——資料已由它更新。",
         },
       },
       import: {

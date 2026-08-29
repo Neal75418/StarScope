@@ -155,3 +155,22 @@ class TestUpsertSurvivesCrossProcessRace:
         n = test_db.query(RepoSnapshot).filter(
             RepoSnapshot.repo_id == mock_repo.id).count()
         assert n == 1
+
+
+def test_first_fetch_of_day_is_visible_to_same_transaction_signals(test_db, mock_repo):
+    """upsert 立即落 DB（autoflush=False 下 ORM add() 做不到）：當天首次抓取後，
+    同一 transaction 內的 calculate_signals 查得到今日快照，stars_delta_1d
+    不再被吞成 None。改回 ORM 寫法會讓每天第一輪的 delta 靜默消失。"""
+    from services.analyzer import calculate_signals
+
+    yesterday = utc_today() - timedelta(days=1)
+    test_db.add(RepoSnapshot(repo_id=mock_repo.id, stars=4950, forks=300,
+                             watchers=120, open_issues=42, snapshot_date=yesterday))
+    test_db.commit()
+
+    # 當天首次寫入（5000 星），刻意不 flush/commit——模擬 update_repo_from_github
+    # 內 create_or_update_snapshot 之後立即算訊號的真實順序
+    create_or_update_snapshot(mock_repo, SAMPLE_GITHUB_DATA, test_db)
+    signals = calculate_signals(mock_repo.id, test_db)
+
+    assert signals.get("stars_delta_1d") == 50

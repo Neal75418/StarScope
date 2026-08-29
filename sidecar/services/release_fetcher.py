@@ -152,9 +152,7 @@ def store_release(target: _ReleaseTarget, release: dict[str, Any], db: Session) 
         },
     )
     db.execute(stmt)
-    if not is_new:
-        return False
-    return True
+    return is_new
 
 
 def fetched_recently(db: Session, within_minutes: int = RELEASE_FETCH_INTERVAL_MINUTES) -> bool:

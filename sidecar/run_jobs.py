@@ -86,10 +86,15 @@ async def run_once() -> str:
 
 
 def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
-    """把抓取結果翻成心跳字串。None＝鎖被 App 行程持有，資料由它負責，算 ok。"""
+    """把抓取結果翻成心跳字串。
+
+    None＝同一行程內已有一輪抓取在跑（`_fetch_all_lock` 是 asyncio.Lock，
+    只擋行程內；App 內嵌 sidecar 的排程路徑會發生，collector 行程單獨
+    執行時這個分支不可達）。
+    """
     if counts is None:
         return "ok (fetch busy elsewhere)"
-    if counts.get("job_error"):
+    if "job_error" in counts:
         return f"degraded (fetch job error: {counts['job_error']})"
     errors = int(counts.get("errors", 0))
     if errors > 0:

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { ContextBadges } from "../ContextBadges";
 import type { ContextBadge } from "../../api/client";
@@ -439,5 +439,57 @@ describe("ContextBadges", () => {
     await waitFor(() => {
       expect(screen.getByText("1y")).toBeInTheDocument();
     });
+  });
+
+  it("舊請求最後失敗時不得蓋掉新請求的成功資料（展開→收合→再展開）", async () => {
+    const user = userEvent.setup();
+    const signal = {
+      id: 9,
+      signal_type: "hn",
+      external_id: "999",
+      title: "Fresh Discussion",
+      url: "https://example.com",
+      score: 10,
+      comment_count: 1,
+      author: "pg",
+      published_at: new Date().toISOString(),
+      fetched_at: new Date().toISOString(),
+    };
+
+    let rejectA: ((e: Error) => void) | undefined;
+    let resolveB: (() => void) | undefined;
+    mockGetContextSignals
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, rej) => {
+            rejectA = rej;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((res) => {
+            resolveB = () => res({ signals: [signal], total: 1, repo_id: 1 });
+          })
+      );
+
+    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    const badge = screen.getAllByRole("button")[0];
+
+    await user.click(badge); // 展開 → 請求 A 起飛
+    await user.click(badge); // 收合（A 仍在途）
+    await user.click(badge); // 再展開 → fetched 仍 false → 請求 B 起飛
+    await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(2));
+
+    resolveB?.(); // 新請求成功
+    await waitFor(() => expect(screen.getByText("Fresh Discussion")).toBeInTheDocument());
+
+    // 舊請求最後才失敗；act 確保 rejection 的狀態更新完全落地後再斷言
+    await act(async () => {
+      rejectA?.(new Error("stale failure"));
+    });
+
+    // 成功資料必須留著，不得渲染錯誤態
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("Fresh Discussion")).toBeInTheDocument();
   });
 });

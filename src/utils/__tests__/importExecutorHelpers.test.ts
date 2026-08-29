@@ -145,6 +145,23 @@ describe("executeImportFlow", () => {
     expect(apiClient.addRepo).not.toHaveBeenCalled();
   });
 
+  it("abort 落在批次間延遲窗口時仍正常返回計數（不 reject）", async () => {
+    // 取消最常落在每筆之間的 500ms abortableDelay 裡：delay reject 不能穿出
+    // executeImportFlow，否則呼叫端拿不到計數、無法為已成功的那些 invalidate
+    const controller = new AbortController();
+    const abortingUpdateRepo = vi.fn((_name: string, updates: Partial<ParsedRepo>) => {
+      // 第一筆標成 success 後，用 macrotask 取消：microtask 會搶在 aborted 守衛
+      // 之前生效、走不進 delay；macrotask 保證 abortableDelay 已經開始等
+      if (updates.status === "success") setTimeout(() => controller.abort(), 0);
+    });
+
+    const repos = [makeParsedRepo("owner/repo1"), makeParsedRepo("owner/repo2")];
+    const result = await executeImportFlow(repos, controller, abortingUpdateRepo);
+
+    expect(result.success).toBe(1);
+    expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
+  });
+
   it("stops processing mid-import when aborted", async () => {
     const controller = new AbortController();
 

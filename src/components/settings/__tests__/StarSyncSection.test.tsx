@@ -61,6 +61,28 @@ describe("StarSyncSection", () => {
     expect(screen.queryByTestId("star-sync-result")).not.toBeInTheDocument();
   });
 
+  it("後端會產生的每個 skipped_reason 都有對應文案（新 reason 不得塌回計數顯示）", async () => {
+    // race_lost 曾漏掉：後端建立了可區分狀態，前端查無 key 就靜默顯示
+    // 「新增 0 · 復原 0 …」——正是這個元件 docstring 說要消滅的平靜假象
+    const backendReasons = [
+      "no_token",
+      "already_running",
+      "fetch_failed",
+      "empty_response",
+      "race_lost",
+    ];
+    for (const reason of backendReasons) {
+      vi.mocked(client.syncStars).mockResolvedValue({ ...NOTHING, skipped_reason: reason });
+      const { unmount } = renderWithClient(<StarSyncSection />);
+
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+
+      expect(await screen.findByTestId("star-sync-skipped")).toBeInTheDocument();
+      expect(screen.queryByTestId("star-sync-result")).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("lists the repos a first sync could not decide about", async () => {
     vi.mocked(client.syncStars).mockResolvedValue({
       ...NOTHING,

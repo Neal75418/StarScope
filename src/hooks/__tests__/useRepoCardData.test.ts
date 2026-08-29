@@ -5,14 +5,23 @@ import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../lib/react-query";
 
-vi.mock("../../api/client", () => ({
-  getContextBadges: vi.fn(),
-  getRepoSignals: vi.fn(),
-  fetchRepoContext: vi.fn(),
-}));
+vi.mock("../../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/client")>();
+  return {
+    ...actual,
+    getContextBadges: vi.fn(),
+    getRepoSignals: vi.fn(),
+    fetchRepoContext: vi.fn(),
+  };
+});
 
 vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}));
+
+const showToastMock = vi.hoisted(() => vi.fn());
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistActions: () => ({ showToast: showToastMock }),
 }));
 
 import { getContextBadges, getRepoSignals, fetchRepoContext } from "../../api/client";
@@ -120,7 +129,7 @@ describe("useRepoCardData", () => {
     });
   });
 
-  it("handles refreshContext failure gracefully", async () => {
+  it("refreshContext 失敗時不吞錯：顯示錯誤 toast 且不 throw", async () => {
     mockGetBadges.mockResolvedValue({ badges: [] } as never);
     mockGetSignals.mockResolvedValue({ signals: [] } as never);
     mockFetchContext.mockRejectedValue(new Error("Context fetch failed"));
@@ -135,7 +144,26 @@ describe("useRepoCardData", () => {
       await result.current.refreshContext();
     });
 
-    // Should not throw, just log error
+    // 失敗必須讓使用者知道：轉圈停了、徽章沒變，不能什麼都不說
+    expect(showToastMock).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.isRefreshingContext).toBe(false);
+  });
+
+  it("refreshContext 成功時不跳錯誤 toast（與失敗案例成對）", async () => {
+    mockGetBadges.mockResolvedValue({ badges: [] } as never);
+    mockGetSignals.mockResolvedValue({ signals: [] } as never);
+    mockFetchContext.mockResolvedValue(undefined as never);
+
+    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.badgesLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.refreshContext();
+    });
+
+    expect(showToastMock).not.toHaveBeenCalled();
   });
 });

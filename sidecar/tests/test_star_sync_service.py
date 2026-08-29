@@ -243,3 +243,49 @@ async def test_truncated_fetch_still_adds_new_stars(test_db):
         test_db, FakeGitHub(stars=[_star(9, "a/new")], truncated=True))
 
     assert result.added == 1
+
+
+# ── IntegrityError 分流：race 與資料損壞不能同罪 ──────────────
+
+
+def _commit_raises_after_fetch(db, gh, monkeypatch):
+    """讓「fetch 之後的第一次 commit」（即主寫入）拋 IntegrityError。
+    鎖的 set_setting commit 發生在 fetch 前（gh.calls == 0），不受影響；
+    finally 解鎖的 commit 在 raised 之後，也照常通過。"""
+    from sqlalchemy.exc import IntegrityError
+    real_commit = db.commit
+    state = {"raised": False}
+
+    def failing_commit():
+        if gh.calls > 0 and not state["raised"]:
+            state["raised"] = True
+            raise IntegrityError(
+                "INSERT INTO repos", {},
+                Exception("UNIQUE constraint failed: repos.full_name"))
+        real_commit()
+
+    monkeypatch.setattr(db, "commit", failing_commit)
+
+
+@pytest.mark.asyncio
+async def test_integrity_error_with_added_is_race_lost(test_db, monkeypatch):
+    """有新增時撞唯一鍵＝跨行程 race，輸的一方回報 race_lost 而非炸掉。"""
+    gh = FakeGitHub(stars=[_star(9, "a/new")])
+    _commit_raises_after_fetch(test_db, gh, monkeypatch)
+
+    result = await sync_starred_repos(test_db, gh)
+
+    assert result.skipped_reason == "race_lost"
+
+
+@pytest.mark.asyncio
+async def test_integrity_error_without_added_propagates(test_db, monkeypatch):
+    """沒有新增卻撞 IntegrityError＝資料本身違反約束。吞成 race_lost 會讓
+    同步從此每輪謊報「對方已完成」且 LAST_STAR_SYNC_AT 永不更新——必須冒出來。"""
+    from sqlalchemy.exc import IntegrityError
+    _tracked(test_db, 1, "a/one")
+    gh = FakeGitHub(stars=[_star(1, "a/one")])  # 與本機一致：diff.added 為空
+    _commit_raises_after_fetch(test_db, gh, monkeypatch)
+
+    with pytest.raises(IntegrityError):
+        await sync_starred_repos(test_db, gh)

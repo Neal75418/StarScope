@@ -190,7 +190,9 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
             logger.warning(
                 f"[Star 同步] 清單被截斷，跳過 {len(diff.archived)} 筆移除（資訊不足）")
         pending: list[str] = []
-        if is_first_sync:
+        if is_first_sync and not truncated:
+            # 截斷時 diff.archived 是「沒看到」不是「本機獨有」，
+            # 放進 pending 會讓 UI 請使用者封存一批其實還 star 著的 repo
             pending = [r.full_name for r in diff.archived]
         elif not skip_removals:
             for repo in diff.archived:
@@ -198,11 +200,16 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
 
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             # 兩個行程（App 啟動＋launchd RunAtLoad）同時通過鎖檢查、同時新增
             # 同一個 repo 時撞唯一鍵。輸的一方放棄這輪即可——贏的那輪已寫入。
             db.rollback()
-            logger.warning("[Star 同步] 與另一行程的同步撞鍵，本輪放棄（對方已完成）")
+            if not diff.added:
+                # commit 階段唯一會撞唯一鍵的是 added 的 INSERT。沒有新增卻出現
+                # IntegrityError＝這批資料本身違反約束，吞成 race 會讓同步從此
+                # 每輪都謊報「對方已完成」且 LAST_STAR_SYNC_AT 永不更新
+                raise
+            logger.warning(f"[Star 同步] 與另一行程的同步撞鍵，本輪放棄（對方已完成）：{e.orig}")
             return SyncResult(skipped_reason="race_lost")
         set_setting(AppSettingKey.LAST_STAR_SYNC_AT, utc_now().isoformat() + "Z", db)
         logger.info(

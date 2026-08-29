@@ -731,7 +731,7 @@ export interface SyncResult {
   restored: number;
   renamed: number;
   archived: number;
-  /** "no_token" | "already_running" | "fetch_failed" | "empty_response" */
+  /** "no_token" | "already_running" | "fetch_failed" | "empty_response" | "race_lost" */
   skipped_reason: string | null;
   /** 首次同步時「本機有、GitHub 沒有」的 repo，交由使用者決定去留 */
   pending_local_only: string[];

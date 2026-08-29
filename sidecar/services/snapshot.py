@@ -33,6 +33,12 @@ def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> Non
     check-then-act 會讓後 commit 的一方撞 uq_snapshot_repo_date，該 repo 整輪
     更新被 rollback 沖銷。隔壁 analyzer.calculate_signals 的同款 race 已用
     upsert 修過，這裡是漏掉的 sibling（第三方審查發現）。
+
+    附帶的刻意行為：SessionLocal 是 autoflush=False，舊的 ORM add() 寫法讓
+    「當天首次抓取」的快照在同一 transaction 內的 calculate_signals 看不到
+    （尚未 flush），每天第一輪的 stars_delta_1d 都被吞成 None。core upsert
+    立即落 DB，同 transaction 的 SELECT 查得到。若改回 ORM 寫法會靜默退化，
+    有測試釘住。
     """
     stmt = sqlite_insert(RepoSnapshot).values(
         repo_id=repo.id,

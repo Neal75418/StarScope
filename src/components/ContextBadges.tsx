@@ -3,12 +3,12 @@
  * 點擊徽章可展開顯示討論詳情。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { CSSProperties, MouseEvent } from "react";
 import { safeOpenUrl } from "../utils/url";
 import { getContextSignals } from "../api/client";
 import type { ContextBadge, ContextSignal } from "../api/client";
-import { useI18n } from "../i18n";
+import { useI18n, interpolate } from "../i18n";
 import { formatRelativeTime } from "../utils/format";
 import { logger } from "../utils/logger";
 
@@ -125,14 +125,27 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
     error: false,
   });
 
+  // 只有最新一次請求有權寫入 panelState：展開→收合→再展開會產生兩個
+  // 在途請求，若舊請求最後落地，它的失敗會蓋在新請求的成功資料上
+  const fetchSeqRef = useRef(0);
+
   const fetchSignals = useCallback(async () => {
     if (!repoId) return;
+    const seq = ++fetchSeqRef.current;
     setPanelState((prev) => ({ ...prev, loading: true, error: false }));
     try {
       const res = await getContextSignals(repoId, "hn");
-      setPanelState((prev) => ({ ...prev, signals: res.signals, loading: false, fetched: true }));
+      if (seq !== fetchSeqRef.current) return;
+      setPanelState((prev) => ({
+        ...prev,
+        signals: res.signals,
+        loading: false,
+        fetched: true,
+        error: false,
+      }));
     } catch (err) {
       logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
+      if (seq !== fetchSeqRef.current) return;
       // fetched 保持 false：收起再展開會自動重試。先前這裡設 fetched: true
       // 且清空 signals——徽章明明寫著 528 pts，點開卻說「暫無討論」，
       // 而且此生不再重打（第三方審查發現）。錯誤與「真的沒有」是兩個狀態。
@@ -172,9 +185,10 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               // badge.label 由後端組成，本身已含前綴（例如 "HN: 528 pts"）。
               // 再前綴一次會得到 "Hacker News 討論分數: HN: 528 pts"，
               // 而 aria-label 會變成 "HN: HN: 528 pts"——螢幕閱讀器唸兩遍
-              title={t.contextBadges.tooltipWithLabel
-                .replace("{tooltip}", tooltip)
-                .replace("{label}", badge.label)}
+              title={interpolate(t.contextBadges.tooltipWithLabel, {
+                tooltip,
+                label: badge.label,
+              })}
               aria-label={badge.label}
               onClick={repoId ? toggleExpand : undefined}
             >

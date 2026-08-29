@@ -46,17 +46,6 @@ def _get_existing_signal_map(
     return {str(s.external_id): s for s in existing}
 
 
-def _update_existing_signal(
-    existing: "ContextSignal",
-    score: int,
-    comment_count: int
-) -> None:
-    """以新的 score 和留言數更新既有訊號。"""
-    existing.score = score
-    existing.comment_count = comment_count
-    existing.fetched_at = utc_now()
-
-
 def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
     """
     將 HN 文章儲存為情境訊號。
@@ -80,7 +69,8 @@ def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
 
     # existing_map 只用來「計數新增」；寫入本身走原子 upsert——App 與無頭
     # 收集器是兩個行程，check-then-act 會撞 uq_context_signal_unique。
-    # 極端同時下計數可能少 1（兩邊都以為對方已存在），錯的只是訊息裡的數字。
+    # 極端同時下計數可能多 1（兩邊都在對方寫入前查了 map，各自以為是自己
+    # 新增的），錯的只是訊息裡的數字。
     count = 0
     for story in stories:
         if story.object_id not in existing_map:
@@ -99,7 +89,8 @@ def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
         stmt = stmt.on_conflict_do_update(
             index_elements=["repo_id", "signal_type", "external_id"],
             set_={
-                # 與 _update_existing_signal 相同的更新範圍：分數、留言數、抓取時間
+                # 更新範圍限會變動的欄位：分數、留言數、抓取時間
+                # （title/url/author/published_at 只在 insert 時寫）
                 "score": stmt.excluded.score,
                 "comment_count": stmt.excluded.comment_count,
                 "fetched_at": utc_now(),

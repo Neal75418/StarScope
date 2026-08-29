@@ -75,6 +75,9 @@ export function useWindowedBatchRepoData(
   const loadingIdsRef = useRef<Set<number>>(new Set());
   const inFlightCountRef = useRef(0);
   const controllersRef = useRef<Set<AbortController>>(new Set());
+  // 世代計數：error 同時是 batchOwnsData（=false 時整頁掉回每卡自抓的 N+1 模式），
+  // 只允許「最新一批」的失敗寫入，否則被取代批次的暫時性失敗會蓋掉當前視窗的健康狀態
+  const generationRef = useRef(0);
 
   // Debounce visibleRange 更新，避免快速滾動時過多請求
   useEffect(() => {
@@ -111,6 +114,7 @@ export function useWindowedBatchRepoData(
 
     const controller = new AbortController();
     controllersRef.current.add(controller);
+    const generation = ++generationRef.current;
     const loadingSet = loadingIdsRef.current;
     const ownedIds = new Set(missingIds);
 
@@ -150,7 +154,7 @@ export function useWindowedBatchRepoData(
         if (controller.signal.aborted) return;
         const errorObj = err instanceof Error ? err : new Error(String(err));
         logger.error("[useWindowedBatchRepoData] 批次資料抓取失敗:", errorObj);
-        setError(errorObj);
+        if (generation === generationRef.current) setError(errorObj);
         if (inFlightCountRef.current === 0) setLoading(false);
       });
 

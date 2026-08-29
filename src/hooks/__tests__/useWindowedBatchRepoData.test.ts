@@ -176,4 +176,40 @@ describe("useWindowedBatchRepoData", () => {
       expect(result.current.loading).toBe(false);
     });
   });
+
+  it("被取代批次的失敗不得汙染當前視窗的 error / batchOwnsData", async () => {
+    // error 同時是 batchOwnsData：若舊批次的暫時性失敗寫進全域 error，
+    // 整頁會掉回每卡自抓的 N+1 模式，且要等下一個有 missingIds 的 effect 才復原
+    const { getContextBadgesBatch } = await import("../../api/client");
+    let rejectA: ((e: Error) => void) | undefined;
+    vi.mocked(getContextBadgesBatch)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, rej) => {
+            rejectA = rej;
+          })
+      )
+      .mockResolvedValue({ "3": { repo_id: 3, badges: [] } });
+
+    const { result, rerender } = renderHook(
+      ({ ids }: { ids: number[] }) => useWindowedBatchRepoData(ids, { debounceMs: 0 }),
+      { initialProps: { ids: [1, 2] } }
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(getContextBadgesBatch)).toHaveBeenCalledTimes(1);
+    });
+
+    // 視窗移到新批次（B），B 成功落地
+    rerender({ ids: [3] });
+    await waitFor(() => expect(result.current.dataMap[3]).toBeDefined());
+
+    // 舊批次 A 這時才失敗——不得動到 error
+    await act(async () => {
+      rejectA?.(new Error("stale batch failure"));
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.batchOwnsData).toBe(true);
+  });
 });

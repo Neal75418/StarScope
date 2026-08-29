@@ -9,6 +9,9 @@ import type { ContextBadge, EarlySignal } from "../api/client";
 import { getContextBadges, getRepoSignals, fetchRepoContext } from "../api/client";
 import { logger } from "../utils/logger";
 import { queryKeys } from "../lib/react-query";
+import { getErrorMessage } from "../utils/error";
+import { useWatchlistActions } from "../contexts/WatchlistContext";
+import { useI18n } from "../i18n";
 
 interface UseRepoCardDataResult {
   badges: ContextBadge[];
@@ -39,6 +42,8 @@ export function useRepoCardData(
   deferToBatch = false
 ): UseRepoCardDataResult {
   const queryClient = useQueryClient();
+  const { showToast } = useWatchlistActions();
+  const { t } = useI18n();
   const [isRefreshingContext, setIsRefreshingContext] = useState(false);
 
   // 若有預載資料，用 initialData 讓 React Query 立即顯示，但仍可被 refetch 覆蓋
@@ -79,10 +84,12 @@ export function useRepoCardData(
       ]);
     } catch (err) {
       logger.error("[RepoCardData] Context 重新整理失敗:", err);
+      // 只寫 log 等於對使用者無聲：轉圈停了、徽章沒變、什麼都沒說
+      showToast("error", getErrorMessage(err, t.common.error));
     } finally {
       setIsRefreshingContext(false);
     }
-  }, [repoId, queryClient]);
+  }, [repoId, queryClient, showToast, t]);
 
   return {
     badges,
