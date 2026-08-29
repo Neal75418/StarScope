@@ -145,6 +145,11 @@ jobs:
           ENV: test
           PORT: "8009"
           STARSCOPE_DATA_DIR: /tmp/starscope-e2e
+          # E2E 會真的向 GitHub API 加 repo。未認證只有 60 次/小時，同一天
+          # 多推幾個 commit 就會把配額吃光（seed 失敗、加 repo 的 dialog 關不掉）。
+          # Actions 內建 token 是 1,000 次/小時；sidecar 在 DB/keyring 無 token 時
+          # 會回退讀 GITHUB_TOKEN 環境變數（services/github.py 的解析順序）
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for sidecar
         run: |
