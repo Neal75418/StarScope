@@ -5,7 +5,7 @@
 import { useMemo, memo } from "react";
 import { useI18n } from "../../i18n";
 import type { ComparisonRepoData, EarlySignal } from "../../api/types";
-import { formatNumber, formatDelta, trendClass } from "../../utils/format";
+import { formatNumber, formatDelta, formatAcceleration, trendClass } from "../../utils/format";
 import { TREND_ARROWS } from "../../constants/trends";
 import { BreakoutBadge } from "../trends/BreakoutBadge";
 
@@ -37,7 +37,7 @@ export const MetricsTable = memo(function MetricsTable({
               <th>{t.compare.columns.delta7d}</th>
               <th>{t.compare.columns.delta30d}</th>
               <th>{t.compare.columns.velocity}</th>
-              <th>{t.compare.columns.acceleration}</th>
+              <th title={t.compare.columns.accelerationHint}>{t.compare.columns.acceleration}</th>
               <th>{t.compare.columns.trend}</th>
             </tr>
           </thead>
@@ -59,7 +59,7 @@ export const MetricsTable = memo(function MetricsTable({
                   {r.stars_delta_30d != null ? formatDelta(r.stars_delta_30d) : "—"}
                 </td>
                 <td>{r.velocity != null ? r.velocity.toFixed(1) : "—"}</td>
-                <td>{r.acceleration != null ? r.acceleration.toFixed(1) : "—"}</td>
+                <td>{formatAcceleration(r.acceleration)}</td>
                 <td>
                   {r.trend != null ? (
                     <span

@@ -151,6 +151,22 @@ export function formatVelocity(num: number | null): string {
 }
 
 /**
+ * 格式化 acceleration 為百分比（0.15 -> "+15%"、-0.2 -> "-20%"）。
+ *
+ * 後端的 acceleration 是「本週每日成長率相對上週的變化比例」
+ * （analyzer.calculate_acceleration），不是 stars/day²。裸小數（1.5、-0.2）
+ * 沒有任何線索指向這件事——實際造成過誤判——所以顯示時一律帶 % 與正負號。
+ *
+ * 注意：上週速度趨近 0 時後端回傳的是 ±1 / 0 這種哨兵值而非實測比例，
+ * 這裡會顯示成 ±100% / 0%，與原本顯示 ±1.0 是同一個資訊。
+ */
+export function formatAcceleration(num: number | null): string {
+  if (num === null) return "—";
+  const pct = Math.round(num * 100);
+  return `${pct > 0 ? "+" : ""}${pct}%`;
+}
+
+/**
  * 格式化日期字串供圖表座標軸標籤使用（例如 "2024-01-15" -> "1/15"）。
  */
 export function formatChartDate(dateStr: string): string {

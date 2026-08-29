@@ -77,7 +77,9 @@ describe("MetricsTable", () => {
       />
     );
     expect(screen.getByText("14.3")).toBeInTheDocument();
-    expect(screen.getByText("0.5")).toBeInTheDocument();
+    // acceleration 是「相對上週的成長率變化比例」，顯示成百分比才自我描述——
+    // 裸小數 0.5 沒有線索說明它不是 stars/day²
+    expect(screen.getByText("+50%")).toBeInTheDocument();
   });
 
   it("renders dash for null values", () => {

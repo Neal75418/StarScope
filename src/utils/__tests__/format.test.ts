@@ -5,6 +5,7 @@
 import { describe, it, expect } from "vitest";
 import {
   deltaClass,
+  formatAcceleration,
   formatChartDate,
   formatDayCount,
   formatDelta,
@@ -211,5 +212,31 @@ describe("formatRelativeTime 的未來時間 guard", () => {
     // 會一路算下去印出「-3m」之類的負數年齡——掃描時拿掉它全套測試依然綠。
     const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     expect(formatRelativeTime(future, { justNowText: "剛剛" })).toBe("剛剛");
+  });
+});
+
+describe("formatAcceleration", () => {
+  // 這個值是「本週每日成長率相對上週的變化比例」，不是 stars/day²。
+  // 裸小數沒有線索指向這件事，實際造成過誤判，所以一律帶 % 與正負號。
+  it("正值帶 + 號", () => {
+    expect(formatAcceleration(1.5)).toBe("+150%");
+    expect(formatAcceleration(0.5)).toBe("+50%");
+  });
+
+  it("負值帶 - 號（由數字本身提供）", () => {
+    expect(formatAcceleration(-0.2)).toBe("-20%");
+  });
+
+  it("零不帶正號", () => {
+    expect(formatAcceleration(0)).toBe("0%");
+  });
+
+  it("四捨五入到整數百分比", () => {
+    expect(formatAcceleration(0.156)).toBe("+16%");
+    expect(formatAcceleration(-0.004)).toBe("0%");
+  });
+
+  it("null 顯示破折號，與其他 formatter 一致", () => {
+    expect(formatAcceleration(null)).toBe("—");
   });
 });
