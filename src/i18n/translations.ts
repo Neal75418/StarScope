@@ -389,8 +389,6 @@ export const translations = {
       filters: {
         allLanguages: "All Languages",
         minStars: "Min Stars",
-        addToWatchlist: "+ Watchlist",
-        inWatchlist: "In Watchlist",
         sortLabel: "Sort options",
         notEnoughData: "Not enough history yet to sort by this",
         languageLabel: "Filter by language",
@@ -409,18 +407,6 @@ export const translations = {
         button: "Export",
         json: "Export JSON",
         csv: "Export CSV",
-      },
-      batch: {
-        selected: "{count} selected",
-        addToWatchlist: "Add {count} to Watchlist",
-        adding: "Adding...",
-        cancel: "Cancel",
-        error: "Failed to add repos to watchlist",
-        partial: "Added {success} of {total} repos",
-      },
-      selection: {
-        enter: "Select",
-        exit: "Done",
       },
       breakouts: {
         filter: "Breakouts Only",
@@ -1394,8 +1380,6 @@ export const translations = {
       filters: {
         allLanguages: "所有語言",
         minStars: "最低星數",
-        addToWatchlist: "+ 追蹤",
-        inWatchlist: "已追蹤",
         sortLabel: "排序選項",
         notEnoughData: "歷史資料還不夠，無法用這個排序",
         languageLabel: "依語言篩選",
@@ -1414,18 +1398,6 @@ export const translations = {
         button: "匯出",
         json: "匯出 JSON",
         csv: "匯出 CSV",
-      },
-      batch: {
-        selected: "已選取 {count} 個",
-        addToWatchlist: "加入 {count} 個至追蹤清單",
-        adding: "加入中...",
-        cancel: "取消",
-        error: "加入追蹤清單失敗",
-        partial: "已加入 {success} / {total} 個儲存庫",
-      },
-      selection: {
-        enter: "選取",
-        exit: "完成",
       },
       breakouts: {
         filter: "僅顯示突破",

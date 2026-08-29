@@ -1,29 +1,23 @@
 /**
- * 趨勢頁面，依不同指標排序顯示 repo，支援語言與星數篩選、快速加入追蹤。
+ * 趨勢頁面，依不同指標排序顯示追蹤清單中的 repo，支援語言與星數篩選。
  */
 
 import { Fragment, useState, useMemo, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useVisibleInterval } from "../hooks/useSmartInterval";
 import { Skeleton } from "../components/Skeleton";
 import { AnimatedPage } from "../components/motion";
 import { formatNumber } from "../utils/format";
 import { useI18n } from "../i18n";
-import { useTrends, SortOption, TrendingRepo } from "../hooks/useTrends";
-import { addRepo } from "../api/client";
+import { useTrends, SortOption } from "../hooks/useTrends";
 import { useWatchlistState } from "../contexts/WatchlistContext";
 import { useNavigation } from "../contexts/NavigationContext";
-import { queryKeys } from "../lib/react-query";
 import { useViewMode } from "../hooks/useViewMode";
-import { useSelectionMode } from "../hooks/useSelectionMode";
 import { STORAGE_KEYS } from "../constants/storage";
 import { useAppStatus } from "../contexts/AppStatusContext";
-import { logger } from "../utils/logger";
 import { TrendRow } from "./trends/TrendRow";
 import { TrendExpandedRow } from "./trends/TrendExpandedRow";
 import { TrendGrid } from "./trends/TrendGrid";
 import { TrendsExportDropdown } from "./trends/TrendsExportDropdown";
-import { TrendsBatchAddBar } from "./trends/TrendsBatchAddBar";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 
 const SORT_KEYS: SortOption[] = [
@@ -98,7 +92,6 @@ function LastUpdatedIndicator({
 
 export function Trends() {
   const { t } = useI18n();
-  const queryClient = useQueryClient();
 
   // Auto-refresh 間隔
   const [refreshInterval, setRefreshInterval] = useState<number | false>(getStoredRefreshInterval);
@@ -139,26 +132,11 @@ export function Trends() {
   // Watchlist 狀態 — 從 Context 讀取，避免重複 API 請求
   const watchlistState = useWatchlistState();
   const { navigateTo } = useNavigation();
-  const [locallyAdded, setLocallyAdded] = useState<Set<string>>(new Set());
-  const [addingRepoIds, setAddingRepoIds] = useState<Set<number>>(new Set());
-  const [addError, setAddError] = useState<string | null>(null);
 
   // 展開狀態 — 同一時間只展開一行（僅 list 模式）
   const [expandedRepoId, setExpandedRepoId] = useState<number | null>(null);
 
-  // 多選模式 — 批次加入 watchlist
-  const selection = useSelectionMode();
   const { level } = useAppStatus();
-
-  const selectedRepos = useMemo(
-    () => trends.filter((r) => selection.selectedIds.has(r.id)),
-    [trends, selection.selectedIds]
-  );
-
-  const handleSelectionDone = useCallback(() => {
-    selection.exit();
-    setExpandedRepoId(null);
-  }, [selection]);
 
   // Breakout / Early Signal 偵測
   const repoIds = useMemo(() => trends.map((r) => r.id), [trends]);
@@ -168,35 +146,6 @@ export function Trends() {
   const displayedTrends = useMemo(
     () => (showBreakoutsOnly ? trends.filter((r) => reposWithBreakouts.has(r.id)) : trends),
     [trends, showBreakoutsOnly, reposWithBreakouts]
-  );
-
-  const allWatchlistNames = useMemo(() => {
-    const names = new Set(watchlistState.repos.map((r) => r.full_name.toLowerCase()));
-    locallyAdded.forEach((n) => names.add(n));
-    return names;
-  }, [watchlistState.repos, locallyAdded]);
-
-  const handleAddToWatchlist = useCallback(
-    async (repo: TrendingRepo) => {
-      setAddingRepoIds((prev) => new Set(prev).add(repo.id));
-      setAddError(null);
-      try {
-        await addRepo({ owner: repo.owner, name: repo.name });
-        setLocallyAdded((prev) => new Set(prev).add(repo.full_name.toLowerCase()));
-        // 同步全域 watchlist 資料源，避免雙真相
-        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
-      } catch (err) {
-        logger.error("[Trends] 加入追蹤失敗:", err);
-        setAddError(`${t.common.error}: ${repo.full_name}`);
-      } finally {
-        setAddingRepoIds((prev) => {
-          const next = new Set(prev);
-          next.delete(repo.id);
-          return next;
-        });
-      }
-    },
-    [t, queryClient]
   );
 
   const handleToggleExpand = useCallback((repoId: number) => {
@@ -236,7 +185,6 @@ export function Trends() {
                 <th className="trend-col">{t.repo.trend}</th>
                 <th className="delta-col">{t.trends.columns.forksDelta7d}</th>
                 <th className="delta-col">{t.trends.columns.issuesDelta7d}</th>
-                <th className="action-col" />
               </tr>
             </thead>
             <tbody>
@@ -268,9 +216,6 @@ export function Trends() {
                   </td>
                   <td className="delta-col">
                     <Skeleton width={40} height={16} />
-                  </td>
-                  <td className="action-col">
-                    <Skeleton width={60} height={24} variant="rounded" />
                   </td>
                 </tr>
               ))}
@@ -407,25 +352,6 @@ export function Trends() {
             </button>
           </div>
 
-          {selection.isActive ? (
-            <button
-              className="btn btn-sm"
-              onClick={handleSelectionDone}
-              data-testid="trends-selection-exit"
-            >
-              {t.trends.selection.exit}
-            </button>
-          ) : (
-            <button
-              className="btn btn-sm"
-              onClick={selection.enter}
-              disabled={displayedTrends.length === 0}
-              data-testid="trends-selection-enter"
-            >
-              {t.trends.selection.enter}
-            </button>
-          )}
-
           <TrendsExportDropdown
             sortBy={sortBy}
             language={languageFilter}
@@ -461,19 +387,6 @@ export function Trends() {
         </div>
       </div>
 
-      {addError && (
-        <div className="error-banner" role="alert">
-          {addError}
-          <button
-            className="btn btn-sm"
-            onClick={() => setAddError(null)}
-            aria-label={t.common.close}
-          >
-            &times;
-          </button>
-        </div>
-      )}
-
       {displayedTrends.length === 0 ? (
         <div className="empty-state" data-testid="empty-state">
           {watchlistState.repos.length === 0 &&
@@ -495,17 +408,7 @@ export function Trends() {
           )}
         </div>
       ) : viewMode === "grid" ? (
-        <TrendGrid
-          trends={displayedTrends}
-          allWatchlistNames={allWatchlistNames}
-          addingRepoIds={addingRepoIds}
-          onAddToWatchlist={handleAddToWatchlist}
-          t={t}
-          isSelectionMode={selection.isActive}
-          selectedIds={selection.selectedIds}
-          onToggleSelection={selection.toggleSelection}
-          signalsByRepoId={signalsByRepoId}
-        />
+        <TrendGrid trends={displayedTrends} t={t} signalsByRepoId={signalsByRepoId} />
       ) : (
         <div className="trends-table" data-testid="trends-table">
           <table>
@@ -520,7 +423,6 @@ export function Trends() {
                 <th className="trend-col">{t.repo.trend}</th>
                 <th className="delta-col">{t.trends.columns.forksDelta7d}</th>
                 <th className="delta-col">{t.trends.columns.issuesDelta7d}</th>
-                <th className="action-col" />
               </tr>
             </thead>
             <tbody>
@@ -528,15 +430,8 @@ export function Trends() {
                 <Fragment key={repo.id}>
                   <TrendRow
                     repo={repo}
-                    isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
-                    isAdding={addingRepoIds.has(repo.id)}
-                    onAddToWatchlist={handleAddToWatchlist}
                     isExpanded={expandedRepoId === repo.id}
                     onToggleExpand={handleToggleExpand}
-                    t={t}
-                    isSelectionMode={selection.isActive}
-                    isSelected={selection.selectedIds.has(repo.id)}
-                    onToggleSelection={selection.toggleSelection}
                     signals={signalsByRepoId[repo.id]}
                   />
                   {expandedRepoId === repo.id && (
@@ -547,15 +442,6 @@ export function Trends() {
             </tbody>
           </table>
         </div>
-      )}
-
-      {selection.isActive && (
-        <TrendsBatchAddBar
-          selectedRepos={selectedRepos}
-          selectedCount={selection.selectedCount}
-          onDone={handleSelectionDone}
-          onError={setAddError}
-        />
       )}
     </AnimatedPage>
   );

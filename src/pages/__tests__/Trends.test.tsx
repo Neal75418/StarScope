@@ -243,9 +243,8 @@ describe("Trends", () => {
     expect(screen.queryByTestId("trends-go-discover")).not.toBeInTheDocument();
   });
 
-  it("disables selection and export when there are no results", () => {
+  it("disables export when there are no results", () => {
     renderTrends();
-    expect(screen.getByTestId("trends-selection-enter")).toBeDisabled();
     expect(screen.getByTestId("trends-export-btn")).toBeDisabled();
   });
 
@@ -355,37 +354,6 @@ describe("Trends", () => {
     expect(screen.getByText("71.4/day")).toBeInTheDocument();
   });
 
-  it("shows 'In Watchlist' for repos already tracked", () => {
-    mockWatchlistRepos = [{ full_name: "facebook/react" }];
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    expect(screen.getByText("In Watchlist")).toBeInTheDocument();
-  });
-
-  it("calls addRepo when Add button is clicked", async () => {
-    const user = userEvent.setup();
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    const addBtn = screen.getByText("+ Watchlist");
-    await user.click(addBtn);
-    expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
-  });
-
-  it("invalidates watchlist repos query after successful add", async () => {
-    const user = userEvent.setup();
-    mockAddRepo.mockResolvedValue({});
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-
-    const invalidateSpy = vi.spyOn(testQueryClient, "invalidateQueries");
-
-    await user.click(screen.getByText("+ Watchlist"));
-
-    // Should invalidate repos query to sync global watchlist
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["repos"] });
-    invalidateSpy.mockRestore();
-  });
-
   it("renders all four sort tabs with correct labels", () => {
     mockTrendsReturn.trends = [makeTrending()];
     renderTrends();
@@ -493,58 +461,6 @@ describe("Trends", () => {
     mockTrendsReturn.trends = [makeTrending()];
     renderTrends();
     expect(screen.getByTestId("trends-export-btn")).toBeInTheDocument();
-  });
-
-  it("renders selection enter button", () => {
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    expect(screen.getByTestId("trends-selection-enter")).toBeInTheDocument();
-    expect(screen.getByText("Select")).toBeInTheDocument();
-  });
-
-  it("enters selection mode and shows checkboxes", async () => {
-    const user = userEvent.setup();
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    await user.click(screen.getByTestId("trends-selection-enter"));
-    // Should switch to exit button
-    expect(screen.getByTestId("trends-selection-exit")).toBeInTheDocument();
-    expect(screen.getByText("Done")).toBeInTheDocument();
-    // Should show checkbox in table row
-    expect(screen.getByRole("checkbox")).toBeInTheDocument();
-  });
-
-  it("exits selection mode when Done is clicked", async () => {
-    const user = userEvent.setup();
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    await user.click(screen.getByTestId("trends-selection-enter"));
-    expect(screen.getByTestId("trends-selection-exit")).toBeInTheDocument();
-    await user.click(screen.getByTestId("trends-selection-exit"));
-    expect(screen.getByTestId("trends-selection-enter")).toBeInTheDocument();
-  });
-
-  it("shows batch bar when items are selected", async () => {
-    const user = userEvent.setup();
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    // Enter selection mode
-    await user.click(screen.getByTestId("trends-selection-enter"));
-    // Click checkbox to select
-    const checkbox = screen.getByRole("checkbox");
-    await user.click(checkbox);
-    // Batch bar should appear
-    expect(screen.getByTestId("trends-batch-bar")).toBeInTheDocument();
-    expect(screen.getByText("1 selected")).toBeInTheDocument();
-  });
-
-  it("shows checkboxes in grid view during selection mode", async () => {
-    const user = userEvent.setup();
-    mockViewMode = "grid";
-    mockTrendsReturn.trends = [makeTrending()];
-    renderTrends();
-    await user.click(screen.getByTestId("trends-selection-enter"));
-    expect(screen.getByRole("checkbox")).toBeInTheDocument();
   });
 
   // Phase 5: Breakout filter

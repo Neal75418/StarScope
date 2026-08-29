@@ -54,10 +54,6 @@ const mockT = {
       velocity: "Stars/Day",
       delta7d: "7d \u0394",
     },
-    filters: {
-      addToWatchlist: "+ Watchlist",
-      inWatchlist: "In Watchlist",
-    },
     compareWith: "Compare",
   },
   repo: { trend: "Trend" },
@@ -65,15 +61,7 @@ const mockT = {
 
 describe("TrendCard", () => {
   it("renders repo name and rank badge", () => {
-    render(
-      <TrendCard
-        repo={makeTrending()}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending()} t={mockT} />);
     expect(screen.getByText("facebook/react")).toBeInTheDocument();
     expect(screen.getByText("#1")).toBeInTheDocument();
   });
@@ -82,85 +70,37 @@ describe("TrendCard", () => {
   // 掉星的 repo 會顯示綠字。斷言 class 而非顏色：jsdom 不處理 CSS，
   // class 對應的顏色是在 Chrome 裡量過的
   it("掉星時用負向色，不是寫死的正向色", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ stars_delta_7d: -58 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ stars_delta_7d: -58 })} t={mockT} />);
     const el = screen.getByText("-58");
     expect(el.className).toContain("negative");
     expect(el.className).not.toContain("positive");
   });
 
   it("漲星時用正向色", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ stars_delta_7d: 500 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ stars_delta_7d: 500 })} t={mockT} />);
     expect(screen.getByText("+500").className).toContain("positive");
   });
 
   it("applies gold class for rank 1", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ rank: 1 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ rank: 1 })} t={mockT} />);
     const rankEl = screen.getByText("#1");
     expect(rankEl.className).toContain("trend-card-rank-gold");
   });
 
   it("applies silver class for rank 2", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ rank: 2 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ rank: 2 })} t={mockT} />);
     const rankEl = screen.getByText("#2");
     expect(rankEl.className).toContain("trend-card-rank-silver");
   });
 
   it("applies bronze class for rank 3", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ rank: 3 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ rank: 3 })} t={mockT} />);
     const rankEl = screen.getByText("#3");
     expect(rankEl.className).toContain("trend-card-rank-bronze");
   });
 
   it("has no special rank class for rank > 3", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ rank: 5 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ rank: 5 })} t={mockT} />);
     const rankEl = screen.getByText("#5");
     expect(rankEl.className).not.toContain("gold");
     expect(rankEl.className).not.toContain("silver");
@@ -168,72 +108,19 @@ describe("TrendCard", () => {
   });
 
   it("renders description", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ description: "A cool library" })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ description: "A cool library" })} t={mockT} />);
     expect(screen.getByText("A cool library")).toBeInTheDocument();
   });
 
-  it("shows In Watchlist when repo is tracked", () => {
-    render(
-      <TrendCard
-        repo={makeTrending()}
-        isInWatchlist={true}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
-    expect(screen.getByText("In Watchlist")).toBeInTheDocument();
-  });
-
-  it("calls onAddToWatchlist when add button is clicked", async () => {
-    const user = userEvent.setup();
-    const onAdd = vi.fn();
-    render(
-      <TrendCard
-        repo={makeTrending()}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={onAdd}
-        t={mockT}
-      />
-    );
-    await user.click(screen.getByText("+ Watchlist"));
-    expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
-  });
-
   it("renders language badge", () => {
-    render(
-      <TrendCard
-        repo={makeTrending({ language: "Rust" })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ language: "Rust" })} t={mockT} />);
     expect(screen.getByText("Rust")).toBeInTheDocument();
   });
 
   it("calls navigateTo with preselectedIds when Compare button is clicked", async () => {
     const user = userEvent.setup();
     mockNavigateTo.mockClear();
-    render(
-      <TrendCard
-        repo={makeTrending({ id: 42 })}
-        isInWatchlist={false}
-        isAdding={false}
-        onAddToWatchlist={vi.fn()}
-        t={mockT}
-      />
-    );
+    render(<TrendCard repo={makeTrending({ id: 42 })} t={mockT} />);
     await user.click(screen.getByTestId("trend-compare-btn-42"));
     expect(mockNavigateTo).toHaveBeenCalledWith("compare", { preselectedIds: [42] });
   });

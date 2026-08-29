@@ -1712,32 +1712,6 @@ body {
 }
 
 /* Trends Action Column */
-.action-col {
-  width: 90px;
-  text-align: center;
-}
-
-.trends-add-btn {
-  padding: 3px 8px;
-  font-size: 0.75rem;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-
-.trends-in-watchlist {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: var(--success-fg);
-  font-weight: 500;
-  padding: 3px 8px;
-  background: var(--success-subtle);
-  border: 1px solid var(--success-fg);
-  border-radius: var(--radius-sm);
-  opacity: 0.8;
-  white-space: nowrap;
-}
 
 .repo-col {
   min-width: 200px;
@@ -2000,36 +1974,7 @@ body {
   border-top: 1px solid var(--border-default);
 }
 
-.trend-card-checkbox {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-}
-
-.trend-card.selected {
-  border-color: var(--accent-emphasis);
-  box-shadow: 0 0 0 2px var(--accent-emphasis);
-}
-
 /* Trends Batch Add Bar */
-.trends-batch-bar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-default);
-  border-top: 1px solid var(--border-default);
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-}
-
-.trends-batch-count {
-  font-weight: 500;
-  color: var(--fg-default);
-}
 
 /* Breakout Badges */
 .breakout-badges {

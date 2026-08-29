@@ -7,36 +7,21 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../../components/TrendArrow";
 import { formatNumber, formatDelta, formatVelocity, deltaClass } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
-import type { useI18n } from "../../i18n";
 import type { TrendingRepo } from "../../api/client";
 import type { EarlySignal } from "../../api/types";
 import { BreakoutBadge } from "./BreakoutBadge";
 
 interface TrendRowProps {
   repo: TrendingRepo;
-  isInWatchlist: boolean;
-  isAdding: boolean;
-  onAddToWatchlist: (repo: TrendingRepo) => void;
   isExpanded: boolean;
   onToggleExpand: (repoId: number) => void;
-  t: ReturnType<typeof useI18n>["t"];
-  isSelectionMode?: boolean;
-  isSelected?: boolean;
-  onToggleSelection?: (repoId: number) => void;
   signals?: EarlySignal[];
 }
 
 export const TrendRow = memo(function TrendRow({
   repo,
-  isInWatchlist,
-  isAdding,
-  onAddToWatchlist,
   isExpanded,
   onToggleExpand,
-  t,
-  isSelectionMode,
-  isSelected,
-  onToggleSelection,
   signals,
 }: TrendRowProps) {
   const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
@@ -46,15 +31,7 @@ export const TrendRow = memo(function TrendRow({
   };
 
   const handleRowClick = () => {
-    if (isSelectionMode && onToggleSelection) {
-      onToggleSelection(repo.id);
-    } else {
-      onToggleExpand(repo.id);
-    }
-  };
-
-  const handleActionClick = (e: ReactMouseEvent) => {
-    e.stopPropagation();
+    onToggleExpand(repo.id);
   };
 
   return (
@@ -62,25 +39,13 @@ export const TrendRow = memo(function TrendRow({
       className={`trend-row-expandable ${isExpanded ? "expanded" : ""}`}
       onClick={handleRowClick}
       data-testid={`trend-row-${repo.id}`}
-      aria-expanded={!isSelectionMode ? isExpanded : undefined}
+      aria-expanded={isExpanded}
     >
       <td className="rank-col">
-        {isSelectionMode ? (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelection?.(repo.id)}
-            onClick={(e) => e.stopPropagation()}
-            aria-label={t.common.selectItem.replace("{name}", repo.full_name)}
-          />
-        ) : (
-          <>
-            <span className="trend-expand-icon" aria-hidden="true">
-              {isExpanded ? "▾" : "▸"}
-            </span>
-            <span className="rank-badge">{repo.rank}</span>
-          </>
-        )}
+        <span className="trend-expand-icon" aria-hidden="true">
+          {isExpanded ? "▾" : "▸"}
+        </span>
+        <span className="rank-badge">{repo.rank}</span>
       </td>
       <td className="repo-col">
         <a href={repo.url} onClick={handleLinkClick} className="repo-link">
@@ -105,19 +70,6 @@ export const TrendRow = memo(function TrendRow({
       </td>
       <td className={`delta-col ${deltaClass(repo.issues_delta_7d, true)}`}>
         {formatDelta(repo.issues_delta_7d)}
-      </td>
-      <td className="action-col" onClick={handleActionClick}>
-        {isInWatchlist ? (
-          <span className="trends-in-watchlist">{t.trends.filters.inWatchlist}</span>
-        ) : (
-          <button
-            className="btn btn-sm btn-outline trends-add-btn"
-            onClick={() => onAddToWatchlist(repo)}
-            disabled={isAdding}
-          >
-            {t.trends.filters.addToWatchlist}
-          </button>
-        )}
       </td>
     </tr>
   );

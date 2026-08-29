@@ -3,7 +3,7 @@
  */
 
 import { memo } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { TrendArrow } from "../../components/TrendArrow";
 import { formatNumber, formatDelta, formatVelocity, deltaClass } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
@@ -15,13 +15,7 @@ import { BreakoutBadge } from "./BreakoutBadge";
 
 interface TrendCardProps {
   repo: TrendingRepo;
-  isInWatchlist: boolean;
-  isAdding: boolean;
-  onAddToWatchlist: (repo: TrendingRepo) => void;
   t: ReturnType<typeof useI18n>["t"];
-  isSelectionMode?: boolean;
-  isSelected?: boolean;
-  onToggleSelection?: (repoId: number) => void;
   signals?: EarlySignal[];
 }
 
@@ -32,17 +26,7 @@ function getRankClass(rank: number): string {
   return "";
 }
 
-export const TrendCard = memo(function TrendCard({
-  repo,
-  isInWatchlist,
-  isAdding,
-  onAddToWatchlist,
-  t,
-  isSelectionMode,
-  isSelected,
-  onToggleSelection,
-  signals,
-}: TrendCardProps) {
+export const TrendCard = memo(function TrendCard({ repo, t, signals }: TrendCardProps) {
   const { navigateTo } = useNavigation();
 
   const handleLinkClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
@@ -51,37 +35,7 @@ export const TrendCard = memo(function TrendCard({
   };
 
   return (
-    <div
-      className={`trend-card${isSelected ? " selected" : ""}`}
-      data-testid={`trend-card-${repo.id}`}
-      {...(isSelectionMode
-        ? {
-            onClick: () => onToggleSelection?.(repo.id),
-            onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onToggleSelection?.(repo.id);
-              }
-            },
-            role: "group",
-            "aria-label": (isSelected ? t.common.itemSelected : t.common.itemNotSelected).replace(
-              "{name}",
-              repo.full_name
-            ),
-            tabIndex: 0,
-          }
-        : {})}
-    >
-      {isSelectionMode && (
-        <input
-          type="checkbox"
-          className="trend-card-checkbox"
-          checked={isSelected}
-          onChange={() => onToggleSelection?.(repo.id)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={t.common.selectItem.replace("{name}", repo.full_name)}
-        />
-      )}
+    <div className="trend-card" data-testid={`trend-card-${repo.id}`}>
       <div className={`trend-card-rank ${getRankClass(repo.rank)}`}>#{repo.rank}</div>
 
       <div className="trend-card-header">
@@ -117,17 +71,6 @@ export const TrendCard = memo(function TrendCard({
       </div>
 
       <div className="trend-card-footer">
-        {isInWatchlist ? (
-          <span className="trends-in-watchlist">{t.trends.filters.inWatchlist}</span>
-        ) : (
-          <button
-            className="btn btn-sm btn-outline trends-add-btn"
-            onClick={() => onAddToWatchlist(repo)}
-            disabled={isAdding}
-          >
-            {t.trends.filters.addToWatchlist}
-          </button>
-        )}
         <button
           className="btn btn-sm btn-outline"
           onClick={(e) => {

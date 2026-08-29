@@ -9,42 +9,15 @@ import { TrendCard } from "./TrendCard";
 
 interface TrendGridProps {
   trends: TrendingRepo[];
-  allWatchlistNames: Set<string>;
-  addingRepoIds: Set<number>;
-  onAddToWatchlist: (repo: TrendingRepo) => void;
   t: ReturnType<typeof useI18n>["t"];
-  isSelectionMode?: boolean;
-  selectedIds?: Set<number>;
-  onToggleSelection?: (repoId: number) => void;
   signalsByRepoId?: Record<number, EarlySignal[]>;
 }
 
-export function TrendGrid({
-  trends,
-  allWatchlistNames,
-  addingRepoIds,
-  onAddToWatchlist,
-  t,
-  isSelectionMode,
-  selectedIds,
-  onToggleSelection,
-  signalsByRepoId,
-}: TrendGridProps) {
+export function TrendGrid({ trends, t, signalsByRepoId }: TrendGridProps) {
   return (
     <div className="trend-grid" data-testid="trends-grid">
       {trends.map((repo) => (
-        <TrendCard
-          key={repo.id}
-          repo={repo}
-          isInWatchlist={allWatchlistNames.has(repo.full_name.toLowerCase())}
-          isAdding={addingRepoIds.has(repo.id)}
-          onAddToWatchlist={onAddToWatchlist}
-          t={t}
-          isSelectionMode={isSelectionMode}
-          isSelected={selectedIds?.has(repo.id)}
-          onToggleSelection={onToggleSelection}
-          signals={signalsByRepoId?.[repo.id]}
-        />
+        <TrendCard key={repo.id} repo={repo} t={t} signals={signalsByRepoId?.[repo.id]} />
       ))}
     </div>
   );
