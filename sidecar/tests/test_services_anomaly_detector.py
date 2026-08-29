@@ -168,6 +168,10 @@ class TestDetectSuddenSpike:
 
         assert result is not None
         assert result.signal_type == EarlySignalType.SUDDEN_SPIKE
+        # 模板參數：velocity_value=今日增量、baseline_value=歷史平均——
+        # 前端據此渲染各語系文案，description 只是 fallback
+        assert result.velocity_value == pytest.approx(500)
+        assert result.baseline_value == pytest.approx(50)
 
     def test_returns_none_without_spike(self, test_db, mock_repo):
         """Test returns None without spike pattern."""
@@ -224,6 +228,8 @@ class TestDetectBreakout:
 
         assert result is not None
         assert result.signal_type == EarlySignalType.BREAKOUT
+        assert result.baseline_value is not None
+        assert result.baseline_value < result.velocity_value
 
 
 class TestDetectViralHN:
@@ -256,6 +262,8 @@ class TestDetectViralHN:
 
         assert result is not None
         assert result.signal_type == EarlySignalType.VIRAL_HN
+        assert result.velocity_value == pytest.approx(200)
+        assert result.context_title == "Amazing project on HN"
 
     def test_ignores_old_hn_signals(self, test_db, mock_repo):
         """Test ignores HN signals older than 48 hours."""

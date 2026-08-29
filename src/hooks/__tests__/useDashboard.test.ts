@@ -84,6 +84,8 @@ function makeSignal(overrides: Partial<apiClient.EarlySignal> = {}): apiClient.E
     velocity_value: 50,
     star_count: 200000,
     percentile_rank: 95,
+    baseline_value: null,
+    context_title: null,
     detected_at: "2024-01-20T00:00:00Z",
     expires_at: null,
     acknowledged: false,

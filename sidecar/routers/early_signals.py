@@ -37,6 +37,8 @@ class EarlySignalResponse(BaseModel):
     description: str
     velocity_value: float | None
     star_count: int | None
+    baseline_value: float | None = None
+    context_title: str | None = None
     percentile_rank: float | None
     detected_at: datetime
     expires_at: datetime | None
@@ -76,6 +78,8 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
         description=signal.description,
         velocity_value=signal.velocity_value,
         star_count=signal.star_count,
+        baseline_value=signal.baseline_value,
+        context_title=signal.context_title,
         percentile_rank=signal.percentile_rank,
         detected_at=signal.detected_at,
         expires_at=signal.expires_at,

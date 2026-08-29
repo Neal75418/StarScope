@@ -326,6 +326,7 @@ class AnomalyDetector:
             # 不能說 "today"：latest_delta 現在是日均值，而它跨越的可能是好幾天
             description=f"Sudden spike: +{latest_delta:,.0f} stars/day (vs avg {avg_delta:.0f}/day)",
             velocity_value=float(latest_delta),
+            baseline_value=float(avg_delta),
             star_count=latest_stars if latest_stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=3),  # 短期訊號
@@ -376,6 +377,7 @@ class AnomalyDetector:
             severity=severity,
             description=f"Breakout: velocity went from {prev_weeks_velocity:.1f} to {current_weekly_velocity:.1f} stars/day",
             velocity_value=float(current_weekly_velocity),
+            baseline_value=float(prev_weeks_velocity),
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),
             expires_at=utc_now() + timedelta(days=7),
@@ -421,6 +423,8 @@ class AnomalyDetector:
             signal_type=EarlySignalType.VIRAL_HN,
             severity=severity,
             description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
+            velocity_value=float(hn_signal.score) if hn_signal.score is not None else None,
+            context_title=hn_signal.title[:255] if hn_signal.title else None,
             # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),
@@ -446,6 +450,8 @@ class AnomalyDetector:
             signal_type=EarlySignalType.VIRAL_HN,
             severity=severity,
             description=f"Viral on HN: \"{hn_signal.title[:50]}{'...' if len(hn_signal.title) > 50 else ''}\" ({hn_signal.score} points)",
+            velocity_value=float(hn_signal.score) if hn_signal.score is not None else None,
+            context_title=hn_signal.title[:255] if hn_signal.title else None,
             # noinspection PyTypeChecker
             star_count=int(snapshot.stars) if snapshot and snapshot.stars else None,
             detected_at=utc_now(),

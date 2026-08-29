@@ -169,6 +169,8 @@ describe("MetricsTable", () => {
               velocity_value: 50,
               star_count: 200000,
               percentile_rank: 99,
+              baseline_value: null,
+              context_title: null,
               detected_at: "2024-01-01T00:00:00Z",
               expires_at: "2024-02-01T00:00:00Z",
               acknowledged: false,

@@ -3,23 +3,32 @@ import { render, screen } from "@testing-library/react";
 import { BreakoutBadge } from "../BreakoutBadge";
 import type { EarlySignal } from "../../../api/types";
 
-vi.mock("../../../i18n", () => ({
-  useI18n: () => ({
-    t: {
-      trends: {
-        breakouts: {
-          more: "+{count} more",
-          types: {
-            breakout: "Breakout",
-            sudden_spike: "Spike",
-            rising_star: "Rising",
-            viral_hn: "HN Viral",
+// 保留真實模組（formatSignalDescription 需要 interpolate 與完整的 t.dashboard），
+// 只覆寫這組測試斷言用的自訂 breakout 標籤
+vi.mock("../../../i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../i18n")>();
+  const en = actual.getTranslations("en");
+  return {
+    ...actual,
+    useI18n: () => ({
+      t: {
+        ...en,
+        trends: {
+          ...en.trends,
+          breakouts: {
+            more: "+{count} more",
+            types: {
+              breakout: "Breakout",
+              sudden_spike: "Spike",
+              rising_star: "Rising",
+              viral_hn: "HN Viral",
+            },
           },
         },
       },
-    },
-  }),
-}));
+    }),
+  };
+});
 
 function makeSignal(overrides: Partial<EarlySignal> = {}): EarlySignal {
   return {
@@ -32,6 +41,8 @@ function makeSignal(overrides: Partial<EarlySignal> = {}): EarlySignal {
     velocity_value: 50,
     star_count: 1000,
     percentile_rank: 99,
+    baseline_value: null,
+    context_title: null,
     detected_at: "2024-01-01T00:00:00Z",
     expires_at: null,
     acknowledged: false,

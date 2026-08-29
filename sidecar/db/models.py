@@ -360,6 +360,11 @@ class EarlySignal(Base):
     velocity_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     star_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     percentile_rank: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0-100
+    # 描述模板的結構化參數（顯示文案由前端依語系渲染，description 是 fallback）：
+    # baseline_value＝比較基準（sudden_spike 的平均日增、breakout 的前週 velocity）
+    # context_title＝viral_hn 的 HN 標題（內容非文案，不翻譯）
+    baseline_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    context_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # 時間戳記
     detected_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

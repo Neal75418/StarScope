@@ -79,6 +79,12 @@ export const translations = {
           breakout: "Breakout",
           viralHn: "Viral on HN",
         },
+        copy: {
+          risingStar: "Rising star: {stars} stars, +{velocity}/day",
+          suddenSpike: "Sudden spike: +{delta} stars/day (avg {avg}/day)",
+          breakout: "Velocity went from {prev} to {current} stars/day",
+          viralHn: "Viral on HN: \u201c{title}\u201d ({score} pts)",
+        },
       },
       weekly: {
         hnPoints: "{n} pts",
@@ -1081,6 +1087,12 @@ export const translations = {
           suddenSpike: "突然飆升",
           breakout: "爆發突破",
           viralHn: "HN 熱門",
+        },
+        copy: {
+          risingStar: "新星崛起：{stars} 顆星、每日 +{velocity}",
+          suddenSpike: "突然飆升：每日 +{delta} 顆星（平均每日 {avg}）",
+          breakout: "爆發突破：velocity 從每日 {prev} 升到 {current}",
+          viralHn: "HN 熱門：「{title}」（{score} pts）",
         },
       },
       weekly: {

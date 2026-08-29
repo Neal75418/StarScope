@@ -46,6 +46,8 @@ function makeSignal(overrides: Partial<EarlySignal> = {}): EarlySignal {
     velocity_value: 100,
     star_count: 200000,
     percentile_rank: 99,
+    baseline_value: null,
+    context_title: null,
     detected_at: new Date().toISOString(),
     expires_at: null,
     acknowledged: false,
@@ -417,7 +419,9 @@ describe("Dashboard", () => {
     // "3" appears in both velocity chart and signal spotlight, use getAllByText
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Rising Star")).toBeInTheDocument();
-    expect(screen.getByText("Stars rising fast")).toBeInTheDocument();
+    // 結構化參數齊全（velocity 100、stars 200000）→ 依語系渲染模板，
+    // 不再直接顯示 DB 的英文 description
+    expect(screen.getByText("Rising star: 200.0K stars, +100/day")).toBeInTheDocument();
     expect(screen.getByText("facebook/react")).toBeInTheDocument();
     expect(screen.getByText("high")).toBeInTheDocument();
     await user.click(screen.getByTitle("Acknowledge"));
@@ -488,6 +492,8 @@ describe("Dashboard", () => {
         repo_name: "test/repo",
         severity: "low",
         description: "Unknown signal",
+        // 結構化參數不齊 → fallback 顯示 description（舊資料列的路徑）
+        velocity_value: null,
       }),
     ];
     render(<Dashboard />);

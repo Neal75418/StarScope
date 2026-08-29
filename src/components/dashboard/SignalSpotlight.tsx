@@ -6,6 +6,7 @@ import { memo, useMemo } from "react";
 import { useI18n, interpolate } from "../../i18n";
 import type { EarlySignal, SignalSummary } from "../../api/client";
 import { formatCompactRelativeTime } from "../../utils/format";
+import { formatSignalDescription } from "../../utils/signalCopy";
 import { getSignalTypeConfig } from "../../constants/signalTypes";
 
 const SEVERITY_CLASS: Record<string, string> = {
@@ -109,7 +110,7 @@ export const SignalSpotlight = memo(function SignalSpotlight({
                       {signal.severity}
                     </span>
                   </div>
-                  <div className="signal-item-desc">{signal.description}</div>
+                  <div className="signal-item-desc">{formatSignalDescription(signal, t)}</div>
                 </div>
                 <div className="signal-item-actions">
                   <span className="signal-item-time">

@@ -288,6 +288,10 @@ export interface EarlySignal {
   velocity_value: number | null;
   star_count: number | null;
   percentile_rank: number | null;
+  /** 描述模板的比較基準（sudden_spike 平均日增、breakout 前週 velocity）；舊列為 null */
+  baseline_value: number | null;
+  /** viral_hn 的 HN 標題（內容非文案，不翻譯）；舊列為 null */
+  context_title: string | null;
   detected_at: string;
   expires_at: string | null;
   acknowledged: boolean;

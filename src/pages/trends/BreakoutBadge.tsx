@@ -6,6 +6,7 @@
 import { memo, useId } from "react";
 import type { EarlySignal } from "../../api/types";
 import { useI18n } from "../../i18n";
+import { formatSignalDescription } from "../../utils/signalCopy";
 
 interface BreakoutBadgeProps {
   signals: EarlySignal[];
@@ -29,7 +30,8 @@ export const BreakoutBadge = memo(function BreakoutBadge({ signals }: BreakoutBa
     <span className="breakout-badges" data-testid="breakout-badges">
       {shown.map((type, i) => {
         const label = labels[type] ?? type;
-        const description = active.find((s) => s.signal_type === type)?.description ?? "";
+        const match = active.find((s) => s.signal_type === type);
+        const description = match ? formatSignalDescription(match, t) : "";
         const descId = `${baseId}-desc-${i}`;
         return (
           <span

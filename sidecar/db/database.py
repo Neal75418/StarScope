@@ -112,6 +112,7 @@ _ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "feed_items": [("opened_at", "DATETIME")],
     "repos": [("unstarred_at", "DATETIME"), ("starred_at", "DATETIME")],
     "context_signals": [("tags", "VARCHAR(255)")],
+    "early_signals": [("baseline_value", "FLOAT"), ("context_title", "VARCHAR(255)")],
 }
 
 
