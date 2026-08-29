@@ -91,3 +91,8 @@ coverage/
 
 # TypeScript incremental build info (composite projects)
 *.tsbuildinfo
+
+# tauri icon 會一併產出 iOS/Android 圖示，但這是桌面專用專案
+# （src-tauri/gen 底下沒有 apple/android，bundle.icon 也只列桌面那五個檔案）
+src-tauri/icons/android/
+src-tauri/icons/ios/
