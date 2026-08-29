@@ -338,6 +338,11 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
   // 監聽 Tauri tray「Refresh All」事件
   useEffect(() => {
+    // cleanup 是同步的，而 unlisten 要等兩層 promise 之後才有值：effect 在
+    // promise 落地前重跑（StrictMode 的 mount→unmount→mount 必中）時，cleanup
+    // 讀到 undefined、之後的指派寫進死掉的 closure → listener 永不解除，
+    // 系統匣按一次 Refresh All 會疊送多次。cancelled 旗標讓遲到的註冊自我解除。
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     import("@tauri-apps/api/event")
       .then(({ listen }) =>
@@ -346,12 +351,16 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         })
       )
       .then((fn) => {
-        unlisten = fn;
+        if (cancelled) fn();
+        else unlisten = fn;
       })
       .catch(() => {
         // 非 Tauri 環境（開發模式 / 測試），忽略
       });
-    return () => unlisten?.();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [actions]);
 
   return (

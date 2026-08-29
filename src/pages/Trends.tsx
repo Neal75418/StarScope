@@ -37,11 +37,11 @@ const SORT_KEYS: SortOption[] = [
 
 const MIN_STARS_OPTIONS = [0, 100, 500, 1000, 5000, 10000];
 
-const REFRESH_INTERVALS: { label: string; value: number | false }[] = [
-  { label: "off", value: false },
-  { label: "5m", value: 5 * 60 * 1000 },
-  { label: "15m", value: 15 * 60 * 1000 },
-  { label: "30m", value: 30 * 60 * 1000 },
+const REFRESH_INTERVALS: (number | false)[] = [
+  false,
+  5 * 60 * 1000,
+  15 * 60 * 1000,
+  30 * 60 * 1000,
 ];
 
 function getStoredRefreshInterval(): number | false {
@@ -49,7 +49,7 @@ function getStoredRefreshInterval(): number | false {
     const stored = localStorage.getItem(STORAGE_KEYS.TRENDS_AUTO_REFRESH);
     if (stored) {
       const num = Number(stored);
-      if (REFRESH_INTERVALS.some((r) => r.value === num)) return num;
+      if (REFRESH_INTERVALS.some((r) => r === num)) return num;
     }
   } catch {
     /* ignore */
@@ -447,8 +447,10 @@ export function Trends() {
               data-testid="trends-refresh-select"
             >
               {REFRESH_INTERVALS.map((opt) => (
-                <option key={String(opt.value)} value={String(opt.value)}>
-                  {opt.value === false ? t.trends.autoRefresh.off : `${opt.label}`}
+                <option key={String(opt)} value={String(opt)}>
+                  {opt === false
+                    ? t.trends.autoRefresh.off
+                    : t.trends.autoRefresh.everyMinutes.replace("{n}", String(opt / 60000))}
                 </option>
               ))}
             </select>

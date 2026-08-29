@@ -138,4 +138,42 @@ describe("useWindowedBatchRepoData", () => {
     expect(vi.mocked(getContextBadgesBatch).mock.calls.length).toBe(callCountBadges);
     expect(vi.mocked(getRepoSignalsBatch).mock.calls.length).toBe(callCountSignals);
   });
+
+  it("in-flight 批次不因視窗改變而中止（regression：中止會讓這些 id 卡死）", async () => {
+    // 死鎖序列：批次起飛 → 視窗改變使 missingIds 變空 → 舊碼在 cleanup abort
+    // 並清掉 loadingSet → 之後沒有任何 re-render 會把這些 id 撿回來。
+    const { getContextBadgesBatch } = await import("../../api/client");
+    let resolveBadges: (() => void) | undefined;
+    vi.mocked(getContextBadgesBatch).mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolveBadges = () => res(mockBadgesResponse);
+        })
+    );
+
+    const { result } = renderHook(() => useWindowedBatchRepoData([1, 2], { debounceMs: 0 }));
+
+    await waitFor(() => {
+      expect(vi.mocked(getContextBadgesBatch)).toHaveBeenCalled();
+    });
+
+    // 批次仍在途時改變視窗：target 內容不變但 missingIds 變空 → effect 重跑
+    act(() => {
+      result.current.setVisibleRange({ start: 0, stop: 1 });
+    });
+    await waitFor(() => {
+      expect(result.current.loading).toBe(true);
+    });
+
+    // 放行第一批 — 結果必須落地（舊碼因已 abort 而整批丟棄）
+    await act(async () => {
+      resolveBadges?.();
+    });
+
+    await waitFor(() => {
+      expect(result.current.dataMap[1]).toBeDefined();
+      expect(result.current.dataMap[2]).toBeDefined();
+      expect(result.current.loading).toBe(false);
+    });
+  });
 });

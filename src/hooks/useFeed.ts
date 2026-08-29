@@ -21,7 +21,8 @@ export function useFeed() {
   const generateMutation = useMutation({
     mutationFn: () => generateFeed(),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.feed.today() });
+      // feed.all 而非 today：這個操作同時改動 stats（shown/opened/starred）
+      void queryClient.invalidateQueries({ queryKey: queryKeys.feed.all });
     },
   });
 
@@ -29,7 +30,8 @@ export function useFeed() {
     mutationFn: ({ itemId, action }: { itemId: number; action: FeedFeedbackAction }) =>
       sendFeedFeedback(itemId, action),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.feed.today() });
+      // feed.all 而非 today：這個操作同時改動 stats（shown/opened/starred）
+      void queryClient.invalidateQueries({ queryKey: queryKeys.feed.all });
     },
   });
 

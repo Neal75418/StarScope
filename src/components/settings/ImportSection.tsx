@@ -5,6 +5,7 @@
 import { useState, useRef, memo } from "react";
 import type { ChangeEvent } from "react";
 import { useI18n } from "../../i18n";
+import type { ImportResult as ImportResultData } from "../../utils/importHelpers";
 import { useImport, ParsedRepo } from "../../hooks/useImport";
 
 function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
@@ -75,11 +76,7 @@ function ImportPreview({ repos }: { repos: ParsedRepo[] }) {
   );
 }
 
-function ImportResult({
-  result,
-}: {
-  result: { total: number; success: number; skipped: number; failed: number };
-}) {
+function ImportResult({ result }: { result: ImportResultData }) {
   const { t } = useI18n();
 
   return (
@@ -99,6 +96,11 @@ function ImportResult({
           <span className="import-stat-label">{t.settings.import.failed}</span>
         </div>
       </div>
+      {result.dedupCheckFailed && (
+        <p className="import-result-warning" role="alert">
+          {t.settings.import.dedupWarning}
+        </p>
+      )}
     </div>
   );
 }

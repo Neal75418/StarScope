@@ -181,14 +181,54 @@ describe("ContextBadges", () => {
     });
   });
 
-  it("handles getContextSignals error gracefully", async () => {
+  it("shows a retry-able error state, not the empty state", async () => {
+    // 舊行為把錯誤渲染成「No discussions found」——徽章明明寫著 528 pts，
+    // 點開卻說沒討論，且 fetched:true 讓此生不再重打（第三方審查發現）。
     const user = userEvent.setup();
     mockGetContextSignals.mockRejectedValueOnce(new Error("Network error"));
 
     render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
-    await user.click(screen.getByRole("button"));
+    await user.click(screen.getByRole("button", { name: /HN/i }));
 
-    // Should show empty state after error (signals set to [])
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent(/couldn't load/i);
+    });
+    expect(screen.queryByText("No discussions found")).not.toBeInTheDocument();
+  });
+
+  it("retry button refetches and can recover", async () => {
+    const user = userEvent.setup();
+    mockGetContextSignals
+      .mockRejectedValueOnce(new Error("Network error"))
+      .mockResolvedValueOnce({ signals: [], total: 0, repo_id: 1 });
+
+    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    await user.click(screen.getByRole("button", { name: /HN/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    // 重試成功後才是真正的空狀態
+    await waitFor(() => {
+      expect(screen.getByText("No discussions found")).toBeInTheDocument();
+    });
+    expect(mockGetContextSignals).toHaveBeenCalledTimes(2);
+  });
+
+  it("collapse and re-expand also retries after a failure", async () => {
+    // fetched 在失敗時保持 false——這是「此生不再重打」的解法之二
+    const user = userEvent.setup();
+    mockGetContextSignals
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ signals: [], total: 0, repo_id: 1 });
+
+    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    const badge = screen.getByRole("button", { name: /HN/i });
+    await user.click(badge);
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+
+    await user.click(badge); // 收起
+    await user.click(badge); // 再展開 → 自動重打
     await waitFor(() => {
       expect(screen.getByText("No discussions found")).toBeInTheDocument();
     });

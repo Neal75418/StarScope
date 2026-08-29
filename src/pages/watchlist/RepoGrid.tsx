@@ -49,15 +49,9 @@ export function RepoGrid({
             deferToBatch={batchOwnsData}
             compact
             categoryContext={categoryContext}
-            selectionState={
-              isSelectionMode && onToggleSelection
-                ? {
-                    isSelectionMode: true,
-                    isSelected: selectedIds?.has(repo.id) ?? false,
-                    onToggleSelection,
-                  }
-                : undefined
-            }
+            isSelectionMode={Boolean(isSelectionMode && onToggleSelection)}
+            isSelected={selectedIds?.has(repo.id) ?? false}
+            onToggleSelection={onToggleSelection}
           />
         );
       })}

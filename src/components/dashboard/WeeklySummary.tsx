@@ -58,7 +58,9 @@ const HNMentionsList = memo(function HNMentionsList({
             >
               <span className="weekly-hn-repo">{m.repo_name}</span>
               <span className="weekly-hn-title">{m.hn_title}</span>
-              <span className="weekly-hn-score">{m.hn_score} pts</span>
+              <span className="weekly-hn-score">
+                {t.dashboard.weekly.hnPoints.replace("{n}", String(m.hn_score))}
+              </span>
             </a>
           ))}
         </div>

@@ -30,11 +30,7 @@ import { computeDailyStars, starAxisTicks, type DailyStarBar } from "../../utils
 import { Skeleton } from "../Skeleton";
 import { useI18n } from "../../i18n";
 
-const TIME_RANGE_OPTIONS: { label: string; value: DashboardTimeRange }[] = [
-  { label: "7D", value: 7 },
-  { label: "14D", value: 14 },
-  { label: "30D", value: 30 },
-];
+const TIME_RANGE_OPTIONS: DashboardTimeRange[] = [7, 14, 30];
 
 // 推估與未完成的長條調淡。純色會讓它們看起來跟實測值一樣可信
 const UNCERTAIN_OPACITY = 0.4;
@@ -122,11 +118,11 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
         <div className="dashboard-time-range">
           {TIME_RANGE_OPTIONS.map((opt) => (
             <button
-              key={opt.value}
-              className={`time-range-btn${days === opt.value ? " time-range-btn--active" : ""}`}
-              onClick={() => onChangeDays(opt.value)}
+              key={opt}
+              className={`time-range-btn${days === opt ? " time-range-btn--active" : ""}`}
+              onClick={() => onChangeDays(opt)}
             >
-              {opt.label}
+              {copy.dayRange.replace("{n}", String(opt))}
             </button>
           ))}
         </div>

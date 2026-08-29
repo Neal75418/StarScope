@@ -7,7 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useFeed } from "../useFeed";
 import * as apiClient from "../../api/client";
-import { createTestQueryClient } from "../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import type { FeedItem } from "../../api/types";
 
 vi.mock("../../api/client", async (importOriginal) => {
@@ -124,5 +124,53 @@ describe("useFeed", () => {
     result.current.feedback(1, "dismissed");
 
     await waitFor(() => expect(apiClient.sendFeedFeedback).toHaveBeenCalledWith(1, "dismissed"));
+  });
+
+  it("feedback 成功後 invalidate feed.all（starred 統計靠它刷新）", async () => {
+    vi.mocked(apiClient.getFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      items: [FEED_ITEM],
+    });
+    vi.mocked(apiClient.sendFeedFeedback).mockResolvedValue({
+      ...FEED_ITEM,
+      feedback: "starred",
+    });
+
+    const client = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useFeed(), { wrapper });
+
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    result.current.feedback(1, "starred");
+
+    // 必須是 feed.all 而非 feed.today：feedback 同時改動 stats
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.feed.all })
+    );
+  });
+
+  it("generate 成功後 invalidate feed.all（shown 統計靠它刷新）", async () => {
+    vi.mocked(apiClient.getFeed).mockResolvedValue({ feed_date: "2026-08-01", items: [] });
+    vi.mocked(apiClient.generateFeed).mockResolvedValue({
+      feed_date: "2026-08-01",
+      generated: 1,
+    });
+
+    const client = createTestQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    renderHook(() => useFeed(), { wrapper });
+
+    // 空 feed 觸發自動 generate，成功後必須 invalidate feed.all
+    await waitFor(() =>
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.feed.all })
+    );
   });
 });

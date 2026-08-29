@@ -5,6 +5,8 @@
 
 import { useCallback, useMemo } from "react";
 import { useI18n } from "../i18n";
+import { useWatchlistActions } from "../contexts/WatchlistContext";
+import { getErrorMessage } from "../utils/error";
 import { getSignalDisplayName } from "../utils/signalTypeHelpers";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -135,6 +137,7 @@ export function useDashboard() {
     alertRulesQuery.error,
   ]);
 
+  const { showToast } = useWatchlistActions();
   const handleAcknowledgeSignal = useCallback(
     async (signalId: number) => {
       try {
@@ -143,9 +146,11 @@ export function useDashboard() {
         void qc.invalidateQueries({ queryKey: queryKeys.signals.all });
       } catch (err) {
         logger.warn("[useDashboard] 訊號確認失敗:", err);
+        // 沒有這個 toast，「按了沒反應、再按還是沒反應」跟按鈕壞掉無法區分
+        showToast("error", getErrorMessage(err, t.common.error));
       }
     },
-    [qc]
+    [qc, showToast, t]
   );
 
   // 從 repos 資料計算統計數值

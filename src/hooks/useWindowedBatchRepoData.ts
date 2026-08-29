@@ -73,6 +73,8 @@ export function useWindowedBatchRepoData(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const loadingIdsRef = useRef<Set<number>>(new Set());
+  const inFlightCountRef = useRef(0);
+  const controllersRef = useRef<Set<AbortController>>(new Set());
 
   // Debounce visibleRange 更新，避免快速滾動時過多請求
   useEffect(() => {
@@ -108,56 +110,64 @@ export function useWindowedBatchRepoData(
     if (missingIds.length === 0) return;
 
     const controller = new AbortController();
+    controllersRef.current.add(controller);
     const loadingSet = loadingIdsRef.current;
-    // 記錄本次 effect 擁有的 IDs，只在 cleanup 時移除這些
     const ownedIds = new Set(missingIds);
 
     // 標記這些 IDs 為正在載入
     missingIds.forEach((id) => loadingSet.add(id));
+    inFlightCountRef.current += 1;
 
     setLoading(true);
     setError(null);
 
     const chunks = chunkArray(missingIds, MAX_BATCH_SIZE);
 
+    // 不論成敗都要歸還載入標記，否則這些 id 永遠不會再被抓
+    const settle = () => {
+      inFlightCountRef.current -= 1;
+      controllersRef.current.delete(controller);
+      ownedIds.forEach((id) => loadingSet.delete(id));
+    };
+
     Promise.all([
       Promise.all(chunks.map((c) => getContextBadgesBatch(c, controller.signal))),
       Promise.all(chunks.map((c) => getRepoSignalsBatch(c, controller.signal))),
     ])
       .then(([badgesResults, signalsResults]) => {
-        if (!controller.signal.aborted) {
-          const newBadges = Object.assign({}, ...badgesResults);
-          const newSignals = Object.assign({}, ...signalsResults);
+        settle();
+        if (controller.signal.aborted) return; // 只有 unmount 會 abort
 
-          setBadgesMap((prev) => ({ ...prev, ...newBadges }));
-          setSignalsMap((prev) => ({ ...prev, ...newSignals }));
-          setLoading(false);
+        const newBadges = Object.assign({}, ...badgesResults);
+        const newSignals = Object.assign({}, ...signalsResults);
 
-          // 清除載入標記
-          ownedIds.forEach((id) => loadingSet.delete(id));
-        }
+        setBadgesMap((prev) => ({ ...prev, ...newBadges }));
+        setSignalsMap((prev) => ({ ...prev, ...newSignals }));
+        if (inFlightCountRef.current === 0) setLoading(false);
       })
       .catch((err) => {
-        if (controller.signal.aborted) return; // 不動 loading — 可能有其他 batch 仍在執行
+        settle();
+        if (controller.signal.aborted) return;
         const errorObj = err instanceof Error ? err : new Error(String(err));
         logger.error("[useWindowedBatchRepoData] 批次資料抓取失敗:", errorObj);
         setError(errorObj);
-        setLoading(false);
-
-        // 清除載入標記（即使失敗也要清除，否則永遠不再重試）
-        ownedIds.forEach((id) => loadingSet.delete(id));
+        if (inFlightCountRef.current === 0) setLoading(false);
       });
 
-    return () => {
-      controller.abort();
-      // 只移除本次 effect 擁有且尚未被新 effect 覆蓋的 IDs
-      ownedIds.forEach((id) => {
-        if (loadingSet.has(id)) loadingSet.delete(id);
-      });
-    };
+    // 刻意沒有 cleanup abort：被新視窗「取代」的批次讓它跑完落入快取即可。
+    // 若在這裡 abort，loadingSet 清掉後不會有任何 re-render 重算 missingIds，
+    // 這些 id 會卡在「未載入也不再載入」直到下次互動（死鎖）。abort 只在 unmount 做。
     // 用 missingIdsKey（逗號串接字串）代替 missingIds 陣列，避免引用變化觸發重複請求
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
+
+  // unmount 時中止所有仍在途的批次
+  useEffect(() => {
+    const controllers = controllersRef.current;
+    return () => {
+      controllers.forEach((c) => c.abort());
+    };
+  }, []);
 
   // 合併成最終的 dataMap（增量更新：只替換真正有變化的 entry，穩定 reference）
   // 輸出所有已載入的資料（不侷限於 allRepoIds），讓 SummaryPanel 等全域消費者

@@ -22,6 +22,8 @@ interface PanelState {
   signals: ContextSignal[];
   loading: boolean;
   fetched: boolean;
+  /** 抓取失敗。與「fetched 且 signals 為空」必須是兩個狀態：後者才是「暫無討論」 */
+  error: boolean;
 }
 
 const BADGE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
@@ -36,7 +38,17 @@ function formatValue(badge: ContextBadge): string {
   return badge.label;
 }
 
-function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loading: boolean }) {
+function HnDiscussionPanel({
+  signals,
+  loading,
+  error,
+  onRetry,
+}: {
+  signals: ContextSignal[];
+  loading: boolean;
+  error: boolean;
+  onRetry: () => void;
+}) {
   const { t } = useI18n();
 
   const handleOpenUrl = async (e: MouseEvent, url: string) => {
@@ -49,6 +61,19 @@ function HnDiscussionPanel({ signals, loading }: { signals: ContextSignal[]; loa
     return (
       <div className="hn-panel">
         <div className="hn-panel-loading">{t.repo.loadingBadges}</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="hn-panel">
+        <div className="hn-panel-empty" role="alert">
+          {t.contextBadges.loadFailed}{" "}
+          <button type="button" className="hn-panel-retry" onClick={onRetry}>
+            {t.contextBadges.retry}
+          </button>
+        </div>
       </div>
     );
   }
@@ -97,23 +122,32 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
     signals: [],
     loading: false,
     fetched: false,
+    error: false,
   });
+
+  const fetchSignals = useCallback(async () => {
+    if (!repoId) return;
+    setPanelState((prev) => ({ ...prev, loading: true, error: false }));
+    try {
+      const res = await getContextSignals(repoId, "hn");
+      setPanelState((prev) => ({ ...prev, signals: res.signals, loading: false, fetched: true }));
+    } catch (err) {
+      logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
+      // fetched 保持 false：收起再展開會自動重試。先前這裡設 fetched: true
+      // 且清空 signals——徽章明明寫著 528 pts，點開卻說「暫無討論」，
+      // 而且此生不再重打（第三方審查發現）。錯誤與「真的沒有」是兩個狀態。
+      setPanelState((prev) => ({ ...prev, loading: false, error: true }));
+    }
+  }, [repoId]);
 
   const toggleExpand = useCallback(async () => {
     if (!repoId) return;
 
     if (!panelState.expanded && !panelState.fetched) {
-      setPanelState((prev) => ({ ...prev, loading: true }));
-      try {
-        const res = await getContextSignals(repoId, "hn");
-        setPanelState((prev) => ({ ...prev, signals: res.signals, loading: false, fetched: true }));
-      } catch (err) {
-        logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
-        setPanelState((prev) => ({ ...prev, signals: [], loading: false, fetched: true }));
-      }
+      void fetchSignals();
     }
     setPanelState((prev) => ({ ...prev, expanded: !prev.expanded }));
-  }, [panelState.expanded, panelState.fetched, repoId]);
+  }, [panelState.expanded, panelState.fetched, repoId, fetchSignals]);
 
   if (badges.length === 0) return null;
 
@@ -138,7 +172,9 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               // badge.label 由後端組成，本身已含前綴（例如 "HN: 528 pts"）。
               // 再前綴一次會得到 "Hacker News 討論分數: HN: 528 pts"，
               // 而 aria-label 會變成 "HN: HN: 528 pts"——螢幕閱讀器唸兩遍
-              title={`${tooltip}（${badge.label}）`}
+              title={t.contextBadges.tooltipWithLabel
+                .replace("{tooltip}", tooltip)
+                .replace("{label}", badge.label)}
               aria-label={badge.label}
               onClick={repoId ? toggleExpand : undefined}
             >
@@ -154,7 +190,12 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
       </div>
 
       {panelState.expanded && (
-        <HnDiscussionPanel signals={panelState.signals} loading={panelState.loading} />
+        <HnDiscussionPanel
+          signals={panelState.signals}
+          loading={panelState.loading}
+          error={panelState.error}
+          onRetry={fetchSignals}
+        />
       )}
     </div>
   );

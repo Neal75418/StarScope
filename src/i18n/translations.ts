@@ -80,6 +80,7 @@ export const translations = {
         },
       },
       weekly: {
+        hnPoints: "{n} pts",
         title: "Last 7 Days",
         starsThisWeek: "stars in the last 7 days",
         hnMentions: "HN Mentions",
@@ -98,6 +99,7 @@ export const translations = {
         loadError: "Failed to load weekly summary",
       },
       dailyStars: {
+        dayRange: "{n}D",
         title: "Daily Stars Gained",
         summary: "Last {days} days · {total} across {repos} repos",
         loadError: "Failed to load star history",
@@ -423,6 +425,7 @@ export const translations = {
       },
       autoRefresh: {
         off: "Off",
+        everyMinutes: "{n}m",
         interval: "Auto-refresh",
         lastUpdated: "Updated {time}",
         justNow: "just now",
@@ -642,6 +645,8 @@ export const translations = {
         imported: "Imported",
         skipped: "Skipped",
         failed: "Failed",
+        dedupWarning:
+          "Could not check the existing list (dedup pre-check failed) — the failures above may just be repos you already track",
         importMore: "Import More",
         statusPending: "Pending import",
         statusImporting: "Importing",
@@ -963,6 +968,9 @@ export const translations = {
     // HN 討論面板
     contextBadges: {
       noDiscussions: "No discussions found",
+      loadFailed: "Couldn't load discussions",
+      tooltipWithLabel: "{tooltip} ({label})",
+      retry: "Retry",
       untitled: "Untitled",
       hnScore: "Hacker News score",
     },
@@ -1071,6 +1079,7 @@ export const translations = {
         },
       },
       weekly: {
+        hnPoints: "{n} 分",
         title: "近 7 天摘要",
         starsThisWeek: "近 7 天新增星數",
         hnMentions: "HN 提及",
@@ -1089,6 +1098,7 @@ export const translations = {
         loadError: "載入週報摘要失敗",
       },
       dailyStars: {
+        dayRange: "{n}天",
         title: "每日新增星數",
         summary: "近 {days} 天 · {total} 顆星 · {repos} 個 repo",
         loadError: "載入星數歷史失敗",
@@ -1410,6 +1420,7 @@ export const translations = {
       },
       autoRefresh: {
         off: "關閉",
+        everyMinutes: "{n} 分鐘",
         interval: "自動重新整理",
         lastUpdated: "{time} 更新",
         justNow: "剛剛",
@@ -1623,6 +1634,8 @@ export const translations = {
         imported: "已匯入",
         skipped: "已跳過",
         failed: "失敗",
+        dedupWarning:
+          "無法確認既有清單（去重預查失敗）——上面的「失敗」可能只是本來就在追蹤清單裡的重複項",
         importMore: "繼續匯入",
         statusPending: "等待匯入",
         statusImporting: "匯入中",
@@ -1939,6 +1952,9 @@ export const translations = {
     // HN 討論面板
     contextBadges: {
       noDiscussions: "找不到相關討論",
+      loadFailed: "討論載入失敗",
+      tooltipWithLabel: "{tooltip}（{label}）",
+      retry: "重試",
       untitled: "無標題",
       hnScore: "Hacker News 討論分數",
     },

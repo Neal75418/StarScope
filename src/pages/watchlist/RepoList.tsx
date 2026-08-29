@@ -65,20 +65,12 @@ function RepoRow({
         handlers={handlers}
         preloadedData={batchData[repo.id]}
         deferToBatch={batchOwnsData}
-        chartState={{
-          expanded: expandedCharts.has(repo.id),
-          onToggle: onChartToggle,
-        }}
+        chartExpanded={expandedCharts.has(repo.id)}
+        onChartToggle={onChartToggle}
         categoryContext={categoryContext}
-        selectionState={
-          selectionState
-            ? {
-                isSelectionMode: true,
-                isSelected: selectionState.selectedIds.has(repo.id),
-                onToggleSelection: selectionState.onToggleSelection,
-              }
-            : undefined
-        }
+        isSelectionMode={Boolean(selectionState)}
+        isSelected={selectionState?.selectedIds.has(repo.id) ?? false}
+        onToggleSelection={selectionState?.onToggleSelection}
       />
     </div>
   );

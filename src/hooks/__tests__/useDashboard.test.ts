@@ -22,6 +22,11 @@ vi.mock("../../api/client", async (importOriginal) => {
   };
 });
 
+const showToastMock = vi.hoisted(() => vi.fn());
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistActions: () => ({ showToast: showToastMock }),
+}));
+
 function makeRepo(overrides: Partial<apiClient.RepoWithSignals> = {}): apiClient.RepoWithSignals {
   return {
     id: 1,
@@ -387,9 +392,11 @@ describe("useDashboard", () => {
     });
 
     expect(apiClient.acknowledgeSignal).toHaveBeenCalledWith(1);
+    // 成功時不該跳錯誤 toast（與失敗案例成對，防方向反轉）
+    expect(showToastMock).not.toHaveBeenCalled();
   });
 
-  it("acknowledgeSignal silently handles errors", async () => {
+  it("acknowledgeSignal 失敗時不吞錯：顯示錯誤 toast 且不 throw", async () => {
     vi.mocked(apiClient.acknowledgeSignal).mockRejectedValue(new Error("fail"));
 
     const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
@@ -402,7 +409,8 @@ describe("useDashboard", () => {
       await result.current.acknowledgeSignal(1);
     });
 
-    // Should not throw — signals remain since invalidation refetch uses same mock
+    // 失敗必須讓使用者知道（打勾看起來成功、下次整理又冒回來 = 說謊）
+    expect(showToastMock).toHaveBeenCalledWith("error", expect.any(String));
     expect(result.current.earlySignals).toHaveLength(1);
   });
 
