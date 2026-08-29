@@ -147,11 +147,15 @@ jobs:
           ENV: test
           PORT: "8009"
           STARSCOPE_DATA_DIR: /tmp/starscope-e2e
-          # E2E 會真的向 GitHub API 加 repo。未認證只有 60 次/小時，同一天
-          # 多推幾個 commit 就會把配額吃光（seed 失敗、加 repo 的 dialog 關不掉）。
-          # Actions 內建 token 是 1,000 次/小時；sidecar 在 DB/keyring 無 token 時
-          # 會回退讀 GITHUB_TOKEN 環境變數（services/github.py 的解析順序）
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 刻意不給 GITHUB_TOKEN。這裡試過、實測失敗（20f4f99、919706a 連兩次
+          # 紅燈，POST /api/repos 一律 502）：
+          #   1. routers/repos.py 的 add_repo 以 github.can_write（＝有沒有 token）
+          #      決定要不要順便在 GitHub 上 star，而 star 走 PUT /user/starred/…
+          #   2. Actions 內建的 GITHUB_TOKEN 是 installation token，沒有使用者身分，
+          #      /user/* 端點一律被拒 → GitHubAPIError → 502
+          #   3. 換成個人 PAT 更糟：那會讓 CI 真的在帳號上 star 測試用的 repo
+          # 未認證的 60 次/小時足夠單次 E2E；同一小時內連推多個 commit 才會撞到，
+          # 那時重跑該 job 即可（配額按小時重置）
 
       - name: Wait for sidecar
         # 起不來就直接失敗並附上日誌：先前迴圈跑完仍會往下走，
@@ -164,15 +168,6 @@ jobs:
           echo "::error::sidecar 在 30 秒內沒有回應 /api/health"
           cat /tmp/sidecar-e2e.log || true
           exit 1
-
-      - name: Check GitHub token reached the sidecar
-        # 只回報「有沒有」，不印出值。啟動日誌區分得出三種情況：
-        # 已設定／未設定／讀取時出錯——這正是上一輪紅燈時無法判斷的事
-        run: |
-          if [ -n "$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN 非空: yes"; else echo "GITHUB_TOKEN 非空: no"; fi
-          grep -E "\[啟動\] (未設定 )?GitHub token|\[GitHub API\] 使用" /tmp/sidecar-e2e.log || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start Vite dev server
         run: VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort &
