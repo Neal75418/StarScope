@@ -82,6 +82,7 @@ export const translations = {
       },
       weekly: {
         hnPoints: "{n} pts",
+        hnPointsOne: "{n} pt",
         title: "Last 7 Days",
         starsThisWeek: "stars in the last 7 days",
         hnMentions: "HN Mentions",
@@ -1084,6 +1085,7 @@ export const translations = {
       },
       weekly: {
         hnPoints: "{n} pts",
+        hnPointsOne: "{n} pt",
         title: "近 7 天摘要",
         starsThisWeek: "近 7 天新增星數",
         hnMentions: "HN 提及",

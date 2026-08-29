@@ -40,6 +40,13 @@ vi.mock("../../../hooks/useWeeklySummary", () => ({
           hn_score: 500,
           hn_url: "https://news.ycombinator.com/item?id=12345",
         },
+        {
+          repo_id: 2,
+          repo_name: "a/tiny",
+          hn_title: "Show HN: Tiny",
+          hn_score: 1,
+          hn_url: "https://news.ycombinator.com/item?id=67890",
+        },
       ],
       releases: [],
       accelerating: 1,
@@ -83,9 +90,11 @@ describe("WeeklySummary HN Mentions", () => {
     expect(safeOpenUrl).toHaveBeenCalledWith("https://news.ycombinator.com/item?id=12345");
   });
 
-  it("shows HN score", () => {
+  it("shows HN score（1 分時用單數 pt）", () => {
     render(<WeeklySummary />, { wrapper: createWrapper() });
 
     expect(screen.getByText("500 pts")).toBeInTheDocument();
+    expect(screen.getByText("1 pt")).toBeInTheDocument();
+    expect(screen.queryByText("1 pts")).not.toBeInTheDocument();
   });
 });
