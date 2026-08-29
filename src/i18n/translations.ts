@@ -235,7 +235,7 @@ export const translations = {
         reason: {
           matched: "Matched interests: ",
           createdLabel: "Created",
-          createdToday: "created today",
+          createdToday: "Created today",
         },
         addToWatchlist: "Track",
         dismiss: "Not interested",
@@ -1241,7 +1241,7 @@ export const translations = {
         reason: {
           matched: "命中興趣：",
           createdLabel: "建立於",
-          createdToday: "今天建立",
+          createdToday: "建立於今天",
         },
         addToWatchlist: "追蹤",
         dismiss: "不感興趣",

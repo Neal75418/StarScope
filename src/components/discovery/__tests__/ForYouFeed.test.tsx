@@ -89,7 +89,8 @@ describe("ForYouFeed", () => {
       <ForYouFeed onAddToWatchlist={vi.fn()} onUnstar={vi.fn()} watchlistFullNames={new Set()} />
     );
     await screen.findByText("a/one");
-    expect(screen.getByTestId("feed-age-1")).toHaveTextContent("created today");
+    // 動詞開頭（Created …）與其他卡片的「Created 3d」對齊，掃讀時錨點一致
+    expect(screen.getByTestId("feed-age-1")).toHaveTextContent("Created today");
   });
 
   // 這一列旁邊就是「Last push 4h」。原本寫成 `45 days old`——跟鄰居比不只
