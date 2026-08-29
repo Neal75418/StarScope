@@ -139,8 +139,10 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Start sidecar
-        # port/資料目錄必須與 playwright.config.ts 的 E2E_* 一致
-        run: cd sidecar && python main.py &
+        # port/資料目錄必須與 playwright.config.ts 的 E2E_* 一致。
+        # 日誌導向檔案：先前 sidecar 的輸出無處可去，E2E 失敗時看不到後端
+        # 發生什麼（token 有沒有讀到、GitHub 有沒有限流），只能靠猜
+        run: cd sidecar && python main.py > /tmp/sidecar-e2e.log 2>&1 &
         env:
           ENV: test
           PORT: "8009"
@@ -152,11 +154,25 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Wait for sidecar
+        # 起不來就直接失敗並附上日誌：先前迴圈跑完仍會往下走，
+        # 後果是一整排看似跟 sidecar 無關的 UI 測試失敗
         run: |
           for i in $(seq 1 30); do
-            curl -s http://127.0.0.1:8009/api/health > /dev/null 2>&1 && break
+            curl -s http://127.0.0.1:8009/api/health > /dev/null 2>&1 && exit 0
             sleep 1
           done
+          echo "::error::sidecar 在 30 秒內沒有回應 /api/health"
+          cat /tmp/sidecar-e2e.log || true
+          exit 1
+
+      - name: Check GitHub token reached the sidecar
+        # 只回報「有沒有」，不印出值。啟動日誌區分得出三種情況：
+        # 已設定／未設定／讀取時出錯——這正是上一輪紅燈時無法判斷的事
+        run: |
+          if [ -n "$GITHUB_TOKEN" ]; then echo "GITHUB_TOKEN 非空: yes"; else echo "GITHUB_TOKEN 非空: no"; fi
+          grep -E "\[啟動\] (未設定 )?GitHub token|\[GitHub API\] 使用" /tmp/sidecar-e2e.log || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start Vite dev server
         run: VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort &
@@ -171,6 +187,12 @@ jobs:
       - name: Run E2E tests
         # db-mutating 也要跑：先前只指定 chromium，那三支 spec 在 CI 從未執行過
         run: npx playwright test --project=chromium --project=db-mutating
+
+      - name: Dump sidecar log
+        # E2E 的失敗多半是後端造成的（GitHub 限流、token 沒讀到、寫入失敗），
+        # 但錯誤訊息只看得到前端症狀（dialog 關不掉）。失敗時直接把後端日誌印出來
+        if: failure()
+        run: tail -n 200 /tmp/sidecar-e2e.log || true
 
       - name: Upload Playwright report
         if: failure()
