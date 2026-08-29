@@ -289,3 +289,38 @@ class TestDiagnosticsBackupSurvivesRestart:
         body = client.get("/api/settings/diagnostics").json()["data"]
 
         assert body["last_backup"] is None
+
+
+class TestDiagnosticsSnapshotFreshness:
+    """「最近快照」要回答『資料多久前寫入』，而不是『距今天午夜多久』。"""
+
+    def test_reports_write_time_not_the_calendar_date(self, client, test_db):
+        """先前取的是 MAX(snapshot_date)——Date 欄位，序列化成 "2026-08-29" 後
+        前端當午夜解析。於是這一格整天增長、午夜歸零，跟收集器有沒有在工作無關：
+        當日停滯看起來與健康時一模一樣。2026-08-29 實測畫面說「14h」，
+        實際最後一次寫入是 30 分鐘前。"""
+        from datetime import date, datetime
+
+        repo = Repo(owner="a", name="one", full_name="a/one",
+                    url="https://github.com/a/one")
+        test_db.add(repo)
+        test_db.flush()
+
+        written_at = datetime(2026, 8, 29, 13, 39, 11)
+        test_db.add(RepoSnapshot(
+            repo_id=repo.id, stars=1, forks=0, watchers=0, open_issues=0,
+            snapshot_date=date(2026, 8, 29), fetched_at=written_at,
+        ))
+        test_db.commit()
+
+        raw = client.get("/api/settings/diagnostics").json()["data"]["last_snapshot_at"]
+        parsed = datetime.fromisoformat(raw)
+
+        assert parsed.tzinfo is not None, (
+            "沒有時區的字串會被 JS 當本地時間解析：UTC+8 之下年齡變負數，"
+            "formatRelativeTime 的 guard 會讓它永遠顯示「剛剛」——"
+            "從一個假數字換成另一個假數字"
+        )
+        assert parsed.replace(tzinfo=None) == written_at, (
+            "回報的必須是寫入時刻，不是快照日期的午夜"
+        )

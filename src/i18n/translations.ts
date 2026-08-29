@@ -732,7 +732,7 @@ export const translations = {
         risingStarHint:
           "Also requires under 5,000 stars — large repos never trigger this, however high the velocity.",
         suddenSpike: "Sudden Spike — multiplier (vs. average)",
-        breakout: "Breakout — min velocity threshold",
+        breakout: "Breakout — min velocity threshold (stars/day)",
         viralHn: "Viral HN — min score",
         reset: "Reset to Defaults",
         toast: {
@@ -1717,7 +1717,7 @@ export const translations = {
         risingStarHint:
           "另有一個條件：僅適用於 5,000 星以下的專案。大專案不論 velocity 多高都不會觸發。",
         suddenSpike: "Sudden Spike — 倍率（相對平均值）",
-        breakout: "Breakout — velocity 門檻",
+        breakout: "Breakout — velocity 門檻（顆/天）",
         viralHn: "Viral HN — 最低分數",
         reset: "恢復預設值",
         toast: {

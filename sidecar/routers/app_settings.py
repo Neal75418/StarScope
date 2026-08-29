@@ -236,7 +236,14 @@ async def get_diagnostics(db: Session = Depends(get_db)) -> dict:
 
     total_repos = db.query(func.count(Repo.id)).scalar() or 0
     total_snapshots = db.query(func.count(RepoSnapshot.id)).scalar() or 0
-    last_snapshot = db.query(func.max(RepoSnapshot.snapshot_date)).scalar()
+    # 取 fetched_at（實際寫入時間）而非 snapshot_date。後者是 Date 欄位，序列化成
+    # "2026-08-29" 後前端當午夜解析，這一格顯示的其實是「距今天午夜多久」——整天
+    # 增長、午夜歸零，跟收集器有沒有在工作無關，當日停滯完全看不出來。
+    # 2026-08-29 實測：畫面說「14h」，實際最後一次寫入是 30 分鐘前。
+    #
+    # 回填會用「現在」的 fetched_at 寫入歷史日期的快照，所以回填後這一格會顯示
+    # 「剛剛」——那是對的，這裡回答的是「資料多久前寫入」而非「最新快照是哪天」。
+    last_snapshot = db.query(func.max(RepoSnapshot.fetched_at)).scalar()
 
     return success_response(data=DiagnosticsResponse(
         version=APP_VERSION,
@@ -244,7 +251,12 @@ async def get_diagnostics(db: Session = Depends(get_db)) -> dict:
         db_size_mb=round(db_size, 2),
         total_repos=total_repos,
         total_snapshots=total_snapshots,
-        last_snapshot_at=last_snapshot.isoformat() if last_snapshot else None,
+        # 必須帶時區：fetched_at 是 naive UTC，不帶 tzinfo 的字串會被 JS 當本地
+        # 時間解析，UTC+8 之下算出負數年齡 → formatRelativeTime 的 guard 讓它
+        # 永遠顯示「剛剛」。與隔壁 _ts_to_iso 產出的欄位是同一個契約
+        last_snapshot_at=(
+            last_snapshot.replace(tzinfo=timezone.utc).isoformat() if last_snapshot else None
+        ),
         uptime_seconds=round(_time.monotonic() - _START_TIME, 1),
         **_format_scheduler_health(get_scheduler_health()),
     ))
