@@ -14,7 +14,7 @@ from constants import ContextSignalType, MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOL
 from db.database import get_db
 from db.models import ContextSignal
 from routers.dependencies import get_repo_or_404
-from services.context_fetcher import fetch_context_signals_for_repo
+from services.context_fetcher import ContextFetchError, fetch_context_signals_for_repo
 from utils.time import utc_now
 from schemas.response import ApiResponse, success_response
 
@@ -179,7 +179,11 @@ async def fetch_repo_context(
     """
     repo = get_repo_or_404(repo_id, db)
 
-    hn_count = await fetch_context_signals_for_repo(repo, db)
+    try:
+        hn_count = await fetch_context_signals_for_repo(repo, db)
+    except ContextFetchError as e:
+        # 失敗必須跟「真的沒有討論」可區分——回 502 讓前端顯示錯誤而非 0
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
     fetch_response = FetchContextResponse(
         repo_id=repo_id,

@@ -723,3 +723,36 @@ class TestEarlySignalDetectionRunsAfterFetch:
 class _FakeQuery:
     def all(self):
         return []
+
+
+class TestDetectionSaveFailureSurfacesInJobLog:
+    @pytest.mark.asyncio
+    async def test_summary_line_is_error_not_calm_zero(self, test_db, mock_repo, clean_health, caplog):
+        """儲存失敗的摘要行必須是 ERROR 且寫明失敗，不能是 INFO 的「寫入 0 個」。"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             patch('services.scheduler.update_repo_from_github'), \
+             patch('services.anomaly_detector.run_detection',
+                   return_value={"repos_scanned": 1, "signals_detected": 0,
+                                 "by_type": {"sudden_spike": 2}, "save_failed": True}):
+            mock_fetch.return_value = {"stargazers_count": 1}
+
+            await fetch_all_repos_job()
+
+        errors = [r for r in caplog.records if r.levelname == "ERROR" and "儲存失敗" in r.getMessage()]
+        assert errors, "save_failed 必須以 ERROR 現形"
+        calm = [r for r in caplog.records if "寫入 0 個訊號" in r.getMessage()]
+        assert not calm, "不得同時輸出『今天很平靜』的假象行"
+
+    @pytest.mark.asyncio
+    async def test_fetch_job_returns_counts_for_the_heartbeat(self, test_db, mock_repo, clean_health):
+        """無頭收集器的心跳讀這個回傳值——沒有它，全滅也會寫 ok。"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             patch('services.scheduler.update_repo_from_github'):
+            mock_fetch.return_value = {"stargazers_count": 1}
+
+            counts = await fetch_all_repos_job()
+
+        assert counts is not None
+        assert counts["success"] == 1 and counts["errors"] == 0

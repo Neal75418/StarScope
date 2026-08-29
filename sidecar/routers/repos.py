@@ -45,7 +45,7 @@ from services.github import (
 from services.queries import build_signal_map, build_snapshot_map
 from services.rate_limiter import fetch_repo_with_retry
 from services.settings import get_setting
-from services.star_sync import sync_starred_repos
+from services.star_sync import sync_starred_repos, sync_is_running
 from utils.time import utc_now
 from db.models import AppSettingKey
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
@@ -348,6 +348,8 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
                 failed_count += 1
 
         repo_list = _build_repo_list_response(db)
+        repo_list.success_count = success_count
+        repo_list.failed_count = failed_count
         return success_response(
             data=repo_list,
             message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
@@ -581,7 +583,9 @@ async def sync_stars(request: Request, db: Session = Depends(get_db)) -> dict:
 def sync_status(db: Session = Depends(get_db)) -> dict:
     return success_response(SyncStatusOut(
         last_sync_at=get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db),
-        running=bool(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db)),
+        # 不能用 bool(非空)：行程被殺時鎖會殘留，那樣會永遠顯示「同步中」。
+        # 過期規則只在 star_sync 一處定義，這裡重用。
+        running=sync_is_running(db),
     ))
 
 

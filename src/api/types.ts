@@ -37,6 +37,9 @@ export interface RepoListResponse {
   page?: number | null;
   per_page?: number | null;
   total_pages?: number | null;
+  /** fetch-all 專用：失敗數必須在 data 裡（message 會被 apiCall 丟棄） */
+  success_count?: number | null;
+  failed_count?: number | null;
 }
 
 export interface RepoCreate {

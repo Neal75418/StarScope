@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.context_fetcher import (
+    ContextFetchError,
     fetch_context_signals_for_repo,
     fetch_all_context_signals,
 )
@@ -101,10 +102,11 @@ class TestFetchContextSignalsForRepo:
         ):
             mock_hn.return_value = [create_mock_hn_story("hn1")]
 
-            hn_count = await fetch_context_signals_for_repo(mock_repo, test_db)
-
-            # SQLAlchemyError should result in 0 count, not crash
-            assert hn_count == 0
+            # 舊行為是塌縮成 0——「存不進去」與「真的沒有討論」在 API 上不可
+            # 區分，斷網期間反覆重試永遠得到看似正常的 0。改成拋
+            # ContextFetchError 讓手動端點回 502。
+            with pytest.raises(ContextFetchError):
+                await fetch_context_signals_for_repo(mock_repo, test_db)
 
 
 class TestFetchAllContextSignals:
@@ -255,3 +257,24 @@ class TestFetchAllConcurrency:
         assert fetches_done_at_first_write == 12, (
             f"第一筆寫入時只抓完 {fetches_done_at_first_write} 個——寫入跑進 coroutine 裡了"
         )
+
+
+class TestHnFailureIsNotZero:
+    @pytest.mark.asyncio
+    async def test_hn_none_raises_instead_of_reporting_zero(self, test_db, mock_repo):
+        """HN 查詢失敗（回 None）不得偽裝成「成功，0 個新訊號」。"""
+        with patch('services.context_fetcher.fetch_hn_mentions',
+                   new_callable=AsyncMock) as mock_hn:
+            mock_hn.return_value = None
+
+            with pytest.raises(ContextFetchError):
+                await fetch_context_signals_for_repo(mock_repo, test_db)
+
+    @pytest.mark.asyncio
+    async def test_genuinely_empty_is_still_a_clean_zero(self, test_db, mock_repo):
+        """對照組：真的沒有討論（空清單）仍是正常的 0——錯誤化不能過頭。"""
+        with patch('services.context_fetcher.fetch_hn_mentions',
+                   new_callable=AsyncMock) as mock_hn:
+            mock_hn.return_value = []
+
+            assert await fetch_context_signals_for_repo(mock_repo, test_db) == 0

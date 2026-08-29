@@ -26,14 +26,26 @@ SAMPLE_GITHUB_DATA = {
 # ── create_or_update_snapshot ─────────────────────────────
 
 
+def _today_snapshot(db, repo_id) -> RepoSnapshot:
+    """upsert 之後不再回傳 ORM 物件（原子寫入沒有東西可回），驗證一律查 DB——
+    這本來就更誠實：驗的是實際存了什麼，不是函式想像自己存了什麼。"""
+    snap: RepoSnapshot = (
+        db.query(RepoSnapshot)
+        .filter(RepoSnapshot.repo_id == repo_id,
+                RepoSnapshot.snapshot_date == utc_today())
+        .one()
+    )
+    return snap
+
+
 class TestCreateOrUpdateSnapshot:
     """Tests for create_or_update_snapshot."""
 
     def test_creates_new_snapshot(self, test_db, mock_repo):
         """首次呼叫應建立新快照。"""
-        snapshot = create_or_update_snapshot(mock_repo, SAMPLE_GITHUB_DATA, test_db)
-        test_db.flush()
+        create_or_update_snapshot(mock_repo, SAMPLE_GITHUB_DATA, test_db)
 
+        snapshot = _today_snapshot(test_db, mock_repo.id)
         assert snapshot.repo_id == mock_repo.id
         assert snapshot.stars == 5000
         assert snapshot.forks == 300
@@ -49,10 +61,9 @@ class TestCreateOrUpdateSnapshot:
 
         # 第二次更新
         updated_data = {**SAMPLE_GITHUB_DATA, "stargazers_count": 6000}
-        snapshot = create_or_update_snapshot(mock_repo, updated_data, test_db)
-        test_db.flush()
+        create_or_update_snapshot(mock_repo, updated_data, test_db)
 
-        assert snapshot.stars == 6000
+        assert _today_snapshot(test_db, mock_repo.id).stars == 6000
 
         # 確認只有一筆快照
         count = (
@@ -67,9 +78,9 @@ class TestCreateOrUpdateSnapshot:
 
     def test_handles_missing_fields(self, test_db, mock_repo):
         """缺少欄位時應預設為 0。"""
-        snapshot = create_or_update_snapshot(mock_repo, {}, test_db)
-        test_db.flush()
+        create_or_update_snapshot(mock_repo, {}, test_db)
 
+        snapshot = _today_snapshot(test_db, mock_repo.id)
         assert snapshot.stars == 0
         assert snapshot.forks == 0
         assert snapshot.watchers == 0
@@ -78,11 +89,10 @@ class TestCreateOrUpdateSnapshot:
     def test_uses_subscribers_count_for_watchers(self, test_db, mock_repo):
         """watchers 應使用 subscribers_count（真正的 watcher 欄位）。"""
         data = {"subscribers_count": 999, "watchers_count": 111}
-        snapshot = create_or_update_snapshot(mock_repo, data, test_db)
-        test_db.flush()
+        create_or_update_snapshot(mock_repo, data, test_db)
 
         # 應使用 subscribers_count 而非 watchers_count
-        assert snapshot.watchers == 999
+        assert _today_snapshot(test_db, mock_repo.id).watchers == 999
 
 
 # ── update_repo_from_github ───────────────────────────────
@@ -127,3 +137,21 @@ class TestUpdateRepoFromGithub:
         # 驗證資料已持久化（不需手動 commit）
         refreshed = test_db.query(Repo).filter(Repo.id == mock_repo.id).first()
         assert refreshed.description == "Updated description"
+
+
+class TestUpsertSurvivesCrossProcessRace:
+    def test_double_insert_same_day_does_not_raise(self, test_db, mock_repo):
+        """模擬跨行程 race 的落地形狀：兩個「都以為今天還沒有快照」的寫入接連
+        到達。舊的 check-then-act 會讓第二個撞 uq_snapshot_repo_date 炸
+        IntegrityError、把該 repo 整輪更新 rollback 沖銷；upsert 之後第二個
+        寫入安靜地變成更新。"""
+        create_or_update_snapshot(mock_repo, {"stargazers_count": 100}, test_db)
+        # 不 commit、不查詢——直接再寫一次，等同對方行程先落地的效果
+        create_or_update_snapshot(mock_repo, {"stargazers_count": 105}, test_db)
+        test_db.commit()
+
+        snap = _today_snapshot(test_db, mock_repo.id)
+        assert snap.stars == 105
+        n = test_db.query(RepoSnapshot).filter(
+            RepoSnapshot.repo_id == mock_repo.id).count()
+        assert n == 1

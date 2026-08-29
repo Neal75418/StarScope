@@ -346,3 +346,29 @@ class TestInputValidation:
             "name": "invalid repo name with spaces"
         })
         assert response.status_code == 422  # Pydantic validation error
+
+
+class TestSyncStatusRespectsLockExpiry:
+    def test_stale_lock_reads_not_running(self, client, test_db):
+        """行程被殺時鎖會殘留。bool(非空) 會永遠顯示「同步中」把同步按鈕鎖住
+        最長一小時——過期規則只在 star_sync 一處定義，狀態端點必須用同一套。"""
+        from datetime import timedelta
+        from services.settings import set_setting
+        from db.models import AppSettingKey
+        from utils.time import utc_now  # 生產寫入的是 naive UTC，fixture 必須同型
+
+        stale = (utc_now() - timedelta(minutes=11)).isoformat()
+        set_setting(AppSettingKey.STAR_SYNC_RUNNING, stale, test_db)
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        assert body["running"] is False
+
+    def test_fresh_lock_reads_running(self, client, test_db):
+        from services.settings import set_setting
+        from db.models import AppSettingKey
+        from utils.time import utc_now
+
+        set_setting(AppSettingKey.STAR_SYNC_RUNNING, utc_now().isoformat(), test_db)
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        assert body["running"] is True

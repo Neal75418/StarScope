@@ -31,7 +31,7 @@ import { queryKeys } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
-import { useI18n } from "../i18n";
+import { useI18n, interpolate } from "../i18n";
 import { generateId } from "../utils/id";
 import { logger } from "../utils/logger";
 import { DATA_RESET_EVENT } from "../constants/events";
@@ -210,9 +210,20 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         dispatch({ type: "REFRESH_ALL_START", payload: { repoIds } });
 
         try {
-          await fetchAllRepos();
+          const result = await fetchAllRepos();
           dispatch({ type: "REFRESH_ALL_SUCCESS" });
           invalidateRepos();
+          // 部分（甚至全部）失敗不能無聲：94/94 失敗時後端仍回 200，
+          // 沒有這個 toast 的話畫面轉圈結束＝使用者以為資料是新的
+          if (result.failed_count) {
+            showToastFn(
+              "error",
+              interpolate(t.toast.refreshPartial, {
+                ok: result.success_count ?? 0,
+                failed: result.failed_count,
+              })
+            );
+          }
         } catch (err) {
           // 409 = 後端已經在抓（排程觸發的，或另一個視窗按的）。使用者要的結果
           // 正在發生，這不是失敗——報錯會讓他再按一次，而那次同樣會撞到鎖。

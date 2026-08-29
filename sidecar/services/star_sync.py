@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from db.models import AppSettingKey, Repo
@@ -47,6 +48,13 @@ class SyncResult:
     # 首次同步時「本機有、GitHub 沒有」的 repo。不自動封存，交由使用者決定
     # 要推上去還是封存；其餘時候恆為空。
     pending_local_only: list[str] = field(default_factory=list)
+
+
+@dataclass
+class StarredFetch:
+    """get_user_starred_with_dates 的回傳：清單本體＋是否被分頁上限截斷。"""
+    stars: list[RemoteStar]
+    truncated: bool = False
 
 
 @dataclass
@@ -142,11 +150,12 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
     set_setting(AppSettingKey.STAR_SYNC_RUNNING, utc_now().isoformat(), db)
     try:
         try:
-            remote = await github.get_user_starred_with_dates()
+            fetched = await github.get_user_starred_with_dates()
         except Exception as e:
             logger.warning(f"[Star 同步] 取得 starred 失敗，不執行任何移除: {e}")
             return SyncResult(skipped_reason="fetch_failed")
 
+        remote, truncated = fetched.stars, fetched.truncated
         if not remote:
             logger.warning("[Star 同步] 回傳 0 筆，不執行任何移除")
             return SyncResult(skipped_reason="empty_response")
@@ -174,23 +183,45 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
         # 首次同步的差異是歷史遺留，之後的差異才代表使用者取消了 star。
         # 用同一套邏輯處理會把歷史遺留當成使用者的決定。
         is_first_sync = get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db) is None
+        # 截斷＝資訊不足：清單缺的那截裡的 repo 會全數落進 diff.archived，
+        # 但那是「沒看到」不是「已取消 star」。照模組守則：資訊不足時不執行移除。
+        skip_removals = is_first_sync or truncated
+        if truncated and diff.archived:
+            logger.warning(
+                f"[Star 同步] 清單被截斷，跳過 {len(diff.archived)} 筆移除（資訊不足）")
         pending: list[str] = []
         if is_first_sync:
             pending = [r.full_name for r in diff.archived]
-        else:
+        elif not skip_removals:
             for repo in diff.archived:
                 repo.unstarred_at = utc_now()
 
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # 兩個行程（App 啟動＋launchd RunAtLoad）同時通過鎖檢查、同時新增
+            # 同一個 repo 時撞唯一鍵。輸的一方放棄這輪即可——贏的那輪已寫入。
+            db.rollback()
+            logger.warning("[Star 同步] 與另一行程的同步撞鍵，本輪放棄（對方已完成）")
+            return SyncResult(skipped_reason="race_lost")
         set_setting(AppSettingKey.LAST_STAR_SYNC_AT, utc_now().isoformat() + "Z", db)
         logger.info(
             f"[Star 同步] 新增 {len(diff.added)}、復原 {len(diff.restored)}、"
             f"改名 {len(diff.renamed)}、"
-            f"封存 {0 if is_first_sync else len(diff.archived)}"
+            f"封存 {0 if skip_removals else len(diff.archived)}"
             + (f"、待決定 {len(pending)}" if pending else ""))
         return SyncResult(added=len(diff.added), restored=len(diff.restored),
                           renamed=len(diff.renamed),
-                          archived=0 if is_first_sync else len(diff.archived),
+                          archived=0 if skip_removals else len(diff.archived),
                           pending_local_only=pending)
     finally:
         set_setting(AppSettingKey.STAR_SYNC_RUNNING, "", db)
+
+
+def sync_is_running(db: Session) -> bool:
+    """同步是否進行中——含 10 分鐘過期判斷。
+
+    sync/status 端點先前用 bool(非空字串) 判斷，行程被殺後鎖殘留會讓它
+    永遠回報「同步中」；這裡把 _lock_is_held 的同一套規則開放給查詢端。
+    """
+    return _lock_is_held(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db))

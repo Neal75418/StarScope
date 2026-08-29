@@ -54,18 +54,14 @@ class TestParseCreatedAt:
         result = hn_module._parse_created_at("2024-01-15T12:30:00+00:00")
         assert result.tzinfo is not None
 
-    def test_returns_now_on_invalid(self):
-        """Test returns current time on invalid timestamp."""
-        result = hn_module._parse_created_at("invalid-timestamp")
-        assert result.tzinfo == timezone.utc
-        # Should be recent (within last minute)
-        now = datetime.now(timezone.utc)
-        assert (now - result).total_seconds() < 60
+    def test_returns_none_on_invalid(self):
+        """解析失敗回 None——先前偽造成 now() 會讓多年舊文以「剛剛」進入
+        週報近 7 天過濾與 recent 徽章（第三方審查發現）。缺值比錯值誠實。"""
+        assert hn_module._parse_created_at("invalid-timestamp") is None
 
-    def test_handles_empty_string(self):
-        """Test handles empty string input gracefully."""
-        result = hn_module._parse_created_at("")
-        assert result.tzinfo == timezone.utc
+
+    def test_empty_string_is_none_too(self):
+        assert hn_module._parse_created_at("") is None
 
 
 class TestParseHnHit:
@@ -114,7 +110,8 @@ class TestParseHnHit:
 
     def test_generates_hn_url_when_missing(self):
         """Test generates HN URL when url is missing."""
-        hit = {"objectID": "12345", "title": "Test", "url": None}
+        hit = {"objectID": "12345", "title": "Test", "url": None,
+               "created_at": "2024-01-15T12:00:00Z"}
         seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
@@ -123,7 +120,7 @@ class TestParseHnHit:
 
     def test_handles_missing_fields(self):
         """Test handles missing optional fields."""
-        hit = {"objectID": "12345"}
+        hit = {"objectID": "12345", "created_at": "2024-01-15T12:00:00Z"}
         seen_ids: set[str] = set()
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
@@ -132,6 +129,12 @@ class TestParseHnHit:
         assert result.points == 0
         assert result.num_comments == 0
         assert result.author == ""
+
+
+    def test_hit_with_unparseable_time_is_skipped_entirely(self):
+        """created_at 壞掉的 hit 回 None（跳過），而不是帶著偽造的「現在」進系統。"""
+        hit = {"objectID": "99", "title": "old story", "created_at": "not-a-date"}
+        assert hn_module._parse_hn_hit(hit, set()) is None
 
 
 class TestExecuteHnQuery:
@@ -144,8 +147,8 @@ class TestExecuteHnQuery:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "hits": [
-                {"objectID": "1", "title": "Story 1", "points": 100},
-                {"objectID": "2", "title": "Story 2", "points": 50},
+                {"objectID": "1", "title": "Story 1", "points": 100, "created_at": "2024-01-15T12:00:00Z"},
+                {"objectID": "2", "title": "Story 2", "points": 50, "created_at": "2024-01-15T12:00:00Z"},
             ]
         }
 
@@ -203,7 +206,7 @@ class TestHackerNewsService:
     async def test_search_repo_success(self):
         """Test successful repo search with relevant title."""
         service = _service_answering(_hits(
-            {"objectID": "1", "title": "Introducing ripgrep: a new tool", "points": 100}
+            {"objectID": "1", "title": "Introducing ripgrep: a new tool", "points": 100, "created_at": "2024-01-15T12:00:00Z"}
         ))
 
         result = await service.search_repo("ripgrep", "burntsushi")
@@ -216,8 +219,8 @@ class TestHackerNewsService:
     async def test_search_repo_filters_irrelevant(self):
         """Test irrelevant results are filtered out by relevance check."""
         service = _service_answering(_hits(
-            {"objectID": "1", "title": "About myrepo project", "points": 100},
-            {"objectID": "2", "title": "Unrelated article about cats", "points": 50},
+            {"objectID": "1", "title": "About myrepo project", "points": 100, "created_at": "2024-01-15T12:00:00Z"},
+            {"objectID": "2", "title": "Unrelated article about cats", "points": 50, "created_at": "2024-01-15T12:00:00Z"},
         ))
 
         result = await service.search_repo("myrepo", "owner")
@@ -230,9 +233,9 @@ class TestHackerNewsService:
     async def test_search_repo_sorts_by_points(self):
         """Test results are sorted by points descending."""
         service = _service_answering(_hits(
-            {"objectID": "1", "title": "Low score ripgrep mention", "points": 10},
-            {"objectID": "2", "title": "High score ripgrep mention", "points": 100},
-            {"objectID": "3", "title": "Medium score ripgrep mention", "points": 50},
+            {"objectID": "1", "title": "Low score ripgrep mention", "points": 10, "created_at": "2024-01-15T12:00:00Z"},
+            {"objectID": "2", "title": "High score ripgrep mention", "points": 100, "created_at": "2024-01-15T12:00:00Z"},
+            {"objectID": "3", "title": "Medium score ripgrep mention", "points": 50, "created_at": "2024-01-15T12:00:00Z"},
         ))
 
         result = await service.search_repo("ripgrep", "burntsushi")

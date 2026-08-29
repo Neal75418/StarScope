@@ -691,3 +691,46 @@ class TestDeltasAreNormalisedByActualDaySpan:
 
         assert AnomalyDetector._calculate_star_deltas(one_day)[0] == pytest.approx(300.0)
         assert AnomalyDetector._calculate_star_deltas(three_day)[0] == pytest.approx(100.0)
+
+
+class TestSaveFailureIsDistinguishableFromNoSignals:
+    """「偵測到 5 個但存不進去」與「今天真的沒訊號」必須可區分。
+
+    先前 save_detected_signals 失敗回 0，job 摘要讀起來就是「今天很平靜」——
+    early_signals 曾經空了幾個月沒人發現，這條路徑是同一個黑洞的另一個入口。
+    """
+
+    def test_save_failure_returns_none_not_zero(self, test_db, monkeypatch):
+        from unittest.mock import MagicMock
+        from sqlalchemy.exc import SQLAlchemyError
+        from services.anomaly_detector import save_detected_signals
+
+        db = MagicMock()
+        db.commit.side_effect = SQLAlchemyError("disk full")
+
+        assert save_detected_signals([MagicMock()], db) is None
+        db.rollback.assert_called_once()
+
+    def test_run_detection_reports_save_failed(self, test_db, monkeypatch):
+        from unittest.mock import MagicMock
+        from services import anomaly_detector as mod
+
+        fake_signal = MagicMock(signal_type="sudden_spike")
+        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda self, db: [fake_signal])
+        monkeypatch.setattr(mod, "save_detected_signals", lambda signals, db: None)
+
+        result = mod.get_anomaly_detector().run_detection(test_db)
+
+        assert result["save_failed"] is True
+        # 沒存進去就不能宣稱寫入了任何東西
+        assert result["signals_detected"] == 0
+
+    def test_successful_save_reports_clean(self, test_db, monkeypatch):
+        from services import anomaly_detector as mod
+
+        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda self, db: [])
+
+        result = mod.get_anomaly_detector().run_detection(test_db)
+
+        assert result["save_failed"] is False
+        assert result["signals_detected"] == 0

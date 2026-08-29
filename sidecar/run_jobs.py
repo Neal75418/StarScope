@@ -68,17 +68,34 @@ async def run_once() -> str:
             db.close()
 
         # ② 抓取（內含早期訊號偵測與 health 更新）→ ③ 警報 → ④ HN → ⑤ 版本
-        await fetch_all_repos_job()
+        fetch_counts = await fetch_all_repos_job()
         check_alerts_job()
         await fetch_context_signals_job()
         await fetch_releases_job()
 
         # ⑥ 備份兜底：超過 24 小時沒備份就補一次
         _backup_if_stale()
-        return "ok"
+
+        # 心跳不能對抓取失敗說「ok」：job 把可恢復錯誤吞掉是為了不讓排程中斷，
+        # 但 launchd 這邊唯一的診斷面就是這一行——94/94 失敗還寫 ok 的話，
+        # 「心跳正常、資料黑洞」的盲區就回來了
+        return _describe_fetch(fetch_counts)
     finally:
         await close_github_service()
         await close_hn_service()
+
+
+def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
+    """把抓取結果翻成心跳字串。None＝鎖被 App 行程持有，資料由它負責，算 ok。"""
+    if counts is None:
+        return "ok (fetch busy elsewhere)"
+    if counts.get("job_error"):
+        return f"degraded (fetch job error: {counts['job_error']})"
+    errors = int(counts.get("errors", 0))
+    if errors > 0:
+        total = errors + int(counts.get("success", 0))
+        return f"degraded ({errors}/{total} fetch failed)"
+    return "ok"
 
 
 def _backup_if_stale() -> None:

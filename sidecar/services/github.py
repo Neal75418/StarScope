@@ -19,7 +19,7 @@ from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
 from db.models import AppSettingKey
 
 if TYPE_CHECKING:
-    from services.star_sync import RemoteStar
+    from services.star_sync import RemoteStar, StarredFetch
 
 logger = logging.getLogger(__name__)
 
@@ -450,7 +450,7 @@ class GitHubService:
 
 
     async def get_user_starred_with_dates(self, per_page: int = 100,
-                                          max_pages: int = 50) -> list["RemoteStar"]:
+                                          max_pages: int = 50) -> "StarredFetch":
         """取得 starred repos，含 star 的時間。
 
         starred_at 只在帶 vnd.github.star+json 這個 Accept 時回傳，而它錯過同步當下
@@ -459,7 +459,7 @@ class GitHubService:
         回傳的 payload 是完整的 repo 物件，直接拿來建本機列即可；別再對每個 repo
         呼叫一次 get_repo，首次同步有九十幾個，那是九十幾次多餘請求。
         """
-        from services.star_sync import RemoteStar
+        from services.star_sync import RemoteStar, StarredFetch
 
         headers = {**self.headers, "Accept": "application/vnd.github.star+json"}
         stars: list[RemoteStar] = []
@@ -491,9 +491,19 @@ class GitHubService:
 
             if len(data) < per_page:
                 break
+        else:
+            # 跑滿 max_pages 沒有 break＝清單被截斷（使用者 starred 超過上限）。
+            # 截斷造成的「沒看到」與「已取消 star」在 diff 裡無法區分——放行的話，
+            # 較舊的 star 會被非首次同步靜默批次封存。stargazers 的同款迴圈
+            # （上方 :407）有這個警告，這裡先前漏了。
+            logger.warning(
+                f"[GitHub API] starred 清單已達分頁上限（{per_page * max_pages} 筆），"
+                "回傳標記為截斷"
+            )
+            return StarredFetch(stars=stars, truncated=True)
 
         logger.info(f"[GitHub API] 已取得 {len(stars)} 個 starred repos（含日期）")
-        return stars
+        return StarredFetch(stars=stars, truncated=False)
 
 
     async def _write_star(self, method: str, owner: str, name: str) -> None:

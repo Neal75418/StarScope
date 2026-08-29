@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any, NamedTuple
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from constants import ContextSignalType, RELEASE_FETCH_INTERVAL_MINUTES, RELEASE_NOTE_TAGS
@@ -116,38 +117,43 @@ def store_release(target: _ReleaseTarget, release: dict[str, Any], db: Session) 
     if not external_id:
         return False
 
-    existing = (
-        db.query(ContextSignal)
+    # 查詢只為了回傳「是否新增」；寫入改原子 upsert 以防跨行程撞
+    # uq_context_signal_unique（App 與無頭收集器同時掃版本）。
+    is_new = (
+        db.query(ContextSignal.id)
         .filter(
             ContextSignal.repo_id == target.repo_id,
             ContextSignal.signal_type == ContextSignalType.RELEASE,
             ContextSignal.external_id == external_id,
         )
         .first()
-    )
+    ) is None
 
     title = _build_title(release)
     tags = tag_release_notes(release.get("body"))
 
-    if existing:
-        # 已發布的版本仍可能被編輯 notes，重掃一次標記
-        existing.title = title
-        existing.tags = tags
-        existing.fetched_at = utc_now()
-        return False
-
-    db.add(
-        ContextSignal(
-            repo_id=target.repo_id,
-            signal_type=ContextSignalType.RELEASE,
-            external_id=external_id,
-            title=title,
-            url=release.get("html_url") or f"https://github.com/{target.full_name}/releases",
-            author=(release.get("author") or {}).get("login"),
-            published_at=_parse_published_at(release.get("published_at")),
-            tags=tags,
-        )
+    stmt = sqlite_insert(ContextSignal).values(
+        repo_id=target.repo_id,
+        signal_type=ContextSignalType.RELEASE,
+        external_id=external_id,
+        title=title,
+        url=release.get("html_url") or f"https://github.com/{target.full_name}/releases",
+        author=(release.get("author") or {}).get("login"),
+        published_at=_parse_published_at(release.get("published_at")),
+        tags=tags,
     )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["repo_id", "signal_type", "external_id"],
+        set_={
+            # 已發布的版本仍可能被編輯 notes：只重掃標題與標記，不動發布時間與作者
+            "title": stmt.excluded.title,
+            "tags": stmt.excluded.tags,
+            "fetched_at": utc_now(),
+        },
+    )
+    db.execute(stmt)
+    if not is_new:
+        return False
     return True
 
 

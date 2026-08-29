@@ -265,7 +265,7 @@ def _cleanup_snapshots_job() -> None:
         cleanup_old_snapshots(retention_days)
 
 
-async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
+async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> dict[str, int | str] | None:
     """
     背景工作：抓取追蹤清單中所有 repo。
     根據設定的間隔定期執行。
@@ -277,13 +277,13 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> None:
     """
     if _fetch_all_lock.locked():
         logger.info("[排程] 全量抓取已在執行中，跳過此次排程")
-        return
+        return None
 
     async with _fetch_all_lock:
-        await _fetch_all_repos_inner(skip_recent_minutes)
+        return await _fetch_all_repos_inner(skip_recent_minutes)
 
 
-async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
+async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int | str]:
     """fetch_all_repos_job 的內部實作（已在 _fetch_all_lock 保護下執行）。"""
     job_id = uuid.uuid4().hex[:8]
     log = logging.LoggerAdapter(logger, {"job_id": job_id})
@@ -300,7 +300,7 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
 
             result = _build_need_fetch_query(db, skip_recent_minutes, log, job_id)
             if result is None:
-                return
+                return {"success": 0, "errors": 0, "skipped": 0}
             need_fetch_query, total_count, _ = result
 
             success_count = 0
@@ -351,6 +351,9 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
                 _update_health(last_fetch_success=_time.time(), last_fetch_error=None)
             else:
                 _update_health(last_fetch_failure=_time.time(), last_fetch_error=f"{error_count} repos 抓取失敗")
+            counts: dict[str, int | str] = {
+                "success": success_count, "errors": error_count, "skipped": skipped_count,
+            }
 
             # 早期訊號偵測掛在這裡，而不是自己一個排程任務，理由有兩個：
             #
@@ -367,18 +370,28 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> None:
             try:
                 from services.anomaly_detector import run_detection
                 detection = run_detection(db)
-                log.info(
-                    f"[排程] [{job_id}] 早期訊號偵測: 掃描 {detection['repos_scanned']} 個 repo、"
-                    f"寫入 {detection['signals_detected']} 個訊號 {detection['by_type']}"
-                )
+                if detection.get("save_failed"):
+                    # 「偵測到但存不進去」不能報成「寫入 0 個」——early_signals 曾經
+                    # 空了幾個月沒人發現，這條路徑會讓同樣的黑洞換個入口重演
+                    log.error(
+                        f"[排程] [{job_id}] 早期訊號偵測: 偵測到訊號但儲存失敗 {detection['by_type']}"
+                    )
+                else:
+                    log.info(
+                        f"[排程] [{job_id}] 早期訊號偵測: 掃描 {detection['repos_scanned']} 個 repo、"
+                        f"寫入 {detection['signals_detected']} 個訊號 {detection['by_type']}"
+                    )
             except Exception as e:
                 # 偵測失敗不該讓整輪抓取算失敗——抓到的資料已經寫進去了
                 log.warning(f"[排程] [{job_id}] 早期訊號偵測失敗: {e}", exc_info=True)
 
+            return counts
+
         except (GitHubAPIError, SQLAlchemyError) as e:
             log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
             _update_health(last_fetch_failure=_time.time(), last_fetch_error=str(e)[:200])
-            # 可恢復的錯誤，不中斷排程
+            # 可恢復的錯誤，不中斷排程；但呼叫端（無頭收集器的心跳）需要知道這輪沒成
+            return {"success": 0, "errors": 0, "skipped": 0, "job_error": str(e)[:120]}
         except KeyboardInterrupt:
             log.info(f"[排程] [{job_id}] 收到中斷信號")
             raise

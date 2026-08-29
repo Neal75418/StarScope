@@ -88,6 +88,28 @@ describe("WatchlistContext actions", () => {
       await waitFor(() => expect(result.current.state.error).toBeTruthy());
     });
 
+    it("surfaces partial failure as a toast — 94/94 failed still returns 200", async () => {
+      // 後端把失敗數放進 data（message 會被 apiCall 丟棄）。沒有這個 toast，
+      // 轉圈結束＝使用者以為資料是新的，實際上畫面全是舊快照（第三方審查發現）。
+      mockFetchAllRepos.mockResolvedValue({
+        repos: [],
+        total: 0,
+        success_count: 0,
+        failed_count: 94,
+      });
+      const { result } = renderCtx();
+
+      await act(async () => {
+        await result.current.actions.refreshAll();
+      });
+
+      // toast 內容包含失敗數；toast 狀態存在 context 的 toasts 裡
+      await waitFor(() => {
+        const text = JSON.stringify(result.current.state);
+        expect(text).toContain("94");
+      });
+    });
+
     it("calls the endpoint exactly once per invocation", async () => {
       // 有副作用又不冪等，重複呼叫會對 94 個 repo 各多打一輪 GitHub
       const { result } = renderCtx();

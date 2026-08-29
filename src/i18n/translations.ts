@@ -860,6 +860,7 @@ export const translations = {
     toast: {
       repoAdded: "Repository added to watchlist",
       repoRemoved: "Repository removed from watchlist",
+      refreshPartial: "Refreshed {ok}, {failed} failed — data for those repos is stale",
       refreshed: "Data refreshed",
       error: "An error occurred",
       copied: "Copied to clipboard",
@@ -1835,6 +1836,7 @@ export const translations = {
     toast: {
       repoAdded: "儲存庫已加入追蹤清單",
       repoRemoved: "儲存庫已從追蹤清單移除",
+      refreshPartial: "已更新 {ok} 個、{failed} 個失敗——失敗那些顯示的仍是舊資料",
       refreshed: "資料已重新整理",
       error: "發生錯誤",
       copied: "已複製到剪貼簿",

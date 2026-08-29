@@ -9,21 +9,22 @@ import pytest
 
 from db.models import AppSettingKey, Repo
 from services.settings import set_setting
-from services.star_sync import RemoteStar, sync_starred_repos
+from services.star_sync import RemoteStar, StarredFetch, sync_starred_repos
 
 
 class FakeGitHub:
     def __init__(self, stars: list[RemoteStar] | None = None,
-                 error: Exception | None = None):
+                 error: Exception | None = None, truncated: bool = False):
         self.stars = stars or []
         self.error = error
+        self.truncated = truncated
         self.calls = 0
 
-    async def get_user_starred_with_dates(self) -> list[RemoteStar]:
+    async def get_user_starred_with_dates(self) -> "StarredFetch":
         self.calls += 1
         if self.error:
             raise self.error
-        return self.stars
+        return StarredFetch(stars=self.stars, truncated=self.truncated)
 
 
 def _star(github_id: int, full_name: str) -> RemoteStar:
@@ -208,3 +209,37 @@ async def test_a_rename_that_frees_a_name_someone_else_took(test_db):
     assert result.skipped_reason is None
     names = {r.full_name for r in test_db.query(Repo).all()}
     assert names == {"a/new", "a/old"}
+
+
+@pytest.mark.asyncio
+async def test_truncated_fetch_never_archives(test_db):
+    """清單被分頁上限截斷時，缺的那截是「沒看到」不是「已取消 star」。
+
+    第三方審查發現：starred 超過上限時，較舊的 star 會全數落進 diff.archived
+    並被非首次同步靜默批次封存。模組守則「資訊不足時不執行移除」必須涵蓋截斷。
+    """
+    _tracked(test_db, github_id=1, full_name="a/kept")      # 在回傳清單裡
+    _tracked(test_db, github_id=2, full_name="a/cut-off")   # 被截斷的那截
+    from services.settings import set_setting
+    from db.models import AppSettingKey
+    set_setting(AppSettingKey.LAST_STAR_SYNC_AT, "2026-01-01T00:00:00Z", test_db)  # 非首次
+
+    result = await sync_starred_repos(
+        test_db, FakeGitHub(stars=[_star(1, "a/kept")], truncated=True))
+
+    assert result.archived == 0
+    row = test_db.query(Repo).filter(Repo.full_name == "a/cut-off").one()
+    assert row.unstarred_at is None, "截斷不得觸發封存"
+
+
+@pytest.mark.asyncio
+async def test_truncated_fetch_still_adds_new_stars(test_db):
+    """截斷只該癱瘓「移除」這一翼——新增照常，否則大戶使用者的同步整個失能。"""
+    from services.settings import set_setting
+    from db.models import AppSettingKey
+    set_setting(AppSettingKey.LAST_STAR_SYNC_AT, "2026-01-01T00:00:00Z", test_db)
+
+    result = await sync_starred_repos(
+        test_db, FakeGitHub(stars=[_star(9, "a/new")], truncated=True))
+
+    assert result.added == 1

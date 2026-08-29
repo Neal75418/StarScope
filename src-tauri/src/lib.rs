@@ -121,6 +121,16 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
         }
         cmd = cmd.env("STARSCOPE_SESSION_SECRET", session_secret);
 
+        // 發行版必須以 production 模式跑 sidecar：main.py 的 ENV 預設是
+        // development（docs 端點開著、CORS 多放行 localhost:1420/1421），而整條
+        // 打包鏈先前沒有任何地方設它——「正式環境才關閉」的防線從未生效過
+        // （第三方安全審查發現）。用 debug_assertions 區分：tauri dev 是 debug
+        // build 不注入，維持開發模式；打包的 release build 注入 production。
+        #[cfg(not(debug_assertions))]
+        {
+            cmd = cmd.env("ENV", "production");
+        }
+
         match cmd.spawn() {
             Ok((_rx, child)) => {
                 if attempt > 0 {

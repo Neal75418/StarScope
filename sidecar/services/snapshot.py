@@ -7,6 +7,7 @@
 
 import logging
 
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from db.models import Repo, RepoSnapshot
@@ -21,40 +22,38 @@ logger = logging.getLogger(__name__)
 _WATCHERS_FIELD = "subscribers_count"
 
 
-def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> RepoSnapshot:
-    """
-    建立或更新 repo 的今日快照。
+def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> None:
+    """建立或更新 repo 的今日快照（原子 upsert）。
 
     使用 `subscribers_count` 作為 watcher 數
     （GitHub API 中訂閱通知者的正確欄位）。
-    """
-    today = utc_today()
-    # noinspection PyTypeChecker
-    existing_snapshot: RepoSnapshot | None = (
-        db.query(RepoSnapshot)
-        .filter(RepoSnapshot.repo_id == repo.id, RepoSnapshot.snapshot_date == today)
-        .first()
-    )
 
-    if existing_snapshot:
-        existing_snapshot.stars = github_data.get("stargazers_count", 0)
-        existing_snapshot.forks = github_data.get("forks_count", 0)
-        existing_snapshot.watchers = github_data.get(_WATCHERS_FIELD, 0)
-        existing_snapshot.open_issues = github_data.get("open_issues_count", 0)
-        existing_snapshot.fetched_at = utc_now()
-        return existing_snapshot
-    else:
-        snapshot = RepoSnapshot(
-            repo_id=repo.id,
-            stars=github_data.get("stargazers_count", 0),
-            forks=github_data.get("forks_count", 0),
-            watchers=github_data.get(_WATCHERS_FIELD, 0),
-            open_issues=github_data.get("open_issues_count", 0),
-            snapshot_date=today,
-            fetched_at=utc_now(),
-        )
-        db.add(snapshot)
-        return snapshot
+    必須是 INSERT ... ON CONFLICT 而不是先查後寫：App 與 launchd 無頭收集器是
+    兩個行程，登入時（App 自啟 + RunAtLoad）會在同一分鐘內各自抓同一批 repo，
+    check-then-act 會讓後 commit 的一方撞 uq_snapshot_repo_date，該 repo 整輪
+    更新被 rollback 沖銷。隔壁 analyzer.calculate_signals 的同款 race 已用
+    upsert 修過，這裡是漏掉的 sibling（第三方審查發現）。
+    """
+    stmt = sqlite_insert(RepoSnapshot).values(
+        repo_id=repo.id,
+        stars=github_data.get("stargazers_count", 0),
+        forks=github_data.get("forks_count", 0),
+        watchers=github_data.get(_WATCHERS_FIELD, 0),
+        open_issues=github_data.get("open_issues_count", 0),
+        snapshot_date=utc_today(),
+        fetched_at=utc_now(),
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["repo_id", "snapshot_date"],
+        set_={
+            "stars": stmt.excluded.stars,
+            "forks": stmt.excluded.forks,
+            "watchers": stmt.excluded.watchers,
+            "open_issues": stmt.excluded.open_issues,
+            "fetched_at": stmt.excluded.fetched_at,
+        },
+    )
+    db.execute(stmt)
 
 
 def update_repo_from_github(repo: Repo, github_data: dict, db: Session) -> None:

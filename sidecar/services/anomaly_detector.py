@@ -542,18 +542,23 @@ class AnomalyDetector:
         """
         all_signals = self.detect_all(db)
         saved = save_detected_signals(all_signals, db)
+        save_failed = saved is None
 
         signals_by_type: dict[str, int] = {}
         for s in all_signals:
             signals_by_type[s.signal_type] = signals_by_type.get(s.signal_type, 0) + 1
 
-        logger.info(f"[異常偵測] 異常偵測完成: 偵測到 {saved} 個訊號")
+        if save_failed:
+            logger.error(f"[異常偵測] 偵測到 {len(all_signals)} 個訊號但儲存失敗")
+        else:
+            logger.info(f"[異常偵測] 異常偵測完成: 偵測到 {saved} 個訊號")
 
         repos_count = db.query(Repo).count()
         return {
             "repos_scanned": repos_count,
-            "signals_detected": saved,
+            "signals_detected": saved or 0,
             "by_type": signals_by_type,
+            "save_failed": save_failed,
         }
 
     def detect_all(self, db: Session) -> list["EarlySignal"]:
@@ -633,8 +638,12 @@ class AnomalyDetector:
         return all_signals
 
 
-def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int:
-    """將偵測到的 signals 寫入 DB。"""
+def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int | None:
+    """將偵測到的 signals 寫入 DB。回傳寫入筆數；儲存失敗回 None。
+
+    失敗不能回 0——「偵測到 5 個但一個都沒存進去」與「今天真的沒訊號」
+    對呼叫端必須可區分，否則 job 摘要會把儲存失敗報成「寫入 0 個訊號」。
+    """
     try:
         for s in signals:
             db.add(s)
@@ -643,7 +652,7 @@ def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int:
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"[異常偵測] 儲存 signals 失敗: {e}", exc_info=True)
-        return 0
+        return None
 
 
 # 模組層級 singleton

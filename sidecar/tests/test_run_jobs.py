@@ -13,15 +13,17 @@ import run_jobs
 
 
 def _mocks(order: list) -> dict:
-    def rec(name, async_=True):
+    def rec(name, async_=True, returns=None):
         m = AsyncMock() if async_ else MagicMock()
         def _side(*a, **k):
             order.append(name)
+            return returns
         m.side_effect = _side
         return m
     return {
         "sync": rec("sync"),
-        "fetch": rec("fetch"),
+        # 心跳讀抓取計數：預設給「全成功」讓既有的 ok 斷言維持語意
+        "fetch": rec("fetch", returns={"success": 94, "errors": 0, "skipped": 0}),
         "alerts": rec("alerts", async_=False),
         "context": rec("context"),
         "releases": rec("releases"),
@@ -96,6 +98,40 @@ class TestRunOnce:
             _run(m)
         m["close_gh"].assert_awaited_once()
         m["close_hn"].assert_awaited_once()
+
+
+class TestHeartbeatHonesty:
+    """心跳是 launchd 側唯一的診斷面。94/94 抓取失敗還寫 ok 的話，
+    「心跳正常、資料黑洞」的盲區就回來了——第三方審查抓到的正是這條。"""
+
+    def test_partial_fetch_failure_reads_degraded(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={"success": 90, "errors": 4, "skipped": 0})
+        assert _run(m) == "degraded (4/94 fetch failed)"
+
+    def test_total_fetch_failure_reads_degraded_not_ok(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={"success": 0, "errors": 94, "skipped": 0})
+        out = _run(m)
+        assert out.startswith("degraded"), out
+
+    def test_job_level_error_reads_degraded_with_reason(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={
+            "success": 0, "errors": 0, "skipped": 0, "job_error": "database is locked",
+        })
+        out = _run(m)
+        assert "degraded" in out and "database is locked" in out
+
+    def test_lock_held_by_app_is_ok(self):
+        """None＝App 行程正在抓，資料由它負責——這不是失敗。"""
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value=None)
+        assert _run(m) == "ok (fetch busy elsewhere)"
 
 
 class TestBackupCatchUp:

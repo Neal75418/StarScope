@@ -10,6 +10,7 @@ from typing import Any, NamedTuple
 
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from constants import CONTEXT_SIGNAL_MAX_AGE_DAYS, CONTEXT_SIGNAL_MAX_PER_REPO, ContextSignalType
@@ -77,25 +78,34 @@ def _store_hn_signals(repo_id: int, stories: list[HNStory], db: Session) -> int:
         repo_id, ContextSignalType.HACKER_NEWS, external_ids, db
     )
 
+    # existing_map 只用來「計數新增」；寫入本身走原子 upsert——App 與無頭
+    # 收集器是兩個行程，check-then-act 會撞 uq_context_signal_unique。
+    # 極端同時下計數可能少 1（兩邊都以為對方已存在），錯的只是訊息裡的數字。
     count = 0
     for story in stories:
-        existing = existing_map.get(story.object_id)
-
-        if existing:
-            _update_existing_signal(existing, story.points, story.num_comments)
-        else:
-            db.add(ContextSignal(
-                repo_id=repo_id,
-                signal_type=ContextSignalType.HACKER_NEWS,
-                external_id=story.object_id,
-                title=story.title,
-                url=story.url,
-                score=story.points,
-                comment_count=story.num_comments,
-                author=story.author,
-                published_at=story.created_at,
-            ))
+        if story.object_id not in existing_map:
             count += 1
+        stmt = sqlite_insert(ContextSignal).values(
+            repo_id=repo_id,
+            signal_type=ContextSignalType.HACKER_NEWS,
+            external_id=story.object_id,
+            title=story.title,
+            url=story.url,
+            score=story.points,
+            comment_count=story.num_comments,
+            author=story.author,
+            published_at=story.created_at,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["repo_id", "signal_type", "external_id"],
+            set_={
+                # 與 _update_existing_signal 相同的更新範圍：分數、留言數、抓取時間
+                "score": stmt.excluded.score,
+                "comment_count": stmt.excluded.comment_count,
+                "fetched_at": utc_now(),
+            },
+        )
+        db.execute(stmt)
 
     return count
 
@@ -110,26 +120,31 @@ def _store_and_commit(repo_id: int, stories: list[HNStory] | None, db: Session) 
     return count
 
 
+class ContextFetchError(Exception):
+    """單一 repo 的情境抓取失敗——手動端點要據此回錯誤而非「成功，0 個」。
+
+    「HN 抓不到」「抓到存不進去」與「這個 repo 真的沒有 HN 討論」先前在
+    API 契約上不可區分：三者都是 200 + hn_count=0。斷網期間反覆按
+    「重新整理 context」永遠得到看似正常的 0（第三方審查發現）。
+    整批掃描路徑不用這個例外——批次的單 repo 容錯屬於排程自己的語意。
+    """
+
+
 async def fetch_context_signals_for_repo(repo: "Repo", db: Session) -> int:
-    """
-    為單一 repo 抓取 HN 情境訊號。
+    """為單一 repo 抓取 HN 情境訊號。回傳新增筆數。
 
-    Args:
-        repo: Repo model 物件
-        db: 資料庫 session
-
-    Returns:
-        新增的 HN 訊號數量
+    Raises:
+        ContextFetchError: HN API 失敗或 DB 儲存失敗（呼叫端須回報錯誤）。
     """
+    hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
+    if hn_stories is None:
+        raise ContextFetchError(f"{repo.full_name} 的 HN 查詢失敗")
     try:
-        hn_stories = await fetch_hn_mentions(repo.owner, repo.name)
-        hn_count = _store_and_commit(int(repo.id), hn_stories, db)
+        return _store_and_commit(int(repo.id), hn_stories, db)
     except SQLAlchemyError as e:
         db.rollback()
         logger.warning(f"[上下文] {repo.full_name} HN 訊號儲存失敗: {e}")
-        hn_count = 0
-
-    return hn_count
+        raise ContextFetchError(f"{repo.full_name} 的訊號儲存失敗") from e
 
 
 # 同時對 HN 發出的查詢數。整批掃描是 repo 數 × 2 次查詢，序列跑完 94 個 repo 實測

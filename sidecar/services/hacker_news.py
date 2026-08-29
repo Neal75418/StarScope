@@ -38,12 +38,18 @@ class HNStory:
     created_at: datetime
 
 
-def _parse_created_at(created_at_str: str) -> datetime:
-    """將 HN 時間戳記解析為 datetime。"""
+def _parse_created_at(created_at_str: str) -> datetime | None:
+    """將 HN 時間戳記解析為 datetime；解析失敗回 None。
+
+    失敗不能偽造成 now()：published_at 是週報「近 7 天」過濾、recent 徽章
+    與相對時間顯示的依據，捏造的「現在」會讓一則多年前的舊文以「剛剛」
+    的姿態進入這三處。缺值比錯值誠實。
+    """
     try:
         return datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        return datetime.now(timezone.utc)
+        logger.warning(f"[HN] created_at 無法解析，跳過該則: {created_at_str!r}")
+        return None
 
 
 # repo 名字本身是普通英文字時，裸名匹配會撈進一整批毫不相干的熱門故事——
@@ -156,6 +162,8 @@ def _parse_hn_hit(hit: dict, seen_ids: set) -> HNStory | None:
     seen_ids.add(object_id)
 
     created_at = _parse_created_at(hit.get("created_at", ""))
+    if created_at is None:
+        return None
     story_url = hit.get("url") or f"https://news.ycombinator.com/item?id={object_id}"
 
     return HNStory(

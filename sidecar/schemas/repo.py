@@ -131,6 +131,11 @@ class RepoListResponse(BaseModel):
     page: int | None = None
     per_page: int | None = None
     total_pages: int | None = None
+    # fetch-all 專用：部分（甚至全部）失敗必須在 data 裡，不能只放 message——
+    # 前端的 apiCall 只取 data，message 會被丟掉（同一個教訓修過 409 那條）。
+    # 一般列表端點不帶這兩個欄位（None）。
+    success_count: int | None = None
+    failed_count: int | None = None
 
 
 class StarredRepo(BaseModel):
