@@ -177,12 +177,19 @@ def calculate_trend(
     acceleration: float | None
 ) -> int:
     """
-    根據 velocity 與 acceleration 判斷趨勢方向。
+    根據 velocity 與 acceleration 判斷「動能」方向。
+
+    ⚠️ 方向講的是成長率的變化，不是星數增減。星數持續增加、但增速明顯放緩的
+    專案會回 -1，這是刻意的：實測 deepseek-harness 上週每日 +10,140、本週
+    +2,541，acceleration -0.75（成長率掉 75%）⇒ -1，即使 7 天仍 +17.7K。
+
+    acceleration 是 calculate_acceleration 算出的「週對週成長率變化比例」
+    （不是 stars/day²），所以下面的門檻與它量綱一致，不需要再除以 velocity。
 
     Returns:
-        1：上升趨勢（成長中）
+        1：動能上升（還在加速，或減速幅度不到 10%）
         0：穩定
-        -1：下降趨勢（衰退中）
+        -1：動能下降（星數在減少，或成長率掉超過 30%）
     """
     if velocity is None:
         return 0
