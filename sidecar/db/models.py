@@ -409,6 +409,10 @@ class AppSettingKey(StrEnum):
     # 熱門主題建議（手動更新，見 services/trending_topics.py）
     LAST_STAR_SYNC_AT = "last_star_sync_at"
     LAST_RELEASE_FETCH_AT = "last_release_fetch_at"
+    # 最後一次開啟這個資料庫的 app 版本。純診斷用：使用者回報問題時，
+    # 「這個 DB 上次是哪一版開的」是唯一能還原升級路徑的線索，而外部
+    # 使用者沒有任何遙測。由啟動流程覆寫，不需要人工維護
+    LAST_OPENED_APP_VERSION = "last_opened_app_version"
     STAR_SYNC_RUNNING = "star_sync_running"
     TRENDING_TOPICS_CACHE = "trending_topics_cache"
     TRENDING_GLOBAL_COUNTS = "trending_global_counts"

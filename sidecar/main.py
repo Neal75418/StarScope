@@ -43,6 +43,32 @@ setup_logging(level="INFO", log_dir=_log_dir)
 logger = logging.getLogger(__name__)
 
 
+def _record_app_version() -> None:
+    """記下最後一次開啟這個資料庫的 app 版本。
+
+    純診斷：外部使用者沒有任何遙測，回報問題時「這個 DB 上次是哪一版開的」
+    是唯一能還原升級路徑的線索。刻意不做成手工維護的 schema 版本號——
+    那種數字靠人記得 bump，忘了就是錯的，而這個永遠等於事實。
+
+    失敗不擋啟動：它只是線索，不是功能。
+    """
+    try:
+        from db.database import SessionLocal
+        from db.models import AppSettingKey
+        from services.settings import get_setting, set_setting
+
+        db = SessionLocal()
+        try:
+            previous = get_setting(AppSettingKey.LAST_OPENED_APP_VERSION, db)
+            if previous and previous != APP_VERSION:
+                logger.info(f"[啟動] 資料庫上次由 {previous} 開啟，現在是 {APP_VERSION}")
+            set_setting(AppSettingKey.LAST_OPENED_APP_VERSION, APP_VERSION, db)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"[啟動] 記錄 app 版本失敗（已忽略）: {e}")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """
@@ -70,6 +96,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 啟動：初始化資料庫
     init_db()
+    _record_app_version()
 
     # 啟動背景排程器
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)

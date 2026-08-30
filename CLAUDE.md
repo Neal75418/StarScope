@@ -100,7 +100,7 @@ npm run build:analyze    # Bundle 大小分析
 
 ### Python Sidecar
 
-⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest` / `alembic`。**
+⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest`。**
 macOS 內建的 `python3` 是 3.9，而 `constants.py` 與 `db/models.py` 用了 `StrEnum`
 （Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
 CI 是綠的，因為 `actions/setup-python` 裝 3.12——**別把 CI 的指令原樣抄到本機**。
@@ -111,7 +111,6 @@ cd sidecar
 .venv/bin/python -m pytest tests/ -v               # 執行所有測試
 .venv/bin/python -m pytest tests/test_repos.py -v  # 單一測試檔
 .venv/bin/python -m pytest tests/ --cov=.          # 覆蓋率
-.venv/bin/alembic upgrade head                     # 資料庫遷移
 .venv/bin/ruff check --fix .                       # Python lint（易漏——前端有 husky 擋，Python 沒有）
 ```
 
@@ -243,7 +242,33 @@ SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_
 2. `TAURI_APP_DATA_DIR`（正式環境由 Tauri 注入）
 3. `~/.starscope`（開發環境回退）
 
-除錯找資料庫時別在 `sidecar/` 底下找。遷移工具為 Alembic（`sidecar/alembic.ini`）。
+除錯找資料庫時別在 `sidecar/` 底下找。
+
+### ⚠️ schema 變更：不走 alembic
+
+`sidecar/alembic/` 存在，但**不在啟動路徑上**——那個目錄只有一份 2026-01 的初始
+schema，沒有任何程式碼引用它。實際機制是 `init_db()` 的兩步：`create_all()` 建新表，
+`ensure_columns()` 把既有表補齊到目前 model 的欄位。
+
+**加欄位不需要登記在任何地方**：`ensure_columns()` 直接拿 `Base.metadata` 跟使用者的
+資料庫比對，少什麼補什麼。先前是手工清單，漏登記時開發者的空資料庫由 `create_all()`
+建好、一切正常，只有既有使用者會炸「no such column」——那是本機重現不出來的失敗，
+所以改成從 model 推導。
+
+**它只能加「可為空（或有 server_default）的欄位」**。碰到補不了的差異會拋
+`SchemaNeedsMigration` 讓啟動當場失敗，而不是默默跳過留給查詢時才炸。
+
+⚠️ **下列任一成立就該正式引入 alembic，不要憑感覺**：
+
+- 改欄位型別、改名、刪欄位
+- 在**既有**表上加索引或唯一約束（`create_all()` 與 `ensure_columns()` 都不處理，
+  只有既有使用者的 `ON CONFLICT` 會炸）
+- 需要回填或轉換既有資料
+- 需要辨識並拒絕不相容的資料庫
+
+引入時 alembic 會自帶版本表，所以**現在不要先發明一個手工維護的 schema 版本號**。
+`AppSettingKey.LAST_OPENED_APP_VERSION` 記的是「上次開啟這個 DB 的 app 版本」，
+用途是診斷（外部使用者沒有遙測），不是遷移依據。
 
 ### API 回應格式
 

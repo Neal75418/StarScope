@@ -100,43 +100,51 @@ def get_db_session():
         db.close()
 
 
-# 既有資料表要補的欄位：{資料表: [(欄位名, SQLite 型別宣告)]}
-#
-# create_all() 只建新表，對已存在的表完全不動——所以在模型上加欄位，對開發者的
-# 空資料庫是無感的，對使用者既有的資料庫卻會在第一次查詢時炸「no such column」。
-#
-# 這裡刻意不走 alembic：這個專案至今沒有版本表，接上去得先 stamp 一個版本，
-# stamp 錯會讓之後所有 migration 對不上。相較之下，補一個可為空的欄位在 SQLite
-# 是 O(1) 且不重寫資料的操作。等到需要改型別或搬資料時再正式引入 alembic。
-_ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
-    "feed_items": [("opened_at", "DATETIME")],
-    "repos": [("unstarred_at", "DATETIME"), ("starred_at", "DATETIME")],
-    "context_signals": [("tags", "VARCHAR(255)")],
-    "early_signals": [("baseline_value", "FLOAT"), ("context_title", "VARCHAR(255)")],
-}
+class SchemaNeedsMigration(RuntimeError):
+    """schema 差異無法用「加一個欄位」補平，需要真正的 migration。"""
 
 
 def ensure_columns(target_engine: Engine | None = None) -> None:
-    """補上既有資料表缺少的欄位。可重複執行。
+    """把既有資料表補齊到目前 model 的欄位。可重複執行。
 
-    target_engine 只為了讓測試能對「舊 schema + 有資料」的資料庫執行真正的這段
-    邏輯——正式呼叫不帶參數，用模組層級的 engine。
+    來源是 model 本身，不是手工維護的清單：清單漏登記時，開發者的空資料庫由
+    create_all() 建好、一切正常，只有既有使用者會在查詢時炸「no such column」，
+    而那是本機重現不出來的。改成從 metadata 推導後，這個失敗模式不存在。
+
+    create_all() 只建新表、對已存在的表完全不動，所以這一步不可省。
+
+    ⚠️ 只處理「加一個可為空（或有 server_default）的欄位」。改型別、改名、
+    刪欄位、在既有表上加索引或唯一約束、回填資料——都不在能力範圍內，
+    遇到就拋 SchemaNeedsMigration。那才是正式引入 alembic 的時機。
+
+    target_engine 只為了讓測試能對「舊 schema + 有資料」的資料庫執行真正的
+    這段邏輯——正式呼叫不帶參數，用模組層級的 engine。
     """
     from sqlalchemy import text
+    from .models import Base
 
     engine_ = target_engine if target_engine is not None else engine
     with engine_.begin() as conn:
-        for table, columns in _ADDITIVE_COLUMNS.items():
+        for table in Base.metadata.tables.values():
             existing = {
-                row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))
+                row[1] for row in conn.execute(text(f"PRAGMA table_info({table.name})"))
             }
             if not existing:
                 continue  # 表還不存在，create_all 會用最新的模型直接建好
-            for name, decl in columns:
-                if name in existing:
+            for col in table.columns:
+                if col.name in existing:
                     continue
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {decl}"))
-                logger.info(f"[資料庫] 已補上欄位 {table}.{name}")
+                if not col.nullable and col.server_default is None:
+                    raise SchemaNeedsMigration(
+                        f"{table.name}.{col.name} 是 NOT NULL 且沒有 server_default，"
+                        f"無法對既有資料表補上（既有列沒有值可填）。"
+                        f"這種變更需要真正的 migration。"
+                    )
+                decl = col.type.compile(engine_.dialect)
+                conn.execute(
+                    text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {decl}")
+                )
+                logger.info(f"[資料庫] 已補上欄位 {table.name}.{col.name} {decl}")
 
 
 def init_db():

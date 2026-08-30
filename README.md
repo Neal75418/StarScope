@@ -71,7 +71,7 @@ graph LR
 
 **✨ 使用者體驗** — 中／英雙語 · 淺色／深色主題 · 虛擬滾動 · 頁面過場動畫
 
-> **測試覆蓋**：前後端合計 **2,000+ 個測試案例**，另有 45 個 E2E 案例；CI 門檻 coverage 80%、bundle 400KB gzipped
+> **測試覆蓋**：前後端合計 **2,000+ 個測試案例**，另有 45 個 E2E 案例；CI 門檻 coverage 前端 80% / 後端 85%、bundle 400KB gzipped
 
 ## 🏗️ 技術架構
 
@@ -246,7 +246,7 @@ StarScope/
 │   ├── schemas/                   #   Pydantic 資料模型
 │   ├── db/                        #   SQLite + SQLAlchemy（16 張表）
 │   ├── middleware/                #   日誌 + 限速中介層
-│   ├── alembic/                   #   資料庫遷移
+│   ├── alembic/                   #   歷史 schema 基準（不在啟動路徑上）
 │   └── tests/                     #   pytest 後端測試
 │
 ├── e2e/                           # Playwright E2E 測試
