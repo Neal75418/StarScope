@@ -839,8 +839,8 @@ export async function searchRepos(
 // 週報摘要 API 函式
 
 /**
- * 取得摘要資料。
- * @param days 涵蓋天數（7、14 或 30）
+ * 取得摘要資料。days 由後端限制在 7–30，超出回 422
+ * （呼叫端 DashboardTimeRange 只給 7|14|30，那是 UI 的選擇不是這裡的契約）。
  */
 export async function getWeeklySummary(
   days: number = 7,
@@ -851,7 +851,7 @@ export async function getWeeklySummary(
 
 /**
  * 取得所有追蹤 repo 的聚合星數歷史（用於 Dashboard Portfolio 圖表）。
- * @param days 歷史天數（7-365）
+ * days 由後端限制在 7–365，超出回 422。
  */
 export async function getPortfolioHistory(
   days: number = 30,
