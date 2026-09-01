@@ -14,13 +14,14 @@ import { memo, useMemo } from "react";
 import {
   BarChart,
   Bar,
-  Cell,
+  Rectangle,
   XAxis,
   YAxis,
   CartesianGrid,
   LabelList,
   ResponsiveContainer,
 } from "recharts";
+import type { BarShapeProps } from "recharts";
 import { useI18n } from "../../i18n";
 import { lookupLanguageColor } from "../../constants/languageColors";
 import { barChartMinHeight } from "./chartLayout";
@@ -89,10 +90,19 @@ export const LanguageDistribution = memo(function LanguageDistribution({ data }:
             {/* isAnimationActive={false}：Recharts 會等長條動畫跑完才畫 LabelList，
                 數字要慢一拍才出現——而數字正是這次改版的重點。靜態的分佈本來也
                 不需要長出來的動畫 */}
-            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={16} isAnimationActive={false}>
-              {data.map((entry, index) => (
-                <Cell key={entry.language} fill={barColor(entry.language, index, otherLabel)} />
-              ))}
+            <Bar
+              dataKey="count"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={16}
+              isAnimationActive={false}
+              // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              shape={(props: BarShapeProps) => {
+                const entry = data[props.index];
+                return (
+                  <Rectangle {...props} fill={barColor(entry.language, props.index, otherLabel)} />
+                );
+              }}
+            >
               {/* 數字直接標在長條末端：沒有它就得靠 hover 才知道數量，
                   而使用者掃儀表板時不會逐個 hover */}
               <LabelList

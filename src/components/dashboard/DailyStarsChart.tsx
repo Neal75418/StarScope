@@ -14,13 +14,14 @@ import { memo, useMemo } from "react";
 import {
   BarChart,
   Bar,
-  Cell,
+  Rectangle,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import type { BarShapeProps } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { getPortfolioHistory } from "../../api/client";
 import type { DashboardTimeRange } from "../../api/types";
@@ -167,15 +168,25 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
               />
               {/* maxBarSize 放寬到 48：只有 7 天資料時 28px 的長條會在寬面板裡顯得零星。
                   30 天時每個 band 約 40px，這個上限不會生效 */}
-              <Bar dataKey="stars" radius={[3, 3, 0, 0]} maxBarSize={48} isAnimationActive={false}>
-                {result.bars.map((bar) => (
-                  <Cell
-                    key={bar.date}
-                    fill={bar.stars < 0 ? "var(--danger-fg)" : "var(--accent-fg)"}
-                    fillOpacity={bar.spanDays > 1 || bar.partial ? UNCERTAIN_OPACITY : 1}
-                  />
-                ))}
-              </Bar>
+              <Bar
+                dataKey="stars"
+                radius={[3, 3, 0, 0]}
+                maxBarSize={48}
+                isAnimationActive={false}
+                // shape 取代 Cell（Cell 在 Recharts 4 會被移除）。用 index 回查
+                // result.bars 而不是 props.payload：payload 型別是 any，回查拿得到
+                // spanDays / partial 的真實型別
+                shape={(props: BarShapeProps) => {
+                  const bar = result.bars[props.index];
+                  return (
+                    <Rectangle
+                      {...props}
+                      fill={bar.stars < 0 ? "var(--danger-fg)" : "var(--accent-fg)"}
+                      fillOpacity={bar.spanDays > 1 || bar.partial ? UNCERTAIN_OPACITY : 1}
+                    />
+                  );
+                }}
+              />
             </BarChart>
           </ResponsiveContainer>
 

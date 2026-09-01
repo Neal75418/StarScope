@@ -12,9 +12,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
+  Rectangle,
   LabelList,
 } from "recharts";
+import type { BarShapeProps } from "recharts";
 import { useI18n } from "../../i18n";
 import { barChartMinHeight } from "./chartLayout";
 
@@ -109,10 +110,19 @@ export const VelocityChartRecharts = memo(function VelocityChartRecharts({
             />
             {/* isAnimationActive={false}：Recharts 要等長條動畫跑完才畫 LabelList。
                 旁邊的語言分佈同理，兩張圖的數字要一起出現 */}
-            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={20} isAnimationActive={false}>
-              {chartData.map((entry) => (
-                <Cell key={entry.key} fill={VELOCITY_COLORS[entry.key] ?? "var(--accent-fg)"} />
-              ))}
+            <Bar
+              dataKey="count"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={20}
+              isAnimationActive={false}
+              // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              shape={(props: BarShapeProps) => {
+                const entry = chartData[props.index];
+                return (
+                  <Rectangle {...props} fill={VELOCITY_COLORS[entry.key] ?? "var(--accent-fg)"} />
+                );
+              }}
+            >
               {/* 數量直接標在長條末端；tooltip 留著是因為它多說了單位（N 個儲存庫） */}
               <LabelList
                 dataKey="count"
