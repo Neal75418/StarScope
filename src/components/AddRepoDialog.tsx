@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
+import type { SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
@@ -31,7 +32,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     await onAdd(input.trim());

@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect } from "react";
+import type { SyntheticEvent } from "react";
 import type {
   AlertOperator,
   AlertRuleCreate,
@@ -57,7 +58,7 @@ export function AlertRuleForm({
     setValidationError(null);
   }, [initialData]);
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
 
     const validationResult = validate();

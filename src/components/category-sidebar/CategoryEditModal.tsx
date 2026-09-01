@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import type { SyntheticEvent } from "react";
 import { CategoryTreeNode, CategoryUpdate } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -26,7 +27,7 @@ export function CategoryEditModal({
   const [icon, setIcon] = useState(category.icon ?? "");
   const [color, setColor] = useState(category.color ?? "");
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 

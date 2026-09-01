@@ -3,7 +3,7 @@
  */
 
 import { memo, useState, useCallback, useEffect } from "react";
-import type { RefObject } from "react";
+import type { RefObject, SyntheticEvent } from "react";
 import { SearchIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import styles from "./Discovery.module.css";
@@ -30,7 +30,7 @@ export const DiscoverySearchBar = memo(function DiscoverySearchBar({
   }, [initialQuery]);
 
   const handleSubmit = useCallback(
-    (e: React.SyntheticEvent) => {
+    (e: SyntheticEvent) => {
       e.preventDefault();
       if (query.trim()) {
         onSearch(query.trim());

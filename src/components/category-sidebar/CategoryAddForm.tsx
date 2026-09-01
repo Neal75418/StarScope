@@ -3,6 +3,7 @@
  */
 
 import { useState } from "react";
+import type { SyntheticEvent } from "react";
 import { useI18n } from "../../i18n";
 
 interface CategoryAddFormProps {
@@ -16,7 +17,7 @@ export function CategoryAddForm({ onSubmit, onCancel }: CategoryAddFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(false);
 
-  const handleSubmit = async (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
     if (isSubmitting || !name.trim()) return;
 
