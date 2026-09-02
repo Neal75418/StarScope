@@ -74,7 +74,13 @@ export function AppHeader({
 
   return (
     <>
-      {/* noinspection HtmlUnknownAnchorTarget — target is defined in App.tsx */}
+      {/* RustRover 會對下面這行報「Cannot resolve anchor #main-content」——那是誤報：
+          目標是 App.tsx 的 <main id="main-content">，IDE 只在單一檔案內解析錨點，
+          跨元件組合追不到。實測（headed 瀏覽器）Tab→Enter 後焦點導覽起點確實移到 main。
+
+          註解形式的抑制在這裡無效：noinspection 與 suppress 兩種都試過，警告照樣出現。
+          真要消掉只能在 IDE 端關掉 HtmlUnknownAnchorTarget（.idea 不進版控，屬個人設定）。
+          這條鏈結的正確性由 e2e/skip-link.spec.ts 保證，不是靠註解 */}
       <a className="skip-to-content" href="#main-content">
         {t.common.skipToContent}
       </a>
