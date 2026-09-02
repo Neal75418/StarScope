@@ -43,12 +43,16 @@ export function useCategoryReorder(
 
       isReorderingRef.current = true;
       setIsReordering(true);
-      const updates: Promise<unknown>[] = changed.map(({ node, newOrder }) => {
+      const updates: Promise<unknown>[] = changed.map(async ({ node, newOrder }) => {
         const update: CategoryUpdate = { sort_order: newOrder };
-        return updateCategory(node.id, update).catch((err) => {
+        try {
+          // await 不能省：省掉的話 promise 會直接被 return 出去，下面的 catch
+          // 永遠不會執行，失敗的是哪一筆也就無從得知
+          return await updateCategory(node.id, update);
+        } catch (err) {
           logger.error(`[CategoryReorder] 更新分類 ${node.id} 排序失敗:`, err);
           throw err; // 向上傳播，讓 Promise.all 能感知失敗
-        });
+        }
       });
 
       // 上面的重入防護要在第一個 await 之前完成——async 函式的本體會同步執行到

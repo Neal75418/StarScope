@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useCategoryReorder } from "../useCategoryReorder";
 import * as client from "../../api/client";
+import { logger } from "../../utils/logger";
 import type { CategoryTreeNode } from "../../api/client";
 
 vi.mock("../../api/client", () => ({
@@ -105,5 +106,34 @@ describe("useCategoryReorder", () => {
     });
 
     expect(client.updateCategory).toHaveBeenCalledTimes(2);
+  });
+  it("still refreshes the tree and unlocks after a failed update", async () => {
+    // 單筆失敗會讓 Promise.all reject。真正會傷到使用者的不是那次更新失敗，
+    // 而是 isReordering 沒解開——那會讓拖曳從此無聲失效，畫面上看不出原因。
+    const failed = new Error("boom");
+    // 依 id 決定哪一筆失敗，而不是靠呼叫順序——排序後的更新順序不是 tree 的順序
+    vi.mocked(client.updateCategory).mockImplementation((id) =>
+      id === 1 ? Promise.reject(failed) : (Promise.resolve({}) as never)
+    );
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    const tree = [makeNode(1, "A", 0), makeNode(2, "B", 1)];
+
+    const { result } = renderHook(() => useCategoryReorder(tree, mockOnTreeChange));
+
+    act(() => {
+      result.current.reorder(2, 1);
+    });
+
+    await waitFor(() => {
+      expect(mockOnTreeChange).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(result.current.isReordering).toBe(false);
+    });
+
+    // 內層 catch 的存在理由：外層只知道「有東西失敗了」，是哪一筆只有這裡知道
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("更新分類 1 排序失敗"), failed);
+    errorSpy.mockRestore();
   });
 });
