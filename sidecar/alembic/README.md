@@ -11,3 +11,11 @@
 加欄位不需要在任何地方登記。碰到補不了的差異（改型別、改名、刪欄位、在既有表加
 索引或約束、需要回填資料）會拋 `SchemaNeedsMigration`——**那就是正式引入 alembic
 的時機**，判準寫在 CLAUDE.md 的「schema 變更」一節。
+
+## 為什麼 alembic 還在 requirements.txt
+
+它沒有任何執行期消費者：mypy 設了 `exclude = alembic/`，pytest 只跑 `tests/`，
+PyInstaller 靠靜態 import 分析所以不會打包它。留著只為了讓這個目錄裡的檔案在
+編輯器裡解析得出來（`from alembic import op`），以及日後真的要引入時不必重裝。
+
+清理依賴時不要把它當成孤兒移除。
