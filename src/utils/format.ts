@@ -63,6 +63,7 @@ interface RelativeTimeOptions {
  * 使用語言無關的數字+單位格式，適用於多語系。
  *
  * @param input - 日期字串、Date 物件或 null
+ * @param options - 顯示選項
  * @param options.justNowText - 不到 1 分鐘時顯示的文字（預設 "<1m"）
  * @param options.suffix - 附加後綴（例如 " ago"）
  */

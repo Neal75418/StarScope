@@ -30,11 +30,13 @@ interface PreloadedData {
 }
 
 /**
- * @param deferToBatch 由「擁有批次載入的父層」設為 true。設定後，卡片在批次負責
- *   期間不自行發請求——批次有 150ms debounce，個別請求會搶先跑掉，實測 200 個
- *   repo 的 Grid 檢視因此發出 348 個請求（正確值是 8 個）。後端的批次端點對沒有
- *   資料的 repo 也會回空陣列，所以批次一到貨 preloaded 必為 defined，個別請求
- *   從來不是必要的；批次失敗時父層會把此旗標設回 false 當退路。
+ * 單一 repo 卡片的 context badges 與 early signals（含手動刷新）。
+ *
+ * deferToBatch 由「擁有批次載入的父層」設為 true。設定後，卡片在批次負責
+ * 期間不自行發請求——批次有 150ms debounce，個別請求會搶先跑掉，實測 200 個
+ * repo 的 Grid 檢視因此發出 348 個請求（正確值是 8 個）。後端的批次端點對沒有
+ * 資料的 repo 也會回空陣列，所以批次一到貨 preloaded 必為 defined，個別請求
+ * 從來不是必要的；批次失敗時父層會把此旗標設回 false 當退路。
  */
 export function useRepoCardData(
   repoId: number,
