@@ -21,7 +21,7 @@ export function useCategoryReorder(
   const isReorderingRef = useRef(false);
 
   const reorder = useCallback(
-    (activeId: number, overId: number) => {
+    async (activeId: number, overId: number) => {
       if (activeId === overId) return;
       if (isReorderingRef.current) return;
 
@@ -51,16 +51,18 @@ export function useCategoryReorder(
         });
       });
 
-      void Promise.all(updates)
-        .then(() => onTreeChange())
-        .catch((err) => {
-          logger.error("[CategoryReorder] 部分排序更新失敗，重新載入分類樹:", err);
-          return onTreeChange(); // 失敗時仍刷新分類樹以回復一致狀態
-        })
-        .finally(() => {
-          isReorderingRef.current = false;
-          setIsReordering(false);
-        });
+      // 上面的重入防護要在第一個 await 之前完成——async 函式的本體會同步執行到
+      // 第一個 await，所以 isReorderingRef 的檢查與設定仍然是原子的
+      try {
+        await Promise.all(updates);
+        await onTreeChange();
+      } catch (err) {
+        logger.error("[CategoryReorder] 部分排序更新失敗，重新載入分類樹:", err);
+        await onTreeChange(); // 失敗時仍刷新分類樹以回復一致狀態
+      } finally {
+        isReorderingRef.current = false;
+        setIsReordering(false);
+      }
     },
     [tree, onTreeChange]
   );
