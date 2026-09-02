@@ -109,7 +109,7 @@ describe("useOSNotification", () => {
 
   it("sendOSNotification sends when granted", async () => {
     mockIsPermissionGranted.mockResolvedValue(true);
-    mockSendNotification.mockResolvedValue(undefined);
+    mockSendNotification.mockReturnValue(undefined); // 同步 void，不是 promise
 
     const { result } = renderHook(() => useOSNotification());
 
@@ -152,7 +152,12 @@ describe("useOSNotification", () => {
 
   it("sendOSNotification throws on send failure", async () => {
     mockIsPermissionGranted.mockResolvedValue(true);
-    mockSendNotification.mockRejectedValue(new Error("Send failed"));
+    // 真實的 sendNotification 回傳 void（實作是 new window.Notification(...)），
+    // 失敗只會同步 throw。用 mockRejectedValue 模擬的是不存在的失敗模式，
+    // 那會讓 hook 裡多出一個看起來必要、實際沒作用的 await。
+    mockSendNotification.mockImplementation(() => {
+      throw new Error("Send failed");
+    });
 
     const { result } = renderHook(() => useOSNotification());
 

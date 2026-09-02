@@ -100,7 +100,9 @@ export function useOSNotification(): UseOSNotificationResult {
       }
 
       try {
-        await sendNotification({
+        // sendNotification 的簽名是 (options) => void，實作是 new window.Notification()。
+        // 同步的，所以沒有 await；失敗會同步 throw，下面的 catch 接得到。
+        sendNotification({
           title: options.title,
           body: options.body,
           icon: options.icon,
