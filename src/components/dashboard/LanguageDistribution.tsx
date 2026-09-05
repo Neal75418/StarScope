@@ -96,10 +96,17 @@ export const LanguageDistribution = memo(function LanguageDistribution({ data }:
               maxBarSize={16}
               isAnimationActive={false}
               // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              // 回查用 payload 不用 props.index：資料縮短的那次 render，store 還是舊的，
+              // index 會越界（見 DailyStarsChart 同處說明）。index 只拿來輪替 fallback 色。
               shape={(props: BarShapeProps) => {
-                const entry = data[props.index];
+                const entry = props.payload as LanguageSlice | undefined;
                 return (
-                  <Rectangle {...props} fill={barColor(entry.language, props.index, otherLabel)} />
+                  <Rectangle
+                    {...props}
+                    fill={
+                      entry ? barColor(entry.language, props.index, otherLabel) : "var(--accent-fg)"
+                    }
+                  />
                 );
               }}
             >

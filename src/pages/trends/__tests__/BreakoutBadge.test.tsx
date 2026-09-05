@@ -170,4 +170,15 @@ describe("BreakoutBadge", () => {
       unmount();
     }
   });
+
+  it("renders the template description when the structured params are present", () => {
+    // 其餘 fixture 全是 null 參數，每條都走 fallback：formatSignalDescription 換回
+    // match.description 的話上面十條照樣全綠。這條釘住模板路徑真的被用到。
+    const signals = [
+      makeSignal({ signal_type: "breakout", velocity_value: 12.3, baseline_value: 2 }),
+    ];
+    render(<BreakoutBadge signals={signals} />);
+    const badge = screen.getByTitle("Breakout: velocity went from 2 to 12.3 stars/day");
+    expect(badge).toHaveTextContent("Breakout: velocity went from 2 to 12.3 stars/day");
+  });
 });

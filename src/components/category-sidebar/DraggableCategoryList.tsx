@@ -33,7 +33,7 @@ interface DraggableCategoryListProps {
   onToggleExpand: (id: number, e: MouseEvent) => void;
   onEdit: (node: CategoryTreeNode, e: MouseEvent) => void;
   onDelete: (id: number, e: MouseEvent) => void;
-  onReorder: (activeId: number, overId: number) => void;
+  onReorder: (activeId: number, overId: number) => Promise<void>;
 }
 
 function SortableCategoryNode({
@@ -105,7 +105,7 @@ export function DraggableCategoryList({
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (over && active.id !== over.id) {
-        onReorder(active.id as number, over.id as number);
+        void onReorder(active.id as number, over.id as number); // 錯誤由 hook 的 onError 回報
       }
     },
     [onReorder]

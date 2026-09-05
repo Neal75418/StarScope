@@ -174,15 +174,18 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
                 maxBarSize={48}
                 isAnimationActive={false}
                 // shape 取代 Cell（Cell 在 Recharts 4 會被移除）。用 index 回查
-                // result.bars 而不是 props.payload：payload 型別是 any，回查拿得到
-                // spanDays / partial 的真實型別
+                // 用 Recharts 附在這根長條上的 payload 回查，不能用 props.index 去索引
+                // result.bars：資料縮短的那一次 render，Recharts 的 store 要到 effect 才
+                // 更新，Bar 仍拿舊資料的 rectangle 呼叫 shape，index 會超過新陣列長度——
+                // 第三方審查以 30→7 天切換重現過整頁被 ErrorBoundary 換掉。舊的 Cell
+                // 路徑有 cells[index] && 守著，遷移時漏了。payload 跟正在畫的那根永遠一致。
                 shape={(props: BarShapeProps) => {
-                  const bar = result.bars[props.index];
+                  const bar = props.payload as DailyStarBar | undefined;
                   return (
                     <Rectangle
                       {...props}
-                      fill={bar.stars < 0 ? "var(--danger-fg)" : "var(--accent-fg)"}
-                      fillOpacity={bar.spanDays > 1 || bar.partial ? UNCERTAIN_OPACITY : 1}
+                      fill={bar && bar.stars < 0 ? "var(--danger-fg)" : "var(--accent-fg)"}
+                      fillOpacity={bar && (bar.spanDays > 1 || bar.partial) ? UNCERTAIN_OPACITY : 1}
                     />
                   );
                 }}

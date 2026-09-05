@@ -9,13 +9,16 @@ import { updateCategory } from "../api/client";
 import { logger } from "../utils/logger";
 
 interface UseCategoryReorderResult {
-  reorder: (activeId: number, overId: number) => void;
+  reorder: (activeId: number, overId: number) => Promise<void>;
   isReordering: boolean;
 }
 
 export function useCategoryReorder(
   tree: CategoryTreeNode[],
-  onTreeChange: () => Promise<void>
+  onTreeChange: () => Promise<void>,
+  // 沒有這個 callback 的話失敗只會進 logger，而 logger 在正式版是 no-op：
+  // 拖曳失敗（或一半成功）對使用者完全無聲，清單跳到第三種排列也沒有解釋
+  onError?: (err: unknown) => void
 ): UseCategoryReorderResult {
   const [isReordering, setIsReordering] = useState(false);
   const isReorderingRef = useRef(false);
@@ -62,13 +65,14 @@ export function useCategoryReorder(
         await onTreeChange();
       } catch (err) {
         logger.error("[CategoryReorder] 部分排序更新失敗，重新載入分類樹:", err);
+        onError?.(err);
         await onTreeChange(); // 失敗時仍刷新分類樹以回復一致狀態
       } finally {
         isReorderingRef.current = false;
         setIsReordering(false);
       }
     },
-    [tree, onTreeChange]
+    [tree, onTreeChange, onError]
   );
 
   return { reorder, isReordering };

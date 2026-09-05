@@ -18,6 +18,8 @@ import {
 } from "./category-sidebar";
 import { DraggableCategoryList } from "./category-sidebar/DraggableCategoryList";
 import { useCategoryReorder } from "../hooks/useCategoryReorder";
+import { useWatchlistActions } from "../contexts/WatchlistContext";
+import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
 
 export interface CategoryTreeData {
@@ -61,7 +63,12 @@ export const CategorySidebar = memo(function CategorySidebar({
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
   const deleteConfirm = useDeleteConfirm();
-  const { reorder } = useCategoryReorder(tree, fetchCategories);
+  const { showToast } = useWatchlistActions();
+  const handleReorderError = useCallback(
+    (err: unknown) => showToast("error", getErrorMessage(err, t.common.error)),
+    [showToast, t]
+  );
+  const { reorder } = useCategoryReorder(tree, fetchCategories, handleReorderError);
 
   const handleCreate = useCallback(
     async (name: string): Promise<boolean> => {

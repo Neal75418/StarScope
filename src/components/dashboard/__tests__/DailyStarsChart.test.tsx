@@ -11,10 +11,10 @@
 import { cloneElement, type ReactElement } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { DailyStarsChart } from "../DailyStarsChart";
-import { createTestQueryClient } from "../../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../../lib/react-query";
 import { getPortfolioHistory } from "../../../api/client";
 
 vi.mock("../../../api/client", async (importOriginal) => {
@@ -71,6 +71,25 @@ describe("DailyStarsChart 的長條標記", () => {
     const solid = rendered.filter((b) => b.opacity === "1");
     expect(solid).toHaveLength(1); // 1/02 那根實測值
     expect(dim).toHaveLength(3); // 攤平出來的 1/03、1/04、1/05
+    // 正向的日子一律主色：沒有這條，fill 寫死成警示色只有「掉星」那條測試會抓到一半
+    expect(rendered.every((b) => b.fill === "var(--accent-fg)")).toBe(true);
+  });
+
+  it("還沒過完的今天用半透明", async () => {
+    // 其他測試的日期都在 2026-01，永遠不等於今天——partial 分支從沒被走到過
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    vi.mocked(getPortfolioHistory).mockResolvedValue({
+      history: [
+        { date: yesterday, total_stars: 1000 },
+        { date: today, total_stars: 1050 },
+      ],
+    } as never);
+
+    render(<DailyStarsChart days={30} onChangeDays={vi.fn()} />, { wrapper });
+
+    await waitFor(() => expect(bars().length).toBe(1));
+    expect(bars()[0].opacity).toBe("0.4");
   });
 
   it("掉星的日子用警示色，不是寫死的正向色", async () => {
@@ -86,5 +105,38 @@ describe("DailyStarsChart 的長條標記", () => {
     await waitFor(() => expect(bars().length).toBeGreaterThan(0));
 
     expect(bars()[0].fill).toBe("var(--danger-fg)");
+  });
+});
+
+describe("資料縮短時的 re-render", () => {
+  it("days 從 30 切到 7 且快取命中（同步縮短）時不得崩潰", async () => {
+    // 第三方審查抓到的 Critical：shape callback 用 props.index 回查自己的陣列，
+    // 但 Recharts 的 store 要到 effect 才更新——資料縮短的那一次 render，
+    // Bar 仍拿舊資料的 rectangle 呼叫 shape，index 超過新陣列長度就是 undefined。
+    // 舊的 Cell 路徑有 `cells[index] &&` 守著，遷移時被拿掉。
+    // 快取命中讓兩筆資料在同一次 render 內切換，正是最容易踩到的路徑
+    // （React Query gcTime 30 分鐘，切回去過的區間都是同步命中）。
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+    });
+    const history = (n: number) => ({
+      history: Array.from({ length: n + 1 }, (_, i) => ({
+        date: `2026-01-${String(i + 1).padStart(2, "0")}`,
+        total_stars: 1000 + i * 10,
+      })),
+    });
+    client.setQueryData(queryKeys.dashboard.portfolioHistory(30), history(30));
+    client.setQueryData(queryKeys.dashboard.portfolioHistory(7), history(7));
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+
+    const { rerender } = render(<DailyStarsChart days={30} onChangeDays={() => {}} />, {
+      wrapper: Wrapper,
+    });
+    await waitFor(() => expect(bars().length).toBe(30));
+
+    expect(() => rerender(<DailyStarsChart days={7} onChangeDays={() => {}} />)).not.toThrow();
+    await waitFor(() => expect(bars().length).toBe(7));
   });
 });

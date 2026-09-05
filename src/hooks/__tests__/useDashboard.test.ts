@@ -201,7 +201,7 @@ describe("useDashboard", () => {
 
     expect(apiClient.getRepos).toHaveBeenCalled();
     expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50);
-    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 20 });
+    expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 5 }); // Spotlight 只顯示 5 筆
     expect(apiClient.getSignalSummary).toHaveBeenCalled();
     expect(apiClient.listAlertRules).toHaveBeenCalled();
     expect(apiClient.getWeeklySummary).toHaveBeenCalled();
@@ -333,7 +333,10 @@ describe("useDashboard", () => {
 
     // 預設 mock 有 1 筆 early signal（earlySignals 專區看得到），活動清單不得再列一次
     expect(result.current.earlySignals).toHaveLength(1);
-    expect(result.current.recentActivity.some((a) => a.id.startsWith("signal-"))).toBe(false);
+    // 訊號早已不進活動清單；先前斷言的 "signal-" 前綴在 production 也不存在，
+    // 換成「活動只能是這些型別」，訊號若被加回來會多出一種型別而紅
+    const allowed = new Set(["alert_triggered", "repo_added"]);
+    expect(result.current.recentActivity.every((a) => allowed.has(a.type))).toBe(true);
   });
 
   it("computes velocityDistribution buckets correctly", async () => {

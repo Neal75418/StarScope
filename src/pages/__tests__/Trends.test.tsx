@@ -10,7 +10,6 @@ const mockSetSortBy = vi.fn();
 const mockSetLanguageFilter = vi.fn();
 const mockSetMinStarsFilter = vi.fn();
 const mockRetry = vi.fn();
-const mockAddRepo = vi.fn().mockResolvedValue({});
 const mockSetViewMode = vi.fn();
 let mockViewMode = "list";
 let mockWatchlistRepos: Array<{ full_name: string }> = [];
@@ -54,8 +53,6 @@ vi.mock("../../contexts/AppStatusContext", () => ({
 }));
 
 vi.mock("../../api/client", () => ({
-  addRepo: (...args: unknown[]) => mockAddRepo(...args),
-  batchAddRepos: vi.fn().mockResolvedValue({ success: 1, failed: 0, total: 1 }),
   getExportTrendsJsonUrl: (sortBy: string) => `/api/export/trends.json?sort_by=${sortBy}`,
   getExportTrendsCsvUrl: (sortBy: string) => `/api/export/trends.csv?sort_by=${sortBy}`,
 }));

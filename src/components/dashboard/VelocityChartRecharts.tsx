@@ -116,11 +116,11 @@ export const VelocityChartRecharts = memo(function VelocityChartRecharts({
               maxBarSize={20}
               isAnimationActive={false}
               // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              // 回查用 payload 不用 props.index：資料縮短的那次 render，store 還是舊的，
+              // index 會越界（見 DailyStarsChart 同處說明）
               shape={(props: BarShapeProps) => {
-                const entry = chartData[props.index];
-                return (
-                  <Rectangle {...props} fill={VELOCITY_COLORS[entry.key] ?? "var(--accent-fg)"} />
-                );
+                const key = (props.payload as { key?: string } | undefined)?.key ?? "";
+                return <Rectangle {...props} fill={VELOCITY_COLORS[key] ?? "var(--accent-fg)"} />;
               }}
             >
               {/* 數量直接標在長條末端；tooltip 留著是因為它多說了單位（N 個儲存庫） */}

@@ -100,15 +100,19 @@ export function useOSNotification(): UseOSNotificationResult {
       }
 
       try {
-        // sendNotification 的簽名是 (options) => void，實作是 new window.Notification()。
-        // 同步的，所以沒有 await；失敗會同步 throw，下面的 catch 接得到。
+        // sendNotification 的簽名是 (options) => void。npm 包裡是 new window.Notification()，
+        // 但 Tauri webview 裡的 window.Notification 已被 plugin 注入的 shim 換掉
+        // （tauri-plugin-notification guest-js/init.ts）：那是 async 的 invoke，而且 promise
+        // 被 void 掉——「交出去」之後的失敗（權限被收回、capability 缺）在這裡觀察不到。
+        // 下面的 catch 只接得到同步 throw（瀏覽器模式、或 shim 沒注入）。
+        // 沒有 await 是因為回傳值不是 promise，不代表它一定同步完成。
         sendNotification({
           title: options.title,
           body: options.body,
           icon: options.icon,
         });
 
-        logger.info(`[OS Notification] 已發送: ${options.title}`);
+        logger.info(`[OS Notification] 已交給系統: ${options.title}`); // 送達與否在此不可觀察
       } catch (err) {
         logger.error("[OS Notification] 發送失敗:", err);
         throw err;

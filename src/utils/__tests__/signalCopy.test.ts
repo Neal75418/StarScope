@@ -60,7 +60,7 @@ describe("formatSignalDescription", () => {
       velocity_value: 12.3,
       baseline_value: 2,
     });
-    expect(formatSignalDescription(s, en)).toBe("Velocity went from 2 to 12.3 stars/day");
+    expect(formatSignalDescription(s, en)).toBe("Breakout: velocity went from 2 to 12.3 stars/day");
     expect(formatSignalDescription(s, zh)).toBe("爆發突破：velocity 從每日 2 升到 12.3");
   });
 
@@ -74,7 +74,26 @@ describe("formatSignalDescription", () => {
     });
     const zhOut = formatSignalDescription(s, zh);
     expect(zhOut).toBe(`HN 熱門：「${"A".repeat(50)}…」（528 pts）`);
-    expect(formatSignalDescription(s, en)).toContain("(528 pts)");
+    expect(formatSignalDescription(s, en)).toBe(
+      `Viral on HN: \u201c${"A".repeat(50)}\u2026\u201d (528 pts)`
+    );
+  });
+
+  it("viral_hn 標題剛好 50 字不截斷、51 字才截", () => {
+    const at = makeSignal({
+      signal_type: "viral_hn",
+      velocity_value: 10,
+      context_title: "B".repeat(50),
+      baseline_value: null,
+    });
+    const over = makeSignal({
+      signal_type: "viral_hn",
+      velocity_value: 10,
+      context_title: "B".repeat(51),
+      baseline_value: null,
+    });
+    expect(formatSignalDescription(at, zh)).toBe(`HN 熱門：「${"B".repeat(50)}」（10 pts）`);
+    expect(formatSignalDescription(over, zh)).toBe(`HN 熱門：「${"B".repeat(50)}…」（10 pts）`);
   });
 
   it("viral_hn 缺 context_title（舊資料列）→ fallback", () => {

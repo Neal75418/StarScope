@@ -220,6 +220,8 @@ export function Dashboard() {
 
   const { level } = useAppStatus();
   const { navigateTo } = useNavigation();
+  // 內聯箭頭每次 render 都是新函式，會讓 memo(StatsGrid) 失效
+  const handleSetupRules = useCallback(() => navigateTo("settings"), [navigateTo]);
 
   if (isLoading) {
     return (
@@ -352,11 +354,7 @@ export function Dashboard() {
           預設關閉但保留——是否留著這一排是使用者的判斷，不是實作者能替他決定的事 */}
       {widgetVisibility.statsGrid && (
         <FadeIn delay={0.1}>
-          <StatsGrid
-            stats={stats}
-            hasAlertRules={hasAlertRules}
-            onSetupRules={() => navigateTo("settings")}
-          />
+          <StatsGrid stats={stats} hasAlertRules={hasAlertRules} onSetupRules={handleSetupRules} />
         </FadeIn>
       )}
 

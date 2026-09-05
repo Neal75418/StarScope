@@ -79,11 +79,11 @@ export function useDashboard() {
     queryFn: () => listTriggeredAlerts(false, ALERT_FETCH_LIMIT),
   });
 
-  // 取更多早期訊號（供 Recent Activity 使用，最多 20 筆）
+  // 早期訊號只給 Signal Spotlight（取前 5 筆）；Recent Activity 早已不列訊號
   const signalsQuery = useQuery<EarlySignal[], Error>({
     queryKey: queryKeys.signals.dashboard(),
     queryFn: async () => {
-      const response = await listEarlySignals({ limit: 20 });
+      const response = await listEarlySignals({ limit: 5 });
       return response.signals;
     },
   });

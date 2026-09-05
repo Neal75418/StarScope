@@ -150,11 +150,12 @@ describe("useOSNotification", () => {
     expect(mockSendNotification).not.toHaveBeenCalled();
   });
 
-  it("sendOSNotification throws on send failure", async () => {
+  it("sendOSNotification rethrows a synchronous failure (browser mode)", async () => {
     mockIsPermissionGranted.mockResolvedValue(true);
-    // 真實的 sendNotification 回傳 void（實作是 new window.Notification(...)），
-    // 失敗只會同步 throw。用 mockRejectedValue 模擬的是不存在的失敗模式，
-    // 那會讓 hook 裡多出一個看起來必要、實際沒作用的 await。
+    // 真實的 sendNotification 回傳 void。瀏覽器模式（沒有 Tauri shim）的失敗只會同步
+    // throw；Tauri webview 裡的 shim 是 async + void，失敗根本到不了這個 catch——
+    // 所以這條測的是瀏覽器路徑的 rethrow 契約，不是「通知送失敗會被回報」。
+    // 用 mockRejectedValue 模擬的失敗模式兩種環境都不存在。
     mockSendNotification.mockImplementation(() => {
       throw new Error("Send failed");
     });

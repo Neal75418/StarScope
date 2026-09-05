@@ -9,8 +9,9 @@
 import type { EarlySignal } from "../api/client";
 import { interpolate, type TranslationKeys } from "../i18n";
 import { formatNumber } from "./format";
+import { logger } from "./logger";
 
-/** 與後端 description 相同的一位小數格式（整數就不帶小數點） */
+/** 一位小數；整數不帶小數點（後端 description 用 .1f 永遠帶一位，這裡只求可讀） */
 function fmtVelocity(n: number): string {
   const rounded = Math.round(n * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
@@ -60,6 +61,9 @@ export function formatSignalDescription(signal: EarlySignal, t: TranslationKeys)
       break;
   }
 
-  // 舊資料列缺結構化參數：顯示偵測時寫入的原始描述
+  // 走到這裡代表該型別缺結構化參數。升級前偵測的舊資料列會在 3–7 天內過期；
+  // 新偵測的還走到這裡就是後端漏了參數——這個 fallback 對使用者無聲（英文字串混在
+  // 中文介面裡、沒有任何標記），至少開發時要看得到
+  logger.warn(`[signalCopy] ${signal.signal_type} #${signal.id} 缺模板參數，退回原始 description`);
   return signal.description;
 }

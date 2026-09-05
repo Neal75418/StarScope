@@ -10,6 +10,11 @@ import type { CategoryTreeNode } from "../../api/client";
 import * as apiClient from "../../api/client";
 
 // Mock API client (getCategory is still called internally for edit)
+// 拖曳失敗的 toast 走 WatchlistContext；這裡沒有 provider，只要 showToast 存在即可
+vi.mock("../../contexts/WatchlistContext", () => ({
+  useWatchlistActions: () => ({ showToast: vi.fn() }),
+}));
+
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
   return {

@@ -136,4 +136,22 @@ describe("useCategoryReorder", () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("更新分類 1 排序失敗"), failed);
     errorSpy.mockRestore();
   });
+
+  it("reports the failure to the caller so the UI can show it", async () => {
+    // logger 在正式版是 no-op，只寫 log 等於對使用者無聲；失敗必須交給呼叫端顯示
+    const failed = new Error("boom");
+    vi.mocked(client.updateCategory).mockRejectedValue(failed);
+    const onError = vi.fn();
+    const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    const tree = [makeNode(1, "A", 0), makeNode(2, "B", 1)];
+    const { result } = renderHook(() => useCategoryReorder(tree, mockOnTreeChange, onError));
+
+    act(() => {
+      void result.current.reorder(2, 1);
+    });
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(failed));
+    errorSpy.mockRestore();
+  });
 });
