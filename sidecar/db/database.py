@@ -108,11 +108,11 @@ class SchemaNeedsMigration(RuntimeError):
 def _needs_migration_reason(table: Table, col: Column) -> str | None:
     """這個缺少的欄位能不能用 ADD COLUMN 補齊；不能就回傳原因。
 
-    SQLite 的 ADD COLUMN 只接受「可為空、或有常數預設值」的欄位。UNIQUE / INDEX 它本來
-    就補不上；FOREIGN KEY 其實 SQLite 接受 `ADD COLUMN … REFERENCES`，但 SQLAlchemy 的
-    CreateColumn 不會產出 REFERENCES 子句——所以這三種若放行，都會靜默補成沒有約束的
-    欄位，新資料庫（create_all）與既有使用者的資料庫就會行為不同，正是這套機制要消滅的
-    那類失敗。
+    SQLite 的 ADD COLUMN 只接受「可為空、或有常數預設值」的欄位。UNIQUE 它本來就補不上
+    （非唯一索引不在此列：ensure_columns 的索引階段會另外補）；FOREIGN KEY 其實 SQLite
+    接受 `ADD COLUMN … REFERENCES`，但 SQLAlchemy 的 CreateColumn 不會產出 REFERENCES
+    子句——所以這兩種若放行，都會靜默補成沒有約束的欄位，新資料庫（create_all）與既有
+    使用者的資料庫就會行為不同，正是這套機制要消滅的那類失敗。
     """
     if not col.nullable and col.server_default is None:
         return "是 NOT NULL 且沒有 server_default，無法對既有資料表補上（既有列沒有值可填）"
@@ -204,32 +204,52 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
         logger.info(f"[資料庫] 已補上欄位 {table.name} ADD COLUMN {decl}")
 
     # ── 索引：非唯一索引對齊 model（新欄位、既有欄位都算）──
-    # 用欄位組合比對而不是名字：使用者資料庫裡同欄位若已有別名的索引，不重複建
+    # 資料庫側同時記名字與欄位組合，三種情況分開處理：
+    #   - 同欄位組合已有非唯一、非 partial 的索引（不論名字）→ 已對齊，不動
+    #   - 同名但欄位組合不同、或是 partial index → 非唯一索引可以安全重建（DROP + CREATE）。
+    #     只靠 IF NOT EXISTS 會因為同名而無聲跳過，還記一條假的「已補上」（重審抓到的）
+    #   - 同名但資料庫側是唯一索引 → 拒絕：拿掉唯一約束是 migration 的決定，不該在啟動時默默做
+    # 比對不到 partial index 的 WHERE 條件與 expression index（PRAGMA index_info 對運算式回 None），
+    # model 裡沒有這兩種；若出現，前者會被當成不對齊而重建、後者會被當成缺少而建立。
     from sqlalchemy.schema import CreateIndex
+
+    def _quoted(name: str) -> str:
+        return '"' + name.replace('"', '""') + '"'
 
     index_ddl: list[str] = []
     with engine_.connect() as conn:
         for table in metadata.tables.values():
             if conn.execute(text(f"PRAGMA table_info({table.name})")).first() is None:
                 continue  # 表還不存在，create_all 會連索引一起建
-            db_index_cols: set[tuple[str, ...]] = set()
+            by_name: dict[str, tuple[tuple[str, ...], bool, bool]] = {}
             for row in conn.execute(text(f"PRAGMA index_list({table.name})")):
-                name, unique = row[1], row[2]
-                if unique:
-                    continue
-                cols = tuple(r[2] for r in conn.execute(text(f"PRAGMA index_info({name})")))
-                db_index_cols.add(cols)
+                name, unique, partial = row[1], bool(row[2]), bool(row[4])
+                cols = tuple(r[2] for r in conn.execute(text(f"PRAGMA index_info({_quoted(name)})")))
+                by_name[name] = (cols, unique, partial)
+            aligned = {cols for cols, unique, partial in by_name.values() if not unique and not partial}
             for idx in table.indexes:
                 if idx.unique:
                     continue  # 可能撞既有重複值，不在此處理（見 docstring）
-                if tuple(c.name for c in idx.columns) in db_index_cols:
-                    continue
+                cols = tuple(c.name for c in idx.columns)
+                twin = by_name.get(idx.name)
+                if twin is not None:
+                    twin_cols, twin_unique, twin_partial = twin
+                    if twin_cols == cols and not twin_unique and not twin_partial:
+                        continue
+                    if twin_unique:
+                        raise SchemaNeedsMigration(
+                            f"{table.name} 的索引 {idx.name} 在資料庫裡是唯一索引，model 是非唯一。"
+                            "拿掉唯一約束是 migration 的決定，不在啟動時默默做。"
+                        )
+                    index_ddl.append(f"DROP INDEX IF EXISTS {_quoted(idx.name)}")
+                elif cols in aligned:
+                    continue  # 同欄位已有別名的索引
                 index_ddl.append(str(CreateIndex(idx, if_not_exists=True).compile(dialect=engine_.dialect)))
 
     for ddl in index_ddl:
         with engine_.begin() as conn:
             conn.execute(text(ddl))
-        logger.info(f"[資料庫] 已補上索引 {ddl}")
+        logger.info(f"[資料庫] 索引對齊 model: {ddl}")
 
 def init_db():
     """

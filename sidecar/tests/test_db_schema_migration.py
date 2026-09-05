@@ -248,7 +248,7 @@ def test_new_index_on_existing_column_is_created_and_idempotent(tmp_path):
     assert ("language",) in _index_column_sets(engine, "repos")
 
     ensure_columns(engine, metadata=md)  # 重跑不該拋、也不該重複
-    assert list(_index_names(engine, "repos")).count("ix_repos_language_new") == 1
+    assert _index_count_for(engine, "repos", ("language",)) == 1
 
 
 def test_existing_index_under_another_name_is_not_duplicated(tmp_path):
@@ -277,4 +277,79 @@ def test_unique_index_on_new_column_fails_loudly(tmp_path):
     with pytest.raises(SchemaNeedsMigration, match="repos.node_id"):
         ensure_columns(engine, metadata=md)
     assert "node_id" not in _columns(engine, "repos")
+
+
+def _index_count_for(engine: sa.Engine, table: str, cols: tuple[str, ...]) -> int:
+    """同欄位組合的索引有幾個（list 計數，set 看不出重複）。"""
+    with engine.connect() as conn:
+        n = 0
+        for row in conn.execute(sa.text(f"PRAGMA index_list({table})")):
+            got = tuple(r[2] for r in conn.execute(sa.text(f'PRAGMA index_info("{row[1]}")')))
+            n += got == cols
+        return n
+
+
+def _index_meta(engine: sa.Engine, table: str, name: str) -> tuple[tuple[str, ...], bool, bool]:
+    """(欄位, unique, partial)"""
+    with engine.connect() as conn:
+        for row in conn.execute(sa.text(f"PRAGMA index_list({table})")):
+            if row[1] == name:
+                cols = tuple(r[2] for r in conn.execute(sa.text(f'PRAGMA index_info("{name}")')))
+                return cols, bool(row[2]), bool(row[4])
+    raise AssertionError(f"索引 {name} 不存在")
+
+
+def _replace_index(engine: sa.Engine, ddl: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(sa.text("DROP INDEX ix_repos_owner_name"))
+        conn.execute(sa.text(ddl))
+
+
+def test_same_name_index_on_other_columns_is_rebuilt(tmp_path):
+    """資料庫裡有跟 model 同名、但欄位不同的索引：只靠 CREATE INDEX IF NOT EXISTS 會因為
+    同名無聲跳過，還每次啟動記一條「已補上」的假成功，資料庫永遠對不齊（重審抓到的）。
+    非唯一索引可以安全重建。"""
+    engine = _old_db(tmp_path / "twin.db", {})
+    _replace_index(engine, "CREATE INDEX ix_repos_owner_name ON repos (owner)")
+    assert _index_meta(engine, "repos", "ix_repos_owner_name")[0] == ("owner",), "前提不成立"
+
+    ensure_columns(engine)
+
+    assert _index_meta(engine, "repos", "ix_repos_owner_name")[0] == ("owner", "name")
+    assert _index_count_for(engine, "repos", ("owner", "name")) == 1
+    assert _index_count_for(engine, "repos", ("owner",)) == 0, "錯的那個要被丟掉，不是留著並存"
+
+
+def test_same_name_unique_twin_fails_loudly(tmp_path):
+    """同名但資料庫側是唯一索引：拿掉唯一約束是 migration 的決定，啟動時不能默默做。"""
+    engine = _old_db(tmp_path / "utwin.db", {})
+    _replace_index(engine, "CREATE UNIQUE INDEX ix_repos_owner_name ON repos (owner, name)")
+
+    with pytest.raises(SchemaNeedsMigration, match="ix_repos_owner_name"):
+        ensure_columns(engine)
+
+    assert _index_meta(engine, "repos", "ix_repos_owner_name")[1] is True, "拒絕時不得動它"
+
+
+def test_partial_twin_is_rebuilt_as_full_index(tmp_path):
+    """同名的 partial index 只涵蓋一部分列，不等於 model 要的完整索引，要重建。"""
+    engine = _old_db(tmp_path / "ptwin.db", {})
+    _replace_index(engine, "CREATE INDEX ix_repos_owner_name ON repos (owner, name) WHERE owner IS NOT NULL")
+    assert _index_meta(engine, "repos", "ix_repos_owner_name")[2] is True, "前提不成立"
+
+    ensure_columns(engine)
+
+    cols, unique, partial = _index_meta(engine, "repos", "ix_repos_owner_name")
+    assert (cols, unique, partial) == (("owner", "name"), False, False)
+
+
+def test_index_name_needing_quotes_does_not_crash(tmp_path):
+    """使用者資料庫裡的索引名若含空白或引號，未加引號的 PRAGMA index_info 會在啟動時炸。"""
+    engine = _old_db(tmp_path / "quote.db", {})
+    with engine.begin() as conn:
+        conn.execute(sa.text('CREATE INDEX "my index" ON repos (language)'))
+
+    ensure_columns(engine)  # 不該拋 OperationalError
+
+    assert "my index" in _index_names(engine, "repos")
 
