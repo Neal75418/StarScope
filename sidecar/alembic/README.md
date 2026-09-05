@@ -8,12 +8,13 @@
 - `create_all()` — 建立新表
 - `ensure_columns()` — 拿 `Base.metadata` 跟使用者的資料庫比對，補上缺少的欄位
 
-加欄位不需要在任何地方登記。但它只會做 ADD COLUMN，而且只有這些差異**偵測得到**、
-會拋 `SchemaNeedsMigration` 讓啟動當場失敗：新欄位 NOT NULL 又沒有 server_default；
-新欄位帶外鍵、`unique=True`、`index=True` 或被表級約束涵蓋。改型別、改名、刪欄位、
-在既有欄位上加索引或約束、需要回填資料——這些**偵測不到**，會靜默留著差異，只能
-靠人判斷。碰到任何一種就是正式引入 alembic 的時機，判準寫在 CLAUDE.md 的「schema
-變更」一節。
+加欄位不需要在任何地方登記，非唯一索引也會用 `CREATE INDEX IF NOT EXISTS` 對齊
+model（新欄位、既有欄位都算）。原則是能安全補的加法一律補，補了會炸資料的一律拒絕。
+只有這些差異**偵測得到**、會拋 `SchemaNeedsMigration` 讓啟動當場失敗：新欄位 NOT NULL
+又沒有 server_default；新欄位帶外鍵、`unique=True`、唯一索引或被表級約束涵蓋。改型別、
+改名、刪欄位、既有欄位上的唯一約束或唯一索引、需要回填資料——這些**偵測不到**，會靜默
+留著差異，只能靠人判斷。碰到任何一種就是正式引入 alembic 的時機，判準寫在 CLAUDE.md
+的「schema 變更」一節。
 
 ## 為什麼 alembic 還在 requirements.txt
 

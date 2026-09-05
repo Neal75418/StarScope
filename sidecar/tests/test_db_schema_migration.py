@@ -165,12 +165,12 @@ def test_not_null_with_server_default_keeps_both_constraints(tmp_path):
 
 @pytest.mark.parametrize("make_column, reason", [
     (lambda: sa.Column("node_id", sa.String(64), unique=True), "unique"),
-    (lambda: sa.Column("lookup", sa.String(64), index=True), "index"),
     (lambda: sa.Column("parent_id", sa.Integer, sa.ForeignKey("repos.id")), "foreign-key"),
 ])
 def test_constrained_new_column_fails_loudly(tmp_path, make_column, reason):
-    """UNIQUE / INDEX 是 SQLite 的 ADD COLUMN 補不上；FOREIGN KEY 則是 SQLAlchemy 產的 DDL
-    不含 REFERENCES。三種放行的結果一樣：補成沒有約束的欄位。
+    """UNIQUE 是 SQLite 的 ADD COLUMN 補不上；FOREIGN KEY 則是 SQLAlchemy 產的 DDL 不含
+    REFERENCES。兩種放行的結果一樣：補成沒有約束的欄位。（非唯一索引不在此列——
+    索引階段會用 CREATE INDEX IF NOT EXISTS 補上，見下面的測試。）
 
     先前會靜默補成沒有約束的欄位——新資料庫有 sqlite_autoindex、既有使用者沒有——
     而三份文件都宣稱會拋錯。實作要對得上文件，不然文件就是在說謊。
@@ -209,4 +209,72 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     assert len(raced) == 1, "前提：只有第一個 ALTER 被搶先"
     assert {"starred_at", "unstarred_at"} <= _columns(engine, "repos"), \
         "被搶先的那個要略過，下一個要照常補上"
+
+
+def _index_column_sets(engine: sa.Engine, table: str) -> set[tuple[str, ...]]:
+    with engine.connect() as conn:
+        out = set()
+        for row in conn.execute(sa.text(f"PRAGMA index_list({table})")):
+            out.add(tuple(r[2] for r in conn.execute(sa.text(f"PRAGMA index_info({row[1]})"))))
+        return out
+
+
+def _index_names(engine: sa.Engine, table: str) -> set[str]:
+    with engine.connect() as conn:
+        return {row[1] for row in conn.execute(sa.text(f"PRAGMA index_list({table})"))}
+
+
+def test_indexed_new_column_gets_both_column_and_index(tmp_path):
+    """index=True 的新欄位：欄位補上、索引也補上。先前一律 raise——開發者的空資料庫和 CI
+    都正常，每個既有使用者卻會因為 SchemaNeedsMigration 起不來，而非唯一索引其實可以
+    安全地補。"""
+    engine = _old_db(tmp_path / "idx.db", {})
+    md = _with_extra_columns("repos", sa.Column("lookup", sa.String(64), index=True))
+
+    ensure_columns(engine, metadata=md)
+
+    assert "lookup" in _columns(engine, "repos")
+    assert ("lookup",) in _index_column_sets(engine, "repos")
+
+
+def test_new_index_on_existing_column_is_created_and_idempotent(tmp_path):
+    """model 對既有欄位新增 Index：對既有資料建非唯一索引不會失敗，補上即可。"""
+    engine = _old_db(tmp_path / "idx2.db", {})
+    md = sa.MetaData()
+    table = Base.metadata.tables["repos"].to_metadata(md)
+    sa.Index("ix_repos_language_new", table.c.language)
+
+    ensure_columns(engine, metadata=md)
+    assert ("language",) in _index_column_sets(engine, "repos")
+
+    ensure_columns(engine, metadata=md)  # 重跑不該拋、也不該重複
+    assert list(_index_names(engine, "repos")).count("ix_repos_language_new") == 1
+
+
+def test_existing_index_under_another_name_is_not_duplicated(tmp_path):
+    """比對用欄位組合而不是名字：使用者資料庫裡同欄位若已有別名的索引，不重複建。"""
+    engine = _old_db(tmp_path / "idx3.db", {})
+    with engine.begin() as conn:
+        conn.execute(sa.text("CREATE INDEX manual_lang ON repos (language)"))
+    md = sa.MetaData()
+    table = Base.metadata.tables["repos"].to_metadata(md)
+    sa.Index("ix_repos_language_new", table.c.language)
+
+    ensure_columns(engine, metadata=md)
+
+    names = _index_names(engine, "repos")
+    assert "manual_lang" in names and "ix_repos_language_new" not in names
+
+
+def test_unique_index_on_new_column_fails_loudly(tmp_path):
+    """唯一索引可能撞既有重複值，不能自動補；新欄位帶唯一索引要當場拋錯。"""
+    engine = _old_db(tmp_path / "uidx.db", {})
+    md = sa.MetaData()
+    table = Base.metadata.tables["repos"].to_metadata(md)
+    table.append_column(sa.Column("node_id", sa.String(64)))
+    sa.Index("uq_repos_node_id", table.c.node_id, unique=True)
+
+    with pytest.raises(SchemaNeedsMigration, match="repos.node_id"):
+        ensure_columns(engine, metadata=md)
+    assert "node_id" not in _columns(engine, "repos")
 

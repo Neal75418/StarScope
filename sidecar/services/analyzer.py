@@ -11,7 +11,7 @@ StarScope 的訊號計算引擎。
 
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import delete, desc
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from db.models import RepoSnapshot, Signal
@@ -160,14 +160,15 @@ def calculate_acceleration(
     this_week_velocity = this_week_delta / 7.0
     last_week_velocity = last_week_delta / 7.0
 
-    # 以百分比變化計算 acceleration
-    # 處理邊界情況以避免除以零
+    # 以百分比變化計算 acceleration。上週實質為零時比例沒有定義：
+    # 先前回 ±1.0 當暗號，前端顯示成 ±100%，跟「每天 5 顆變 10 顆」的真實 +100% 撞在
+    # 同一個值上，永遠分不出來（實測 3/94 個 repo 中招）。回 None 讓消費端顯示「—」；
+    # calculate_trend 對 None 本來就是「沒有加速度資訊」，零活動的 repo 會判穩定而不是
+    # 靠暗號判成強烈衰退。兩週都沒動則是真的「沒變」，0 是誠實的
     if abs(last_week_velocity) < 0.001:  # 實質為零
-        if this_week_velocity > 0.001:
-            return 1.0  # 從接近零的基準線強勁成長
-        elif this_week_velocity < -0.001:
-            return -1.0  # 從接近零的基準線強烈衰退
-        return 0.0
+        if abs(this_week_velocity) < 0.001:
+            return 0.0
+        return None
 
     return (this_week_velocity - last_week_velocity) / abs(last_week_velocity)
 
@@ -257,6 +258,15 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
         (SignalType.ISSUES_DELTA_7D, issues_delta_7d),
         (SignalType.ISSUES_DELTA_30D, issues_delta_30d),
     ]
+
+    # 這一輪算不出來的訊號（例如 acceleration 的基準線為零、快照不足 30 天）不能只是
+    # 「不寫」：上一輪寫進去的值會留著，畫面一直顯示過時的數字。明確刪掉，消費端才會
+    # 拿到「沒有值」
+    stale_types = [signal_type for signal_type, value in signal_values if value is None]
+    if stale_types:
+        db.execute(
+            delete(Signal).where(Signal.repo_id == repo_id, Signal.signal_type.in_(stale_types))
+        )
 
     for signal_type, value in signal_values:
         if value is not None:

@@ -188,14 +188,39 @@ class TestAccelerationDirectionAndMagnitude:
         self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1140, today_stars=1210)
         assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(-0.5)
 
-    def test_zero_baseline_growth_returns_plus_one(self, test_db, mock_repo):
-        # 上週完全沒動，本週開始漲 ⇒ 除以零的特例，回 +1.0
+    def test_zero_baseline_growth_is_undefined_not_plus_one(self, test_db, mock_repo):
+        # 上週完全沒動、本週開始漲：週對週比例沒有定義。先前回 +1.0，前端顯示成 +100%，
+        # 跟「每天 5 顆變 10 顆」的真實 +100% 撞在同一個值上，永遠分不出來
         self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=1070)
-        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(1.0)
+        assert calculate_acceleration(mock_repo.id, test_db) is None
 
-    def test_zero_baseline_decline_returns_minus_one(self, test_db, mock_repo):
+    def test_zero_baseline_decline_is_undefined_not_minus_one(self, test_db, mock_repo):
         self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=930)
-        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(-1.0)
+        assert calculate_acceleration(mock_repo.id, test_db) is None
+
+    def test_both_weeks_flat_is_zero_change(self, test_db, mock_repo):
+        # 兩週都沒動：「velocity 沒有變」是真的，0 是誠實的，不該跟「沒有定義」混在一起
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=1000)
+        assert calculate_acceleration(mock_repo.id, test_db) == 0.0
+
+    def test_stale_sentinel_row_is_removed_when_acceleration_becomes_undefined(self, test_db, mock_repo):
+        # 上一版把 +1.0 寫進 signals；改回 None 之後若只是「不寫」，舊列會永遠留著，
+        # docker-elk 那種零活動的 repo 會一直顯示 -100%
+        from constants import SignalType
+        from db.models import Signal
+        from utils.time import utc_now
+
+        self._seed(test_db, mock_repo.id, two_weeks_ago=1000, one_week_ago=1000, today_stars=1070)
+        test_db.add(Signal(repo_id=mock_repo.id, signal_type=SignalType.ACCELERATION,
+                           value=1.0, calculated_at=utc_now()))
+        test_db.commit()
+
+        calculate_signals(mock_repo.id, test_db)
+        test_db.commit()
+
+        stale = test_db.query(Signal).filter_by(
+            repo_id=mock_repo.id, signal_type=SignalType.ACCELERATION).all()
+        assert stale == [], "過時的暗號列必須被刪掉，不是留著等下一次覆寫"
 
     def test_negative_baseline_keeps_the_numerator_sign(self, test_db, mock_repo):
         """上週是負成長時，分母必須取絕對值，否則正負號會被翻掉。

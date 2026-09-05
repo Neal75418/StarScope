@@ -125,8 +125,10 @@ def _needs_migration_reason(table: Table, col: Column) -> str | None:
         if col.name in {c.name for c in cons.columns}:
             return f"被 {type(cons).__name__} 涵蓋，ADD COLUMN 補不上表級約束"
     for idx in table.indexes:
-        if col.name in {c.name for c in idx.columns}:
-            return "有索引（index=True），ADD COLUMN 補不上"  # unique=True 已在上面的約束分支攔下
+        # 非唯一索引在 ensure_columns 的索引階段會用 CREATE INDEX IF NOT EXISTS 補上；
+        # 唯一索引可能撞既有重複值，補不了
+        if idx.unique and col.name in {c.name for c in idx.columns}:
+            return "被唯一索引涵蓋，ADD COLUMN 補不上"
     return None
 
 
@@ -139,12 +141,14 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
 
     create_all() 只建新表、對已存在的表完全不動，所以這一步不可省。
 
-    能力邊界——只做「對既有表 ADD COLUMN」。下列差異**偵測得到**，會拋
-    SchemaNeedsMigration 讓啟動當場失敗而不是默默跳過：
+    能力邊界——做兩件事：對既有表 ADD COLUMN，以及把**非唯一索引**對齊 model
+    （CREATE INDEX IF NOT EXISTS；新欄位、既有欄位都算；對既有資料不會失敗、冪等）。
+    原則：能安全補的加法一律補，補了會炸資料的一律拒絕。
+    下列差異**偵測得到**，會拋 SchemaNeedsMigration 讓啟動當場失敗而不是默默跳過：
       - 新欄位 NOT NULL 且沒有 server_default（既有列沒有值可填）
-      - 新欄位帶 FOREIGN KEY、unique=True、index=True，或被任何表級約束涵蓋
-    下列差異**偵測不到**，會靜默留著：改型別、改名、刪欄位、在既有欄位上新增
-    索引或約束、文字型 CheckConstraint、需要回填的資料。這些只能靠人判斷——
+      - 新欄位帶 FOREIGN KEY、unique=True／唯一索引，或被任何表級約束涵蓋
+    下列差異**偵測不到**，會靜默留著：改型別、改名、刪欄位、既有欄位上的唯一約束
+    或唯一索引、文字型 CheckConstraint、需要回填的資料。這些只能靠人判斷——
     CLAUDE.md「schema 變更」一節列了該引入 alembic 的條件。
 
     NOT NULL + server_default 會補成 `DEFAULT <常數> NOT NULL`（SQLite 接受常數
@@ -198,6 +202,34 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
                 continue
             raise
         logger.info(f"[資料庫] 已補上欄位 {table.name} ADD COLUMN {decl}")
+
+    # ── 索引：非唯一索引對齊 model（新欄位、既有欄位都算）──
+    # 用欄位組合比對而不是名字：使用者資料庫裡同欄位若已有別名的索引，不重複建
+    from sqlalchemy.schema import CreateIndex
+
+    index_ddl: list[str] = []
+    with engine_.connect() as conn:
+        for table in metadata.tables.values():
+            if conn.execute(text(f"PRAGMA table_info({table.name})")).first() is None:
+                continue  # 表還不存在，create_all 會連索引一起建
+            db_index_cols: set[tuple[str, ...]] = set()
+            for row in conn.execute(text(f"PRAGMA index_list({table.name})")):
+                name, unique = row[1], row[2]
+                if unique:
+                    continue
+                cols = tuple(r[2] for r in conn.execute(text(f"PRAGMA index_info({name})")))
+                db_index_cols.add(cols)
+            for idx in table.indexes:
+                if idx.unique:
+                    continue  # 可能撞既有重複值，不在此處理（見 docstring）
+                if tuple(c.name for c in idx.columns) in db_index_cols:
+                    continue
+                index_ddl.append(str(CreateIndex(idx, if_not_exists=True).compile(dialect=engine_.dialect)))
+
+    for ddl in index_ddl:
+        with engine_.begin() as conn:
+            conn.execute(text(ddl))
+        logger.info(f"[資料庫] 已補上索引 {ddl}")
 
 def init_db():
     """
