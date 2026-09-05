@@ -93,6 +93,7 @@ let mockDashboard: {
   isLoading: boolean;
   lastFetchAt: string | null;
   isFetchInProgress: boolean;
+  fetchStatusUnavailable: boolean;
   error: string | null;
   refresh: () => void;
 };
@@ -221,6 +222,7 @@ describe("Dashboard", () => {
       // 不會跟任何一條既有測試斷言的相對時間文字（"Just now"／"2h"／"3d"……）撞在一起
       lastFetchAt: "2024-01-20T12:00:00Z",
       isFetchInProgress: false,
+      fetchStatusUnavailable: false,
       error: null,
       refresh: mockRefresh,
     };
@@ -313,6 +315,15 @@ describe("Dashboard", () => {
     mockDashboard.lastFetchAt = null;
     render(<Dashboard />);
     expect(screen.getByTestId("attention-bar")).toHaveTextContent(/not fetched yet/i);
+  });
+
+  it("says the fetch status is unknown when diagnostics failed, instead of claiming the backend never fetched", () => {
+    // 「不知道」跟「沒有」是兩件事：diagnostics 回 500 時資料可能五分鐘前才更新過
+    mockDashboard.lastFetchAt = null;
+    mockDashboard.fetchStatusUnavailable = true;
+    render(<Dashboard />);
+    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/fetch status unavailable/i);
+    expect(screen.getByTestId("attention-bar")).not.toHaveTextContent(/not fetched yet/i);
   });
 
   it("stays in the fetching state when the backend says a fetch is running, even though the local promise already settled", async () => {

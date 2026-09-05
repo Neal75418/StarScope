@@ -194,6 +194,7 @@ export function Dashboard() {
     isLoading,
     lastFetchAt,
     isFetchInProgress,
+    fetchStatusUnavailable,
     error,
     refresh,
   } = useDashboard();
@@ -322,9 +323,13 @@ export function Dashboard() {
   // 用 formatRelativeTime 而非同頁其他地方的 formatCompactRelativeTime：後者一小時內
   // 一律回「剛剛」，而排程是每 30 分鐘抓一次——沒有分鐘刻度的話這個標籤幾乎永遠是
   // 「剛剛」，換了資料來源也還是分不出「剛抓完」與「已經 59 分鐘沒抓」
-  const freshnessLabel = lastFetchAt
-    ? formatRelativeTime(lastFetchAt, { justNowText: t.dashboard.activity.justNow })
-    : t.dashboard.attention.neverFetched;
+  // diagnostics 端點失敗時只知道「不知道」：顯示成「尚未抓取」是把五分鐘前才更新的資料
+  // 說成從沒抓過，換一個假數字而已
+  const freshnessLabel = fetchStatusUnavailable
+    ? t.dashboard.attention.freshnessUnknown
+    : lastFetchAt
+      ? formatRelativeTime(lastFetchAt, { justNowText: t.dashboard.activity.justNow })
+      : t.dashboard.attention.neverFetched;
 
   return (
     <AnimatedPage className="page dashboard-page">

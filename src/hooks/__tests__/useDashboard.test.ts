@@ -19,6 +19,7 @@ vi.mock("../../api/client", async (importOriginal) => {
     acknowledgeSignal: vi.fn(),
     listAlertRules: vi.fn(),
     getWeeklySummary: vi.fn(),
+    getDiagnostics: vi.fn(),
   };
 });
 
@@ -703,5 +704,22 @@ describe("useDashboard", () => {
       expect(result.current.releasesChecked).toBe(false);
       expect(result.current.error).toBeNull();
     });
+  });
+
+  it("reports the fetch status as unavailable when diagnostics fail, without pretending the backend never fetched", async () => {
+    vi.mocked(apiClient.getDiagnostics).mockRejectedValue(new Error("500"));
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.fetchStatusUnavailable).toBe(true));
+    expect(result.current.lastFetchAt).toBeNull();
+  });
+
+  it("exposes the backend's last fetch time when diagnostics succeed", async () => {
+    vi.mocked(apiClient.getDiagnostics).mockResolvedValue({
+      last_fetch_success: "2026-09-05T00:19:00Z",
+      fetch_in_progress: false,
+    } as never);
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.lastFetchAt).toBe("2026-09-05T00:19:00Z"));
+    expect(result.current.fetchStatusUnavailable).toBe(false);
   });
 });

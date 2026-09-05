@@ -354,6 +354,8 @@ export function useDashboard() {
     lastFetchAt: diagnosticsQuery.data?.last_fetch_success ?? null,
     /** 後端此刻正在跑全量抓取（含排程觸發的，不只使用者按的那次） */
     isFetchInProgress: diagnosticsQuery.data?.fetch_in_progress ?? false,
+    /** diagnostics 端點失敗：抓取狀態是「不知道」，跟「從未抓過」是兩回事，不能折成同一個 null */
+    fetchStatusUnavailable: diagnosticsQuery.isError,
     error,
     refresh,
   };
