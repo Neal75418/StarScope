@@ -927,6 +927,7 @@ export const translations = {
       addFailed: "Failed to add repo to category",
       removeFailed: "Failed to remove repo from category",
       dragToReorder: "Drag to reorder",
+      reorderFailed: "Reorder not saved: {reason}",
       form: {
         name: "Name",
         description: "Description",
@@ -1906,6 +1907,7 @@ export const translations = {
       addFailed: "加入分類失敗",
       removeFailed: "移出分類失敗",
       dragToReorder: "拖曳以排序",
+      reorderFailed: "排序未儲存：{reason}",
       form: {
         name: "名稱",
         description: "說明",

@@ -337,6 +337,7 @@ describe("useDashboard", () => {
     // 換成「活動只能是這些型別」，訊號若被加回來會多出一種型別而紅
     const allowed = new Set(["alert_triggered", "repo_added"]);
     expect(result.current.recentActivity.every((a) => allowed.has(a.type))).toBe(true);
+    expect(result.current.recentActivity).toHaveLength(2); // 1 repo + 1 alert，沒有多出來的
   });
 
   it("computes velocityDistribution buckets correctly", async () => {

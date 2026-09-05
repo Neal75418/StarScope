@@ -567,9 +567,12 @@ class TestEventWindowBoundary:
     def test_midnight_of_period_start_counts_and_the_second_before_does_not(
         self, client, mock_repo, test_db
     ):
-        from datetime import datetime, time, timedelta
+        from datetime import date, datetime, time, timedelta
+        from unittest.mock import patch
 
-        period_start = utc_today() - timedelta(days=6)  # days=7：含今天共 7 個日曆天
+        # 釘住服務端的「今天」：測試與服務各叫一次 utc_today()，跨 00:00 UTC 會不一致
+        today = date(2026, 9, 5)
+        period_start = today - timedelta(days=6)  # days=7：含今天共 7 個日曆天
         inside = datetime.combine(period_start, time.min)
         outside = inside - timedelta(seconds=1)
         test_db.add_all([
@@ -580,7 +583,8 @@ class TestEventWindowBoundary:
         ])
         test_db.commit()
 
-        data = client.get("/api/summary/weekly").json()["data"]
+        with patch("services.weekly_summary.utc_today", return_value=today):
+            data = client.get("/api/summary/weekly").json()["data"]
 
         assert data["early_signals_detected"] == 1
         assert data["early_signals_by_type"] == {"rising_star": 1}

@@ -65,7 +65,12 @@ export function useCategoryReorder(
         await onTreeChange();
       } catch (err) {
         logger.error("[CategoryReorder] 部分排序更新失敗，重新載入分類樹:", err);
-        onError?.(err);
+        try {
+          onError?.(err);
+        } catch (handlerErr) {
+          // 回報失敗的 handler 自己壞掉不能連帶跳過下面的刷新，否則清單停在半套用的排列
+          logger.error("[CategoryReorder] onError handler 拋出:", handlerErr);
+        }
         await onTreeChange(); // 失敗時仍刷新分類樹以回復一致狀態
       } finally {
         isReorderingRef.current = false;

@@ -108,14 +108,16 @@ class SchemaNeedsMigration(RuntimeError):
 def _needs_migration_reason(table: Table, col: Column) -> str | None:
     """這個缺少的欄位能不能用 ADD COLUMN 補齊；不能就回傳原因。
 
-    SQLite 的 ADD COLUMN 只接受「可為空、或有常數預設值」的欄位，而且補不上
-    FOREIGN KEY / UNIQUE / INDEX。這幾種若靜默補成沒有約束的欄位，新資料庫（create_all）
-    與既有使用者的資料庫就會行為不同——正是這套機制要消滅的那類失敗。
+    SQLite 的 ADD COLUMN 只接受「可為空、或有常數預設值」的欄位。UNIQUE / INDEX 它本來
+    就補不上；FOREIGN KEY 其實 SQLite 接受 `ADD COLUMN … REFERENCES`，但 SQLAlchemy 的
+    CreateColumn 不會產出 REFERENCES 子句——所以這三種若放行，都會靜默補成沒有約束的
+    欄位，新資料庫（create_all）與既有使用者的資料庫就會行為不同，正是這套機制要消滅的
+    那類失敗。
     """
     if not col.nullable and col.server_default is None:
         return "是 NOT NULL 且沒有 server_default，無法對既有資料表補上（既有列沒有值可填）"
     if col.foreign_keys:
-        return "帶 FOREIGN KEY，SQLite 的 ADD COLUMN 補不上外鍵約束"
+        return "帶 FOREIGN KEY，CreateColumn 產出的 DDL 不含 REFERENCES，補上去會少掉外鍵"
     for cons in table.constraints:
         # Constraint 基底沒有 columns；PK / Unique / FK / Check 都是 ColumnCollectionConstraint
         if isinstance(cons, PrimaryKeyConstraint) or not isinstance(cons, ColumnCollectionConstraint):
@@ -124,7 +126,7 @@ def _needs_migration_reason(table: Table, col: Column) -> str | None:
             return f"被 {type(cons).__name__} 涵蓋，ADD COLUMN 補不上表級約束"
     for idx in table.indexes:
         if col.name in {c.name for c in idx.columns}:
-            return "有索引（index=True 或 unique=True），ADD COLUMN 補不上"
+            return "有索引（index=True），ADD COLUMN 補不上"  # unique=True 已在上面的約束分支攔下
     return None
 
 
@@ -145,7 +147,7 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
     索引或約束、文字型 CheckConstraint、需要回填的資料。這些只能靠人判斷——
     CLAUDE.md「schema 變更」一節列了該引入 alembic 的條件。
 
-    NOT NULL + server_default 會補成 `NOT NULL DEFAULT <常數>`（SQLite 接受常數
+    NOT NULL + server_default 會補成 `DEFAULT <常數> NOT NULL`（SQLite 接受常數
     預設值；CURRENT_TIMESTAMP 這類非常數會被 SQLite 拒絕而大聲失敗）。
 
     不是原子的：pysqlite 不會為 DDL 開交易，每個 ADD COLUMN 各自生效。中途 raise

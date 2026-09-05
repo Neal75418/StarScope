@@ -169,7 +169,8 @@ def test_not_null_with_server_default_keeps_both_constraints(tmp_path):
     (lambda: sa.Column("parent_id", sa.Integer, sa.ForeignKey("repos.id")), "foreign-key"),
 ])
 def test_constrained_new_column_fails_loudly(tmp_path, make_column, reason):
-    """SQLite 的 ADD COLUMN 補不上 UNIQUE / INDEX / FOREIGN KEY。
+    """UNIQUE / INDEX 是 SQLite 的 ADD COLUMN 補不上；FOREIGN KEY 則是 SQLAlchemy 產的 DDL
+    不含 REFERENCES。三種放行的結果一樣：補成沒有約束的欄位。
 
     先前會靜默補成沒有約束的欄位——新資料庫有 sqlite_autoindex、既有使用者沒有——
     而三份文件都宣稱會拋錯。實作要對得上文件，不然文件就是在說謊。
@@ -191,7 +192,8 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     這不是錯誤——欄位存在就是要的狀態，慢的那一方不該因此啟動失敗。
     """
     path = tmp_path / "race.db"
-    engine = _old_db(path, {"repos": ["starred_at"]})
+    # 兩個缺欄位：第一個被搶先，第二個必須仍補得上——釘住容忍錯誤之後連線池沒有壞掉
+    engine = _old_db(path, {"repos": ["starred_at", "unstarred_at"]})
     other_process = sa.create_engine(f"sqlite:///{path}")
     raced: list[str] = []
 
@@ -204,6 +206,7 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
 
     ensure_columns(engine)  # 不該拋 duplicate column name
 
-    assert raced, "前提：ALTER 真的發生過且被搶先"
-    assert "starred_at" in _columns(engine, "repos")
+    assert len(raced) == 1, "前提：只有第一個 ALTER 被搶先"
+    assert {"starred_at", "unstarred_at"} <= _columns(engine, "repos"), \
+        "被搶先的那個要略過，下一個要照常補上"
 

@@ -77,7 +77,13 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     應用程式生命週期處理器。
     啟動時初始化資料庫並啟動排程器。
     """
-    # 檢查 GitHub token（從 DB 的 OAuth 或環境變數）
+    # 啟動：初始化資料庫
+    init_db()
+    _record_app_version()
+
+    # 檢查 GitHub token（從 DB 的 OAuth 或環境變數）。必須在 init_db() 之後：
+    # 全新安裝時 app_settings 表還不存在，放前面每次首次啟動都會記一條
+    # 「no such table」的 WARNING（重審抓到的，我把等級升上來時沒注意順序）
     github_token = os.getenv(GITHUB_TOKEN_ENV_VAR)
     has_oauth_token = False
     try:
@@ -85,7 +91,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         from db.models import AppSettingKey
         has_oauth_token = get_setting(AppSettingKey.GITHUB_TOKEN) is not None
     except Exception as e:
-        # 同樣不能用 debug：讀取失敗會讓下面誤報「未設定 GitHub token」，看日誌的人得知道
+        # 不能用 debug：讀取失敗會讓下面誤報「未設定 GitHub token」，看日誌的人得知道
         # 那個警告可能是這裡造成的
         logger.warning(f"[啟動] OAuth token 檢查失敗，視同未設定: {e}")
 
@@ -97,10 +103,6 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         )
     else:
         logger.info("[啟動] GitHub token 已設定")
-
-    # 啟動：初始化資料庫
-    init_db()
-    _record_app_version()
 
     # 啟動背景排程器
     start_scheduler(fetch_interval_minutes=DEFAULT_FETCH_INTERVAL_MINUTES)

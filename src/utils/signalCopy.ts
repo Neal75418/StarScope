@@ -22,6 +22,9 @@ function truncateTitle(title: string): string {
   return title.length > 50 ? `${title.slice(0, 50)}…` : title;
 }
 
+// 同一筆訊號每次 render 都會經過這裡；warn 只發一次，免得一筆舊資料列洗掉整個 console
+const warnedFallbackIds = new Set<number>();
+
 export function formatSignalDescription(signal: EarlySignal, t: TranslationKeys): string {
   const copy = t.dashboard.signals.copy;
 
@@ -64,6 +67,11 @@ export function formatSignalDescription(signal: EarlySignal, t: TranslationKeys)
   // 走到這裡代表該型別缺結構化參數。升級前偵測的舊資料列會在 3–7 天內過期；
   // 新偵測的還走到這裡就是後端漏了參數——這個 fallback 對使用者無聲（英文字串混在
   // 中文介面裡、沒有任何標記），至少開發時要看得到
-  logger.warn(`[signalCopy] ${signal.signal_type} #${signal.id} 缺模板參數，退回原始 description`);
+  if (!warnedFallbackIds.has(signal.id)) {
+    warnedFallbackIds.add(signal.id);
+    logger.warn(
+      `[signalCopy] ${signal.signal_type} #${signal.id} 缺模板參數，退回原始 description`
+    );
+  }
   return signal.description;
 }

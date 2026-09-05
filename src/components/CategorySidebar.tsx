@@ -5,7 +5,7 @@
 import { useState, useCallback, useRef, memo } from "react";
 import type { MouseEvent } from "react";
 import { CategoryTreeNode, CategoryUpdate, getCategory } from "../api/client";
-import { useI18n } from "../i18n";
+import { interpolate, useI18n } from "../i18n";
 import { useCategoryExpand } from "../hooks/useCategoryExpand";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -65,7 +65,11 @@ export const CategorySidebar = memo(function CategorySidebar({
   const deleteConfirm = useDeleteConfirm();
   const { showToast } = useWatchlistActions();
   const handleReorderError = useCallback(
-    (err: unknown) => showToast("error", getErrorMessage(err, t.common.error)),
+    (err: unknown) =>
+      showToast(
+        "error",
+        interpolate(t.categories.reorderFailed, { reason: getErrorMessage(err, t.common.error) })
+      ),
     [showToast, t]
   );
   const { reorder } = useCategoryReorder(tree, fetchCategories, handleReorderError);

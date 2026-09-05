@@ -173,7 +173,7 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
                 radius={[3, 3, 0, 0]}
                 maxBarSize={48}
                 isAnimationActive={false}
-                // shape 取代 Cell（Cell 在 Recharts 4 會被移除）。用 index 回查
+                // shape 取代 Cell（Cell 在 Recharts 4 會被移除）。
                 // 用 Recharts 附在這根長條上的 payload 回查，不能用 props.index 去索引
                 // result.bars：資料縮短的那一次 render，Recharts 的 store 要到 effect 才
                 // 更新，Bar 仍拿舊資料的 rectangle 呼叫 shape，index 會超過新陣列長度——

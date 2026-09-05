@@ -3820,9 +3820,10 @@ button.stat-card {
   color: var(--danger-fg);
 }
 
-/* 值是說明文字（例如「尚未設定規則」）時縮小字級。必須排在 .stat-value 與
-   .trend-* 之後：同特異度靠順序決勝，放在前面等於沒寫（第三方審查在
-   Chromium/WebKit 實測過會以 25px/600 全尺寸渲染）。 */
+/* 值是說明文字（例如「尚未設定規則」）時縮小字級。必須排在 .stat-value 之後：
+   同特異度靠順序決勝，放在前面等於沒寫（第三方審查在 Chromium/WebKit 實測過會以
+   25px/600 全尺寸渲染）。.trend-* 是兩個 class 的選擇器、特異度更高，顏色仍由它決定；
+   muted 卡片不帶 trend，所以不衝突。 */
 .stat-value--muted {
   font-size: 15px;
   font-weight: 500;
