@@ -51,7 +51,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev
+          # libdbus-1-dev：tauri 2.11 起預設開 dbus feature、tao 0.35 在 Linux 直接連 libdbus-1。
+          # 在 noble 上它其實會被 libwebkit2gtk-4.1-dev 的依賴鏈間接裝到，但 test.yml 從不編譯
+          # Rust、第一次 Linux 編譯發生在打 tag 時，靠間接依賴等於把 release 押在別人的
+          # 套件清單上——明列它（供應鏈審查 RR-D）
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
 
       - name: Install frontend dependencies
         run: npm ci

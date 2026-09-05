@@ -15,11 +15,12 @@ test.describe("Skip to content", () => {
     await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
   });
 
-  // WebKit（Safari 與 macOS app 用的 WKWebView）預設不把連結放進 Tab 順序，要用
+  // WebKit 預設不把連結放進 Tab 順序（WKPreferences.tabFocusesLinks 預設 NO），要用
   // Option+Tab 才會停在連結上；Chromium / Firefox 的 Tab 就會。本機跑三個引擎時
   // 這兩條先前在 WebKit 一律紅，CI 只跑 Chromium 所以沒被看見。
-  // 在真正的 app 裡，使用者開了 macOS 的「鍵盤導覽」（Full Keyboard Access）
-  // 之後 Tab 才會停在連結上——鍵盤使用者通常會開，測試用 Option+Tab 模擬同一件事。
+  // 真正的 app 不受此限：wry 對每個 WKWebView 無條件設 tabFocusesLinks = YES
+  // （wry/src/wkwebview/mod.rs），所以 app 裡 Tab 就會停在連結上，跟任何 macOS 設定無關；
+  // Playwright 的 WebKit 沒有這個設定，測試用 Option+Tab 模擬同一件事。
   const tabToLink = (browserName: string) => (browserName === "webkit" ? "Alt+Tab" : "Tab");
 
   test("是第一個可聚焦元素，且聚焦時才顯示", async ({ page, browserName }) => {
