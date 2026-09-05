@@ -356,7 +356,9 @@ class EarlySignal(Base):
     severity: Mapped[str] = mapped_column(String(20), nullable=False)  # 嚴重度：low、medium、high
     description: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    # 偵測時的指標
+    # 偵測時的指標。velocity_value 的意義依 signal_type 而異：rising_star / sudden_spike /
+    # breakout 是 stars/day；viral_hn 沒有 velocity 概念，這裡存的是 HN 分數
+    # （前端 signalCopy.ts 依此渲染）
     velocity_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     star_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     percentile_rank: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0-100

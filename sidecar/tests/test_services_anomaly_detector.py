@@ -230,6 +230,8 @@ class TestDetectBreakout:
         assert result.signal_type == EarlySignalType.BREAKOUT
         assert result.baseline_value is not None
         assert result.baseline_value < result.velocity_value
+        assert result.baseline_value == pytest.approx((30 - 35) / 23), \
+            "前幾週的 velocity：(30 天總量 − 7 天量) / 23 天"
 
 
 class TestDetectViralHN:
@@ -419,6 +421,31 @@ class TestDetectAllBatchPath:
                  if s.repo_id == spiking_repo.id and s.signal_type == EarlySignalType.VIRAL_HN]
         assert len(viral) == 1
         assert "(150 points)" in viral[0].description
+        assert viral[0].velocity_value == 150.0  # 批次路徑也要帶模板參數（分數存在 velocity_value）
+        assert viral[0].context_title is not None
+
+
+    # ── 每種型別都要帶齊自己的模板參數 ──
+    # 前端依 signal_type 用結構化參數渲染文案，缺參數就退回英文 description——而那個
+    # 退路是靜默的。所以每一種型別建構出來的訊號都必須帶齊參數，缺一個就是 bug。
+    REQUIRED_TEMPLATE_PARAMS = {
+        EarlySignalType.RISING_STAR: ("velocity_value", "star_count"),
+        EarlySignalType.SUDDEN_SPIKE: ("velocity_value", "baseline_value"),
+        EarlySignalType.BREAKOUT: ("velocity_value", "baseline_value"),
+        EarlySignalType.VIRAL_HN: ("velocity_value", "context_title"),
+    }
+
+    def _assert_template_params(self, signals):
+        assert signals, "前提：fixture 要真的偵測到東西，不然這條測試沒有牙齒"
+        for s in signals:
+            for field in self.REQUIRED_TEMPLATE_PARAMS[s.signal_type]:
+                assert getattr(s, field) is not None, f"{s.signal_type} 缺 {field}"
+
+    def test_batch_path_signals_carry_template_params(self, test_db, spiking_repo):
+        self._assert_template_params(AnomalyDetector().detect_all(test_db))
+
+    def test_per_repo_path_signals_carry_template_params(self, test_db, spiking_repo):
+        self._assert_template_params(AnomalyDetector().detect_all_for_repo(spiking_repo, test_db))
 
 
 class TestGetAnomalyDetector:

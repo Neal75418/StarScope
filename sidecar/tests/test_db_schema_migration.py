@@ -117,3 +117,93 @@ def test_not_null_without_default_fails_loudly(tmp_path):
 
     with pytest.raises(SchemaNeedsMigration, match="repos.updated_at"):
         ensure_columns(engine)
+
+
+def _with_extra_columns(table_name: str, *cols: sa.Column) -> sa.MetaData:
+    """拋棄式 MetaData：複製正式的表定義再多掛幾個欄位，不動全域的 Base.metadata。"""
+    md = sa.MetaData()
+    table = Base.metadata.tables[table_name].to_metadata(md)
+    for c in cols:
+        table.append_column(c)
+    return md
+
+
+def _insert_repo(conn, id_: int) -> None:
+    conn.execute(sa.text(
+        "INSERT INTO repos (id, owner, name, full_name, url, added_at, updated_at) "
+        f"VALUES ({id_}, 'a', 'r{id_}', 'a/r{id_}', 'https://github.com/a/r{id_}', "
+        "'2026-01-01', '2026-01-01')"
+    ))
+
+
+def test_not_null_with_server_default_keeps_both_constraints(tmp_path):
+    """文件承諾支援「NOT NULL + server_default」，補上去的欄位就必須真的帶著這兩個約束。
+
+    先前 DDL 只產型別，NOT NULL 與 DEFAULT 都被丟掉：既有列全 NULL、ORM 省略該欄位的
+    INSERT 也寫 NULL，而 SQLite 對此完全不吭聲——正是這套機制要消滅的「開發者的
+    空資料庫正常、只有既有使用者壞掉」。
+    """
+    engine = _old_db(tmp_path / "default.db", {})
+    with engine.begin() as conn:
+        _insert_repo(conn, 1)
+    md = _with_extra_columns(
+        "repos", sa.Column("flag", sa.Integer, nullable=False, server_default=sa.text("7"))
+    )
+
+    ensure_columns(engine, metadata=md)
+
+    with engine.begin() as conn:
+        info = {r[1]: r for r in conn.execute(sa.text("PRAGMA table_info(repos)"))}["flag"]
+        assert info[3] == 1, "NOT NULL 必須保留"
+        assert info[4] == "7", "DEFAULT 必須保留"
+        assert conn.execute(sa.text("SELECT flag FROM repos WHERE id = 1")).scalar() == 7, \
+            "既有列要拿到預設值"
+        _insert_repo(conn, 2)  # 省略 flag，如同 ORM 對 server_default 欄位的 INSERT
+        assert conn.execute(sa.text("SELECT flag FROM repos WHERE id = 2")).scalar() == 7, \
+            "省略該欄位的新列也要拿到預設值"
+
+
+@pytest.mark.parametrize("make_column, reason", [
+    (lambda: sa.Column("node_id", sa.String(64), unique=True), "unique"),
+    (lambda: sa.Column("lookup", sa.String(64), index=True), "index"),
+    (lambda: sa.Column("parent_id", sa.Integer, sa.ForeignKey("repos.id")), "foreign-key"),
+])
+def test_constrained_new_column_fails_loudly(tmp_path, make_column, reason):
+    """SQLite 的 ADD COLUMN 補不上 UNIQUE / INDEX / FOREIGN KEY。
+
+    先前會靜默補成沒有約束的欄位——新資料庫有 sqlite_autoindex、既有使用者沒有——
+    而三份文件都宣稱會拋錯。實作要對得上文件，不然文件就是在說謊。
+    """
+    engine = _old_db(tmp_path / f"{reason}.db", {})
+    column = make_column()
+    md = _with_extra_columns("repos", column)
+
+    with pytest.raises(SchemaNeedsMigration, match=f"repos.{column.name}"):
+        ensure_columns(engine, metadata=md)
+
+    assert column.name not in _columns(engine, "repos"), "拋錯前不得先加上沒有約束的欄位"
+
+
+def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
+    """App 與 launchd 收集器可能同時首次遇到新 schema。
+
+    PRAGMA 之後、ALTER 之前被另一個行程搶先補上，SQLite 回 duplicate column name。
+    這不是錯誤——欄位存在就是要的狀態，慢的那一方不該因此啟動失敗。
+    """
+    path = tmp_path / "race.db"
+    engine = _old_db(path, {"repos": ["starred_at"]})
+    other_process = sa.create_engine(f"sqlite:///{path}")
+    raced: list[str] = []
+
+    @sa.event.listens_for(engine, "before_cursor_execute")
+    def _other_process_wins(conn, cursor, statement, parameters, context, executemany):
+        if statement.startswith("ALTER TABLE") and not raced:
+            raced.append(statement)
+            with other_process.begin() as c2:
+                c2.execute(sa.text(statement))
+
+    ensure_columns(engine)  # 不該拋 duplicate column name
+
+    assert raced, "前提：ALTER 真的發生過且被搶先"
+    assert "starred_at" in _columns(engine, "repos")
+

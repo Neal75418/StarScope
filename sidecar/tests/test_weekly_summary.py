@@ -555,3 +555,33 @@ class TestTheWireCarriesEveryField:
         assert produced - delivered == set(), (
             f"service 算了但送不出去的欄位: {produced - delivered}"
         )
+
+
+class TestEventWindowBoundary:
+    """事件窗口從 period_start 當天 00:00（含）起算，不是 now − N×24h。
+
+    兩種算法對 now−1d、now−10d 這種樣本給一樣的答案，先前的測試全落在那裡；
+    只有「起點前一天的最後一秒」與「起點當天的 00:00」分得出來。
+    """
+
+    def test_midnight_of_period_start_counts_and_the_second_before_does_not(
+        self, client, mock_repo, test_db
+    ):
+        from datetime import datetime, time, timedelta
+
+        period_start = utc_today() - timedelta(days=6)  # days=7：含今天共 7 個日曆天
+        inside = datetime.combine(period_start, time.min)
+        outside = inside - timedelta(seconds=1)
+        test_db.add_all([
+            EarlySignal(repo_id=mock_repo.id, signal_type="rising_star", severity="low",
+                        description="in", detected_at=inside),
+            EarlySignal(repo_id=mock_repo.id, signal_type="sudden_spike", severity="low",
+                        description="out", detected_at=outside),
+        ])
+        test_db.commit()
+
+        data = client.get("/api/summary/weekly").json()["data"]
+
+        assert data["early_signals_detected"] == 1
+        assert data["early_signals_by_type"] == {"rising_star": 1}
+

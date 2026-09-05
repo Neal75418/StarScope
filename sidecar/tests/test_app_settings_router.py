@@ -324,3 +324,27 @@ class TestDiagnosticsSnapshotFreshness:
         assert parsed.replace(tzinfo=None) == written_at, (
             "回報的必須是寫入時刻，不是快照日期的午夜"
         )
+
+    def test_offset_is_utc_and_backfilled_rows_report_their_write_time(self, client, test_db):
+        """fetched_at 存的是 naive UTC，回報必須標 +00:00——標成別的時區（例如本機的 +08:00）
+        會讓畫面差 8 小時，又是一個看起來合理的假數字。另外要取的是 max(fetched_at)：
+        回填舊日期的快照 snapshot_date 較早、fetched_at 較晚，「最近寫入」必須是它。"""
+        from datetime import date, datetime, timedelta
+
+        repo = Repo(owner="a", name="one", full_name="a/one", url="https://github.com/a/one")
+        test_db.add(repo)
+        test_db.flush()
+        test_db.add_all([
+            RepoSnapshot(repo_id=repo.id, stars=1, forks=0, watchers=0, open_issues=0,
+                         snapshot_date=date(2026, 8, 29), fetched_at=datetime(2026, 8, 29, 13, 39, 11)),
+            RepoSnapshot(repo_id=repo.id, stars=1, forks=0, watchers=0, open_issues=0,
+                         snapshot_date=date(2026, 8, 20), fetched_at=datetime(2026, 8, 29, 14, 0, 0)),
+        ])
+        test_db.commit()
+
+        raw = client.get("/api/settings/diagnostics").json()["data"]["last_snapshot_at"]
+        parsed = datetime.fromisoformat(raw)
+
+        assert parsed.utcoffset() == timedelta(0), "必須是 UTC，不是任何本機時區"
+        assert parsed.replace(tzinfo=None) == datetime(2026, 8, 29, 14, 0, 0), \
+            "要的是最後一次寫入（回填那筆），不是 snapshot_date 最大那筆"

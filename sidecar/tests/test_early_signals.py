@@ -30,6 +30,8 @@ class TestEarlySignalsEndpoints:
             velocity_value=50.0,
             star_count=1000,
             percentile_rank=85.0,
+            baseline_value=36.0,
+            context_title="HN title",
             detected_at=utc_now(),
         )
         signal_no_match = EarlySignal(
@@ -53,6 +55,10 @@ class TestEarlySignalsEndpoints:
         assert data["data"]["total"] == 1
         assert data["data"]["signals"][0]["signal_type"] == "rising_star"
         assert data["data"]["signals"][0]["severity"] == "high"
+        # 前端依這兩個欄位用模板渲染文案，少了就靜默退回英文 description——
+        # 沒有這條的話，router 把它們拿掉整套測試照樣綠
+        assert data["data"]["signals"][0]["baseline_value"] == 36.0
+        assert data["data"]["signals"][0]["context_title"] == "HN title"
 
     def test_get_signal_summary(self, client):
         """Test getting signal summary returns correct values for empty DB."""

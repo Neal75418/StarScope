@@ -5,7 +5,8 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Column, Engine, MetaData, PrimaryKeyConstraint, Table, create_engine, event
+from sqlalchemy.schema import ColumnCollectionConstraint
 from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -104,7 +105,30 @@ class SchemaNeedsMigration(RuntimeError):
     """schema 差異無法用「加一個欄位」補平，需要真正的 migration。"""
 
 
-def ensure_columns(target_engine: Engine | None = None) -> None:
+def _needs_migration_reason(table: Table, col: Column) -> str | None:
+    """這個缺少的欄位能不能用 ADD COLUMN 補齊；不能就回傳原因。
+
+    SQLite 的 ADD COLUMN 只接受「可為空、或有常數預設值」的欄位，而且補不上
+    FOREIGN KEY / UNIQUE / INDEX。這幾種若靜默補成沒有約束的欄位，新資料庫（create_all）
+    與既有使用者的資料庫就會行為不同——正是這套機制要消滅的那類失敗。
+    """
+    if not col.nullable and col.server_default is None:
+        return "是 NOT NULL 且沒有 server_default，無法對既有資料表補上（既有列沒有值可填）"
+    if col.foreign_keys:
+        return "帶 FOREIGN KEY，SQLite 的 ADD COLUMN 補不上外鍵約束"
+    for cons in table.constraints:
+        # Constraint 基底沒有 columns；PK / Unique / FK / Check 都是 ColumnCollectionConstraint
+        if isinstance(cons, PrimaryKeyConstraint) or not isinstance(cons, ColumnCollectionConstraint):
+            continue
+        if col.name in {c.name for c in cons.columns}:
+            return f"被 {type(cons).__name__} 涵蓋，ADD COLUMN 補不上表級約束"
+    for idx in table.indexes:
+        if col.name in {c.name for c in idx.columns}:
+            return "有索引（index=True 或 unique=True），ADD COLUMN 補不上"
+    return None
+
+
+def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | None = None) -> None:
     """把既有資料表補齊到目前 model 的欄位。可重複執行。
 
     來源是 model 本身，不是手工維護的清單：清單漏登記時，開發者的空資料庫由
@@ -113,19 +137,35 @@ def ensure_columns(target_engine: Engine | None = None) -> None:
 
     create_all() 只建新表、對已存在的表完全不動，所以這一步不可省。
 
-    ⚠️ 只處理「加一個可為空（或有 server_default）的欄位」。改型別、改名、
-    刪欄位、在既有表上加索引或唯一約束、回填資料——都不在能力範圍內，
-    遇到就拋 SchemaNeedsMigration。那才是正式引入 alembic 的時機。
+    能力邊界——只做「對既有表 ADD COLUMN」。下列差異**偵測得到**，會拋
+    SchemaNeedsMigration 讓啟動當場失敗而不是默默跳過：
+      - 新欄位 NOT NULL 且沒有 server_default（既有列沒有值可填）
+      - 新欄位帶 FOREIGN KEY、unique=True、index=True，或被任何表級約束涵蓋
+    下列差異**偵測不到**，會靜默留著：改型別、改名、刪欄位、在既有欄位上新增
+    索引或約束、文字型 CheckConstraint、需要回填的資料。這些只能靠人判斷——
+    CLAUDE.md「schema 變更」一節列了該引入 alembic 的條件。
 
-    target_engine 只為了讓測試能對「舊 schema + 有資料」的資料庫執行真正的
-    這段邏輯——正式呼叫不帶參數，用模組層級的 engine。
+    NOT NULL + server_default 會補成 `NOT NULL DEFAULT <常數>`（SQLite 接受常數
+    預設值；CURRENT_TIMESTAMP 這類非常數會被 SQLite 拒絕而大聲失敗）。
+
+    不是原子的：pysqlite 不會為 DDL 開交易，每個 ADD COLUMN 各自生效。中途 raise
+    時已補上的欄位會留著——它們各自都是合法的，下次啟動從缺的那個繼續。
+
+    target_engine / metadata 只為了讓測試能對「舊 schema + 有資料」的資料庫、
+    以及帶額外欄位的拋棄式 MetaData 執行真正的這段邏輯——正式呼叫不帶參數。
     """
     from sqlalchemy import text
-    from .models import Base
+    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.schema import CreateColumn
 
+    if metadata is None:
+        from .models import Base
+        metadata = Base.metadata
     engine_ = target_engine if target_engine is not None else engine
-    with engine_.begin() as conn:
-        for table in Base.metadata.tables.values():
+
+    missing: list[tuple[Table, Column]] = []
+    with engine_.connect() as conn:
+        for table in metadata.tables.values():
             existing = {
                 row[1] for row in conn.execute(text(f"PRAGMA table_info({table.name})"))
             }
@@ -134,18 +174,28 @@ def ensure_columns(target_engine: Engine | None = None) -> None:
             for col in table.columns:
                 if col.name in existing:
                     continue
-                if not col.nullable and col.server_default is None:
+                reason = _needs_migration_reason(table, col)
+                if reason is not None:
                     raise SchemaNeedsMigration(
-                        f"{table.name}.{col.name} 是 NOT NULL 且沒有 server_default，"
-                        f"無法對既有資料表補上（既有列沒有值可填）。"
-                        f"這種變更需要真正的 migration。"
+                        f"{table.name}.{col.name} {reason}。這種變更需要真正的 migration。"
                     )
-                decl = col.type.compile(engine_.dialect)
-                conn.execute(
-                    text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {decl}")
-                )
-                logger.info(f"[資料庫] 已補上欄位 {table.name}.{col.name} {decl}")
+                missing.append((table, col))
 
+    for table, col in missing:
+        # CreateColumn 會連 NOT NULL / DEFAULT 一起產出。只用 type.compile() 的話這兩個
+        # 會被丟掉，補出來的欄位跟 model 不一致，而 SQLite 對此完全不吭聲
+        decl = str(CreateColumn(col).compile(dialect=engine_.dialect))
+        try:
+            with engine_.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {decl}"))
+        except OperationalError as e:
+            if "duplicate column name" in str(e).lower():
+                # App 與 launchd 收集器同時首次遇到新 schema：另一個行程在 PRAGMA 之後、
+                # ALTER 之前搶先補上了。欄位存在就是要的狀態，慢的一方不該因此啟動失敗
+                logger.info(f"[資料庫] {table.name}.{col.name} 已由另一個行程補上，略過")
+                continue
+            raise
+        logger.info(f"[資料庫] 已補上欄位 {table.name} ADD COLUMN {decl}")
 
 def init_db():
     """

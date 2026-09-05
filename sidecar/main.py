@@ -66,7 +66,9 @@ def _record_app_version() -> None:
         finally:
             db.close()
     except Exception as e:
-        logger.debug(f"[啟動] 記錄 app 版本失敗（已忽略）: {e}")
+        # 不能用 debug：執行期 level 是 INFO，會完全看不到。這個值是唯一的升級路徑線索，
+        # 寫不進去時（DB 被鎖、唯讀、磁碟滿）留下的是錯的舊版號，比沒有線索更糟
+        logger.warning(f"[啟動] 記錄 app 版本失敗（已忽略）: {e}", exc_info=True)
 
 
 @asynccontextmanager
@@ -83,7 +85,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         from db.models import AppSettingKey
         has_oauth_token = get_setting(AppSettingKey.GITHUB_TOKEN) is not None
     except Exception as e:
-        logger.debug(f"[啟動] OAuth token 檢查跳過（DB 尚未初始化或模組不可用）: {e}")
+        # 同樣不能用 debug：讀取失敗會讓下面誤報「未設定 GitHub token」，看日誌的人得知道
+        # 那個警告可能是這裡造成的
+        logger.warning(f"[啟動] OAuth token 檢查失敗，視同未設定: {e}")
 
     if not github_token and not has_oauth_token:
         logger.warning(

@@ -255,14 +255,16 @@ schema，沒有任何程式碼引用它。實際機制是 `init_db()` 的兩步�
 建好、一切正常，只有既有使用者會炸「no such column」——那是本機重現不出來的失敗，
 所以改成從 model 推導。
 
-**它只能加「可為空（或有 server_default）的欄位」**。碰到補不了的差異會拋
-`SchemaNeedsMigration` 讓啟動當場失敗，而不是默默跳過留給查詢時才炸。
+**它只能加「可為空（或有 server_default）的欄位」**，而且只有部分補不了的差異偵測得到：
+新欄位 NOT NULL 又沒有 server_default、新欄位帶外鍵／`unique=True`／`index=True`／
+表級約束——這些會拋 `SchemaNeedsMigration` 讓啟動當場失敗。下面清單裡的其他情況
+**偵測不到**，會靜默留著差異；不要指望啟動失敗來提醒你。
 
 ⚠️ **下列任一成立就該正式引入 alembic，不要憑感覺**：
 
 - 改欄位型別、改名、刪欄位
-- 在**既有**表上加索引或唯一約束（`create_all()` 與 `ensure_columns()` 都不處理，
-  只有既有使用者的 `ON CONFLICT` 會炸）
+- 在**既有欄位**上加索引或唯一約束（新欄位帶著約束會被 `ensure_columns()` 擋下；
+  既有欄位的不會，只有既有使用者的 `ON CONFLICT` 會炸）
 - 需要回填或轉換既有資料
 - 需要辨識並拒絕不相容的資料庫
 

@@ -53,6 +53,18 @@ class TestCalculateTrend:
         """Test upward trend even with slightly negative acceleration."""
         assert calculate_trend(2.0, -0.05) == 1
 
+    def test_high_velocity_with_collapsed_growth_is_downward(self):
+        """docstring 的招牌案例：每日仍 +363 顆星，但成長率掉 75% ⇒ -1。既有的 -1 測試
+        velocity 都很低，把「先看 velocity 再看 acceleration」寫反了也抓不到。"""
+        assert calculate_trend(363.0, -0.75) == -1
+
+    def test_acceleration_thresholds_are_exact(self):
+        """-0.1（上升要求未明顯減速）與 -0.3（強烈衰退）兩個門檻各自的邊界。"""
+        assert calculate_trend(2.0, -0.09) == 1
+        assert calculate_trend(2.0, -0.1) == 0
+        assert calculate_trend(2.0, -0.3) == 0
+        assert calculate_trend(2.0, -0.31) == -1
+
 
 class TestGetSnapshotForDate:
     """Tests for get_snapshot_for_date function."""
