@@ -15,22 +15,29 @@ test.describe("Skip to content", () => {
     await page.waitForSelector('[data-testid="page-title"]', { timeout: 15000 });
   });
 
-  test("是第一個可聚焦元素，且聚焦時才顯示", async ({ page }) => {
+  // WebKit（Safari 與 macOS app 用的 WKWebView）預設不把連結放進 Tab 順序，要用
+  // Option+Tab 才會停在連結上；Chromium / Firefox 的 Tab 就會。本機跑三個引擎時
+  // 這兩條先前在 WebKit 一律紅，CI 只跑 Chromium 所以沒被看見。
+  // 在真正的 app 裡，使用者開了 macOS 的「鍵盤導覽」（Full Keyboard Access）
+  // 之後 Tab 才會停在連結上——鍵盤使用者通常會開，測試用 Option+Tab 模擬同一件事。
+  const tabToLink = (browserName: string) => (browserName === "webkit" ? "Alt+Tab" : "Tab");
+
+  test("是第一個可聚焦元素，且聚焦時才顯示", async ({ page, browserName }) => {
     const link = page.locator("a.skip-to-content");
     // 未聚焦時被 clip 起來：Playwright 的 toBeVisible 對 clip-path 隱藏不敏感，
     // 所以量實際尺寸——這正是「視覺隱藏」與「顯示」的差別所在
     const hiddenBox = await link.boundingBox();
     expect(hiddenBox?.width ?? 0).toBeLessThan(5);
 
-    await page.keyboard.press("Tab");
+    await page.keyboard.press(tabToLink(browserName));
 
     await expect(link).toBeFocused();
     const shownBox = await link.boundingBox();
     expect(shownBox?.width ?? 0).toBeGreaterThan(50);
   });
 
-  test("錨點指向真實存在的 main，按下會導向它", async ({ page }) => {
-    await page.keyboard.press("Tab");
+  test("錨點指向真實存在的 main，按下會導向它", async ({ page, browserName }) => {
+    await page.keyboard.press(tabToLink(browserName));
     await page.keyboard.press("Enter");
 
     await expect(page).toHaveURL(/#main-content$/);
