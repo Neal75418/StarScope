@@ -11,6 +11,12 @@ concurrency:
   group: test-${{ github.ref }}
   cancel-in-progress: true
 
+# CodeQL（actions/missing-workflow-permissions）：不宣告的話 GITHUB_TOKEN 拿到的是
+# repo 預設的全套權限。這三個 job 只需要 checkout；artifact / cache 走 runtime token，
+# 不受這裡影響。
+permissions:
+  contents: read
+
 jobs:
   test-backend:
     runs-on: ubuntu-latest
@@ -162,7 +168,7 @@ jobs:
         # 後果是一整排看似跟 sidecar 無關的 UI 測試失敗
         run: |
           for i in $(seq 1 30); do
-            curl -s http://127.0.0.1:8009/api/health > /dev/null 2>&1 && exit 0
+            curl -sf http://127.0.0.1:8009/api/health > /dev/null 2>&1 && exit 0
             sleep 1
           done
           echo "::error::sidecar 在 30 秒內沒有回應 /api/health"
@@ -170,14 +176,20 @@ jobs:
           exit 1
 
       - name: Start Vite dev server
-        run: VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort &
+        # 輸出導向檔案：Vite 起不來時整排 spec 都是 connection refused，先前只有 sidecar 的
+        # 日誌會被印出來，會把鍋甩給後端
+        run: VITE_API_URL=http://127.0.0.1:8009 npm run dev -- --port 1421 --strictPort > /tmp/vite-e2e.log 2>&1 &
 
       - name: Wait for Vite
+        # 與 Wait for sidecar 同形：迴圈跑完仍往下走的話，失敗會被歸咎到 sidecar
         run: |
           for i in $(seq 1 15); do
-            curl -s http://localhost:1421 > /dev/null 2>&1 && break
+            curl -sf http://localhost:1421 > /dev/null 2>&1 && exit 0
             sleep 1
           done
+          echo "::error::Vite 在 15 秒內沒有回應 :1421"
+          cat /tmp/vite-e2e.log || true
+          exit 1
 
       - name: Run E2E tests
         # db-mutating 也要跑：先前只指定 chromium，那三支 spec 在 CI 從未執行過
@@ -186,14 +198,28 @@ jobs:
       - name: Dump sidecar log
         # E2E 的失敗多半是後端造成的（GitHub 限流、token 沒讀到、寫入失敗），
         # 但錯誤訊息只看得到前端症狀（dialog 關不掉）。失敗時直接把後端日誌印出來
+        # 每個 request 都有一行 INFO，早期的錯誤大概率在 tail 200 行之外：
+        # 先把錯誤、警告、traceback 篩出來，再附尾段與 Vite 的日誌；完整檔案進 artifact
         if: failure()
-        run: tail -n 200 /tmp/sidecar-e2e.log || true
+        run: |
+          echo "::group::sidecar 錯誤／警告／traceback（全檔）"
+          grep -nE "ERROR|WARNING|Traceback|GitHub" /tmp/sidecar-e2e.log || true
+          echo "::endgroup::"
+          echo "::group::sidecar 最後 200 行"
+          tail -n 200 /tmp/sidecar-e2e.log || true
+          echo "::endgroup::"
+          echo "::group::vite 最後 100 行"
+          tail -n 100 /tmp/vite-e2e.log || true
+          echo "::endgroup::"
 
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            /tmp/sidecar-e2e.log
+            /tmp/vite-e2e.log
           retention-days: 7
 
