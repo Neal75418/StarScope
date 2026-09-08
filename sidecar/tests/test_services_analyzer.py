@@ -456,3 +456,120 @@ class TestOneDayStarDelta:
         test_db.commit()
 
         assert "stars_delta_1d" not in calculate_signals(mock_repo.id, test_db)
+
+
+class TestRatesAreNormalisedByActualDaySpan:
+    """速率（velocity／acceleration）必須除以兩個快照的實際間隔，不是「要求的天數」。
+
+    抓取只在 App 或 collector 執行時進行，所以快照缺口是常態而非例外——
+    analyzer 的兩條路徑都會回溯到更早的快照（DB 路徑用 get_snapshot_for_date 的
+    allow_earlier，預載路徑用 _find_snapshot 的 backtrack），但接著一律除以
+    **名目**天數。跨了 9 天的成長被當成 7 天，速率就少算 22%。
+
+    這個 bug class 在 AnomalyDetector 已經修過一次（見該檔的
+    TestDeltasAreNormalisedByActualDaySpan，起因是 2026-08-26 tensorflow 的誤報），
+    但 analyzer 沒有跟上。
+
+    2026-09-08 的真實後果：08-24／08-25 兩天沒有快照，而那天的 today-14 正好落在
+    08-25，回溯到 08-23 之後上週 velocity 被灌水 9/7 倍，於是 97 個 repo 裡有 55 個
+    被標成「動能下降」（三天前是 30 個）。畫面上完全看不出那是量測假象。
+
+    計數類（calculate_delta）刻意不在此列：它回報的是「我實際有的兩個快照之間增加了
+    多少」，把 9 天的真實成長縮放成 7 天等於發明資料。回溯上限本身就是那個近似的界線
+    （見 weekly_summary._fetch_snapshot_deltas 的同款註解）。
+    """
+
+    @staticmethod
+    def _seed(db, repo_id, points):
+        """points: [(幾天前, 星數)]。只造指定的時間點，中間刻意留缺口。"""
+        from datetime import timedelta
+        from db.models import RepoSnapshot
+        from utils.time import utc_now, utc_today
+
+        today = utc_today()
+        for days_ago, stars in points:
+            db.add(RepoSnapshot(
+                repo_id=repo_id, stars=stars, forks=0, watchers=0, open_issues=0,
+                snapshot_date=today - timedelta(days=days_ago),
+                fetched_at=utc_now() - timedelta(days=days_ago),
+            ))
+        db.commit()
+
+    @staticmethod
+    def _preloaded(db, repo_id):
+        """production 走的是預載路徑（calculate_signals 一次撈 31 天）。"""
+        from db.models import RepoSnapshot
+        return {s.snapshot_date: s
+                for s in db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == repo_id).all()}
+
+    def test_velocity_divides_by_the_real_gap_not_the_requested_days(self, test_db, mock_repo):
+        # 只有 today 與 today-9：跨距 9 天、+90 顆 ⇒ 每天 10.0
+        # 除以名目的 7 會得到 12.857，把成長灌水 29%
+        self._seed(test_db, mock_repo.id, [(9, 1000), (0, 1090)])
+
+        assert calculate_velocity(mock_repo.id, test_db, days=7) == pytest.approx(10.0)
+        assert calculate_velocity(
+            mock_repo.id, test_db, days=7,
+            snap_by_date=self._preloaded(test_db, mock_repo.id),
+        ) == pytest.approx(10.0), "預載路徑（production 走這條）也要一致"
+
+    def test_delta_keeps_the_raw_count_over_the_real_gap(self, test_db, mock_repo):
+        """對照組：計數不縮放。同一份資料，delta 仍是 90——
+        它們一起改才是錯的，這條釘住「只有速率被正規化」。"""
+        self._seed(test_db, mock_repo.id, [(9, 1000), (0, 1090)])
+
+        assert calculate_delta(mock_repo.id, 7, test_db) == pytest.approx(90.0)
+
+    def test_acceleration_uses_each_weeks_real_span(self, test_db, mock_repo):
+        """重現 2026-09-08 的假象：today-14 缺，回溯到 today-16。
+
+        兩週的**每日**速率其實一模一樣（都是 10.0/天），所以加速度應該是 0。
+        兩邊都除以 7 的話：本週 70/7=10、上週 90/7=12.857
+        ⇒ (10-12.857)/12.857 = -0.222，一個不存在的 22% 減速。
+        """
+        self._seed(test_db, mock_repo.id, [(16, 1000), (7, 1090), (0, 1160)])
+
+        assert calculate_acceleration(mock_repo.id, test_db) == pytest.approx(0.0)
+        assert calculate_acceleration(
+            mock_repo.id, test_db,
+            snap_by_date=self._preloaded(test_db, mock_repo.id),
+        ) == pytest.approx(0.0), "預載路徑（production 走這條）也要一致"
+
+    def test_the_artifact_does_not_flip_trend_to_declining(self, test_db, mock_repo):
+        """同一份資料端到端：不該被標成「動能下降」。
+
+        這是使用者實際看到的東西——Watchlist 與 Trends 的 ↓ 箭頭讀的是 trend。
+        """
+        self._seed(test_db, mock_repo.id, [(16, 1000), (7, 1090), (0, 1160)])
+        velocity = calculate_velocity(mock_repo.id, test_db)
+        acceleration = calculate_acceleration(mock_repo.id, test_db)
+
+        assert calculate_trend(velocity, acceleration) == 1, (
+            "每天穩定 +10 顆星的 repo 不能因為中間少了兩天快照就變成下降"
+        )
+
+    def test_only_todays_snapshot_is_insufficient_data_not_zero(self, test_db, mock_repo):
+        """只有今天一筆：沒有可比的過去，回 None（資料不足）而不是 0（沒有變化）。"""
+        self._seed(test_db, mock_repo.id, [(0, 1000)])
+
+        assert calculate_velocity(mock_repo.id, test_db, days=7) is None
+        assert calculate_acceleration(mock_repo.id, test_db) is None
+
+    def test_zero_span_does_not_divide_by_zero(self, test_db, mock_repo):
+        """跨距為 0 的防禦性守衛。
+
+        正常路徑走不到（兩端的回溯範圍不重疊），但一旦回溯上限被調動而讓兩端撞在
+        同一筆快照上，除以零會讓整輪收集掛掉——而 collector 的心跳只會寫一行 FAILED，
+        使用者要等到發現資料不再更新才會知道。用人工構造的 dict 直接測那個守衛。
+        """
+        from datetime import timedelta
+        from utils.time import utc_today
+
+        self._seed(test_db, mock_repo.id, [(0, 1000)])
+        today = utc_today()
+        only = self._preloaded(test_db, mock_repo.id)[today]
+        crafted = {today: only, today - timedelta(days=7): only, today - timedelta(days=14): only}
+
+        assert calculate_velocity(mock_repo.id, test_db, days=7, snap_by_date=crafted) == 0.0
+        assert calculate_acceleration(mock_repo.id, test_db, snap_by_date=crafted) is None
+

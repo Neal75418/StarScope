@@ -303,6 +303,21 @@ release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都�
 - ⚠️ dev 模式下改 `sidecar/` 的檔案會觸發 uvicorn 熱重載＝重跑啟動序列
   （star 同步＋抓取）。重載風暴可能把 star 同步殺在半路留下鎖——
   鎖有 10 分鐘 TTL 會自癒，看到「already_running」先看時間再懷疑卡死
+- ⚠️ **INFO 級的日誌在 collector 完全看不到**：它從不呼叫 `setup_logging`，
+  root logger 沒有 handler，只有 `logging.lastResort`（WARNING 級）在收。
+  所以「jobs.log 沒有某條 INFO」**不能**當成「那件事沒發生」的證據；
+  WARNING 以上缺席才是有效證據
+
+### 異地備份鏡像（選用）
+
+設了環境變數 `STARSCOPE_BACKUP_MIRROR_DIR`，`backup_database()` 會在每次成功備份後
+把該份備份多複製一份到那個目錄（先寫 `.partial` 再 rename，大小不符就丟棄——
+半截的備份比沒有備份更危險）。沒設就完全不做，其他使用者不受影響。
+
+為什麼需要：星數歷史**重建不出來**（GitHub 不提供歷史 star 數），而 `backups/`
+與正本在同一顆磁碟同一個目錄下，磁碟壞掉兩者一起沒。
+
+刻意**不**新增第二個 launchd job——多一個排程就多一個會靜默過時的東西。
 
 ## 提交慣例
 

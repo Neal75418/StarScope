@@ -27,6 +27,16 @@
     <key>StandardErrorPath</key>
     <string>/Users/nealchen/.starscope/jobs.log</string>
 
+    <!-- 異地鏡像目的地。星數歷史重建不出來（GitHub 不提供歷史 star 數），而
+         backups/ 與正本在同一顆磁碟同一個目錄下，磁碟壞掉兩者一起沒。設了這個
+         變數，backup_database 每次成功備份後會多複製一份到這裡；沒設就完全不做。
+         刻意不新增第二個 launchd job：多一個排程就多一個會靜默過時的東西。 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>STARSCOPE_BACKUP_MIRROR_DIR</key>
+        <string>/Users/nealchen/Library/Mobile Documents/com~apple~CloudDocs/StarScope-Backups</string>
+    </dict>
+
     <key>ProcessType</key>
     <string>Background</string>
 </dict>

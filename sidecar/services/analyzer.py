@@ -67,27 +67,19 @@ def calculate_delta(
     資料不足時回傳 None。
     snap_by_date: 預載的快照 dict（date → RepoSnapshot），避免重複 DB 查詢。
     """
-    today = utc_today()
-    past_date = today - timedelta(days=days)
-
-    if snap_by_date is not None:
-        # 與窗口成比例，但保留原本的絕對上限：只寫 days // 2 會把三十日窗的回溯
-        # 放寬到十五天，修好短窗卻弄壞長窗
-        backtrack = min(days // 2, 7)
-
-        current_snapshot = _find_snapshot(snap_by_date, today, 0)
-        past_snapshot = _find_snapshot(snap_by_date, past_date, backtrack)
-    else:
-        current_snapshot = get_snapshot_for_date(repo_id, today, db)
-        past_snapshot = get_snapshot_for_date(repo_id, past_date, db)
-
-    if not current_snapshot or not past_snapshot:
+    pair = _snapshot_pair(repo_id, days, db, snap_by_date)
+    if pair is None:
         return None
+    current_snapshot, past_snapshot = pair
 
     # 兩個快照為同一天：視為無變化（delta=0），與「資料不足回 None」有意區分
-    if current_snapshot.snapshot_date == past_snapshot.snapshot_date:
+    if _span_days(current_snapshot, past_snapshot) < 1:
         return 0.0
 
+    # 刻意不按實際跨距縮放：這是「我實際有的兩個快照之間增加了多少」的計數，
+    # 把 9 天的真實成長縮成 7 天等於發明資料。回溯上限就是這個近似的界線
+    # （weekly_summary._fetch_snapshot_deltas 有同款的取捨說明）。
+    # 速率類（velocity / acceleration）不同，它們必須除以實際跨距。
     return float(getattr(current_snapshot, field) - getattr(past_snapshot, field))
 
 
@@ -112,6 +104,40 @@ def _find_snapshot(
     return None
 
 
+def _snapshot_pair(
+    repo_id: int,
+    days: int,
+    db: Session,
+    snap_by_date: dict[date, "RepoSnapshot"] | None = None,
+) -> "tuple[RepoSnapshot, RepoSnapshot] | None":
+    """取出 (今天, days 天前) 這一對快照；任一端缺就回 None。
+
+    ⚠️ 兩端都可能回溯到更早的快照，所以**實際間隔不一定等於 days**。
+    需要速率的呼叫端一律用 _span_days 取實際間隔，不要拿 days 當分母。
+    """
+    today = utc_today()
+    past_date = today - timedelta(days=days)
+
+    if snap_by_date is not None:
+        # 與窗口成比例，但保留原本的絕對上限：只寫 days // 2 會把三十日窗的回溯
+        # 放寬到十五天，修好短窗卻弄壞長窗
+        backtrack = min(days // 2, 7)
+        current_snapshot = _find_snapshot(snap_by_date, today, 0)
+        past_snapshot = _find_snapshot(snap_by_date, past_date, backtrack)
+    else:
+        current_snapshot = get_snapshot_for_date(repo_id, today, db)
+        past_snapshot = get_snapshot_for_date(repo_id, past_date, db)
+
+    if not current_snapshot or not past_snapshot:
+        return None
+    return current_snapshot, past_snapshot
+
+
+def _span_days(newer: "RepoSnapshot", older: "RepoSnapshot") -> int:
+    """兩個快照之間的實際天數。速率的分母只能是這個，不能是名目窗口。"""
+    return (newer.snapshot_date - older.snapshot_date).days
+
+
 def calculate_velocity(
     repo_id: int,
     db: Session,
@@ -120,12 +146,20 @@ def calculate_velocity(
 ) -> float | None:
     """
     計算指定期間的 velocity（每日 star 數）。
-    """
-    delta = calculate_delta(repo_id, days, db, snap_by_date=snap_by_date)
-    if delta is None:
-        return None
 
-    return delta / days
+    分母是兩個快照的**實際間隔**，不是 days：抓取只在 App 或 collector 執行時進行，
+    快照缺口是常態，而回溯之後跨距經常大於名目窗口。除以 days 會讓跨 9 天的成長
+    少算 22%，而畫面上看不出任何異常。
+    """
+    pair = _snapshot_pair(repo_id, days, db, snap_by_date)
+    if pair is None:
+        return None
+    current_snapshot, past_snapshot = pair
+
+    span = _span_days(current_snapshot, past_snapshot)
+    if span < 1:
+        return 0.0
+    return float(current_snapshot.stars - past_snapshot.stars) / span
 
 
 def calculate_acceleration(
@@ -153,12 +187,18 @@ def calculate_acceleration(
     if not all([current_snapshot, week_ago_snapshot, two_week_ago_snapshot]):
         return None
 
-    # 計算 velocity
-    this_week_delta = current_snapshot.stars - week_ago_snapshot.stars
-    last_week_delta = week_ago_snapshot.stars - two_week_ago_snapshot.stars
+    # 每一週各自除以自己的實際跨距，不是寫死的 7.0。
+    # 2026-09-08 的真實後果：08-24／08-25 沒有快照，那天的 today-14 正好落在 08-25，
+    # 回溯到 08-23 之後上週 velocity 被灌水 9/7 倍，97 個 repo 有 55 個被標成
+    # 「動能下降」（三天前是 30 個）——一個完全不存在的集體衰退。
+    this_span = _span_days(current_snapshot, week_ago_snapshot)
+    last_span = _span_days(week_ago_snapshot, two_week_ago_snapshot)
+    if this_span < 1 or last_span < 1:
+        # 兩端撞在同一筆快照上：比不出「週對週」，而除以零會讓整輪收集掛掉
+        return None
 
-    this_week_velocity = this_week_delta / 7.0
-    last_week_velocity = last_week_delta / 7.0
+    this_week_velocity = (current_snapshot.stars - week_ago_snapshot.stars) / this_span
+    last_week_velocity = (week_ago_snapshot.stars - two_week_ago_snapshot.stars) / last_span
 
     # 以百分比變化計算 acceleration。上週實質為零時比例沒有定義：
     # 先前回 ±1.0 當暗號，前端顯示成 ±100%，跟「每天 5 顆變 10 顆」的真實 +100% 撞在
