@@ -555,10 +555,21 @@ class TestRatesAreNormalisedByActualDaySpan:
         assert calculate_velocity(mock_repo.id, test_db, days=7) is None
         assert calculate_acceleration(mock_repo.id, test_db) is None
 
+    def test_one_day_span_is_a_real_rate_not_zero(self, test_db, mock_repo):
+        """span == 1 是合法的每日速率，不是「沒有變化」。
+
+        目前 production 只用 days=7 所以打不到，但 delta 那一側對 span==1 有明確語意
+        （回傳真實差值），速率這一側要對齊——否則有人加一個 1 日 velocity 就會靜默回 0。
+        """
+        self._seed(test_db, mock_repo.id, [(1, 1000), (0, 1010)])
+
+        assert calculate_velocity(mock_repo.id, test_db, days=1) == pytest.approx(10.0)
+
     def test_zero_span_does_not_divide_by_zero(self, test_db, mock_repo):
         """跨距為 0 的防禦性守衛。
 
-        正常路徑走不到（兩端的回溯範圍不重疊），但一旦回溯上限被調動而讓兩端撞在
+        預載路徑（production 走這條）走不到：兩端的回溯範圍不重疊。但 DB 路徑的
+        get_snapshot_for_date 是無上限回溯，夠舊的資料就構造得出來。一旦兩端撞在
         同一筆快照上，除以零會讓整輪收集掛掉——而 collector 的心跳只會寫一行 FAILED，
         使用者要等到發現資料不再更新才會知道。用人工構造的 dict 直接測那個守衛。
         """
@@ -572,4 +583,29 @@ class TestRatesAreNormalisedByActualDaySpan:
 
         assert calculate_velocity(mock_repo.id, test_db, days=7, snap_by_date=crafted) == 0.0
         assert calculate_acceleration(mock_repo.id, test_db, snap_by_date=crafted) is None
+
+    def test_acceleration_guards_each_span_independently(self, test_db, mock_repo):
+        """只有單邊跨距為 0 也要擋——先前只有「兩邊同時為 0」被釘住，
+        把 `or` 寫成 `and` 的突變會靜默通過。"""
+        from datetime import timedelta
+        from utils.time import utc_today
+
+        self._seed(test_db, mock_repo.id, [(14, 1000), (0, 1100)])
+        today = utc_today()
+        snaps = self._preloaded(test_db, mock_repo.id)
+        cur, old_snap = snaps[today], snaps[today - timedelta(days=14)]
+
+        # this_span == 0（今天與「一週前」是同一筆），last_span == 14
+        assert calculate_acceleration(
+            mock_repo.id, test_db,
+            snap_by_date={today: cur, today - timedelta(days=7): cur,
+                          today - timedelta(days=14): old_snap},
+        ) is None
+
+        # last_span == 0（「一週前」與「兩週前」是同一筆），this_span == 14
+        assert calculate_acceleration(
+            mock_repo.id, test_db,
+            snap_by_date={today: cur, today - timedelta(days=7): old_snap,
+                          today - timedelta(days=14): old_snap},
+        ) is None
 

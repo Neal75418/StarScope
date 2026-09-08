@@ -80,7 +80,7 @@ async def get_trends(
     依趨勢指標排序取得 repo。
 
     可用排序選項：
-    - velocity: 每日 star 數（7 天平均）
+    - velocity: 每日 star 數（7 天窗口；分母是兩個快照的實際間隔，缺快照時可到 8-10 天）
     - stars_delta_7d: 7 天內增加的 star 數
     - stars_delta_30d: 30 天內增加的 star 數
     - acceleration: velocity 的變化率

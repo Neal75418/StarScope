@@ -83,6 +83,11 @@ def calculate_delta(
     return float(getattr(current_snapshot, field) - getattr(past_snapshot, field))
 
 
+# calculate_signals 會算到的最長窗口（stars/forks/issues 的 30 日差值）。
+# 預載範圍與回溯上限都從它導出，避免兩邊各寫一個數字而漂移。
+MAX_SIGNAL_WINDOW_DAYS = 30
+
+
 def _find_snapshot(
     snap_by_date: dict[date, "RepoSnapshot"],
     target_date: date,
@@ -148,8 +153,8 @@ def calculate_velocity(
     計算指定期間的 velocity（每日 star 數）。
 
     分母是兩個快照的**實際間隔**，不是 days：抓取只在 App 或 collector 執行時進行，
-    快照缺口是常態，而回溯之後跨距經常大於名目窗口。除以 days 會讓跨 9 天的成長
-    少算 22%，而畫面上看不出任何異常。
+    快照缺口是常態，而回溯之後跨距經常大於名目窗口。除以名目的 days 會**高估**
+    速率——跨 9 天的成長除以 7 得到的數字比真實值大 29%，而畫面上看不出任何異常。
     """
     pair = _snapshot_pair(repo_id, days, db, snap_by_date)
     if pair is None:
@@ -259,13 +264,17 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
     """
     signals = {}
 
-    # 預載此 repo 近 31 天的所有快照（一次查詢）
+    # 預載此 repo 的快照（一次查詢）。下界由**回溯規則導出**而不是憑記憶寫死：
+    # 最長的窗口是 30 天，而 _snapshot_pair 允許回溯 min(30 // 2, 7) = 7 天，
+    # 所以最遠可能需要 today-37。先前寫 31 天，等於把 30 日窗的回溯悄悄壓成 1 天——
+    # today-30 與 today-31 同時缺快照（24 天內發生過兩次）就會讓三個 30d 訊號算不出來
     today = utc_today()
+    earliest_needed = MAX_SIGNAL_WINDOW_DAYS + min(MAX_SIGNAL_WINDOW_DAYS // 2, 7)
     snapshots = (
         db.query(RepoSnapshot)
         .filter(
             RepoSnapshot.repo_id == repo_id,
-            RepoSnapshot.snapshot_date >= today - timedelta(days=31),
+            RepoSnapshot.snapshot_date >= today - timedelta(days=earliest_needed),
         )
         .all()
     )

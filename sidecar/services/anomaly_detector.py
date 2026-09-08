@@ -341,24 +341,37 @@ class AnomalyDetector:
     ) -> "EarlySignal | None":
         """
         偵測 breakout 模式。
-        條件：上週 velocity <= 0 且本週 velocity > 2
+        條件：前幾週停滯或下滑，且本週 velocity >= 門檻。
+
+        本週 velocity 直接讀 VELOCITY 訊號，**不要**自己拿 delta_7d 除以名目的 7：
+        快照有缺口時回溯會讓「7 日窗」實際跨 8–10 天（對正式資料庫實測 25% 的觀測
+        不是 7 天），而 calculate_delta 刻意不縮放計數，所以 delta_7d/7 會把 velocity
+        高估最多 29%——真實日增 1.56 顆的 repo 被算成 2.0 而觸發不存在的 breakout。
+        analyzer.calculate_velocity 已經是「除以兩個快照實際間隔」的單一真相。
+        （同一個 bug class 的另外兩處：analyzer 的速率函式、本檔的
+        _calculate_star_deltas，都已修正。）
         """
         repo_id: int = repo.id
 
+        current_weekly_velocity = get_signal_value(repo_id, SignalType.VELOCITY, db, signal_map)
         delta_7d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_7D, db, signal_map)
         delta_30d_val = get_signal_value(repo_id, SignalType.STARS_DELTA_30D, db, signal_map)
 
-        if delta_7d_val is None or delta_30d_val is None:
+        if current_weekly_velocity is None or delta_7d_val is None or delta_30d_val is None:
             return None
 
-        current_weekly_velocity = delta_7d_val / 7
+        # 前幾週的星數變化「量」。閘門只看正負號，所以不需要（在這一層也拿不到）
+        # 那段窗口的實際跨距——用差值本身判斷，不要先除出一個假的每日速率
+        prev_weeks_delta = delta_30d_val - delta_7d_val
 
-        # 從 30 天 delta 估算上週 velocity（delta_7d_val/delta_30d_val 已由上方 guard 排除 None）
-        prev_weeks_velocity = (delta_30d_val - delta_7d_val) / 23
+        # 顯示用的每日速率。分母是名目的 23 天（30 − 7）：真正的跨距要有兩端的快照
+        # 日期才算得出來，而這一層只有訊號值。這是近似值，不是量測值——它只進
+        # description 與 baseline_value，不參與上面的判定
+        prev_weeks_velocity = prev_weeks_delta / 23
 
         # 檢查 breakout 條件
         is_breakout = (
-            prev_weeks_velocity <= 0 and
+            prev_weeks_delta <= 0 and
             current_weekly_velocity >= BREAKOUT_VELOCITY_THRESHOLD
         )
 

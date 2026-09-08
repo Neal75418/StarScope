@@ -32,7 +32,7 @@ ValidOperator = Literal[">", "<", ">=", "<=", "=="]
 _SIGNAL_TYPE_DISPLAY: dict[str, tuple[str, str]] = {
     "stars_delta_7d": ("7-Day Star Delta", "Number of stars gained in the last 7 days"),
     "stars_delta_30d": ("30-Day Star Delta", "Number of stars gained in the last 30 days"),
-    "velocity": ("Star Velocity", "Average stars per day (7-day average)"),
+    "velocity": ("Star Velocity", "Average stars per day over the 7-day window (divided by the real gap between the two snapshots, which can be 8-10 days when a day was missed)"),
     "acceleration": ("Acceleration", "Rate of change in velocity"),
     "trend": ("Trend", "Overall trend direction (-1=down, 0=stable, 1=up)"),
 }

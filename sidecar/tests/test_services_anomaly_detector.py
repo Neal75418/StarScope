@@ -217,7 +217,13 @@ class TestDetectBreakout:
             Signal(
                 repo_id=mock_repo.id,
                 signal_type=SignalType.STARS_DELTA_30D,
-                value=30,  # Total 30d: (30-35)/23 = negative prev weeks
+                value=30,  # Total 30d: (30-35) < 0 = negative prev weeks
+                calculated_at=utc_now(),
+            ),
+            Signal(
+                repo_id=mock_repo.id,
+                signal_type=SignalType.VELOCITY,
+                value=5.0,  # 本週 velocity 直接讀這個訊號，不再由 delta_7d/7 推導
                 calculated_at=utc_now(),
             ),
         ]
@@ -769,3 +775,71 @@ class TestSaveFailureIsDistinguishableFromNoSignals:
 
         assert result["save_failed"] is False
         assert result["signals_detected"] == 0
+
+
+class TestBreakoutUsesTheNormalisedVelocitySignal:
+    """本週 velocity 讀 VELOCITY 訊號，不要自己拿 delta_7d 除以名目的 7。
+
+    這是「用假設的天數當分母」這個 bug class 的第三處。前兩處是
+    analyzer.calculate_velocity/calculate_acceleration（2026-09-08 修）與
+    _calculate_star_deltas（2026-08 修），detect_breakout 一直沒跟上。
+
+    快照有缺口時回溯會讓「7 日窗」實際跨 8–10 天（對正式資料庫實測：1507 個
+    觀測有 376 個、25% 不是 7 天），而 calculate_delta 刻意不縮放，所以
+    delta_7d/7 會把本週 velocity 高估最多 29%——真實日增 1.56 顆的 repo
+    被算成 2.0，剛好越過 BREAKOUT_VELOCITY_THRESHOLD 觸發不存在的 breakout。
+    """
+
+    @staticmethod
+    def _signals(db, repo_id, *, delta_7d, delta_30d, velocity):
+        from db.models import Signal
+        db.query(Signal).filter(Signal.repo_id == repo_id).delete()
+        for st, v in (
+            (SignalType.STARS_DELTA_7D, delta_7d),
+            (SignalType.STARS_DELTA_30D, delta_30d),
+            (SignalType.VELOCITY, velocity),
+        ):
+            db.add(Signal(repo_id=repo_id, signal_type=st, value=v, calculated_at=utc_now()))
+        db.commit()
+
+    def test_gap_inflated_week_does_not_trigger_a_false_breakout(self, test_db, mock_repo):
+        """缺快照的日子：delta_7d 涵蓋 9 天，真實 velocity 1.78 < 門檻 2。
+
+        除以名目 7 會得到 2.29 而觸發；讀 VELOCITY 訊號則不會。
+        """
+        self._signals(test_db, mock_repo.id, delta_7d=16, delta_30d=10, velocity=16 / 9)
+
+        assert AnomalyDetector.detect_breakout(mock_repo, test_db) is None, (
+            "真實日增 1.78 顆沒有越過門檻 2，不該因為分母寫死 7 就觸發"
+        )
+
+    def test_genuine_breakout_still_triggers(self, test_db, mock_repo):
+        """對照組：真的每天漲 5 顆、前幾週在掉——必須觸發。
+
+        少了這條，把 is_breakout 直接改成 False 也會讓上面那條通過。
+        """
+        self._signals(test_db, mock_repo.id, delta_7d=35, delta_30d=30, velocity=5.0)
+
+        result = AnomalyDetector.detect_breakout(mock_repo, test_db)
+        assert result is not None
+        assert result.velocity_value == pytest.approx(5.0)
+
+    def test_missing_velocity_signal_is_insufficient_data(self, test_db, mock_repo):
+        """VELOCITY 算不出來（快照不足）時不能退回自己用 delta 推導。"""
+        from db.models import Signal
+        test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
+        for st, v in ((SignalType.STARS_DELTA_7D, 35), (SignalType.STARS_DELTA_30D, 30)):
+            test_db.add(Signal(repo_id=mock_repo.id, signal_type=st, value=v, calculated_at=utc_now()))
+        test_db.commit()
+
+        assert AnomalyDetector.detect_breakout(mock_repo, test_db) is None
+
+    def test_gate_uses_the_raw_delta_difference_not_a_nominal_rate(self, test_db, mock_repo):
+        """閘門是正負號測試，不該依賴任何假分母。
+
+        前幾週剛好持平（差值為 0）仍算「停滯」，要觸發。
+        """
+        self._signals(test_db, mock_repo.id, delta_7d=35, delta_30d=35, velocity=5.0)
+
+        assert AnomalyDetector.detect_breakout(mock_repo, test_db) is not None
+
