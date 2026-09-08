@@ -8,9 +8,7 @@
 
 from datetime import datetime, timedelta, timezone
 import logging
-import os
 from pathlib import Path
-import shutil
 import sqlite3
 
 logger = logging.getLogger(__name__)
@@ -20,13 +18,6 @@ logger = logging.getLogger(__name__)
 # 常數：兩邊各寫一份的話，改了寫入端會讓讀取端靜默找不到備份，而診斷頁就會回到
 # 「明明有備份卻說沒有」——那正是 find_latest_backup 當初要修的問題。
 BACKUP_TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
-
-# 異地鏡像目的地。設了才做，沒設完全不動——鏡像是個人環境的備份策略，
-# 不是每個使用者都需要的功能。collector 的 launchd plist 用 EnvironmentVariables 設它。
-#
-# 為什麼需要：星數歷史重建不出來（GitHub 不提供歷史 star 數），而 backups/ 與正本
-# 在同一顆磁碟同一個目錄下，磁碟壞掉兩者一起沒。
-BACKUP_MIRROR_ENV_VAR = "STARSCOPE_BACKUP_MIRROR_DIR"
 
 
 class BackupService:
@@ -167,71 +158,6 @@ def find_latest_backup(db_path: str, backup_dir: str | None = None) -> "datetime
     return latest
 
 
-def mirror_backup(
-    backup_path: "Path | None",
-    mirror_dir: str,
-    retention_days: int = 7,
-) -> Path | None:
-    """把一份備份複製到第二個位置（例如 iCloud／外接磁碟）。
-
-    **盡力而為**：目的地不可用時只記 warning 並回 None，絕不拋例外——雲端沒掛載
-    是常態不是災難，而讓鏡像失敗連帶弄掉本機備份是把小問題升級成大問題。
-
-    先寫暫存檔再 rename，並在 rename 前比對大小：半截的檔案比沒有檔案更危險，
-    它讓人以為資料有保障。同步工具在複製途中被中斷、或磁碟滿，都會產生半截檔。
-
-    Returns:
-        鏡像後的路徑；沒做或失敗時回 None
-    """
-    if backup_path is None or not backup_path.exists():
-        return None
-
-    try:
-        destination = Path(mirror_dir).expanduser()
-        destination.mkdir(parents=True, exist_ok=True)
-    except OSError as e:
-        logger.warning(f"[備份] 鏡像目的地不可用，略過鏡像（本機備份不受影響）: {e}")
-        return None
-
-    final = destination / backup_path.name
-    source_size = backup_path.stat().st_size
-    if final.exists() and final.stat().st_size == source_size:
-        return final  # 已經鏡像過（collector 每小時跑一次，同一份備份會被重複要求）
-
-    # 暫存檔名帶 .partial：即使行程在此刻被砍掉，殘骸也不會被誤認成備份
-    # （find_latest_backup 只認 {stem}_YYYYMMDD_HHMMSS.db）
-    staging = destination / f"{backup_path.name}.partial"
-    try:
-        shutil.copyfile(str(backup_path), str(staging))
-        if not staging.exists() or staging.stat().st_size != source_size:
-            logger.error(
-                f"[備份] 鏡像不完整（{staging.stat().st_size if staging.exists() else 0}"
-                f"/{source_size} bytes），已丟棄: {final}"
-            )
-            staging.unlink(missing_ok=True)
-            return None
-        staging.replace(final)
-    except OSError as e:
-        logger.warning(f"[備份] 鏡像失敗（本機備份不受影響）: {e}")
-        Path(staging).unlink(missing_ok=True)
-        return None
-
-    logger.info(f"[備份] 已鏡像至 {final}")
-
-    # 鏡像目錄也要清舊檔，否則雲端空間會無限成長
-    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
-    stem = backup_path.name.split("_")[0]
-    for old in destination.glob(f"{stem}_*.db"):
-        try:
-            if datetime.fromtimestamp(old.stat().st_mtime, tz=timezone.utc) < cutoff:
-                old.unlink()
-                logger.info(f"[備份] 移除舊鏡像: {old}")
-        except OSError as e:
-            logger.warning(f"[備份] 清理舊鏡像失敗: {e}")
-
-    return final
-
-
 def backup_database(db_path: str, retention_days: int = 7) -> Path | None:
     """
     便利函式：建立備份並清理過期備份。
@@ -251,11 +177,5 @@ def backup_database(db_path: str, retention_days: int = 7) -> Path | None:
 
     if backup_path:
         service.cleanup_old_backups(retention_days)
-
-        # 異地鏡像（設了環境變數才做）。放在這裡而不是呼叫端：App 與 collector
-        # 兩條備份路徑都會經過這個函式，寫在這裡兩邊都涵蓋得到
-        mirror_dir = os.getenv(BACKUP_MIRROR_ENV_VAR)
-        if mirror_dir:
-            mirror_backup(backup_path, mirror_dir, retention_days)
 
     return backup_path

@@ -25,8 +25,6 @@ RUN_TIMEOUT_SECONDS = 900
 
 # 備份補跑門檻：cron 02:00 只在 App 恰好開著時觸發，收集器負責兜底。
 BACKUP_STALE_HOURS = 24
-# 備份的異地鏡像由 services.backup 讀 STARSCOPE_BACKUP_MIRROR_DIR 決定（設了才做），
-# 所以這裡不需要知道它的存在——App 與 collector 兩條備份路徑都會經過同一個函式。
 
 
 def _online(host: str = "api.github.com", port: int = 443, timeout: float = 3.0) -> bool:
