@@ -137,22 +137,24 @@ def _determine_severity(
 
 
 def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
-    """檢查是否已存在未過期、未確認的同類型 signal（單次查詢 fallback）。"""
+    """檢查是否已存在未過期的同類型 signal（單次查詢 fallback）。
+
+    已處理過的也算：按掉之後條件仍成立的話，重建的那筆會拿到新 id，
+    在「自上次以來」摘要與 SignalSpotlight 裡以新訊號身分再出現。過期後才重新偵測。
+    """
     return db.query(EarlySignal).filter(
         EarlySignal.repo_id == repo_id,
         EarlySignal.signal_type == signal_type,
         EarlySignal.expires_at > utc_now(),
-        EarlySignal.acknowledged.is_(False)
     ).first() is not None
 
 
 def _build_active_signals_set(db: Session) -> set[tuple[int, str]]:
-    """一次性預載所有 active early signals，回傳 {(repo_id, signal_type)} set。"""
+    """一次性預載所有未過期的 early signals（含已處理），回傳 {(repo_id, signal_type)} set。"""
     rows = db.query(
         EarlySignal.repo_id, EarlySignal.signal_type
     ).filter(
         EarlySignal.expires_at > utc_now(),
-        EarlySignal.acknowledged.is_(False)
     ).all()
     return {(int(row[0]), row[1]) for row in rows}
 

@@ -343,6 +343,59 @@ class TestDetectAllForRepo:
         rising_stars = [s for s in result if s.signal_type == EarlySignalType.RISING_STAR]
         assert len(rising_stars) == 0
 
+    def test_acknowledged_signal_is_not_recreated_before_it_expires(self, test_db, mock_repo):
+        # 使用者按掉的訊號，條件仍成立時下一次抓取不能重建一筆——新的一筆會拿到新 id，
+        # 在「自上次以來」摘要裡以新項目身分再出現一次
+        acknowledged = EarlySignal(
+            repo_id=mock_repo.id,
+            signal_type=EarlySignalType.RISING_STAR,
+            severity=EarlySignalSeverity.LOW,
+            description="Acknowledged",
+            detected_at=utc_now(),
+            expires_at=utc_now() + timedelta(days=7),
+            acknowledged=True,
+            acknowledged_at=utc_now(),
+        )
+        test_db.add(acknowledged)
+        test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
+        test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000),
+            Signal(repo_id=mock_repo.id, signal_type=SignalType.VELOCITY, value=20.0,
+                   calculated_at=utc_now()),
+        ])
+        test_db.commit()
+
+        result = AnomalyDetector.detect_all_for_repo(mock_repo, test_db)
+
+        assert [s for s in result if s.signal_type == EarlySignalType.RISING_STAR] == []
+
+    def test_expired_acknowledged_signal_can_be_detected_again(self, test_db, mock_repo):
+        # 對照組：過期之後條件仍成立就該重新偵測，否則按掉一次就永遠消失
+        expired = EarlySignal(
+            repo_id=mock_repo.id,
+            signal_type=EarlySignalType.RISING_STAR,
+            severity=EarlySignalSeverity.LOW,
+            description="Expired",
+            detected_at=utc_now() - timedelta(days=8),
+            expires_at=utc_now() - timedelta(days=1),
+            acknowledged=True,
+            acknowledged_at=utc_now() - timedelta(days=7),
+        )
+        test_db.add(expired)
+        test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == mock_repo.id).delete()
+        test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
+        test_db.add_all([
+            RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000),
+            Signal(repo_id=mock_repo.id, signal_type=SignalType.VELOCITY, value=20.0,
+                   calculated_at=utc_now()),
+        ])
+        test_db.commit()
+
+        result = AnomalyDetector.detect_all_for_repo(mock_repo, test_db)
+
+        assert len([s for s in result if s.signal_type == EarlySignalType.RISING_STAR]) == 1
+
 
 class TestRunDetection:
     """Tests for run_detection method and convenience function."""
@@ -843,3 +896,16 @@ class TestBreakoutUsesTheNormalisedVelocitySignal:
 
         assert AnomalyDetector.detect_breakout(mock_repo, test_db) is not None
 
+
+class TestActiveSignalsSet:
+    def test_acknowledged_unexpired_signal_counts_as_active(self, test_db, mock_repo):
+        from services.anomaly_detector import _build_active_signals_set
+        test_db.add(EarlySignal(
+            repo_id=mock_repo.id, signal_type=EarlySignalType.SUDDEN_SPIKE,
+            severity=EarlySignalSeverity.LOW, description="x",
+            detected_at=utc_now(), expires_at=utc_now() + timedelta(days=3),
+            acknowledged=True, acknowledged_at=utc_now(),
+        ))
+        test_db.commit()
+
+        assert (mock_repo.id, EarlySignalType.SUDDEN_SPIKE) in _build_active_signals_set(test_db)
