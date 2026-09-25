@@ -7,6 +7,9 @@ Session 是同步的：`async def` endpoint 裡的查詢直接跑在 event loop 
 症狀是前端整排停在 Loading、連 CORS preflight 都沒有回應。
 寫成 `def` 的 endpoint 由 FastAPI 放進 threadpool，等連線的是 worker thread，loop 照常運作。
 
+有 await 的 endpoint（例如 feed/generate）在 await 前後仍在 loop 上查 DB，只能靠連線池不排隊：
+正式的 engine 用 NullPool（db/database.py 的 create_app_engine）。
+
 conftest 的 test_engine 是 StaticPool（一條共用連線、不排隊），其他測試看不到這個問題。
 """
 
@@ -20,7 +23,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.database import get_db
+from db.database import create_app_engine, get_db
 from db.models import Base
 
 ROUTERS_DIR = Path(__file__).resolve().parent.parent / "routers"
@@ -116,3 +119,46 @@ async def test_waiting_for_a_connection_does_not_freeze_the_server(client, one_c
     # loop 被卡住的話，這個 sleep 要等到 pool timeout 才醒得過來
     assert slept < 1, f"event loop 被卡了 {slept:.1f} 秒"
     assert resp.status_code == 200
+
+
+async def test_app_engine_serves_a_burst_without_queueing(client, tmp_path):
+    # 用正式的 engine 設定。有上限的連線池在這個量下會排隊：threadpool 裡的請求逾時回 500，
+    # 在 loop 上查 DB 的 feed/generate 則把整個 loop 卡到 pool timeout
+    engine = create_app_engine(f"sqlite:///{tmp_path / 'burst.db'}")
+    Base.metadata.create_all(bind=engine)
+    session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    def override_get_db():
+        db = session_local()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    client.app.dependency_overrides[get_db] = override_get_db
+    gaps: list[float] = []
+    done = asyncio.Event()
+
+    async def watch_loop():
+        last = time.monotonic()
+        while not done.is_set():
+            await asyncio.sleep(0.05)
+            now = time.monotonic()
+            gaps.append(now - last)
+            last = now
+
+    transport = httpx.ASGITransport(app=client.app)
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1:8008") as ac:
+            watcher = asyncio.create_task(watch_loop())
+            requests = [ac.get("/api/early-signals/") for _ in range(200)]
+            requests.append(ac.post("/api/feed/generate"))  # 排在最後：池子最滿的時候才輪到它
+            responses = await asyncio.gather(*requests)
+            done.set()
+            await watcher
+    finally:
+        engine.dispose()
+
+    statuses = [r.status_code for r in responses]
+    assert statuses.count(200) == len(statuses), f"非 200：{sorted(set(statuses))}"
+    assert max(gaps) < 1, f"event loop 被卡了 {max(gaps):.1f} 秒"

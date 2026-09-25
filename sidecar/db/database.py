@@ -8,6 +8,7 @@ from pathlib import Path
 from sqlalchemy import Column, Engine, MetaData, PrimaryKeyConstraint, Table, create_engine, event
 from sqlalchemy.schema import ColumnCollectionConstraint
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger(__name__)
 
@@ -39,29 +40,44 @@ DATABASE_PATH = APP_DATA_DIR / "starscope.db"
 # SQLite 連線 URL
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
-# 建立 engine（含 SQLite 專用設定）
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={
-        "check_same_thread": False,  # SQLite 搭配 FastAPI 必須設定
-        "timeout": 30,  # 鎖等待最多 30 秒（預設 5 秒）
-    },
-    pool_pre_ping=True,  # 使用前驗證連線
-    echo=False,  # 設為 True 可除錯 SQL
-)
 
-
-@event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, _connection_record):
     """
-    設定 SQLite 優化參數（所有連線共用）。
-    WAL 模式提升併發讀寫效能，cache_size 提升查詢效能。
+    設定 SQLite 優化參數（每條新連線都執行一次）。
+    WAL 模式提升併發讀寫效能。cache_size 是單一連線的快取；engine 用 NullPool，
+    所以只在同一個 session 內有效。
     """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA cache_size=-10000")  # 10MB 快取
     cursor.close()
+
+
+def create_app_engine(url: str) -> Engine:
+    """建立 sidecar 用的 SQLite engine。
+
+    NullPool：每個 session 各開一條連線、用完就關，沒有「等連線」這回事。
+    有上限的連線池（SQLAlchemy 2.0 對 SQLite 檔案的預設 QueuePool 5+10）在同時進行中的
+    請求超過上限時會排隊；在 event loop 上排隊的話整個 sidecar 卡死到 pool timeout。
+    加大池子沒用——連線從查詢一路佔到 get_db 收尾，佔用數跟著進行中的請求數走。
+    代價是每個 session 都要重開連線、重跑 PRAGMA、從空的 page cache 開始：
+    e2e 實測（小資料庫）median 多約 1ms、p90 多約 10ms。
+    """
+    app_engine = create_engine(
+        url,
+        connect_args={
+            "check_same_thread": False,  # SQLite 搭配 FastAPI 必須設定
+            "timeout": 30,  # 鎖等待最多 30 秒（預設 5 秒）
+        },
+        poolclass=NullPool,
+        echo=False,  # 設為 True 可除錯 SQL
+    )
+    event.listen(app_engine, "connect", set_sqlite_pragma)
+    return app_engine
+
+
+engine = create_app_engine(DATABASE_URL)
 
 
 # Session 工廠

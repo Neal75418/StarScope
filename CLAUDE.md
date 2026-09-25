@@ -329,7 +329,8 @@ server_default、新欄位帶外鍵／`unique=True`／唯一索引／表級約�
 Session 是同步的：`async def` 裡的查詢跑在 event loop 上，連線池用完時 checkout 會卡住整個 loop，
 佔著連線的請求又等 loop 來收尾 get_db，形成死鎖。症狀是前端整排停在 Loading，連 preflight 都不回，要等 30 秒 pool timeout 才鬆開。
 測試的 `StaticPool` 看不到這個問題；`tests/test_endpoint_concurrency.py` 守住。
-⚠️ 已知殘留：有 await 的 endpoint（如 `feed/generate`）、啟動同步、排程 job 仍在 loop 上做 DB。
+有 await 的 endpoint（如 `feed/generate`）、啟動同步、排程 job 仍在 loop 上做 DB，靠 engine 用 `NullPool`
+（`create_app_engine`）不排隊撐住。⚠️ 別改回有上限的連線池：連線佔用數跟著進行中的請求數走，加大池子也擋不住。
 
 ### 服務間依賴
 
