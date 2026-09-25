@@ -110,6 +110,17 @@ class TestTiers:
             "fast", ">", 10.0, 42.0)
 
 
+    def test_viral_hn_signal_below_its_severity_cutoff_is_still_a_highlight(self, test_db, mock_repo):
+        # viral_hn 的嚴重度門檻比摘要的 HN 門檻高（100–199 分會是 low）。同一則討論沒被訊號化時
+        # ≥ 50 分就是重點，去重改由訊號代表它之後不能因此降級
+        viral = _signal(test_db, mock_repo, severity=EarlySignalSeverity.LOW,
+                        signal_type=EarlySignalType.VIRAL_HN, context_title="Show HN: thing")
+        viral.velocity_value = 150.0  # viral_hn 的 velocity_value 存的是 HN 分數
+        test_db.commit()
+
+        assert _keys(build_digest(test_db, ZERO), "highlight") == [f"signal:{viral.id}"]
+
+
 class TestFiltering:
     def test_viral_hn_story_appears_once_as_the_signal(self, test_db, mock_repo):
         title = "Show HN: " + "x" * 300  # 超過 255：context_title 寫入時被截斷
@@ -189,6 +200,38 @@ class TestFiltering:
 
         assert cursor["context_signal_id"] == old.id
         assert cursor["early_signal_id"] == old_signal.id
+
+
+    def test_rows_committed_while_building_are_left_for_next_time(self, test_db, mock_repo, monkeypatch):
+        # collector 在 build_digest 取完上界之後才寫入的列：這一批不含、cursor 也不越過，下一批出現
+        import services.digest as digest_module
+
+        early = _release(test_db, mock_repo, external_id="early")
+        rule = AlertRule(name="fast", signal_type="velocity", operator=">", threshold=1.0,
+                         repo_id=None, enabled=True)
+        test_db.add(rule)
+        test_db.commit()
+        real_max_ids = digest_module._current_max_ids
+        late: dict[str, int] = {}
+
+        def capture_then_write(db):
+            upper = real_max_ids(db)
+            late["release"] = _release(test_db, mock_repo, external_id="late").id
+            late["signal"] = _signal(test_db, mock_repo, severity=EarlySignalSeverity.HIGH).id
+            alert = TriggeredAlert(rule_id=rule.id, repo_id=mock_repo.id, signal_value=5.0)
+            test_db.add(alert)
+            test_db.commit()
+            late["alert"] = alert.id
+            return upper
+
+        monkeypatch.setattr(digest_module, "_current_max_ids", capture_then_write)
+        first = build_digest(test_db, ZERO)
+        monkeypatch.undo()
+
+        assert _keys(first) == [f"release:{early.id}"]
+        second = build_digest(test_db, DigestCursor(**first["cursor"]))
+        assert set(_keys(second)) == {
+            f"release:{late['release']}", f"signal:{late['signal']}", f"alert:{late['alert']}"}
 
 
 class TestShape:

@@ -7,6 +7,7 @@ id 只有真的新增時才會變大。設計見 docs/superpowers/specs/2026-09-
 
 import json
 import logging
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -28,6 +29,10 @@ from services.settings import delete_setting, get_setting, set_setting
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
+
+# 游標是讀-改-寫：兩支 POST 在 threadpool 裡並行時會讀到同一個舊值（後寫的蓋掉先寫的），
+# 第一次寫入時則是其中一個撞 UNIQUE。只有 app 的 sidecar 會寫游標，行程內互斥就夠
+_cursor_write_lock = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -67,18 +72,33 @@ def load_cursor(db: Session) -> tuple[DigestCursor | None, datetime | None]:
 
 def save_cursor(cursor: DigestCursor, db: Session) -> DigestCursor:
     """逐欄取 max 後寫回，回傳實際寫入的游標。重送舊的 cursor 不會讓游標倒退。"""
-    current, _ = load_cursor(db)
-    merged = cursor if current is None else current.merged(cursor)
-    set_setting(
-        AppSettingKey.DIGEST_CURSOR,
-        json.dumps({**asdict(merged), "seen_at": utc_now().isoformat()}),
-        db,
-    )
-    return merged
+    with _cursor_write_lock:
+        current, _ = load_cursor(db)
+        merged = cursor if current is None else current.merged(cursor)
+        set_setting(
+            AppSettingKey.DIGEST_CURSOR,
+            json.dumps({**asdict(merged), "seen_at": utc_now().isoformat()}),
+            db,
+        )
+        return merged
 
 
 def clear_cursor(db: Session) -> None:
     delete_setting(AppSettingKey.DIGEST_CURSOR, db)
+
+
+def clamp_to_existing(cursor: DigestCursor, db: Session) -> DigestCursor:
+    """前端送來的 cursor 不可能超過各表目前的最大 id；超過的是送錯或 reset 前的舊值。
+
+    不擋的話，大到超出 SQLite INTEGER 的值會讓之後每次 GET 都 500，
+    合法但過大的值則讓摘要一直空到 id 追上它。
+    """
+    ceiling = _current_max_ids(db)
+    return DigestCursor(
+        context_signal_id=min(cursor.context_signal_id, ceiling.context_signal_id),
+        early_signal_id=min(cursor.early_signal_id, ceiling.early_signal_id),
+        triggered_alert_id=min(cursor.triggered_alert_id, ceiling.triggered_alert_id),
+    )
 
 
 def _iso_utc(dt: datetime) -> str:
@@ -119,6 +139,17 @@ def _signal_payload(signal: EarlySignal, repo: Repo) -> dict[str, Any]:
     }
 
 
+def _signal_is_highlight(signal: EarlySignal) -> bool:
+    if signal.severity in DIGEST_HIGHLIGHT_SEVERITIES:
+        return True
+    # viral_hn 的嚴重度門檻比摘要的 HN 門檻高：100–199 分是 low。同一則討論沒被訊號化時
+    # ≥ 50 分就是重點，去重改由訊號代表它之後不能因此降級。velocity_value 存的是 HN 分數
+    return (
+        signal.signal_type == EarlySignalType.VIRAL_HN
+        and (signal.velocity_value or 0) >= DIGEST_HN_HIGHLIGHT_MIN_SCORE
+    )
+
+
 def build_digest(db: Session, cursor: DigestCursor | None) -> dict[str, Any]:
     """算出 id 大於 cursor 的所有事件，分成重點與其他更新。
 
@@ -150,7 +181,7 @@ def build_digest(db: Session, cursor: DigestCursor | None) -> dict[str, Any]:
             viral_titles.add((signal.repo_id, signal.context_title))
         items.append({
             "key": f"signal:{signal.id}",
-            "tier": "highlight" if signal.severity in DIGEST_HIGHLIGHT_SEVERITIES else "other",
+            "tier": "highlight" if _signal_is_highlight(signal) else "other",
             "kind": "signal",
             "repo": _repo_ref(repo),
             "occurred_at": _iso_utc(signal.detected_at),

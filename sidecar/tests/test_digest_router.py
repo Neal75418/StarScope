@@ -64,3 +64,16 @@ def test_seen_rejects_negative_ids(client):
         "context_signal_id": -1, "early_signal_id": 0, "triggered_alert_id": 0}})
 
     assert resp.status_code == 422
+
+
+def test_seen_with_ids_beyond_what_exists_is_clamped(client, test_db, mock_repo):
+    # 送錯或 reset 之後送來的舊 cursor：寫進去的話摘要會空到 id 追上它；
+    # 超出 SQLite INTEGER 的值更會讓之後每次 GET 都 500
+    client.post("/api/digest/seen", json={"cursor": {
+        "context_signal_id": 2**63, "early_signal_id": 10**9, "triggered_alert_id": 0}})
+
+    row = _add_release(test_db, mock_repo, "1")
+    resp = client.get("/api/digest")
+
+    assert resp.status_code == 200
+    assert [i["key"] for i in resp.json()["data"]["items"]] == [f"release:{row.id}"]

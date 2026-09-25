@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from db.database import get_db
 from routers.early_signals import EarlySignalResponse
 from schemas.response import ApiResponse, success_response
-from services.digest import DigestCursor, build_digest, load_cursor, save_cursor
+from services.digest import DigestCursor, build_digest, clamp_to_existing, load_cursor, save_cursor
 
 router = APIRouter(prefix="/api/digest", tags=["digest"])
 
@@ -69,5 +69,5 @@ def get_digest(db: Session = Depends(get_db)) -> dict:
 @router.post("/seen", response_model=ApiResponse[DigestCursorModel])
 def mark_digest_seen(body: MarkSeenRequest, db: Session = Depends(get_db)) -> dict:
     """推進游標到前端這批回應的 cursor（不是送出當下的最大 id）；逐欄 max，重送無害。"""
-    written = save_cursor(DigestCursor(**body.cursor.model_dump()), db)
+    written = save_cursor(clamp_to_existing(DigestCursor(**body.cursor.model_dump()), db), db)
     return success_response(data=DigestCursorModel(**written.__dict__))
