@@ -25,7 +25,7 @@ from constants import APP_VERSION, DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_
 from db import init_db
 from db.database import get_app_data_dir
 from logging_config import setup_logging
-from middleware import LoggingMiddleware, SessionAuthMiddleware
+from middleware import LocalRequestGuardMiddleware, LoggingMiddleware, SessionAuthMiddleware
 from middleware.rate_limit import limiter
 from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings, interests, feed
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
@@ -326,8 +326,9 @@ def get_allowed_origins() -> list[str]:
     正式環境排除 localhost 開發伺服器以提升安全性。
     """
     origins = [
-        "tauri://localhost",       # Tauri 正式環境 (macOS/Linux)
-        "https://tauri.localhost", # Tauri Windows 環境
+        "tauri://localhost",        # Tauri 正式環境 (macOS/Linux)
+        "http://tauri.localhost",   # Tauri Windows 環境（useHttpsScheme 預設 false）
+        "https://tauri.localhost",  # Tauri Windows 環境（useHttpsScheme 開啟時）
     ]
     if ENV != "production":
         origins.append("http://localhost:1420")  # Vite 開發伺服器
@@ -350,6 +351,10 @@ app.add_middleware(
 
 # Per-session secret 驗證 middleware（在 CORS 之後，確保 preflight 可通過）
 app.add_middleware(SessionAuthMiddleware)
+
+# 不依賴 secret 的 Host/Origin 檢查：沒有 secret 的開發模式也要擋住別的網站。
+# 掛在 Logging 內層，被拒絕的請求也會帶 X-Request-ID、進 access log
+app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED_ORIGINS)
 
 # Request/Response 日誌 middleware
 app.add_middleware(

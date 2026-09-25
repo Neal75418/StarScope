@@ -28,9 +28,12 @@ GITHUB_RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 GITHUB_CLIENT_ID_ENV_VAR = "GITHUB_CLIENT_ID"
 
 # StarScope 所需的 OAuth scopes
-# - repo: 存取公開/私有 repo（用於追蹤私有 repo）
+# - public_repo: star / unstar 需要的最小 OAuth scope。它不只管 star——同時是使用者
+#   所有公開 repo 的讀寫權（可 push）。不用 repo，是因為那再加上所有私有 repo（含組織）。
+#   代價是私有 repo 無法追蹤，也不會出現在 star 同步裡。要做到「只能動 star」
+#   得改用 GitHub App 的 Starring 權限，OAuth scope 沒有更細的選項
 # - read:user: 讀取使用者個人資訊
-GITHUB_OAUTH_SCOPES = "repo read:user"
+GITHUB_OAUTH_SCOPES = "public_repo read:user"
 
 
 @dataclass

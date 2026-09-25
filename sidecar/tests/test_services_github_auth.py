@@ -77,6 +77,31 @@ class TestInitiateDeviceFlow:
                 assert result.expires_in == 900
 
     @pytest.mark.asyncio
+    async def test_requests_public_repo_scope_not_full_repo(self):
+        """star 讀寫只需要 public_repo；repo 是所有私有 repo 的完整讀寫權。
+
+        逐詞比對而不是子字串：public_repo 本身就含有 "repo" 這四個字。
+        """
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "device_code": "dc", "user_code": "U", "verification_uri": "https://github.com/login/device",
+            "expires_in": 900, "interval": 5,
+        }
+
+        with patch.dict(os.environ, {"GITHUB_CLIENT_ID": "test-id"}):
+            with patch('httpx.AsyncClient') as mock_client_class:
+                mock_client = AsyncMock()
+                mock_client.post.return_value = mock_response
+                mock_client_class.return_value.__aenter__.return_value = mock_client
+
+                await GitHubAuthService().initiate_device_flow()
+
+        requested = mock_client.post.call_args.kwargs["data"]["scope"].split()
+        assert "public_repo" in requested
+        assert "repo" not in requested
+
+    @pytest.mark.asyncio
     async def test_raises_on_error_response(self):
         """Test raises error on non-200 response."""
         mock_response = MagicMock()

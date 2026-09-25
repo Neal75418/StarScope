@@ -87,7 +87,8 @@ def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
             yield test_db
 
         app.dependency_overrides[get_db] = override_get_db
-        with TestClient(app) as test_client:
+        # 預設的 Host "testserver" 會被 LocalRequestGuardMiddleware 擋掉
+        with TestClient(app, base_url="http://127.0.0.1:8008") as test_client:
             yield test_client
         app.dependency_overrides.clear()
 
