@@ -747,3 +747,64 @@ export interface SyncStatus {
   last_sync_at: string | null;
   running: boolean;
 }
+
+/** 「自上次以來」摘要看到哪：三張來源表各自的最大 id */
+export interface DigestCursor {
+  context_signal_id: number;
+  early_signal_id: number;
+  triggered_alert_id: number;
+}
+
+export interface DigestRepoRef {
+  id: number;
+  full_name: string;
+  url: string;
+}
+
+interface DigestItemBase {
+  /** `來源:id`，例如 `release:1290` */
+  key: string;
+  tier: "highlight" | "other";
+  repo: DigestRepoRef;
+  /** 事件本身的時間，帶 +00:00 */
+  occurred_at: string;
+  /** release／HN 的網址；訊號與警報為 null（點擊改開 repo.url） */
+  url: string | null;
+}
+
+export interface DigestReleaseItem extends DigestItemBase {
+  kind: "release";
+  title: string;
+  tags: string[];
+}
+
+export interface DigestHnItem extends DigestItemBase {
+  kind: "hn";
+  title: string;
+  score: number | null;
+}
+
+export interface DigestSignalItem extends DigestItemBase {
+  kind: "signal";
+  signal: EarlySignal;
+}
+
+export interface DigestAlertItem extends DigestItemBase {
+  kind: "alert";
+  rule_name: string;
+  signal_type: string;
+  operator: string;
+  threshold: number;
+  value: number;
+}
+
+export type DigestItem = DigestReleaseItem | DigestHnItem | DigestSignalItem | DigestAlertItem;
+
+export interface DigestResponse {
+  items: DigestItem[];
+  /** 其他更新的總數；items 裡最多只有 50 條 */
+  other_total: number;
+  cursor: DigestCursor;
+  last_seen_at: string | null;
+  releases_checked: boolean;
+}

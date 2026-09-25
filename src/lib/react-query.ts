@@ -43,6 +43,12 @@ export const queryClient = new QueryClient({
  * 提供型別安全的查詢 key 生成器，避免魔術字串。
  */
 export const queryKeys = {
+  // 「自上次以來」摘要：刻意不放在 dashboard 底下——Dashboard 的 refresh 會 invalidate
+  // 整個 dashboard，重抓只會回新項目，會把使用者正在看的這批蓋掉
+  digest: {
+    session: () => ["digest", "session"] as const,
+  },
+
   // 儲存庫
   repos: {
     all: ["repos"] as const,

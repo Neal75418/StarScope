@@ -74,6 +74,8 @@ import type {
   GenerateFeedResult,
   FeedItem,
   FeedFeedbackAction,
+  DigestCursor,
+  DigestResponse,
 } from "./types";
 
 export * from "./types";
@@ -894,6 +896,19 @@ export async function getWeeklySummary(
   signal?: AbortSignal
 ): Promise<WeeklySummaryResponse> {
   return apiCall<WeeklySummaryResponse>(`/summary/weekly?days=${days}`, { signal });
+}
+
+/** 自上次看過之後的事件；不會推進游標 */
+export async function getDigest(signal?: AbortSignal): Promise<DigestResponse> {
+  return apiCall<DigestResponse>("/digest", { signal });
+}
+
+/** 推進游標到這批回應的 cursor（不是送出當下的最大 id，見 spec） */
+export async function markDigestSeen(cursor: DigestCursor): Promise<DigestCursor> {
+  return apiCall<DigestCursor>("/digest/seen", {
+    method: "POST",
+    body: JSON.stringify({ cursor }),
+  });
 }
 
 /**
