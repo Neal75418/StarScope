@@ -17,9 +17,10 @@ ALLOWED = ["tauri://localhost", "http://localhost:1420"]
 
 def _build_app() -> FastAPI:
     app = FastAPI()
+    # 跟 main.py 一樣：CORS 最後 add、在最外層
+    app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED)
     app.add_middleware(CORSMiddleware, allow_origins=ALLOWED,
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
-    app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED)
 
     @app.get("/api/repos")
     async def repos():
@@ -81,20 +82,6 @@ class TestOrigin:
         resp = guard_client.post("/api/repos/1/unstar")
         assert resp.status_code == 200
 
-    def test_rejects_cross_site_preflight(self, guard_client):
-        resp = guard_client.options("/api/repos/1/unstar", headers={
-            "Origin": "https://evil.example",
-            "Access-Control-Request-Method": "POST",
-        })
-        assert resp.status_code == 403
-
-    def test_allowed_preflight_still_gets_cors_headers(self, guard_client):
-        resp = guard_client.options("/api/repos/1/unstar", headers={
-            "Origin": "http://localhost:1420",
-            "Access-Control-Request-Method": "POST",
-        })
-        assert resp.status_code == 200
-        assert resp.headers["access-control-allow-origin"] == "http://localhost:1420"
 
 
 class _RecordingGitHub:
@@ -147,6 +134,23 @@ class TestMountedOnMainApp:
     def test_foreign_host_is_blocked(self, client):
         resp = client.get("/api/repos", headers={"Host": "evil.example:8008"})
         assert resp.status_code == 403
+
+    def test_cross_site_preflight_is_not_approved(self, client):
+        # preflight 由最外層的 CORS 直接回應（400），到不了守衛；要守的是它沒被核准
+        resp = client.options("/api/repos/1/unstar", headers={
+            "Origin": "https://evil.example",
+            "Access-Control-Request-Method": "POST",
+        })
+        assert not resp.is_success
+        assert "access-control-allow-origin" not in resp.headers
+
+    def test_allowed_preflight_still_gets_cors_headers(self, client):
+        resp = client.options("/api/repos/1/unstar", headers={
+            "Origin": "http://localhost:1420",
+            "Access-Control-Request-Method": "POST",
+        })
+        assert resp.status_code == 200
+        assert resp.headers["access-control-allow-origin"] == "http://localhost:1420"
 
 
 def test_production_origins_cover_every_tauri_platform(monkeypatch):

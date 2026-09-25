@@ -257,6 +257,10 @@ npm run tauri dev                        # 終端機 2
 - `SessionAuthMiddleware`：只在 Tauri 注入 secret 時生效（正式版）；手動啟動的 sidecar（start-dev.sh、e2e）整個放行
 - `LocalRequestGuardMiddleware`：不分模式，Host 必須是 loopback、帶 Origin 就必須在 `ALLOWED_ORIGINS`
 
+⚠️ `add_middleware` 後加的在外層：`CORSMiddleware` 必須**最後** add。沒接住的例外由 `UnhandledErrorMiddleware`
+轉成 500 才會經過 CORS。順序錯了，內層的 403／500 不帶 CORS header，前端只顯示「Network error」
+（`tests/test_cors_on_error_responses.py` 守住）。
+
 ⚠️ 第二層擋不住跨站 GET（`<img src>` 不帶 Origin）⇒ **GET 端點不能改資料、不能寫 GitHub**。
 ⚠️ 改 Tauri 平台或 scheme 時同步 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）。
 

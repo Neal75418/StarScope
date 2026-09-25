@@ -26,7 +26,12 @@ from constants import APP_VERSION, DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_
 from db import init_db
 from db.database import get_app_data_dir
 from logging_config import setup_logging
-from middleware import LocalRequestGuardMiddleware, LoggingMiddleware, SessionAuthMiddleware
+from middleware import (
+    LocalRequestGuardMiddleware,
+    LoggingMiddleware,
+    SessionAuthMiddleware,
+    UnhandledErrorMiddleware,
+)
 from middleware.rate_limit import limiter
 from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings, interests, feed
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
@@ -342,6 +347,28 @@ def get_allowed_origins() -> list[str]:
 
 ALLOWED_ORIGINS = get_allowed_origins()
 
+# ⚠️ 後 add 的在外層。由外到內：CORS → Logging → UnhandledError → LocalRequestGuard → SessionAuth。
+# CORS 一定要最外層：內層 middleware 自己回的 403／500 不帶 CORS header 的話，前端讀不到，
+# 只會顯示「Network error」。tests/test_cors_on_error_responses.py 守住 CORS 在其他層外面、
+# UnhandledError 在 Logging 內層；其餘三層的相對順序沒有測試。
+
+# Per-session secret 驗證 middleware（preflight 由外層的 CORS 直接回應，到不了這裡）
+app.add_middleware(SessionAuthMiddleware)
+
+# 不依賴 secret 的 Host/Origin 檢查：沒有 secret 的開發模式也要擋住別的網站。
+# 掛在 Logging 內層，被拒絕的請求也會帶 X-Request-ID、進 access log
+app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED_ORIGINS)
+
+# 沒接住的例外在這裡轉成 500，才會經過 CORS；掛在 Logging 內層，500 照樣進 access log
+app.add_middleware(UnhandledErrorMiddleware)
+
+# Request/Response 日誌 middleware
+app.add_middleware(
+    LoggingMiddleware,
+    exclude_paths=["/api/health", "/"],
+    log_headers=DEBUG,  # 僅在 debug 模式記錄 headers
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -350,20 +377,6 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Session-Secret"],
     # 前端對 sidecar 是跨來源請求：不 expose 的話 fetch 讀不到匯出檔名
     expose_headers=["Content-Disposition"],
-)
-
-# Per-session secret 驗證 middleware（在 CORS 之後，確保 preflight 可通過）
-app.add_middleware(SessionAuthMiddleware)
-
-# 不依賴 secret 的 Host/Origin 檢查：沒有 secret 的開發模式也要擋住別的網站。
-# 掛在 Logging 內層，被拒絕的請求也會帶 X-Request-ID、進 access log
-app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED_ORIGINS)
-
-# Request/Response 日誌 middleware
-app.add_middleware(
-    LoggingMiddleware,
-    exclude_paths=["/api/health", "/"],
-    log_headers=DEBUG,  # 僅在 debug 模式記錄 headers
 )
 
 # 註冊 routers（prefix 與 tags 均定義在各 router 內部）

@@ -54,7 +54,8 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         if request.url.path in _EXEMPT_PATHS:
             return await call_next(request)
 
-        # CORS preflight（OPTIONS）不含自訂 header，必須放行
+        # OPTIONS 不帶自訂 header，放行。preflight 平常由外層的 CORSMiddleware 直接回應、
+        # 到不了這裡；會走到這行的是非 preflight 的 OPTIONS
         if request.method == "OPTIONS":
             return await call_next(request)
 
