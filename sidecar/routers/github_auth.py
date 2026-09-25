@@ -135,7 +135,7 @@ async def get_connection_status() -> dict:
 
 
 @router.post("/disconnect", response_model=ApiResponse[DisconnectResponseModel])
-async def disconnect() -> dict:
+def disconnect() -> dict:
     """
     移除已儲存的憑證以斷開 GitHub 連結。
 

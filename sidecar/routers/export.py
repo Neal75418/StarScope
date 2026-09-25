@@ -154,7 +154,7 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
         }
     }
 )
-async def export_watchlist_json(
+def export_watchlist_json(
     db: Session = Depends(get_db)
 ) -> Response:
     """
@@ -206,7 +206,7 @@ CSV_COLUMNS = [
         }
     }
 )
-async def export_watchlist_csv(
+def export_watchlist_csv(
     db: Session = Depends(get_db)
 ) -> Response:
     """
@@ -282,7 +282,7 @@ TRENDS_CSV_COLUMNS = [
 
 
 @router.get("/trends.json", response_class=Response)
-async def export_trends_json(
+def export_trends_json(
     sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
     limit: int = Query(50, ge=1, le=200, description="Maximum results"),
     language: str | None = Query(None, description="Filter by language"),
@@ -307,7 +307,7 @@ async def export_trends_json(
 
 
 @router.get("/trends.csv", response_class=Response)
-async def export_trends_csv(
+def export_trends_csv(
     sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
     limit: int = Query(50, ge=1, le=200, description="Maximum results"),
     language: str | None = Query(None, description="Filter by language"),

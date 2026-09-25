@@ -92,7 +92,7 @@ class ComparisonChartResponse(BaseModel):
 
 
 @router.post("/chart", response_model=ApiResponse[ComparisonChartResponse])
-async def comparison_chart(
+def comparison_chart(
     req: ComparisonRequest,
     db: Session = Depends(get_db),
 ) -> dict:

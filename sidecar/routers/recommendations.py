@@ -60,7 +60,7 @@ class PersonalizedResponse(BaseModel):
 
 # 端點
 @router.post("/repo/{repo_id}/calculate", response_model=ApiResponse[CalculateSimilaritiesResponse])
-async def calculate_similarities_for_repo(
+def calculate_similarities_for_repo(
     repo_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -87,7 +87,7 @@ async def calculate_similarities_for_repo(
 
 @router.post("/recalculate", response_model=ApiResponse[RecalculateAllResponse])
 @limiter.limit("2/minute")
-async def recalculate_all(
+def recalculate_all(
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
@@ -111,7 +111,7 @@ async def recalculate_all(
 
 
 @router.get("/personalized", response_model=ApiResponse[PersonalizedResponse])
-async def get_personalized(
+def get_personalized(
     limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations"),
     db: Session = Depends(get_db)
 ) -> dict:

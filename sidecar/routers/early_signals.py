@@ -90,7 +90,7 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
 
 # 端點
 @router.get("/", response_model=ApiResponse[EarlySignalListResponse])
-async def list_early_signals(
+def list_early_signals(
     signal_type: str | None = Query(None, description="Filter by signal type"),
     severity: str | None = Query(None, description="Filter by severity"),
     include_acknowledged: bool = Query(False, description="Include acknowledged signals"),
@@ -138,7 +138,7 @@ async def list_early_signals(
 
 
 @router.get("/repo/{repo_id}", response_model=ApiResponse[EarlySignalListResponse])
-async def get_repo_signals(
+def get_repo_signals(
     repo_id: int,
     include_acknowledged: bool = Query(False),
     include_expired: bool = Query(False),
@@ -191,7 +191,7 @@ def _snapshot_days_covered(db: Session) -> int:
 
 
 @router.get("/summary", response_model=ApiResponse[SignalSummary])
-async def get_signal_summary(
+def get_signal_summary(
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -245,7 +245,7 @@ async def get_signal_summary(
 
 
 @router.post("/{signal_id}/acknowledge", response_model=ApiResponse[StatusResponse])
-async def acknowledge_signal(
+def acknowledge_signal(
     signal_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -277,7 +277,7 @@ class BatchSignalsResponse(BaseModel):
 
 
 @router.post("/batch", response_model=ApiResponse[BatchSignalsResponse])
-async def get_repo_signals_batch(
+def get_repo_signals_batch(
     request: BatchSignalsRequest,
     db: Session = Depends(get_db)
 ) -> dict:

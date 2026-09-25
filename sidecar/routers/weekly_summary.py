@@ -65,7 +65,7 @@ class WeeklySummaryResponse(BaseModel):
 
 
 @router.get("/weekly", response_model=ApiResponse[WeeklySummaryResponse])
-async def weekly_summary(
+def weekly_summary(
     days: int = Query(default=7, ge=7, le=30),
     db: Session = Depends(get_db),
 ) -> dict:

@@ -113,7 +113,7 @@ class ResetDataResponse(BaseModel):
 # --- 排程間隔設定 ---
 
 @router.get("/fetch-interval", response_model=ApiResponse[FetchIntervalResponse])
-async def get_fetch_interval(db: Session = Depends(get_db)) -> dict:
+def get_fetch_interval(db: Session = Depends(get_db)) -> dict:
     """取得目前的資料抓取間隔（分鐘）。"""
     value = get_setting(AppSettingKey.FETCH_INTERVAL_MINUTES, db)
     interval = int(value) if value else DEFAULT_FETCH_INTERVAL
@@ -121,7 +121,7 @@ async def get_fetch_interval(db: Session = Depends(get_db)) -> dict:
 
 
 @router.put("/fetch-interval", response_model=ApiResponse[FetchIntervalResponse])
-async def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends(get_db)) -> dict:
+def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends(get_db)) -> dict:
     """更新資料抓取間隔，並立即套用至排程器。"""
     set_setting(AppSettingKey.FETCH_INTERVAL_MINUTES, str(body.interval_minutes), db)
 
@@ -155,7 +155,7 @@ async def update_fetch_interval(body: FetchIntervalUpdate, db: Session = Depends
 # --- 快照保留設定 ---
 
 @router.get("/snapshot-retention", response_model=ApiResponse[SnapshotRetentionResponse])
-async def get_snapshot_retention(db: Session = Depends(get_db)) -> dict:
+def get_snapshot_retention(db: Session = Depends(get_db)) -> dict:
     """取得快照保留天數設定。"""
     value = get_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, db)
     days = int(value) if value else DEFAULT_SNAPSHOT_RETENTION_DAYS
@@ -163,7 +163,7 @@ async def get_snapshot_retention(db: Session = Depends(get_db)) -> dict:
 
 
 @router.put("/snapshot-retention", response_model=ApiResponse[SnapshotRetentionResponse])
-async def update_snapshot_retention(body: SnapshotRetentionUpdate, db: Session = Depends(get_db)) -> dict:
+def update_snapshot_retention(body: SnapshotRetentionUpdate, db: Session = Depends(get_db)) -> dict:
     """更新快照保留天數。"""
     set_setting(AppSettingKey.SNAPSHOT_RETENTION_DAYS, str(body.retention_days), db)
     return success_response(data=SnapshotRetentionResponse(retention_days=body.retention_days))
@@ -172,7 +172,7 @@ async def update_snapshot_retention(body: SnapshotRetentionUpdate, db: Session =
 # --- Early Signal 偵測門檻 ---
 
 @router.get("/signal-thresholds", response_model=ApiResponse[SignalThresholdsResponse])
-async def get_signal_thresholds(db: Session = Depends(get_db)) -> dict:
+def get_signal_thresholds(db: Session = Depends(get_db)) -> dict:
     """取得 Early Signal 偵測門檻。"""
     from services.anomaly_detector import get_thresholds
     thresholds = get_thresholds(db)
@@ -180,7 +180,7 @@ async def get_signal_thresholds(db: Session = Depends(get_db)) -> dict:
 
 
 @router.put("/signal-thresholds", response_model=ApiResponse[SignalThresholdsResponse])
-async def update_signal_thresholds(body: SignalThresholdsUpdate, db: Session = Depends(get_db)) -> dict:
+def update_signal_thresholds(body: SignalThresholdsUpdate, db: Session = Depends(get_db)) -> dict:
     """更新 Early Signal 偵測門檻。"""
     from services.anomaly_detector import save_thresholds, get_thresholds, reload_thresholds_from_db
     updates = body.model_dump(exclude_none=True)
@@ -223,7 +223,7 @@ class DiagnosticsResponse(BaseModel):
 
 
 @router.get("/diagnostics", response_model=ApiResponse[DiagnosticsResponse])
-async def get_diagnostics(db: Session = Depends(get_db)) -> dict:
+def get_diagnostics(db: Session = Depends(get_db)) -> dict:
     """取得系統診斷資訊：版本、資料庫狀態、排程健康狀態。"""
     from services.scheduler import get_scheduler_health
 
@@ -298,7 +298,7 @@ def _format_scheduler_health(health: dict) -> dict:
 # --- 日誌匯出 ---
 
 @router.get("/logs", response_model=ApiResponse[dict])
-async def get_recent_logs() -> dict:
+def get_recent_logs() -> dict:
     """取得最近的日誌條目（最多 200 行）。"""
     log_dir = str(get_app_data_dir())
     log_file = os.path.join(log_dir, "starscope.log")
@@ -319,7 +319,7 @@ async def get_recent_logs() -> dict:
 # --- 重設所有資料 ---
 
 @router.post("/reset-data", response_model=ApiResponse[ResetDataResponse])
-async def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_db)) -> dict:
+def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_db)) -> dict:
     """
     刪除所有追蹤資料（repos、快照、訊號、警報等）。
     保留 GitHub 憑證與應用程式設定。

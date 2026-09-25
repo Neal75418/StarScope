@@ -37,7 +37,7 @@ class StarsChartResponse(BaseModel):
 
 
 @router.get("/{repo_id}/stars", response_model=ApiResponse[StarsChartResponse])
-async def get_stars_chart(
+def get_stars_chart(
     repo_id: int,
     time_range: TimeRange = Query(TimeRange.MONTH, description="Time range for chart data"),
     db: Session = Depends(get_db)

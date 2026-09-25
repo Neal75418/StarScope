@@ -88,7 +88,7 @@ class FetchContextResponse(BaseModel):
 
 # 端點
 @router.get("/{repo_id}/signals", response_model=ApiResponse[ContextSignalsResponse])
-async def get_context_signals(
+def get_context_signals(
     repo_id: int,
     signal_type: str | None = Query(None, description="Filter by signal type (hacker_news only)"),
     limit: int = Query(50, ge=1, le=100),
@@ -126,7 +126,7 @@ async def get_context_signals(
 
 
 @router.get("/{repo_id}/badges", response_model=ApiResponse[ContextBadgesResponse])
-async def get_context_badges(
+def get_context_badges(
     repo_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -199,7 +199,7 @@ async def fetch_repo_context(
 
 
 @router.post("/badges/batch", response_model=ApiResponse[BatchBadgesResponse])
-async def get_context_badges_batch(
+def get_context_badges_batch(
     request: BatchBadgesRequest,
     db: Session = Depends(get_db)
 ) -> dict:

@@ -205,7 +205,7 @@ def _build_repo_list_response(
 
 
 @router.get("/repos", response_model=ApiResponse[RepoListResponse])
-async def list_repos(
+def list_repos(
     page: int | None = Query(None, ge=1, description="Page number (omit for all results)"),
     per_page: int | None = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
     db: Session = Depends(get_db),
@@ -466,7 +466,7 @@ def list_archived(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/repos/{repo_id}", response_model=ApiResponse[RepoWithSignals])
-async def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
+def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
     """
     依 ID 取得單一 repo 及其訊號。
     """
@@ -506,7 +506,7 @@ async def restar_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
+def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
     """永久刪除。
 
     連同快照、訊號、context signals、early signals 與**警示規則**一併 cascade

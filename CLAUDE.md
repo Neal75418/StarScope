@@ -152,6 +152,8 @@ npm run test:e2e:headed   # 顯示瀏覽器視窗
 ⚠️ 本機一律 `E2E_NO_TOKEN=1 npm run test:e2e:chromium`：不加的話 e2e 的 sidecar 讀得到 Keychain token，
 「加入追蹤」會真的在 GitHub 上按 star。
 
+e2e 大量 Loading 逾時時先看 `/tmp/starscope-e2e/starscope.log` 的 `-->`／`<--` 數量：對不起來就是 sidecar 卡住，不是測試 flaky。
+
 ### 完整開發流程
 
 ```bash
@@ -321,6 +323,13 @@ server_default、新欄位帶外鍵／`unique=True`／唯一索引／表級約�
 ### API 回應格式
 
 所有端點回傳統一的 `ApiResponse[T]`：`{success, data, message, error}`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data` 欄位**，所以前端拿到的是 `data` 的內容而非整個信封——新增端點時若忘了包 `success_response()`，前端會拿到 undefined。
+
+### endpoint 沒有 await 就寫 `def`
+
+Session 是同步的：`async def` 裡的查詢跑在 event loop 上，連線池用完時 checkout 會卡住整個 loop，
+佔著連線的請求又等 loop 來收尾 get_db，形成死鎖。症狀是前端整排停在 Loading，連 preflight 都不回，要等 30 秒 pool timeout 才鬆開。
+測試的 `StaticPool` 看不到這個問題；`tests/test_endpoint_concurrency.py` 守住。
+⚠️ 已知殘留：有 await 的 endpoint（如 `feed/generate`）、啟動同步、排程 job 仍在 loop 上做 DB。
 
 ### 服務間依賴
 

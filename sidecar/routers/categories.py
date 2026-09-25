@@ -230,7 +230,7 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 
 # 端點
 @router.get("/tree", response_model=ApiResponse[CategoryTreeResponse])
-async def get_category_tree(
+def get_category_tree(
     db: Session = Depends(get_db)
 ) -> dict:
     """
@@ -253,7 +253,7 @@ async def get_category_tree(
 
 
 @router.get("/{category_id}", response_model=ApiResponse[CategoryResponse])
-async def get_category(
+def get_category(
     category_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -271,7 +271,7 @@ async def get_category(
 
 
 @router.post("/", response_model=ApiResponse[CategoryResponse])
-async def create_category(
+def create_category(
     request: CategoryCreate,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -309,7 +309,7 @@ async def create_category(
 
 
 @router.put("/{category_id}", response_model=ApiResponse[CategoryResponse])
-async def update_category(
+def update_category(
     category_id: int,
     request: CategoryUpdate,
     db: Session = Depends(get_db)
@@ -339,7 +339,7 @@ async def update_category(
 
 
 @router.delete("/{category_id}", response_model=ApiResponse[StatusResponse])
-async def delete_category(
+def delete_category(
     category_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -359,7 +359,7 @@ async def delete_category(
 
 
 @router.get("/{category_id}/repos", response_model=ApiResponse[CategoryReposResponse])
-async def get_category_repos(
+def get_category_repos(
     category_id: int,
     skip: int = 0,
     limit: int = Query(100, ge=1, le=500),
@@ -408,7 +408,7 @@ async def get_category_repos(
 
 
 @router.post("/{category_id}/repos/{repo_id}", response_model=ApiResponse[StatusResponse])
-async def add_repo_to_category(
+def add_repo_to_category(
     category_id: int,
     repo_id: int,
     db: Session = Depends(get_db)
@@ -440,7 +440,7 @@ async def add_repo_to_category(
 
 
 @router.delete("/{category_id}/repos/{repo_id}", response_model=ApiResponse[StatusResponse])
-async def remove_repo_from_category(
+def remove_repo_from_category(
     category_id: int,
     repo_id: int,
     db: Session = Depends(get_db)
@@ -465,7 +465,7 @@ async def remove_repo_from_category(
 
 
 @router.get("/repo/{repo_id}/categories", response_model=ApiResponse[RepoCategoriesResponse])
-async def get_repo_categories(
+def get_repo_categories(
     repo_id: int,
     db: Session = Depends(get_db)
 ) -> dict:

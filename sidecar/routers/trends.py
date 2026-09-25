@@ -69,7 +69,7 @@ class TrendsResponse(BaseModel):
 
 
 @router.get("/", response_model=ApiResponse[TrendsResponse])
-async def get_trends(
+def get_trends(
     sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
     limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
     language: str | None = Query(None, description="Filter by programming language"),

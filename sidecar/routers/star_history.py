@@ -85,7 +85,7 @@ class PortfolioHistoryResponse(BaseModel):
 
 # Portfolio 歷史端點（必須在 /{repo_id} 之前定義以避免路由衝突）
 @router.get("/portfolio", response_model=ApiResponse[PortfolioHistoryResponse])
-async def get_portfolio_history(
+def get_portfolio_history(
     days: int = Query(default=30, ge=7, le=365),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -237,7 +237,7 @@ def _create_snapshots_from_history(
 
 # 端點
 @router.get("/{repo_id}/status", response_model=ApiResponse[BackfillStatus])
-async def get_backfill_status(
+def get_backfill_status(
     repo_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
@@ -377,7 +377,7 @@ async def backfill_star_history(
 
 
 @router.get("/{repo_id}", response_model=ApiResponse[StarHistoryResponse])
-async def get_star_history(
+def get_star_history(
     repo_id: int,
     db: Session = Depends(get_db)
 ) -> dict:
