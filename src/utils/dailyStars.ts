@@ -7,14 +7,18 @@
  *
  * 兩個必須誠實處理的地方：
  *
- * 1. **量測有缺口。** 這是桌面 App，只有開著的時候才會抓快照，所以會出現
- *    8/16 → 8/18 這種隔兩天才量到一次的情形。把那次的差額整筆算在 8/18
- *    頭上，畫出來會是 17,733 → 35,916 → 49,379 的假暴衝；攤成日均之後
- *    是 17,733 → 17,958 → 16,460，才是真實的平穩。攤過的那幾天會標記
- *    起來，讓畫面說得出哪些是推估的。
+ * 1. **量測有缺口。** 快照只在 App 或背景 collector 跑的時候抓，電腦睡著的日子
+ *    就沒有，所以會出現 8/16 → 8/18 這種隔兩天才量到一次的情形。把那次的差額
+ *    整筆算在 8/18 頭上，畫出來會是 17,733 → 35,916 → 49,379 的假暴衝；攤成
+ *    日均之後是 17,733 → 17,958 → 16,460，才是真實的平穩。攤過的那幾天會標記
+ *    起來，讓畫面說得出哪些是推估的。（這幾個數字是用總星數相減算的，8/16 還混著
+ *    兩個 repo 被封存的影響——只用來說明攤平，不是當天的真實成長。）
  *
  * 2. **今天還沒過完。** 最後一筆快照是今天抓的，只涵蓋幾個小時，數字必然
  *    偏低。不標記的話每天最右邊那根都會看起來像崩盤。
+ *
+ * 增量取後端的 `stars_gained`，不用 `total_stars` 相減：總星數相減會把清單成員
+ * 變動當成成長——9/21 加入一個本來就有 8 萬星的 repo，那天就畫出 +88K，實際只漲 6.8K。
  */
 
 import type { PortfolioHistoryPoint } from "../api/types";
@@ -30,8 +34,6 @@ export interface DailyStarBar {
   spanDays: number;
   /** 這一天還沒過完，數字只到目前為止 */
   partial: boolean;
-  /** 這段期間追蹤清單的 repo 數量有變動，取消追蹤會讓總數下降並混進這個數字 */
-  membershipChanged: boolean;
 }
 
 export interface DailyStarsResult {
@@ -39,12 +41,11 @@ export interface DailyStarsResult {
   /** 圖上實際涵蓋幾天，可能小於使用者選的範圍 */
   coverageDays: number;
   requestedDays: number;
-  /** 期間總增加量。用頭尾相減而非長條加總，才不會被日均的四捨五入影響 */
+  /** 期間總增加量。加總原始的 stars_gained 而非長條，才不會被日均的四捨五入影響 */
   totalGained: number;
   /** 最後一筆快照當下追蹤幾個 repo */
   repoCount: number;
   hasEstimates: boolean;
-  hasMembershipChange: boolean;
 }
 
 function parseUtcDate(iso: string): number {
@@ -71,6 +72,7 @@ export function computeDailyStars(
   today: string
 ): DailyStarsResult {
   const bars: DailyStarBar[] = [];
+  let totalGained = 0;
 
   for (let i = 1; i < history.length; i++) {
     const prev = history[i - 1];
@@ -80,9 +82,12 @@ export function computeDailyStars(
     // offset <= spanDays 本來就不會跑，長條不會壞；這行只是把「這種輸入
     // 直接跳過」寫明，順便避免算出一個沒人用的 Infinity
     if (spanDays < 1) continue;
+    // 後端只在第一個點給 null；中間出現（或 dev 模式下 sidecar 還是舊版、根本沒送這個欄位）
+    // 表示那一段算不出來——畫成 0 等於謊稱沒成長
+    if (typeof cur.stars_gained !== "number") continue;
 
-    const perDay = (cur.total_stars - prev.total_stars) / spanDays;
-    const membershipChanged = prev.repo_count !== cur.repo_count;
+    totalGained += cur.stars_gained;
+    const perDay = cur.stars_gained / spanDays;
 
     for (let offset = 1; offset <= spanDays; offset++) {
       const date = addDays(prev.date, offset);
@@ -91,22 +96,19 @@ export function computeDailyStars(
         stars: Math.round(perDay),
         spanDays,
         partial: date === today,
-        membershipChanged,
       });
     }
   }
 
-  const first = history[0];
   const last = history[history.length - 1];
 
   return {
     bars,
     coverageDays: bars.length,
     requestedDays,
-    totalGained: history.length >= 2 ? last.total_stars - first.total_stars : 0,
+    totalGained,
     repoCount: last?.repo_count ?? 0,
     hasEstimates: bars.some((b) => b.spanDays > 1),
-    hasMembershipChange: bars.some((b) => b.membershipChanged),
   };
 }
 

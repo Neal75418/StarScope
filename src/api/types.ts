@@ -566,6 +566,8 @@ export interface PortfolioHistoryPoint {
   date: string; // "YYYY-MM-DD"
   total_stars: number;
   repo_count: number;
+  /** 與前一個快照日相比的新增星數，只算兩天都有快照的 repo。第一個點為 null */
+  stars_gained: number | null;
 }
 
 export interface PortfolioHistoryResponse {

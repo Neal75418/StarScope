@@ -56,9 +56,9 @@ describe("DailyStarsChart 的長條標記", () => {
     // 攤平成三根 spanDays=3 的長條，全部該是淡的
     vi.mocked(getPortfolioHistory).mockResolvedValue({
       history: [
-        { date: "2026-01-01", total_stars: 1000 },
-        { date: "2026-01-02", total_stars: 1100 },
-        { date: "2026-01-05", total_stars: 1400 },
+        { date: "2026-01-01", total_stars: 1000, repo_count: 1, stars_gained: null },
+        { date: "2026-01-02", total_stars: 1100, repo_count: 1, stars_gained: 100 },
+        { date: "2026-01-05", total_stars: 1400, repo_count: 1, stars_gained: 300 },
       ],
     } as never);
 
@@ -81,8 +81,8 @@ describe("DailyStarsChart 的長條標記", () => {
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
     vi.mocked(getPortfolioHistory).mockResolvedValue({
       history: [
-        { date: yesterday, total_stars: 1000 },
-        { date: today, total_stars: 1050 },
+        { date: yesterday, total_stars: 1000, repo_count: 1, stars_gained: null },
+        { date: today, total_stars: 1050, repo_count: 1, stars_gained: 50 },
       ],
     } as never);
 
@@ -95,8 +95,8 @@ describe("DailyStarsChart 的長條標記", () => {
   it("掉星的日子用警示色，不是寫死的正向色", async () => {
     vi.mocked(getPortfolioHistory).mockResolvedValue({
       history: [
-        { date: "2026-01-01", total_stars: 1000 },
-        { date: "2026-01-02", total_stars: 900 },
+        { date: "2026-01-01", total_stars: 1000, repo_count: 1, stars_gained: null },
+        { date: "2026-01-02", total_stars: 900, repo_count: 1, stars_gained: -100 },
       ],
     } as never);
 
@@ -123,6 +123,8 @@ describe("資料縮短時的 re-render", () => {
       history: Array.from({ length: n + 1 }, (_, i) => ({
         date: `2026-01-${String(i + 1).padStart(2, "0")}`,
         total_stars: 1000 + i * 10,
+        repo_count: 1,
+        stars_gained: i === 0 ? null : 10,
       })),
     });
     client.setQueryData(queryKeys.dashboard.portfolioHistory(30), history(30));

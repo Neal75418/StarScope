@@ -1,33 +1,46 @@
 /**
  * 每日新增星數的換算規則。
  *
- * 資料取自 2026-08-22 的真實快照：8/15、8/16、8/18、8/21、8/22 五筆，
- * 中間缺 8/17、8/19、8/20——桌面 App 只有開著時才抓快照，缺口是常態。
+ * 日期與總星數取自 2026-08-22 的真實快照：8/15、8/16、8/18、8/21、8/22 五筆，
+ * 中間缺 8/17、8/19、8/20。stars_gained 由 chain() 用總星數相減補上——8/15→8/16
+ * 其實有兩個 repo 被封存，所以這組增量只用來測缺口攤平，不是當天的真實成長。
  */
 
 import { describe, it, expect } from "vitest";
 import { computeDailyStars, starAxisTicks } from "../dailyStars";
 import type { PortfolioHistoryPoint } from "../../api/types";
 
-const p = (date: string, total_stars: number, repo_count = 94): PortfolioHistoryPoint => ({
-  date,
-  total_stars,
-  repo_count,
-});
+const p = (
+  date: string,
+  total_stars: number,
+  repo_count = 94,
+  stars_gained: number | null = null
+): PortfolioHistoryPoint => ({ date, total_stars, repo_count, stars_gained });
+
+/**
+ * 清單成員不變時，後端的 stars_gained 就等於總星數相減——用它補齊沒有明寫的點，
+ * 讓只關心「缺口、今天、四捨五入」的測試不必每筆手算。要模擬成員變動的測試自己帶 stars_gained。
+ */
+const chain = (points: PortfolioHistoryPoint[]): PortfolioHistoryPoint[] =>
+  points.map((pt, i) =>
+    i === 0 || pt.stars_gained !== null
+      ? pt
+      : { ...pt, stars_gained: pt.total_stars - points[i - 1].total_stars }
+  );
 
 // 真實資料
-const REAL = [
+const REAL = chain([
   p("2026-08-15", 8308807, 96),
   p("2026-08-16", 8326540),
   p("2026-08-18", 8362456),
   p("2026-08-21", 8411835),
   p("2026-08-22", 8415280),
-];
+]);
 
 describe("computeDailyStars", () => {
   it("連續兩天之間就是當天的新增量", () => {
     const { bars } = computeDailyStars(
-      [p("2026-08-15", 1000), p("2026-08-16", 1250)],
+      chain([p("2026-08-15", 1000), p("2026-08-16", 1250)]),
       7,
       "2026-08-20"
     );
@@ -57,7 +70,7 @@ describe("computeDailyStars", () => {
 
   it("每天都量到時不會謊稱有推估", () => {
     const { hasEstimates } = computeDailyStars(
-      [p("2026-08-15", 1000), p("2026-08-16", 1100), p("2026-08-17", 1200)],
+      chain([p("2026-08-15", 1000), p("2026-08-16", 1100), p("2026-08-17", 1200)]),
       7,
       "2026-08-20"
     );
@@ -79,26 +92,64 @@ describe("computeDailyStars", () => {
     expect(bars.some((b) => b.partial)).toBe(false);
   });
 
-  it("追蹤數量變動的那一段整段標記——取消追蹤會讓總數下降，混進當天的增量", () => {
-    // 8/15 是 96 個 repo，8/16 起是 94
-    const { bars, hasMembershipChange } = computeDailyStars(REAL, 7, "2026-08-22");
+  it("新加入的 repo 不算成長：增量取後端的 stars_gained，不用總星數相減", () => {
+    // 9/21 加入 rtk-ai/rtk（本來就有 81,240 星）：總星數相減會畫出 +87,998，實際只漲 6,758
+    const { bars, totalGained } = computeDailyStars(
+      [p("2026-09-20", 8765538, 96), p("2026-09-21", 8853536, 97, 6758)],
+      7,
+      "2026-09-25"
+    );
 
-    expect(hasMembershipChange).toBe(true);
-    expect(bars.filter((b) => b.membershipChanged).map((b) => b.date)).toEqual(["2026-08-16"]);
+    expect(bars.map((b) => b.stars)).toEqual([6758]);
+    expect(totalGained).toBe(6758);
   });
 
-  it("總增加量用頭尾相減，不受日均四捨五入影響", () => {
+  it("取消追蹤也不算成長下降", () => {
+    const { bars, totalGained } = computeDailyStars(
+      [p("2026-08-15", 8309000, 96), p("2026-08-16", 8300100, 95, 100)],
+      7,
+      "2026-08-20"
+    );
+
+    expect(bars[0].stars).toBe(100);
+    expect(totalGained).toBe(100);
+  });
+
+  it("總增加量加總原始的 stars_gained，不受日均四捨五入影響", () => {
     const { totalGained, bars } = computeDailyStars(REAL, 7, "2026-08-22");
     const sumOfBars = bars.reduce((s, b) => s + b.stars, 0);
 
-    expect(totalGained).toBe(8415280 - 8308807);
     expect(totalGained).toBe(106473);
     expect(sumOfBars).not.toBe(totalGained); // 四捨五入確實會差
   });
 
+  it("後端沒給 stars_gained 的區間不畫長條，而不是當成 0", () => {
+    const { bars, totalGained } = computeDailyStars(
+      [p("2026-08-15", 1000), p("2026-08-16", 1100), p("2026-08-17", 1150, 94, 50)],
+      7,
+      "2026-08-20"
+    );
+
+    expect(bars.map((b) => [b.date, b.stars])).toEqual([["2026-08-17", 50]]);
+    expect(totalGained).toBe(50);
+  });
+
+  it("sidecar 還是舊版、沒送 stars_gained 時也不畫，而不是算出 NaN", () => {
+    // dev 模式下 Vite 先熱更新前端，sidecar 可能還沒重啟
+    const legacy = [
+      { date: "2026-08-15", total_stars: 1000, repo_count: 94 },
+      { date: "2026-08-16", total_stars: 1100, repo_count: 94 },
+    ] as unknown as PortfolioHistoryPoint[];
+
+    const { bars, totalGained } = computeDailyStars(legacy, 7, "2026-08-20");
+
+    expect(bars).toEqual([]);
+    expect(totalGained).toBe(0);
+  });
+
   it("總星數下降時給出負的長條，不是當成沒變", () => {
     const { bars, totalGained } = computeDailyStars(
-      [p("2026-08-15", 1000), p("2026-08-16", 940)],
+      chain([p("2026-08-15", 1000), p("2026-08-16", 940)]),
       7,
       "2026-08-20"
     );
@@ -108,14 +159,16 @@ describe("computeDailyStars", () => {
   });
 
   it("同一天出現兩筆快照時跳過，不產生 Infinity", () => {
-    const { bars } = computeDailyStars(
-      [p("2026-08-15", 1000), p("2026-08-15", 1010), p("2026-08-16", 1100)],
+    const { bars, totalGained } = computeDailyStars(
+      chain([p("2026-08-15", 1000), p("2026-08-15", 1010), p("2026-08-16", 1100)]),
       7,
       "2026-08-20"
     );
 
     expect(bars.every((b) => Number.isFinite(b.stars))).toBe(true);
     expect(bars.map((b) => [b.date, b.stars])).toEqual([["2026-08-16", 90]]);
+    // 跳過的那段也不能算進總數，否則標題的總增加量跟長條對不起來
+    expect(totalGained).toBe(90);
   });
 
   it("資料不足兩筆時沒有長條可畫，也不報總增加量", () => {
@@ -145,7 +198,6 @@ describe("starAxisTicks", () => {
     stars,
     spanDays: 1,
     partial: false,
-    membershipChanged: false,
   });
 
   it("刻度間距一致——交給 Recharts 會切出 0/5K/9K/14K/18K 這種忽大忽小的標籤", () => {

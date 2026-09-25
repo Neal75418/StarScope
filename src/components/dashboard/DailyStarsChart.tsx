@@ -5,7 +5,8 @@
  * 一週漲 1.28%——實測折線垂直跨度 1.3px、繪圖區 126px，永遠是一條水平線。
  * 換成增量之後 Y 軸從 0 起算才有意義，同樣的資料就回到看得見的尺度。
  *
- * 換算規則（含缺口攤平、今天未過完、清單成分變動）在 utils/dailyStars.ts。
+ * 換算規則（缺口攤平、今天未過完）在 utils/dailyStars.ts；清單成員變動在後端的
+ * stars_gained 就排除了。
  * 這裡只負責把那些標記畫出來——推估與未完成的長條用半透明區隔，
  * 並在圖下方寫明，讓人不用 hover 就知道哪幾根不能全信。
  */
@@ -63,7 +64,6 @@ function DailyStarsTooltip({ active, payload }: TooltipPayload) {
   const notes: string[] = [];
   if (bar.spanDays > 1) notes.push(copy.noteEstimated.replace("{days}", String(bar.spanDays)));
   if (bar.partial) notes.push(copy.notePartial);
-  if (bar.membershipChanged) notes.push(copy.noteMembership);
 
   return (
     <div className="daily-stars-tooltip">
@@ -200,9 +200,6 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
               {result.hasEstimates && result.bars.some((b) => b.partial) && " · "}
               {result.bars.some((b) => b.partial) && copy.footnotePartial}
             </p>
-          )}
-          {result.hasMembershipChange && (
-            <p className="daily-stars-footnote">{copy.footnoteMembership}</p>
           )}
           {result.coverageDays < result.requestedDays && (
             <p className="daily-stars-footnote">

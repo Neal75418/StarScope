@@ -8,7 +8,6 @@ from datetime import datetime, date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -72,6 +71,9 @@ class PortfolioHistoryPoint(BaseModel):
     date: date
     total_stars: int
     repo_count: int
+    # 與前一個快照日相比新增的星數，只加總兩天都有快照的 repo。第一個點沒有前一天，為 None。
+    # 不能用 total_stars 相減：新加入的 repo 會把它原本的全部星數算成當天的成長
+    stars_gained: int | None
 
 
 class PortfolioHistoryResponse(BaseModel):
@@ -95,25 +97,37 @@ async def get_portfolio_history(
     cutoff = today - timedelta(days=days)
 
     rows = (
-        db.query(
-            RepoSnapshot.snapshot_date,
-            func.sum(RepoSnapshot.stars).label("total_stars"),
-            func.count(func.distinct(RepoSnapshot.repo_id)).label("repo_count"),
-        )
+        db.query(RepoSnapshot.snapshot_date, RepoSnapshot.repo_id, RepoSnapshot.stars,
+                 RepoSnapshot.fetched_at)
         .filter(RepoSnapshot.snapshot_date >= cutoff)
-        .group_by(RepoSnapshot.snapshot_date)
-        .order_by(RepoSnapshot.snapshot_date.asc())
         .all()
     )
+    stars_by_date: dict[date, dict[int, int]] = defaultdict(dict)
+    for snapshot_date, repo_id, stars, fetched_at in rows:
+        # 只算 App 當天實際抓到的快照（services/snapshot.py 寫入時兩者是同一個 UTC 日）。
+        # Star 歷史回填把過去日期的快照寫在回填當下：它只在有人 star 的日子有資料，
+        # App 沒開的那天會變成只有一個 repo 的「快照日」，跟前後取交集就把整個清單的
+        # 成長算成那一個 repo 的
+        if fetched_at.date() != snapshot_date:
+            continue
+        stars_by_date[snapshot_date][repo_id] = stars
 
-    history = [
-        PortfolioHistoryPoint(
-            date=row.snapshot_date,
-            total_stars=int(row.total_stars or 0),
-            repo_count=int(row.repo_count or 0),
+    history: list[PortfolioHistoryPoint] = []
+    previous: dict[int, int] | None = None
+    for snapshot_date in sorted(stars_by_date):
+        current = stars_by_date[snapshot_date]
+        gained = None if previous is None else sum(
+            stars - previous[repo_id]
+            for repo_id, stars in current.items()
+            if repo_id in previous
         )
-        for row in rows
-    ]
+        history.append(PortfolioHistoryPoint(
+            date=snapshot_date,
+            total_stars=sum(current.values()),
+            repo_count=len(current),
+            stars_gained=gained,
+        ))
+        previous = current
 
     return success_response(data=PortfolioHistoryResponse(
         history=history,
@@ -194,10 +208,11 @@ def _create_snapshots_from_history(
 
             if existing:
                 # 若回填資料有更準確的 star 數則更新
-                #（僅在回填數量較高時更新，表示我們有更完整的資料）
+                #（僅在回填數量較高時更新，表示我們有更完整的資料）。
+                # 不動 fetched_at：這一列仍是 App 當天觀測到的，只是數值被補得更準。
+                # portfolio 端點靠「fetched_at 與 snapshot_date 同一天」分辨觀測列與回填列
                 if stars > existing.stars:
                     existing.stars = stars
-                    existing.fetched_at = now
                     count += 1
             else:
                 # 建立新快照

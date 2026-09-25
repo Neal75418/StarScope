@@ -116,12 +116,9 @@ export const translations = {
         stars: "stars",
         noteEstimated: "Measured once across {days} days — shown as a daily average",
         notePartial: "Today isn't over yet",
-        noteMembership: "Tracked repo count changed on this day",
         footnoteEstimated:
           "Faded bars: only measured once over several days, shown as a daily average",
         footnotePartial: "today isn't over yet",
-        footnoteMembership:
-          "The tracked repo count changed during this period — untracking a repo also lowers the total",
         footnoteCoverage: "Only {coverage} days of snapshots so far, not {requested}",
       },
       languageDistribution: {
@@ -1112,10 +1109,8 @@ export const translations = {
         stars: "顆星",
         noteEstimated: "這 {days} 天只量到一次，顯示為日均",
         notePartial: "今天還沒過完",
-        noteMembership: "這一天追蹤的 repo 數量有變動",
         footnoteEstimated: "淡色長條：那幾天只量到一次，顯示為日均",
         footnotePartial: "今天還沒過完",
-        footnoteMembership: "這段期間追蹤的 repo 數量有變動——取消追蹤也會讓總數下降",
         footnoteCoverage: "目前只有 {coverage} 天的快照，不是 {requested} 天",
       },
       languageDistribution: {
