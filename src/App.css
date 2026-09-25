@@ -25,8 +25,11 @@
   animation: fade-in 0.2s ease-out both;
 }
 
+/* backwards 而不是 both：both 會讓終點的 transform: translateY(0) 永遠留著，
+   transform 不是 none 的元素會變成 position: fixed 子孫的定位基準——頁面裡的 toast 與
+   對話框就以頁面而不是視窗定位，頁面一長就跑到畫面外 */
 .animated-page {
-  animation: page-enter 0.2s ease-out both;
+  animation: page-enter 0.2s ease-out backwards;
 }
 
 /* 品牌色：刻意不隨主題變動。
@@ -1495,16 +1498,29 @@ body {
 
 .export-dropdown-item {
   display: block;
+  width: 100%;
   padding: 8px 12px;
+  font-family: inherit;
   font-size: 13px;
+  line-height: inherit;
+  text-align: left;
   color: var(--fg-default);
   text-decoration: none;
+  background: none;
+  border: none;
   border-radius: var(--radius-sm);
+  cursor: pointer;
   transition: background-color 0.1s ease;
 }
 
 .export-dropdown-item:hover {
   background-color: var(--bg-subtle);
+}
+
+/* button 不吃全站的 a:focus-visible 外框，這裡自己補 */
+.export-dropdown-item:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: -2px;
 }
 
 /* Batch Action Bar */

@@ -287,6 +287,8 @@ export const translations = {
         button: "Export",
         json: "Export JSON",
         csv: "Export CSV",
+        saved: "Exported",
+        failed: "Export failed: {error}",
       },
       viewMode: {
         list: "List view",
@@ -405,6 +407,8 @@ export const translations = {
         button: "Export",
         json: "Export JSON",
         csv: "Export CSV",
+        saved: "Exported",
+        failed: "Export failed: {error}",
       },
       breakouts: {
         filter: "Breakouts Only",
@@ -1278,6 +1282,8 @@ export const translations = {
         button: "匯出",
         json: "匯出 JSON",
         csv: "匯出 CSV",
+        saved: "已匯出",
+        failed: "匯出失敗：{error}",
       },
       viewMode: {
         list: "列表檢視",
@@ -1395,6 +1401,8 @@ export const translations = {
         button: "匯出",
         json: "匯出 JSON",
         csv: "匯出 CSV",
+        saved: "已匯出",
+        failed: "匯出失敗：{error}",
       },
       breakouts: {
         filter: "僅顯示突破",

@@ -27,6 +27,11 @@ vi.mock("../../../api/client", () => ({
   getRecentLogs: (...args: unknown[]) => mockGetRecentLogs(...args),
 }));
 
+const mockSaveFile = vi.fn();
+vi.mock("../../../utils/saveFile", () => ({
+  saveFile: (...args: unknown[]) => mockSaveFile(...args),
+}));
+
 import { DiagnosticsSection } from "../DiagnosticsSection";
 
 const mockDiagnostics = {
@@ -80,6 +85,7 @@ describe("DiagnosticsSection", () => {
 
   it("shows success feedback after log export", async () => {
     mockGetRecentLogs.mockResolvedValue({ logs: "some log content" });
+    mockSaveFile.mockResolvedValue("saved");
 
     render(<DiagnosticsSection />, { wrapper: createWrapper() });
 
@@ -92,6 +98,45 @@ describe("DiagnosticsSection", () => {
     await waitFor(() => {
       expect(screen.getByText(/Export successful|匯出成功/)).toBeInTheDocument();
     });
+  });
+
+  it("hands the logs to saveFile instead of a web download", async () => {
+    // wry 在 macOS 上沒有 download handler 時會直接取消 <a download>，按了沒反應
+    mockGetRecentLogs.mockResolvedValue({ logs: "some log content" });
+    mockSaveFile.mockResolvedValue("saved");
+
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText("0.4.0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Export Logs|匯出日誌/));
+
+    await waitFor(() => expect(mockSaveFile).toHaveBeenCalled());
+    const [name, contents] = mockSaveFile.mock.calls[0];
+    expect(name).toMatch(/^starscope-logs-\d{4}-\d{2}-\d{2}\.txt$/);
+    expect(contents).toBe("some log content");
+  });
+
+  it("shows no feedback when the user cancels the save dialog", async () => {
+    mockGetRecentLogs.mockResolvedValue({ logs: "some log content" });
+    mockSaveFile.mockResolvedValue("cancelled");
+
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText("0.4.0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Export Logs|匯出日誌/));
+
+    await waitFor(() => expect(mockSaveFile).toHaveBeenCalled());
+    expect(screen.queryByText(/Export successful|匯出成功/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Export failed|匯出失敗/)).not.toBeInTheDocument();
+  });
+
+  it("shows error feedback when saving the file fails", async () => {
+    mockGetRecentLogs.mockResolvedValue({ logs: "some log content" });
+    mockSaveFile.mockRejectedValue("Permission denied");
+
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+    await waitFor(() => expect(screen.getByText("0.4.0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Export Logs|匯出日誌/));
+
+    await waitFor(() => expect(screen.getByText(/Export failed|匯出失敗/)).toBeInTheDocument());
   });
 
   it("shows empty feedback when no logs available", async () => {

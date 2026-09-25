@@ -34,6 +34,8 @@ interface ToolbarProps {
   selectedCount?: number;
   /** 目前每一筆都沒有值的排序鍵。按了不會有任何變化，所以停用 */
   emptySortKeys?: WatchlistSortKey[];
+  onExportSaved: (message: string) => void;
+  onExportFailed: (message: string) => void;
 }
 
 const SORT_OPTIONS: WatchlistSortKey[] = [
@@ -69,6 +71,8 @@ export function Toolbar({
   onSelectAll,
   selectedCount,
   emptySortKeys,
+  onExportSaved,
+  onExportFailed,
 }: ToolbarProps) {
   const { t } = useI18n();
   const [localQuery, setLocalQuery] = useState(searchQuery);
@@ -134,7 +138,7 @@ export function Toolbar({
         >
           {isRecalculating ? t.watchlist.recalculating : t.watchlist.recalculateAll}
         </button>
-        <ExportDropdown />
+        <ExportDropdown onSaved={onExportSaved} onFailed={onExportFailed} />
         <div className="view-mode-toggle" data-testid="view-mode-toggle">
           <button
             type="button"

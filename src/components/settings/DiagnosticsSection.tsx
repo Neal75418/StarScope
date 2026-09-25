@@ -11,6 +11,7 @@ import { useSmartInterval } from "../../hooks/useSmartInterval";
 import { useI18n } from "../../i18n";
 import { queryKeys } from "../../lib/react-query";
 import { formatRelativeTime } from "../../utils/format";
+import { saveFile } from "../../utils/saveFile";
 
 /** 格式化秒數為可讀的時間。 */
 function formatUptime(seconds: number): string {
@@ -53,14 +54,12 @@ export function DiagnosticsSection() {
         setExportStatus("empty");
         return;
       }
-      const blob = new Blob([result.logs], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `starscope-logs-${new Date().toISOString().slice(0, 10)}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setExportStatus("success");
+      // 取消對話框回到 idle：沒有存檔就不是「匯出成功」
+      const saved = await saveFile(
+        `starscope-logs-${new Date().toISOString().slice(0, 10)}.txt`,
+        result.logs
+      );
+      setExportStatus(saved === "saved" ? "success" : "idle");
     } catch (err) {
       logger.error("[DiagnosticsSection] 日誌匯出失敗:", err);
       setExportStatus("error");

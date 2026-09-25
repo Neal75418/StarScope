@@ -77,7 +77,7 @@ class TestOrigin:
         assert resp.status_code == 200
 
     def test_accepts_request_without_origin(self, guard_client):
-        # curl、健康檢查、匯出用的 <a download> 導覽都不帶 Origin
+        # curl、健康檢查、頁面導覽式的 GET 都不帶 Origin
         resp = guard_client.post("/api/repos/1/unstar")
         assert resp.status_code == 200
 

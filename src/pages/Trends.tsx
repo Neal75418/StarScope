@@ -18,6 +18,7 @@ import { TrendRow } from "./trends/TrendRow";
 import { TrendExpandedRow } from "./trends/TrendExpandedRow";
 import { TrendGrid } from "./trends/TrendGrid";
 import { TrendsExportDropdown } from "./trends/TrendsExportDropdown";
+import { ToastContainer, useToast } from "../components/Toast";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 
 const SORT_KEYS: SortOption[] = [
@@ -92,6 +93,7 @@ function LastUpdatedIndicator({
 
 export function Trends() {
   const { t } = useI18n();
+  const toast = useToast();
 
   // Auto-refresh 間隔
   const [refreshInterval, setRefreshInterval] = useState<number | false>(getStoredRefreshInterval);
@@ -357,6 +359,8 @@ export function Trends() {
             language={languageFilter}
             minStars={minStarsFilter}
             disabled={displayedTrends.length === 0}
+            onSaved={toast.success}
+            onFailed={toast.error}
           />
 
           <div className="trends-refresh-controls" data-testid="trends-refresh-controls">
@@ -443,6 +447,7 @@ export function Trends() {
           </table>
         </div>
       )}
+      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
     </AnimatedPage>
   );
 }

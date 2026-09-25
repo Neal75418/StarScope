@@ -178,6 +178,8 @@ export function Watchlist() {
             onAddRepo={actions.openDialog}
             onRefreshAll={actions.refreshAll}
             onRecalculateAll={actions.recalculateAll}
+            onExportSaved={actions.success}
+            onExportFailed={actions.error}
             isRefreshing={isRefreshing}
             isRecalculating={isRecalculating}
             selectedCategoryId={state.filters.selectedCategoryId}

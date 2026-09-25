@@ -10,8 +10,7 @@ SessionAuthMiddleware 只在 Tauri 注入 secret 時生效；手動啟動的 sid
   會連到 127.0.0.1，但 Host 仍是攻擊者的網域。
 - 帶了 Origin 就必須在 CORS 允許清單裡。瀏覽器對跨站的非 GET 請求一律
   帶 Origin，no-cors 也一樣，所以跨站 POST 過不了這關。沒帶 Origin 的是
-  非瀏覽器客戶端（curl、健康檢查）或 GET 導覽（匯出用的 <a download>——它對
-  sidecar 是跨來源的，但 GET 導覽本來就不帶 Origin），放行。
+  非瀏覽器客戶端（curl、健康檢查）或頁面導覽式的 GET（GET 導覽本來就不帶 Origin），放行。
 
 跨站 GET（例如 <img src>）不帶 Origin，這一層擋不住——所以 GET 端點
 不能改資料、也不能寫 GitHub。

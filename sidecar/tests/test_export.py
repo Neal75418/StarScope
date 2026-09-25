@@ -560,3 +560,13 @@ class TestExportMultiRepoCorrectness:
         for i in range(3):
             assert by_owner[f"team{i}"]["velocity"] == 30.0 * (i + 1)
             assert by_owner[f"team{i}"]["stars_delta_7d"] == 200.0 * (i + 1)
+
+
+def test_export_filename_is_readable_cross_origin(client):
+    """前端（Tauri 或 Vite）對 sidecar 是跨來源請求：CORS 沒有 expose 的話，fetch 讀不到
+    Content-Disposition，存檔對話框就拿不到後端給的檔名。"""
+    resp = client.get("/api/export/watchlist.json", headers={"Origin": "http://localhost:1420"})
+
+    assert resp.status_code == 200
+    exposed = [h.strip().lower() for h in resp.headers.get("access-control-expose-headers", "").split(",")]
+    assert "content-disposition" in exposed

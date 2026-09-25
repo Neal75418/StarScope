@@ -633,6 +633,53 @@ export async function getTrends(params: {
 
 // 匯出 API
 
+export interface ExportFile {
+  content: string;
+  /** 後端在 Content-Disposition 給的檔名；讀不到時為 null，由呼叫端用自己的預設檔名 */
+  filename: string | null;
+}
+
+function parseAttachmentFilename(header: string | null): string | null {
+  const match = header?.match(/filename="([^"]+)"/);
+  return match ? match[1] : null;
+}
+
+/**
+ * 取得匯出檔的內容，交給呼叫端存檔。
+ *
+ * 跟其他 API 一樣帶著 X-Session-Secret：頁面導覽式的 `<a href download>` 不帶 header，
+ * 正式版的 sidecar 會回 403。回應是檔案本身（JSON 或 CSV），不是 ApiResponse 信封。
+ */
+export async function fetchExportFile(url: string): Promise<ExportFile> {
+  const secret = await getSessionSecret();
+  try {
+    const response = await fetch(url, {
+      headers: secret ? { "X-Session-Secret": secret } : {},
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ detail: API_ERROR_MESSAGES.UNKNOWN_ERROR }));
+      throw new ApiError(response.status, error.detail ?? API_ERROR_MESSAGES.UNKNOWN_ERROR);
+    }
+    // 讀 body 也放在 try 裡：逾時或斷線可能發生在這一步
+    return {
+      content: await response.text(),
+      filename: parseAttachmentFilename(response.headers.get("Content-Disposition")),
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
+    }
+    throw new ApiError(
+      0,
+      `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
+    );
+  }
+}
+
 /**
  * 取得追蹤清單 JSON 的匯出下載 URL。
  */

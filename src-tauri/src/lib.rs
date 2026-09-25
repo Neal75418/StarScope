@@ -6,6 +6,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     App, AppHandle, Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 use tracing::{info, warn};
 
@@ -25,6 +26,61 @@ fn generate_session_secret() -> String {
     let mut bytes = [0u8; 32];
     getrandom::getrandom(&mut bytes).expect("OS RNG unavailable");
     bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// 匯出與下載：在 Rust 端開原生「另存新檔」並寫檔，回傳是否已儲存（取消為 false）。
+///
+/// 不用 fs plugin 讓前端寫檔：那樣 dialog 選過的檔、以及拖進視窗的檔案與資料夾（遞迴）
+/// 都會留在 fs scope 直到 app 關閉，前端一旦被注入腳本就能不經對話框寫進去。
+/// 這裡前端只交出內容與建議檔名，永遠拿不到可寫的路徑。
+///
+/// 也不用 `<a download>`：wry 在沒有 download handler 時會直接取消 WKWebView 的下載，
+/// macOS 上按了沒有任何反應。
+const SAVE_FILE_EXTENSIONS: [&str; 4] = ["json", "csv", "txt", "png"];
+
+/// 前端給的建議檔名只留最後一段、換掉保留字元，副檔名限定在匯出會用到的幾種。
+///
+/// 對話框的檔名欄在 Windows 與 GTK 接受完整路徑：不淨化的話，被注入的前端雖然寫不了檔，
+/// 仍能把對話框預設到任意位置（例如開機啟動資料夾），使用者按一下 Enter 就寫進去了
+fn sanitize_save_file_name(requested: &str) -> String {
+    let last = requested.rsplit(['/', '\\']).next().unwrap_or_default();
+    let cleaned: String = last
+        .chars()
+        .map(|c| if c.is_control() || ":*?\"<>|".contains(c) { '_' } else { c })
+        .collect();
+    let cleaned = cleaned.trim_matches(|c: char| c == '.' || c.is_whitespace());
+    if cleaned.is_empty() {
+        return "starscope-export.txt".to_string();
+    }
+    match cleaned.rsplit_once('.') {
+        Some((stem, ext)) if SAVE_FILE_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()) => {
+            format!("{stem}.{}", ext.to_ascii_lowercase())
+        }
+        Some((stem, _)) if !stem.is_empty() => format!("{stem}.txt"),
+        _ => format!("{cleaned}.txt"),
+    }
+}
+
+#[tauri::command]
+async fn save_file(
+    window: tauri::WebviewWindow,
+    default_name: String,
+    contents: Vec<u8>,
+) -> Result<bool, String> {
+    let file_name = sanitize_save_file_name(&default_name);
+    let mut dialog = window.dialog().file().set_parent(&window).set_file_name(&file_name);
+    if let Some((_, extension)) = file_name.rsplit_once('.') {
+        dialog = dialog.add_filter(extension.to_uppercase(), &[extension]);
+    }
+    // async command 不在主執行緒上跑，blocking 版本才不會卡住 UI
+    let Some(chosen) = dialog.blocking_save_file() else {
+        return Ok(false);
+    };
+    let path = chosen.into_path().map_err(|e| e.to_string())?;
+    let len = contents.len();
+    std::fs::write(&path, contents).map_err(|e| format!("{}: {e}", path.display()))?;
+    info!("saved {len} bytes to {}", path.display());
+    Ok(true)
 }
 
 /// Tauri command：讓前端取得 session secret 以附加至 API 請求 header。
@@ -167,6 +223,42 @@ mod tests {
     use super::*;
 
     #[test]
+    fn save_file_name_keeps_ordinary_export_names() {
+        for name in [
+            "starscope_watchlist_20260925.json",
+            "starscope_trends_20260925.csv",
+            "starscope-logs-2026-09-25.txt",
+            "comparison-chart.png",
+        ] {
+            assert_eq!(sanitize_save_file_name(name), name);
+        }
+    }
+
+    #[test]
+    fn save_file_name_drops_any_path() {
+        // Windows 與 GTK 的檔名欄接受完整路徑：不砍掉的話，被注入的前端能把對話框預設到任意位置
+        assert_eq!(sanitize_save_file_name("../../.ssh/authorized_keys.txt"), "authorized_keys.txt");
+        assert_eq!(
+            sanitize_save_file_name(r"C:\Users\me\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\run.json"),
+            "run.json"
+        );
+    }
+
+    #[test]
+    fn save_file_name_forces_an_allowed_extension() {
+        assert_eq!(sanitize_save_file_name("run.bat"), "run.txt");
+        assert_eq!(sanitize_save_file_name("payload.JSON"), "payload.json");
+        assert_eq!(sanitize_save_file_name("no-extension"), "no-extension.txt");
+    }
+
+    #[test]
+    fn save_file_name_replaces_reserved_characters_and_falls_back_when_empty() {
+        assert_eq!(sanitize_save_file_name("a:b*c?.csv"), "a_b_c_.csv");
+        assert_eq!(sanitize_save_file_name(""), "starscope-export.txt");
+        assert_eq!(sanitize_save_file_name("../"), "starscope-export.txt");
+    }
+
+    #[test]
     fn retry_delay_first_attempt() {
         assert_eq!(retry_delay_ms(0, 500), 500);
     }
@@ -292,7 +384,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![get_session_secret])
+        // 只給 Rust 端的 save_file 用；前端沒有任何 dialog 權限（capabilities 不開）
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![get_session_secret, save_file])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {

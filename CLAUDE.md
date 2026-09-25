@@ -169,7 +169,7 @@ npm run tauri dev                        # 終端機 2
 
 - `sidecar/routers/dependencies.py` **不是端點模組**，是 `Depends()` 的共用注入 helper
   ——數路由模組時要扣掉它
-- `src-tauri/src/main.rs` 只是進入點，實作全在 `lib.rs`（sidecar 管理、系統匣、視窗控制）
+- `src-tauri/src/main.rs` 只是進入點，實作全在 `lib.rs`（sidecar 管理、系統匣、視窗控制、存檔 command `save_file`）
 - 前端測試散在各目錄的 `__tests__/`，不是集中一處
 
 ---
@@ -216,6 +216,9 @@ npm run tauri dev                        # 終端機 2
 
 ### 注意事項
 
+- ⚠️ Tauri 的 WebView 不處理 `<a download>`（wry 沒有 download handler 時直接取消），存檔一律用 `utils/saveFile`
+- ⚠️ 正式版 CSP 的 `img-src` 不含 `blob:`：單元測試與 Vite 下的 e2e 都沒有 CSP，這類錯誤只會在正式版出現
+- ⚠️ tauri-plugin-dialog 會把 `window.confirm` 換成回傳 Promise 的版本（永遠 truthy）；ESLint 的 `no-alert` 擋著，確認一律用 `ConfirmDialog`
 - 重構 hooks 時需同步更新測試 mocks（例：`useWatchlist` → `useWatchlistState` + `useWatchlistActions`）
 - 測試單一檔案 - `npx vitest run path/to/file.test.tsx`
 - Context Provider 包裹順序 - `WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部
@@ -250,6 +253,12 @@ npm run tauri dev                        # 終端機 2
 
 ⚠️ 第二層擋不住跨站 GET（`<img src>` 不帶 Origin）⇒ **GET 端點不能改資料、不能寫 GitHub**。
 ⚠️ 改 Tauri 平台或 scheme 時同步 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）。
+
+### 存檔走 Rust 的 `save_file` command，不註冊 fs plugin
+
+- 前端只交出內容與建議檔名（`src/utils/saveFile.ts`），對話框與寫檔都在 Rust；capabilities 不開任何 `dialog:*`／`fs:*`
+- 不用 fs plugin：dialog 選過的檔、拖進視窗的檔案與資料夾（遞迴）會留在可寫 scope 直到 app 關閉，前端被注入腳本就能不經對話框寫入
+- 檔名在 Rust 端淨化（`sanitize_save_file_name`）：Windows 與 GTK 的檔名欄接受完整路徑
 
 ### API 不使用版本化路徑
 

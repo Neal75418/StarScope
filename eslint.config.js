@@ -50,6 +50,9 @@ export default tseslint.config(
       },
     },
     rules: {
+      // tauri-plugin-dialog 會把 window.confirm 換成回傳 Promise 的版本（永遠 truthy）：
+      // `if (confirm(...)) remove()` 在 app 裡一定會執行。確認一律用 ConfirmDialog
+      "no-alert": "error",
       // React rules
       "react/jsx-uses-react": "off", // Not needed with React 17+ JSX transform
       "react/react-in-jsx-scope": "off", // Not needed with React 17+ JSX transform

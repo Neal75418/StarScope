@@ -348,6 +348,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["Content-Type", "Authorization", "Accept", "X-Session-Secret"],
+    # 前端對 sidecar 是跨來源請求：不 expose 的話 fetch 讀不到匯出檔名
+    expose_headers=["Content-Disposition"],
 )
 
 # Per-session secret 驗證 middleware（在 CORS 之後，確保 preflight 可通過）

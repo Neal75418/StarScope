@@ -5,6 +5,8 @@ import { Toolbar } from "../Toolbar";
 
 describe("Toolbar", () => {
   const defaultProps = {
+    onExportSaved: vi.fn(),
+    onExportFailed: vi.fn(),
     onAddRepo: vi.fn(),
     onRefreshAll: vi.fn(),
     onRecalculateAll: vi.fn(),
