@@ -6,6 +6,8 @@ import pytest
 import services.anomaly_detector as _detector
 from unittest.mock import patch, MagicMock
 
+from db.models import AppSetting, AppSettingKey, Repo, RepoSnapshot
+
 
 @pytest.fixture(autouse=True)
 def reset_anomaly_detector_globals():
@@ -23,8 +25,6 @@ def reset_anomaly_detector_globals():
     yield
     for attr, value in original.items():
         setattr(_detector, attr, value)
-from db.models import AppSetting, AppSettingKey, Repo, RepoSnapshot
-from utils.time import utc_now
 
 
 class TestGetFetchInterval:

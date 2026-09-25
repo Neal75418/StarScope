@@ -13,7 +13,6 @@ from utils.time import utc_today
 from services.recommender import (
     RecommenderService,
     get_recommender_service,
-    find_similar_repos,
     calculate_repo_similarities,
     recalculate_all_similarities,
     MIN_SIMILARITY_THRESHOLD,

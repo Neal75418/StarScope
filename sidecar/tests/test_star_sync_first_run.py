@@ -3,7 +3,6 @@
 之後的差異才代表「使用者取消了 star」。用同一套邏輯處理，會把 app 用了七個月
 累積下來、從未推上 GitHub 的那些 repo 當成使用者剛剛決定不要的。
 """
-from datetime import datetime
 
 import pytest
 

@@ -19,7 +19,7 @@ from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
 from db.models import AppSettingKey
 
 if TYPE_CHECKING:
-    from services.star_sync import RemoteStar, StarredFetch
+    from services.star_sync import StarredFetch
 
 logger = logging.getLogger(__name__)
 

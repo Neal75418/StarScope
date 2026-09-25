@@ -6,10 +6,10 @@
 
 **文件分工**：
 
-| 文件 | 讀者 | 內容 |
-|---|---|---|
-| `README.md` | 對外 | 專案介紹、安裝、API 端點表 |
-| **本檔** | Claude Code | 路徑陷阱、跨層約定、**現行**設計取捨 |
+| 文件                      | 讀者                             | 內容                                                                         |
+|---------------------------|----------------------------------|------------------------------------------------------------------------------|
+| `README.md`               | 對外                             | 專案介紹、安裝、API 端點表                                                   |
+| **本檔**                  | Claude Code                      | 路徑陷阱、跨層約定、**現行**設計取捨                                         |
 | `docs/superpowers/specs/` | 需要知道「當初為什麼這樣決定」時 | 各功能定案當下的設計紀錄。**刻意不隨程式碼更新**，讀法見該目錄的 `README.md` |
 
 ⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在
@@ -111,15 +111,19 @@ cd sidecar
 .venv/bin/python -m pytest tests/ -v               # 執行所有測試
 .venv/bin/python -m pytest tests/test_repos.py -v  # 單一測試檔
 .venv/bin/python -m pytest tests/ --cov=.          # 覆蓋率
-.venv/bin/ruff check --fix .                       # Python lint（易漏——前端有 husky 擋，Python 沒有）
+.venv/bin/ruff check --fix .                       # Python lint（CI 也跑；規則明確列在 ruff.toml，不吃 Ruff 預設值）
 ```
 
 venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 
-⚠️ **本機跑 pytest 會用 Keychain 裡的真 token 打 GitHub**：conftest 的 `client` 會跑 lifespan 的 star 同步，
-而 keyring 沒有隔離（寫入路徑有 fake 擋著，讀取沒有）。本機一律加
-`PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring GITHUB_TOKEN=`。打包後的 binary 同理，
-`scripts/smoke-test-sidecar.sh` 已經內建這層隔離。
+⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：
+- `isolate_github_credentials`：keyring 換成 null；`GITHUB_TOKEN` 設成**空字串佔位而不是刪掉**——`main.py` import 時的
+  `load_dotenv()` 會補回不存在的 key。它從 `main.py` 所在目錄往上找第一個 `.env`（coverage／debugger 底下改從 cwd 找），
+  沒有 `sidecar/.env` 時就會找到 repo 根目錄那份放著真 token 的
+- `block_real_network`：httpx 的真 transport 一律拋錯（MockTransport、TestClient 不受影響）。它只擋流量：錯誤一樣被 lifespan
+  吞掉、全套照樣綠，只在 captured log 留一行「測試不能連外網」——漏 mock 不會因此浮上來
+
+打包後的 binary 用 `scripts/smoke-test-sidecar.sh` 跑，它另外 cd 到暫存目錄、清空 token、keyring 換成 null、指定 `STARSCOPE_DATA_DIR`。
 
 ### 單元測試（Vitest）
 
@@ -172,16 +176,16 @@ npm run tauri dev                        # 終端機 2
 
 ## 關鍵前端 Hooks
 
-| Hook                     | 說明                                            |
-|--------------------------|-----------------------------------------------|
+| Hook                     | 說明                                                         |
+|--------------------------|--------------------------------------------------------------|
 | `useOSNotification`      | OS 層級通知（Tauri notification plugin）— 權限管理、發送通知 |
-| `useNotifications`       | 通知中心整合 — 儲存、輪詢、操作、OS 通知整合                     |
-| `useNotificationPolling` | 通知輪詢 — 定時取得已觸發警報，偵測新通知並發送 OS 推播               |
-| `useImport`              | 批次匯入 — CSV/JSON/TXT 檔案解析、文字貼上                 |
-| `useImportExecutor`      | 匯入執行器 — 循序調用 addRepo API、進度追蹤                 |
-| `useAlertRules`          | 警報規則管理 — CRUD 操作、手動檢查、表單狀態                    |
-| `useFeed`                | For You feed — 當日推薦、空清單自動產生一次、⭐/🚫 回饋           |
-| `useInterests`           | 興趣清單與黑名單 CRUD（驅動 feed 的排序來源）                   |
+| `useNotifications`       | 通知中心整合 — 儲存、輪詢、操作、OS 通知整合                 |
+| `useNotificationPolling` | 通知輪詢 — 定時取得已觸發警報，偵測新通知並發送 OS 推播      |
+| `useImport`              | 批次匯入 — CSV/JSON/TXT 檔案解析、文字貼上                   |
+| `useImportExecutor`      | 匯入執行器 — 循序調用 addRepo API、進度追蹤                  |
+| `useAlertRules`          | 警報規則管理 — CRUD 操作、手動檢查、表單狀態                 |
+| `useFeed`                | For You feed — 當日推薦、空清單自動產生一次、⭐/🚫 回饋      |
+| `useInterests`           | 興趣清單與黑名單 CRUD（驅動 feed 的排序來源）                |
 
 ---
 
@@ -198,12 +202,12 @@ npm run tauri dev                        # 終端機 2
 
 ## 測試策略
 
-| 類型     | 工具             | 位置                           |
-|--------|----------------|------------------------------|
-| 單元測試   | Vitest         | `src/**/__tests__/`          |
-| 後端測試   | pytest（非同步）    | `sidecar/tests/`             |
-| E2E 測試 | Playwright     | `e2e/`                       |
-| CI     | GitHub Actions | `.github/workflows/test.yml` |
+| 類型     | 工具             | 位置                         |
+|----------|------------------|------------------------------|
+| 單元測試 | Vitest           | `src/**/__tests__/`          |
+| 後端測試 | pytest（非同步） | `sidecar/tests/`             |
+| E2E 測試 | Playwright       | `e2e/`                       |
+| CI       | GitHub Actions   | `.github/workflows/test.yml` |
 
 ### 注意事項
 
@@ -330,20 +334,20 @@ release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都�
 
 ```bash
 npm run lint && npm run format:check && npm run type-check
-cd sidecar && .venv/bin/python -m pytest tests/ -q
+cd sidecar && .venv/bin/ruff check . && .venv/bin/mypy . --config-file mypy.ini && .venv/bin/python -m pytest tests/ -q
 ```
 
 Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 
-| 類型 | 用途 | 範例 |
-|---|---|---|
-| `feat` | 新功能 | `feat(watchlist): add batch import` |
-| `fix` | 修 bug | `fix(scheduler): handle timezone edge case` |
-| `docs` | 文件 | `docs: update API endpoint table` |
-| `refactor` | 重構 | `refactor: extract logger utility` |
-| `test` | 測試 | `test: add coverage for useAsyncFetch` |
-| `perf` | 效能 | `perf: memoize expensive calculations` |
-| `chore` | 建置／工具 | `chore: bump dependencies` |
+| 類型       | 用途       | 範例                                        |
+|------------|------------|---------------------------------------------|
+| `feat`     | 新功能     | `feat(watchlist): add batch import`         |
+| `fix`      | 修 bug     | `fix(scheduler): handle timezone edge case` |
+| `docs`     | 文件       | `docs: update API endpoint table`           |
+| `refactor` | 重構       | `refactor: extract logger utility`          |
+| `test`     | 測試       | `test: add coverage for useAsyncFetch`      |
+| `perf`     | 效能       | `perf: memoize expensive calculations`      |
+| `chore`    | 建置／工具 | `chore: bump dependencies`                  |
 
 程式碼風格：TypeScript 走 Prettier + ESLint（`npm run lint:fix`），Python 走 Ruff（`.venv/bin/ruff check --fix .`）。
 

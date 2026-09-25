@@ -8,7 +8,7 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 

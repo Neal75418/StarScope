@@ -26,6 +26,69 @@ from db.soft_delete import install_archive_filter
 install_archive_filter()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def isolate_github_credentials() -> Generator[None, None, None]:
+    """讓測試碰不到開發者的 GitHub 憑證（Keychain 與 GITHUB_TOKEN 環境變數）。
+
+    client 的 lifespan 會跑 star 同步，不隔離的話在開發機上會用真 token 打 GitHub；
+    忘了 mock 的寫入路徑（儲存、刪除 token）則會直接改動開發者的 Keychain。
+    null backend 對所有操作都回 None：寫入後的讀回驗證會失敗，而不是悄悄寫進真的 Keychain。
+
+    GITHUB_TOKEN 設成空字串而不是刪掉：main.py 在 import 時呼叫 load_dotenv()，它不覆蓋
+    已存在的 key，但會把不存在的 key 從 .env 補回來。它從 main.py 所在目錄往上找第一個
+    .env（coverage／debugger 底下改從 cwd 找）——沒有 sidecar/.env 時就會找到 repo 根目錄
+    那份放著真 token 的。
+    """
+    import keyring
+    from keyring.backends.null import Keyring as NullKeyring
+    from constants import GITHUB_TOKEN_ENV_VAR
+
+    previous_backend = keyring.get_keyring()
+    previous_token = os.environ.get(GITHUB_TOKEN_ENV_VAR)
+    keyring.set_keyring(NullKeyring())
+    os.environ[GITHUB_TOKEN_ENV_VAR] = ""
+    try:
+        yield
+    finally:
+        keyring.set_keyring(previous_backend)
+        if previous_token is None:
+            os.environ.pop(GITHUB_TOKEN_ENV_VAR, None)
+        else:
+            os.environ[GITHUB_TOKEN_ENV_VAR] = previous_token
+
+
+@pytest.fixture(scope="session", autouse=True)
+def block_real_network() -> Generator[None, None, None]:
+    """httpx 的真 transport 一律拋錯，測試裡的 httpx 請求連不到外網。
+
+    沒有它，只要某條路徑漏了 mock（例如 lifespan 的 star 同步被某個 fixture 放行），
+    測試就會真的打到 api.github.com。擋下的錯誤一樣會被呼叫端吞掉、全套照樣綠，
+    只在 captured log 留一行「測試不能連外網」——它擋的是流量，不負責讓漏 mock 浮上來。
+    MockTransport 與 TestClient 用的是別的 transport，不受影響；httpx 以外的連線
+    （例如 run_jobs.py 的 socket 探測）不歸它管。
+    """
+    import httpx
+
+    def _refuse(request: httpx.Request) -> None:
+        raise RuntimeError(f"測試不能連外網：{request.method} {request.url}")
+
+    def _sync(self, request, *args, **kwargs):
+        _refuse(request)
+
+    async def _async(self, request, *args, **kwargs):
+        _refuse(request)
+
+    original_sync = httpx.HTTPTransport.handle_request
+    original_async = httpx.AsyncHTTPTransport.handle_async_request
+    httpx.HTTPTransport.handle_request = _sync  # type: ignore[method-assign]
+    httpx.AsyncHTTPTransport.handle_async_request = _async  # type: ignore[method-assign]
+    try:
+        yield
+    finally:
+        httpx.HTTPTransport.handle_request = original_sync  # type: ignore[method-assign]
+        httpx.AsyncHTTPTransport.handle_async_request = original_async  # type: ignore[method-assign]
+
+
 # Create in-memory SQLite database for tests
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -73,7 +136,7 @@ def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
     # from interfering with the test session's SQLite connection.
     # Also patch SessionLocal so services like settings.py use test DB.
     with patch("services.scheduler.start_scheduler") as mock_start, \
-         patch("services.scheduler.stop_scheduler", new_callable=AsyncMock) as mock_stop, \
+         patch("services.scheduler.stop_scheduler", new_callable=AsyncMock), \
          patch("services.scheduler.trigger_fetch_now", return_value=None), \
          patch("main.init_db"), \
          patch("db.database.SessionLocal", test_session_local), \

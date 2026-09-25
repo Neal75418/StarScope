@@ -62,7 +62,9 @@ def _same_version(a: str, b: str) -> bool:
     tag 與 release 名稱常常是同一個版本號的兩種寫法：jax-v0.11.1 / JAX v0.11.1、
     jsoup-1.23.1 / jsoup 1.23.1。字面比對看不出來，接起來就變成重複的標題。
     """
-    norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())
+    def norm(s: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
     return bool(norm(a)) and norm(a) == norm(b)
 
 

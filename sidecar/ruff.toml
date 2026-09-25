@@ -1,0 +1,10 @@
+# 規則明確列出，不依賴 Ruff 的預設值：0.16 的預設規則集比舊版大得多（import 排序、
+# bugbear、datetime 時區……），預設一改 CI 就會在沒人動程式碼的情況下變紅。
+# 要加規則先量既有違規數（`ruff check --isolated --statistics --select <規則>`），
+# 再決定修掉還是 per-file ignore。
+[lint]
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# load_dotenv() 必須在其他 import 之前執行，模組層級讀環境變數的地方才拿得到值
+"main.py" = ["E402"]

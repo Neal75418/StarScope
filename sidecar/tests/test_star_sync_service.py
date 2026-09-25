@@ -220,7 +220,6 @@ async def test_truncated_fetch_never_archives(test_db):
     """
     _tracked(test_db, github_id=1, full_name="a/kept")      # 在回傳清單裡
     _tracked(test_db, github_id=2, full_name="a/cut-off")   # 被截斷的那截
-    from services.settings import set_setting
     from db.models import AppSettingKey
     set_setting(AppSettingKey.LAST_STAR_SYNC_AT, "2026-01-01T00:00:00Z", test_db)  # 非首次
 
@@ -235,7 +234,6 @@ async def test_truncated_fetch_never_archives(test_db):
 @pytest.mark.asyncio
 async def test_truncated_fetch_still_adds_new_stars(test_db):
     """截斷只該癱瘓「移除」這一翼——新增照常，否則大戶使用者的同步整個失能。"""
-    from services.settings import set_setting
     from db.models import AppSettingKey
     set_setting(AppSettingKey.LAST_STAR_SYNC_AT, "2026-01-01T00:00:00Z", test_db)
 

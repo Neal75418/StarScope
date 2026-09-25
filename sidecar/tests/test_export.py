@@ -5,10 +5,7 @@ Tests for export endpoints.
 
 import csv
 import io
-import json
 from datetime import timedelta
-
-import pytest
 
 from constants import SignalType
 from db.models import Repo, RepoSnapshot, Signal

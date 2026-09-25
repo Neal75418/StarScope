@@ -3,11 +3,9 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-import pytest
-
 from db.models import Repo, RepoSnapshot
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
-from utils.time import utc_now, utc_today
+from utils.time import utc_today
 
 
 # ── Fixtures ──────────────────────────────────────────────

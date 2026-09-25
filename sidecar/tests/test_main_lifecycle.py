@@ -1,7 +1,7 @@
 """Sidecar 啟停生命週期測試。"""
 
 import asyncio
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 

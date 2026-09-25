@@ -37,7 +37,6 @@ from schemas import (
 )
 from schemas.response import ApiResponse, success_response
 from services.github import (
-    GitHubService,
     GitHubAPIError,
     GitHubNotFoundError,
     get_github_service,

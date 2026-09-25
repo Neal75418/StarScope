@@ -7,19 +7,6 @@ from contextlib import contextmanager
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
-
-def _mock_db_ctx(db):
-    """Create a context manager factory that yields the given db session.
-
-    Returns the factory (not an instance) so each call produces a fresh,
-    reusable context manager.  Use with ``patch(..., new=_mock_db_ctx(db))``.
-    """
-    @contextmanager
-    def _ctx():
-        yield db
-    return _ctx
-
-
 from services.github import GitHubAPIError
 from services.scheduler import (
     get_scheduler,
@@ -35,6 +22,18 @@ from services.scheduler import (
     _scheduler_health,
     _health_lock,
 )
+
+
+def _mock_db_ctx(db):
+    """Create a context manager factory that yields the given db session.
+
+    Returns the factory (not an instance) so each call produces a fresh,
+    reusable context manager.  Use with ``patch(..., new=_mock_db_ctx(db))``.
+    """
+    @contextmanager
+    def _ctx():
+        yield db
+    return _ctx
 
 
 @pytest.fixture
@@ -633,7 +632,7 @@ class TestFeedJob:
     async def test_generate_feed_job_invokes_pipeline(self, test_db):
         """Test generate_feed_job invokes the feed generation pipeline."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.scheduler.get_github_service') as mock_get_github, \
+             patch('services.scheduler.get_github_service'), \
              patch('services.scheduler.generate_feed',
                    new=AsyncMock(return_value=5)) as mock_gen:
             from services.scheduler import generate_feed_job

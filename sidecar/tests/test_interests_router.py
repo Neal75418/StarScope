@@ -47,7 +47,7 @@ def test_update_missing_404(client):
 def test_update_duplicate_term_kind_conflict(client):
     # Create two interests with different terms
     resp1 = client.post(BASE, json={"term": "rust", "kind": "language", "weight": 1})
-    id1 = resp1.json()["data"]["id"]
+    assert resp1.status_code == 200  # 前置條件：第一筆要真的存在
     resp2 = client.post(BASE, json={"term": "python", "kind": "language", "weight": 2})
     id2 = resp2.json()["data"]["id"]
     # Try to update the second to have the same (term, kind) as the first -> should get 409

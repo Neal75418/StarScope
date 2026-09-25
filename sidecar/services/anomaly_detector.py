@@ -18,7 +18,7 @@ from db.models import (
     EarlySignal, ContextSignal,
 )
 from services.queries import (
-    build_snapshot_map, build_signal_map,
+    build_signal_map,
     get_snapshot_for_repo, get_signal_value,
 )
 from utils.time import utc_now
