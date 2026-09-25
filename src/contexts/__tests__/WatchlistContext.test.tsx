@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient } from "../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import { ApiError } from "../../api/types";
 import { WatchlistProvider, useWatchlistActions, useWatchlistState } from "../WatchlistContext";
 
@@ -156,6 +156,59 @@ describe("WatchlistContext actions", () => {
 
       expect(ret?.success).toBe(false);
       expect(ret?.error).toContain("Repository not found");
+    });
+  });
+
+  describe("清單成員變動時讓訊號快取失效", () => {
+    // 摘要與清單都不算封存 repo 的訊號：取消追蹤後「有訊號」要立刻減少，
+    // 重新加入一個封存過的 repo 時它原本的訊號要重新出現
+    function renderWithClient() {
+      const client = createTestQueryClient();
+      const invalidate = vi.spyOn(client, "invalidateQueries");
+      const Wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={client}>
+          <WatchlistProvider>{children}</WatchlistProvider>
+        </QueryClientProvider>
+      );
+      const hook = renderHook(() => useWatchlistActions(), { wrapper: Wrapper });
+      const signalsInvalidated = () =>
+        invalidate.mock.calls.some(
+          (call) => JSON.stringify(call[0]?.queryKey) === JSON.stringify(queryKeys.signals.all)
+        );
+      return { actions: () => hook.result.current, signalsInvalidated };
+    }
+
+    it("取消追蹤成功後", async () => {
+      const { actions, signalsInvalidated } = renderWithClient();
+
+      await act(async () => {
+        await actions().removeRepo(1);
+      });
+
+      expect(signalsInvalidated()).toBe(true);
+    });
+
+    it("從確認對話框取消追蹤成功後", async () => {
+      // 追蹤清單的「移除」按鈕走的是這條，不是 removeRepo
+      const { actions, signalsInvalidated } = renderWithClient();
+
+      act(() => actions().openRemoveConfirm(1, "o/n"));
+      await act(async () => {
+        await actions().confirmRemove();
+      });
+
+      expect(mockUnstarRepo).toHaveBeenCalledWith(1);
+      expect(signalsInvalidated()).toBe(true);
+    });
+
+    it("加入追蹤成功後", async () => {
+      const { actions, signalsInvalidated } = renderWithClient();
+
+      await act(async () => {
+        await actions().addRepo("o/n");
+      });
+
+      expect(signalsInvalidated()).toBe(true);
     });
   });
 

@@ -1,20 +1,27 @@
 /**
  * Watchlist 摘要面板：Top Velocity、Signal 數、Stale 數。
+ *
+ * 「有訊號」由呼叫端從後端的訊號摘要帶進來，不從卡片的批次資料數：批次資料只載入
+ * 可見範圍附近的卡，訊號落在畫面外的 repo 會被算成沒有。
  */
 
 import { useMemo, memo } from "react";
-import type { RepoWithSignals, EarlySignal } from "../../api/client";
+import type { RepoWithSignals } from "../../api/client";
 import { useCollapsible } from "../../hooks/useCollapsible";
-import { isHotRepo, isStaleRepo, hasActiveSignals } from "../../utils/repoStatus";
+import { isHotRepo, isStaleRepo } from "../../utils/repoStatus";
 import { STORAGE_KEYS } from "../../constants/storage";
 import { useI18n } from "../../i18n";
 
 interface SummaryPanelProps {
   repos: RepoWithSignals[];
-  batchSignals: Record<number, EarlySignal[] | undefined>;
+  /** 有活躍訊號的 repo 數；null 表示還不知道（載入中或失敗），顯示成「—」而不是 0 */
+  signalRepoCount: number | null;
 }
 
-export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: SummaryPanelProps) {
+export const SummaryPanel = memo(function SummaryPanel({
+  repos,
+  signalRepoCount,
+}: SummaryPanelProps) {
   const { t } = useI18n();
   const { collapsed, toggle } = useCollapsible(STORAGE_KEYS.WATCHLIST_SUMMARY_COLLAPSED);
 
@@ -24,19 +31,11 @@ export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: 
       .sort((a, b) => (b.velocity ?? 0) - (a.velocity ?? 0))
       .slice(0, 3);
 
-    let signalRepoCount = 0;
-    let staleCount = 0;
-
-    for (const repo of repos) {
-      const signals = batchSignals[repo.id];
-      if (signals && hasActiveSignals(signals)) signalRepoCount++;
-      if (isStaleRepo(repo)) staleCount++;
-    }
-
+    const staleCount = repos.filter(isStaleRepo).length;
     const hotCount = repos.filter(isHotRepo).length;
 
-    return { topVelocity, signalRepoCount, staleCount, hotCount };
-  }, [repos, batchSignals]);
+    return { topVelocity, staleCount, hotCount };
+  }, [repos]);
 
   return (
     <div className="summary-panel" data-testid="summary-panel">
@@ -80,7 +79,7 @@ export const SummaryPanel = memo(function SummaryPanel({ repos, batchSignals }: 
 
           <div className="summary-stat" data-testid="summary-signal-count">
             <span className="summary-stat-label">{t.watchlist.summary.signalRepos}</span>
-            <span className="summary-stat-number">{stats.signalRepoCount}</span>
+            <span className="summary-stat-number">{signalRepoCount ?? "—"}</span>
           </div>
 
           <div className="summary-stat" data-testid="summary-stale-count">

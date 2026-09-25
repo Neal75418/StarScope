@@ -13,7 +13,6 @@ import {
   getRepos,
   listTriggeredAlerts,
   listEarlySignals,
-  getSignalSummary,
   listAlertRules,
   acknowledgeSignal,
   getDiagnostics,
@@ -29,6 +28,7 @@ import { computeMovers, type MoversResult } from "../utils/movers";
 import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
 import type { AttentionItem } from "../components/dashboard/AttentionBar";
 import { useWeeklySummary } from "./useWeeklySummary";
+import { useSignalSummary } from "./useSignalSummary";
 
 const EMPTY_REPOS: RepoWithSignals[] = [];
 const EMPTY_ALERTS: TriggeredAlert[] = [];
@@ -88,10 +88,7 @@ export function useDashboard() {
     },
   });
 
-  const summaryQuery = useQuery({
-    queryKey: queryKeys.signals.summary(),
-    queryFn: () => getSignalSummary(),
-  });
+  const summaryQuery = useSignalSummary();
 
   // 供段一（AttentionBar）判斷 hasAlertRules。這裡沒有獨立的「已檢查」旗標可用
   // （不像 weekly 有 releasesChecked），所以規則是否載完必須併進整體 isLoading，

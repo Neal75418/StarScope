@@ -102,7 +102,9 @@ async def list_early_signals(
     列出所有早期訊號。
     預設僅顯示活躍且未確認的訊號。
     """
-    query = db.query(EarlySignal).options(joinedload(EarlySignal.repo))
+    # inner join 才會讓 soft_delete 的封存條件過濾掉訊號本身；只靠 joinedload（LEFT JOIN）
+    # 條件落在 ON 子句，封存 repo 的訊號照樣撈出來、repo 卻是 None
+    query = db.query(EarlySignal).join(EarlySignal.repo).options(joinedload(EarlySignal.repo))
 
     if signal_type:
         query = query.filter(EarlySignal.signal_type == signal_type)
@@ -198,7 +200,8 @@ async def get_signal_summary(
     now = utc_now()
 
     # 活躍訊號（未確認、未過期）
-    active_query = db.query(EarlySignal).filter(
+    # join 的理由同 list_early_signals：取消追蹤的 repo 不算「有訊號」
+    active_query = db.query(EarlySignal).join(EarlySignal.repo).filter(
         EarlySignal.acknowledged.is_(False),
         (EarlySignal.expires_at.is_(None)) | (EarlySignal.expires_at > now)
     )
@@ -291,7 +294,8 @@ async def get_repo_signals_batch(
 
     now = utc_now()
     # noinspection PyTypeChecker
-    signals: list[EarlySignal] = db.query(EarlySignal).options(
+    # join 的理由同 list_early_signals；請求在途時剛好被取消追蹤的 repo 也會在 repo_ids 裡
+    signals: list[EarlySignal] = db.query(EarlySignal).join(EarlySignal.repo).options(
         joinedload(EarlySignal.repo)
     ).filter(
         EarlySignal.repo_id.in_(repo_ids),

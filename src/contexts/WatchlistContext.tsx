@@ -145,6 +145,14 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     void refreshCategoryRepos();
   }, [qc, refreshCategoryRepos]);
 
+  // 清單成員變動（加入 / 取消追蹤）時另外刷新訊號：後端不算封存 repo 的訊號，
+  // 取消追蹤後「有訊號」要立刻減少，重新加入封存過的 repo 時它的訊號要回來。
+  // 不經過這裡的入口（匯入、探索頁、批次操作、封存頁）靠 staleTime 在 5 分鐘內追上
+  const invalidateMembership = useCallback(() => {
+    invalidateRepos();
+    void qc.invalidateQueries({ queryKey: queryKeys.signals.all });
+  }, [qc, invalidateRepos]);
+
   // Actions - 使用 ref 讀取 state，確保 actions 引用穩定
   const actions = useMemo<WatchlistActions>(
     () => ({
@@ -166,7 +174,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         try {
           await addRepo({ owner: parsed.owner, name: parsed.name });
           dispatch({ type: "ADD_REPO_SUCCESS" });
-          invalidateRepos();
+          invalidateMembership();
           return { success: true };
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
@@ -181,7 +189,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         try {
           await unstarRepo(repoId);
           dispatch({ type: "REMOVE_REPO_SUCCESS" });
-          invalidateRepos();
+          invalidateMembership();
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
           dispatch({ type: "REMOVE_REPO_FAILURE", payload: { error } });
@@ -271,7 +279,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         try {
           await unstarRepo(repoId);
           dispatch({ type: "REMOVE_REPO_SUCCESS" });
-          invalidateRepos();
+          invalidateMembership();
           showToastFn("success", t.toast.repoRemoved);
         } catch (err) {
           const error = getErrorMessage(err, t.common.error);
@@ -333,7 +341,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         invalidateRepos();
       },
     }),
-    [t, showToastFn, invalidateRepos, qc]
+    [t, showToastFn, invalidateRepos, invalidateMembership, qc]
   );
 
   // 監聽 Tauri tray「Refresh All」事件

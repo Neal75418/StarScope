@@ -151,6 +151,13 @@ vi.mock("../../hooks/useViewMode", () => ({
   }),
 }));
 
+const signalSummary = vi.hoisted(() => ({
+  value: { data: undefined as { repos_with_signals: number } | undefined, isError: false },
+}));
+vi.mock("../../hooks/useSignalSummary", () => ({
+  useSignalSummary: () => signalSummary.value,
+}));
+
 vi.mock("../../hooks/useWindowedBatchRepoData", () => ({
   useWindowedBatchRepoData: () => ({
     dataMap: {},
@@ -225,6 +232,7 @@ vi.mock("../../components/EmptyState", () => ({
 
 describe("Watchlist", () => {
   beforeEach(() => {
+    signalSummary.value = { data: { repos_with_signals: 0 }, isError: false };
     vi.clearAllMocks();
 
     mockState = {
@@ -282,6 +290,26 @@ describe("Watchlist", () => {
       isRecalculating: false,
       isInitializing: false,
     };
+  });
+
+  it("摘要的「有訊號」數整份清單，不是只數畫面上已載入的那幾張卡", () => {
+    // 批次資料只載入可見範圍 ±10 張卡（這裡 mock 成一張都沒載入）；
+    // 舊做法從批次資料數，訊號落在畫面外的 repo 就被算成 0
+    mockState.repos = [makeRepo()];
+    signalSummary.value = { data: { repos_with_signals: 2 }, isError: false };
+
+    render(<Watchlist />);
+
+    expect(screen.getByTestId("summary-signal-count")).toHaveTextContent("2");
+  });
+
+  it("訊號摘要還沒載到或載入失敗時顯示「—」，不是 0", () => {
+    mockState.repos = [makeRepo()];
+    signalSummary.value = { data: undefined, isError: true };
+
+    render(<Watchlist />);
+
+    expect(screen.getByTestId("summary-signal-count")).toHaveTextContent("—");
   });
 
   it("shows loading state", () => {

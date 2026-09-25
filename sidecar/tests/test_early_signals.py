@@ -82,3 +82,57 @@ class TestEarlySignalsEndpoints:
         response = client.post("/api/early-signals/99999/acknowledge")
         assert response.status_code == 404
 
+
+
+class TestArchivedReposAreExcluded:
+    """取消追蹤＝封存（unstarred_at 不為 null），而封存前偵測到的訊號還會活 3–7 天。
+
+    EarlySignal 的查詢若不 join Repo，soft_delete 的封存條件只會套在 joinedload 的
+    ON 子句上：訊號照樣被撈出來、repo 卻是 None——清單直接 500，摘要多算。
+    """
+
+    @staticmethod
+    def _seed(test_db):
+        from datetime import timedelta
+        from db.models import Repo
+
+        live = Repo(owner="o", name="live", full_name="o/live", url="https://github.com/o/live")
+        gone = Repo(owner="o", name="gone", full_name="o/gone", url="https://github.com/o/gone",
+                    unstarred_at=utc_now())
+        test_db.add_all([live, gone])
+        test_db.flush()
+        for repo in (live, gone):
+            test_db.add(EarlySignal(
+                repo_id=repo.id, signal_type="sudden_spike", severity="low", description="d",
+                detected_at=utc_now(), expires_at=utc_now() + timedelta(days=3), acknowledged=False,
+            ))
+        test_db.commit()
+        return live, gone
+
+    def test_list_skips_signals_of_archived_repos(self, client, test_db):
+        live, _ = self._seed(test_db)
+
+        response = client.get("/api/early-signals/?limit=10")
+
+        assert response.status_code == 200
+        assert [s["repo_id"] for s in response.json()["data"]["signals"]] == [live.id]
+
+    def test_summary_does_not_count_archived_repos(self, client, test_db):
+        self._seed(test_db)
+
+        data = client.get("/api/early-signals/summary").json()["data"]
+
+        assert data["repos_with_signals"] == 1
+        assert data["total_active"] == 1
+
+    def test_batch_skips_archived_repos(self, client, test_db):
+        # 批次請求在途時剛好取消追蹤：請求裡仍帶著那個 repo 的 id
+        live, gone = self._seed(test_db)
+
+        response = client.post("/api/early-signals/batch", json={"repo_ids": [live.id, gone.id]})
+
+        assert response.status_code == 200
+        results = response.json()["data"]["results"]
+        assert results[str(live.id)]["total"] == 1
+        # 每個請求的 id 都有一筆結果（空的也回），封存的那個要是空的
+        assert results[str(gone.id)] == {"signals": [], "total": 0}

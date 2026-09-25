@@ -35,6 +35,7 @@ import { EmptyStateView } from "./watchlist/EmptyStateView";
 import { RepoList } from "./watchlist/RepoList";
 import { RepoGrid } from "./watchlist/RepoGrid";
 import { SummaryPanel } from "./watchlist/SummaryPanel";
+import { useSignalSummary } from "../hooks/useSignalSummary";
 import { BatchActionBar } from "./watchlist/BatchActionBar";
 
 // Watchlist 主元件
@@ -71,14 +72,7 @@ export function Watchlist() {
     bufferSize: 10,
   });
 
-  // 從 batchData 提取 signals map（給 SummaryPanel 使用）
-  const batchSignals = useMemo(() => {
-    const map: Record<number, (typeof batchData)[number]["signals"] | undefined> = {};
-    for (const [id, data] of Object.entries(batchData)) {
-      map[Number(id)] = data?.signals;
-    }
-    return map;
-  }, [batchData]);
+  const signalSummary = useSignalSummary();
 
   // 批次操作
   const selection = useSelectionMode();
@@ -208,7 +202,10 @@ export function Watchlist() {
           {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
 
           {state.repos.length > 0 && (
-            <SummaryPanel repos={state.repos} batchSignals={batchSignals} />
+            <SummaryPanel
+              repos={state.repos}
+              signalRepoCount={signalSummary.data?.repos_with_signals ?? null}
+            />
           )}
 
           <div className="repo-list" data-testid="repo-list">
