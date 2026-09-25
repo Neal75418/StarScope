@@ -7,7 +7,6 @@ import { Dashboard } from "../Dashboard";
 import type { DashboardStats, RecentActivity } from "../../hooks/useDashboard";
 import type { EarlySignal, SignalSummary } from "../../api/client";
 import type { MoversResult } from "../../utils/movers";
-import type { AttentionItem } from "../../components/dashboard/AttentionBar";
 import {
   saveWidgetVisibility,
   type WidgetVisibility,
@@ -18,6 +17,32 @@ const mockRefresh = vi.fn();
 const mockNavigateTo = vi.fn();
 const mockRefreshAll = vi.fn(() => Promise.resolve());
 let mockLoadingState: { type: string } = { type: "idle" };
+
+const { mockAppendNew, mockUseDigestOptions } = vi.hoisted(() => ({
+  mockAppendNew: vi.fn(async () => {}),
+  mockUseDigestOptions: vi.fn(),
+}));
+
+// 摘要的 API 行為由 useDigest 自己的測試負責；這裡只驗證 Dashboard 有把它接上面板與重整
+vi.mock("../../hooks/useDigest", () => ({
+  useDigest: (options: unknown) => {
+    mockUseDigestOptions(options);
+    return {
+      digest: {
+        items: [],
+        other_total: 0,
+        cursor: { context_signal_id: 0, early_signal_id: 0, triggered_alert_id: 0 },
+        last_seen_at: null,
+        releases_checked: true,
+      },
+      isLoading: false,
+      isError: false,
+      retry: () => {},
+      appendNew: mockAppendNew,
+      appendFailed: false,
+    };
+  },
+}));
 
 vi.mock("../../contexts/NavigationContext", () => ({
   useNavigation: () => ({
@@ -86,9 +111,7 @@ let mockDashboard: {
   earlySignals: EarlySignal[];
   signalSummary: SignalSummary | null;
   movers: MoversResult;
-  attentionItems: AttentionItem[];
   hasAlertRules: boolean;
-  releasesChecked: boolean;
   acknowledgeSignal: (id: number) => void;
   isLoading: boolean;
   lastFetchAt: string | null;
@@ -160,11 +183,11 @@ vi.mock("../../components/dashboard/CategorySummary", () => ({
   CategorySummary: () => <div data-testid="category-summary" />,
 }));
 
-// AttentionBar 與 MoversPanel 刻意不 mock，跟既有的 SignalSpotlight 待遇一致——
+// DigestPanel 與 MoversPanel 刻意不 mock，跟既有的 SignalSpotlight 待遇一致——
 // 組裝測試要驗證的正是這兩個元件真的被放進頁面、真的吃到對的 props，
 // mock 掉反而測不出「有沒有接上」這件事。
 
-// 段一與段二現在會渲染真的內容，movers/attentionItems 不能再缺席：
+// 段一與段二現在會渲染真的內容，movers 不能再缺席：
 // 缺席時 MoversPanel 會對 undefined 取 .window，直接讓整個測試檔炸掉
 const EMPTY_MOVERS: MoversResult = {
   window: null,
@@ -213,9 +236,7 @@ describe("Dashboard", () => {
       earlySignals: [],
       signalSummary: null,
       movers: EMPTY_MOVERS,
-      attentionItems: [],
       hasAlertRules: true,
-      releasesChecked: true,
       acknowledgeSignal: mockAcknowledgeSignal,
       isLoading: false,
       // 固定在遙遠的過去：formatCompactRelativeTime 對它的輸出（locale 日期字串）
@@ -290,8 +311,8 @@ describe("Dashboard", () => {
     expect(mockRefresh).toHaveBeenCalled();
   });
 
-  it("clicking AttentionBar's refresh actually fetches from GitHub, then invalidates — invalidating alone re-reads the same local rows and changes nothing on screen", async () => {
-    // AttentionBar 是真的元件（不 mock），跟下面 acknowledge 那條測試對 SignalSpotlight
+  it("clicking the digest panel's refresh actually fetches from GitHub, then invalidates — invalidating alone re-reads the same local rows and changes nothing on screen", async () => {
+    // DigestPanel 是真的元件（不 mock），跟下面 acknowledge 那條測試對 SignalSpotlight
     // 的待遇一致：onAcknowledge 有端對端點擊測試釘住，onRefresh 之前沒有，
     // 錯接一個什麼都不做的函式會 tsc 通過、沒有任何測試發現——按鈕還在、還能點，
     // 只是點了沒反應，畫面上也不會有任何提示。
@@ -300,6 +321,37 @@ describe("Dashboard", () => {
     await user.click(screen.getByRole("button", { name: /refresh/i }));
     expect(mockRefreshAll).toHaveBeenCalledTimes(1);
     expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockAppendNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("only lets the digest mark things seen when its panel is actually rendered", () => {
+    // 載入骨架、錯誤畫面、引導卡都不渲染面板：這時送 seen 等於把沒看到的標成看過
+    const lastCanMarkSeen = () => mockUseDigestOptions.mock.lastCall?.[0].canMarkSeen;
+
+    const shown = render(<Dashboard />);
+    expect(screen.getByTestId("digest-panel")).toBeInTheDocument();
+    expect(lastCanMarkSeen()).toBe(true);
+    shown.unmount();
+
+    for (const override of [
+      { isLoading: true },
+      { error: "boom" },
+      { stats: { ...mockDashboard.stats, totalRepos: 0 } },
+    ]) {
+      Object.assign(mockDashboard, override);
+      const { unmount } = render(<Dashboard />);
+      expect(screen.queryByTestId("digest-panel")).not.toBeInTheDocument();
+      expect(lastCanMarkSeen()).toBe(false);
+      unmount();
+    }
+  });
+
+  it("refreshing appends newer digest items instead of invalidating the batch on screen", async () => {
+    // 摘要若跟著 invalidate 重抓，只會拿到新項目，使用者正在看的那批會被整個換掉
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await user.click(screen.getByRole("button", { name: /refresh/i }));
+    expect(mockAppendNew).toHaveBeenCalledTimes(1);
   });
 
   it("shows the backend's last GitHub fetch time, not React Query's dataUpdatedAt", () => {
@@ -308,13 +360,13 @@ describe("Dashboard", () => {
     // 是 10:59 而畫面在 11:05 仍顯示「剛剛」。
     mockDashboard.lastFetchAt = new Date(Date.now() - 42 * 60 * 1000).toISOString();
     render(<Dashboard />);
-    expect(screen.getByTestId("attention-bar")).toHaveTextContent("42m");
+    expect(screen.getByTestId("digest-panel")).toHaveTextContent("42m");
   });
 
   it("says so when the backend has never fetched, instead of implying the data is fresh", () => {
     mockDashboard.lastFetchAt = null;
     render(<Dashboard />);
-    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/not fetched yet/i);
+    expect(screen.getByTestId("digest-panel")).toHaveTextContent(/not fetched yet/i);
   });
 
   it("says the fetch status is unknown when diagnostics failed, instead of claiming the backend never fetched", () => {
@@ -322,8 +374,8 @@ describe("Dashboard", () => {
     mockDashboard.lastFetchAt = null;
     mockDashboard.fetchStatusUnavailable = true;
     render(<Dashboard />);
-    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/fetch status unavailable/i);
-    expect(screen.getByTestId("attention-bar")).not.toHaveTextContent(/not fetched yet/i);
+    expect(screen.getByTestId("digest-panel")).toHaveTextContent(/fetch status unavailable/i);
+    expect(screen.getByTestId("digest-panel")).not.toHaveTextContent(/not fetched yet/i);
   });
 
   it("stays in the fetching state when the backend says a fetch is running, even though the local promise already settled", async () => {
@@ -336,7 +388,7 @@ describe("Dashboard", () => {
 
     const button = screen.getByRole("button", { name: /refresh/i });
     expect(button).toBeDisabled();
-    expect(screen.getByTestId("attention-bar")).toHaveTextContent(/fetching from github/i);
+    expect(screen.getByTestId("digest-panel")).toHaveTextContent(/fetching from github/i);
     await user.click(button);
     expect(mockRefreshAll).not.toHaveBeenCalled();
   });
@@ -559,10 +611,10 @@ describe("Dashboard", () => {
         .filter(
           (id): id is string =>
             id !== null &&
-            ["attention-bar", "movers-title", "movers-empty", "weekly-releases"].includes(id)
+            ["digest-panel", "movers-title", "movers-empty", "weekly-releases"].includes(id)
         );
 
-      expect(order).toEqual(["attention-bar", "movers-empty", "weekly-releases"]);
+      expect(order).toEqual(["digest-panel", "movers-empty", "weekly-releases"]);
     });
 
     it("SignalSpotlight 排在排行之前——持久層在上、即時層在下", () => {

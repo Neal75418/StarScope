@@ -54,9 +54,12 @@ describe("useDigest", () => {
     vi.mocked(getDigest).mockResolvedValue(batch("release:1", 1));
 
     // StrictMode 會把 effect 跑兩次：開發模式下沒有去重就會送兩次
-    const { result, rerender } = renderHook(() => useDigest({ isFetchInProgress: false }), {
-      wrapper: wrapper({ strict: true }),
-    });
+    const { result, rerender } = renderHook(
+      () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+      {
+        wrapper: wrapper({ strict: true }),
+      }
+    );
 
     await waitFor(() => expect(result.current.digest).toBeDefined());
     rerender();
@@ -70,12 +73,33 @@ describe("useDigest", () => {
     });
   });
 
+  it("does not mark anything seen until the panel is actually on screen", async () => {
+    // Dashboard 在載入骨架、錯誤畫面、引導卡時不渲染面板，但 hook 必須無條件呼叫
+    vi.mocked(getDigest).mockResolvedValue(batch("release:1", 1));
+
+    const { result, rerender } = renderHook(
+      ({ visible }: { visible: boolean }) =>
+        useDigest({ isFetchInProgress: false, canMarkSeen: visible }),
+      { wrapper: wrapper(), initialProps: { visible: false } }
+    );
+    await waitFor(() => expect(result.current.digest).toBeDefined());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(markDigestSeen).not.toHaveBeenCalled();
+
+    rerender({ visible: true });
+
+    await waitFor(() => expect(markDigestSeen).toHaveBeenCalledTimes(1));
+  });
+
   it("does not mark anything seen when loading fails", async () => {
     vi.mocked(getDigest).mockRejectedValue(new Error("500"));
 
-    const { result } = renderHook(() => useDigest({ isFetchInProgress: false }), {
-      wrapper: wrapper(),
-    });
+    const { result } = renderHook(
+      () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+      {
+        wrapper: wrapper(),
+      }
+    );
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(markDigestSeen).not.toHaveBeenCalled();
@@ -86,9 +110,12 @@ describe("useDigest", () => {
       .mockResolvedValueOnce(batch("release:1", 1))
       .mockResolvedValueOnce(batch("release:2", 2));
 
-    const { result } = renderHook(() => useDigest({ isFetchInProgress: false }), {
-      wrapper: wrapper(),
-    });
+    const { result } = renderHook(
+      () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+      {
+        wrapper: wrapper(),
+      }
+    );
     await waitFor(() => expect(result.current.digest).toBeDefined());
 
     await act(() => result.current.appendNew());
@@ -111,9 +138,12 @@ describe("useDigest", () => {
       .mockResolvedValueOnce(batch("release:1", 1))
       .mockRejectedValueOnce(new Error("offline"));
 
-    const { result } = renderHook(() => useDigest({ isFetchInProgress: false }), {
-      wrapper: wrapper(),
-    });
+    const { result } = renderHook(
+      () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+      {
+        wrapper: wrapper(),
+      }
+    );
     await waitFor(() => expect(result.current.digest).toBeDefined());
 
     await act(() => result.current.appendNew());
@@ -128,7 +158,7 @@ describe("useDigest", () => {
       .mockResolvedValueOnce(batch("release:2", 2));
 
     const { result, rerender } = renderHook(
-      ({ busy }: { busy: boolean }) => useDigest({ isFetchInProgress: busy }),
+      ({ busy }: { busy: boolean }) => useDigest({ isFetchInProgress: busy, canMarkSeen: true }),
       { wrapper: wrapper(), initialProps: { busy: false } }
     );
     await waitFor(() => expect(result.current.digest).toBeDefined());
@@ -142,7 +172,9 @@ describe("useDigest", () => {
   it("does not append on the first render just because the fetch flag starts false", async () => {
     vi.mocked(getDigest).mockResolvedValue(batch("release:1", 1));
 
-    renderHook(() => useDigest({ isFetchInProgress: false }), { wrapper: wrapper() });
+    renderHook(() => useDigest({ isFetchInProgress: false, canMarkSeen: true }), {
+      wrapper: wrapper(),
+    });
 
     await waitFor(() => expect(getDigest).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 20));

@@ -112,18 +112,6 @@ function makeAlertRule(overrides: Partial<apiClient.AlertRule> = {}): apiClient.
   };
 }
 
-function makeRelease(overrides: Partial<apiClient.WeeklyRelease> = {}): apiClient.WeeklyRelease {
-  return {
-    repo_id: 1,
-    repo_name: "facebook/react",
-    title: "v19.0.0",
-    url: "https://github.com/facebook/react/releases/tag/v19.0.0",
-    tags: [],
-    published_at: "2024-01-20T00:00:00Z",
-    ...overrides,
-  };
-}
-
 function makeWeeklySummary(
   releases: apiClient.WeeklyRelease[] = [],
   overrides: Partial<apiClient.WeeklySummaryResponse> = {}
@@ -141,10 +129,7 @@ function makeWeeklySummary(
     early_signals_by_type: {},
     hn_mentions: [],
     releases,
-    // 預設「抓過了」：大部分測試在意的是 weekly 摘要本身的內容，不是
-    // releasesChecked 這個旗標——那個旗標有自己專屬的測試（見下方
-    // releasesChecked 那組），在這裡把它釘死可以避免所有其他測試意外
-    // 依賴一個沒人特別設定的預設值。
+    // 預設「抓過了」：這裡的測試在意的是 weekly 摘要本身的內容
     releases_ever_fetched: true,
     accelerating: 0,
     decelerating: 0,
@@ -205,7 +190,6 @@ describe("useDashboard", () => {
     expect(apiClient.listEarlySignals).toHaveBeenCalledWith({ limit: 5 }); // Spotlight 只顯示 5 筆
     expect(apiClient.getSignalSummary).toHaveBeenCalled();
     expect(apiClient.listAlertRules).toHaveBeenCalled();
-    expect(apiClient.getWeeklySummary).toHaveBeenCalled();
 
     expect(result.current.error).toBeNull();
     expect(result.current.earlySignals).toHaveLength(1);
@@ -454,10 +438,8 @@ describe("useDashboard", () => {
     expect(apiClient.listTriggeredAlerts).toHaveBeenCalled();
     expect(apiClient.listEarlySignals).toHaveBeenCalled();
     expect(apiClient.getSignalSummary).toHaveBeenCalled();
-    // rules() 掛在 alerts.all 底下、weeklySummary() 掛在 dashboard.all 底下——
-    // 兩者都該被既有的 invalidate 呼叫覆蓋到，不需要另外加一行 invalidateQueries
+    // rules() 掛在 alerts.all 底下——該被既有的 invalidate 呼叫覆蓋到，不需要另外加一行
     expect(apiClient.listAlertRules).toHaveBeenCalled();
-    expect(apiClient.getWeeklySummary).toHaveBeenCalled();
   });
 
   describe("useDashboard 供應段一與段二", () => {
@@ -489,120 +471,6 @@ describe("useDashboard", () => {
       expect(result.current.movers.risers).toHaveLength(1);
     });
 
-    it("deprecation 單獨出現不會被收進 attentionItems", async () => {
-      // deprecation 是預告不是行動。alerts 來源另外歸零，避免預設的未確認警報
-      // 混進來，讓這個測試意外因為「別的來源」而不是「這裡的過濾」通過。
-      vi.mocked(apiClient.getRepos).mockResolvedValue({ repos: [makeRepo()], total: 1 });
-      vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([]);
-      vi.mocked(apiClient.getWeeklySummary).mockResolvedValue(
-        makeWeeklySummary([makeRelease({ tags: ["deprecation"] })])
-      );
-
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.attentionItems).toEqual([]);
-    });
-
-    it("attentionItems 收未確認的警報與帶 breaking/security 的版本，同時排除已確認的警報與只有 deprecation 的版本", async () => {
-      // 同一個測試裡同時放「該進來」跟「不該進來」的資料：只驗證結果是空的
-      // 沒辦法分辨「過濾條件對」還是「過濾條件整個燒掉、什麼都不會進來」，
-      // 也沒辦法分辨 alerts 那半的 acknowledged 過濾到底有沒有真的在跑。
-      vi.mocked(apiClient.getRepos).mockResolvedValue({ repos: [makeRepo()], total: 1 });
-      vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([
-        makeAlert({
-          id: 1,
-          rule_name: "Star spike",
-          repo_name: "facebook/react",
-          acknowledged: false,
-        }),
-        makeAlert({ id: 2, rule_name: "Old alert", repo_name: "vuejs/vue", acknowledged: true }),
-      ]);
-      vi.mocked(apiClient.getWeeklySummary).mockResolvedValue(
-        makeWeeklySummary([
-          makeRelease({ repo_name: "a/a", title: "v1.0.0", tags: ["deprecation"] }),
-          makeRelease({
-            repo_name: "b/b",
-            title: "v2.0.0",
-            tags: ["breaking"],
-            url: "https://x/b",
-          }),
-          makeRelease({ repo_name: "c/c", title: "v3.0.0", tags: ["security", "deprecation"] }),
-        ])
-      );
-
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      const items = result.current.attentionItems;
-      expect(items).toHaveLength(3);
-
-      const titles = items.map((i) => i.title);
-      expect(titles).toContain("Star spike"); // 未確認警報：該收
-      expect(titles).not.toContain("Old alert"); // 已確認警報：該排除
-      expect(titles).toContain("b/b v2.0.0"); // breaking：該收
-      expect(titles).toContain("c/c v3.0.0"); // security（即使同時帶 deprecation）：該收
-      expect(titles).not.toContain("a/a v1.0.0"); // 只有 deprecation：該排除
-
-      // 順便釘住兩種 kind 的形狀，不只是標題字串對得上——包含 id：它是 React key
-      // 唯一性的依據，不能只驗字串內容對了就算數。
-      expect(items).toContainEqual({
-        id: "alert-1",
-        kind: "alert",
-        title: "Star spike",
-        detail: "facebook/react",
-      });
-      expect(items).toContainEqual({
-        id: "release-1-v2.0.0",
-        kind: "release",
-        title: "b/b v2.0.0",
-        detail: "breaking",
-        url: "https://x/b",
-      });
-    });
-
-    it("同一條全域規則觸發多個 repo 時，attentionItems 給每一筆不同的 id", async () => {
-      // 全域規則（repo_id=null）對每個觸發的 repo 各寫一筆 TriggeredAlert，
-      // rule_name 因此完全相同。舊的 key（kind-title）只看得到 rule_name，
-      // 同一條規則觸發多個 repo 就會產生重複的 key，React 用 key 對位重用 DOM，
-      // re-render 後某一列可能繼續顯示上一輪別的 repo。這裡同時涵蓋兩個軸：
-      // 同規則不同 repo（101/102）、同 repo 不同規則（103），確保 id 不是
-      // 只靠其中一邊撐起唯一性。
-      vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([
-        makeAlert({
-          id: 101,
-          rule_name: "Star spike",
-          repo_name: "facebook/react",
-          acknowledged: false,
-        }),
-        makeAlert({
-          id: 102,
-          rule_name: "Star spike",
-          repo_name: "vuejs/vue",
-          acknowledged: false,
-        }),
-        makeAlert({
-          id: 103,
-          rule_name: "Fork spike",
-          repo_name: "facebook/react",
-          acknowledged: false,
-        }),
-      ]);
-
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      const ids = result.current.attentionItems.map((i) => i.id);
-      expect(new Set(ids).size).toBe(ids.length);
-      expect(ids).toEqual(["alert-101", "alert-102", "alert-103"]);
-    });
-
     it("hasAlertRules 反映是否真的有規則，而不是猜規則有沒有觸發過", async () => {
       vi.mocked(apiClient.listAlertRules).mockResolvedValue([]);
       const none = renderHook(() => useDashboard(), { wrapper: createWrapper() });
@@ -620,8 +488,7 @@ describe("useDashboard", () => {
     });
 
     it("isLoading 會等 alertRulesQuery 一起完成才放行，不會提早在規則資料到之前開門", async () => {
-      // hasAlertRules 沒有自己專屬的「已檢查」旗標（不像 weekly 有 releasesChecked），
-      // 所以它的真實性完全靠 isLoading 確實等到規則資料回來才放行頁面。
+      // hasAlertRules 沒有自己專屬的「已檢查」旗標，所以它的真實性完全靠 isLoading 確實等到規則資料回來才放行頁面。
       // 用手動控制的 promise 卡住 listAlertRules，其餘 4 個 query 照常秒 resolve——
       // 這樣才能製造出「只剩規則還沒回來」的時刻，而不是靠 mock 秒解的巧合時序。
       let resolveRules: (rules: apiClient.AlertRule[]) => void = () => {};
@@ -663,46 +530,6 @@ describe("useDashboard", () => {
       });
 
       expect(result.current.error).toBe("rules down");
-    });
-
-    it("releasesChecked 在 weekly 摘要載入完成後為 true", async () => {
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.releasesChecked).toBe(true);
-      });
-    });
-
-    it("releasesChecked 在版本從未抓取過時維持 false，即使 weekly 摘要已經載入", async () => {
-      // 這是這個旗標存在的唯一理由：只看「摘要載完了沒」分不出「查過、這週
-      // 沒有版本」跟「抓取器根本沒跑過」——releases: [] 在兩種情況下長得
-      // 一模一樣。weekly 在這裡是成功 resolve 的（不是 undefined），
-      // releases_ever_fetched 才是真正該看的訊號。
-      vi.mocked(apiClient.getWeeklySummary).mockResolvedValue(
-        makeWeeklySummary([], { releases_ever_fetched: false })
-      );
-
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.releasesChecked).toBe(false);
-    });
-
-    it("releasesChecked 在 weekly 摘要取得失敗時維持 false，且不會污染整體 error", async () => {
-      // weekly 特意被排除在整體 isLoading／error 之外（見 useDashboard.ts 的註解），
-      // releasesChecked 才是它專屬的溝通管道；這裡同時釘住兩件事，避免有人
-      // 之後把 weeklyQuery 併回聚合邏輯，讓一次 sidecar 版本查詢失敗
-      // 意外讓整頁跳進錯誤畫面。
-      vi.mocked(apiClient.getWeeklySummary).mockRejectedValue(new Error("weekly summary down"));
-
-      const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.releasesChecked).toBe(false);
-      expect(result.current.error).toBeNull();
     });
   });
 

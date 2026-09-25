@@ -30,7 +30,7 @@ export type WidgetVisibility = Record<WidgetId, boolean>;
 const STORAGE_KEY = "starscope-dashboard-widgets-v2";
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
-  // 四張卡的數字已經各有去處（AttentionBar 的狀態列、MoversPanel 的標題），
+  // 四張卡的數字已經各有去處（DigestPanel 的狀態列、MoversPanel 的標題），
   // 這一排改為預設關閉，但程式碼與開關都保留——留不留是使用者的判斷
   statsGrid: false,
   signalSpotlight: true,

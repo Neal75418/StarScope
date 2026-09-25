@@ -29,10 +29,6 @@ export const translations = {
           "The dashboard reflects the repositories you track. Head over to Discover, pick something interesting from today's feed or search, and hit ⭐ Track — this page will come alive.",
       },
       attention: {
-        title: "Needs attention",
-        clear: "Nothing needs attention this week",
-        noAlertRules: "no alert rules set",
-        checking: "Still checking — releases not fetched yet",
         tracking: "{count} tracked",
         fetching: "Fetching from GitHub…",
         neverFetched: "not fetched yet",
@@ -1041,10 +1037,6 @@ export const translations = {
       },
       subtitle: "追蹤儲存庫總覽",
       attention: {
-        title: "需要注意",
-        clear: "本週無需注意的事",
-        noAlertRules: "未設定警報規則",
-        checking: "正在檢查（版本資料尚未抓取）",
         tracking: "{count} 個追蹤中",
         fetching: "正在從 GitHub 抓取…",
         neverFetched: "尚未抓取",

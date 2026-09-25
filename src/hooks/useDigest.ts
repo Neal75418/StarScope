@@ -1,7 +1,7 @@
 /**
  * 「自上次以來」摘要：整個 app session 抓一次，顯示後推進游標，重整只附加。
  *
- * 這個 hook 掛在 Dashboard 上——掛上＝使用者看得到，才送 seen。啟動頁的預抓
+ * 這個 hook 掛在 Dashboard 上，面板真的顯示時（canMarkSeen）才送 seen。啟動頁的預抓
  * （useStartupPage）只讀同一個 query key，不送 seen。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,9 +18,14 @@ const DIGEST_KEY = queryKeys.digest.session();
 interface UseDigestOptions {
   /** diagnostics 的 fetch_in_progress；由 true 轉 false＝抓取完成，附加新項目 */
   isFetchInProgress: boolean;
+  /**
+   * 面板真的在畫面上。Dashboard 的載入骨架、錯誤畫面、引導卡都不渲染面板，
+   * 但 hook 必須無條件呼叫——這時送 seen 等於把使用者沒看到的東西標成看過
+   */
+  canMarkSeen: boolean;
 }
 
-export function useDigest({ isFetchInProgress }: UseDigestOptions) {
+export function useDigest({ isFetchInProgress, canMarkSeen }: UseDigestOptions) {
   const qc = useQueryClient();
   const [appendFailed, setAppendFailed] = useState(false);
 
@@ -34,15 +39,15 @@ export function useDigest({ isFetchInProgress }: UseDigestOptions) {
     refetchOnMount: false,
   });
 
-  // 資料（cursor）一變就送。重送是冪等的（後端逐欄取 max），只會把 seen_at 更新成
-  // 最近一次看到 Dashboard 的時間——換頁回來重新掛載時會再送一次，那正是「看過」
+  // 面板顯示中且資料（cursor）一變就送。重送是冪等的（後端逐欄取 max），只會把 seen_at
+  // 更新成最近一次看到 Dashboard 的時間——換頁回來重新掛載時會再送一次，那正是「看過」
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || !canMarkSeen) return;
     markDigestSeen(query.data.cursor).catch((err: unknown) => {
       // 送不出去只代表下次會再看到同一批，不影響這次的畫面
       logger.warn("[Digest] 推進游標失敗:", err);
     });
-  }, [query.data]);
+  }, [query.data, canMarkSeen]);
 
   const appendNew = useCallback(async () => {
     try {

@@ -11,7 +11,8 @@ import { useAppStatus } from "../contexts/AppStatusContext";
 import { useNavigation } from "../contexts/NavigationContext";
 import { useWatchlistActions, useWatchlistState } from "../contexts/WatchlistContext";
 import { formatNumber, formatDelta, formatRelativeTime } from "../utils/format";
-import { AttentionBar } from "../components/dashboard/AttentionBar";
+import { DigestPanel } from "../components/dashboard/DigestPanel";
+import { useDigest } from "../hooks/useDigest";
 import { MoversPanel } from "../components/dashboard/MoversPanel";
 import { WeeklySummary } from "../components/dashboard/WeeklySummary";
 import { SignalSpotlight } from "../components/dashboard/SignalSpotlight";
@@ -187,9 +188,7 @@ export function Dashboard() {
     earlySignals,
     signalSummary,
     movers,
-    attentionItems,
     hasAlertRules,
-    releasesChecked,
     acknowledgeSignal,
     isLoading,
     lastFetchAt,
@@ -205,13 +204,21 @@ export function Dashboard() {
   // 兩個來源都要：本機旗標涵蓋「按下去到第一次輪詢回來」的空窗，伺服器旗標涵蓋
   // 「POST 已經返回但抓取還在跑」——只看本機的話撞到排程中的抓取會謊稱已完成
   const isRefreshing = loadingState.type === "refreshing" || isFetchInProgress;
+  // 面板只在下面三個提早 return 都沒發生時才渲染；沒顯示就不能標成看過
+  const digest = useDigest({
+    isFetchInProgress,
+    canMarkSeen: !isLoading && !error && stats.totalRepos > 0,
+  });
+  const { appendNew } = digest;
 
   // ↻ 要做的是「讓新鮮度標籤能動」的那件事——真的去 GitHub 抓。
   // 只 invalidate 快取的話是重讀同一份本機資料，畫面不會有任何變化。
   const handleRefresh = useCallback(async () => {
     await refreshAll();
     refresh();
-  }, [refreshAll, refresh]);
+    // 摘要不走 invalidate：重抓只會回新項目，會把正在看的這批蓋掉
+    await appendNew();
+  }, [refreshAll, refresh, appendNew]);
 
   // Portfolio History 的時間範圍（獨立 state，不影響 WeeklySummary）
   const [portfolioDays, setPortfolioDays] = useState<DashboardTimeRange>(30);
@@ -341,21 +348,24 @@ export function Dashboard() {
         <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
 
-      {/* 段一：需要注意。取代原本的四張統計卡與健康分數卡——那些合計 293px，
+      {/* 段一：自上次以來。取代原本的四張統計卡與健康分數卡——那些合計 293px，
           只為了說「沒事」。同時取代 DataFreshnessBar：更新時間與手動重整
           都在這裡，沒有別的入口了，所以不放進 FadeIn 的延遲佇列——這是
           使用者最先要看到的東西 */}
-      <AttentionBar
-        items={attentionItems}
+      <DigestPanel
+        digest={digest.digest}
+        isLoading={digest.isLoading}
+        isError={digest.isError}
+        appendFailed={digest.appendFailed}
+        onRetry={digest.retry}
         totalRepos={stats.totalRepos}
         hasAlertRules={hasAlertRules}
-        releasesChecked={releasesChecked}
         updatedLabel={freshnessLabel}
         isRefreshing={isRefreshing}
         onRefresh={handleRefresh}
       />
 
-      {/* 四張卡的數字已各有去處（見上方 AttentionBar 與下方 MoversPanel 的標題），
+      {/* 四張卡的數字已各有去處（見上方 DigestPanel 與下方 MoversPanel 的標題），
           預設關閉但保留——是否留著這一排是使用者的判斷，不是實作者能替他決定的事 */}
       {widgetVisibility.statsGrid && (
         <FadeIn delay={0.1}>

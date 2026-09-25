@@ -4635,7 +4635,7 @@ button.stat-card {
 /* 段一：需要注意。
    平時只有一行，所以刻意比 .dashboard-section 輕——沒有卡片邊框與大內距，
    否則「沒事」這個狀態會佔掉跟有事時一樣多的版面。 */
-.attention-bar {
+.digest-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -4645,25 +4645,25 @@ button.stat-card {
   background-color: var(--bg-subtle);
 }
 
-.attention-status {
+.digest-status {
   display: flex;
   align-items: baseline;
   gap: 10px;
   flex-wrap: wrap;
 }
 
-.attention-status-text {
+.digest-status-text {
   font-weight: 600;
   color: var(--fg-default);
 }
 
-.attention-status-meta {
+.digest-status-meta {
   font-size: 13px;
   color: var(--fg-muted);
 }
 
 /* 重整按鈕靠右：它是這一行唯一的動作，跟敘述文字混在一起會被當成標點 */
-.attention-refresh {
+.digest-refresh {
   margin-left: auto;
   background: none;
   border: none;
@@ -4676,20 +4676,20 @@ button.stat-card {
 }
 
 /* :hover 在 disabled 元素上仍會觸發，不排除的話滑過去會變亮，等於再說一次「可以點」 */
-.attention-refresh:hover:not(:disabled) {
+.digest-refresh:hover:not(:disabled) {
   color: var(--fg-default);
   background-color: var(--bg-muted);
 }
 
 /* 這個 class 自己設了 color，會蓋掉瀏覽器對 disabled 的預設灰化——
    不寫這條的話停用與可用的計算樣式完全相同，看不出差別 */
-.attention-refresh:disabled {
+.digest-refresh:disabled {
   color: var(--fg-subtle, #6e7681);
   opacity: 0.5;
   cursor: default;
 }
 
-.attention-list {
+.digest-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -4699,7 +4699,7 @@ button.stat-card {
 }
 
 /* 標題與標記之間一定要有間隔：少了 gap 會渲染成「v8.0.0breaking」 */
-.attention-item {
+.digest-item {
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -4707,7 +4707,7 @@ button.stat-card {
   font-size: 14px;
 }
 
-.attention-item-detail {
+.digest-item-summary {
   font-size: 12px;
   color: var(--danger-fg);
   border: 1px solid currentColor;
@@ -4720,6 +4720,33 @@ button.stat-card {
 
 /* release 標記。三種都用外框而非填色：一列裡通常只有一兩個 release 有標記，
    填色塊會比版本號本身還搶眼，反而看不出哪一列是重點。 */
+.digest-status-since,
+.digest-item-time,
+.digest-more {
+  font-size: 13px;
+  color: var(--fg-muted);
+}
+
+.digest-item-icon {
+  flex: none;
+}
+
+.digest-others-toggle,
+.digest-retry {
+  background: none;
+  border: none;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+
+.digest-append-failed {
+  font-size: 13px;
+  color: var(--warning-fg);
+  margin: 0;
+}
+
 .weekly-release-tags {
   display: flex;
   gap: 6px;
