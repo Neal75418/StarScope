@@ -119,8 +119,8 @@ upsert 撞既有資料時不變，所以游標是三張表各自看過的最大 
 | `key` | `來源:id`，例如 `release:1290`，前端的穩定 key |
 | `tier` | `highlight` 或 `other` |
 | `kind` | `release`、`signal`、`hn`、`alert` |
-| `repo` | `{id, full_name}` |
-| `occurred_at` | 事件本身的時間（發佈／偵測／觸發） |
+| `repo` | `{id, full_name, url}` |
+| `occurred_at` | 事件本身的時間（發佈／偵測／觸發），帶 `+00:00` 的 ISO 字串——DB 存 naive UTC，不帶時區的字串會被前端 `new Date()` 當成本地時間 |
 | `url` | release 或 HN 的網址；訊號與警報沒有 |
 | 類型專屬欄位 | release：`tag`、`tags`；HN：`title`、`score`；signal：`signal_type`、`severity`、數值；alert：規則名稱與觸發值 |
 
@@ -159,8 +159,8 @@ upsert 撞既有資料時不變，所以游標是三張表各自看過的最大 
 | 沒有新東西 | 「自上次（3 天前）以來沒有值得注意的變化」；沒設警報規則時附註 |
 | API 失敗 | 「摘要載入失敗」＋重試；絕不顯示成沒事 |
 
-每列：類型圖示、repo、一句話結論、相對時間。有 `url` 的點擊用 `safeOpenUrl` 開外部
-頁面；訊號與警報點擊進該 repo。其他更新展開後依時間排序，被截斷時最後一列是
+每列：類型圖示、repo、一句話結論、相對時間。點擊用 `safeOpenUrl` 開外部頁面：
+release 與 HN 開自己的網址，訊號與警報開該 repo 的 GitHub 頁面（app 沒有 repo 詳細頁）。其他更新展開後依時間排序，被截斷時最後一列是
 「還有 N 條」。追蹤數、更新時間、重整按鈕與「抓取中」回饋照搬 AttentionBar。
 
 ### 啟動頁
@@ -204,4 +204,6 @@ App 啟動時先等 digest 回應再決定第一頁：有重點落在 Dashboard�
 實作完成後以真實資料的唯讀拷貝跑一次 `build_digest`，確認「重點平均每天不到一條」
 在真實資料上成立（需使用者再次同意讀取）。
 
-e2e：Dashboard 顯示摘要面板；空資料庫顯示「沒有值得注意的變化」而不是錯誤。
+e2e 的資料庫是空的，Dashboard 此時只渲染引導卡、不渲染任何 widget，摘要面板不會出現。
+所以 e2e 只驗證引導卡照舊出現（摘要請求不能把它弄壞）；面板本身由單元測試覆蓋，
+另在隔離的 sidecar 上用瀏覽器實際操作一次。
