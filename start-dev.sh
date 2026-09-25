@@ -26,7 +26,7 @@ echo "=== Starting StarScope Development Environment ==="
 # Check if virtual environment exists
 if [ ! -d "$SIDECAR_DIR/.venv" ]; then
     echo "Error: Virtual environment not found. Please run:"
-    echo "  cd $SIDECAR_DIR && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
+    echo "  cd $SIDECAR_DIR && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -c constraints.txt"
     exit 1
 fi
 

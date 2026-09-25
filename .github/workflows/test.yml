@@ -33,12 +33,15 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: 'sidecar/requirements.txt'
+          cache-dependency-path: |
+            sidecar/requirements.txt
+            sidecar/constraints.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # -c：裝開發機實際在用的版本，而不是範圍內的最新版（見 constraints.txt 開頭）
+          pip install -r requirements.txt -c constraints.txt
 
       - name: Lint with ruff
         run: ruff check .
@@ -120,7 +123,9 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
-          cache-dependency-path: 'sidecar/requirements.txt'
+          cache-dependency-path: |
+            sidecar/requirements.txt
+            sidecar/constraints.txt
 
       - name: Install frontend dependencies
         run: npm ci
@@ -129,7 +134,8 @@ jobs:
         run: |
           cd sidecar
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          # -c：裝開發機實際在用的版本，而不是範圍內的最新版（見 constraints.txt 開頭）
+          pip install -r requirements.txt -c constraints.txt
 
       - name: Cache Playwright browsers
         id: playwright-cache

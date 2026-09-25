@@ -7,8 +7,8 @@ This directory contains the compiled Python sidecar binaries for each platform.
 From the `sidecar/` directory:
 
 ```bash
-# Install PyInstaller
-pip install pyinstaller
+# Install PyInstaller (pinned in constraints.txt, same version as the release build)
+pip install pyinstaller -c constraints.txt
 
 # Build for current platform
 pyinstaller starscope-sidecar.spec

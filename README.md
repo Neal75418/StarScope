@@ -175,7 +175,7 @@ cd StarScope
 npm install
 
 # Python 依賴（必須用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
-cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && cd ..
+cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt && cd ..
 
 # 環境設定（選用，提升 GitHub API 配額）
 cp sidecar/.env.example sidecar/.env

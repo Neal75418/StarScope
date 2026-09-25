@@ -14,14 +14,17 @@ runs:
       with:
         python-version: '3.12'
         cache: 'pip'
-        cache-dependency-path: 'sidecar/requirements.txt'
+        cache-dependency-path: |
+          sidecar/requirements.txt
+          sidecar/constraints.txt
 
     - name: Install sidecar dependencies
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install -r sidecar/requirements.txt
-        pip install pyinstaller
+        # -c：打包開發機實際在用的版本（含 PyInstaller 本身），而不是範圍內的最新版
+        pip install -r sidecar/requirements.txt -c sidecar/constraints.txt
+        pip install pyinstaller -c sidecar/constraints.txt
 
     # PyInstaller 預設只產出執行中架構的 binary（跨架構要所有依賴都有 fat wheel，本專案不成立），
     # 所以每個 target 都要在該架構的 runner 上打包
