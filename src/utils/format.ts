@@ -178,6 +178,22 @@ export function formatChartDate(dateStr: string): string {
 }
 
 /**
+ * 只有日期的值（"2026-09-25"）以日曆日期顯示。
+ * new Date("2026-09-25") 是 UTC 午夜；用本地時區格式化，UTC 以西（美洲）會變成前一天。
+ */
+export function formatCalendarDate(dateStr: string, locale?: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(locale, { timeZone: "UTC" });
+}
+
+/** 本地日期的 YYYY-MM-DD（給使用者看的「今天」，例如檔名）；toISOString() 給的是 UTC 日期 */
+export function localDateStamp(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
  * 正規化 repo full_name 以進行大小寫不敏感的比對。
  */
 export function normalizeRepoName(fullName: string): string {

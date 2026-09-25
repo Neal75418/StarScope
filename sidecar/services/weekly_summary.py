@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from schemas.time import to_utc_iso
 from db.models import (
     Repo, RepoSnapshot, Signal, TriggeredAlert,
     EarlySignal, ContextSignal, AppSettingKey,
@@ -268,7 +269,7 @@ def _get_releases(
             "title": s.title,
             "url": s.url,
             "tags": s.tags.split(",") if s.tags else [],
-            "published_at": s.published_at.isoformat() if s.published_at else None,
+            "published_at": to_utc_iso(s.published_at) if s.published_at else None,
         }
         for s in signals
     ]

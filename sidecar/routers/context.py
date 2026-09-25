@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
 from constants import ContextSignalType, MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
+from schemas.time import UtcDateTime
 from db.database import get_db
 from db.models import ContextSignal
 from routers.dependencies import get_repo_or_404
@@ -42,8 +43,8 @@ class ContextSignalResponse(BaseModel):
     score: int | None
     comment_count: int | None
     author: str | None
-    published_at: datetime | None
-    fetched_at: datetime
+    published_at: UtcDateTime | None
+    fetched_at: UtcDateTime
 
     model_config = ConfigDict(from_attributes=True)
 

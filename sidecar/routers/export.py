@@ -16,6 +16,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
+from schemas.time import to_utc_iso
 from db.database import get_db
 from constants import SignalType
 from db.models import Repo, RepoSnapshot
@@ -111,8 +112,8 @@ def _build_repo_dict(
         "description": repo.description,
         "language": repo.language,
         "topics": repo.topics,
-        "added_at": repo.added_at.isoformat() if repo.added_at else None,
-        "updated_at": repo.updated_at.isoformat() if repo.updated_at else None,
+        "added_at": to_utc_iso(repo.added_at) if repo.added_at else None,
+        "updated_at": to_utc_iso(repo.updated_at) if repo.updated_at else None,
         "stars": snapshot.stars if snapshot else None,
         "forks": snapshot.forks if snapshot else None,
         "stars_delta_7d": signals.get(SignalType.STARS_DELTA_7D),
@@ -166,7 +167,7 @@ def export_watchlist_json(
     # noinspection PyTypeChecker
     repos: list[Repo] = db.query(Repo).order_by(Repo.added_at.desc()).all()
     data = {
-        "exported_at": utc_now().isoformat(),
+        "exported_at": to_utc_iso(utc_now()),
         "total": len(repos),
         "repos": _get_repos_with_signals(repos, db),
     }
@@ -292,7 +293,7 @@ def export_trends_json(
     """匯出趨勢 repo 為 JSON。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
     data = {
-        "exported_at": utc_now().isoformat(),
+        "exported_at": to_utc_iso(utc_now()),
         "sort_by": sort_by,
         "total": len(repos),
         "repos": repos,

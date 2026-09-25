@@ -3,13 +3,14 @@
 提供偵測到的異常與早期訊號存取。
 """
 
-from datetime import date, datetime
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import case, func
 
+from schemas.time import UtcDateTime
 from db.database import get_db
 from db.models import EarlySignal, Repo, RepoSnapshot
 from utils.time import utc_now, utc_today
@@ -40,10 +41,10 @@ class EarlySignalResponse(BaseModel):
     baseline_value: float | None = None
     context_title: str | None = None
     percentile_rank: float | None
-    detected_at: datetime
-    expires_at: datetime | None
+    detected_at: UtcDateTime
+    expires_at: UtcDateTime | None
     acknowledged: bool
-    acknowledged_at: datetime | None
+    acknowledged_at: UtcDateTime | None
 
     model_config = ConfigDict(from_attributes=True)
 

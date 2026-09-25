@@ -1,10 +1,10 @@
 /**
- * sidecar 回應裡的時間一律補成 UTC。
+ * sidecar 回應裡不帶時區的「日期＋時間」一律當 UTC 讀。
  *
- * DB 存 naive UTC（utc_now()），序列化出來是不帶時區的 "2026-09-25T12:00:00"；
- * new Date() 會把不帶時區的「日期＋時間」當成本地時間，台灣會讓每個「幾小時前」多 8 小時。
+ * DB 存 naive UTC（utc_now()）。sidecar 輸出時已帶上時區（sidecar/schemas/time.py，
+ * tests/test_api_timestamps_utc.py 守住），這裡是前端的雙保險：漏網的欄位若以不帶時區的
+ * "2026-09-25T12:00:00" 出現，new Date() 會把它當成本地時間，台灣會讓「幾小時前」多 8 小時。
  * 只有日期的字串（"2026-09-25"）new Date() 本來就當 UTC，不動；已帶 Z 或 ±hh:mm 的也不動。
- * 在 client 這一個關口處理，前端各處不必各自記得補。
  */
 
 const NAIVE_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;

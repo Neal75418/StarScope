@@ -1,7 +1,7 @@
 """Repo 相關 API 端點的 Pydantic schemas。"""
 
 import re
-from datetime import datetime
+from schemas.time import UtcDateTime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -94,8 +94,8 @@ class RepoResponse(BaseModel):
     url: str
     description: str | None = None
     language: str | None = None
-    added_at: datetime
-    updated_at: datetime
+    added_at: UtcDateTime
+    updated_at: UtcDateTime
 
     model_config = {"from_attributes": True}
 
@@ -121,7 +121,7 @@ class RepoWithSignals(RepoResponse):
     issues_delta_30d: float | None = None
 
     # 最新快照日期
-    last_fetched: datetime | None = None
+    last_fetched: UtcDateTime | None = None
 
 
 class RepoListResponse(BaseModel):

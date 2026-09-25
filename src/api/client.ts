@@ -141,7 +141,7 @@ async function doFetch<T>(
     return null as T;
   }
 
-  // sidecar 大部分 datetime 是不帶時區的 UTC；不補的話 new Date() 當成本地時間（見 timestamps.ts）
+  // 不帶時區的日期時間當 UTC 讀（雙保險；sidecar 本身已帶時區，見 timestamps.ts）
   const json = normalizeApiTimestamps(await response.json());
 
   // 自動解包統一 API 回應格式 (ApiResponse[T])

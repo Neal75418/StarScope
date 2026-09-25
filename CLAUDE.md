@@ -406,7 +406,7 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 
 ## 前端架構模式
 
-⚠️ **API 時間一律在 `doFetch` 補 `Z`**（`src/api/timestamps.ts`）：sidecar 輸出不帶時區的 UTC，`new Date()` 會當成本地時間（台灣差 8 小時）。不要在元件裡自己補 `Z`；新增的 fetch 路徑要經過 `doFetch`。CI 跑在 UTC 看不出來，測試要自己設 `process.env.TZ`。
+⚠️ **API 時間要帶時區**：sidecar response model 的 datetime 欄位用 `UtcDateTime`、手寫輸出用 `to_utc_iso()`（`sidecar/schemas/time.py`，`tests/test_api_timestamps_utc.py` 守住）。只有日期的值用 `formatCalendarDate`／`localDateStamp`，不要經本地時區轉換。前端 `doFetch` 補 `Z` 是雙保險，新增的 fetch 路徑仍要經過它。CI 跑在 UTC 看不出時區 bug，測試要自己設 `process.env.TZ`。
 
 ### React Query 資料層
 

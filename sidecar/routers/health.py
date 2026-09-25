@@ -5,6 +5,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from schemas.time import to_utc_iso
 from utils.time import utc_now
 from schemas.response import ApiResponse, success_response
 
@@ -43,7 +44,7 @@ async def health_check() -> dict:
     health_data = HealthStatus(
         status="ok",
         service="starscope-engine",
-        timestamp=utc_now().isoformat(),
+        timestamp=to_utc_iso(utc_now()),
     )
 
     return success_response(

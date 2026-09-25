@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ChartDataPoint } from "../api/client";
-import { formatNumber, formatChartDate } from "../utils/format";
+import { formatNumber, formatChartDate, formatCalendarDate } from "../utils/format";
 import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
 import { StarHistoryBackfill } from "./StarHistoryBackfill";
 import { useI18n } from "../i18n";
@@ -108,7 +108,7 @@ function ChartContent({ data, colors }: ChartContentProps) {
           contentStyle={TOOLTIP_STYLE}
           labelStyle={{ color: colors.tooltipText }}
           formatter={(value) => [formatNumber(value as number), t.chart.stars]}
-          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+          labelFormatter={(label) => formatCalendarDate(String(label))}
         />
         <Line
           type="monotone"

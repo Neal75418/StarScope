@@ -2,13 +2,13 @@
 警報 API 端點，管理警報規則與檢視已觸發的警報。
 """
 
-from datetime import datetime
 from typing import Literal, get_args
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session, joinedload
 
+from schemas.time import UtcDateTime
 from db.database import get_db
 from db.models import AlertRule, TriggeredAlert, Repo
 from schemas.response import ApiResponse, StatusResponse, success_response
@@ -81,8 +81,8 @@ class AlertRuleResponse(BaseModel):
     operator: str
     threshold: float
     enabled: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcDateTime
+    updated_at: UtcDateTime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -98,9 +98,9 @@ class TriggeredAlertResponse(BaseModel):
     signal_value: float
     threshold: float
     operator: str
-    triggered_at: datetime
+    triggered_at: UtcDateTime
     acknowledged: bool
-    acknowledged_at: datetime | None
+    acknowledged_at: UtcDateTime | None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -3,13 +3,13 @@
 提供使用者自訂 repo 分類的 CRUD 操作。
 """
 
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from schemas.time import UtcDateTime
 from db.database import get_db
 from db.models import Category, RepoCategory
 from routers.dependencies import get_repo_or_404
@@ -54,7 +54,7 @@ class CategoryResponse(BaseModel):
     color: str | None
     parent_id: int | None
     sort_order: int
-    created_at: datetime
+    created_at: UtcDateTime
     repo_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
@@ -86,7 +86,7 @@ class RepoCategoryResponse(BaseModel):
     full_name: str
     description: str | None
     language: str | None
-    added_at: datetime
+    added_at: UtcDateTime
 
 
 class CategoryReposResponse(BaseModel):
@@ -103,7 +103,7 @@ class RepoCategoryItem(BaseModel):
     name: str
     icon: str | None
     color: str | None
-    added_at: datetime | None
+    added_at: UtcDateTime | None
 
 
 class RepoCategoriesResponse(BaseModel):
