@@ -4707,8 +4707,8 @@ button.stat-card {
   font-size: 14px;
 }
 
-/* 結論是一般文字：重點與否由圖示與分層表達。沿用舊 AttentionBar 的紅框會讓
-   每一列一般 release 看起來都像 security 更新 */
+/* 結論是一般文字：重點與否由圖示與分層表達。每一列都加框的話，
+   一般 release 看起來會跟 security 更新一樣重要 */
 .digest-item-summary {
   color: var(--fg-default);
 }

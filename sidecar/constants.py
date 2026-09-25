@@ -133,6 +133,9 @@ DIGEST_HIGHLIGHT_SEVERITIES = frozenset({EarlySignalSeverity.HIGH, EarlySignalSe
 DIGEST_HN_HIGHLIGHT_MIN_SCORE = 50
 DIGEST_OTHER_LIMIT = 50
 DIGEST_INITIAL_WINDOW_DAYS = 3
+# 新加入追蹤的 repo 會補抓回舊 HN 討論與最新 release（可能是幾年前的）；早於加入追蹤這麼多天的
+# 是加入前的歷史，不列入摘要。留緩衝是因為剛好在 star 之前發生的事，常常就是 star 的原因
+DIGEST_PRE_TRACKING_GRACE_DAYS = 3
 
 
 class TimeRange(StrEnum):

@@ -91,6 +91,25 @@ describe("useDigest", () => {
     await waitFor(() => expect(markDigestSeen).toHaveBeenCalledTimes(1));
   });
 
+  it("does not resend the same batch's cursor when the dashboard mounts again", async () => {
+    // 換頁回來重新掛載時，快取裡那批的 cursor 若再 POST 一次，會把刪除後被壓低的游標
+    // 再抬回去（clamp 後剛好等於新的最大 id），重用 id 的新列就被標成看過
+    vi.mocked(getDigest).mockResolvedValue(batch("release:1", 1));
+    const sharedWrapper = wrapper();
+
+    const first = renderHook(() => useDigest({ isFetchInProgress: false, canMarkSeen: true }), {
+      wrapper: sharedWrapper,
+    });
+    await waitFor(() => expect(markDigestSeen).toHaveBeenCalledTimes(1));
+    first.unmount();
+
+    renderHook(() => useDigest({ isFetchInProgress: false, canMarkSeen: true }), {
+      wrapper: sharedWrapper,
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(markDigestSeen).toHaveBeenCalledTimes(1);
+  });
+
   it("does not mark anything seen when loading fails", async () => {
     vi.mocked(getDigest).mockRejectedValue(new Error("500"));
 

@@ -46,6 +46,19 @@ describe("mergeDigest", () => {
     expect(merged.other_total).toBe(1);
   });
 
+  it("takes the newest response's cursor even when it went down", () => {
+    // 刪除之後後端會把游標壓低：新回應的 cursor 比這批舊的還小。取 max 的話會把
+    // 舊的高值再送回去，把重用 id 的新列標成看過
+    const prev = digest([], {
+      cursor: { context_signal_id: 5, early_signal_id: 4, triggered_alert_id: 3 },
+    });
+    const next = digest([], {
+      cursor: { context_signal_id: 2, early_signal_id: 4, triggered_alert_id: 1 },
+    });
+
+    expect(mergeDigest(prev, next).cursor).toEqual(next.cursor);
+  });
+
   it("does not duplicate an item that arrives twice", () => {
     const item = release("release:1", "other", "2026-09-24T00:00:00+00:00");
 

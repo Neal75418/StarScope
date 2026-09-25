@@ -16,11 +16,9 @@ export function mergeDigest(prev: DigestResponse, next: DigestResponse): DigestR
   return {
     items: [...prev.items, ...added].sort(byTierThenNewest),
     other_total: prev.other_total + addedOthers,
-    cursor: {
-      context_signal_id: Math.max(prev.cursor.context_signal_id, next.cursor.context_signal_id),
-      early_signal_id: Math.max(prev.cursor.early_signal_id, next.cursor.early_signal_id),
-      triggered_alert_id: Math.max(prev.cursor.triggered_alert_id, next.cursor.triggered_alert_id),
-    },
+    // 取最新回應的 cursor，不取 max：刪除後後端會把游標壓低，新回應的 cursor 可能比這批舊的小，
+    // 取 max 會把舊的高值再送回去、把重用 id 的新列標成看過
+    cursor: next.cursor,
     last_seen_at: prev.last_seen_at,
     releases_checked: next.releases_checked,
   };

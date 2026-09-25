@@ -15,6 +15,10 @@ import { logger } from "../utils/logger";
 // 模組常數：每次 render 新建的陣列放進 useCallback 依賴會讓 appendNew 每次都換一個
 const DIGEST_KEY = queryKeys.digest.session();
 
+// 送過 seen 的那幾批（以快取裡的物件為 key）。放模組層級才撐得過 Dashboard 重新掛載：
+// 換頁回來時快取給的是同一個物件，若再送一次，會把刪除後被壓低的游標抬回去
+const sentBatches = new WeakSet<DigestResponse>();
+
 interface UseDigestOptions {
   /** diagnostics 的 fetch_in_progress；由 true 轉 false＝抓取完成，附加新項目 */
   isFetchInProgress: boolean;
@@ -39,10 +43,10 @@ export function useDigest({ isFetchInProgress, canMarkSeen }: UseDigestOptions) 
     refetchOnMount: false,
   });
 
-  // 面板顯示中且資料（cursor）一變就送。重送是冪等的（後端逐欄取 max），只會把 seen_at
-  // 更新成最近一次看到 Dashboard 的時間——換頁回來重新掛載時會再送一次，那正是「看過」
+  // 面板顯示中、而且這一批還沒送過才送；appendNew／重試會產生新的物件，那時再送
   useEffect(() => {
-    if (!query.data || !canMarkSeen) return;
+    if (!query.data || !canMarkSeen || sentBatches.has(query.data)) return;
+    sentBatches.add(query.data);
     markDigestSeen(query.data.cursor).catch((err: unknown) => {
       // 送不出去只代表下次會再看到同一批，不影響這次的畫面
       logger.warn("[Digest] 推進游標失敗:", err);

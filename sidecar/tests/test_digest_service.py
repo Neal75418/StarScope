@@ -150,6 +150,23 @@ class TestFiltering:
 
         assert build_digest(test_db, ZERO)["items"] == []
 
+    def test_history_from_before_the_repo_was_tracked_is_left_out(self, test_db, mock_repo):
+        # 新加入追蹤的 repo，補抓回來的舊 HN 討論與舊 release 會拿到新 id；
+        # 那是加入前的歷史，不是「自上次以來」發生的事
+        old_hn = _hn(test_db, mock_repo, score=800, external_id="2019")
+        old_hn.published_at = utc_now() - timedelta(days=3 * 365)
+        _release(test_db, mock_repo, tags="security", external_id="old", published_days_ago=400)
+        test_db.commit()
+
+        assert build_digest(test_db, ZERO)["items"] == []
+
+    def test_events_just_before_tracking_started_still_count(self, test_db, mock_repo):
+        # 對照組：加入前兩天的 release 仍在緩衝內（剛好在 star 之前發生的事）
+        mock_repo.added_at = utc_now() - timedelta(hours=1)
+        recent = _release(test_db, mock_repo, tags="security", external_id="2d", published_days_ago=2)
+
+        assert _keys(build_digest(test_db, ZERO)) == [f"release:{recent.id}"]
+
     def test_unstarred_repos_are_left_out(self, test_db, mock_repo):
         _release(test_db, mock_repo, tags="security")
         mock_repo.unstarred_at = utc_now()

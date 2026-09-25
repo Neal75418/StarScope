@@ -21,6 +21,7 @@ from constants import (
     DIGEST_HN_HIGHLIGHT_MIN_SCORE,
     DIGEST_INITIAL_WINDOW_DAYS,
     DIGEST_OTHER_LIMIT,
+    DIGEST_PRE_TRACKING_GRACE_DAYS,
     ContextSignalType,
     EarlySignalType,
 )
@@ -31,7 +32,8 @@ from utils.time import utc_now
 logger = logging.getLogger(__name__)
 
 # 游標是讀-改-寫：兩支 POST 在 threadpool 裡並行時會讀到同一個舊值（後寫的蓋掉先寫的），
-# 第一次寫入時則是其中一個撞 UNIQUE。只有 app 的 sidecar 會寫游標，行程內互斥就夠
+# 第一次寫入時則是其中一個撞 UNIQUE。這把鎖只管行程內；無頭收集器的 context 清理也會
+# 呼叫 lower_cursor_to_existing，跨行程仍可能丟失更新（毫秒級窗口，且只在刪到最大 id 時才寫）
 _cursor_write_lock = threading.Lock()
 
 
@@ -224,6 +226,8 @@ def build_digest(db: Session, cursor: DigestCursor | None) -> dict[str, Any]:
             func.coalesce(ContextSignal.published_at, ContextSignal.fetched_at) >= since)
     for row, repo in context_q.all():
         occurred = row.published_at or row.fetched_at
+        if repo.added_at and occurred < repo.added_at - timedelta(days=DIGEST_PRE_TRACKING_GRACE_DAYS):
+            continue  # 加入追蹤前的歷史；cursor 照樣越過它
         base = {"repo": _repo_ref(repo), "occurred_at": _iso_utc(occurred), "url": row.url,
                 "title": row.title}
         if row.signal_type == ContextSignalType.RELEASE:

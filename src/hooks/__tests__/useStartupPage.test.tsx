@@ -7,6 +7,7 @@ import { queryClient } from "../../lib/react-query";
 vi.mock("../../api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/client")>()),
   getDigest: vi.fn(),
+  checkHealth: vi.fn(async () => ({ status: "ok" })),
 }));
 import type { DigestResponse } from "../../api/client";
 
@@ -30,30 +31,74 @@ const withTier = (tier: "highlight" | "other"): DigestResponse => ({
   releases_checked: true,
 });
 
+const up = async () => true;
+
 describe("resolveStartupPage", () => {
   it("opens the dashboard when there are highlights", async () => {
-    expect(await resolveStartupPage("watchlist", async () => withTier("highlight"))).toBe(
-      "dashboard"
-    );
+    const page = await resolveStartupPage("watchlist", {
+      fetchDigest: async () => withTier("highlight"),
+      sidecarReachable: up,
+    });
+    expect(page).toBe("dashboard");
   });
 
   it("keeps the last page when there are only other updates", async () => {
-    expect(await resolveStartupPage("watchlist", async () => withTier("other"))).toBe("watchlist");
+    const page = await resolveStartupPage("watchlist", {
+      fetchDigest: async () => withTier("other"),
+      sidecarReachable: up,
+    });
+    expect(page).toBe("watchlist");
   });
 
   it("keeps the last page when the digest fails", async () => {
-    expect(
-      await resolveStartupPage("trends", async () => {
+    const page = await resolveStartupPage("trends", {
+      fetchDigest: async () => {
         throw new Error("down");
-      })
-    ).toBe("trends");
+      },
+      sidecarReachable: up,
+    });
+    expect(page).toBe("trends");
   });
 
   it("keeps the last page when the digest takes longer than the timeout", async () => {
     vi.useFakeTimers();
-    const pending = resolveStartupPage("compare", () => new Promise(() => {}), 1000);
+    const pending = resolveStartupPage(
+      "compare",
+      { fetchDigest: () => new Promise(() => {}), sidecarReachable: up },
+      { answerTimeoutMs: 1000 }
+    );
     await vi.advanceTimersByTimeAsync(1000);
     expect(await pending).toBe("compare");
+    vi.useRealTimers();
+  });
+
+  it("waits for a sidecar that is still starting before giving the digest its second", async () => {
+    // 發行版的 sidecar 冷啟動要好幾秒：一開始就計 1 秒的話永遠等不到，功能安靜地失效
+    vi.useFakeTimers();
+    let probes = 0;
+    const fetchDigest = vi.fn(async () => withTier("highlight"));
+    const pending = resolveStartupPage(
+      "watchlist",
+      { fetchDigest, sidecarReachable: async () => ++probes > 3 },
+      { retryDelayMs: 500, sidecarWaitMs: 30_000 }
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+    expect(await pending).toBe("dashboard");
+    expect(fetchDigest).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("gives up on a sidecar that never comes up and keeps the last page", async () => {
+    vi.useFakeTimers();
+    const fetchDigest = vi.fn(async () => withTier("highlight"));
+    const pending = resolveStartupPage(
+      "settings",
+      { fetchDigest, sidecarReachable: async () => false },
+      { retryDelayMs: 500, sidecarWaitMs: 5_000 }
+    );
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(await pending).toBe("settings");
+    expect(fetchDigest).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
 });
