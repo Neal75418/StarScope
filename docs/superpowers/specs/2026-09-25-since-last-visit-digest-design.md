@@ -95,10 +95,12 @@ upsert 撞既有資料時不變，所以游標是三張表各自看過的最大 
   app settings。這個 endpoint 必須同時刪除 `DIGEST_CURSOR`，否則摘要會空到 id 追上
   舊游標為止。
 - 游標與資料在同一個資料庫檔：還原備份時兩者一起回到同一個時間點，不會錯位。
-- **已知限制**：SQLite 的 rowid 在「目前最大的那一列被刪掉」時可能被重用。唯一可能刪到
-  最大 id 的是 `context_signals` 的每 repo 筆數上限（依 `fetched_at` 保留最新 N 筆），
-  前提是全域最新寫入的那則 HN 討論之後再沒被搜到、而其他列持續被刷新、期間也沒有任何
-  新寫入。後果是漏掉一條 HN。機率低，不改 schema 去換 `AUTOINCREMENT`。
+- **rowid 重用**：三張表沒有 `AUTOINCREMENT`，「目前最大的那幾列」被刪掉後新列會重用 id，
+  游標若停在被刪掉的 id，新列會被當成看過。會刪這三張表的路徑：刪警報規則（cascade
+  `triggered_alerts`）、永久刪 repo（cascade 三張表）、context 訊號清理（保留期、每 repo 上限、
+  不相關 HN）、重設所有資料。前三條刪完都呼叫 `lower_cursor_to_existing`，把游標壓到現有最大 id
+  （`seen_at` 不變）；重設則直接清掉游標。殘留：刪除與壓游標之間剛好有 collector 寫入的極小窗口。
+  根本解是重建成 `AUTOINCREMENT`，那需要正式引入 alembic（見 CLAUDE.md），2026-09-25 決定不做。
 
 ## 一併修正：已處理的 early signal 會被重建
 

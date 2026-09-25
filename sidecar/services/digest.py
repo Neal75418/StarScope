@@ -87,6 +87,28 @@ def clear_cursor(db: Session) -> None:
     delete_setting(AppSettingKey.DIGEST_CURSOR, db)
 
 
+def lower_cursor_to_existing(db: Session) -> None:
+    """刪除這三張表之後呼叫（在呼叫端 commit 之後）：把存著的游標壓到各表目前的最大 id。
+
+    三張表沒有 AUTOINCREMENT，最大的那幾列被刪掉之後新列會重用 id；游標若還停在被刪掉的
+    id，重用那些 id 的新列會被當成看過——被漏掉的往往是重點（刪一條警報規則就可能清空
+    triggered_alerts）。壓到現有最大 id 之後新列一定比游標大；已看過的列都 ≤ 最大 id，不會復活。
+    seen_at 不變：這不是使用者看過。
+    """
+    with _cursor_write_lock:
+        current, seen_at = load_cursor(db)
+        if current is None:
+            return
+        lowered = clamp_to_existing(current, db)
+        if lowered == current:
+            return
+        set_setting(
+            AppSettingKey.DIGEST_CURSOR,
+            json.dumps({**asdict(lowered), "seen_at": seen_at.isoformat() if seen_at else None}),
+            db,
+        )
+
+
 def clamp_to_existing(cursor: DigestCursor, db: Session) -> DigestCursor:
     """前端送來的 cursor 不可能超過各表目前的最大 id；超過的是送錯或 reset 前的舊值。
 

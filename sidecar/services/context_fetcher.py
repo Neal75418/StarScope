@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from constants import CONTEXT_SIGNAL_MAX_AGE_DAYS, CONTEXT_SIGNAL_MAX_PER_REPO, ContextSignalType
 from db.models import Repo, ContextSignal
+from services.digest import lower_cursor_to_existing
 from services.hacker_news import fetch_hn_mentions, is_relevant_story, HNStory
 from utils.time import utc_now
 
@@ -337,6 +338,9 @@ def cleanup_old_context_signals(
     deleted_as_irrelevant = _cleanup_irrelevant_signals(db)
 
     db.commit()
+    if deleted_by_age or deleted_by_limit or deleted_as_irrelevant:
+        # 刪到最大 id 的話之後的新列會重用 id（見 services/digest.py）
+        lower_cursor_to_existing(db)
 
     if deleted_by_age > 0 or deleted_by_limit > 0 or deleted_as_irrelevant > 0:
         logger.info(

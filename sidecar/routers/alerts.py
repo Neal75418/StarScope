@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from db.database import get_db
 from db.models import AlertRule, TriggeredAlert, Repo
 from schemas.response import ApiResponse, StatusResponse, success_response
+from services.digest import lower_cursor_to_existing
 from services.alerts import (
     acknowledge_alert,
     acknowledge_all_alerts,
@@ -287,6 +288,8 @@ def delete_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
 
     db.delete(rule)
     db.commit()
+    # cascade 刪掉這條規則的 triggered_alerts；之後的新警報會重用 id
+    lower_cursor_to_existing(db)
 
     return success_response(data=StatusResponse(status="deleted", id=rule_id))
 

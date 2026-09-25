@@ -47,6 +47,7 @@ from services.settings import get_setting
 from services.star_sync import sync_starred_repos, sync_is_running
 from utils.time import utc_now
 from db.models import AppSettingKey
+from services.digest import lower_cursor_to_existing
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
 
 logger = logging.getLogger(__name__)
@@ -520,6 +521,8 @@ def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
             detail="Repository is still tracked; unstar it before deleting")
     db.delete(repo)
     db.commit()
+    # cascade 刪掉它的 context／early signals 與 triggered_alerts；之後的新列會重用 id
+    lower_cursor_to_existing(db)
     return None
 
 
