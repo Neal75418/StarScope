@@ -4707,13 +4707,14 @@ button.stat-card {
   font-size: 14px;
 }
 
+/* 結論是一般文字：重點與否由圖示與分層表達。沿用舊 AttentionBar 的紅框會讓
+   每一列一般 release 看起來都像 security 更新 */
 .digest-item-summary {
-  font-size: 12px;
-  color: var(--danger-fg);
-  border: 1px solid currentColor;
-  border-radius: var(--radius-sm, 4px);
-  padding: 0 6px;
-  white-space: nowrap;
+  color: var(--fg-default);
+}
+
+.digest-list--others .digest-item-summary {
+  color: var(--fg-muted);
 }
 
 /* Weekly Summary */

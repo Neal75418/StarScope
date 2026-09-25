@@ -11,6 +11,7 @@ import { I18nContext } from "./i18n";
 import { ThemeContext } from "./theme";
 import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
+import { useStartupPage } from "./hooks/useStartupPage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
 import { NavigationProvider } from "./contexts/NavigationContext";
 import { AppStatusProvider } from "./contexts/AppStatusContext";
@@ -56,22 +57,28 @@ function PageContent({ page }: { page: Page }) {
   }
 }
 
+function readSavedPage(): Page {
+  const saved = localStorage.getItem(STORAGE_KEYS.PAGE);
+  const validPages: Page[] = [
+    "dashboard",
+    "discovery",
+    "watchlist",
+    "trends",
+    "compare",
+    "settings",
+  ];
+  return saved && validPages.includes(saved as Page) ? (saved as Page) : "dashboard";
+}
+
 export function App() {
-  const [currentPage, setCurrentPage] = useState<Page>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PAGE);
-    const validPages: Page[] = [
-      "dashboard",
-      "discovery",
-      "watchlist",
-      "trends",
-      "compare",
-      "settings",
-    ];
-    return saved && validPages.includes(saved as Page) ? (saved as Page) : "dashboard";
-  });
+  const [savedPage] = useState(readSavedPage);
+  // 有「自上次以來」的重點時啟動落在 Dashboard；決定之前是 null（見 useStartupPage）
+  const startupPage = useStartupPage(savedPage);
+  const [chosenPage, setChosenPage] = useState<Page | null>(null);
+  const currentPage = chosenPage ?? startupPage;
 
   const handlePageChange = useCallback((page: Page) => {
-    setCurrentPage(page);
+    setChosenPage(page);
     try {
       localStorage.setItem(STORAGE_KEYS.PAGE, page);
     } catch {
@@ -101,7 +108,7 @@ export function App() {
               <NavigationProvider onPageChange={handlePageChange}>
                 <div className="app">
                   <AppHeader
-                    currentPage={currentPage}
+                    currentPage={currentPage ?? savedPage}
                     onPageChange={handlePageChange}
                     theme={theme}
                     onThemeToggle={toggleTheme}
@@ -114,7 +121,11 @@ export function App() {
                   <main className="app-main" id="main-content">
                     <ErrorBoundary>
                       <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                        <PageContent page={currentPage} />
+                        {currentPage ? (
+                          <PageContent page={currentPage} />
+                        ) : (
+                          <PageLoader text={t.common.loading} />
+                        )}
                       </Suspense>
                     </ErrorBoundary>
                   </main>
