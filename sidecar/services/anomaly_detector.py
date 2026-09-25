@@ -136,27 +136,42 @@ def _determine_severity(
     return EarlySignalSeverity.LOW
 
 
-def _signal_already_active(repo_id: int, signal_type: str, db: Session) -> bool:
-    """檢查是否已存在未過期的同類型 signal（單次查詢 fallback）。
+# 去重的語意（同告警系統）：同一件事、同一個等級只算一次，不論是否已處理——
+# 按掉之後重建的那筆會拿到新 id，在「自上次以來」摘要裡以新訊號身分再出現；
+# 嚴重度升高則是新狀況，要重新出現（save_detected_signals 會讓被取代的那筆過期）
+_SEVERITY_RANK: dict[str, int] = {
+    EarlySignalSeverity.LOW: 0, EarlySignalSeverity.MEDIUM: 1, EarlySignalSeverity.HIGH: 2,
+}
 
-    已處理過的也算：按掉之後條件仍成立的話，重建的那筆會拿到新 id，
-    在「自上次以來」摘要與 SignalSpotlight 裡以新訊號身分再出現。過期後才重新偵測。
-    """
-    return db.query(EarlySignal).filter(
+
+def _severity_rank(severity: str) -> int:
+    return _SEVERITY_RANK.get(severity, 0)
+
+
+def _active_severity(repo_id: int, signal_type: str, db: Session) -> str | None:
+    """未過期的同類型 signal 中最高的嚴重度（含已處理）；沒有則 None。單次查詢 fallback。"""
+    rows = db.query(EarlySignal.severity).filter(
         EarlySignal.repo_id == repo_id,
         EarlySignal.signal_type == signal_type,
         EarlySignal.expires_at > utc_now(),
-    ).first() is not None
+    ).all()
+    severities: list[str] = [row[0] for row in rows]
+    return max(severities, key=_severity_rank, default=None)
 
 
-def _build_active_signals_set(db: Session) -> set[tuple[int, str]]:
-    """一次性預載所有未過期的 early signals（含已處理），回傳 {(repo_id, signal_type)} set。"""
+def _build_active_severity_map(db: Session) -> dict[tuple[int, str], str]:
+    """一次性預載 {(repo_id, signal_type): 未過期訊號中最高的嚴重度}（含已處理）。"""
     rows = db.query(
-        EarlySignal.repo_id, EarlySignal.signal_type
+        EarlySignal.repo_id, EarlySignal.signal_type, EarlySignal.severity
     ).filter(
         EarlySignal.expires_at > utc_now(),
     ).all()
-    return {(int(row[0]), row[1]) for row in rows}
+    active: dict[tuple[int, str], str] = {}
+    for repo_id, signal_type, severity in rows:
+        key = (int(repo_id), signal_type)
+        if key not in active or _severity_rank(severity) > _severity_rank(active[key]):
+            active[key] = severity
+    return active
 
 
 def _determine_rising_star_severity(velocity: float, velocity_ratio: float) -> str:
@@ -480,7 +495,7 @@ class AnomalyDetector:
         snapshot_map: dict[int, "RepoSnapshot"] | None = None,
         signal_map: dict[int, dict[str, float]] | None = None,
         velocity_values: list[float] | None = None,
-        active_signals: set[tuple[int, str]] | None = None,
+        active_signals: dict[tuple[int, str], str] | None = None,
         recent_snapshots_map: dict[int, list["RepoSnapshot"]] | None = None,
         hn_signal_map: dict[int, "ContextSignal"] | None = None,
     ) -> list["EarlySignal"]:
@@ -489,16 +504,18 @@ class AnomalyDetector:
         回傳偵測到的訊號列表（尚未儲存）。
 
         Args:
-            active_signals: 預載的 active signals set，避免 N+1 查詢。
+            active_signals: 預載的 {(repo_id, signal_type): 最高嚴重度}，避免 N+1 查詢。
                             若為 None 則 fallback 至逐次 DB 查詢。
         """
         signals: list["EarlySignal"] = []
         repo_id = int(repo.id)
 
-        def _is_active(sig_type: str) -> bool:
+        def _is_suppressed(new: "EarlySignal") -> bool:
             if active_signals is not None:
-                return (repo_id, sig_type) in active_signals
-            return _signal_already_active(repo_id, sig_type, db)
+                existing = active_signals.get((repo_id, new.signal_type))
+            else:
+                existing = _active_severity(repo_id, new.signal_type, db)
+            return existing is not None and _severity_rank(existing) >= _severity_rank(new.severity)
 
         # rising_star 需要 velocity_values 做百分位計算
         try:
@@ -508,7 +525,7 @@ class AnomalyDetector:
                 signal_map=signal_map,
                 velocity_values=velocity_values,
             )
-            if signal and not _is_active(signal.signal_type):
+            if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
@@ -520,7 +537,7 @@ class AnomalyDetector:
                 repo, db, snapshot_map=snapshot_map, signal_map=signal_map,
                 recent_snapshots=repo_recent,
             )
-            if signal and not _is_active(signal.signal_type):
+            if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} sudden_spike 錯誤: {e}", exc_info=True)
@@ -530,7 +547,7 @@ class AnomalyDetector:
             signal = AnomalyDetector.detect_breakout(
                 repo, db, snapshot_map=snapshot_map, signal_map=signal_map
             )
-            if signal and not _is_active(signal.signal_type):
+            if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} breakout 錯誤: {e}", exc_info=True)
@@ -543,13 +560,13 @@ class AnomalyDetector:
                     signal = AnomalyDetector._build_viral_hn_signal(
                         repo, db, hn_signal, snapshot_map
                     )
-                    if signal and not _is_active(signal.signal_type):
+                    if signal and not _is_suppressed(signal):
                         signals.append(signal)
             else:
                 signal = AnomalyDetector.detect_viral_hn(
                     repo, db, snapshot_map=snapshot_map, signal_map=signal_map
                 )
-                if signal and not _is_active(signal.signal_type):
+                if signal and not _is_suppressed(signal):
                     signals.append(signal)
         except SQLAlchemyError as e:
             logger.error(f"[異常偵測] {repo.full_name} viral_hn 錯誤: {e}", exc_info=True)
@@ -622,7 +639,7 @@ class AnomalyDetector:
         velocity_values: list[float] = sorted(row[0] for row in rows)
 
         # 預載所有 active early signals，避免 detect_all_for_repo 中的 N+1 查詢
-        active_signals = _build_active_signals_set(db)
+        active_signals = _build_active_severity_map(db)
 
         # 批次預載所有 repo 的 HN 訊號（供 detect_viral_hn 使用，1 次查詢取代 N 次）。
         # 條件必須與 detect_viral_hn 的單筆查詢逐字一致——兩條路徑不同步的話，
@@ -666,7 +683,17 @@ def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int | No
     對呼叫端必須可區分，否則 job 摘要會把儲存失敗報成「寫入 0 個訊號」。
     """
     try:
+        now = utc_now()
         for s in signals:
+            # 升級：讓被取代的（嚴重度較低的）過期，SignalSpotlight 只剩新的一筆。
+            # 只動較低的——collector 與 app 各自偵測時，依舊資料算出的 LOW 可能晚於別人寫進的 HIGH
+            lower = [sev for sev, rank in _SEVERITY_RANK.items() if rank < _severity_rank(s.severity)]
+            db.query(EarlySignal).filter(
+                EarlySignal.repo_id == s.repo_id,
+                EarlySignal.signal_type == s.signal_type,
+                EarlySignal.severity.in_(lower),
+                EarlySignal.expires_at > now,
+            ).update({EarlySignal.expires_at: now}, synchronize_session=False)
             db.add(s)
         db.commit()
         return len(signals)

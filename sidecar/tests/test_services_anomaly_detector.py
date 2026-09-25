@@ -6,6 +6,7 @@ import pytest
 from datetime import timedelta
 
 from db.models import (
+    Repo,
     RepoSnapshot,
     Signal,
     EarlySignal,
@@ -331,7 +332,7 @@ class TestDetectAllForRepo:
         signal = Signal(
             repo_id=mock_repo.id,
             signal_type=SignalType.VELOCITY,
-            value=20.0,
+            value=12.0,  # 同樣是 low；20 會偵測出 medium＝升級
             calculated_at=utc_now(),
         )
         test_db.add_all([snapshot, signal])
@@ -361,7 +362,8 @@ class TestDetectAllForRepo:
         test_db.query(Signal).filter(Signal.repo_id == mock_repo.id).delete()
         test_db.add_all([
             RepoSnapshot(repo_id=mock_repo.id, snapshot_date=utc_today(), stars=1000),
-            Signal(repo_id=mock_repo.id, signal_type=SignalType.VELOCITY, value=20.0,
+            # velocity 12 → 同樣是 low；20 會偵測出 medium，那是升級，應該要建（見 TestEscalation）
+            Signal(repo_id=mock_repo.id, signal_type=SignalType.VELOCITY, value=12.0,
                    calculated_at=utc_now()),
         ])
         test_db.commit()
@@ -897,15 +899,120 @@ class TestBreakoutUsesTheNormalisedVelocitySignal:
         assert AnomalyDetector.detect_breakout(mock_repo, test_db) is not None
 
 
-class TestActiveSignalsSet:
-    def test_acknowledged_unexpired_signal_counts_as_active(self, test_db, mock_repo):
-        from services.anomaly_detector import _build_active_signals_set
-        test_db.add(EarlySignal(
-            repo_id=mock_repo.id, signal_type=EarlySignalType.SUDDEN_SPIKE,
-            severity=EarlySignalSeverity.LOW, description="x",
-            detected_at=utc_now(), expires_at=utc_now() + timedelta(days=3),
-            acknowledged=True, acknowledged_at=utc_now(),
-        ))
-        test_db.commit()
+def _existing(db, repo, severity, *, acknowledged=False, signal_type=EarlySignalType.RISING_STAR):
+    signal = EarlySignal(
+        repo_id=repo.id, signal_type=signal_type, severity=severity, description="existing",
+        detected_at=utc_now(), expires_at=utc_now() + timedelta(days=7),
+        acknowledged=acknowledged, acknowledged_at=utc_now() if acknowledged else None,
+    )
+    db.add(signal)
+    db.commit()
+    return signal
 
-        assert (mock_repo.id, EarlySignalType.SUDDEN_SPIKE) in _build_active_signals_set(test_db)
+
+def _rising_star_conditions(db, repo, velocity):
+    # stars=1000：velocity 12 → low、20 → medium、60 → high（見 RISING_STAR_SEVERITY_*）
+    db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == repo.id).delete()
+    db.query(Signal).filter(Signal.repo_id == repo.id).delete()
+    db.add_all([
+        RepoSnapshot(repo_id=repo.id, snapshot_date=utc_today(), stars=1000),
+        Signal(repo_id=repo.id, signal_type=SignalType.VELOCITY, value=velocity,
+               calculated_at=utc_now()),
+    ])
+    db.commit()
+
+
+def _rising_stars(result):
+    return [s for s in result if s.signal_type == EarlySignalType.RISING_STAR]
+
+
+class TestEscalation:
+    """同一件事、同一個等級只算一次；嚴重度升高是新狀況，要重新出現（告警系統的標準語意）。"""
+
+    def test_acknowledged_low_does_not_hide_an_escalation(self, test_db, mock_repo):
+        _existing(test_db, mock_repo, EarlySignalSeverity.LOW, acknowledged=True)
+        _rising_star_conditions(test_db, mock_repo, velocity=60.0)
+
+        found = _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db))
+
+        assert [s.severity for s in found] == [EarlySignalSeverity.HIGH]
+
+    def test_unacknowledged_medium_does_not_hide_an_escalation(self, test_db, mock_repo):
+        _existing(test_db, mock_repo, EarlySignalSeverity.MEDIUM)
+        _rising_star_conditions(test_db, mock_repo, velocity=60.0)
+
+        found = _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db))
+
+        assert [s.severity for s in found] == [EarlySignalSeverity.HIGH]
+
+    def test_same_severity_is_still_suppressed(self, test_db, mock_repo):
+        _existing(test_db, mock_repo, EarlySignalSeverity.LOW, acknowledged=True)
+        _rising_star_conditions(test_db, mock_repo, velocity=12.0)
+
+        assert _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db)) == []
+
+    def test_lower_severity_is_still_suppressed(self, test_db, mock_repo):
+        _existing(test_db, mock_repo, EarlySignalSeverity.HIGH)
+        _rising_star_conditions(test_db, mock_repo, velocity=12.0)
+
+        assert _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db)) == []
+
+    def test_batch_map_suppresses_and_escalates_like_the_fallback(self, test_db, mock_repo):
+        from services.anomaly_detector import _build_active_severity_map
+        _existing(test_db, mock_repo, EarlySignalSeverity.LOW, acknowledged=True)
+        _existing(test_db, mock_repo, EarlySignalSeverity.MEDIUM)
+        _rising_star_conditions(test_db, mock_repo, velocity=60.0)
+
+        active = _build_active_severity_map(test_db)
+
+        # 同一個 key 有多筆時記最高的那個
+        assert active[(mock_repo.id, EarlySignalType.RISING_STAR)] == EarlySignalSeverity.MEDIUM
+        found = _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db, active_signals=active))
+        assert [s.severity for s in found] == [EarlySignalSeverity.HIGH]
+
+    def test_batch_map_counts_acknowledged_signals_too(self, test_db, mock_repo):
+        # run_detection 走的是批次 map：按掉的 low 不能讓同級的 low 以新 id 重建
+        from services.anomaly_detector import _build_active_severity_map
+        _existing(test_db, mock_repo, EarlySignalSeverity.LOW, acknowledged=True)
+        _rising_star_conditions(test_db, mock_repo, velocity=12.0)
+
+        active = _build_active_severity_map(test_db)
+
+        assert _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db, active_signals=active)) == []
+
+    def test_saving_never_expires_a_more_severe_signal(self, test_db, mock_repo):
+        # collector 與 app 各自偵測：一邊依舊資料建好 map 後，另一邊先寫進了 HIGH；
+        # 前者晚到的 LOW 不能把 HIGH 設成過期
+        from services.anomaly_detector import save_detected_signals
+        high = _existing(test_db, mock_repo, EarlySignalSeverity.HIGH)
+        late_low = EarlySignal(repo_id=mock_repo.id, signal_type=EarlySignalType.RISING_STAR,
+                               severity=EarlySignalSeverity.LOW, description="late",
+                               detected_at=utc_now(), expires_at=utc_now() + timedelta(days=7))
+
+        save_detected_signals([late_low], test_db)
+
+        test_db.refresh(high)
+        assert high.expires_at > utc_now()
+
+    def test_saving_an_escalation_expires_what_it_replaces(self, test_db, mock_repo):
+        # 舊的那筆過期，SignalSpotlight 只剩一筆；新的一筆拿新 id，出現在摘要裡
+        from services.anomaly_detector import save_detected_signals
+        old = _existing(test_db, mock_repo, EarlySignalSeverity.LOW)
+        other_type = _existing(test_db, mock_repo, EarlySignalSeverity.LOW,
+                               signal_type=EarlySignalType.SUDDEN_SPIKE)
+        other_repo = Repo(owner="o", name="other", full_name="o/other",
+                          url="https://github.com/o/other", github_id=424242)
+        test_db.add(other_repo)
+        test_db.commit()
+        other_repos_signal = _existing(test_db, other_repo, EarlySignalSeverity.LOW)
+        _rising_star_conditions(test_db, mock_repo, velocity=60.0)
+        found = _rising_stars(AnomalyDetector.detect_all_for_repo(mock_repo, test_db))
+
+        assert save_detected_signals(found, test_db) == 1
+
+        test_db.refresh(old)
+        test_db.refresh(other_type)
+        assert old.expires_at <= utc_now()
+        test_db.refresh(other_repos_signal)
+        assert other_type.expires_at > utc_now()  # 別的類型不受影響
+        assert other_repos_signal.expires_at > utc_now()  # 別的 repo 不受影響

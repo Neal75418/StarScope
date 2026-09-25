@@ -200,9 +200,16 @@ def build_digest(db: Session, cursor: DigestCursor | None) -> dict[str, Any]:
     if since is not None:
         signal_q = signal_q.filter(EarlySignal.detected_at >= since)
     viral_titles: set[tuple[int, str]] = set()
+    # 同一件事升級會建新的一筆（舊的被設成過期，見 anomaly_detector.save_detected_signals）；
+    # 這一批每個 (repo, 類型) 只列最新的那筆，不是同一件事列好幾次
+    latest: dict[tuple[int, str], tuple[EarlySignal, Repo]] = {}
     for signal, repo in signal_q.all():
         if signal.signal_type == EarlySignalType.VIRAL_HN and signal.context_title:
             viral_titles.add((signal.repo_id, signal.context_title))
+        key = (signal.repo_id, signal.signal_type)
+        if key not in latest or signal.id > latest[key][0].id:
+            latest[key] = (signal, repo)
+    for signal, repo in latest.values():
         items.append({
             "key": f"signal:{signal.id}",
             "tier": "highlight" if _signal_is_highlight(signal) else "other",

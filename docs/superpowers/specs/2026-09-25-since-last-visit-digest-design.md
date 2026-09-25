@@ -112,12 +112,17 @@ upsert 撞既有資料時不變，所以游標是三張表各自看過的最大 
 
 ## 一併修正：已處理的 early signal 會被重建
 
-去重（`anomaly_detector._build_active_signals_set` 與單次查詢版）只看「未過期且
+去重（當時的 `anomaly_detector._build_active_signals_set` 與單次查詢版，現為 `_build_active_severity_map`／`_active_severity`）只看「未過期且
 未處理」的訊號。使用者在 SignalSpotlight 按掉一個訊號後，只要條件仍成立，下一次抓取
 就重建一筆——拿到新 id，在摘要裡以新項目身分再出現一次。
 
 改成「未過期」即視為已存在，不論是否處理過。副作用（也是正確語意）：按掉的訊號在
 過期前不會回到 SignalSpotlight。
+
+例外是升級（同告警系統的語意：同一件事、同一個等級只算一次，嚴重度升高是新狀況）：
+去重記住每個 (repo, 類型) 未過期訊號的最高嚴重度，只擋同級或較低的；更嚴重的會建新的一筆，
+寫入時讓被取代的（較低的）那筆過期，SignalSpotlight 只剩一筆，新的一筆出現在摘要裡。
+一次升好幾級（例如 HN 分數 150 → 260 → 620）會留下好幾筆，摘要每個 (repo, 類型) 只列最新那筆。
 
 ## API
 

@@ -133,6 +133,19 @@ class TestFiltering:
         assert f"signal:{viral.id}" in _keys(digest)
         assert f"hn:{story.id}" not in _keys(digest)
 
+    def test_an_escalating_signal_appears_once_as_its_latest_level(self, test_db, mock_repo):
+        # HN 分數一路爬升、velocity 逐步變快：每次升級都建新的一筆，舊的被設成過期；
+        # 這一批只該列最新的那筆，不是同一件事列三次
+        _signal(test_db, mock_repo, severity=EarlySignalSeverity.LOW, signal_type=EarlySignalType.VIRAL_HN,
+                context_title="Show HN: thing")
+        _signal(test_db, mock_repo, severity=EarlySignalSeverity.MEDIUM, signal_type=EarlySignalType.VIRAL_HN,
+                context_title="Show HN: thing")
+        latest = _signal(test_db, mock_repo, severity=EarlySignalSeverity.HIGH,
+                         signal_type=EarlySignalType.VIRAL_HN, context_title="Show HN: thing")
+        spike = _signal(test_db, mock_repo, severity=EarlySignalSeverity.LOW)  # 別的類型照列
+
+        assert set(_keys(build_digest(test_db, ZERO))) == {f"signal:{latest.id}", f"signal:{spike.id}"}
+
     def test_acknowledged_signals_are_left_out(self, test_db, mock_repo):
         _signal(test_db, mock_repo, severity=EarlySignalSeverity.HIGH, acknowledged=True)
 
