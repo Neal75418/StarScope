@@ -2,6 +2,7 @@
 # PyInstaller spec file for StarScope sidecar
 # Build with: pyinstaller starscope-sidecar.spec
 
+import os
 import platform
 
 block_cipher = None
@@ -53,9 +54,13 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# Determine the output name based on platform
+# 產物檔名要對上 Tauri 的 --target。CI 由 setup-sidecar action 以 STARSCOPE_TARGET_TRIPLE
+# 明確指定：用執行中的架構去猜，猜錯時檔名對不上，Tauri 會安靜地改包 repo 裡的 placeholder。
+# 本機直接跑 pyinstaller 時才退回用平台推斷
 system = platform.system().lower()
-if system == 'darwin':
+if os.environ.get('STARSCOPE_TARGET_TRIPLE'):
+    target_triple = os.environ['STARSCOPE_TARGET_TRIPLE']
+elif system == 'darwin':
     target_triple = 'aarch64-apple-darwin' if platform.machine() == 'arm64' else 'x86_64-apple-darwin'
 elif system == 'windows':
     target_triple = 'x86_64-pc-windows-msvc'

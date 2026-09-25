@@ -1,6 +1,11 @@
 name: Setup Sidecar
 description: Set up Python, install dependencies, build sidecar binary, and copy to Tauri binaries
 
+inputs:
+  target:
+    description: Rust target triple（決定產物檔名與包進安裝檔前的架構檢查；Python 的架構由 runner 決定，這個值改不了它）
+    required: true
+
 runs:
   using: composite
   steps:
@@ -18,9 +23,15 @@ runs:
         pip install -r sidecar/requirements.txt
         pip install pyinstaller
 
+    # PyInstaller 預設只產出執行中架構的 binary（跨架構要所有依賴都有 fat wheel，本專案不成立），
+    # 所以每個 target 都要在該架構的 runner 上打包
+    #（見 release.yml 的 matrix）。檔名由 target 決定而不是由 spec 猜：架構錯時，
+    # 下面的檢查才會說「arm64 但需要 x86_64」，而不是誤導人的「這是 placeholder」
     - name: Build sidecar binary
       shell: bash
       working-directory: sidecar
+      env:
+        STARSCOPE_TARGET_TRIPLE: ${{ inputs.target }}
       run: pyinstaller starscope-sidecar.spec
 
     # 原始碼的測試看不到打包後才會壞的問題，所以在 binary 被包進安裝檔之前實際執行它
@@ -37,3 +48,9 @@ runs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: Copy-Item "sidecar\dist\starscope-sidecar-*.exe" -Destination "src-tauri\binaries\" -Force
+
+    # Tauri 依 --target 取檔。檔名對不上時它會安靜地包進 repo 裡同名的 placeholder，
+    # smoke test 看不到這件事（它跑的是打包產物，不是 Tauri 實際取用的檔）
+    - name: Verify the binary Tauri will bundle
+      shell: bash
+      run: python scripts/check_sidecar_binary.py "src-tauri/binaries/starscope-sidecar-${{ inputs.target }}${{ runner.os == 'Windows' && '.exe' || '' }}" "${{ inputs.target }}"

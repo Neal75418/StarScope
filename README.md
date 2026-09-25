@@ -250,7 +250,7 @@ StarScope/
 │   └── tests/                     #   pytest 後端測試
 │
 ├── e2e/                           # Playwright E2E 測試
-└── .github/workflows/             # CI/CD（test + release）
+└── .github/workflows/             # CI/CD（test、release、打 tag 前手動跑的 sidecar 驗證）
 ```
 
 ## 🔌 API 端點

@@ -21,7 +21,8 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - os: macos-latest
+          # macos-latest 是 arm64；Intel 版要在 Intel runner 上打包（GitHub 公告支援到 2027-08）
+          - os: macos-15-intel
             target: x86_64-apple-darwin
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -62,6 +63,8 @@ jobs:
 
       - name: Setup sidecar
         uses: ./.github/actions/setup-sidecar
+        with:
+          target: ${{ matrix.target }}
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v1

@@ -208,6 +208,11 @@ npm run tauri dev                        # 終端機 2
 | 後端測試 | pytest（非同步） | `sidecar/tests/`             |
 | E2E 測試 | Playwright       | `e2e/`                       |
 | CI       | GitHub Actions   | `.github/workflows/test.yml` |
+| 發佈前驗證 | GitHub Actions（手動觸發） | `.github/workflows/verify-sidecar.yml` |
+
+⚠️ **打 tag 前先在 main 上 dispatch `verify-sidecar.yml`，四個 job 全綠再打。** `test.yml` 不編譯 Rust、也不打包 sidecar，
+所以打包後才會壞的問題原本都要到打 tag 才第一次出現（v1.0.0 以前每一版的 sidecar 都起不來，Intel 版還包著 placeholder）。
+它和 release 共用 `setup-sidecar` action：打包、smoke test、確認 Tauri 會包進的是對應架構的真 binary。
 
 ### 注意事項
 
