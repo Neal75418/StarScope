@@ -13,6 +13,7 @@ import {
 } from "../constants/api";
 import { RATE_LIMITED_EVENT } from "../constants/events";
 import { ApiError } from "./types";
+import { normalizeApiTimestamps } from "./timestamps";
 import { getSessionSecret } from "./sessionSecret";
 import type {
   RepoWithSignals,
@@ -140,7 +141,8 @@ async function doFetch<T>(
     return null as T;
   }
 
-  const json = await response.json();
+  // sidecar 大部分 datetime 是不帶時區的 UTC；不補的話 new Date() 當成本地時間（見 timestamps.ts）
+  const json = normalizeApiTimestamps(await response.json());
 
   // 自動解包統一 API 回應格式 (ApiResponse[T])
   // 已遷移的端點回傳 {success, data, message, error} 結構
