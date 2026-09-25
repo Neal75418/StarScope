@@ -126,6 +126,15 @@ class EarlySignalSeverity(StrEnum):
     HIGH = "high"
 
 
+# 「自上次以來」摘要（services/digest.py）。門檻依 2026-09-25 真實資料 30 天的頻率訂：
+# 98 個 repo 每天約 4 個 release，帶這兩種標記的 30 天共 10 次；HN ≥ 50 分 30 天 7 次
+DIGEST_HIGHLIGHT_RELEASE_TAGS = frozenset({"breaking", "security"})
+DIGEST_HIGHLIGHT_SEVERITIES = frozenset({EarlySignalSeverity.HIGH, EarlySignalSeverity.MEDIUM})
+DIGEST_HN_HIGHLIGHT_MIN_SCORE = 50
+DIGEST_OTHER_LIMIT = 50
+DIGEST_INITIAL_WINDOW_DAYS = 3
+
+
 class TimeRange(StrEnum):
     """圖表的時間範圍選項（charts 與 comparison 共用）。"""
     WEEK = "7d"
