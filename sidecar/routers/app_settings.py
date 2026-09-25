@@ -22,6 +22,7 @@ from db.models import (
 )
 from schemas.response import ApiResponse, success_response
 from constants import APP_VERSION, DEFAULT_SNAPSHOT_RETENTION_DAYS
+from services.digest import clear_cursor
 from services.settings import get_setting, set_setting
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -340,5 +341,7 @@ def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_db)) -
     db.query(Repo).delete(synchronize_session=False)
     db.query(Category).delete(synchronize_session=False)
     db.commit()
+    # 三張來源表清空後 id 從頭算，留著舊游標的話摘要會一直空到 id 追上舊值
+    clear_cursor(db)
 
     return success_response(data=ResetDataResponse(status="reset", deleted_repos=repo_count))

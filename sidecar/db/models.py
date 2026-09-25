@@ -419,6 +419,8 @@ class AppSettingKey(StrEnum):
     TRENDING_TOPICS_CACHE = "trending_topics_cache"
     TRENDING_GLOBAL_COUNTS = "trending_global_counts"
     TRENDING_PROGRESS = "trending_progress"
+    # 「自上次以來」摘要看到哪（services/digest.py）；JSON：三張表的最大 id＋seen_at
+    DIGEST_CURSOR = "digest_cursor"
 
 
 class AppSetting(Base):

@@ -232,6 +232,16 @@ class TestResetAllData:
         client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert test_db.query(AppSetting).filter_by(key=AppSettingKey.FETCH_INTERVAL_MINUTES).count() == 1
 
+    def test_clears_the_digest_cursor(self, client, test_db):
+        # 三張表清空後 id 從頭算；游標留著的話摘要會空到 id 追上舊值為止
+        from services.digest import DigestCursor, load_cursor, save_cursor
+        save_cursor(DigestCursor(500, 40, 3), test_db)
+
+        client.post("/api/settings/reset-data", json={"confirm": "RESET"})
+
+        test_db.expire_all()
+        assert load_cursor(test_db) == (None, None)
+
 
 class TestDiagnosticsBackupSurvivesRestart:
     """
