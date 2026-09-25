@@ -33,7 +33,7 @@ from middleware import (
     UnhandledErrorMiddleware,
 )
 from middleware.rate_limit import limiter
-from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings, interests, feed
+from routers import health, repos, alerts, trends, context, charts, recommendations, categories, early_signals, export, github_auth, discovery, star_history, weekly_summary, comparison, app_settings, interests, feed, digest
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
 from services.hacker_news import close_hn_service
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
@@ -384,7 +384,7 @@ for _module in [
     health, repos, alerts, trends, context, charts,
     recommendations, categories, early_signals, export, github_auth,
     discovery, star_history, weekly_summary, comparison,
-    app_settings, interests, feed,
+    app_settings, interests, feed, digest,
 ]:
     app.include_router(_module.router)
 

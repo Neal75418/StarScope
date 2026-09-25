@@ -18,6 +18,7 @@ from . import star_history
 from . import weekly_summary
 from . import comparison
 from . import app_settings
+from . import digest
 
 __all__ = [
     "health",
@@ -38,4 +39,5 @@ __all__ = [
     "weekly_summary",
     "comparison",
     "app_settings",
+    "digest",
 ]
