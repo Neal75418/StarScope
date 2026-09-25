@@ -435,6 +435,14 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 - `useInterests()` 的 `create`/`remove` 使用 `mutateAsync` 回傳 Promise，讓呼叫端能依實際結果決定 toast（避免失敗仍顯示成功）
 - ⚠️ **`@tanstack/query-core` 5.95.2 的 `mutationFn` 會收到 `(variables, context)` 兩個參數**——直接把單參數的 client 函式當 `mutationFn` 傳入會多收 context。務必包成箭頭函式：`(id) => deleteInterest(id)`
 
+### 自上次以來摘要（Dashboard 段一）
+
+- 「新」＝資料列 id 大於游標，不是時間：release／HN 是 upsert（重抓會刷新 `fetched_at`），`published_at` 可能早於得知的時間
+- `POST /api/digest/seen` 帶 GET 回應的 cursor（不是當下最大 id）；後端只進不退，但刪除規則／repo／context 清理後會壓低（表沒有 AUTOINCREMENT，id 會重用）
+- `queryKeys.digest` 刻意不在 `dashboard` 底下：Dashboard 重整會 invalidate 整棵，重抓只回新項目會蓋掉這批；重整改走 `appendNew`
+- `useDigest` 只在 `canMarkSeen`（面板真的渲染）時送 seen，每個快取物件只送一次——重新掛載重送舊 cursor 會把壓低的游標抬回去
+- 啟動頁先等 sidecar health（最多 30 秒）再給 digest 1 秒：發行版 sidecar 冷啟動要好幾秒
+
 ### Watchlist Context + useReducer
 
 - 資料層由 React Query 管理，Context 只負責 UI 狀態
