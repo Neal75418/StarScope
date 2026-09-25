@@ -23,6 +23,11 @@ runs:
       working-directory: sidecar
       run: pyinstaller starscope-sidecar.spec
 
+    # 原始碼的測試看不到打包後才會壞的問題，所以在 binary 被包進安裝檔之前實際執行它
+    - name: Smoke test sidecar binary
+      shell: bash
+      run: scripts/smoke-test-sidecar.sh sidecar/dist/starscope-sidecar-*
+
     - name: Copy sidecar binary to Tauri binaries (Unix)
       if: runner.os != 'Windows'
       shell: bash

@@ -6,6 +6,7 @@ StarScope Python Sidecar。
 import asyncio
 import logging
 import os
+import sys
 import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -378,15 +379,28 @@ async def root():
     return {"message": "StarScope Engine is running"}
 
 
+def run_server() -> None:
+    host = "127.0.0.1"
+    port = int(os.getenv("PORT", "8008"))
+    # 打包後的 binary 不開 reload：reloader 先佔住 port，子行程再跑一次入口又綁同一個
+    # port，結果行程活著卻永遠不服務。DEBUG 仍可能經由使用者環境變數或上層目錄的 .env 進來
+    if DEBUG and not getattr(sys, "frozen", False):
+        # hot reload 只能吃 import 字串：reloader 在子行程裡重新 import 這個模組
+        uvicorn.run(
+            "main:app",
+            host=host,
+            port=port,
+            reload=True,
+            # 測試產物與虛擬環境不該觸發重啟：pytest --cov 會在 sidecar/ 底下寫出
+            # .coverage 與 coverage.xml，htmlcov/ 更是好幾百個檔案。它們都在
+            # .gitignore 裡，但 watchfiles 不看 .gitignore。
+            reload_excludes=[".coverage", "coverage.xml", "htmlcov/*", ".venv/*", "*.pyc"],
+        )
+    else:
+        # 傳物件而不是 "main:app"：PyInstaller 打包後入口模組叫 __main__，
+        # 沒有名為 main 的模組可以 import
+        uvicorn.run(app, host=host, port=port)
+
+
 if __name__ == "__main__":
-    # 僅在開發模式啟用 hot reload
-    uvicorn.run(
-        "main:app",
-        host="127.0.0.1",
-        port=int(os.getenv("PORT", "8008")),
-        reload=DEBUG,
-        # 測試產物與虛擬環境不該觸發重啟：pytest --cov 會在 sidecar/ 底下寫出
-        # .coverage 與 coverage.xml，htmlcov/ 更是好幾百個檔案。它們都在
-        # .gitignore 裡，但 watchfiles 不看 .gitignore。
-        reload_excludes=[".coverage", "coverage.xml", "htmlcov/*", ".venv/*", "*.pyc"],
-    )
+    run_server()

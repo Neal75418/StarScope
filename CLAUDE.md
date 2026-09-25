@@ -116,6 +116,11 @@ cd sidecar
 
 venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 
+⚠️ **本機跑 pytest 會用 Keychain 裡的真 token 打 GitHub**：conftest 的 `client` 會跑 lifespan 的 star 同步，
+而 keyring 沒有隔離（寫入路徑有 fake 擋著，讀取沒有）。本機一律加
+`PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring GITHUB_TOKEN=`。打包後的 binary 同理，
+`scripts/smoke-test-sidecar.sh` 已經內建這層隔離。
+
 ### 單元測試（Vitest）
 
 ```bash
@@ -133,6 +138,9 @@ npm run test:e2e:chromium # 僅 Chromium
 npm run test:e2e:ui       # 互動式 UI 模式
 npm run test:e2e:headed   # 顯示瀏覽器視窗
 ```
+
+⚠️ 本機一律 `E2E_NO_TOKEN=1 npm run test:e2e:chromium`：不加的話 e2e 的 sidecar 讀得到 Keychain token，
+「加入追蹤」會真的在 GitHub 上按 star。
 
 ### 完整開發流程
 
@@ -225,6 +233,14 @@ npm run tauri dev                        # 終端機 2
 - **風險評估**：`unsafe-inline` 僅適用於 `style-src`，`script-src` 並未包含 `unsafe-inline`（這是更關鍵的安全邊界）
 - **Desktop 應用環境**：Tauri 應用不暴露於公共網路，XSS 攻擊面遠小於 Web 應用
 - **結論**：可接受的 tradeoff。若未來 Recharts 支援 nonce-based CSP，應升級
+
+### Sidecar 的兩層本機防護
+
+- `SessionAuthMiddleware`：只在 Tauri 注入 secret 時生效（正式版）；手動啟動的 sidecar（start-dev.sh、e2e）整個放行
+- `LocalRequestGuardMiddleware`：不分模式，Host 必須是 loopback、帶 Origin 就必須在 `ALLOWED_ORIGINS`
+
+⚠️ 第二層擋不住跨站 GET（`<img src>` 不帶 Origin）⇒ **GET 端點不能改資料、不能寫 GitHub**。
+⚠️ 改 Tauri 平台或 scheme 時同步 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）。
 
 ### API 不使用版本化路徑
 

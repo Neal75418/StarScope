@@ -57,3 +57,41 @@ def test_github_token_check_runs_after_init_db(test_session_local):
     assert "init_db" in order and token_read in order, order
     assert order.index("init_db") < order.index(token_read), order
 
+
+
+def test_release_mode_passes_the_app_object_not_an_import_string():
+    """PyInstaller 打包後入口模組叫 __main__，沒有可以 import 的 "main"——
+    傳 "main:app" 會讓發行版一啟動就 `Could not import module "main"` 退出。"""
+    import main
+
+    with patch.object(main, "DEBUG", False), patch("main.uvicorn.run") as run:
+        main.run_server()
+
+    target = run.call_args.args[0]
+    assert target is main.app
+    assert not run.call_args.kwargs.get("reload")
+
+
+def test_debug_mode_keeps_hot_reload():
+    """reload 需要 import 字串：reloader 在子行程裡重新 import 這個模組。"""
+    import main
+
+    with patch.object(main, "DEBUG", True), patch("main.uvicorn.run") as run:
+        main.run_server()
+
+    assert run.call_args.args[0] == "main:app"
+    assert run.call_args.kwargs["reload"] is True
+
+
+def test_frozen_binary_ignores_debug(monkeypatch):
+    """打包後的 binary 就算讀到 DEBUG=true（使用者環境變數、上層目錄的 .env）也不能開 reload：
+    reloader 會先佔住 port，子行程再跑一次入口又綁同一個 port，結果行程活著卻永遠不服務。"""
+    import sys
+    import main
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    with patch.object(main, "DEBUG", True), patch("main.uvicorn.run") as run:
+        main.run_server()
+
+    assert run.call_args.args[0] is main.app
+    assert not run.call_args.kwargs.get("reload")
