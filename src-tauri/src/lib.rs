@@ -392,14 +392,16 @@ mod tests {
     fn watch_sidecar_exit_marks_the_sidecar_gone_when_it_terminates() {
         let (tx, rx) = tauri::async_runtime::channel(4);
         let exited = Arc::new(AtomicBool::new(false));
-        tauri::async_runtime::block_on(async {
+        tauri::async_runtime::block_on(async move {
             tx.send(CommandEvent::Stdout(b"INFO started".to_vec())).await.unwrap();
             tx.send(CommandEvent::Terminated(TerminatedPayload { code: Some(1), signal: None }))
                 .await
                 .unwrap();
+            // 關掉 channel：watch_sidecar_exit 改成「消化到 channel 關閉」也不會讓測試卡住
+            drop(tx);
             watch_sidecar_exit(rx, exited.clone()).await;
+            assert!(exited.load(Ordering::SeqCst));
         });
-        assert!(exited.load(Ordering::SeqCst));
     }
 
     #[test]
@@ -518,7 +520,10 @@ async fn watch_sidecar_exit(mut rx: Receiver<CommandEvent>, exited: Arc<AtomicBo
 /// 子行程，uvicorn 走正常關閉；直接 SIGKILL 只會殺到 bootloader，Python 子行程留下來佔著 port。
 ///
 /// 已經結束就什麼都不送：它的 PID 可能已經分給別的行程。結束與否看 shell plugin 的回報，
-/// 不看 kill(pid, 0)——回收之後那個 PID 隨時可能換人。
+/// 不看 kill(pid, 0)。回報要等 stdout／stderr 的 pipe 全部關閉才送出，所以比回收晚：平常只差
+/// 幾毫秒；但 app 執行中若只有 onefile 的 bootloader 被殺、Python 子行程還拿著 pipe，就一直
+/// 不會回報，這裡仍會對那個已回收的 PID 送 SIGTERM。要根治得繞過 shell plugin 自己持有子行程
+///（shared_child 能在持鎖時確認沒被回收才送 signal）。
 #[cfg(unix)]
 fn terminate_gracefully(pid: u32, has_exited: impl Fn() -> bool, timeout: Duration) -> bool {
     if has_exited() {
@@ -538,12 +543,22 @@ fn cleanup_sidecar(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
     let Ok(mut child_guard) = state.child.lock() else { return };
     let Some(child) = child_guard.take() else { return };
-    let exited = state.exited.clone();
+
+    // 先藏起視窗：收 sidecar 最多等 SIDECAR_STOP_TIMEOUT，這段時間視窗不該停在畫面上沒反應。
+    // 關視窗、Cmd+Q、系統列 Quit 都走到這裡；主執行緒上的 hide() 是同步執行的
+    for window in app.webview_windows().values() {
+        if let Err(e) = window.hide() {
+            warn!("隱藏視窗失敗: {e}");
+        }
+    }
 
     #[cfg(unix)]
-    if terminate_gracefully(child.pid(), || exited.load(Ordering::SeqCst), SIDECAR_STOP_TIMEOUT) {
-        info!("Sidecar 程序已正常結束");
-        return;
+    {
+        let exited = state.exited.clone();
+        if terminate_gracefully(child.pid(), || exited.load(Ordering::SeqCst), SIDECAR_STOP_TIMEOUT) {
+            info!("Sidecar 程序已正常結束");
+            return;
+        }
     }
 
     if let Err(e) = child.kill() {
@@ -584,11 +599,6 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {
-                // 先藏視窗：收 sidecar 最多等 SIDECAR_STOP_TIMEOUT，這段時間視窗不該停在畫面上
-                // 沒反應。主執行緒上的 hide() 是同步執行的，不會排到清理之後
-                if let Err(e) = window.hide() {
-                    warn!("隱藏主視窗失敗: {e}");
-                }
                 cleanup_sidecar(window.app_handle());
             }
         })
