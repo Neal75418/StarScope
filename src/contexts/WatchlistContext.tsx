@@ -27,6 +27,7 @@ import {
 import { ApiError } from "../api/types";
 import { useReposQuery } from "../hooks/useReposQuery";
 import { useAppStatus } from "./AppStatusContext";
+import { probeSidecarNow } from "../api/sidecarConnection";
 import { queryKeys } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
@@ -337,11 +338,11 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       // 連線重試 — invalidate React Query cache 觸發重新取得
       retry: async () => {
         dispatch({ type: "CLEAR_ERROR" });
-        void qc.invalidateQueries({ queryKey: queryKeys.dashboard.health });
+        probeSidecarNow();
         invalidateRepos();
       },
     }),
-    [t, showToastFn, invalidateRepos, invalidateMembership, qc]
+    [t, showToastFn, invalidateRepos, invalidateMembership]
   );
 
   // 監聽 Tauri tray「Refresh All」事件

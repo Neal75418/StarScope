@@ -79,10 +79,6 @@ describe("queryKeys", () => {
   });
 
   describe("dashboard", () => {
-    it("generates health key", () => {
-      expect(queryKeys.dashboard.health).toEqual(["dashboard", "health"]);
-    });
-
     it("generates weeklySummary key", () => {
       expect(queryKeys.dashboard.weeklySummary(7)).toEqual(["dashboard", "weeklySummary", 7]);
     });

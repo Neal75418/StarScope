@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode, SetStateAction } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { useNotificationPolling } from "../useNotificationPolling";
 import type { Notification } from "../useNotifications";
 import * as apiClient from "../../api/client";
@@ -48,6 +48,20 @@ describe("useNotificationPolling", () => {
   afterEach(() => {
     // Restore document.hidden to default (tests may override it)
     Object.defineProperty(document, "hidden", { value: false, writable: true });
+  });
+
+  it("counts as loading while the query is paused before its first answer", async () => {
+    // sidecar 還沒連上時查詢是暫停的：isLoading 是 false，鈴鐺會誤說「沒有通知」
+    onlineManager.setOnline(false);
+    try {
+      const { result } = renderHook(
+        () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+        { wrapper: createWrapper() }
+      );
+      expect(result.current.isLoading).toBe(true);
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("fetches notifications on mount", async () => {

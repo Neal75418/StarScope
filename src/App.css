@@ -5663,6 +5663,11 @@ button.stat-card {
   color: var(--warning-fg);
 }
 
+.status-banner--sidecar-starting {
+  background-color: var(--accent-subtle);
+  color: var(--accent-fg);
+}
+
 .status-banner--sidecar-down {
   background-color: var(--danger-subtle);
   color: var(--danger-fg);

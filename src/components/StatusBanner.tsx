@@ -9,6 +9,7 @@ import { useI18n } from "../i18n";
 const ICONS: Record<DegradationLevel, string> = {
   online: "",
   offline: "⚡",
+  "sidecar-starting": "🔄",
   "sidecar-down": "🔌",
   "rate-limited": "⏳",
 };
@@ -24,9 +25,12 @@ export const StatusBanner = memo(function StatusBanner() {
 
   return (
     <div
+      // 從 status 換成 alert 時換一個新節點：同一個節點同時改 role 與文字，有些螢幕閱讀器會漏念
+      key={level === "sidecar-starting" ? "status" : "alert"}
       className={`status-banner status-banner--${level}`}
-      role="alert"
-      aria-live="assertive"
+      // 「啟動中」每次開 app 都會出現、也不是錯誤：用 status／polite，不打斷螢幕閱讀器
+      role={level === "sidecar-starting" ? "status" : "alert"}
+      aria-live={level === "sidecar-starting" ? "polite" : "assertive"}
       data-testid="status-banner"
     >
       <span className="status-banner-icon">{ICONS[level]}</span>

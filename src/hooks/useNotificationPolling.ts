@@ -107,7 +107,9 @@ export function useNotificationPolling(
   }, [queryClient]);
 
   return {
-    isLoading: query.isLoading,
+    // isPending 而不是 isLoading：sidecar 還沒連上時查詢是暫停的，isLoading 為 false，
+    // 鈴鐺會誤說「沒有通知」（這個查詢沒有 enabled 條件，isPending 只在還沒拿到結果時為 true）
+    isLoading: query.isPending,
     error: query.error ? query.error.message || t.notifications.fetchFailed : null,
     refresh,
   };

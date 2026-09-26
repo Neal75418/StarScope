@@ -13,6 +13,7 @@ import { queryKeys } from "../../lib/react-query";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { Skeleton } from "../Skeleton";
 import { interpolate } from "../../i18n";
+import { getErrorMessage } from "../../utils/error";
 
 export function ArchivedRepos() {
   const { t } = useI18n();
@@ -43,7 +44,17 @@ export function ArchivedRepos() {
       setPendingDelete(null);
       invalidate();
     },
+    // 失敗也關掉確認框：錯誤寫在區塊裡，對話框留著會蓋住它
+    onError: () => setPendingDelete(null),
   });
+  // 寫入在 sidecar 連不上時會立刻失敗（lib/react-query.ts 的 mutations.networkMode）：
+  // 一定要說出來，否則使用者只看到按鈕轉一下又恢復。只顯示最近一次操作的錯誤
+  const actionError = restar.error ?? purge.error;
+  // 開始另一個操作時清掉對方的舊錯誤；對方的請求還在跑就不動它——reset() 會把 hook 從那次
+  // 請求上拆下來，按鈕馬上又能按、之後失敗也不會顯示
+  const clearStale = (other: { isPending: boolean; reset: () => void }) => {
+    if (!other.isPending) other.reset();
+  };
 
   const repos = query.data?.repos ?? [];
 
@@ -55,6 +66,12 @@ export function ArchivedRepos() {
           <p className="settings-description">{copy.description}</p>
         </div>
       </div>
+
+      {actionError != null && (
+        <p className="settings-error" role="alert">
+          {getErrorMessage(actionError, copy.error)}
+        </p>
+      )}
 
       {/* 載入中不能顯示「沒有封存」——那與「還不知道」是兩件事，
           而使用者分辨不出畫面上那句是哪一種 */}
@@ -74,7 +91,10 @@ export function ArchivedRepos() {
                   className="btn btn-sm"
                   data-testid={`archived-restar-${repo.id}`}
                   disabled={restar.isPending}
-                  onClick={() => void restar.mutateAsync(repo.id).catch(() => undefined)}
+                  onClick={() => {
+                    clearStale(purge);
+                    void restar.mutateAsync(repo.id).catch(() => undefined);
+                  }}
                 >
                   {copy.restar}
                 </button>
@@ -99,7 +119,9 @@ export function ArchivedRepos() {
         variant="danger"
         isProcessing={purge.isPending}
         onConfirm={() => {
-          if (pendingDelete) void purge.mutateAsync(pendingDelete.id).catch(() => undefined);
+          if (!pendingDelete) return;
+          clearStale(restar);
+          void purge.mutateAsync(pendingDelete.id).catch(() => undefined);
         }}
         onCancel={() => setPendingDelete(null)}
       />

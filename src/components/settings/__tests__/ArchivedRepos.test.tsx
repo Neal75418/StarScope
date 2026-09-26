@@ -76,6 +76,86 @@ describe("ArchivedRepos", () => {
     await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledWith(7));
   });
 
+  it("says so when a restore fails instead of just re-enabling the button", async () => {
+    // 寫入在 sidecar 連不上時立刻失敗（react-query 的 mutations.networkMode）：沒有提示的話，
+    // 使用者看到的只是按鈕轉了一下又恢復
+    vi.mocked(client.restarRepo).mockRejectedValue(new Error("Network error: Load failed"));
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("closes the confirmation and says so when a delete fails", async () => {
+    // 錯誤寫在區塊裡：對話框留著的話會蓋住它
+    vi.mocked(client.deleteArchivedRepo).mockRejectedValue(new Error("Network error: Load failed"));
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("drops an earlier restore failure when a delete starts", async () => {
+    // 只留最近一次操作的錯誤：復原失敗後開始刪除，畫面上不能還掛著「沒有完成」
+    vi.mocked(client.restarRepo).mockRejectedValue(new Error("Network error: Load failed"));
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+
+    await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  it("drops an earlier delete failure when a restore starts", async () => {
+    vi.mocked(client.deleteArchivedRepo).mockRejectedValue(new Error("Network error: Load failed"));
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+    await screen.findByRole("alert");
+
+    fireEvent.click(screen.getByTestId("archived-restar-7"));
+
+    await waitFor(() => expect(client.restarRepo).toHaveBeenCalledWith(7));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  it("still reports a restore that fails after a delete was started meanwhile", async () => {
+    // 請求還在跑時 reset() 會把 hook 從那次請求上拆下來：按鈕馬上又能按、之後失敗也不會說
+    const OTHER = {
+      ...ROW,
+      id: 8,
+      name: "two",
+      full_name: "a/two",
+      url: "https://github.com/a/two",
+    };
+    vi.mocked(client.getArchivedRepos).mockResolvedValue({ repos: [ROW, OTHER], total: 2 });
+    let failRestore: (reason: Error) => void = () => {};
+    vi.mocked(client.restarRepo).mockReturnValue(
+      new Promise((_, reject) => {
+        failRestore = reject;
+      })
+    );
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+
+    fireEvent.click(screen.getByTestId("archived-delete-8"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+    await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledWith(8));
+
+    expect(screen.getByTestId("archived-restar-7")).toBeDisabled(); // 復原還在跑
+    failRestore(new Error("Network error: Load failed"));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
   it("names alert rules in the confirmation", async () => {
     // 快照與訊號使用者猜得到，警示規則猜不到——那是他自己設定的東西
     renderWithClient(<ArchivedRepos />);

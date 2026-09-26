@@ -33,6 +33,9 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: 0, // Mutation 不重試（避免重複提交）
+      // 使用者按下的寫入要馬上知道結果：sidecar 連不上時直接失敗（走各處既有的錯誤提示），
+      // 不跟查詢一起暫停排隊——排隊會讓確認對話框關不掉，刪除在使用者忘記之後才突然執行
+      networkMode: "always",
     },
   },
 });
@@ -99,7 +102,6 @@ export const queryKeys = {
   // 儀表板
   dashboard: {
     all: ["dashboard"] as const,
-    health: ["dashboard", "health"] as const,
     weeklySummary: (days: number = 7) =>
       [...queryKeys.dashboard.all, "weeklySummary", days] as const,
     portfolioHistory: (days: number = 30) =>
@@ -206,6 +208,8 @@ export function createTestQueryClient() {
       },
       mutations: {
         retry: false,
+        // 與正式版一致（見上方 queryClient）
+        networkMode: "always",
       },
     },
   });

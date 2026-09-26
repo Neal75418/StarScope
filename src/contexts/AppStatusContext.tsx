@@ -3,19 +3,30 @@
  * 所有頁面透過 useAppStatus() 取得目前的降級狀態。
  */
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { useQuery } from "@tanstack/react-query";
-import { checkHealth } from "../api/client";
-import { queryKeys } from "../lib/react-query";
+import { startSidecarConnection, useSidecarPhase } from "../api/sidecarConnection";
 import { RATE_LIMITED_EVENT } from "../constants/events";
 
 /** 應用降級狀態。 */
-export type DegradationLevel = "online" | "offline" | "sidecar-down" | "rate-limited";
+export type DegradationLevel =
+  | "online"
+  | "offline"
+  | "sidecar-starting"
+  | "sidecar-down"
+  | "rate-limited";
 
 /** 降級狀態橫幅訊息的 i18n key。 */
-export type StatusMessageKey = "offline" | "sidecarDown" | "rateLimited";
+export type StatusMessageKey = "offline" | "sidecarStarting" | "sidecarDown" | "rateLimited";
 
 export interface AppStatus {
   /** 當前降級等級。 */
@@ -30,8 +41,6 @@ export interface AppStatus {
   isOnline: boolean;
 }
 
-/** Health check 輪詢間隔（毫秒）。 */
-const HEALTH_CHECK_INTERVAL_MS = 60_000;
 /** Rate limit 橫幅自動消失時間（毫秒）。 */
 const RATE_LIMIT_BANNER_DURATION_MS = 60_000;
 
@@ -41,16 +50,11 @@ const AppStatusContext = createContext<AppStatus | undefined>(undefined);
 export function AppStatusProvider({ children }: { children: ReactNode }) {
   const isOnline = useOnlineStatus();
 
-  // Health check：離線時暫停，但頁面隱藏時仍繼續（偵測 sidecar 恢復）
-  const healthQuery = useQuery({
-    queryKey: queryKeys.dashboard.health,
-    queryFn: checkHealth,
-    retry: 1,
-    staleTime: 30_000,
-    refetchInterval: () => (isOnline ? HEALTH_CHECK_INTERVAL_MS : false),
-  });
-
-  const isSidecarUp = healthQuery.data?.status === "ok";
+  // sidecar 連線監測（見 api/sidecarConnection.ts）。用 layout effect：要比子元件查詢的
+  // passive effect 先把查詢設成暫停，冷啟動期間發出的查詢才不會先失敗一輪
+  useLayoutEffect(() => startSidecarConnection(), []);
+  const sidecarPhase = useSidecarPhase();
+  const isSidecarUp = sidecarPhase === "up";
 
   // 監聽 rate-limited 事件（由 apiCall 在 429 重試耗盡時廣播）
   const [isRateLimited, setRateLimited] = useState(false);
@@ -72,22 +76,33 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const status = useMemo<AppStatus>(() => {
-    if (!isOnline) {
+    // sidecar 的狀態排在斷網前面：sidecar 在本機，它沒在跑才是 app 用不了的原因；
+    // 反過來斷網時 sidecar 照樣給得出本機的資料
+    if (sidecarPhase === "starting") {
       return {
-        level: "offline",
+        level: "sidecar-starting",
         showBanner: true,
-        bannerMessage: "offline",
+        bannerMessage: "sidecarStarting",
         isSidecarUp: false,
-        isOnline: false,
+        isOnline,
       };
     }
-    if (!isSidecarUp && !healthQuery.isLoading) {
+    if (sidecarPhase === "down") {
       return {
         level: "sidecar-down",
         showBanner: true,
         bannerMessage: "sidecarDown",
         isSidecarUp: false,
-        isOnline: true,
+        isOnline,
+      };
+    }
+    if (!isOnline) {
+      return {
+        level: "offline",
+        showBanner: true,
+        bannerMessage: "offline",
+        isSidecarUp,
+        isOnline: false,
       };
     }
     if (isRateLimited) {
@@ -106,7 +121,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
       isSidecarUp,
       isOnline: true,
     };
-  }, [isOnline, isSidecarUp, healthQuery.isLoading, isRateLimited]);
+  }, [isOnline, isSidecarUp, sidecarPhase, isRateLimited]);
 
   return <AppStatusContext.Provider value={status}>{children}</AppStatusContext.Provider>;
 }

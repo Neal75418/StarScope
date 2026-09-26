@@ -15,6 +15,7 @@ import { RATE_LIMITED_EVENT } from "../constants/events";
 import { ApiError } from "./types";
 import { normalizeApiTimestamps } from "./timestamps";
 import { getSessionSecret } from "./sessionSecret";
+import { reportSidecarUnreachable } from "./sidecarConnection";
 import type {
   RepoWithSignals,
   RepoListResponse,
@@ -119,6 +120,8 @@ async function doFetch<T>(
       }
       throw new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
     }
+    // 連不上 sidecar：立刻重探，連不上就讓查詢暫停等它回來（見 sidecarConnection.ts）
+    reportSidecarUnreachable();
     throw new ApiError(
       0,
       `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
@@ -677,6 +680,8 @@ export async function fetchExportFile(url: string): Promise<ExportFile> {
     if (err instanceof DOMException && err.name === "TimeoutError") {
       throw new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
     }
+    // 連不上 sidecar：跟 doFetch 一樣立刻重探（見 sidecarConnection.ts）
+    reportSidecarUnreachable();
     throw new ApiError(
       0,
       `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`

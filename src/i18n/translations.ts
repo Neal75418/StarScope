@@ -612,6 +612,7 @@ export const translations = {
         confirmTitle: "Delete permanently?",
         confirmMessage:
           "This removes {name} and everything attached to it — snapshots, signals and any alert rules you set for it. It cannot be undone.",
+        error: "That didn't go through. Please try again.",
       },
       starSync: {
         title: "GitHub Stars",
@@ -821,6 +822,7 @@ export const translations = {
     // 降級狀態
     status: {
       offline: "You are offline. Showing cached data.",
+      sidecarStarting: "Starting the data engine…",
       sidecarDown: "Data engine is not running. Please restart the app.",
       rateLimited: "GitHub API rate limit reached. Requests will resume shortly.",
     },
@@ -1612,6 +1614,7 @@ export const translations = {
         confirmTitle: "確定要永久刪除嗎？",
         confirmMessage:
           "這會刪除 {name} 以及所有附屬資料——快照、訊號，以及你為它設定的警示規則。此操作無法復原。",
+        error: "操作沒有完成，請再試一次。",
       },
       starSync: {
         title: "GitHub Stars",
@@ -1817,6 +1820,7 @@ export const translations = {
     // 降級狀態
     status: {
       offline: "目前離線，顯示快取資料。",
+      sidecarStarting: "資料引擎啟動中…",
       sidecarDown: "資料引擎未執行，請重新啟動應用程式。",
       rateLimited: "GitHub API 已達速率限制，稍後將自動恢復。",
     },

@@ -3,11 +3,16 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { resolveStartupPage, useStartupPage } from "../useStartupPage";
 import { getDigest } from "../../api/client";
 import { queryClient } from "../../lib/react-query";
+import { STARTUP_GRACE_MS } from "../../api/sidecarConnection";
 
 vi.mock("../../api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/client")>()),
   getDigest: vi.fn(),
-  checkHealth: vi.fn(async () => ({ status: "ok" })),
+}));
+// hook 看的是 AppStatusProvider 啟動的連線狀態；這裡直接當作已經連上
+vi.mock("../../api/sidecarConnection", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/sidecarConnection")>()),
+  getSidecarPhase: vi.fn(() => "up"),
 }));
 import type { DigestResponse } from "../../api/client";
 
@@ -100,6 +105,28 @@ describe("resolveStartupPage", () => {
     expect(await pending).toBe("settings");
     expect(fetchDigest).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+});
+
+describe("resolveStartupPage default wait", () => {
+  it("waits for the sidecar as long as the startup window, not less", async () => {
+    // 比啟動時間短的話，第 30–45 秒才連上的人就不看 digest、錯過「有重點就落在 Dashboard」
+    vi.useFakeTimers();
+    try {
+      let settled = false;
+      void resolveStartupPage("watchlist", {
+        fetchDigest: async () => withTier("highlight"),
+        sidecarReachable: async () => false,
+      }).then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(STARTUP_GRACE_MS - 2_000);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
