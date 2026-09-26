@@ -121,7 +121,7 @@ if [ "${HEALTHY:-0}" != 1 ]; then
 fi
 
 if ! kill_fake_parent; then
-  echo "❌ 殺不掉假的父行程（PID $PARENT_PID_FOR_BINARY），無法判斷結果"
+  echo "❌ 殺不掉假的父行程（PID ${PARENT_PID_FOR_BINARY}），無法判斷結果"
   exit 1
 fi
 # 已經殺掉了：cleanup 不要再對這兩個 PID 送 signal（那時它們可能已經換人）
