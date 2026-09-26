@@ -129,7 +129,11 @@ venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip instal
 - `block_real_network`：httpx 的真 transport 一律拋錯（MockTransport、TestClient 不受影響）。它只擋流量：錯誤一樣被 lifespan
   吞掉、全套照樣綠，只在 captured log 留一行「測試不能連外網」——漏 mock 不會因此浮上來
 
-打包後的 binary 用 `scripts/smoke-test-sidecar.sh` 跑，它另外 cd 到暫存目錄、清空 token、keyring 換成 null、指定 `STARSCOPE_DATA_DIR`。
+打包後的 binary 用 `scripts/smoke-test-sidecar.sh` 跑，它另外 cd 到暫存目錄、清空 token、keyring 換成 null、指定 `STARSCOPE_DATA_DIR`；
+健康檢查通過後殺掉假的父行程，binary 要在 15 秒內自己結束並放開 port。
+
+Rust：`cd src-tauri && cargo test --lib`（CI 不編譯 Rust；第一次在 Windows／Linux 編譯是打 tag 時的 release.yml）。
+打包版實測用 `scripts/run-packaged-app.sh`：隔離資料、不讀 token、不動 repo 裡的 placeholder。
 
 ### 單元測試（Vitest）
 
@@ -265,6 +269,15 @@ npm run tauri dev                        # 終端機 2
 
 ⚠️ 第二層擋不住跨站 GET（`<img src>` 不帶 Origin）⇒ **GET 端點不能改資料、不能寫 GitHub**。
 ⚠️ 改 Tauri 平台或 scheme 時同步 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）。
+
+### sidecar 生命週期
+
+改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的三條：
+- 每一種結束方式都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`
+- sidecar 結束後不能再對它的 PID 送任何 signal（可能已換人）：「已結束」看 shell plugin 的 `Terminated`，不用 `kill(pid, 0)`
+- 看門只在有 `STARSCOPE_PARENT_PID` 時啟動；start-dev、e2e、collector、pytest 都不設
+
+⚠️ onefile 打包時，直接 kill 只殺到 bootloader，Python 子行程會佔著 8008，下次開 app 整片 403。
 
 ### 存檔走 Rust 的 `save_file` command，不註冊 fs plugin
 
