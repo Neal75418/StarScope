@@ -10,6 +10,7 @@ placeholder 包進去——安裝檔照樣產出，裝起來 sidecar 一啟動�
 
 from __future__ import annotations  # 開發機的系統 python3 可能是 3.9
 
+import io
 import struct
 import sys
 from pathlib import Path
@@ -65,6 +66,11 @@ def check(path: Path, target: str) -> str | None:
 
 
 if __name__ == "__main__":
+    # Windows runner 的主控台是 cp1252：印 ✅／❌ 與中文時 stdout 丟 UnicodeEncodeError、
+    # stderr 變成 \uXXXX。統一改用 UTF-8
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
     if len(sys.argv) != 3:
         sys.exit(f"用法: {sys.argv[0]} <binary 路徑> <target triple>")
     problem = check(Path(sys.argv[1]), sys.argv[2])
