@@ -1,10 +1,11 @@
 //! StarScope Tauri 應用程式核心邏輯，包含 sidecar 管理、系統匣與視窗控制。
 
 use std::sync::Mutex;
+use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    App, AppHandle, Emitter, Manager, WindowEvent,
+    App, AppHandle, Emitter, Manager, RunEvent, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
@@ -176,6 +177,9 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
             cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
         }
         cmd = cmd.env("STARSCOPE_SESSION_SECRET", session_secret);
+        // sidecar 以它看門（sidecar/utils/parent_watchdog.py）：app 當掉或被強制結束、
+        // cleanup_sidecar 來不及跑時，sidecar 發現父行程不在就自己結束
+        cmd = cmd.env("STARSCOPE_PARENT_PID", std::process::id().to_string());
 
         // 發行版必須以 production 模式跑 sidecar：main.py 的 ENV 預設是
         // development（docs 端點開著、CORS 多放行 localhost:1420/1421），而整條
@@ -290,6 +294,61 @@ mod tests {
         assert_eq!(MAX_RETRIES, 3);
         assert_eq!(INITIAL_DELAY_MS, 500);
     }
+
+    #[test]
+    fn wait_until_returns_as_soon_as_the_condition_holds() {
+        let mut calls = 0;
+        let done = wait_until(|| { calls += 1; calls >= 3 }, Duration::from_secs(1), Duration::from_millis(1));
+        assert!(done);
+        assert_eq!(calls, 3);
+    }
+
+    #[test]
+    fn wait_until_gives_up_after_the_timeout() {
+        let started = std::time::Instant::now();
+        assert!(!wait_until(|| false, Duration::from_millis(100), Duration::from_millis(10)));
+        assert!(started.elapsed() >= Duration::from_millis(100));
+    }
+
+    /// 起一個子行程並在背景回收它（對應 shell plugin 的等待執行緒）：
+    /// 沒人 wait 的話它結束後會變成殭屍，kill(pid, 0) 仍然成功。
+    /// stdio 不接測試的輸出：萬一行程漏掉沒收，也不會讓 cargo test 一直等 pipe 關閉
+    #[cfg(unix)]
+    fn spawn_reaped(script: &str) -> u32 {
+        use std::process::Stdio;
+        let mut child = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(script)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .unwrap();
+        let pid = child.id();
+        std::thread::spawn(move || { let _ = child.wait(); });
+        std::thread::sleep(Duration::from_millis(200)); // 讓 trap 先掛上
+        pid
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminate_gracefully_stops_a_process_that_honours_sigterm() {
+        let pid = spawn_reaped("trap 'exit 0' TERM; while true; do sleep 0.05; done");
+        let stopped = terminate_gracefully(pid, Duration::from_secs(3));
+        // 先收尾再斷言：斷言失敗時行程還活著的話會一直留著
+        unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        assert!(stopped);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminate_gracefully_reports_a_process_that_ignores_sigterm() {
+        // 呼叫端看到 false 才會改用 SIGKILL；這裡自己收尾，而且要在斷言之前
+        let pid = spawn_reaped("trap '' TERM; while true; do sleep 0.05; done");
+        let stopped = terminate_gracefully(pid, Duration::from_millis(300));
+        unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        assert!(!stopped);
+    }
 }
 
 /// 設定系統匣圖示與選單。
@@ -357,15 +416,55 @@ fn show_main_window(app: &AppHandle) {
     }
 }
 
-/// 視窗關閉時清理 sidecar 程序。
+/// 結束 sidecar 時等 SIGTERM 生效的上限；逾時改用 SIGKILL，不讓 app 卡在結束
+const SIDECAR_STOP_TIMEOUT: Duration = Duration::from_secs(3);
+const SIDECAR_STOP_POLL: Duration = Duration::from_millis(50);
+
+/// 反覆檢查 `done()` 直到成立或逾時；成立回 true。
+fn wait_until(mut done: impl FnMut() -> bool, timeout: Duration, step: Duration) -> bool {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        if done() {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(step);
+    }
+}
+
+/// 送 SIGTERM 並等行程消失。onefile 的 bootloader 會把 SIGTERM 轉給 Python 子行程，
+/// uvicorn 走正常關閉；直接 SIGKILL 只會殺到 bootloader，Python 子行程留下來佔著 port。
+#[cfg(unix)]
+fn terminate_gracefully(pid: u32, timeout: Duration) -> bool {
+    let pid = pid as libc::pid_t;
+    // SAFETY: kill(2) 只對指定 pid 送 signal，不碰這個行程的記憶體
+    if unsafe { libc::kill(pid, libc::SIGTERM) } != 0 {
+        return false;
+    }
+    // shell plugin 的等待執行緒會回收子行程，結束後 kill(pid, 0) 就會失敗
+    wait_until(|| unsafe { libc::kill(pid, 0) } != 0, timeout, SIDECAR_STOP_POLL)
+}
+
+/// 結束 sidecar。Unix 先 SIGTERM、等 SIDECAR_STOP_TIMEOUT，仍在才 SIGKILL；
+/// Windows 沒有 SIGTERM，直接 kill（onefile 的 Python 子行程由 sidecar 的父行程看門收掉）。
+/// 以 take() 取出 child，關視窗與 RunEvent::Exit 都呼叫也不會重複處理。
 fn cleanup_sidecar(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
     let Ok(mut child_guard) = state.child.lock() else { return };
     let Some(child) = child_guard.take() else { return };
+
+    #[cfg(unix)]
+    if terminate_gracefully(child.pid(), SIDECAR_STOP_TIMEOUT) {
+        info!("Sidecar 程序已正常結束");
+        return;
+    }
+
     if let Err(e) = child.kill() {
         warn!("終止 sidecar 程序失敗: {e}");
     } else {
-        info!("Sidecar 程序已成功終止");
+        info!("Sidecar 程序已強制終止");
     }
 }
 
@@ -403,6 +502,13 @@ pub fn run() {
                 cleanup_sidecar(window.app_handle());
             }
         })
-        .run(tauri::generate_context!())
-        .expect("致命錯誤：無法啟動 Tauri 應用程式，請檢查 WebView 運行環境與連接埠可用性");
+        .build(tauri::generate_context!())
+        .expect("致命錯誤：無法啟動 Tauri 應用程式，請檢查 WebView 運行環境與連接埠可用性")
+        // 關視窗之外的結束方式（Cmd+Q、系統列 Quit 的 app.exit）不會觸發 CloseRequested；
+        // 它們最後都會走到 Exit。沒收掉的 sidecar 會佔著 port，下次開 app 整片 403
+        .run(|app_handle, event| {
+            if let RunEvent::Exit = event {
+                cleanup_sidecar(app_handle);
+            }
+        });
 }
