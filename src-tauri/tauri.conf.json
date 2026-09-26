@@ -21,10 +21,6 @@
         "center": true
       }
     ],
-    "trayIcon": {
-      "iconPath": "icons/32x32.png",
-      "iconAsTemplate": true
-    },
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:8008 http://localhost:8008; img-src 'self' data: https://avatars.githubusercontent.com https://raw.githubusercontent.com; font-src 'self' data:; frame-ancestors 'none'"
     }

@@ -601,6 +601,14 @@ mod tests {
     }
 
     #[test]
+    fn the_tray_icon_is_built_in_code_only() {
+        // 系統列只由 setup_tray 建（有選單）。tauri.conf.json 的 app.trayIcon 會讓 Tauri 再自動建一個：
+        // 沒有選單，而且 iconAsTemplate 把不透明的 app 圖示畫成一塊白色方塊
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert!(config["app"].get("trayIcon").is_none());
+    }
+
+    #[test]
     fn sidecar_status_serialises_the_way_the_frontend_reads_it() {
         let json = |status: SidecarStatus| serde_json::to_string(&status).unwrap();
         assert_eq!(json(SidecarStatus::Starting), r#"{"kind":"starting"}"#);
