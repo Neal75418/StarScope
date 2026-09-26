@@ -59,19 +59,6 @@ def test_github_token_check_runs_after_init_db(test_session_local):
 
 
 
-def test_release_mode_passes_the_app_object_not_an_import_string():
-    """PyInstaller 打包後入口模組叫 __main__，沒有可以 import 的 "main"——
-    傳 "main:app" 會讓發行版一啟動就 `Could not import module "main"` 退出。"""
-    import main
-
-    with patch.object(main, "DEBUG", False), patch("main.uvicorn.run") as run:
-        main.run_server()
-
-    target = run.call_args.args[0]
-    assert target is main.app
-    assert not run.call_args.kwargs.get("reload")
-
-
 def test_debug_mode_keeps_hot_reload():
     """reload 需要 import 字串：reloader 在子行程裡重新 import 這個模組。"""
     import main
@@ -83,6 +70,22 @@ def test_debug_mode_keeps_hot_reload():
     assert run.call_args.kwargs["reload"] is True
 
 
+def test_release_mode_passes_the_app_object_not_an_import_string():
+    """PyInstaller 打包後入口模組叫 __main__，沒有可以 import 的 "main"——
+    傳 "main:app" 會讓發行版一啟動就 `Could not import module "main"` 退出。"""
+    import main
+
+    with patch.object(main, "DEBUG", False), patch("main.uvicorn.Server") as server_cls, \
+            patch("main.uvicorn.run") as run:
+        main.run_server()
+
+    config = server_cls.call_args.args[0]
+    assert config.app is main.app
+    assert not config.reload
+    server_cls.return_value.run.assert_called_once()
+    run.assert_not_called()
+
+
 def test_frozen_binary_ignores_debug(monkeypatch):
     """打包後的 binary 就算讀到 DEBUG=true（使用者環境變數、上層目錄的 .env）也不能開 reload：
     reloader 會先佔住 port，子行程再跑一次入口又綁同一個 port，結果行程活著卻永遠不服務。"""
@@ -90,8 +93,36 @@ def test_frozen_binary_ignores_debug(monkeypatch):
     import main
 
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    with patch.object(main, "DEBUG", True), patch("main.uvicorn.run") as run:
+    with patch.object(main, "DEBUG", True), patch("main.uvicorn.Server") as server_cls, \
+            patch("main.uvicorn.run") as run:
         main.run_server()
 
-    assert run.call_args.args[0] is main.app
-    assert not run.call_args.kwargs.get("reload")
+    assert server_cls.call_args.args[0].app is main.app
+    run.assert_not_called()
+
+
+def test_release_mode_starts_the_parent_watchdog_when_told_the_parent_pid(monkeypatch):
+    import main
+
+    monkeypatch.setenv("STARSCOPE_PARENT_PID", "4242")
+    with patch.object(main, "DEBUG", False), patch("main.uvicorn.Server") as server_cls, \
+            patch("main.uvicorn.run"), patch("main.start_parent_watchdog") as watchdog:
+        main.run_server()
+
+    pid, on_parent_gone = watchdog.call_args.args
+    assert pid == 4242
+    server = server_cls.return_value
+    server.should_exit = False
+    on_parent_gone()
+    assert server.should_exit is True  # 走 uvicorn 的正常關閉，不是直接殺掉
+
+
+def test_release_mode_without_a_parent_pid_has_no_watchdog(monkeypatch):
+    import main
+
+    monkeypatch.delenv("STARSCOPE_PARENT_PID", raising=False)
+    with patch.object(main, "DEBUG", False), patch("main.uvicorn.Server"), \
+            patch("main.uvicorn.run"), patch("main.start_parent_watchdog") as watchdog:
+        main.run_server()
+
+    watchdog.assert_not_called()

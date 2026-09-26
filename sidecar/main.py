@@ -37,6 +37,7 @@ from routers import health, repos, alerts, trends, context, charts, recommendati
 from services.github import GitHubAPIError, GitHubNotFoundError, GitHubRateLimitError, close_github_service
 from services.hacker_news import close_hn_service
 from services.scheduler import start_scheduler, stop_scheduler, trigger_fetch_now
+from utils.parent_watchdog import parent_pid_from_env, start_parent_watchdog
 
 # 環境設定
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
@@ -414,7 +415,13 @@ def run_server() -> None:
     else:
         # 傳物件而不是 "main:app"：PyInstaller 打包後入口模組叫 __main__，
         # 沒有名為 main 的模組可以 import
-        uvicorn.run(app, host=host, port=port)
+        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port))
+        # Tauri 會告訴我們它的 PID：它當掉或被強制結束時，sidecar 要自己走正常關閉，
+        # 不能佔著 port 讓下次開 app 整片 403（見 utils/parent_watchdog.py）
+        parent_pid = parent_pid_from_env(os.environ)
+        if parent_pid is not None:
+            start_parent_watchdog(parent_pid, lambda: setattr(server, "should_exit", True))
+        server.run()
 
 
 if __name__ == "__main__":
