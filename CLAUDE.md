@@ -274,15 +274,22 @@ npm run tauri dev                        # 終端機 2
 
 ### sidecar 生命週期
 
-改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的四條：
+改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar`、`start_sidecar_with_retry` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的：
 - 每一種正常結束都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`。
   當掉、被強制結束時走不到它，只能靠 sidecar 的父行程看門
 - sidecar 結束後不能再對它的 PID 送任何 signal（可能已換人）：「已結束」看 shell plugin 的 `Terminated`，不用 `kill(pid, 0)`
 - 看門不是當機備援，不能拿掉：Windows 沒有 SIGTERM，`kill()` 只殺到 onefile 的 bootloader，
   **Windows 每一次結束都靠看門收掉 Python 子行程**
 - 看門只在有 `STARSCOPE_PARENT_PID` 時啟動；start-dev、e2e、collector、pytest 都不設
+- `/api/health` 不驗 session secret，別人的 sidecar（舊版孤兒、還在退出的上一個）也答得出來：
+  前端在 Tauri 裡要等 Rust 的 `sidecar-status` 說 `running`／`external` 才探測
+- `start_sidecar_with_retry` 的每一條出口都要 `set_sidecar_status`：前端關著探測閘門等它，漏設的話畫面停在「啟動中」、
+  重試鈕按了也不會探測
+- release 在 spawn 前檢查 8008：StarScope 佔著就等最多 6 秒（上一個正在退出），仍被佔或是別的程式就不 spawn、
+  回報 `port_in_use`；Rust 回報的原因由 `App.tsx` 換成說明卡片，不掛頁面
+- single-instance 只在 release 註冊：dev 與 release 共用 identifier，否則打包版開著時 `tauri dev` 會一聲不響地結束
 
-⚠️ onefile 打包時，直接 kill 只殺到 bootloader，Python 子行程會佔著 8008，下次開 app 整片 403。
+⚠️ onefile 打包時，直接 kill 只殺到 bootloader，Python 子行程會佔著 8008，下次開 app 就是「連接埠被佔用」。
 
 ### 存檔走 Rust 的 `save_file` command，不註冊 fs plugin
 
@@ -434,7 +441,8 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 - **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
 - **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
   不是瀏覽器有網路。連不上時查詢暫停、連上後自動接著跑；別處不要 `onlineManager.setEventListener`、
-  不要給查詢加 `networkMode: 'always'`
+  不要給查詢加 `networkMode: 'always'`。在 Tauri 裡探測還要過 Rust 狀態的閘門（`gateOpen`）：新增的探測入口一律走
+  `probe()`，不要直接打 health
 - 寫入（mutations 預設 `networkMode: 'always'`）在 sidecar 連不上時立刻失敗，不排隊：每個寫入都要在畫面上說明失敗
 - ⚠️ 查詢暫停時 `isLoading` 是 false（`isPending` 才是 true）：所以這次開 app 還沒連上過 sidecar 之前，
   `App.tsx` 不渲染頁面，否則頁面會畫出「還沒追蹤任何專案」之類的空狀態
