@@ -58,6 +58,7 @@ mkdir -p "$DATA_DIR" && cd "$DATA_DIR" || exit 1
 LOG="$WORK/app.log"
 echo "== 啟動（資料：${DATA_DIR}；app 輸出：${LOG}；sidecar 日誌：$DATA_DIR/starscope.log）"
 echo "   結束 app 後這裡會檢查殘留"
+echo "   ⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停（計時器、請求都不跑），先點一下視窗"
 
 env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" USER="${USER:-}" LANG="${LANG:-en_US.UTF-8}" \
   TMPDIR="${TMPDIR:-/tmp}" \
@@ -66,7 +67,8 @@ env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" USER="${USER:-}" LANG="
 echo "== app 已結束（exit $?）"
 
 # 只看執行檔路徑（comm），不看參數：macOS 上讀別的行程的參數可能溢出到它的環境變數
-leftover() { ps -axo pid=,comm= | grep "StarScope.app/Contents/MacOS/starscope-sidecar" | grep -v grep; }
+# 比對這次打包產物的完整路徑：只寫 StarScope.app/... 會連 /Applications 裡安裝的版本一起算進去
+leftover() { ps -axo pid=,comm= | grep -F "$APP/Contents/MacOS/starscope-sidecar" | grep -v grep; }
 for _ in {1..5}; do
   if ! leftover >/dev/null && ! lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
     echo "✅ 沒有殘留的 sidecar，port $PORT 已放開"
