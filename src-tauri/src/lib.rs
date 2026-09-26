@@ -1,5 +1,7 @@
 //! StarScope Tauri 應用程式核心邏輯，包含 sidecar 管理、系統匣與視窗控制。
 
+use std::io::{Read, Write};
+use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -22,6 +24,52 @@ struct SidecarState {
     /// shell plugin 回報 sidecar 已結束（並已回收）時設起來。結束後它的 PID 可能分給別的
     /// 行程，cleanup_sidecar 看到這個旗標就不再送任何 signal
     exited: Arc<AtomicBool>,
+    /// 給前端看的狀態：前端的 health 探測分辨不出「答話的是不是自己的 sidecar」
+    status: Mutex<SidecarStatus>,
+    /// cleanup_sidecar 開始收 sidecar 時設起來：那之後的結束是關 app，不是引擎停了
+    quitting: Arc<AtomicBool>,
+}
+
+/// sidecar 固定的 port：與 sidecar/main.py 的 PORT 預設、前端 src/config.ts 一致
+const SIDECAR_PORT: u16 = 8008;
+/// 檢查 port 被誰佔著的總時間上限（連線加讀回應）：對方慢慢回也不能拖住 sidecar 的啟動
+const PORT_PROBE_BUDGET: Duration = Duration::from_secs(1);
+/// 佔著 port 的是 StarScope 時，等它放開的上限：上一個 app 剛關或剛當掉時，它的 sidecar
+/// 最慢要 cleanup 的 3 秒＋看門的 2 秒才開始關閉（關閉時先放開 port）
+const STARSCOPE_RELEASE_WAIT: Duration = Duration::from_secs(6);
+const STARSCOPE_RELEASE_POLL: Duration = Duration::from_millis(250);
+/// sidecar 狀態變化時送給前端的事件
+const SIDECAR_STATUS_EVENT: &str = "sidecar-status";
+
+/// 誰佔著 sidecar 的 port（沒人佔時 port_holder 回 None）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+enum PortOwner {
+    /// 答得出 StarScope 的 health：舊版留下的孤兒，或開發中的 sidecar
+    Starscope,
+    Other,
+}
+
+/// 前端需要、但自己查不到的 sidecar 狀態。
+///
+/// 前端在 Tauri 裡收到 Running／External 才開始探測 health：health 不驗 session secret，
+/// 別人的 sidecar（舊版孤兒、正在退出的上一個）也答得出來，前端會以為連上而整片 403
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+enum SidecarStatus {
+    /// 還在檢查 port 或正在 spawn
+    Starting,
+    /// 已 spawn 自己的 sidecar：port 檢查時是空的，答話的只會是它
+    Running,
+    /// 開發模式：資料由 start-dev.sh 的 sidecar 提供，不自己 spawn
+    External,
+    /// port 被佔著所以沒有啟動：佔用者的 health 可能答得出來（舊版孤兒），前端會以為連上了，
+    /// 但它拿的是別的 session secret，每個請求都 403
+    PortInUse { holder: PortOwner },
+    /// 沒能啟動：找不到 sidecar 執行檔，或重試用完仍 spawn 失敗（安裝不完整）
+    SpawnFailed,
+    /// sidecar 結束了（沒有自動重啟）
+    Exited { code: Option<i32> },
 }
 
 /// 保存 per-session secret，用於驗證前端對 sidecar 的 API 請求。
@@ -153,6 +201,8 @@ fn start_sidecar(app: &App) {
     app.manage(SidecarState {
         child: Mutex::new(None),
         exited: Arc::new(AtomicBool::new(false)),
+        status: Mutex::new(SidecarStatus::Starting),
+        quitting: Arc::new(AtomicBool::new(false)),
     });
 
     // 產生 per-session secret 並註冊到 Tauri state，供前端透過 command 取得
@@ -169,13 +219,27 @@ fn start_sidecar(app: &App) {
 
 /// 在背景執行緒中以 exponential backoff 重試啟動 sidecar。
 fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
+    // port 被佔著就不啟動：啟動了也綁不到 port、白等 8 秒後 exit 1，而前端會連到佔用者。
+    // 開發時 start-dev.sh 本來就在 8008 跑自己的 sidecar：不檢查 port，讓前端直接探測
+    if cfg!(debug_assertions) {
+        set_sidecar_status(app, SidecarStatus::External);
+    } else if let Some(holder) =
+        wait_for_port(|| port_holder(SIDECAR_PORT), STARSCOPE_RELEASE_WAIT, STARSCOPE_RELEASE_POLL)
+    {
+        warn!("連接埠 {SIDECAR_PORT} 已被佔用（{holder:?}），不啟動 sidecar");
+        set_sidecar_status(app, SidecarStatus::PortInUse { holder });
+        return;
+    }
+
     for attempt in 0..=MAX_RETRIES {
         // 每次重試都重建 Command，因為 spawn() 會 consume self。
         let mut cmd = match app.shell().sidecar("starscope-sidecar") {
             Ok(c) => c,
             Err(e) => {
-                // 找不到 binary 表示檔案不存在，重試無意義。
+                // 解析不出 sidecar 的路徑（shell plugin 不檢查檔案存不存在：檔案不見時是下面的
+                // spawn 失敗、重試用完才回報），重試無意義
                 warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
+                report_spawn_failed(app);
                 return;
             }
         };
@@ -205,8 +269,19 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
                 if attempt > 0 {
                     info!("Sidecar 在第 {attempt} 次重試後啟動成功");
                 }
+                if !cfg!(debug_assertions) {
+                    set_sidecar_status(app, SidecarStatus::Running);
+                }
                 let state = app.state::<SidecarState>();
-                tauri::async_runtime::spawn(watch_sidecar_exit(rx, state.exited.clone()));
+                let exit_app = app.clone();
+                let quitting = state.quitting.clone();
+                tauri::async_runtime::spawn(watch_sidecar_exit(rx, state.exited.clone(), move |code| {
+                    // 開發時資料由 start-dev.sh 的 sidecar 提供：這裡 spawn 的（若 binaries/ 放了真的
+                    // binary）綁不到 8008 就結束，不能因此讓前端說「資料引擎已停止」
+                    if !cfg!(debug_assertions) {
+                        report_exit(&quitting, code, |status| set_sidecar_status(&exit_app, status));
+                    }
+                }));
                 if let Ok(mut guard) = state.child.lock() {
                     *guard = Some(child);
                 }
@@ -227,6 +302,7 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
                         attempt + 1,
                         MAX_RETRIES + 1
                     );
+                    report_spawn_failed(app);
                 }
             }
         }
@@ -388,6 +464,161 @@ mod tests {
         assert!(untouched);
     }
 
+    /// 在一個空的 port 上回一次 HTTP 回應，回傳那個 port。
+    /// 請求必須是打 health 的 HTTP/1.1 且帶 Host：真的 sidecar 對沒有 Host 的請求回 400
+    fn serve_once(body: &'static str) -> u16 {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let request = String::from_utf8_lossy(&buf[..n]);
+                let body = if request.starts_with("GET /api/health HTTP/1.1\r\n")
+                    && request.contains("\r\nHost: 127.0.0.1:")
+                {
+                    body
+                } else {
+                    "bad request"
+                };
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+        port
+    }
+
+    #[test]
+    fn port_holder_reports_a_free_port() {
+        let port = {
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.local_addr().unwrap().port()
+        }; // listener 已關閉
+        assert_eq!(port_holder(port), None);
+    }
+
+    #[test]
+    fn port_holder_recognises_a_starscope_engine() {
+        // 舊版留下的孤兒與開發中的 sidecar 都回這個 health（1.0.0 起就是 starscope-engine）
+        let port = serve_once(r#"{"success":true,"data":{"status":"ok","service":"starscope-engine"}}"#);
+        assert_eq!(port_holder(port), Some(PortOwner::Starscope));
+    }
+
+    #[test]
+    fn port_holder_reports_another_program() {
+        let port = serve_once("<html>something else</html>");
+        assert_eq!(port_holder(port), Some(PortOwner::Other));
+    }
+
+    /// macOS：別人綁在 0.0.0.0 時，sidecar（uvicorn 設 SO_REUSEADDR）仍綁得到 127.0.0.1，
+    /// 而且 127.0.0.1 的流量會進 sidecar——不能因為「連得上」就不啟動
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn port_holder_treats_a_wildcard_listener_as_free_when_loopback_still_binds() {
+        let wildcard = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+        let port = wildcard.local_addr().unwrap().port();
+        assert_eq!(port_holder(port), None);
+        drop(wildcard);
+    }
+
+    #[test]
+    fn port_holder_gives_up_on_a_holder_that_never_finishes_answering() {
+        // 接了連線卻一點一點慢慢回：探測要有總時間上限，不能拖住 sidecar 的啟動
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 1024];
+                let _ = stream.read(&mut buf);
+                for _ in 0..40 {
+                    if stream.write_all(b"x").is_err() {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(150));
+                }
+            }
+        });
+        let started = std::time::Instant::now();
+        assert_eq!(port_holder(port), Some(PortOwner::Other));
+        assert!(started.elapsed() < PORT_PROBE_BUDGET + Duration::from_millis(500));
+    }
+
+    #[test]
+    fn wait_for_port_returns_once_an_exiting_starscope_lets_go() {
+        // 上一個 app 剛關（或剛當掉）：它的 sidecar 幾秒內就會放開 port，不能直接判成被佔用
+        let mut answers = vec![Some(PortOwner::Starscope), Some(PortOwner::Starscope), None].into_iter();
+        let owner = wait_for_port(|| answers.next().unwrap(), Duration::from_secs(1), Duration::from_millis(1));
+        assert_eq!(owner, None);
+    }
+
+    #[test]
+    fn wait_for_port_gives_up_on_a_starscope_that_stays() {
+        // 舊版孤兒、開發中的 sidecar 不會自己走：等滿就回報。
+        // 第 1000 次之後才「放開」：不停等下去的實作會拿到 None 而失敗，不會讓測試卡住
+        let mut probes = 0;
+        let started = std::time::Instant::now();
+        let owner = wait_for_port(
+            || {
+                probes += 1;
+                if probes > 1000 { None } else { Some(PortOwner::Starscope) }
+            },
+            Duration::from_millis(100),
+            Duration::from_millis(1),
+        );
+        assert_eq!(owner, Some(PortOwner::Starscope));
+        assert!(started.elapsed() >= Duration::from_millis(100));
+    }
+
+    #[test]
+    fn wait_for_port_does_not_wait_for_another_program() {
+        let mut probes = 0;
+        let owner = wait_for_port(
+            || {
+                probes += 1;
+                Some(PortOwner::Other)
+            },
+            Duration::from_secs(5),
+            Duration::from_millis(1),
+        );
+        assert_eq!(owner, Some(PortOwner::Other));
+        assert_eq!(probes, 1);
+    }
+
+    #[test]
+    fn an_exit_during_quit_is_not_reported_as_the_engine_stopping() {
+        // 關 app 時 cleanup 會收掉 sidecar：那不是「資料引擎已停止」，前端也不該因此換畫面或通知
+        let mut reported = Vec::new();
+        report_exit(&AtomicBool::new(true), Some(0), |status| reported.push(status));
+        assert!(reported.is_empty());
+
+        report_exit(&AtomicBool::new(false), Some(1), |status| reported.push(status));
+        assert_eq!(reported, vec![SidecarStatus::Exited { code: Some(1) }]);
+    }
+
+    #[test]
+    fn sidecar_status_serialises_the_way_the_frontend_reads_it() {
+        let json = |status: SidecarStatus| serde_json::to_string(&status).unwrap();
+        assert_eq!(json(SidecarStatus::Starting), r#"{"kind":"starting"}"#);
+        assert_eq!(json(SidecarStatus::Running), r#"{"kind":"running"}"#);
+        assert_eq!(json(SidecarStatus::External), r#"{"kind":"external"}"#);
+        assert_eq!(
+            json(SidecarStatus::PortInUse { holder: PortOwner::Starscope }),
+            r#"{"kind":"port_in_use","holder":"starscope"}"#
+        );
+        assert_eq!(
+            json(SidecarStatus::PortInUse { holder: PortOwner::Other }),
+            r#"{"kind":"port_in_use","holder":"other"}"#
+        );
+        assert_eq!(json(SidecarStatus::SpawnFailed), r#"{"kind":"spawn_failed"}"#);
+        assert_eq!(json(SidecarStatus::Exited { code: Some(1) }), r#"{"kind":"exited","code":1}"#);
+        assert_eq!(json(SidecarStatus::Exited { code: None }), r#"{"kind":"exited","code":null}"#);
+    }
+
     #[test]
     fn watch_sidecar_exit_marks_the_sidecar_gone_when_it_terminates() {
         let (tx, rx) = tauri::async_runtime::channel(4);
@@ -399,8 +630,13 @@ mod tests {
                 .unwrap();
             // 關掉 channel：watch_sidecar_exit 改成「消化到 channel 關閉」也不會讓測試卡住
             drop(tx);
-            watch_sidecar_exit(rx, exited.clone()).await;
+            let reported = Arc::new(Mutex::new(None));
+            let sink = reported.clone();
+            watch_sidecar_exit(rx, exited.clone(), move |code| *sink.lock().unwrap() = Some(code))
+                .await;
             assert!(exited.load(Ordering::SeqCst));
+            // exit code 交給呼叫端（前端據此說「資料引擎已停止」）
+            assert_eq!(*reported.lock().unwrap(), Some(Some(1)));
         });
     }
 
@@ -413,8 +649,11 @@ mod tests {
         tauri::async_runtime::block_on(async move {
             tx.send(CommandEvent::Error("wait failed".into())).await.unwrap();
             drop(tx);
-            watch_sidecar_exit(rx, exited.clone()).await;
+            let reported = Arc::new(AtomicBool::new(false));
+            let sink = reported.clone();
+            watch_sidecar_exit(rx, exited.clone(), move |_| sink.store(true, Ordering::SeqCst)).await;
             assert!(!exited.load(Ordering::SeqCst));
+            assert!(!reported.load(Ordering::SeqCst));
         });
     }
 }
@@ -475,6 +714,10 @@ fn handle_tray_click(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
 /// 顯示並聚焦主視窗。
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        // 最小化的視窗 show()／set_focus() 都叫不出來，要先還原
+        if let Err(e) = window.unminimize() {
+            warn!("還原主視窗失敗: {e}");
+        }
         if let Err(e) = window.show() {
             warn!("顯示主視窗失敗: {e}");
         }
@@ -506,14 +749,113 @@ fn wait_until(mut done: impl FnMut() -> bool, timeout: Duration, step: Duration)
 ///
 /// channel 容量只有 1，一定要有人收：不收的話 stdout／stderr 的讀取執行緒會卡住。
 /// 只有 Terminated 才算結束——等待失敗（Error）時不知道行程還在不在，交給 cleanup_sidecar。
-async fn watch_sidecar_exit(mut rx: Receiver<CommandEvent>, exited: Arc<AtomicBool>) {
+async fn watch_sidecar_exit(
+    mut rx: Receiver<CommandEvent>,
+    exited: Arc<AtomicBool>,
+    on_exit: impl FnOnce(Option<i32>),
+) {
     while let Some(event) = rx.recv().await {
         if let CommandEvent::Terminated(TerminatedPayload { code, signal }) = event {
             info!("Sidecar 程序已結束（code={code:?}, signal={signal:?}）");
             exited.store(true, Ordering::SeqCst);
+            on_exit(code);
             return;
         }
     }
+}
+
+/// 看 sidecar 的 port 被誰佔著；沒人佔回 None。
+///
+/// 先問「綁不綁得到」而不是「連不連得上」：別人綁在 0.0.0.0 時，macOS 上 sidecar（uvicorn 與
+/// std 都設 SO_REUSEADDR）仍綁得到 127.0.0.1，流量也會進 sidecar，只看連得上會把能用的情況擋掉。
+/// 綁不到才打一次 health 分辨是誰：StarScope 的回應帶 starscope-engine。
+/// 只用來決定要不要啟動 sidecar 與怎麼跟使用者說，不殺任何行程（可能是開發中的 sidecar）
+fn port_holder(port: u16) -> Option<PortOwner> {
+    match TcpListener::bind(("127.0.0.1", port)) {
+        Ok(_) => return None,
+        Err(e) if e.kind() != std::io::ErrorKind::AddrInUse => return None, // 讓 sidecar 自己試
+        Err(_) => {}
+    }
+    let deadline = std::time::Instant::now() + PORT_PROBE_BUDGET;
+    let remaining = || deadline.saturating_duration_since(std::time::Instant::now());
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let Ok(mut stream) = TcpStream::connect_timeout(&addr, remaining()) else {
+        return Some(PortOwner::Other);
+    };
+    let _ = stream.set_write_timeout(Some(remaining()));
+    let request = format!("GET /api/health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+    if stream.write_all(request.as_bytes()).is_err() {
+        return Some(PortOwner::Other);
+    }
+    let mut response = Vec::new();
+    let mut chunk = [0u8; 4096];
+    while response.len() < 64 * 1024 {
+        let left = remaining();
+        if left.is_zero() || stream.set_read_timeout(Some(left)).is_err() {
+            break;
+        }
+        match stream.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => response.extend_from_slice(&chunk[..n]),
+        }
+        if String::from_utf8_lossy(&response).contains("starscope-engine") {
+            return Some(PortOwner::Starscope);
+        }
+    }
+    Some(PortOwner::Other)
+}
+
+/// 更新 sidecar 狀態並通知前端。前端的 JS 可能還沒載入（port 檢查在 setup 就做了），
+/// 所以前端啟動時也會用 get_sidecar_status 主動問一次
+fn set_sidecar_status(app: &AppHandle, status: SidecarStatus) {
+    if let Some(state) = app.try_state::<SidecarState>()
+        && let Ok(mut guard) = state.status.lock()
+    {
+        *guard = status.clone();
+    }
+    if let Err(e) = app.emit(SIDECAR_STATUS_EVENT, &status) {
+        warn!("送出 sidecar 狀態事件失敗: {e}");
+    }
+}
+
+/// sidecar 結束時回報「已結束」，但 app 正在關閉時不報：那是 cleanup_sidecar 收掉的，
+/// 前端不該因此換成「資料引擎已停止」或跳通知
+fn report_exit(quitting: &AtomicBool, code: Option<i32>, report: impl FnOnce(SidecarStatus)) {
+    if !quitting.load(Ordering::SeqCst) {
+        report(SidecarStatus::Exited { code });
+    }
+}
+
+/// 反覆看 port 被誰佔著，直到空出來。佔用者是 StarScope 才等（正在退出的上一個 sidecar
+/// 幾秒內就會放開）；別的程式不會自己走，第一次就回報。等滿仍被佔就回報佔用者
+fn wait_for_port(
+    mut probe: impl FnMut() -> Option<PortOwner>,
+    wait: Duration,
+    step: Duration,
+) -> Option<PortOwner> {
+    let deadline = std::time::Instant::now() + wait;
+    loop {
+        match probe() {
+            Some(PortOwner::Starscope) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(step);
+            }
+            owner => return owner,
+        }
+    }
+}
+
+/// 沒能啟動 sidecar 時告訴前端。只在 release build：開發時 binaries/ 裡是 placeholder，
+/// spawn 一定失敗，資料由 start-dev.sh 的 sidecar 提供
+fn report_spawn_failed(app: &AppHandle) {
+    if !cfg!(debug_assertions) {
+        set_sidecar_status(app, SidecarStatus::SpawnFailed);
+    }
+}
+
+/// 前端啟動時讀一次 sidecar 狀態（之後聽 sidecar-status 事件）
+#[tauri::command]
+fn get_sidecar_status(state: tauri::State<'_, SidecarState>) -> SidecarStatus {
+    state.status.lock().map(|s| s.clone()).unwrap_or(SidecarStatus::Starting)
 }
 
 /// 送 SIGTERM 並等 `has_exited()` 成立。onefile 的 bootloader 會把 SIGTERM 轉給 Python
@@ -541,6 +883,8 @@ fn terminate_gracefully(pid: u32, has_exited: impl Fn() -> bool, timeout: Durati
 /// 以 take() 取出 child，關視窗與 RunEvent::Exit 都呼叫也不會重複處理。
 fn cleanup_sidecar(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
+    // 在收 sidecar 之前設：接下來的結束是關 app（見 report_exit）
+    state.quitting.store(true, Ordering::SeqCst);
     let Ok(mut child_guard) = state.child.lock() else { return };
     let Some(child) = child_guard.take() else { return };
 
@@ -579,13 +923,21 @@ pub fn run() {
 
     info!("StarScope 啟動中");
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // 要最先註冊：第二次開啟時在這裡就被攔下、改叫出現有的視窗（依賴只在桌面平台）。
+    // 只在 release：dev 與 release 共用 identifier，也就共用同一個 single-instance 鎖，
+    // 否則打包版開著時 tauri dev 會一聲不響地結束（反過來也一樣）
+    #[cfg(all(desktop, not(debug_assertions)))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        show_main_window(app);
+    }));
+    builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         // 只給 Rust 端的 save_file 用；前端沒有任何 dialog 權限（capabilities 不開）
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![get_session_secret, save_file])
+        .invoke_handler(tauri::generate_handler![get_session_secret, save_file, get_sidecar_status])
         .setup(|app| {
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {

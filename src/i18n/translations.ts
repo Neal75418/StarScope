@@ -823,8 +823,36 @@ export const translations = {
     status: {
       offline: "You are offline. Showing cached data.",
       sidecarStarting: "Starting the data engine…",
-      sidecarDown: "Data engine is not running. Please restart the app.",
+      sidecarDown: "The data engine is not responding. Retrying automatically…",
+      sidecarPortInUse: "Port 8008 is in use, so the data engine can't start.",
+      sidecarSpawnFailed: "The data engine couldn't start.",
+      sidecarStopped: "The data engine has stopped.",
       rateLimited: "GitHub API rate limit reached. Requests will resume shortly.",
+      // 取代頁面的整頁說明：原因與使用者能做的事
+      card: {
+        notResponding: {
+          title: "The data engine is not responding",
+          hint: "StarScope keeps retrying on its own.",
+        },
+        portStarscope: {
+          title: "Another StarScope background service is using port 8008",
+          hint: "It may be an older StarScope that is still open, a background service an older version left behind, or a development sidecar. Quit the older StarScope if it is open; otherwise restart your computer once, or quit starscope-sidecar in Activity Monitor (Task Manager on Windows). Then reopen StarScope.",
+        },
+        portOther: {
+          title: "Another program is using port 8008",
+          hint: "StarScope needs this port. Quit the program using it, then reopen StarScope.",
+        },
+        spawnFailed: {
+          title: "The data engine couldn't start",
+          hint: "The installation may be incomplete. Please reinstall StarScope.",
+        },
+        stopped: {
+          title: "The data engine has stopped",
+          hint: "Please reopen StarScope.",
+          code: "Exit code {code}",
+        },
+        retry: "Retry Now",
+      },
     },
     // 共用
     common: {
@@ -1821,8 +1849,36 @@ export const translations = {
     status: {
       offline: "目前離線，顯示快取資料。",
       sidecarStarting: "資料引擎啟動中…",
-      sidecarDown: "資料引擎未執行，請重新啟動應用程式。",
+      sidecarDown: "資料引擎沒有回應，正在自動重試…",
+      sidecarPortInUse: "連接埠 8008 被佔用，資料引擎無法啟動。",
+      sidecarSpawnFailed: "資料引擎無法啟動。",
+      sidecarStopped: "資料引擎已停止。",
       rateLimited: "GitHub API 已達速率限制，稍後將自動恢復。",
+      // 取代頁面的整頁說明：原因與使用者能做的事
+      card: {
+        notResponding: {
+          title: "資料引擎沒有回應",
+          hint: "StarScope 會自動重試連線。",
+        },
+        portStarscope: {
+          title: "另一個 StarScope 背景服務佔用了連接埠 8008",
+          hint: "可能是還開著的舊版 StarScope、舊版留下的背景服務，或開發用的 sidecar。舊版 StarScope 還開著就先關掉它；沒有的話重新開機一次，或在活動監視器（Windows 為工作管理員）結束 starscope-sidecar。然後重新開啟 StarScope。",
+        },
+        portOther: {
+          title: "其他程式佔用了連接埠 8008",
+          hint: "StarScope 需要這個連接埠。請結束佔用它的程式，然後重新開啟 StarScope。",
+        },
+        spawnFailed: {
+          title: "資料引擎無法啟動",
+          hint: "安裝可能不完整，請重新安裝 StarScope。",
+        },
+        stopped: {
+          title: "資料引擎已停止",
+          hint: "請重新開啟 StarScope。",
+          code: "結束代碼 {code}",
+        },
+        retry: "立即重試",
+      },
     },
     // 共用
     common: {

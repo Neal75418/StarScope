@@ -74,7 +74,7 @@ describe("App during a sidecar cold start", () => {
     expect(screen.queryByText(/data is undefined/)).toBeNull();
   }, 15_000);
 
-  it("says the engine is not running, not that there is no data, if it never answers", async () => {
+  it("says the engine is not responding, not that there is no data, if it never answers", async () => {
     // 開機時就起不來（DB migration 失敗、spawn 失敗）或冷啟動超過啟動時間：
     // 過了啟動時間也不能掛上頁面，否則會在紅色橫幅下畫出「還沒追蹤任何專案」
     vi.useFakeTimers();
@@ -86,14 +86,14 @@ describe("App during a sidecar cold start", () => {
     expect(screen.queryByTestId("dashboard-onboard")).toBeNull();
     expect(screen.queryByText("Overview of your tracked repositories")).toBeNull();
     expect(screen.getByTestId("sidecar-unavailable")).toHaveTextContent(
-      /Data engine is not running/
+      /The data engine is not responding/
     );
 
     // 之後起來了：按「立即重試」馬上連上、頁面掛上並開始抓資料。
     // 只推進 100ms：比 FAST_PROBE_MS 的下一輪自動探測早，確定是按鈕觸發的
     sidecarUp = true;
     const fetchesBefore = vi.mocked(fetch).mock.calls.length;
-    fireEvent.click(screen.getByRole("button", { name: /Retry Now/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Retry now/i }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(100);
     });
@@ -124,7 +124,7 @@ describe("App during a sidecar cold start", () => {
       await vi.advanceTimersByTimeAsync(SLOW_PROBE_MS + FAST_PROBE_MS + 200);
     });
 
-    expect(screen.getByTestId("status-banner")).toHaveTextContent(/not running/);
+    expect(screen.getByTestId("status-banner")).toHaveTextContent(/not responding/);
     expect(screen.queryByTestId("sidecar-unavailable")).toBeNull();
     expect(screen.getByText("Overview of your tracked repositories")).toBeInTheDocument();
     expect(screen.queryByText(/data is undefined/)).toBeNull();

@@ -14,6 +14,8 @@
  */
 
 import { onlineManager } from "@tanstack/react-query";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import { API_ENDPOINT } from "../config";
 import { logger } from "../utils/logger";
@@ -33,13 +35,27 @@ export const PROBE_TIMEOUT_MS = 2_000;
  */
 const MISSES_BEFORE_DOWN = 2;
 /**
- * 從沒連上過、又超過這麼久，才從「啟動中」改說「未執行」。
+ * 從沒連上過、又超過這麼久，才從「啟動中」改說「沒有回應」。
  * onefile 裝好後第一次開實測 22.8 秒，CI runner 更慢。
  */
 export const STARTUP_GRACE_MS = 45_000;
 
 /** starting：這次開 app 還沒連上過、仍在啟動時間內；up：連得上；down：其餘 */
 export type SidecarPhase = "starting" | "up" | "down";
+
+/**
+ * Rust 回報、探測查不出來的原因：探測不會好，所以不再探測（沒有自動重啟）。
+ * 形狀與 src-tauri/src/lib.rs 的 SidecarStatus 序列化結果一致
+ */
+export type SidecarBlock =
+  | { kind: "port_in_use"; holder: "starscope" | "other" }
+  | { kind: "spawn_failed" }
+  | { kind: "exited"; code: number | null };
+
+type RustSidecarStatus = { kind: "starting" | "running" | "external" } | SidecarBlock;
+
+/** Rust 在 sidecar 狀態變化時送出的事件 */
+const SIDECAR_STATUS_EVENT = "sidecar-status";
 
 let phase: SidecarPhase = "starting";
 let everReachable = false;
@@ -51,12 +67,71 @@ let graceTimer: ReturnType<typeof setTimeout> | undefined;
 let setQueriesOnline: ((online: boolean) => void) | null = null;
 const listeners = new Set<() => void>();
 let lastProbeError: string | null = null;
+let block: SidecarBlock | null = null;
+/**
+ * 能不能探測 health。在 Tauri 裡要等 Rust 說 running／external 才打開：health 不驗 session
+ * secret，別人的 sidecar（舊版孤兒、正在退出的上一個）也答得出來，前端會以為連上而整片 403
+ */
+let gateOpen = true;
+/** 每次 start 加一：舊一輪還沒回來的 listen／invoke 結果不能影響這一輪（StrictMode 會 start 兩次） */
+let generation = 0;
+let unlistenRust: (() => void) | null = null;
+
+function notify() {
+  listeners.forEach((listener) => listener());
+}
 
 function setPhase(next: SidecarPhase) {
   if (next === phase) return;
   phase = next;
   setQueriesOnline?.(next === "up");
-  listeners.forEach((listener) => listener());
+  notify();
+}
+
+function applyRustStatus(status: RustSidecarStatus) {
+  switch (status.kind) {
+    case "running":
+    case "external":
+      gateOpen = true;
+      void probe();
+      return;
+    case "starting":
+      gateOpen = false;
+      return;
+    default:
+      gateOpen = false;
+      clearTimeout(probeTimer);
+      block = status;
+      setPhase("down");
+      notify(); // phase 本來就是 down 時 setPhase 不會通知
+  }
+}
+
+/** 先 listen 再 invoke：兩者之間送出的事件比 invoke 的回答新，收過事件就不採用 invoke 的回答 */
+async function connectToRust(gen: number) {
+  const current = () => gen === generation && running;
+  let heardEvent = false;
+  try {
+    const unlisten = await listen<RustSidecarStatus>(SIDECAR_STATUS_EVENT, (event) => {
+      if (!current()) return;
+      heardEvent = true;
+      applyRustStatus(event.payload);
+    });
+    if (!current()) {
+      unlisten();
+      return;
+    }
+    unlistenRust = unlisten;
+    const status = await invoke<RustSidecarStatus>("get_sidecar_status");
+    if (current() && !heardEvent) applyRustStatus(status);
+  } catch (err) {
+    // 讀不到 Rust 的狀態（不該發生）：退回只靠探測，至少不會永遠停在啟動中
+    logger.warn("[sidecarConnection] 讀不到 sidecar 狀態", err);
+    if (current()) {
+      gateOpen = true;
+      void probe();
+    }
+  }
 }
 
 /**
@@ -102,12 +177,13 @@ function scheduleProbe(delayMs: number) {
 }
 
 async function probe() {
-  if (!running || probing) return;
+  if (!running || probing || !gateOpen) return;
   probing = true;
   clearTimeout(probeTimer);
   try {
     const reachable = await healthAnswers();
-    if (!running) return;
+    // 探測途中 Rust 可能已說 sidecar 結束（閘門關了）：遲到的 ok 不能把狀態改回連上
+    if (!running || !gateOpen) return;
     if (reachable) {
       everReachable = true;
       missesWhileUp = 0;
@@ -131,9 +207,11 @@ async function probe() {
  */
 export function startSidecarConnection(): () => void {
   running = true;
+  generation += 1;
   everReachable = false;
   missesWhileUp = 0;
   lastProbeError = null;
+  block = null;
   phase = "starting";
   onlineManager.setEventListener((setOnline) => {
     setQueriesOnline = setOnline;
@@ -148,16 +226,25 @@ export function startSidecarConnection(): () => void {
   graceTimer = setTimeout(() => {
     if (phase === "starting") setPhase("down");
   }, STARTUP_GRACE_MS);
-  void probe();
+  if (isTauri()) {
+    gateOpen = false;
+    void connectToRust(generation);
+  } else {
+    gateOpen = true;
+    void probe();
+  }
 
   return () => {
     running = false;
     clearTimeout(probeTimer);
     clearTimeout(graceTimer);
+    unlistenRust?.();
+    unlistenRust = null;
     // 歸零但不通知（元件正在卸載）：下一次掛載的第一次 render 才不會讀到這一輪留下的 up
     phase = "starting";
     everReachable = false;
     missesWhileUp = 0;
+    block = null;
     // 還原成 React Query 的預設：聽瀏覽器的 online/offline
     onlineManager.setEventListener((setOnline) => {
       const onOnline = () => setOnline(true);
@@ -195,6 +282,15 @@ export function subscribeSidecarPhase(listener: () => void): () => void {
 
 export function useSidecarPhase(): SidecarPhase {
   return useSyncExternalStore(subscribeSidecarPhase, getSidecarPhase);
+}
+
+/** Rust 回報的、探測不會好的原因；沒有就是 null */
+export function getSidecarBlock(): SidecarBlock | null {
+  return block;
+}
+
+export function useSidecarBlock(): SidecarBlock | null {
+  return useSyncExternalStore(subscribeSidecarPhase, getSidecarBlock);
 }
 
 /** 這次開 app 以來是否連上過；只會在 phase 變成 up 的同時變成 true，所以沿用同一個訂閱 */

@@ -26,6 +26,17 @@ tauri-plugin-dialog = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 getrandom = "0.2"
+# sidecar 狀態以結構傳給前端（get_sidecar_status／sidecar-status 事件）
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+# 第二次開啟時叫出現有視窗：兩個 app 同時跑，第二個的 sidecar 綁不到 port，
+# 它的前端會連到第一個的 sidecar、拿錯 session secret 而整片 403
+tauri-plugin-single-instance = "2"
+
+[dev-dependencies]
+# 鎖住送給前端的 sidecar 狀態 JSON 格式
+serde_json = "1"
 
 [target.'cfg(unix)'.dependencies]
 # cleanup_sidecar 先送 SIGTERM：onefile 的 bootloader 會轉給 Python 子行程，讓它正常關閉

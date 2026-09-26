@@ -14,7 +14,9 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { startSidecarConnection, useSidecarPhase } from "../api/sidecarConnection";
+import { startSidecarConnection, useSidecarBlock, useSidecarPhase } from "../api/sidecarConnection";
+import type { SidecarBlock } from "../api/sidecarConnection";
+
 import { RATE_LIMITED_EVENT } from "../constants/events";
 
 /** 應用降級狀態。 */
@@ -26,7 +28,14 @@ export type DegradationLevel =
   | "rate-limited";
 
 /** 降級狀態橫幅訊息的 i18n key。 */
-export type StatusMessageKey = "offline" | "sidecarStarting" | "sidecarDown" | "rateLimited";
+export type StatusMessageKey =
+  | "offline"
+  | "sidecarStarting"
+  | "sidecarDown"
+  | "sidecarPortInUse"
+  | "sidecarSpawnFailed"
+  | "sidecarStopped"
+  | "rateLimited";
 
 export interface AppStatus {
   /** 當前降級等級。 */
@@ -44,6 +53,20 @@ export interface AppStatus {
 /** Rate limit 橫幅自動消失時間（毫秒）。 */
 const RATE_LIMIT_BANNER_DURATION_MS = 60_000;
 
+/** Rust 回報的原因決定橫幅說什麼；沒有原因就是一般的「沒有回應，正在重試」 */
+function downMessage(block: SidecarBlock | null): StatusMessageKey {
+  switch (block?.kind) {
+    case "port_in_use":
+      return "sidecarPortInUse";
+    case "spawn_failed":
+      return "sidecarSpawnFailed";
+    case "exited":
+      return "sidecarStopped";
+    default:
+      return "sidecarDown";
+  }
+}
+
 const AppStatusContext = createContext<AppStatus | undefined>(undefined);
 
 /** 應用狀態 Provider。 */
@@ -54,6 +77,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
   // passive effect 先把查詢設成暫停，冷啟動期間發出的查詢才不會先失敗一輪
   useLayoutEffect(() => startSidecarConnection(), []);
   const sidecarPhase = useSidecarPhase();
+  const sidecarBlock = useSidecarBlock();
   const isSidecarUp = sidecarPhase === "up";
 
   // 監聽 rate-limited 事件（由 apiCall 在 429 重試耗盡時廣播）
@@ -91,7 +115,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
       return {
         level: "sidecar-down",
         showBanner: true,
-        bannerMessage: "sidecarDown",
+        bannerMessage: downMessage(sidecarBlock),
         isSidecarUp: false,
         isOnline,
       };
@@ -121,7 +145,7 @@ export function AppStatusProvider({ children }: { children: ReactNode }) {
       isSidecarUp,
       isOnline: true,
     };
-  }, [isOnline, isSidecarUp, sidecarPhase, isRateLimited]);
+  }, [isOnline, isSidecarUp, sidecarPhase, sidecarBlock, isRateLimited]);
 
   return <AppStatusContext.Provider value={status}>{children}</AppStatusContext.Provider>;
 }
