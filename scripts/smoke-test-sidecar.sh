@@ -31,6 +31,8 @@ DATA_DIR="$(mktemp -d)" || exit 1
 LOG_FILE="$DATA_DIR/sidecar.log"
 PID=""
 FAKE_PARENT=""
+PARENT_PID_FOR_BINARY=""
+PYTHON=""
 
 stop_sidecar() {
   [ -n "$PID" ] || return 0
@@ -44,8 +46,15 @@ stop_sidecar() {
   kill -9 "$PID" 2>/dev/null || true
 }
 
+# 用 python 殺假的父行程：binary 盯的是它的原生 PID（Windows 上 os.kill 就是 TerminateProcess）；
+# Git Bash 的 kill 收的是 MSYS pid，對原生行程是否有效沒有保證
+kill_fake_parent() {
+  "$PYTHON" -c 'import os, signal, sys; os.kill(int(sys.argv[1]), signal.SIGTERM)' "$PARENT_PID_FOR_BINARY"
+}
+
 cleanup() {
   stop_sidecar
+  [ -z "$PARENT_PID_FOR_BINARY" ] || kill_fake_parent 2>/dev/null || true
   [ -z "$FAKE_PARENT" ] || kill "$FAKE_PARENT" 2>/dev/null || true
   cd / && rm -rf "$DATA_DIR"
 }
@@ -65,13 +74,16 @@ cd "$DATA_DIR" || exit 1
 # 行程 exec 完成前讀到的可能是 fork 出來那個暫時行程；原生 python 的 os.getpid() 在三個
 # 平台上都是 binary 看得到的那個 PID
 PYTHON="$(command -v python || command -v python3)" || { echo "❌ 找不到 python，無法建立假的父行程"; exit 1; }
-"$PYTHON" -c 'import os, time; print(os.getpid(), flush=True); time.sleep(600)' >"$DATA_DIR/parent.pid" &
+# stdin／stderr 不接這支腳本的：萬一沒殺掉，也不會佔著 CI step 的輸出等 600 秒
+"$PYTHON" -c 'import os, time; print(os.getpid(), flush=True); time.sleep(600)' \
+  <"/dev/null" >"$DATA_DIR/parent.pid" 2>/dev/null &
 FAKE_PARENT=$!
 disown "$FAKE_PARENT"
-PARENT_PID_FOR_BINARY=""
 for _ in {1..50}; do
-  PARENT_PID_FOR_BINARY="$(tr -d '[:space:]' <"$DATA_DIR/parent.pid" 2>/dev/null)"
-  [ -n "$PARENT_PID_FOR_BINARY" ] && break
+  if [ -s "$DATA_DIR/parent.pid" ]; then
+    PARENT_PID_FOR_BINARY="$(tr -d '[:space:]' <"$DATA_DIR/parent.pid")"
+    [ -n "$PARENT_PID_FOR_BINARY" ] && break
+  fi
   sleep 0.2
 done
 if [ -z "$PARENT_PID_FOR_BINARY" ]; then
@@ -108,7 +120,13 @@ if [ "${HEALTHY:-0}" != 1 ]; then
   exit 1
 fi
 
-kill "$FAKE_PARENT" 2>/dev/null
+if ! kill_fake_parent; then
+  echo "❌ 殺不掉假的父行程（PID $PARENT_PID_FOR_BINARY），無法判斷結果"
+  exit 1
+fi
+# 已經殺掉了：cleanup 不要再對這兩個 PID 送 signal（那時它們可能已經換人）
+PARENT_PID_FOR_BINARY=""
+FAKE_PARENT=""
 for ((waited = 0; waited < PARENT_GONE_TIMEOUT_SECONDS; waited++)); do
   if ! kill -0 "$PID" 2>/dev/null && ! curl -sf --max-time 2 "$HEALTH_URL" >/dev/null; then
     echo "✅ 父行程消失後 ${waited}s 內自己結束並放開 port"
