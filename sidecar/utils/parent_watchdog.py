@@ -14,17 +14,34 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Mapping
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 PARENT_PID_ENV_VAR = "STARSCOPE_PARENT_PID"
 
+_SYNCHRONIZE = 0x00100000
+_WAIT_TIMEOUT = 0x00000102
+
+
+def _windows_liveness_check(pid: int, kernel32: Any) -> Callable[[], bool]:
+    """開一次父行程的 handle 並一直拿著，之後每次檢查只問它結束了沒。
+
+    只要還有 handle 開著，Windows 就不會把這個 PID 分給別的行程。每次輪詢都重開的話，
+    父行程結束後 PID 一被重用，看門就會以為它還在——Windows 上 Tauri 只能收掉 onefile
+    的 bootloader，Python 子行程每次都靠這裡結束，所以這個窗口不能留。
+    handle 不關：看門執行緒跟 sidecar 同生共死，行程結束時系統會收回。
+    """
+    handle = kernel32.OpenProcess(_SYNCHRONIZE, False, pid)
+    if not handle:
+        return lambda: False
+    return lambda: bool(kernel32.WaitForSingleObject(handle, 0) == _WAIT_TIMEOUT)
+
+
 if sys.platform == "win32":
     import ctypes
     from ctypes import wintypes
 
-    _SYNCHRONIZE = 0x00100000
-    _WAIT_TIMEOUT = 0x00000102
     _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     _kernel32.OpenProcess.restype = wintypes.HANDLE
     _kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
@@ -69,17 +86,29 @@ def parent_pid_from_env(environ: Mapping[str, str]) -> int | None:
     return pid
 
 
+def _liveness_check(pid: int) -> Callable[[], bool]:
+    if sys.platform == "win32":
+        return _windows_liveness_check(pid, _kernel32)
+    # POSIX 沒有能拿住 PID 的 handle；重用窗口只有一次輪詢間隔，而且正常結束時
+    # Tauri 會先以 SIGTERM 收掉 sidecar，走不到這裡
+    return lambda: parent_alive(pid)
+
+
 def start_parent_watchdog(
     pid: int,
     on_parent_gone: Callable[[], None],
     *,
     interval: float = 2.0,
-    is_alive: Callable[[int], bool] = parent_alive,
+    is_alive: Callable[[int], bool] | None = None,
 ) -> threading.Thread:
-    """每 interval 秒檢查一次父行程；第一次發現不在就呼叫 on_parent_gone() 並結束。"""
+    """每 interval 秒檢查一次父行程；第一次發現不在就呼叫 on_parent_gone() 並結束。
+
+    檢查函式在這裡（啟動時）就建好：Windows 上要趁父行程確定還在時拿住它的 handle。
+    """
+    alive: Callable[[], bool] = (lambda: is_alive(pid)) if is_alive else _liveness_check(pid)
 
     def watch() -> None:
-        while is_alive(pid):
+        while alive():
             time.sleep(interval)
         logger.warning("[父行程看門] 父行程 %d 已結束，sidecar 跟著結束", pid)
         on_parent_gone()
