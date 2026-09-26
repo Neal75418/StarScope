@@ -135,6 +135,7 @@ venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip instal
 Rust：`cd src-tauri && cargo test --lib`（CI 不編譯 Rust；第一次在 Windows／Linux 編譯是打 tag 時的 release.yml）。
 打包版實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 裡的 placeholder；
 前端 localStorage 與已安裝的 StarScope 共用，隔離不了。
+⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停（計時器、請求都不跑），要先點一下視窗再觀察。
 
 ### 單元測試（Vitest）
 
@@ -431,6 +432,14 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 - **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
 - **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
 - **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
+- **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
+  不是瀏覽器有網路。連不上時查詢暫停、連上後自動接著跑；別處不要 `onlineManager.setEventListener`、
+  不要給查詢加 `networkMode: 'always'`
+- 寫入（mutations 預設 `networkMode: 'always'`）在 sidecar 連不上時立刻失敗，不排隊：每個寫入都要在畫面上說明失敗
+- ⚠️ 查詢暫停時 `isLoading` 是 false（`isPending` 才是 true）：所以這次開 app 還沒連上過 sidecar 之前，
+  `App.tsx` 不渲染頁面，否則頁面會畫出「還沒追蹤任何專案」之類的空狀態
+- ⚠️ 要 `reset()` 另一個 mutation 之前先問 `queryClient.isMutating({ mutationKey })`，不要看渲染當下的 `isPending`：
+  React Query 以 setTimeout(0) 才通知畫面；對還在跑的 mutation 呼叫 `reset()`，會讓那次請求的結果（包括失敗）不再回到畫面
 
 ### 輪詢與計時器（兩個 hook，別選錯）
 
@@ -441,7 +450,7 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
   因為倒數與網路無關，離線時該繼續走。恢復可見時會先補跑一次再重啟計時——
   隱藏期間畫面上的值已經過期，只重啟計時的話使用者會盯著一個舊值直到下一次 tick。
 
-⚠️ 唯一刻意不套的地方是 `AppStatusContext` 的 health check：它**必須**在頁面隱藏時繼續跑，
+⚠️ 唯一刻意不套的地方是 `api/sidecarConnection.ts` 的 health 探測：它**必須**在頁面隱藏時繼續跑，
 否則偵測不到 sidecar 復活，橫幅會一直掛著。該處有註解說明，不要「順手修正」。
 
 ### For You Feed 資料層
@@ -460,7 +469,7 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
 - `POST /api/digest/seen` 帶 GET 回應的 cursor（不是當下最大 id）；後端只進不退，但刪除規則／repo／context 清理後會壓低（表沒有 AUTOINCREMENT，id 會重用）
 - `queryKeys.digest` 刻意不在 `dashboard` 底下：Dashboard 重整會 invalidate 整棵，重抓只回新項目會蓋掉這批；重整改走 `appendNew`
 - `useDigest` 只在 `canMarkSeen`（面板真的渲染）時送 seen，每個快取物件只送一次——重新掛載重送舊 cursor 會把壓低的游標抬回去
-- 啟動頁先等 sidecar health（最多 30 秒）再給 digest 1 秒：發行版 sidecar 冷啟動要好幾秒
+- 啟動頁先等 sidecarConnection 連上（最多到 `STARTUP_GRACE_MS`）再給 digest 1 秒：發行版 sidecar 冷啟動要好幾秒
 
 ### Watchlist Context + useReducer
 
