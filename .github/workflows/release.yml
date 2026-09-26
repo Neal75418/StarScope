@@ -1,9 +1,13 @@
 name: Release
 
+# 推 v* tag＝正式發版（建立 draft release）。
+# 手動觸發（Run workflow）＝發版預演：四個平台照發版的步驟編譯、打包，但不建立 release——
+# CI 平時不編譯 Rust，打 tag 前在這裡先確認每個平台都編得過、包得出來。
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -66,13 +70,23 @@ jobs:
         with:
           target: ${{ matrix.target }}
 
+      # 預演才跑：Rust 測試裡 port 綁定這類行為只有在各平台真機上驗得到；--locked 擋住 Cargo.lock
+      # 與依賴對不上。正式發版不跑，免得拖慢。tauri 編譯時會嵌入前端，所以先 build 前端
+      - name: Rust tests (rehearsal only)
+        if: github.ref_type != 'tag'
+        shell: bash
+        run: |
+          npm run build
+          cd src-tauri && cargo test --lib --locked
+
       - name: Build and release
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'StarScope ${{ github.ref_name }}'
+          # 不是 tag（手動預演）時留空：tagName、releaseName、releaseId 都沒給，tauri-action 只編譯與打包
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: ${{ github.ref_type == 'tag' && format('StarScope {0}', github.ref_name) || '' }}
           releaseBody: |
             See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
 
