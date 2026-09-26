@@ -133,7 +133,8 @@ venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip instal
 健康檢查通過後殺掉假的父行程，binary 要在 15 秒內自己結束並放開 port。
 
 Rust：`cd src-tauri && cargo test --lib`（CI 不編譯 Rust；第一次在 Windows／Linux 編譯是打 tag 時的 release.yml）。
-打包版實測用 `scripts/run-packaged-app.sh`：隔離資料、不讀 token、不動 repo 裡的 placeholder。
+打包版實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 裡的 placeholder；
+前端 localStorage 與已安裝的 StarScope 共用，隔離不了。
 
 ### 單元測試（Vitest）
 
@@ -272,9 +273,12 @@ npm run tauri dev                        # 終端機 2
 
 ### sidecar 生命週期
 
-改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的三條：
-- 每一種結束方式都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`
+改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的四條：
+- 每一種正常結束都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`。
+  當掉、被強制結束時走不到它，只能靠 sidecar 的父行程看門
 - sidecar 結束後不能再對它的 PID 送任何 signal（可能已換人）：「已結束」看 shell plugin 的 `Terminated`，不用 `kill(pid, 0)`
+- 看門不是當機備援，不能拿掉：Windows 沒有 SIGTERM，`kill()` 只殺到 onefile 的 bootloader，
+  **Windows 每一次結束都靠看門收掉 Python 子行程**
 - 看門只在有 `STARSCOPE_PARENT_PID` 時啟動；start-dev、e2e、collector、pytest 都不設
 
 ⚠️ onefile 打包時，直接 kill 只殺到 bootloader，Python 子行程會佔著 8008，下次開 app 整片 403。
