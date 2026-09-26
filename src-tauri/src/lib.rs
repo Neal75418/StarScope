@@ -1,6 +1,7 @@
 //! StarScope Tauri 應用程式核心邏輯，包含 sidecar 管理、系統匣與視窗控制。
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -8,12 +9,19 @@ use tauri::{
     App, AppHandle, Emitter, Manager, RunEvent, WindowEvent,
 };
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_shell::{process::CommandChild, ShellExt};
+use tauri::async_runtime::Receiver;
+use tauri_plugin_shell::{
+    process::{CommandChild, CommandEvent, TerminatedPayload},
+    ShellExt,
+};
 use tracing::{info, warn};
 
 /// 保存 sidecar 子程序以便退出時清理。
 struct SidecarState {
     child: Mutex<Option<CommandChild>>,
+    /// shell plugin 回報 sidecar 已結束（並已回收）時設起來。結束後它的 PID 可能分給別的
+    /// 行程，cleanup_sidecar 看到這個旗標就不再送任何 signal
+    exited: Arc<AtomicBool>,
 }
 
 /// 保存 per-session secret，用於驗證前端對 sidecar 的 API 請求。
@@ -144,6 +152,7 @@ fn start_sidecar(app: &App) {
     // 先註冊空的 SidecarState，讓其他元件可以安全存取
     app.manage(SidecarState {
         child: Mutex::new(None),
+        exited: Arc::new(AtomicBool::new(false)),
     });
 
     // 產生 per-session secret 並註冊到 Tauri state，供前端透過 command 取得
@@ -192,11 +201,13 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
         }
 
         match cmd.spawn() {
-            Ok((_rx, child)) => {
+            Ok((rx, child)) => {
                 if attempt > 0 {
                     info!("Sidecar 在第 {attempt} 次重試後啟動成功");
                 }
-                if let Ok(mut guard) = app.state::<SidecarState>().child.lock() {
+                let state = app.state::<SidecarState>();
+                tauri::async_runtime::spawn(watch_sidecar_exit(rx, state.exited.clone()));
+                if let Ok(mut guard) = state.child.lock() {
                     *guard = Some(child);
                 }
                 return;
@@ -310,11 +321,11 @@ mod tests {
         assert!(started.elapsed() >= Duration::from_millis(100));
     }
 
-    /// 起一個子行程並在背景回收它（對應 shell plugin 的等待執行緒）：
-    /// 沒人 wait 的話它結束後會變成殭屍，kill(pid, 0) 仍然成功。
-    /// stdio 不接測試的輸出：萬一行程漏掉沒收，也不會讓 cargo test 一直等 pipe 關閉
+    /// 起一個子行程並在背景回收它，回收後把旗標設起來（對應 shell plugin 的等待執行緒
+    /// 與 watch_sidecar_exit）。stdio 不接測試的輸出：萬一行程漏掉沒收，也不會讓
+    /// cargo test 一直等 pipe 關閉
     #[cfg(unix)]
-    fn spawn_reaped(script: &str) -> u32 {
+    fn spawn_reaped(script: &str) -> (u32, Arc<AtomicBool>) {
         use std::process::Stdio;
         let mut child = std::process::Command::new("sh")
             .arg("-c")
@@ -325,18 +336,31 @@ mod tests {
             .spawn()
             .unwrap();
         let pid = child.id();
-        std::thread::spawn(move || { let _ = child.wait(); });
+        let exited = Arc::new(AtomicBool::new(false));
+        let flag = exited.clone();
+        std::thread::spawn(move || {
+            let _ = child.wait();
+            flag.store(true, Ordering::SeqCst);
+        });
         std::thread::sleep(Duration::from_millis(200)); // 讓 trap 先掛上
-        pid
+        (pid, exited)
+    }
+
+    /// 測試收尾：只對還沒回收的行程送 SIGKILL，不去碰一個可能已經被別人拿走的 PID
+    #[cfg(unix)]
+    fn kill_if_running(pid: u32, exited: &AtomicBool) {
+        if !exited.load(Ordering::SeqCst) {
+            unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        }
     }
 
     #[cfg(unix)]
     #[test]
     fn terminate_gracefully_stops_a_process_that_honours_sigterm() {
-        let pid = spawn_reaped("trap 'exit 0' TERM; while true; do sleep 0.05; done");
-        let stopped = terminate_gracefully(pid, Duration::from_secs(3));
+        let (pid, exited) = spawn_reaped("trap 'exit 0' TERM; while true; do sleep 0.05; done");
+        let stopped = terminate_gracefully(pid, || exited.load(Ordering::SeqCst), Duration::from_secs(3));
         // 先收尾再斷言：斷言失敗時行程還活著的話會一直留著
-        unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        kill_if_running(pid, &exited);
         assert!(stopped);
     }
 
@@ -344,10 +368,52 @@ mod tests {
     #[test]
     fn terminate_gracefully_reports_a_process_that_ignores_sigterm() {
         // 呼叫端看到 false 才會改用 SIGKILL；這裡自己收尾，而且要在斷言之前
-        let pid = spawn_reaped("trap '' TERM; while true; do sleep 0.05; done");
-        let stopped = terminate_gracefully(pid, Duration::from_millis(300));
-        unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
+        let (pid, exited) = spawn_reaped("trap '' TERM; while true; do sleep 0.05; done");
+        let stopped = terminate_gracefully(pid, || exited.load(Ordering::SeqCst), Duration::from_millis(300));
+        kill_if_running(pid, &exited);
         assert!(!stopped);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminate_gracefully_sends_nothing_once_the_sidecar_has_exited() {
+        // sidecar 早就結束的話，它的 PID 可能已經分給使用者的其他行程：一個 signal 都不能送。
+        // 這裡用一個活著、收到 SIGTERM 就會結束的行程代表「接手那個 PID 的別人」
+        let (pid, exited) = spawn_reaped("trap 'exit 0' TERM; while true; do sleep 0.05; done");
+        let stopped = terminate_gracefully(pid, || true, Duration::from_millis(300));
+        std::thread::sleep(Duration::from_millis(200));
+        let untouched = !exited.load(Ordering::SeqCst);
+        kill_if_running(pid, &exited);
+        assert!(stopped);
+        assert!(untouched);
+    }
+
+    #[test]
+    fn watch_sidecar_exit_marks_the_sidecar_gone_when_it_terminates() {
+        let (tx, rx) = tauri::async_runtime::channel(4);
+        let exited = Arc::new(AtomicBool::new(false));
+        tauri::async_runtime::block_on(async {
+            tx.send(CommandEvent::Stdout(b"INFO started".to_vec())).await.unwrap();
+            tx.send(CommandEvent::Terminated(TerminatedPayload { code: Some(1), signal: None }))
+                .await
+                .unwrap();
+            watch_sidecar_exit(rx, exited.clone()).await;
+        });
+        assert!(exited.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn watch_sidecar_exit_does_not_guess_when_no_termination_was_reported() {
+        // 等待失敗（CommandEvent::Error）時不知道行程還在不在：維持「沒結束」，
+        // cleanup_sidecar 會照常收掉它
+        let (tx, rx) = tauri::async_runtime::channel(4);
+        let exited = Arc::new(AtomicBool::new(false));
+        tauri::async_runtime::block_on(async move {
+            tx.send(CommandEvent::Error("wait failed".into())).await.unwrap();
+            drop(tx);
+            watch_sidecar_exit(rx, exited.clone()).await;
+            assert!(!exited.load(Ordering::SeqCst));
+        });
     }
 }
 
@@ -434,17 +500,35 @@ fn wait_until(mut done: impl FnMut() -> bool, timeout: Duration, step: Duration)
     }
 }
 
-/// 送 SIGTERM 並等行程消失。onefile 的 bootloader 會把 SIGTERM 轉給 Python 子行程，
-/// uvicorn 走正常關閉；直接 SIGKILL 只會殺到 bootloader，Python 子行程留下來佔著 port。
+/// 消化 sidecar 的事件，直到 shell plugin 回報它結束。
+///
+/// channel 容量只有 1，一定要有人收：不收的話 stdout／stderr 的讀取執行緒會卡住。
+/// 只有 Terminated 才算結束——等待失敗（Error）時不知道行程還在不在，交給 cleanup_sidecar。
+async fn watch_sidecar_exit(mut rx: Receiver<CommandEvent>, exited: Arc<AtomicBool>) {
+    while let Some(event) = rx.recv().await {
+        if let CommandEvent::Terminated(TerminatedPayload { code, signal }) = event {
+            info!("Sidecar 程序已結束（code={code:?}, signal={signal:?}）");
+            exited.store(true, Ordering::SeqCst);
+            return;
+        }
+    }
+}
+
+/// 送 SIGTERM 並等 `has_exited()` 成立。onefile 的 bootloader 會把 SIGTERM 轉給 Python
+/// 子行程，uvicorn 走正常關閉；直接 SIGKILL 只會殺到 bootloader，Python 子行程留下來佔著 port。
+///
+/// 已經結束就什麼都不送：它的 PID 可能已經分給別的行程。結束與否看 shell plugin 的回報，
+/// 不看 kill(pid, 0)——回收之後那個 PID 隨時可能換人。
 #[cfg(unix)]
-fn terminate_gracefully(pid: u32, timeout: Duration) -> bool {
-    let pid = pid as libc::pid_t;
+fn terminate_gracefully(pid: u32, has_exited: impl Fn() -> bool, timeout: Duration) -> bool {
+    if has_exited() {
+        return true;
+    }
     // SAFETY: kill(2) 只對指定 pid 送 signal，不碰這個行程的記憶體
-    if unsafe { libc::kill(pid, libc::SIGTERM) } != 0 {
+    if unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) } != 0 {
         return false;
     }
-    // shell plugin 的等待執行緒會回收子行程，結束後 kill(pid, 0) 就會失敗
-    wait_until(|| unsafe { libc::kill(pid, 0) } != 0, timeout, SIDECAR_STOP_POLL)
+    wait_until(has_exited, timeout, SIDECAR_STOP_POLL)
 }
 
 /// 結束 sidecar。Unix 先 SIGTERM、等 SIDECAR_STOP_TIMEOUT，仍在才 SIGKILL；
@@ -454,9 +538,10 @@ fn cleanup_sidecar(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else { return };
     let Ok(mut child_guard) = state.child.lock() else { return };
     let Some(child) = child_guard.take() else { return };
+    let exited = state.exited.clone();
 
     #[cfg(unix)]
-    if terminate_gracefully(child.pid(), SIDECAR_STOP_TIMEOUT) {
+    if terminate_gracefully(child.pid(), || exited.load(Ordering::SeqCst), SIDECAR_STOP_TIMEOUT) {
         info!("Sidecar 程序已正常結束");
         return;
     }
@@ -499,6 +584,11 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { .. } = event {
+                // 先藏視窗：收 sidecar 最多等 SIDECAR_STOP_TIMEOUT，這段時間視窗不該停在畫面上
+                // 沒反應。主執行緒上的 hide() 是同步執行的，不會排到清理之後
+                if let Err(e) = window.hide() {
+                    warn!("隱藏主視窗失敗: {e}");
+                }
                 cleanup_sidecar(window.app_handle());
             }
         })
