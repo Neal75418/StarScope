@@ -61,13 +61,22 @@ cd "$DATA_DIR" || exit 1
 
 # 假的父行程：代表 Tauri。健康檢查通過後殺掉它，binary 要自己結束
 #（app 當掉或被強制結束時，留下來的 sidecar 會佔著 port，下次開 app 整片 403）
-sleep 600 &
+# PID 由它自己印出來：Windows 的 Git Bash 裡 $! 是 MSYS 的 pid，而 /proc/$!/winpid 在背景
+# 行程 exec 完成前讀到的可能是 fork 出來那個暫時行程；原生 python 的 os.getpid() 在三個
+# 平台上都是 binary 看得到的那個 PID
+PYTHON="$(command -v python || command -v python3)" || { echo "❌ 找不到 python，無法建立假的父行程"; exit 1; }
+"$PYTHON" -c 'import os, time; print(os.getpid(), flush=True); time.sleep(600)' >"$DATA_DIR/parent.pid" &
 FAKE_PARENT=$!
 disown "$FAKE_PARENT"
-PARENT_PID_FOR_BINARY="$FAKE_PARENT"
-# Windows 的 Git Bash 裡 $! 是 MSYS 的 pid，原生 exe 看到的是 Windows PID
-if [ -r "/proc/$FAKE_PARENT/winpid" ]; then
-  PARENT_PID_FOR_BINARY="$(cat "/proc/$FAKE_PARENT/winpid")"
+PARENT_PID_FOR_BINARY=""
+for _ in {1..50}; do
+  PARENT_PID_FOR_BINARY="$(tr -d '[:space:]' <"$DATA_DIR/parent.pid" 2>/dev/null)"
+  [ -n "$PARENT_PID_FOR_BINARY" ] && break
+  sleep 0.2
+done
+if [ -z "$PARENT_PID_FOR_BINARY" ]; then
+  echo "❌ 假的父行程 10 秒內沒有回報 PID"
+  exit 1
 fi
 
 STARSCOPE_DATA_DIR="$DATA_DIR" PORT="$PORT" ENV=production DEBUG=false GITHUB_TOKEN= \
