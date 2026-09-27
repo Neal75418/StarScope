@@ -247,10 +247,12 @@ def _bundle_for_this_platform(tmp_path: Path) -> Path:
     """CLI 依 sys.platform 找安裝檔：macOS 造假的 .app；Linux 用 dpkg-deb 造一個真的迷你 .deb
     （test.yml 跑在 ubuntu，deb 那條路因此在發版預演之前就真的走過）；其他平台跳過。"""
     bundle = tmp_path / "bundle"
-    if sys.platform == "darwin":
+    # 先存成變數：直接比較 sys.platform 時，mypy 會依執行 mypy 的平台把分支判成恆真，後面全標 unreachable
+    platform: str = sys.platform
+    if platform == "darwin":
         _fake_app(bundle)
         return bundle
-    if sys.platform.startswith("linux") and shutil.which("dpkg-deb"):
+    if platform.startswith("linux") and shutil.which("dpkg-deb"):
         root = tmp_path / "pkg"
         (root / "DEBIAN").mkdir(parents=True)
         (root / "DEBIAN" / "control").write_text(

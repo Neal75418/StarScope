@@ -12,7 +12,8 @@ runs:
     - name: Set up Python
       uses: actions/setup-python@v7
       with:
-        python-version: '3.12'
+        # 版本以 repo 根目錄的 .python-version 為準（本機 venv、mypy 也跟它走）；這個版本會打包進安裝檔
+        python-version-file: '.python-version'
         cache: 'pip'
         cache-dependency-path: |
           sidecar/requirements.txt

@@ -26,7 +26,8 @@ echo "=== Starting StarScope Development Environment ==="
 # Check if virtual environment exists
 if [ ! -d "$SIDECAR_DIR/.venv" ]; then
     echo "Error: Virtual environment not found. Please run:"
-    echo "  cd $SIDECAR_DIR && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -c constraints.txt"
+    # 版本以 repo 根目錄的 .python-version 為準（系統 python3 在 macOS 是 3.9，缺 StrEnum）
+    echo "  cd $SIDECAR_DIR && python$(cat "$SCRIPT_DIR/.python-version") -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt -c constraints.txt"
     exit 1
 fi
 

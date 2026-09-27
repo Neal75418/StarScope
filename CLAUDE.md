@@ -103,7 +103,10 @@ npm run build:analyze    # Bundle 大小分析
 ⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest`。**
 macOS 內建的 `python3` 是 3.9，而 `constants.py` 與 `db/models.py` 用了 `StrEnum`
 （Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
-CI 是綠的，因為 `actions/setup-python` 裝 3.12——**別把 CI 的指令原樣抄到本機**。
+Python 版本以 repo 根目錄的 `.python-version`（3.13）為準：CI 的 `actions/setup-python` 讀它，本機 venv 也要用同一版
+（`python3.13 -m venv`；`uv venv --seed`、pyenv 會自動讀），mypy 不另設 `python_version`、跟著直譯器走。
+升版改 `.python-version`，然後跑 `tests/test_python_version_single_source.py`：它會指出 README、本段、CI 裡還有哪裡沒跟上，
+也會在本機 venv 不是這一版時變紅。
 
 ```bash
 cd sidecar
@@ -114,7 +117,7 @@ cd sidecar
 .venv/bin/ruff check --fix .                       # Python lint（CI 也跑；規則明確列在 ruff.toml，不吃 Ruff 預設值）
 ```
 
-venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
+venv 不存在時：`cd sidecar && python3.13 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
 
 ⚠️ **Python 依賴的版本鎖在 `sidecar/constraints.txt`**（開發機 venv 的 pip freeze），CI 與 release 都用
 `-c constraints.txt` 安裝；`requirements.txt` 只宣告範圍。不要手改 constraints。升級流程：venv 裡
