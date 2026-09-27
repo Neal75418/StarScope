@@ -55,6 +55,7 @@ export async function saveFile(name: string, contents: string | Uint8Array): Pro
  * 取得匯出檔並存檔。先取內容再開對話框：sidecar 出錯時立刻回報，不讓使用者先選好位置
  * 才告訴他失敗，也不會留下空檔案。
  *
+ * @param url 匯出端點（sidecar 的 /api/export/…）
  * @param fallbackName 後端沒給檔名（例如 CORS 沒 expose Content-Disposition）時用的檔名
  */
 export async function saveExport(url: string, fallbackName: string): Promise<SaveResult> {

@@ -34,6 +34,7 @@ FAKE_PARENT=""
 PARENT_PID_FOR_BINARY=""
 PYTHON=""
 
+# shellcheck disable=SC2317  # 由 cleanup 呼叫，cleanup 又只經 trap 觸發，ShellCheck 看不到呼叫點
 stop_sidecar() {
   [ -n "$PID" ] || return 0
   kill "$PID" 2>/dev/null || return 0
@@ -52,6 +53,7 @@ kill_fake_parent() {
   "$PYTHON" -c 'import os, signal, sys; os.kill(int(sys.argv[1]), signal.SIGTERM)' "$PARENT_PID_FOR_BINARY"
 }
 
+# shellcheck disable=SC2317  # 只經 trap cleanup EXIT 觸發，ShellCheck 看不到呼叫點
 cleanup() {
   stop_sidecar
   [ -z "$PARENT_PID_FOR_BINARY" ] || kill_fake_parent 2>/dev/null || true
@@ -91,7 +93,7 @@ if [ -z "$PARENT_PID_FOR_BINARY" ]; then
   exit 1
 fi
 
-STARSCOPE_DATA_DIR="$DATA_DIR" PORT="$PORT" ENV=production DEBUG=false GITHUB_TOKEN= \
+STARSCOPE_DATA_DIR="$DATA_DIR" PORT="$PORT" ENV=production DEBUG=false GITHUB_TOKEN='' \
   PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring \
   STARSCOPE_PARENT_PID="$PARENT_PID_FOR_BINARY" \
   "$BINARY" >"$LOG_FILE" 2>&1 &

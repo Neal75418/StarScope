@@ -11,14 +11,6 @@ import type { TrendingPeriod } from "../components/discovery";
 import { useI18n } from "../i18n";
 import { queryKeys } from "../lib/react-query";
 
-export interface DiscoverySearchState {
-  repos: DiscoveryRepo[];
-  totalCount: number;
-  hasMore: boolean;
-  loading: boolean;
-  error: string | null;
-}
-
 interface SearchParams {
   query: string;
   filters: SearchFilters;

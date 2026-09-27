@@ -143,7 +143,7 @@ describe("useBackfillStatus", () => {
     const callsBefore = vi.mocked(apiClient.getBackfillStatus).mock.calls.length;
 
     await act(async () => {
-      result.current.loadStatus();
+      await result.current.loadStatus();
     });
 
     await waitFor(() => {

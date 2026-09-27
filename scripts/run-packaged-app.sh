@@ -50,8 +50,9 @@ if [ "${1:-}" != "--skip-build" ]; then
     || { echo "❌ app 打包失敗，見 $WORK/tauri-build.log"; exit 1; }
 fi
 
-[ -x "$APP/Contents/MacOS/starscope" ] && [ -x "$SIDECAR" ] \
-  || { echo "❌ ${APP} 不完整，先不帶 --skip-build 跑一次"; exit 1; }
+if ! { [ -x "$APP/Contents/MacOS/starscope" ] && [ -x "$SIDECAR" ]; }; then
+  echo "❌ ${APP} 不完整，先不帶 --skip-build 跑一次"; exit 1
+fi
 [ ! -e "$APP/Contents/Resources/sidecar/README.md" ] \
   || { echo "❌ repo 的 src-tauri/sidecar/README.md 也被打包進去了：--config 沒有取代 resources"; exit 1; }
 codesign --verify --deep --strict "$APP" || { echo "❌ 簽章驗證失敗（下載後會被判「已損毀」）"; exit 1; }
@@ -77,6 +78,7 @@ echo "== app 已結束（exit $?）"
 
 # 只看執行檔路徑（comm），不看參數：macOS 上讀別的行程的參數可能溢出到它的環境變數
 # 比對這次打包產物的完整路徑：只寫 StarScope.app/... 會連 /Applications 裡安裝的版本一起算進去
+# shellcheck disable=SC2009  # 刻意不用 pgrep -f：macOS 上 -f 會把別的行程的環境變數一起讀出來
 leftover() { ps -axo pid=,comm= | grep -F "$SIDECAR" | grep -v grep; }
 for _ in {1..5}; do
   if ! leftover >/dev/null && ! lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then

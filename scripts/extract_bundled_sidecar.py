@@ -110,7 +110,7 @@ if __name__ == "__main__":
     if len(sys.argv) not in (3, 4):
         sys.exit(f"用法: {sys.argv[0]} <bundle 目錄> <輸出目錄> [deb|appimage]")
     try:
-        kind = sys.argv[3] if len(sys.argv) == 4 else None
-        print(extract(Path(sys.argv[1]), Path(sys.argv[2]), kind=kind).as_posix())
+        bundle_kind = sys.argv[3] if len(sys.argv) == 4 else None
+        print(extract(Path(sys.argv[1]), Path(sys.argv[2]), kind=bundle_kind).as_posix())
     except (ExtractError, subprocess.CalledProcessError) as e:
         sys.exit(f"❌ {e}")

@@ -2868,28 +2868,8 @@ body {
   margin-bottom: 1.5rem;
 }
 
-.import-hint--warning {
-  color: var(--warning-fg);
-}
-
 .import-hint--small {
   font-size: 0.75rem;
-}
-
-.import-actions--mb {
-  margin-bottom: 0.75rem;
-}
-
-.import-actions--mt {
-  margin-top: 0.75rem;
-}
-
-.import-preview-list--tall {
-  max-height: 300px;
-}
-
-.import-item--selectable {
-  cursor: pointer;
 }
 
 .import-error--mt {
@@ -4826,92 +4806,6 @@ button.stat-card {
   color: var(--fg-subtle);
 }
 
-/* Top Movers */
-.weekly-mover {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 0;
-  font-size: 13px;
-  border-bottom: 1px solid var(--border-muted);
-}
-
-.weekly-mover:last-child {
-  border-bottom: none;
-}
-
-.weekly-mover-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--fg-default);
-  font-weight: 500;
-}
-
-.weekly-mover-delta {
-  font-weight: 600;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
-.weekly-mover-trend {
-  font-size: 13px;
-  width: 16px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-/* Signals Overview */
-.weekly-stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.weekly-stat-row--sub {
-  padding-left: 12px;
-  font-size: 12px;
-  color: var(--fg-muted);
-}
-
-.weekly-stat-label {
-  color: var(--fg-muted);
-  white-space: nowrap;
-}
-
-.weekly-stat-value {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.weekly-momentum {
-  display: flex;
-  gap: 12px;
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.weekly-momentum > span {
-  padding: 3px 10px;
-  border-radius: var(--radius-xl);
-  background: var(--bg-subtle);
-}
-
-.weekly-momentum > .trend-up {
-  color: var(--success-fg);
-}
-
-.weekly-momentum > .trend-down {
-  color: var(--danger-fg);
-}
-
 /* HN Mentions — full-width row */
 .weekly-column--wide {
   grid-column: 1 / -1;
@@ -5581,37 +5475,6 @@ button.stat-card {
 .alert-rule-description-textarea:focus {
   outline: none;
   border-color: var(--accent-fg);
-}
-
-/* Data Freshness Bar */
-.data-freshness-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0;
-  font-size: 12px;
-  color: var(--fg-muted);
-}
-
-.freshness-time {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.freshness-offline {
-  color: var(--warning-fg);
-  font-weight: 600;
-}
-
-.freshness-syncing {
-  color: var(--accent-fg);
-}
-
-.freshness-refresh {
-  padding: 2px 6px;
-  font-size: 14px;
-  cursor: pointer;
 }
 
 /* Diagnostics Grid */

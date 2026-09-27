@@ -668,6 +668,8 @@ export async function fetchExportFile(url: string): Promise<ExportFile> {
       const error = await response
         .json()
         .catch(() => ({ detail: API_ERROR_MESSAGES.UNKNOWN_ERROR }));
+      // 在 try 裡 throw 是刻意的：下面的 catch 只把逾時／斷線轉成 ApiError，ApiError 本身原樣重拋
+      // noinspection ExceptionCaughtLocallyJS
       throw new ApiError(response.status, error.detail ?? API_ERROR_MESSAGES.UNKNOWN_ERROR);
     }
     // 讀 body 也放在 try 裡：逾時或斷線可能發生在這一步

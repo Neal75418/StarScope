@@ -2,7 +2,7 @@
  * Compare 頁面 E2E 測試。
  * 驗證 repo 選擇、指標切換與圖表渲染。
  *
- * 前置資料自備：用 API 播種兩個 octocat fixture repo（只清理本次真正新增的），
+ * 前置資料自備：用 API 播種兩個 octocat fixture repo（afterAll 無條件清掉兩個），
  * 讓核心測試在乾淨 DB 上也真的執行——舊版靠「watchlist 剛好有 2 個 repo」
  * 否則 skip，在隔離環境等於永遠不跑的死測試。
  */
@@ -18,14 +18,12 @@ test.describe("Compare Flow", () => {
   // （chromium、串行、排在其他 project 之後）——describe 級的 browserName skip
   // 擋不住 beforeAll/afterAll，播種與清理仍會與平行 project 互撞，故用 project 隔離。
   let api: APIRequestContext;
-  const seededByUs: string[] = [];
 
   test.beforeAll(async ({ playwright }) => {
     api = await playwright.request.newContext();
     for (const fullName of FIXTURES.compare) {
       if (!(await isRepoTracked(api, fullName))) {
         expect(await addRepoViaApi(api, fullName), `seed ${fullName} 失敗`).toBe(true);
-        seededByUs.push(fullName);
       }
     }
     // 播種後驗最終狀態：add 回 200 不代表 repo 真的在清單裡
@@ -35,9 +33,9 @@ test.describe("Compare Flow", () => {
   });
 
   test.afterAll(async () => {
-    // 無條件清掉兩個 fixture（不只 seededByUs）：選 octocat 的理由就是「沒有人會
-    // 真的追蹤它們」，所以刪掉一定安全；只刪 seededByUs 的話，上次中斷留下的殘留
-    // 會因為「已 tracked 所以不播種、也不記錄」而永遠沒有人收，dashboard 的空狀態
+    // 無條件清掉兩個 fixture（不只這次播種的）：選 octocat 的理由就是「沒有人會
+    // 真的追蹤它們」，所以刪掉一定安全；只刪這次播種的話，上次中斷留下的殘留
+    // 會因為「已 tracked 所以不播種」而永遠沒有人收，dashboard 的空狀態
     // 斷言從此固定紅。
     for (const fullName of FIXTURES.compare) {
       await removeRepoByFullName(api, fullName);

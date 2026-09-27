@@ -299,7 +299,7 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
                         attempt + 1,
                         MAX_RETRIES + 1
                     );
-                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                    std::thread::sleep(Duration::from_millis(delay_ms));
                 } else {
                     warn!(
                         "Sidecar 啟動失敗 (嘗試 {}/{})，已達重試上限: {e}",
@@ -472,7 +472,7 @@ mod tests {
     /// 請求必須是打 health 的 HTTP/1.1 且帶 Host：真的 sidecar 對沒有 Host 的請求回 400
     fn serve_once(body: &'static str) -> u16 {
         use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         std::thread::spawn(move || {
             if let Ok((mut stream, _)) = listener.accept() {
@@ -499,7 +499,7 @@ mod tests {
     #[test]
     fn port_holder_reports_a_free_port() {
         let port = {
-            let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             listener.local_addr().unwrap().port()
         }; // listener 已關閉
         assert_eq!(port_holder(port), None);
@@ -523,7 +523,7 @@ mod tests {
     #[cfg(target_os = "macos")]
     #[test]
     fn port_holder_treats_a_wildcard_listener_as_free_when_loopback_still_binds() {
-        let wildcard = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+        let wildcard = TcpListener::bind("0.0.0.0:0").unwrap();
         let port = wildcard.local_addr().unwrap().port();
         assert_eq!(port_holder(port), None);
         drop(wildcard);
@@ -533,7 +533,7 @@ mod tests {
     fn port_holder_gives_up_on_a_holder_that_never_finishes_answering() {
         // 接了連線卻一點一點慢慢回：探測要有總時間上限，不能拖住 sidecar 的啟動
         use std::io::{Read, Write};
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         std::thread::spawn(move || {
             if let Ok((mut stream, _)) = listener.accept() {
@@ -613,7 +613,7 @@ mod tests {
     }
 
     /// 每個測試自己的暫存目錄（dev-dependencies 沒有 tempfile）
-    fn scratch_dir(name: &str) -> std::path::PathBuf {
+    fn scratch_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("starscope-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
