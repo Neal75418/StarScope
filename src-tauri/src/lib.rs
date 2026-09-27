@@ -812,10 +812,13 @@ fn show_main_window(app: &AppHandle) {
 }
 
 /// 結束 sidecar 時等 SIGTERM 生效的上限；逾時改用 SIGKILL，不讓 app 卡在結束
+#[cfg(unix)] // Windows 沒有 SIGTERM，直接 kill：不等
 const SIDECAR_STOP_TIMEOUT: Duration = Duration::from_secs(3);
+#[cfg(unix)]
 const SIDECAR_STOP_POLL: Duration = Duration::from_millis(50);
 
 /// 反覆檢查 `done()` 直到成立或逾時；成立回 true。
+#[cfg(any(unix, test))] // 只有 terminate_gracefully（Unix）與測試用到
 fn wait_until(mut done: impl FnMut() -> bool, timeout: Duration, step: Duration) -> bool {
     let deadline = std::time::Instant::now() + timeout;
     loop {
