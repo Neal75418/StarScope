@@ -189,7 +189,7 @@ def calculate_acceleration(
         week_ago_snapshot = get_snapshot_for_date(repo_id, one_week_ago, db)
         two_week_ago_snapshot = get_snapshot_for_date(repo_id, two_weeks_ago, db)
 
-    if not all([current_snapshot, week_ago_snapshot, two_week_ago_snapshot]):
+    if current_snapshot is None or week_ago_snapshot is None or two_week_ago_snapshot is None:
         return None
 
     # 每一週各自除以自己的實際跨距，不是寫死的 7.0。

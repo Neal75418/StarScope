@@ -62,11 +62,12 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         # 驗證 header
         provided = request.headers.get(SESSION_SECRET_HEADER)
         if not provided or not hmac.compare_digest(provided, self._secret):
+            client = request.client
             logger.warning(
                 "[SessionAuth] 拒絕未授權請求: %s %s (from %s)",
                 request.method,
                 request.url.path,
-                request.client.host if request.client else "unknown",
+                client.host if client else "unknown",
             )
             return JSONResponse(
                 status_code=403,

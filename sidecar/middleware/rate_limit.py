@@ -9,8 +9,9 @@ from slowapi import Limiter
 
 def _get_client_host(request: Request) -> str:
     """取得直接連線的客戶端 IP，不信任 proxy header（桌面 sidecar 不需要）。"""
-    if request.client:
-        return request.client.host
+    client = request.client  # 存成區域變數：property 的 None 收窄不會延續到下一行
+    if client:
+        return client.host
     return "127.0.0.1"
 
 

@@ -106,7 +106,12 @@ def start_parent_watchdog(
     檢查函式在這裡（啟動時）就建好：Windows 上要趁父行程確定還在時拿住它的 handle。
     is_alive 只給測試注入用；正式路徑不傳，走 _liveness_check。
     """
-    alive: Callable[[], bool] = (lambda: is_alive(pid)) if is_alive else _liveness_check(pid)
+    alive: Callable[[], bool]
+    if is_alive is None:
+        alive = _liveness_check(pid)
+    else:
+        check = is_alive  # 綁到非 Optional 的名字，lambda 裡才看得到收窄
+        alive = lambda: check(pid)  # noqa: E731
 
     def watch() -> None:
         while alive():

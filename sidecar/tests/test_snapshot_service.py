@@ -1,7 +1,7 @@
 """Tests for services/snapshot.py — create_or_update_snapshot & update_repo_from_github."""
 
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from db.models import Repo, RepoSnapshot
 from services.snapshot import create_or_update_snapshot, update_repo_from_github
@@ -97,19 +97,23 @@ class TestCreateOrUpdateSnapshot:
 
 
 class TestUpdateRepoFromGithub:
-    """Tests for update_repo_from_github."""
+    """Tests for update_repo_from_github。
 
-    @patch("services.snapshot.calculate_signals")
-    def test_updates_metadata(self, mock_calc, test_db, mock_repo):
+    calculate_signals 用 monkeypatch 換掉，不用 @patch decorator：decorator 注入的參數
+    會跟 pytest fixture 混在同一個簽名裡，PyCharm 數不清哪些是 @patch 的。
+    """
+
+    def test_updates_metadata(self, monkeypatch, test_db, mock_repo):
         """應更新 repo 的 description 和 language。"""
+        monkeypatch.setattr("services.snapshot.calculate_signals", MagicMock())
         update_repo_from_github(mock_repo, SAMPLE_GITHUB_DATA, test_db)
 
         assert mock_repo.description == "Updated description"
         assert mock_repo.language == "TypeScript"
 
-    @patch("services.snapshot.calculate_signals")
-    def test_creates_snapshot(self, mock_calc, test_db, mock_repo):
+    def test_creates_snapshot(self, monkeypatch, test_db, mock_repo):
         """應建立快照。"""
+        monkeypatch.setattr("services.snapshot.calculate_signals", MagicMock())
         update_repo_from_github(mock_repo, SAMPLE_GITHUB_DATA, test_db)
 
         snapshots = (
@@ -120,20 +124,22 @@ class TestUpdateRepoFromGithub:
         assert len(snapshots) == 1
         assert snapshots[0].stars == 5000
 
-    @patch("services.snapshot.calculate_signals")
-    def test_calls_calculate_signals(self, mock_calc, test_db, mock_repo):
+    def test_calls_calculate_signals(self, monkeypatch, test_db, mock_repo):
         """應呼叫 calculate_signals 重新計算訊號。"""
+        mock_calc = MagicMock()
+        monkeypatch.setattr("services.snapshot.calculate_signals", mock_calc)
         update_repo_from_github(mock_repo, SAMPLE_GITHUB_DATA, test_db)
 
         mock_calc.assert_called_once_with(mock_repo.id, test_db)
 
-    @patch("services.snapshot.calculate_signals")
-    def test_commits_atomically(self, mock_calc, test_db, mock_repo):
+    def test_commits_atomically(self, monkeypatch, test_db, mock_repo):
         """應在最後提交所有變更。"""
+        monkeypatch.setattr("services.snapshot.calculate_signals", MagicMock())
         update_repo_from_github(mock_repo, SAMPLE_GITHUB_DATA, test_db)
 
         # 驗證資料已持久化（不需手動 commit）
         refreshed = test_db.query(Repo).filter(Repo.id == mock_repo.id).first()
+        assert refreshed is not None
         assert refreshed.description == "Updated description"
 
 

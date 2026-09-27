@@ -88,8 +88,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def _get_client_ip(request: Request) -> str:
         """從 request 提取 client IP（本機 sidecar 直接使用 client.host）。"""
-        if request.client:
-            return request.client.host
+        client = request.client  # 存成區域變數：property 的 None 收窄不會延續到下一行
+        if client:
+            return client.host
         return "unknown"
 
     def _log_request(
