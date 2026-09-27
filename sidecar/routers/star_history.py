@@ -5,6 +5,7 @@ Star 歷史回填 API 端點。
 
 from collections import defaultdict
 from datetime import datetime, date, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -86,8 +87,8 @@ class PortfolioHistoryResponse(BaseModel):
 # Portfolio 歷史端點（必須在 /{repo_id} 之前定義以避免路由衝突）
 @router.get("/portfolio", response_model=ApiResponse[PortfolioHistoryResponse])
 def get_portfolio_history(
-    days: int = Query(default=30, ge=7, le=365),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    days: Annotated[int, Query(ge=7, le=365)] = 30,
 ) -> dict:
     """
     取得所有追蹤 repo 的聚合 star 歷史。
@@ -239,7 +240,7 @@ def _create_snapshots_from_history(
 @router.get("/{repo_id}/status", response_model=ApiResponse[BackfillStatus])
 def get_backfill_status(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     檢查 repo 是否符合 star 歷史回填條件。
@@ -282,7 +283,7 @@ def get_backfill_status(
 @router.post("/{repo_id}/backfill", response_model=ApiResponse[BackfillResult])
 async def backfill_star_history(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     回填 repo 的 star 歷史。
@@ -379,7 +380,7 @@ async def backfill_star_history(
 @router.get("/{repo_id}", response_model=ApiResponse[StarHistoryResponse])
 def get_star_history(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     取得 repo 的完整 star 歷史。

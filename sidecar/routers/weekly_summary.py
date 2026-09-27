@@ -3,6 +3,8 @@
 為 Dashboard 提供彙整的每週資料。
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -66,8 +68,8 @@ class WeeklySummaryResponse(BaseModel):
 
 @router.get("/weekly", response_model=ApiResponse[WeeklySummaryResponse])
 def weekly_summary(
-    days: int = Query(default=7, ge=7, le=30),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    days: Annotated[int, Query(ge=7, le=30)] = 7,
 ) -> dict:
     """
     取得摘要，包含：

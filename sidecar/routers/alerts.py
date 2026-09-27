@@ -2,7 +2,7 @@
 警報 API 端點，管理警報規則與檢視已觸發的警報。
 """
 
-from typing import Literal, get_args
+from typing import Annotated, get_args, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
@@ -178,9 +178,9 @@ async def list_signal_types() -> dict:
 
 @router.get("/rules", response_model=ApiResponse[list[AlertRuleResponse]])
 def list_rules(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> dict:
     """
     列出所有警報規則（含分頁）。
@@ -205,7 +205,7 @@ def list_rules(
 
 
 @router.post("/rules", response_model=ApiResponse[AlertRuleResponse])
-def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)) -> dict:
+def create_rule(rule: AlertRuleCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
     """建立新警報規則。
     signal_type 與 operator 由 Pydantic Literal 型別驗證。
     """
@@ -233,7 +233,7 @@ def create_rule(rule: AlertRuleCreate, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
-def get_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
+def get_rule(rule_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """取得特定警報規則。"""
     rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -243,7 +243,7 @@ def get_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.patch("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
-def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get_db)) -> dict:
+def update_rule(rule_id: int, update: AlertRuleUpdate, db: Annotated[Session, Depends(get_db)]) -> dict:
     """更新警報規則。"""
     rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -280,7 +280,7 @@ def update_rule(rule_id: int, update: AlertRuleUpdate, db: Session = Depends(get
 
 
 @router.delete("/rules/{rule_id}", response_model=ApiResponse[StatusResponse])
-def delete_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
+def delete_rule(rule_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """刪除警報規則。"""
     rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
     if not rule:
@@ -296,9 +296,9 @@ def delete_rule(rule_id: int, db: Session = Depends(get_db)) -> dict:
 
 @router.get("/triggered", response_model=ApiResponse[list[TriggeredAlertResponse]])
 def list_triggered_alerts(
+    db: Annotated[Session, Depends(get_db)],
     unacknowledged_only: bool = False,
-    limit: int = Query(50, ge=1, le=500),
-    db: Session = Depends(get_db)
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> dict:
     """列出已觸發的警報。"""
     # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢
@@ -321,7 +321,7 @@ def list_triggered_alerts(
 
 
 @router.post("/triggered/{alert_id}/acknowledge", response_model=ApiResponse[StatusResponse])
-def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)) -> dict:
+def acknowledge_single_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """確認已觸發的警報。"""
     if acknowledge_alert(db, alert_id):
         return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
@@ -329,14 +329,14 @@ def acknowledge_single_alert(alert_id: int, db: Session = Depends(get_db)) -> di
 
 
 @router.post("/triggered/acknowledge-all", response_model=ApiResponse[StatusResponse])
-def acknowledge_all(db: Session = Depends(get_db)) -> dict:
+def acknowledge_all(db: Annotated[Session, Depends(get_db)]) -> dict:
     """確認所有未確認的警報。"""
     count = acknowledge_all_alerts(db)
     return success_response(data=StatusResponse(status="acknowledged", count=count))
 
 
 @router.post("/check", response_model=ApiResponse[CheckAlertsResponse])
-def check_alerts_now(db: Session = Depends(get_db)) -> dict:
+def check_alerts_now(db: Annotated[Session, Depends(get_db)]) -> dict:
     """手動觸發警報檢查。"""
     triggered = check_all_alerts(db)
     check_result = CheckAlertsResponse(

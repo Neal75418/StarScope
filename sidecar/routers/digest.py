@@ -1,7 +1,7 @@
 """「自上次以來」摘要 API。分層與篩選規則在 services/digest.py。"""
 
 from datetime import timezone
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -59,7 +59,7 @@ class MarkSeenRequest(BaseModel):
 
 
 @router.get("", response_model=ApiResponse[DigestResponse])
-def get_digest(db: Session = Depends(get_db)) -> dict:
+def get_digest(db: Annotated[Session, Depends(get_db)]) -> dict:
     cursor, seen_at = load_cursor(db)
     data = build_digest(db, cursor)
     data["last_seen_at"] = seen_at.replace(tzinfo=timezone.utc).isoformat() if seen_at else None
@@ -67,7 +67,7 @@ def get_digest(db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/seen", response_model=ApiResponse[DigestCursorModel])
-def mark_digest_seen(body: MarkSeenRequest, db: Session = Depends(get_db)) -> dict:
+def mark_digest_seen(body: MarkSeenRequest, db: Annotated[Session, Depends(get_db)]) -> dict:
     """推進游標到前端這批回應的 cursor（不是送出當下的最大 id）；逐欄 max，重送無害。"""
     written = save_cursor(clamp_to_existing(DigestCursor(**body.cursor.model_dump()), db), db)
     return success_response(data=DigestCursorModel(**written.__dict__))

@@ -2,6 +2,7 @@
 import json
 import logging
 from datetime import date, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, field_validator
@@ -104,8 +105,8 @@ def _to_out(item: FeedItem) -> FeedItemOut:
 
 
 @router.get("", response_model=ApiResponse[FeedResponse])
-def get_feed(feed_date: date | None = Query(None),
-             db: Session = Depends(get_db)) -> dict:
+def get_feed(db: Annotated[Session, Depends(get_db)],
+             feed_date: Annotated[date | None, Query()] = None) -> dict:
     # feed_date 用本機日期而非 UTC 日期：cron 產生批次與使用者查詢
     # 必須用同一套日曆日鍵，否則在 UTC+8 等時區會整段時間對不上（見 local_today）
     target = feed_date or local_today()
@@ -119,7 +120,7 @@ def get_feed(feed_date: date | None = Query(None),
 
 @router.post("/generate", response_model=ApiResponse[GenerateResult])
 @limiter.limit("6/minute")
-async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> dict:
+async def trigger_generate(request: Request, db: Annotated[Session, Depends(get_db)]) -> dict:
     """觸發當日 feed 產生。
 
     限流理由：本端點會對「每個興趣」各打一次 GitHub search，而前端在 feed 為空時
@@ -142,7 +143,7 @@ async def trigger_generate(request: Request, db: Session = Depends(get_db)) -> d
 
 @router.post("/items/{item_id}/feedback", response_model=ApiResponse[FeedItemOut])
 def submit_feedback(item_id: int, payload: FeedbackPayload,
-                    db: Session = Depends(get_db)) -> dict:
+                    db: Annotated[Session, Depends(get_db)]) -> dict:
     item = db.get(FeedItem, item_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Feed item not found")
@@ -158,7 +159,7 @@ def submit_feedback(item_id: int, payload: FeedbackPayload,
 
 
 @router.post("/items/{item_id}/opened", response_model=ApiResponse[dict])
-def mark_opened(item_id: int, db: Session = Depends(get_db)) -> dict:
+def mark_opened(item_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """記錄使用者點開了這個 repo 的連結。
 
     為什麼需要它：feedback 只記「加入」與「略過」，而這兩個動作都很稀疏
@@ -177,8 +178,8 @@ def mark_opened(item_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/stats", response_model=ApiResponse[FeedStats])
-def get_feed_stats(days: int = Query(30, ge=1, le=365),
-                   db: Session = Depends(get_db)) -> dict:
+def get_feed_stats(db: Annotated[Session, Depends(get_db)],
+                   days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict:
     """近 N 天的 feed 成效。
 
     四個數字要一起看才有意義：shown 高但 opened 低代表推的東西你根本不想點，

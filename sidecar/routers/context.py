@@ -4,6 +4,7 @@
 """
 
 from datetime import datetime, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict
@@ -91,9 +92,9 @@ class FetchContextResponse(BaseModel):
 @router.get("/{repo_id}/signals", response_model=ApiResponse[ContextSignalsResponse])
 def get_context_signals(
     repo_id: int,
-    signal_type: str | None = Query(None, description="Filter by signal type (hacker_news only)"),
-    limit: int = Query(50, ge=1, le=100),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    signal_type: Annotated[str | None, Query(description="Filter by signal type (hacker_news only)")] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> dict:
     """
     取得 repo 的所有情境訊號。
@@ -129,7 +130,7 @@ def get_context_signals(
 @router.get("/{repo_id}/badges", response_model=ApiResponse[ContextBadgesResponse])
 def get_context_badges(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     取得 repo 的情境徽章。
@@ -172,7 +173,7 @@ def get_context_badges(
 @router.post("/{repo_id}/fetch", response_model=ApiResponse[FetchContextResponse])
 async def fetch_repo_context(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     手動觸發 repo 的情境訊號抓取。
@@ -202,7 +203,7 @@ async def fetch_repo_context(
 @router.post("/badges/batch", response_model=ApiResponse[BatchBadgesResponse])
 def get_context_badges_batch(
     request: BatchBadgesRequest,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     批次取得多個 repo 的情境徽章。

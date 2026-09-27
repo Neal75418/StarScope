@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel
 from sqlalchemy import desc
@@ -207,9 +207,9 @@ def _build_repo_list_response(
 
 @router.get("/repos", response_model=ApiResponse[RepoListResponse])
 def list_repos(
-    page: int | None = Query(None, ge=1, description="Page number (omit for all results)"),
-    per_page: int | None = Query(None, ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page"),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    page: Annotated[int | None, Query(ge=1, description="Page number (omit for all results)")] = None,
+    per_page: Annotated[int | None, Query(ge=1, le=MAX_REPOS_PER_PAGE, description="Items per page")] = None,
 ) -> dict:
     """
     列出追蹤清單中的所有 repo 及其最新訊號。
@@ -231,7 +231,7 @@ def list_repos(
 
 
 @router.post("/repos", response_model=ApiResponse[RepoWithSignals], status_code=status.HTTP_201_CREATED)
-async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dict:
+async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     將新 repo 加入追蹤清單。
     可提供 owner+name 或 GitHub URL。
@@ -310,7 +310,7 @@ async def add_repo(repo_input: RepoCreate, db: Session = Depends(get_db)) -> dic
 
 @router.post("/repos/fetch-all", response_model=ApiResponse[RepoListResponse])
 @limiter.limit("5/minute")
-async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> dict:
+async def fetch_all_repos(request: Request, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
@@ -361,7 +361,7 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
 async def batch_add_repos(
     batch: BatchRepoCreate,
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """
     批次將多個 repo 加入追蹤清單。
@@ -453,7 +453,7 @@ async def batch_add_repos(
 
 
 @router.get("/repos/archived", response_model=ApiResponse[RepoListResponse])
-def list_archived(db: Session = Depends(get_db)) -> dict:
+def list_archived(db: Annotated[Session, Depends(get_db)]) -> dict:
     """已取消 star 但資料仍保留的 repo。
 
     必須宣告在 /repos/{repo_id} 之前：FastAPI 依宣告順序比對，
@@ -467,7 +467,7 @@ def list_archived(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/repos/{repo_id}", response_model=ApiResponse[RepoWithSignals])
-def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
+def get_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     依 ID 取得單一 repo 及其訊號。
     """
@@ -477,7 +477,7 @@ def get_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/repos/{repo_id}/unstar", response_model=ApiResponse[dict])
-async def unstar_repo_endpoint(repo_id: int, db: Session = Depends(get_db)) -> dict:
+async def unstar_repo_endpoint(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """取消追蹤：在 GitHub 取消 star，本機封存。不刪任何資料。
 
     先寫 GitHub 才改本機，理由同 add_repo：反向順序會在遠端失敗時讓本機與 GitHub
@@ -495,7 +495,7 @@ async def unstar_repo_endpoint(repo_id: int, db: Session = Depends(get_db)) -> d
 
 
 @router.post("/repos/{repo_id}/restar", response_model=ApiResponse[dict])
-async def restar_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
+async def restar_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """從封存清單復原：重新 star 並清除封存標記。快照與訊號原本就還在。"""
     repo = get_repo_or_404(repo_id, db, allow_archived=True)
     github = get_github_service()
@@ -507,7 +507,7 @@ async def restar_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.delete("/repos/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
+def remove_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> None:
     """永久刪除。
 
     連同快照、訊號、context signals、early signals 與**警示規則**一併 cascade
@@ -527,7 +527,7 @@ def remove_repo(repo_id: int, db: Session = Depends(get_db)) -> None:
 
 
 @router.post("/repos/{repo_id}/fetch", response_model=ApiResponse[RepoWithSignals])
-async def fetch_repo(repo_id: int, db: Session = Depends(get_db)) -> dict:
+async def fetch_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     手動抓取 repo 的最新資料。
     建立新快照並重新計算訊號。
@@ -570,7 +570,7 @@ class SyncStatusOut(BaseModel):
 
 @router.post("/repos/sync", response_model=ApiResponse[SyncResultOut])
 @limiter.limit("4/minute")
-async def sync_stars(request: Request, db: Session = Depends(get_db)) -> dict:
+async def sync_stars(request: Request, db: Annotated[Session, Depends(get_db)]) -> dict:
     """把追蹤清單對齊 GitHub 的 star。
 
     限流理由：這支會逐頁拉取並可能建立上百列。連按不會更快，只會讓兩輪互相
@@ -582,7 +582,7 @@ async def sync_stars(request: Request, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/repos/sync/status", response_model=ApiResponse[SyncStatusOut])
-def sync_status(db: Session = Depends(get_db)) -> dict:
+def sync_status(db: Annotated[Session, Depends(get_db)]) -> dict:
     return success_response(SyncStatusOut(
         last_sync_at=get_setting(AppSettingKey.LAST_STAR_SYNC_AT, db),
         # 不能用 bool(非空)：行程被殺時鎖會殘留，那樣會永遠顯示「同步中」。
@@ -593,7 +593,7 @@ def sync_status(db: Session = Depends(get_db)) -> dict:
 
 @router.post("/repos/sync/resolve", response_model=ApiResponse[dict])
 async def resolve_local_only(payload: ResolvePayload,
-                             db: Session = Depends(get_db)) -> dict:
+                             db: Annotated[Session, Depends(get_db)]) -> dict:
     """處理首次同步列出的「本機有、GitHub 沒有」的 repo。
 
     star：推上 GitHub，讓它進入鏡像。archive：接受它已經不在清單裡。

@@ -4,6 +4,8 @@
 """
 
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
@@ -231,7 +233,7 @@ def _apply_category_updates(category: Category, request: CategoryUpdate) -> None
 # 端點
 @router.get("/tree", response_model=ApiResponse[CategoryTreeResponse])
 def get_category_tree(
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     以階層樹狀結構取得分類。
@@ -255,7 +257,7 @@ def get_category_tree(
 @router.get("/{category_id}", response_model=ApiResponse[CategoryResponse])
 def get_category(
     category_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     依 ID 取得特定分類。
@@ -273,7 +275,7 @@ def get_category(
 @router.post("/", response_model=ApiResponse[CategoryResponse])
 def create_category(
     request: CategoryCreate,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     建立新分類。
@@ -312,7 +314,7 @@ def create_category(
 def update_category(
     category_id: int,
     request: CategoryUpdate,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     更新分類。
@@ -341,7 +343,7 @@ def update_category(
 @router.delete("/{category_id}", response_model=ApiResponse[StatusResponse])
 def delete_category(
     category_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     刪除分類。
@@ -361,9 +363,9 @@ def delete_category(
 @router.get("/{category_id}/repos", response_model=ApiResponse[CategoryReposResponse])
 def get_category_repos(
     category_id: int,
+    db: Annotated[Session, Depends(get_db)],
     skip: int = 0,
-    limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> dict:
     """
     取得分類中的所有 repo（含分頁）。
@@ -411,7 +413,7 @@ def get_category_repos(
 def add_repo_to_category(
     category_id: int,
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     將 repo 加入分類。
@@ -443,7 +445,7 @@ def add_repo_to_category(
 def remove_repo_from_category(
     category_id: int,
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     從分類中移除 repo。
@@ -467,7 +469,7 @@ def remove_repo_from_category(
 @router.get("/repo/{repo_id}/categories", response_model=ApiResponse[RepoCategoriesResponse])
 def get_repo_categories(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     取得 repo 所屬的所有分類。

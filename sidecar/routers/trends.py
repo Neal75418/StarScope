@@ -3,6 +3,7 @@
 """
 
 from enum import Enum
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict
@@ -70,11 +71,11 @@ class TrendsResponse(BaseModel):
 
 @router.get("/", response_model=ApiResponse[TrendsResponse])
 def get_trends(
-    sort_by: SortBy = Query(SortBy.VELOCITY, description="Sort by which metric"),
-    limit: int = Query(50, ge=1, le=100, description="Maximum number of results"),
-    language: str | None = Query(None, description="Filter by programming language"),
-    min_stars: int | None = Query(None, ge=0, description="Minimum star count"),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    sort_by: Annotated[SortBy, Query(description="Sort by which metric")] = SortBy.VELOCITY,
+    limit: Annotated[int, Query(ge=1, le=100, description="Maximum number of results")] = 50,
+    language: Annotated[str | None, Query(description="Filter by programming language")] = None,
+    min_stars: Annotated[int | None, Query(ge=0, description="Minimum star count")] = None,
 ) -> dict:
     """
     依趨勢指標排序取得 repo。

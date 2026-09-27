@@ -3,6 +3,8 @@
 基於 topics 與語言提供相似 repo 推薦。
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -62,7 +64,7 @@ class PersonalizedResponse(BaseModel):
 @router.post("/repo/{repo_id}/calculate", response_model=ApiResponse[CalculateSimilaritiesResponse])
 def calculate_similarities_for_repo(
     repo_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     計算（或重新計算）特定 repo 的相似度分數。
@@ -89,7 +91,7 @@ def calculate_similarities_for_repo(
 @limiter.limit("2/minute")
 def recalculate_all(
     request: Request,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """
     重新計算追蹤清單中所有 repo 的相似度分數。
@@ -112,8 +114,8 @@ def recalculate_all(
 
 @router.get("/personalized", response_model=ApiResponse[PersonalizedResponse])
 def get_personalized(
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of recommendations"),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=50, description="Maximum number of recommendations")] = 10,
 ) -> dict:
     """
     取得基於 watchlist 的個人化推薦。

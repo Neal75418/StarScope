@@ -1,5 +1,6 @@
 """興趣清單與 feed 黑名單 API。"""
 from dataclasses import asdict
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -84,13 +85,13 @@ def _to_out(row: Interest) -> InterestOut:
 
 
 @router.get("", response_model=ApiResponse[InterestListResponse])
-def list_interests(db: Session = Depends(get_db)) -> dict:
+def list_interests(db: Annotated[Session, Depends(get_db)]) -> dict:
     rows = db.query(Interest).order_by(Interest.weight.desc(), Interest.term).all()
     return success_response(InterestListResponse(interests=[_to_out(r) for r in rows]))
 
 
 @router.post("", response_model=ApiResponse[InterestOut])
-def create_interest(payload: InterestCreate, db: Session = Depends(get_db)) -> dict:
+def create_interest(payload: InterestCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
     exists = db.query(Interest).filter(
         Interest.term == payload.term, Interest.kind == payload.kind).first()
     if exists:
@@ -104,7 +105,7 @@ def create_interest(payload: InterestCreate, db: Session = Depends(get_db)) -> d
 
 @router.put("/{interest_id}", response_model=ApiResponse[InterestOut])
 def update_interest(interest_id: int, payload: InterestCreate,
-                    db: Session = Depends(get_db)) -> dict:
+                    db: Annotated[Session, Depends(get_db)]) -> dict:
     row = db.get(Interest, interest_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Interest not found")
@@ -123,7 +124,7 @@ def update_interest(interest_id: int, payload: InterestCreate,
 
 
 @router.delete("/{interest_id}", response_model=ApiResponse[dict])
-def delete_interest(interest_id: int, db: Session = Depends(get_db)) -> dict:
+def delete_interest(interest_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     row = db.get(Interest, interest_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Interest not found")
@@ -133,7 +134,7 @@ def delete_interest(interest_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/exclusions", response_model=ApiResponse[ExclusionListResponse])
-def list_exclusions(db: Session = Depends(get_db)) -> dict:
+def list_exclusions(db: Annotated[Session, Depends(get_db)]) -> dict:
     ensure_default_exclude_terms(db)
     rows = db.query(ExcludeTerm).order_by(ExcludeTerm.term).all()
     return success_response(ExclusionListResponse(
@@ -141,7 +142,7 @@ def list_exclusions(db: Session = Depends(get_db)) -> dict:
 
 
 @router.post("/exclusions", response_model=ApiResponse[ExcludeTermOut])
-def add_exclusion(payload: ExcludeTermCreate, db: Session = Depends(get_db)) -> dict:
+def add_exclusion(payload: ExcludeTermCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
     exists = db.query(ExcludeTerm).filter(ExcludeTerm.term == payload.term).first()
     if exists:
         raise HTTPException(status_code=409, detail="Exclusion already exists")
@@ -153,7 +154,7 @@ def add_exclusion(payload: ExcludeTermCreate, db: Session = Depends(get_db)) -> 
 
 
 @router.delete("/exclusions/{term_id}", response_model=ApiResponse[dict])
-def remove_exclusion(term_id: int, db: Session = Depends(get_db)) -> dict:
+def remove_exclusion(term_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     row = db.get(ExcludeTerm, term_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Exclusion not found")
@@ -187,7 +188,7 @@ class TrendingProgress(BaseModel):
 
 
 @router.get("/trending", response_model=ApiResponse[TrendingResponse])
-def get_trending(db: Session = Depends(get_db)) -> dict:
+def get_trending(db: Annotated[Session, Depends(get_db)]) -> dict:
     """讀取上次算好的熱門主題。永遠回快取，不會自己去打 GitHub。
 
     刻意不自動更新：趨勢以週為單位變動，每日重算多半是在重算同一份答案，
@@ -204,7 +205,7 @@ def get_trending(db: Session = Depends(get_db)) -> dict:
 
 @router.post("/trending/refresh", response_model=ApiResponse[TrendingResponse])
 @limiter.limit("2/minute")
-async def refresh_trending(request: Request, db: Session = Depends(get_db)) -> dict:
+async def refresh_trending(request: Request, db: Annotated[Session, Depends(get_db)]) -> dict:
     """重新計算熱門主題。會連打 6–36 次搜尋請求，故限流。
 
     限流理由：搜尋配額是每分鐘 30 次，且與 feed 產生、探索頁搜尋共用。
@@ -231,7 +232,7 @@ async def refresh_trending(request: Request, db: Session = Depends(get_db)) -> d
 
 
 @router.get("/trending/progress", response_model=ApiResponse[TrendingProgress])
-def get_trending_progress(db: Session = Depends(get_db)) -> dict:
+def get_trending_progress(db: Annotated[Session, Depends(get_db)]) -> dict:
     """重算進行中的進度，供前端輪詢。
 
     重算是一個長達一兩分鐘的單一請求，前端在等待期間拿不到任何中間狀態，

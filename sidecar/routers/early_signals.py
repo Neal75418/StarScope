@@ -4,6 +4,7 @@
 """
 
 from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -92,12 +93,12 @@ def _signal_to_response(signal: EarlySignal) -> EarlySignalResponse:
 # 端點
 @router.get("/", response_model=ApiResponse[EarlySignalListResponse])
 def list_early_signals(
-    signal_type: str | None = Query(None, description="Filter by signal type"),
-    severity: str | None = Query(None, description="Filter by severity"),
-    include_acknowledged: bool = Query(False, description="Include acknowledged signals"),
-    include_expired: bool = Query(False, description="Include expired signals"),
-    limit: int = Query(50, ge=1, le=200),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    signal_type: Annotated[str | None, Query(description="Filter by signal type")] = None,
+    severity: Annotated[str | None, Query(description="Filter by severity")] = None,
+    include_acknowledged: Annotated[bool, Query(description="Include acknowledged signals")] = False,
+    include_expired: Annotated[bool, Query(description="Include expired signals")] = False,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> dict:
     """
     列出所有早期訊號。
@@ -141,10 +142,10 @@ def list_early_signals(
 @router.get("/repo/{repo_id}", response_model=ApiResponse[EarlySignalListResponse])
 def get_repo_signals(
     repo_id: int,
-    include_acknowledged: bool = Query(False),
-    include_expired: bool = Query(False),
-    limit: int = Query(100, ge=1, le=500),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    include_acknowledged: Annotated[bool, Query()] = False,
+    include_expired: Annotated[bool, Query()] = False,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
 ) -> dict:
     """
     取得特定 repo 的早期訊號。
@@ -193,7 +194,7 @@ def _snapshot_days_covered(db: Session) -> int:
 
 @router.get("/summary", response_model=ApiResponse[SignalSummary])
 def get_signal_summary(
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     取得活躍訊號的摘要統計。
@@ -248,7 +249,7 @@ def get_signal_summary(
 @router.post("/{signal_id}/acknowledge", response_model=ApiResponse[StatusResponse])
 def acknowledge_signal(
     signal_id: int,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     確認早期訊號（標記為已檢視）。
@@ -280,7 +281,7 @@ class BatchSignalsResponse(BaseModel):
 @router.post("/batch", response_model=ApiResponse[BatchSignalsResponse])
 def get_repo_signals_batch(
     request: BatchSignalsRequest,
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> dict:
     """
     批次取得多個 repo 的早期訊號。

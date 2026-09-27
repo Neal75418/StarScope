@@ -12,6 +12,7 @@ select = [
     "C416",    # 多餘的推導式
     "A001", "A002",  # 遮蔽內建名
     "ERA001",  # 註解掉的程式碼
+    "FAST002", # FastAPI 依賴注入一律用 Annotated，參數不再頂著假的預設值
 ]
 
 [lint.per-file-ignores]

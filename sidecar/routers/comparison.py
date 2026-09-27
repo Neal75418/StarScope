@@ -4,6 +4,7 @@
 """
 
 from datetime import date, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -94,7 +95,7 @@ class ComparisonChartResponse(BaseModel):
 @router.post("/chart", response_model=ApiResponse[ComparisonChartResponse])
 def comparison_chart(
     req: ComparisonRequest,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ) -> dict:
     """
     取得多個 repo 的對比圖表資料。

@@ -4,6 +4,7 @@
 
 import logging
 from enum import Enum
+from typing import Annotated
 
 from fastapi import APIRouter, Query, HTTPException, Request
 
@@ -38,17 +39,17 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 @limiter.limit("30/minute")
 async def search_repos(
     request: Request,
-    q: str = Query(..., min_length=1, description="Search query"),
-    language: str | None = Query(None, description="Filter by language"),
-    min_stars: int | None = Query(None, ge=0, description="Minimum star count"),
-    topic: str | None = Query(None, description="Filter by topic"),
-    sort: SortField = Query(SortField.STARS, description="Sort field"),
-    order: OrderDirection = Query(OrderDirection.DESC, description="Sort order"),
-    license_spdx: str | None = Query(None, alias="license", description="Filter by license (SPDX ID)"),
-    max_stars: int | None = Query(None, ge=0, description="Maximum star count"),
-    hide_archived: bool = Query(False, description="Exclude archived repositories"),
-    page: int = Query(1, ge=1, le=100, description="Page number"),
-    per_page: int = Query(20, ge=1, le=100, description="Results per page"),
+    q: Annotated[str, Query(min_length=1, description="Search query")],
+    language: Annotated[str | None, Query(description="Filter by language")] = None,
+    min_stars: Annotated[int | None, Query(ge=0, description="Minimum star count")] = None,
+    topic: Annotated[str | None, Query(description="Filter by topic")] = None,
+    sort: Annotated[SortField, Query(description="Sort field")] = SortField.STARS,
+    order: Annotated[OrderDirection, Query(description="Sort order")] = OrderDirection.DESC,
+    license_spdx: Annotated[str | None, Query(alias="license", description="Filter by license (SPDX ID)")] = None,
+    max_stars: Annotated[int | None, Query(ge=0, description="Maximum star count")] = None,
+    hide_archived: Annotated[bool, Query(description="Exclude archived repositories")] = False,
+    page: Annotated[int, Query(ge=1, le=100, description="Page number")] = 1,
+    per_page: Annotated[int, Query(ge=1, le=100, description="Results per page")] = 20,
 ) -> dict:
     """
     使用 GitHub Search API 搜尋 repo。

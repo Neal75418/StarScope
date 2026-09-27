@@ -4,6 +4,7 @@
 """
 
 from datetime import date, timedelta
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
@@ -39,8 +40,8 @@ class StarsChartResponse(BaseModel):
 @router.get("/{repo_id}/stars", response_model=ApiResponse[StarsChartResponse])
 def get_stars_chart(
     repo_id: int,
-    time_range: TimeRange = Query(TimeRange.MONTH, description="Time range for chart data"),
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)],
+    time_range: Annotated[TimeRange, Query(description="Time range for chart data")] = TimeRange.MONTH,
 ) -> dict:
     """
     取得圖表用的歷史 star 數資料。

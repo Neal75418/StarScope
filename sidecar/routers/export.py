@@ -6,7 +6,7 @@
 import csv
 import io
 import json
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 # 匯出一律用 Response 而非 StreamingResponse：內容在回傳前就已完整存在記憶體
@@ -178,7 +178,7 @@ _WATCHLIST_CSV_RESPONSES: dict[int | str, dict[str, Any]] = {
 
 @router.get("/watchlist.json", response_class=Response, responses=_WATCHLIST_JSON_RESPONSES)
 def export_watchlist_json(
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> Response:
     """
     將整個追蹤清單匯出為 JSON。
@@ -212,7 +212,7 @@ CSV_COLUMNS = [
 
 @router.get("/watchlist.csv", response_class=Response, responses=_WATCHLIST_CSV_RESPONSES)
 def export_watchlist_csv(
-    db: Session = Depends(get_db)
+    db: Annotated[Session, Depends(get_db)]
 ) -> Response:
     """
     將整個追蹤清單匯出為 CSV。
@@ -288,11 +288,11 @@ TRENDS_CSV_COLUMNS = [
 
 @router.get("/trends.json", response_class=Response)
 def export_trends_json(
-    sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
-    limit: int = Query(50, ge=1, le=200, description="Maximum results"),
-    language: str | None = Query(None, description="Filter by language"),
-    min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    sort_by: Annotated[TrendsSortBy, Query(description="Sort metric")] = "velocity",
+    limit: Annotated[int, Query(ge=1, le=200, description="Maximum results")] = 50,
+    language: Annotated[str | None, Query(description="Filter by language")] = None,
+    min_stars: Annotated[int | None, Query(ge=0, description="Minimum stars")] = None,
 ) -> Response:
     """匯出趨勢 repo 為 JSON。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
@@ -313,11 +313,11 @@ def export_trends_json(
 
 @router.get("/trends.csv", response_class=Response)
 def export_trends_csv(
-    sort_by: TrendsSortBy = Query("velocity", description="Sort metric"),
-    limit: int = Query(50, ge=1, le=200, description="Maximum results"),
-    language: str | None = Query(None, description="Filter by language"),
-    min_stars: int | None = Query(None, ge=0, description="Minimum stars"),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    sort_by: Annotated[TrendsSortBy, Query(description="Sort metric")] = "velocity",
+    limit: Annotated[int, Query(ge=1, le=200, description="Maximum results")] = 50,
+    language: Annotated[str | None, Query(description="Filter by language")] = None,
+    min_stars: Annotated[int | None, Query(ge=0, description="Minimum stars")] = None,
 ) -> Response:
     """匯出趨勢 repo 為 CSV。"""
     repos = _build_trending_repo_dicts(query_trending_repos(db, sort_by, limit, language, min_stars), db)
