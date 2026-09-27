@@ -208,7 +208,7 @@ async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
         except SQLAlchemyError as e:
             db.rollback()
             errors += 1
-            logger.error(f"[上下文] {target.full_name} HN 訊號儲存失敗: {e}", exc_info=True)
+            logger.exception(f"[上下文] {target.full_name} HN 訊號儲存失敗: {e}")
 
     return {
         "repos_processed": len(repos),

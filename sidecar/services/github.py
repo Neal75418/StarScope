@@ -274,7 +274,7 @@ class GitHubService:
         topic: str | None = None,
         sort: str = "stars",
         order: str = "desc",
-        license: str | None = None,
+        license_spdx: str | None = None,
         hide_archived: bool = False,
         page: int = 1,
         per_page: int = 20,
@@ -290,7 +290,7 @@ class GitHubService:
             topic: 依 topic 篩選
             sort: 排序欄位（stars、forks、updated）
             order: 排序方向（asc、desc）
-            license: 依授權條款篩選（SPDX ID）
+            license_spdx: 依授權條款篩選（SPDX ID）
             hide_archived: 排除已歸檔 repo
             page: 頁碼（從 1 開始）
             per_page: 每頁筆數（最大 100）
@@ -315,8 +315,8 @@ class GitHubService:
             q_parts.append(f"stars:<={max_stars}")
         if topic:
             q_parts.append(f"topic:{topic}")
-        if license:
-            q_parts.append(f"license:{license}")
+        if license_spdx:
+            q_parts.append(f"license:{license_spdx}")
         if hide_archived:
             q_parts.append("archived:false")
 
@@ -632,14 +632,14 @@ async def fetch_repo_data(owner: str, repo: str) -> dict | None:
         logger.warning(f"[GitHub API] 找不到 repo: {owner}/{repo}")
         return None
     except GitHubRateLimitError as e:
-        logger.error(f"[GitHub API] GitHub 速率限制已超出: {e}", exc_info=True)
+        logger.exception(f"[GitHub API] GitHub 速率限制已超出: {e}")
         return None
     except GitHubAPIError as e:
-        logger.error(f"[GitHub API] {owner}/{repo} API 錯誤: {e}", exc_info=True)
+        logger.exception(f"[GitHub API] {owner}/{repo} API 錯誤: {e}")
         return None
     except httpx.TimeoutException:
-        logger.error(f"[GitHub API] 抓取 {owner}/{repo} 逾時", exc_info=True)
+        logger.exception(f"[GitHub API] 抓取 {owner}/{repo} 逾時")
         return None
     except httpx.RequestError as e:
-        logger.error(f"[GitHub API] 抓取 {owner}/{repo} 網路錯誤: {e}", exc_info=True)
+        logger.exception(f"[GitHub API] 抓取 {owner}/{repo} 網路錯誤: {e}")
         return None

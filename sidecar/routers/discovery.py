@@ -44,7 +44,7 @@ async def search_repos(
     topic: str | None = Query(None, description="Filter by topic"),
     sort: SortField = Query(SortField.STARS, description="Sort field"),
     order: OrderDirection = Query(OrderDirection.DESC, description="Sort order"),
-    license: str | None = Query(None, description="Filter by license (SPDX ID)"),
+    license_spdx: str | None = Query(None, alias="license", description="Filter by license (SPDX ID)"),
     max_stars: int | None = Query(None, ge=0, description="Maximum star count"),
     hide_archived: bool = Query(False, description="Exclude archived repositories"),
     page: int = Query(1, ge=1, le=100, description="Page number"),
@@ -71,7 +71,7 @@ async def search_repos(
             topic=topic,
             sort=sort,
             order=order,
-            license=license,
+            license_spdx=license_spdx,
             hide_archived=hide_archived,
             page=page,
             per_page=per_page,
@@ -82,7 +82,7 @@ async def search_repos(
             detail="GitHub API rate limit exceeded. Please try again later.",
         )
     except GitHubAPIError as e:
-        logger.error(f"[探索] GitHub Search API 錯誤: {e}", exc_info=True)
+        logger.exception(f"[探索] GitHub Search API 錯誤: {e}")
         raise HTTPException(
             status_code=502,
             detail="GitHub API request failed. Please try again later.",

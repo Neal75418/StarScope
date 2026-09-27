@@ -320,8 +320,8 @@ async def github_api_error_handler(request: Request, exc: GitHubAPIError):
     # 記下是哪個端點、上游說了什麼。先前只回 502 不留痕跡：CI 上 E2E 全紅時
     # 日誌只有「POST /api/repos 502」，看不出是限流、權限不足還是別的，
     # 光是判斷「token 能不能用」就燒掉三輪 CI
-    logger.error(
-        f"[GitHub API] {request.method} {request.url.path} 上游失敗: {exc}", exc_info=True)
+    # exception handler 不在 except 語法內：把例外物件明確交給 exc_info，不靠 sys.exc_info()
+    logger.error(f"[GitHub API] {request.method} {request.url.path} 上游失敗: {exc}", exc_info=exc)
     return JSONResponse(status_code=502, content={"detail": f"GitHub API error: {exc}"})
 
 

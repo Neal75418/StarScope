@@ -528,7 +528,7 @@ class AnomalyDetector:
             if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
-            logger.error(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}", exc_info=True)
+            logger.exception(f"[異常偵測] {repo.full_name} rising_star 錯誤: {e}")
 
         # detect_sudden_spike 需要 30 天快照序列
         try:
@@ -540,7 +540,7 @@ class AnomalyDetector:
             if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
-            logger.error(f"[異常偵測] {repo.full_name} sudden_spike 錯誤: {e}", exc_info=True)
+            logger.exception(f"[異常偵測] {repo.full_name} sudden_spike 錯誤: {e}")
 
         # detect_breakout 使用單筆 snapshot_map
         try:
@@ -550,7 +550,7 @@ class AnomalyDetector:
             if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
-            logger.error(f"[異常偵測] {repo.full_name} breakout 錯誤: {e}", exc_info=True)
+            logger.exception(f"[異常偵測] {repo.full_name} breakout 錯誤: {e}")
 
         # detect_viral_hn：優先使用預載的 HN 訊號，避免 N+1
         try:
@@ -569,7 +569,7 @@ class AnomalyDetector:
                 if signal and not _is_suppressed(signal):
                     signals.append(signal)
         except SQLAlchemyError as e:
-            logger.error(f"[異常偵測] {repo.full_name} viral_hn 錯誤: {e}", exc_info=True)
+            logger.exception(f"[異常偵測] {repo.full_name} viral_hn 錯誤: {e}")
 
         return signals
 
@@ -671,7 +671,7 @@ class AnomalyDetector:
                 )
                 all_signals.extend(signals)
             except Exception as e:  # 單一 repo 偵測失敗不應中斷整個批次
-                logger.error(f"[異常偵測] {repo.full_name} 訊號偵測失敗: {e}", exc_info=True)
+                logger.exception(f"[異常偵測] {repo.full_name} 訊號偵測失敗: {e}")
 
         return all_signals
 
@@ -699,7 +699,7 @@ def save_detected_signals(signals: list["EarlySignal"], db: Session) -> int | No
         return len(signals)
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"[異常偵測] 儲存 signals 失敗: {e}", exc_info=True)
+        logger.exception(f"[異常偵測] 儲存 signals 失敗: {e}")
         return None
 
 

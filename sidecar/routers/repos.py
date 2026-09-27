@@ -344,7 +344,7 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
                 failed_count += 1
             except GitHubAPIError as e:
                 db.rollback()
-                logger.error(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}", exc_info=True)
+                logger.exception(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}")
                 failed_count += 1
 
         repo_list = _build_repo_list_response(db)

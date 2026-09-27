@@ -313,7 +313,7 @@ def get_recent_logs() -> dict:
         recent = "".join(lines[-200:])
         return success_response(data={"logs": recent, "success": True})
     except OSError as e:
-        logger.error(f"[設定] 日誌讀取失敗: {e}")
+        logger.exception(f"[設定] 日誌讀取失敗: {e}")
         raise HTTPException(status_code=500, detail=f"日誌讀取失敗: {e}")
 
 

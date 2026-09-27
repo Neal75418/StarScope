@@ -189,7 +189,7 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
                     triggered_alerts.append(triggered)
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"[警報] 檢查規則 {rule.name} 失敗: {e}", exc_info=True)
+            logger.exception(f"[警報] 檢查規則 {rule.name} 失敗: {e}")
 
     return triggered_alerts
 

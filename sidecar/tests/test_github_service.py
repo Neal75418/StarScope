@@ -385,7 +385,7 @@ class TestGitHubServiceSearchRepos:
         service = GitHubService(token="test-token")
 
         with _mock_http_client(_make_response(200, {"total_count": 0, "items": []})) as mock_client:
-            await service.search_repos("web", license="mit")
+            await service.search_repos("web", license_spdx="mit")
 
             call_kwargs = mock_client.get.call_args
             params = call_kwargs.kwargs.get("params", call_kwargs[1].get("params"))

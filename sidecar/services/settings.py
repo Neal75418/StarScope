@@ -77,7 +77,7 @@ def get_setting(key: str, db: Session | None = None) -> str | None:
                 logger.info(f"[設定] Token {key} 成功遷移至 Keyring")
             except (KeyringError, SQLAlchemyError, ValueError) as e:
                 session.rollback()
-                logger.error(f"[設定] Token 遷移失敗: {e}", exc_info=True)
+                logger.exception(f"[設定] Token 遷移失敗: {e}")
                 raise RuntimeError(f"Token 遷移失敗: {e}") from e
             except Exception as e:
                 session.rollback()
@@ -107,7 +107,7 @@ def set_setting(key: str, value: str, db: Session | None = None) -> None:
             logger.debug(f"[設定] 敏感設定 '{key}' 已成功儲存至安全儲存")
             return
         except (KeyringError, ValueError, SQLAlchemyError) as e:
-            logger.error(f"[設定] 儲存 {key} 至 keyring 失敗: {e}", exc_info=True)
+            logger.exception(f"[設定] 儲存 {key} 至 keyring 失敗: {e}")
             raise
         except Exception as e:
             logger.critical(f"[設定] 儲存 {key} 至 keyring 未預期錯誤: {e}", exc_info=True)
@@ -126,7 +126,7 @@ def set_setting(key: str, value: str, db: Session | None = None) -> None:
             logger.info(f"[設定] 設定 '{key}' 已成功儲存")
         except SQLAlchemyError as e:
             session.rollback()
-            logger.error(f"[設定] 儲存設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+            logger.exception(f"[設定] 儲存設定 '{key}' 資料庫錯誤: {e}")
             raise
         except Exception as e:
             session.rollback()
@@ -173,7 +173,7 @@ def delete_setting_from_db(key: str, db: Session | None = None) -> bool:
             return False
         except SQLAlchemyError as e:
             session.rollback()
-            logger.error(f"[設定] 從資料庫刪除設定 '{key}' 資料庫錯誤: {e}", exc_info=True)
+            logger.exception(f"[設定] 從資料庫刪除設定 '{key}' 資料庫錯誤: {e}")
             raise
         except Exception as e:
             session.rollback()

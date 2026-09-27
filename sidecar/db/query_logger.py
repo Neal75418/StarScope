@@ -59,7 +59,7 @@ def setup_query_logging(engine: Engine, enable: bool = True) -> None:
         """查詢執行後的事件處理器"""
         # 計算執行時間
         start_time = conn.info["query_start_time"].pop(-1)
-        elapsed = time.perf_counter() - start_time
+        elapsed: float = time.perf_counter() - start_time
 
         # 更新統計（thread-safe，單一 lock 區塊避免 race window）
         is_slow = elapsed > SLOW_QUERY_THRESHOLD

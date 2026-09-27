@@ -3,7 +3,16 @@
 # 要加規則先量既有違規數（`ruff check --isolated --statistics --select <規則>`），
 # 再決定修掉還是 per-file ignore。
 [lint]
-select = ["E4", "E7", "E9", "F"]
+select = [
+    "E4", "E7", "E9", "F",
+    "TRY400",  # except 裡用 logger.error 而不是 logger.exception，traceback 會不見
+    "PT003",   # @pytest.fixture 多餘的 scope="function"
+    "PT012",   # pytest.raises 裡只能有一個會拋例外的敘述
+    "PT018",   # 複合斷言拆開，失敗時才看得出是哪一半
+    "C416",    # 多餘的推導式
+    "A001", "A002",  # 遮蔽內建名
+    "ERA001",  # 註解掉的程式碼
+]
 
 [lint.per-file-ignores]
 # load_dotenv() 必須在其他 import 之前執行，模組層級讀環境變數的地方才拿得到值

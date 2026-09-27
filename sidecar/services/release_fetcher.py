@@ -226,7 +226,7 @@ async def fetch_all_releases(db: Session) -> dict[str, int]:
         except SQLAlchemyError as e:
             db.rollback()
             errors += 1
-            logger.error(f"[版本] {target.full_name} 版本訊號儲存失敗: {e}", exc_info=True)
+            logger.exception(f"[版本] {target.full_name} 版本訊號儲存失敗: {e}")
 
     set_setting(AppSettingKey.LAST_RELEASE_FETCH_AT, utc_now().isoformat(), db)
 

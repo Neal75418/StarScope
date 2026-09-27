@@ -53,7 +53,7 @@ def _job_context(job_name: str):
     try:
         yield job_logger
     except Exception:
-        job_logger.error(f"[排程] [{job_id}] {job_name} 異常結束", exc_info=True)
+        job_logger.exception(f"[排程] [{job_id}] {job_name} 異常結束")
         raise
     else:
         job_logger.info(f"[排程] [{job_id}] {job_name} 完成")
@@ -204,7 +204,7 @@ async def _fetch_and_update_single_repo(
     except (GitHubAPIError, SQLAlchemyError) as e:
         db.rollback()
         _track_repo_failure(repo_id, repo.full_name, str(e))
-        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+        log.exception(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}")
         return False
     except Exception as e:
         # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
@@ -240,7 +240,7 @@ def _apply_fetched_repo_data(
     except (GitHubAPIError, SQLAlchemyError) as e:
         db.rollback()
         _track_repo_failure(repo_id, repo.full_name, str(e))
-        log.error(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}", exc_info=True)
+        log.exception(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}")
         return False
     except Exception as e:
         # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
@@ -388,7 +388,7 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int
             return counts
 
         except (GitHubAPIError, SQLAlchemyError) as e:
-            log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
+            log.exception(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}")
             _update_health(last_fetch_failure=_time.time(), last_fetch_error=str(e)[:200])
             # 可恢復的錯誤，不中斷排程；但呼叫端（無頭收集器的心跳）需要知道這輪沒成
             return {"success": 0, "errors": 0, "skipped": 0, "job_error": str(e)[:120]}
@@ -425,7 +425,7 @@ def check_alerts_job() -> None:
                     log.debug("[排程] 無警報觸發")
 
             except SQLAlchemyError as e:
-                log.error(f"[排程] 檢查警報資料庫錯誤: {e}", exc_info=True)
+                log.exception(f"[排程] 檢查警報資料庫錯誤: {e}")
             except Exception as e:
                 log.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
 
@@ -457,7 +457,7 @@ async def fetch_context_signals_job() -> None:
             if cleanup_stats["deleted_by_age"] > 0 or cleanup_stats["deleted_by_limit"] > 0:
                 log.info(f"[排程] [{job_id}] 上下文訊號清理: {cleanup_stats}")
         except SQLAlchemyError as e:
-            log.error(f"[排程] [{job_id}] 上下文訊號資料庫錯誤: {e}", exc_info=True)
+            log.exception(f"[排程] [{job_id}] 上下文訊號資料庫錯誤: {e}")
         except Exception as e:
             log.critical(f"[排程] [{job_id}] 上下文訊號未預期錯誤: {e}", exc_info=True)
 
@@ -484,7 +484,7 @@ async def fetch_releases_job() -> None:
                 f"錯誤={result['errors']}"
             )
         except SQLAlchemyError as e:
-            log.error(f"[排程] [{job_id}] 新版本資料庫錯誤: {e}", exc_info=True)
+            log.exception(f"[排程] [{job_id}] 新版本資料庫錯誤: {e}")
         except Exception as e:
             log.critical(f"[排程] [{job_id}] 新版本未預期錯誤: {e}", exc_info=True)
 
@@ -506,7 +506,7 @@ async def generate_feed_job() -> None:
             count = await generate_feed(db, github, local_today())
             log.info(f"[排程] [{job_id}] 每日 feed 產生完成: 寫入 {count} 條")
         except (GitHubAPIError, SQLAlchemyError) as e:
-            log.error(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}", exc_info=True)
+            log.exception(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}")
         except Exception as e:
             log.critical(f"[排程] [{job_id}] 未預期錯誤: {e}", exc_info=True)
 
@@ -550,7 +550,7 @@ def cleanup_old_snapshots(retention_days: int = 90) -> int:
             return int(deleted)
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"[排程] 快照清理失敗: {e}", exc_info=True)
+            logger.exception(f"[排程] 快照清理失敗: {e}")
             return 0
 
 
@@ -575,7 +575,7 @@ def backup_job() -> None:
             logger.error("[排程] 資料庫備份失敗")
 
     except (OSError, IOError) as e:
-        logger.error(f"[排程] 資料庫備份檔案操作錯誤: {e}", exc_info=True)
+        logger.exception(f"[排程] 資料庫備份檔案操作錯誤: {e}")
     except Exception as e:
         logger.critical(f"[排程] 資料庫備份未預期錯誤: {e}", exc_info=True)
 

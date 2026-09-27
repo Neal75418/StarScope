@@ -330,8 +330,8 @@ async def fetch_hn_mentions(owner: str, repo_name: str) -> list[HNStory] | None:
         service = get_hn_service()
         return await service.search_repo(repo_name, owner)
     except HackerNewsAPIError as e:
-        logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及失敗: {e}", exc_info=True)
+        logger.exception(f"[HN] 抓取 {owner}/{repo_name} HN 提及失敗: {e}")
         return None
     except (httpx.RequestError, httpx.HTTPStatusError, KeyError, ValueError) as e:
-        logger.error(f"[HN] 抓取 {owner}/{repo_name} HN 提及時發生非預期錯誤: {e}", exc_info=True)
+        logger.exception(f"[HN] 抓取 {owner}/{repo_name} HN 提及時發生非預期錯誤: {e}")
         return None

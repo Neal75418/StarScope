@@ -395,7 +395,7 @@ class RecommenderService:
             db.commit()
         except SQLAlchemyError as e:
             db.rollback()
-            logger.error(f"[推薦] 相似度重新計算失敗，已回滾: {e}", exc_info=True)
+            logger.exception(f"[推薦] 相似度重新計算失敗，已回滾: {e}")
             raise
 
         logger.info(

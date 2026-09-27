@@ -183,6 +183,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         e: Exception,
     ) -> None:
         """記錄錯誤詳情與例外資訊。"""
+        # 這是 except 區塊呼叫的 helper，不在 except 語法內：把例外物件明確交給 exc_info
         logger.error(
             f"[{request_id}] <-- {request.method} {request.url.path} "
             f"錯誤 ({duration_ms:.2f}ms): {e}",
@@ -194,5 +195,5 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 "error": str(e),
                 "error_type": type(e).__name__,
             },
-            exc_info=True,
+            exc_info=e,
         )

@@ -120,7 +120,8 @@ def _build_repo_count_map(db: Session) -> dict[int, int]:
         RepoCategory.category_id,
         func.count(RepoCategory.repo_id),
     ).group_by(RepoCategory.category_id).all()
-    return {cat_id: count for cat_id, count in rows}
+    # noqa C416：dict(rows) 在 mypy 眼裡不是 Iterable[tuple]（Row 不是 tuple），Row.t 又已 deprecated
+    return {cat_id: count for cat_id, count in rows}  # noqa: C416
 
 
 def _get_repo_count(category_id: int, db: Session) -> int:

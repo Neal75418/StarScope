@@ -52,7 +52,7 @@ class BackupService:
 
         """
         try:
-            # 生成備份檔案名稱 (starscope_YYYYMMDD_HHMMSS.db)
+            # 備份檔名帶 UTC 時間戳，格式見 BACKUP_TIMESTAMP_FORMAT
             timestamp = datetime.now(timezone.utc).strftime(BACKUP_TIMESTAMP_FORMAT)
             backup_filename = f"{self.db_path.stem}_{timestamp}.db"
             backup_path = self.backup_dir / backup_filename
@@ -78,7 +78,7 @@ class BackupService:
             return backup_path
 
         except OSError as e:
-            logger.error(f"[備份] 備份建立失敗: {e}", exc_info=True)
+            logger.exception(f"[備份] 備份建立失敗: {e}")
             return None
 
     def cleanup_old_backups(self, retention_days: int = 7) -> int:
@@ -115,7 +115,7 @@ class BackupService:
             return deleted_count
 
         except OSError as e:
-            logger.error(f"[備份] 清理舊備份失敗: {e}", exc_info=True)
+            logger.exception(f"[備份] 清理舊備份失敗: {e}")
             return 0
 
 
