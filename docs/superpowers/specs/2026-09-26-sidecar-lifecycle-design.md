@@ -37,9 +37,10 @@ Cmd+Q、app 當掉或被強制結束都不會清理，不論 onefile 或 onedir 
   `RunEvent::Exit` 呼叫 `cleanup_sidecar(app)`。Tauri 2.11 的 `ExitRequested` 涵蓋
   「使用者操作（關掉所有視窗、Cmd+Q）」與「`app.exit()`」，之後才進 `Exit`。
 - `cleanup_sidecar` 本來就以 `take()` 取出 child，呼叫兩次無害。
-- Unix：`libc::kill(pid, SIGTERM)`，每 50ms 以 `kill(pid, 0)` 檢查是否已結束（shell plugin
-  的等待執行緒會回收子行程），3 秒後仍在才呼叫 `child.kill()`（SIGKILL）。onefile 的
-  bootloader 會把 SIGTERM 轉給 Python 子行程（實測，見上表）。
+- Unix：`libc::kill(pid, SIGTERM)`，每 50ms 檢查 shell plugin 是否已回報 `Terminated`
+  （實作時改掉原本的 `kill(pid, 0)`：子行程被回收後 PID 可能已經分給別的行程，`kill(pid, 0)`
+  會誤判它還在），3 秒後仍在才呼叫 `child.kill()`（SIGKILL）。onefile 的
+  bootloader 會把 SIGTERM 轉給 Python 子行程（實測，見上表；2026-09-27 起改為 onedir，只有一個行程）。
 - Windows：沒有 SIGTERM，維持 `child.kill()`；onefile 的 Python 子行程由 L3 收掉。
 - spawn 時加 `STARSCOPE_PARENT_PID = std::process::id()`。
 - 新增 `libc` 依賴（Unix only，`[target.'cfg(unix)'.dependencies]`）。
@@ -61,8 +62,9 @@ Cmd+Q、app 當掉或被強制結束都不會清理，不論 onefile 或 onedir 
 - 沒有 `STARSCOPE_PARENT_PID` 就不啟動：`start-dev.sh`、e2e、headless collector、
   pytest 行為不變。值不是正整數時記一條 WARNING、不啟動（不讓啟動失敗）
 
-已知限制：父行程結束後 2 秒內 PID 被別的行程重用，看門會以為父行程還在。機率極低，
-而且 L1／L2 已經處理正常結束。
+已知限制：POSIX 上父行程結束後 2 秒內 PID 被別的行程重用，看門會以為父行程還在。機率極低，
+而且 L1／L2 已經處理正常結束。Windows 沒有這個窗口：實作時改為開一次父行程的 handle 並一直拿著，
+有 handle 開著系統就不會把 PID 分給別人（見 `_windows_liveness_check`）。
 
 ## 測試
 

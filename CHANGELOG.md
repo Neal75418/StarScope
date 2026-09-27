@@ -308,6 +308,8 @@
 [Unreleased]: https://github.com/Neal75418/StarScope/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/Neal75418/StarScope/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Neal75418/StarScope/compare/v0.4.3...v1.0.0
+[0.4.3]: https://github.com/Neal75418/StarScope/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/Neal75418/StarScope/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/Neal75418/StarScope/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Neal75418/StarScope/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Neal75418/StarScope/compare/v0.2.0...v0.3.0
