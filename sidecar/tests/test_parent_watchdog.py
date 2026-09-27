@@ -9,6 +9,7 @@ import time
 import pytest
 
 from utils import parent_watchdog
+# noinspection PyProtectedMember
 from utils.parent_watchdog import (
     _WAIT_TIMEOUT,
     PARENT_PID_ENV_VAR,
@@ -70,6 +71,8 @@ def test_watchdog_calls_back_once_when_the_parent_is_gone():
     assert thread.daemon  # 不能擋住 sidecar 自己正常結束
 
 
+# 方法名要跟 kernel32 的 API 一模一樣，才能當 ctypes 的替身
+# noinspection PyPep8Naming
 class _FakeKernel32:
     """記錄呼叫的 kernel32 替身：Windows 的判斷邏輯在任何平台都能測。"""
 
@@ -79,7 +82,7 @@ class _FakeKernel32:
         self.opened: list[int] = []
         self.closed: list[int] = []
 
-    def OpenProcess(self, access: int, inherit: bool, pid: int) -> int:
+    def OpenProcess(self, _access: int, _inherit: bool, pid: int) -> int:
         self.opened.append(pid)
         return self._handle
 

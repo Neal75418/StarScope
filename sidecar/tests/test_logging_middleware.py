@@ -29,7 +29,8 @@ def _build_app(**middleware_kwargs) -> TestClient:
 class TestSensitiveHeaderRedaction:
     """驗證 log_headers=True 時敏感 header 會被遮蔽、一般 header 保留。"""
 
-    def _request_log_record(self, caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
+    @staticmethod
+    def _request_log_record(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
         records = [r for r in caplog.records if "-->" in r.getMessage()]
         assert records, "middleware 應記錄 request log"
         return records[0]

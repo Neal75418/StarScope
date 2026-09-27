@@ -10,6 +10,7 @@ import pytest
 
 from constants import ContextSignalType
 from db.models import ContextSignal, Repo
+# noinspection PyProtectedMember
 from services.release_fetcher import (
     _ReleaseTarget,
     fetch_all_releases,
@@ -146,7 +147,8 @@ class TestFetchAllReleases:
     ):
         """94 個 repo 有 34 個從沒發過版，那是常態不是失敗。"""
         class NoReleases:
-            async def get_latest_release(self, owner, name):
+            @staticmethod
+            async def get_latest_release(_owner, _name):
                 return None
 
         monkeypatch.setattr("services.release_fetcher.get_github_service", lambda: NoReleases())
@@ -167,11 +169,12 @@ class TestFetchAllReleases:
         attempted: list[str] = []
 
         class Flaky:
-            async def get_latest_release(self, owner, name):
-                attempted.append(name)
-                if name == "bad":
+            @staticmethod
+            async def get_latest_release(_owner, repo_name):
+                attempted.append(repo_name)
+                if repo_name == "bad":
                     raise RuntimeError("boom")
-                return make_release(id=abs(hash(name)) % 10000)
+                return make_release(id=abs(hash(repo_name)) % 10000)
 
         monkeypatch.setattr("services.release_fetcher.get_github_service", lambda: Flaky())
 
@@ -198,7 +201,8 @@ class TestSkipGuard:
         from services.release_fetcher import fetched_recently
 
         class OneRelease:
-            async def get_latest_release(self, owner, name):
+            @staticmethod
+            async def get_latest_release(_owner, _name):
                 return make_release()
 
         monkeypatch.setattr("services.release_fetcher.get_github_service", lambda: OneRelease())

@@ -106,7 +106,8 @@ class TestTrendsOnlyRanksReposThatHaveTheMetric:
     2,033 的不在前六。看起來卻像一份真的排行榜。
     """
 
-    def _seed(self, test_db):
+    @staticmethod
+    def _seed(test_db):
         from db.models import Repo, Signal
         from utils.time import utc_now
         from constants import SignalType

@@ -237,6 +237,7 @@ def get_unacknowledged_alerts(db: Session, limit: int = MAX_ALERTS_PER_QUERY) ->
 
     Args:
         db: 資料庫 session
+        limit: 最多回傳幾筆（預設 MAX_ALERTS_PER_QUERY）
 
     Returns:
         未確認警報的列表

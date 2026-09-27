@@ -209,7 +209,8 @@ class TestNormalizeWithZeroBase:
     舊寫法會在 Issue 視圖上畫出一條假的水平 0 線。
     """
 
-    def _seed(self, test_db, base_issues: int, later_issues: int, slug: str = "a"):
+    @staticmethod
+    def _seed(test_db, base_issues: int, later_issues: int, slug: str = "a"):
         from datetime import date
         from db.models import Repo, RepoSnapshot
         from utils.time import utc_now
@@ -227,7 +228,8 @@ class TestNormalizeWithZeroBase:
         test_db.commit()
         return repo
 
-    def _chart(self, client, repo_ids, normalize=True):
+    @staticmethod
+    def _chart(client, repo_ids, normalize=True):
         resp = client.post("/api/comparison/chart", json={
             "repo_ids": repo_ids, "time_range": "all", "normalize": normalize})
         assert resp.status_code == 200, resp.text

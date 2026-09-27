@@ -329,7 +329,8 @@ class TestCheckAllAlerts:
         # Both rules should trigger (10 > 5 and 10 < 100)
         assert len(result) == 2
 
-    def _add_rule_and_signal(self, test_db, mock_repo, *, enabled=True):
+    @staticmethod
+    def _add_rule_and_signal(test_db, mock_repo, *, enabled=True):
         rule = AlertRule(
             name="Cooldown rule",
             signal_type="velocity",

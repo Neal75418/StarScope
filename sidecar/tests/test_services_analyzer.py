@@ -277,7 +277,8 @@ class TestBacktrackScalesWithWindow:
     而畫面上看不出任何異常。
     """
 
-    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+    @staticmethod
+    def _snap(day: date, stars: int) -> RepoSnapshot:
         return RepoSnapshot(repo_id=1, stars=stars, forks=0,
                             watchers=0, open_issues=0, snapshot_date=day)
 
@@ -354,7 +355,8 @@ class TestAccelerationBacktrackCaps:
     當快照有間隙時，這些上限需要被強制執行，不能因為快照密集就忽略。
     """
 
-    def _snap(self, day: date, stars: int) -> RepoSnapshot:
+    @staticmethod
+    def _snap(day: date, stars: int) -> RepoSnapshot:
         return RepoSnapshot(repo_id=1, stars=stars, forks=0,
                             watchers=0, open_issues=0, snapshot_date=day)
 

@@ -169,8 +169,9 @@ def backup_database(db_path: str, retention_days: int = 7) -> Path | None:
     Returns:
         備份檔案路徑，失敗時返回 None
 
-    Example:
-        >>> backup_path = backup_database("starscope.db", retention_days=7)
+    Example::
+
+        backup_database("starscope.db", retention_days=7)
     """
     service = BackupService(db_path)
     backup_path = service.create_backup()

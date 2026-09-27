@@ -178,7 +178,8 @@ class TestFindLatestBackup:
     畫面顯示「—」——告訴使用者沒有備份，實際上有一個 12 小時前的。
     """
 
-    def _make(self, tmp_path, *names):
+    @staticmethod
+    def _make(tmp_path, *names):
         db = tmp_path / "starscope.db"
         db.write_bytes(b"x")
         backups = tmp_path / "backups"

@@ -23,6 +23,8 @@ class UnhandledErrorMiddleware(BaseHTTPMiddleware):
     """接住 route 與內層 middleware 拋出的例外，回 500。"""
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # 這層就是要接住任何例外，換成 500 回應
+        # noinspection PyBroadException
         try:
             return await call_next(request)
         except Exception:

@@ -261,7 +261,8 @@ async def test_concurrent_generate_race_with_multiple_candidates():
         race_state = {"done": False}
 
         class RaceGitHub:
-            async def search_repos(self, **kwargs):
+            @staticmethod
+            async def search_repos(**_kwargs):
                 if not race_state["done"]:
                     other = session_local()
                     try:
@@ -343,7 +344,8 @@ async def test_rate_limit_stops_fanout_but_keeps_what_it_got(test_db):
     calls = []
 
     class PartiallyRateLimitedGitHub:
-        async def search_repos(self, **kwargs):
+        @staticmethod
+        async def search_repos(**kwargs):
             calls.append(kwargs)
             if len(calls) == 1:
                 return {"items": [_gh_item(1, "a/one", topics=["rust"])]}

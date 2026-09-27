@@ -273,12 +273,12 @@ class TestDiagnosticsBackupSurvivesRestart:
         欄位，畫面在那 12 秒裡會謊稱已完成。
         """
         import asyncio
-        from services.scheduler import _fetch_all_lock
+        from services.scheduler import fetch_all_lock
 
         assert client.get("/api/settings/diagnostics").json()["data"]["fetch_in_progress"] is False
 
         async def _while_locked():
-            async with _fetch_all_lock:
+            async with fetch_all_lock:
                 return client.get("/api/settings/diagnostics").json()["data"]
 
         assert asyncio.run(_while_locked())["fetch_in_progress"] is True

@@ -8,6 +8,7 @@ import socket
 import subprocess
 import sys
 import time
+import http.client
 import urllib.request
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def _healthy(port: int) -> bool:
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=0.5) as resp:
             return bool(resp.status == 200)
-    except Exception:
+    except (OSError, http.client.HTTPException):  # 連不上、逾時、回應斷掉
         return False
 
 
@@ -50,15 +51,15 @@ def launch(tmp_path):
         }
         if parent_pid is not None:
             env["STARSCOPE_PARENT_PID"] = str(parent_pid)
-        proc = subprocess.Popen([sys.executable, "main.py"], cwd=SIDECAR_DIR, env=env,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        procs.append(proc)
+        child = subprocess.Popen([sys.executable, "main.py"], cwd=SIDECAR_DIR, env=env,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        procs.append(child)
         deadline = time.monotonic() + 30
         while not _healthy(port):
-            assert proc.poll() is None, "sidecar 在回應之前就結束了"
+            assert child.poll() is None, "sidecar 在回應之前就結束了"
             assert time.monotonic() < deadline, "sidecar 30 秒內沒有回應 /api/health"
             time.sleep(0.2)
-        return proc, port
+        return child, port
 
     yield start
     for proc in procs:

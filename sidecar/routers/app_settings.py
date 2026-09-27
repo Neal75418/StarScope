@@ -279,15 +279,16 @@ def _format_scheduler_health(health: dict) -> dict:
     # 備份會長時間停在空值。
     from sqlalchemy.engine import make_url
     from services.backup import find_latest_backup
+    # noinspection PyBroadException
     try:
         latest_backup = find_latest_backup(make_url(DATABASE_URL).database or "")
     except Exception:  # 診斷頁不該因為讀不到備份目錄就整個掛掉
         latest_backup = None
 
-    from services.scheduler import _fetch_all_lock
+    from services.scheduler import fetch_all_lock
 
     return {
-        "fetch_in_progress": _fetch_all_lock.locked(),
+        "fetch_in_progress": fetch_all_lock.locked(),
         "last_fetch_success": _ts_to_iso(health.get("last_fetch_success")),
         "last_fetch_failure": _ts_to_iso(health.get("last_fetch_failure")),
         "last_fetch_error": health.get("last_fetch_error"),
@@ -319,6 +320,8 @@ def get_recent_logs() -> dict:
 
 # --- 重設所有資料 ---
 
+# body 只給 FastAPI 驗證（ResetDataConfirmation 的 validator 要求 confirm == "RESET"），函式本體不用它
+# noinspection PyUnusedParameter
 @router.post("/reset-data", response_model=ApiResponse[ResetDataResponse])
 def reset_all_data(body: ResetDataConfirmation, db: Session = Depends(get_db)) -> dict:
     """

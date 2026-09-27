@@ -15,7 +15,7 @@ import run_jobs
 def _mocks(order: list) -> dict:
     def rec(name, async_=True, returns=None):
         m = AsyncMock() if async_ else MagicMock()
-        def _side(*a, **k):
+        def _side(*_a, **_k):
             order.append(name)
             return returns
         m.side_effect = _side
@@ -67,7 +67,7 @@ class TestRunOnce:
         order: list = []
         m = _mocks(order)
 
-        def _sync_and_record(*a, **k):
+        def _sync_and_record(*_a, **_k):
             order.append("sync")
             return MagicMock(skipped_reason=None)
 
@@ -136,7 +136,8 @@ class TestHeartbeatHonesty:
 
 
 class TestBackupCatchUp:
-    def _call(self, latest):
+    @staticmethod
+    def _call(latest):
         with patch("services.backup.find_latest_backup", return_value=latest), \
              patch("services.backup.backup_database") as bk:
             run_jobs._backup_if_stale()

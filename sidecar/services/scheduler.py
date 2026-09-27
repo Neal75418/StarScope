@@ -34,6 +34,7 @@ from services.context_fetcher import fetch_all_context_signals
 from services.feed_generator import generate_feed
 from services.release_fetcher import fetch_all_releases, fetched_recently
 from services.github import fetch_repo_data, get_github_service, GitHubAPIError
+from services.alerts import check_all_alerts
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
 from utils.time import local_today, utc_now
@@ -64,7 +65,7 @@ _scheduler: AsyncIOScheduler | None = None
 _scheduler_lock = threading.Lock()
 
 # Single-flight guard：防止 router / scheduler / startup 同時跑全量抓取
-_fetch_all_lock = asyncio.Lock()
+fetch_all_lock = asyncio.Lock()
 
 # Repo 連續失敗計數器（記憶體內，重啟後歸零）
 _repo_failure_counts: dict[int, int] = {}
@@ -272,22 +273,22 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> dict[str, int | 
     """
     背景工作：抓取追蹤清單中所有 repo。
     根據設定的間隔定期執行。
-    使用 _fetch_all_lock 防止與 router 手動刷新同時跑。
+    使用 fetch_all_lock 防止與 router 手動刷新同時跑。
 
     Args:
         skip_recent_minutes: 跳過此分鐘數內已抓取的 repo（預設 30）。
                            避免重啟後重複抓取。
     """
-    if _fetch_all_lock.locked():
+    if fetch_all_lock.locked():
         logger.info("[排程] 全量抓取已在執行中，跳過此次排程")
         return None
 
-    async with _fetch_all_lock:
+    async with fetch_all_lock:
         return await _fetch_all_repos_inner(skip_recent_minutes)
 
 
 async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int | str]:
-    """fetch_all_repos_job 的內部實作（已在 _fetch_all_lock 保護下執行）。"""
+    """fetch_all_repos_job 的內部實作（已在 fetch_all_lock 保護下執行）。"""
     job_id = uuid.uuid4().hex[:8]
     log = logging.LoggerAdapter(logger, {"job_id": job_id})
     log.info(f"[排程] [{job_id}] 開始排程抓取所有 repo...")
@@ -325,8 +326,8 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int
                 async with sem:
                     try:
                         return r, await fetch_repo_data(r.owner, r.name), None
-                    except Exception as e:  # 單一 repo 失敗不影響其他人
-                        return r, None, e
+                    except Exception as exc:  # 單一 repo 失敗不影響其他人
+                        return r, None, exc
 
             fetched = await asyncio.gather(*(_fetch_one(r) for r in repos_to_fetch))
 
@@ -410,13 +411,6 @@ def check_alerts_job() -> None:
     在資料抓取後執行。
     """
     with _job_context("檢查警報規則") as log:
-        # 在此 import 以避免循環引用
-        try:
-            from services.alerts import check_all_alerts
-        except ImportError:
-            log.debug("[排程] 警報服務尚未可用")
-            return
-
         with get_db_session() as db:
             try:
                 triggered = check_all_alerts(db)

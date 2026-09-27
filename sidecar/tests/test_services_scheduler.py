@@ -8,6 +8,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from services.github import GitHubAPIError
+# noinspection PyProtectedMember
 from services.scheduler import (
     get_scheduler,
     fetch_all_repos_job,
@@ -71,6 +72,7 @@ class TestGetScheduler:
             scheduler_module._scheduler = original
 
 
+# noinspection PyProtectedMember
 @pytest.fixture(autouse=True)
 def _isolate_failure_counts():
     """模組級隔離：失敗計數與健康狀態這兩個模組全域不得跨測試洩漏。"""
@@ -181,7 +183,7 @@ class TestFetchAllReposJob:
         in_flight = 0
         max_in_flight = 0
 
-        async def tracked_fetch(owner, name):
+        async def tracked_fetch(_owner, _name):
             nonlocal in_flight, max_in_flight
             in_flight += 1
             max_in_flight = max(max_in_flight, in_flight)
@@ -304,7 +306,7 @@ class TestCheckAlertsJob:
     def test_checks_alerts(self, test_db):
         """Test calls check_all_alerts with a valid DB session."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check:
+             patch('services.scheduler.check_all_alerts') as mock_check:
 
             mock_check.return_value = []
             check_alerts_job()
@@ -317,7 +319,7 @@ class TestCheckAlertsJob:
     def test_handles_triggered_alerts(self, test_db):
         """Test processes non-empty triggered alerts without raising."""
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check:
+             patch('services.scheduler.check_all_alerts') as mock_check:
 
             mock_check.return_value = [MagicMock(), MagicMock()]
             # Should complete without raising even with triggered alerts
@@ -334,7 +336,7 @@ class TestCheckAlertsJob:
         診斷頁顯示 last_alert_check。失敗卻更新它，畫面會說警報剛檢查過。
         """
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check:
+             patch('services.scheduler.check_all_alerts') as mock_check:
 
             mock_check.side_effect = Exception("DB Error")
             check_alerts_job()  # 可恢復，不該讓排程中斷
@@ -559,28 +561,15 @@ class TestBackupJob:
             mock_backup.assert_called_once()
 
 
-class TestCheckAlertsJobImportError:
+class TestCheckAlertsJobErrors:
     """Tests for check_alerts_job edge cases."""
-
-    def test_handles_import_error(self, test_db, caplog):
-        """Test handles ImportError when alerts service unavailable."""
-        import logging
-
-        # check_alerts_job uses lazy import (from services.alerts import check_all_alerts),
-        # so patching sys.modules with None correctly triggers ImportError
-        with caplog.at_level(logging.DEBUG), \
-             patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch.dict('sys.modules', {'services.alerts': None}):
-            check_alerts_job()  # 不得外洩例外
-
-        assert any("警報服務尚未可用" in r.getMessage() for r in caplog.records)
 
     def test_handles_sqlalchemy_error(self, test_db, clean_health, caplog):
         """Test handles SQLAlchemyError during alert check."""
         from sqlalchemy.exc import SQLAlchemyError
 
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
-             patch('services.alerts.check_all_alerts') as mock_check:
+             patch('services.scheduler.check_all_alerts') as mock_check:
             mock_check.side_effect = SQLAlchemyError("Connection lost")
 
             check_alerts_job()  # 可恢復，不該讓排程中斷
@@ -690,7 +679,7 @@ class TestEarlySignalDetectionRunsAfterFetch:
 
         calls: list[str] = []
 
-        def fake_run_detection(db):
+        def fake_run_detection(_db):
             calls.append("ran")
             return {"repos_scanned": 0, "signals_detected": 0, "by_type": {}}
 
@@ -708,7 +697,7 @@ class TestEarlySignalDetectionRunsAfterFetch:
         from services import scheduler as sched
         import services.anomaly_detector as det
 
-        def boom(db):
+        def boom(_db):
             raise RuntimeError("偵測爆炸")
 
         monkeypatch.setattr(det, "run_detection", boom)
@@ -720,7 +709,8 @@ class TestEarlySignalDetectionRunsAfterFetch:
 
 
 class _FakeQuery:
-    def all(self):
+    @staticmethod
+    def all():
         return []
 
 

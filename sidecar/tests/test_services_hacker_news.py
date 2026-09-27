@@ -34,7 +34,7 @@ def _service_answering(handler) -> HackerNewsService:
 
 def _hits(*hits: dict):
     """每次查詢都回同一批 hits 的 handler。"""
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(_request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"hits": list(hits)})
     return handler
 
@@ -251,7 +251,7 @@ class TestHackerNewsService:
     @pytest.mark.asyncio
     async def test_search_repo_raises_on_all_failures(self):
         """Test raises error when all queries fail."""
-        def _always_times_out(request: httpx.Request) -> httpx.Response:
+        def _always_times_out(_request: httpx.Request) -> httpx.Response:
             raise httpx.TimeoutException("Timeout")
 
         service = _service_answering(_always_times_out)
@@ -303,7 +303,7 @@ class TestSharedClient:
         service = HackerNewsService()
         seen: list[httpx.AsyncClient] = []
 
-        async def _capture(client, query, seen_ids):
+        async def _capture(client, _query, _seen_ids):
             seen.append(client)
             return [], []
 

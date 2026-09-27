@@ -85,16 +85,16 @@ def block_real_network() -> Generator[None, None, None]:
     def _refuse(request: httpx.Request) -> None:
         raise RuntimeError(f"測試不能連外網：{request.method} {request.url}")
 
-    def _sync(self, request, *args, **kwargs):
+    def _sync(_self, request, *_args, **_kwargs):
         _refuse(request)
 
-    async def _async(self, request, *args, **kwargs):
+    async def _async(_self, request, *_args, **_kwargs):
         _refuse(request)
 
     original_sync = httpx.HTTPTransport.handle_request
     original_async = httpx.AsyncHTTPTransport.handle_async_request
-    httpx.HTTPTransport.handle_request = _sync  # type: ignore[method-assign]
-    httpx.AsyncHTTPTransport.handle_async_request = _async  # type: ignore[method-assign]
+    httpx.HTTPTransport.handle_request = _sync  # type: ignore[assignment]
+    httpx.AsyncHTTPTransport.handle_async_request = _async  # type: ignore[assignment]
     try:
         yield
     finally:

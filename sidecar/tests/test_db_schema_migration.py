@@ -200,7 +200,7 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     raced: list[str] = []
 
     @event.listens_for(engine, "before_cursor_execute")
-    def _other_process_wins(conn, cursor, statement, parameters, context, executemany):
+    def _other_process_wins(_conn, _cursor, statement, _parameters, _context, _executemany):
         if statement.startswith("ALTER TABLE") and not raced:
             raced.append(statement)
             with other_process.begin() as c2:

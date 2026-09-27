@@ -193,15 +193,15 @@ async def fetch_all_releases(db: Session) -> dict[str, int]:
     sem = asyncio.Semaphore(RELEASE_FETCH_CONCURRENCY)
 
     async def _fetch_one(
-        target: _ReleaseTarget,
+        t: _ReleaseTarget,
     ) -> tuple[_ReleaseTarget, dict[str, Any] | None, Exception | None]:
         async with sem:
             try:
-                return target, await gh.get_latest_release(target.owner, target.name), None
-            except GitHubAPIError as e:
-                return target, None, e
-            except Exception as e:  # 安全網：單一 repo 失敗不中斷整個 batch
-                return target, None, e
+                return t, await gh.get_latest_release(t.owner, t.name), None
+            except GitHubAPIError as exc:
+                return t, None, exc
+            except Exception as exc:  # 安全網：單一 repo 失敗不中斷整個 batch
+                return t, None, exc
 
     fetched = await asyncio.gather(*(_fetch_one(t) for t in targets))
 

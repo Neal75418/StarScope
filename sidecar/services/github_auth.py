@@ -252,6 +252,7 @@ class GitHubAuthService:
                         # 前端會渲染出懸空的「已連接 @」。補抓一次並快取；
                         # 抓不到也不影響連線狀態（fail-open）——username 是顯示性欄位，
                         # 不能讓它拖垮連線查詢。
+                        # noinspection PyBroadException
                         try:
                             username = await GitHubAuthService._get_username(token)
                             if username:

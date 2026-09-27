@@ -65,8 +65,8 @@ def test_concurrent_saves_do_not_lose_the_larger_cursor(tmp_path, monkeypatch):
     real_load = digest_module.load_cursor
     both_loaded = threading.Barrier(2, timeout=0.5)
 
-    def load_then_wait(db):
-        result = real_load(db)
+    def load_then_wait(session):
+        result = real_load(session)
         try:
             both_loaded.wait()
         except threading.BrokenBarrierError:
@@ -77,9 +77,9 @@ def test_concurrent_saves_do_not_lose_the_larger_cursor(tmp_path, monkeypatch):
     errors: list[Exception] = []
 
     def save(cursor):
-        with session_local() as db:
+        with session_local() as session:
             try:
-                save_cursor(cursor, db)
+                save_cursor(cursor, session)
             except Exception as exc:  # noqa: BLE001 — 要把例外帶回主執行緒斷言
                 errors.append(exc)
 

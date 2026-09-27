@@ -130,8 +130,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             result = await sync_starred_repos(db, get_github_service())
             if result.skipped_reason:
                 logger.info(f"[啟動] star 同步略過: {result.skipped_reason}")
-        except Exception as e:
-            logger.warning(f"[啟動] star 同步失敗（已忽略）: {e}")
+        except Exception as exc:
+            logger.warning(f"[啟動] star 同步失敗（已忽略）: {exc}")
         finally:
             db.close()
         await trigger_fetch_now()

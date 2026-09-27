@@ -57,7 +57,7 @@ def _has_token_and_not_first_sync(test_db, monkeypatch):
 def _fake_settings(values: dict) -> object:
     store = dict(values)
 
-    def _get(key, db=None):
+    def _get(key, _db=None):
         return store.get(key)
 
     return _get

@@ -314,18 +314,18 @@ async def fetch_all_repos(request: Request, db: Session = Depends(get_db)) -> di
     """
     抓取追蹤清單中所有 repo 的最新資料。
     使用指數退避重試處理速率限制。
-    與 scheduler 共享 _fetch_all_lock 防止並發全量抓取。
+    與 scheduler 共享 fetch_all_lock 防止並發全量抓取。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
 
-    from services.scheduler import _fetch_all_lock
+    from services.scheduler import fetch_all_lock
 
     # 409 而不是 200：一個「我沒做」的成功回應，跟「做完了」在呼叫端長得一模一樣
     # （前端的 apiCall 只取 data，message 會被丟掉），畫面因此會謊稱抓取已完成
-    if _fetch_all_lock.locked():
+    if fetch_all_lock.locked():
         raise HTTPException(status_code=409, detail="Fetch already in progress")
 
-    async with _fetch_all_lock:
+    async with fetch_all_lock:
         # noinspection PyTypeChecker
         repos: list[Repo] = db.query(Repo).all()
         github = get_github_service()

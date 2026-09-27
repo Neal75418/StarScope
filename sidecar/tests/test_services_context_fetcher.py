@@ -160,7 +160,7 @@ class TestFetchAllContextSignals:
         """
         attempted: list[str] = []
 
-        async def _boom_on_vue(owner: str, name: str):
+        async def _boom_on_vue(_owner: str, name: str):
             attempted.append(name)
             if name == "vue":
                 raise RuntimeError("Unexpected failure")
@@ -206,7 +206,7 @@ class TestFetchAllConcurrency:
         in_flight = 0
         peak = 0
 
-        async def _tracked(owner: str, name: str):
+        async def _tracked(_owner: str, _name: str):
             nonlocal in_flight, peak
             in_flight += 1
             peak = max(peak, in_flight)
@@ -237,13 +237,13 @@ class TestFetchAllConcurrency:
         fetches_done = 0
         fetches_done_at_first_write: int | None = None
 
-        async def _fetch(owner: str, name: str):
+        async def _fetch(_owner: str, name: str):
             nonlocal fetches_done
             await asyncio.sleep(0)
             fetches_done += 1
             return [create_mock_hn_story(f"hn-{name}")]
 
-        def _store(repo_id, stories, db):
+        def _store(_repo_id, _stories, _db):
             nonlocal fetches_done_at_first_write
             if fetches_done_at_first_write is None:
                 fetches_done_at_first_write = fetches_done

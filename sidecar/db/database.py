@@ -228,8 +228,8 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
     # model 裡沒有這兩種；若出現，前者會被當成不對齊而重建、後者會被當成缺少而建立。
     from sqlalchemy.schema import CreateIndex
 
-    def _quoted(name: str) -> str:
-        return '"' + name.replace('"', '""') + '"'
+    def _quoted(ident: str) -> str:
+        return '"' + ident.replace('"', '""') + '"'
 
     index_ddl: list[str] = []
     with engine_.connect() as conn:

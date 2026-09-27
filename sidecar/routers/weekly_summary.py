@@ -80,6 +80,7 @@ def weekly_summary(
 
     Args:
         days: 摘要涵蓋的天數（預設 7 天，最多 30 天）
+        db: 資料庫 session（FastAPI 注入）
     """
     data = get_weekly_summary(db, days=days)
     return success_response(data=data)

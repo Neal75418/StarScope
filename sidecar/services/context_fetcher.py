@@ -180,13 +180,13 @@ async def fetch_all_context_signals(db: Session) -> dict[str, Any]:
     sem = asyncio.Semaphore(CONTEXT_FETCH_CONCURRENCY)
 
     async def _fetch_one(
-        target: _FetchTarget,
+        t: _FetchTarget,
     ) -> tuple[_FetchTarget, list[HNStory] | None, Exception | None]:
         async with sem:
             try:
-                return target, await fetch_hn_mentions(target.owner, target.name), None
-            except Exception as e:  # 安全網：單一 repo 失敗不中斷整個 batch
-                return target, None, e
+                return t, await fetch_hn_mentions(t.owner, t.name), None
+            except Exception as exc:  # 安全網：單一 repo 失敗不中斷整個 batch
+                return t, None, exc
 
     fetched = await asyncio.gather(*(_fetch_one(t) for t in targets))
 

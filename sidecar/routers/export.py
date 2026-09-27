@@ -14,7 +14,6 @@ from fastapi import APIRouter, Depends, Query
 # 200 個 repo 的 indent=2 JSON 是 3,805 行＝3,805 個 chunk，實測 449ms vs 13ms。
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic.config import JsonDict
 from sqlalchemy.orm import Session
 
 from schemas.time import to_utc_iso
@@ -27,7 +26,7 @@ from utils.time import utc_now
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
-_EXPORTED_REPO_EXAMPLE: JsonDict = {
+_EXPORTED_REPO_EXAMPLE: dict[str, Any] = {
     "example": {
         "id": 1,
         "owner": "torvalds",
@@ -49,7 +48,7 @@ _EXPORTED_REPO_EXAMPLE: JsonDict = {
     }
 }
 
-_WATCHLIST_EXAMPLE: JsonDict = {
+_WATCHLIST_EXAMPLE: dict[str, Any] = {
     "example": {
         "exported_at": "2024-01-15T12:00:00Z",
         "total": 42,

@@ -146,7 +146,7 @@ def _fake_run(monkeypatch, make_tree):
     """換掉 subprocess.run：記下指令，並在解開位置建出安裝檔的內容。"""
     calls = []
 
-    def fake(cmd, *args, **kwargs):
+    def fake(cmd, *_args, **kwargs):
         calls.append((cmd, kwargs))
         make_tree()
         return subprocess.CompletedProcess(cmd, 0)

@@ -253,5 +253,5 @@ def load_progress(db: Session) -> dict | None:
     try:
         payload: dict = json.loads(raw)
         return payload
-    except Exception:
+    except ValueError:  # 設定值不是合法 JSON（JSONDecodeError 是 ValueError 的子類）
         return None

@@ -7,7 +7,7 @@ launchd 每小時執行一次（睡眠期間跳過，開蓋後補跑一次）。
 
 與開著的 App 併發是安全的：抓取的 skip 依據是 DB 裡的 fetched_at（不是行程內
 狀態），兩邊會透過 DB 自然互讓；fetch_releases_job 自己有時間戳擋著。
-_fetch_all_lock 只擋行程內同時，跨行程極端同時的最壞情況是重複抓一輪相同的
+fetch_all_lock 只擋行程內同時，跨行程極端同時的最壞情況是重複抓一輪相同的
 值，寫入冪等。
 
 離線時在預檢就退出（exit 0）：不對 94 個 repo 各失敗一次灌爆失敗計數器，
@@ -88,7 +88,7 @@ async def run_once() -> str:
 def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
     """把抓取結果翻成心跳字串。
 
-    None＝同一行程內已有一輪抓取在跑（`_fetch_all_lock` 是 asyncio.Lock，
+    None＝同一行程內已有一輪抓取在跑（`fetch_all_lock` 是 asyncio.Lock，
     只擋行程內；App 內嵌 sidecar 的排程路徑會發生，collector 行程單獨
     執行時這個分支不可達）。
     """

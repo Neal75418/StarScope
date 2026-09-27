@@ -17,10 +17,10 @@ def _has_token_but_never_synced(monkeypatch):
 
     store: dict[str, str] = {AppSettingKey.GITHUB_TOKEN: "gho_fake"}
 
-    def _get(key, db=None):
+    def _get(key, _db=None):
         return store.get(key)
 
-    def _set(key, value, db=None):
+    def _set(key, value, _db=None):
         store[key] = value
 
     monkeypatch.setattr("services.star_sync.get_setting", _get)

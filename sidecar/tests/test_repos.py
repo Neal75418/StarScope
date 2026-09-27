@@ -205,7 +205,7 @@ class TestReposEndpoints:
 
         call_count = 0
 
-        async def mock_fetch(github, owner, name):
+        async def mock_fetch(_github, owner, name):
             nonlocal call_count
             call_count += 1
             if call_count == 2:
@@ -249,10 +249,10 @@ class TestReposEndpoints:
         只取 data，message 會被丟掉——畫面因此會謊稱抓取已完成。實測：POST 14ms
         返回而真正的抓取 12 秒後才結束。
         """
-        from services.scheduler import _fetch_all_lock
+        from services.scheduler import fetch_all_lock
 
         async def _hold_and_call():
-            async with _fetch_all_lock:
+            async with fetch_all_lock:
                 return client.post("/api/repos/fetch-all")
 
         response = asyncio.run(_hold_and_call())
@@ -262,9 +262,9 @@ class TestReposEndpoints:
 
     def test_fetch_all_lock_is_released_so_the_next_call_still_runs(self, client, mock_repo):
         """409 那條路不能把鎖漏掉——漏了的話之後每一次抓取都會被擋。"""
-        from services.scheduler import _fetch_all_lock
+        from services.scheduler import fetch_all_lock
 
-        assert not _fetch_all_lock.locked()
+        assert not fetch_all_lock.locked()
         with patch("routers.repos.get_github_service") as mock_gh, \
              patch("routers.repos.fetch_repo_with_retry", new_callable=AsyncMock) as mock_retry:
             mock_gh.return_value = AsyncMock()
@@ -276,7 +276,7 @@ class TestReposEndpoints:
             response = client.post("/api/repos/fetch-all")
 
         assert response.status_code == 200
-        assert not _fetch_all_lock.locked()
+        assert not fetch_all_lock.locked()
 
 
 class TestStarsDelta1dOnTheWire:

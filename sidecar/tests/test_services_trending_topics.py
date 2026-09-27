@@ -23,10 +23,10 @@ from services.trending_topics import compute_trending_topics
 
 def _run(db, *, head, tail, global_counts):
     """用受控的取樣結果與全站總量跑一次計算。"""
-    async def fake_sample(github, facet, created_after, on_progress, done_offset=0):
+    async def fake_sample(_github, facet, _created_after, _on_progress, **_kwargs):
         return head if facet == ">=100" else tail
 
-    async def fake_probe(github, query, per_page=1):
+    async def fake_probe(_github, query, **_kwargs):
         topic = query.removeprefix("topic:")
         return {"total_count": global_counts.get(topic, 0)}
 

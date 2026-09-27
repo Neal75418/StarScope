@@ -556,7 +556,8 @@ class TestViralHnUsesPublishTimeNotFetchTime:
     先前也是篩 fetched_at。
     """
 
-    def _repo_with_hn(self, test_db, published_days_ago: int, score: int = 500):
+    @staticmethod
+    def _repo_with_hn(test_db, published_days_ago: int, score: int = 500):
         from db.models import Repo, ContextSignal, RepoSnapshot
         from constants import ContextSignalType
         from utils.time import utc_now
@@ -809,7 +810,7 @@ class TestSaveFailureIsDistinguishableFromNoSignals:
         from services import anomaly_detector as mod
 
         fake_signal = MagicMock(signal_type="sudden_spike")
-        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda self, db: [fake_signal])
+        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda _self, _db: [fake_signal])
         monkeypatch.setattr(mod, "save_detected_signals", lambda signals, db: None)
 
         result = mod.get_anomaly_detector().run_detection(test_db)
@@ -821,7 +822,7 @@ class TestSaveFailureIsDistinguishableFromNoSignals:
     def test_successful_save_reports_clean(self, test_db, monkeypatch):
         from services import anomaly_detector as mod
 
-        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda self, db: [])
+        monkeypatch.setattr(mod.AnomalyDetector, "detect_all", lambda _self, _db: [])
 
         result = mod.get_anomaly_detector().run_detection(test_db)
 

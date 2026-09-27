@@ -284,6 +284,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     建構涵蓋最近 N 天的摘要。
 
     Args:
+        db: 資料庫 session。
         days: 涵蓋天數（預設 7）。
 
     回傳符合 WeeklySummaryResponse schema 的 dict。

@@ -334,7 +334,8 @@ class TestReposComparedDistinguishesNoDataFromNoChange:
 class TestWeeklyReleases:
     """本週新版本。排序決定了它有沒有用：有標記的必須浮到最上面。"""
 
-    def _add(self, test_db, repo_id, ext, title, days_ago, tags=None):
+    @staticmethod
+    def _add(test_db, repo_id, ext, title, days_ago, tags=None):
         from db.models import ContextSignal
         test_db.add(ContextSignal(
             repo_id=repo_id, signal_type="release", external_id=ext,

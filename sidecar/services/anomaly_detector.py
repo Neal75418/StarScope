@@ -293,8 +293,6 @@ class AnomalyDetector:
     def detect_sudden_spike(
         repo: "Repo",
         db: Session,
-        snapshot_map: dict[int, "RepoSnapshot"] | None = None,
-        signal_map: dict[int, dict[str, float]] | None = None,
         recent_snapshots: list["RepoSnapshot"] | None = None,
     ) -> "EarlySignal | None":
         """
@@ -418,7 +416,6 @@ class AnomalyDetector:
         repo: "Repo",
         db: Session,
         snapshot_map: dict[int, "RepoSnapshot"] | None = None,
-        signal_map: dict[int, dict[str, float]] | None = None,
     ) -> "EarlySignal | None":
         """
         偵測 Hacker News 爆紅訊號。
@@ -504,8 +501,16 @@ class AnomalyDetector:
         回傳偵測到的訊號列表（尚未儲存）。
 
         Args:
+            repo: 要偵測的 repo。
+            db: 資料庫 session；預載的 map 沒命中時逐筆查詢用。
+            snapshot_map: 預載的 {repo_id: 最新一筆快照}。
+            signal_map: 預載的 {repo_id: {signal_type: value}}。
+            velocity_values: 全部 repo 的 velocity 值（由小到大排序，供 bisect 算百分位）。
             active_signals: 預載的 {(repo_id, signal_type): 最高嚴重度}，避免 N+1 查詢。
                             若為 None 則 fallback 至逐次 DB 查詢。
+            recent_snapshots_map: 預載的 {repo_id: 近 30 筆快照，由新到舊}，供 sudden_spike。
+            hn_signal_map: 預載的 {repo_id: VIRAL_HN_CUTOFF_HOURS 內、score >= VIRAL_HN_MIN_SCORE
+                           的最高分 HN 訊號}；命中就不再檢查門檻，若為 None 則 detect_viral_hn 自己查詢。
         """
         signals: list["EarlySignal"] = []
         repo_id = int(repo.id)
@@ -533,10 +538,7 @@ class AnomalyDetector:
         # detect_sudden_spike 需要 30 天快照序列
         try:
             repo_recent = recent_snapshots_map.get(repo.id) if recent_snapshots_map else None
-            signal = AnomalyDetector.detect_sudden_spike(
-                repo, db, snapshot_map=snapshot_map, signal_map=signal_map,
-                recent_snapshots=repo_recent,
-            )
+            signal = AnomalyDetector.detect_sudden_spike(repo, db, recent_snapshots=repo_recent)
             if signal and not _is_suppressed(signal):
                 signals.append(signal)
         except SQLAlchemyError as e:
@@ -563,9 +565,7 @@ class AnomalyDetector:
                     if signal and not _is_suppressed(signal):
                         signals.append(signal)
             else:
-                signal = AnomalyDetector.detect_viral_hn(
-                    repo, db, snapshot_map=snapshot_map, signal_map=signal_map
-                )
+                signal = AnomalyDetector.detect_viral_hn(repo, db, snapshot_map=snapshot_map)
                 if signal and not _is_suppressed(signal):
                     signals.append(signal)
         except SQLAlchemyError as e:

@@ -29,7 +29,8 @@ class FakeGitHub:
     async def unstar_repo(self, owner: str, name: str) -> None:
         self.unstarred.append((owner, name))
 
-    async def get_repo(self, owner: str, name: str) -> dict:
+    @staticmethod
+    async def get_repo(owner: str, name: str) -> dict:
         return {
             "id": abs(hash(f"{owner}/{name}")) % 100000,
             "full_name": f"{owner}/{name}",

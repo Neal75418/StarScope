@@ -5,6 +5,7 @@ from datetime import timedelta
 from constants import ContextSignalType, EarlySignalSeverity, EarlySignalType
 from db.models import AlertRule, AppSettingKey, ContextSignal, EarlySignal, TriggeredAlert
 from services.digest import DigestCursor, build_digest
+# noinspection PyProtectedMember
 from services.release_fetcher import _ReleaseTarget, store_release
 from services.settings import set_setting
 from utils.time import utc_now

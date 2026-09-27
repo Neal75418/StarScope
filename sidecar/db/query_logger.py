@@ -46,7 +46,7 @@ def setup_query_logging(engine: Engine, enable: bool = True) -> None:
         return
 
     @event.listens_for(engine, "before_cursor_execute")
-    def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    def before_cursor_execute(conn, _cursor, statement, _parameters, _context, _executemany):
         """查詢執行前的事件處理器"""
         # 在連線上儲存開始時間
         conn.info.setdefault("query_start_time", []).append(time.perf_counter())
@@ -56,7 +56,7 @@ def setup_query_logging(engine: Engine, enable: bool = True) -> None:
             logger.debug(f"[查詢日誌] 執行 SQL:\n{statement}")
 
     @event.listens_for(engine, "after_cursor_execute")
-    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    def after_cursor_execute(conn, _cursor, statement, _parameters, _context, _executemany):
         """查詢執行後的事件處理器"""
         # 計算執行時間
         start_time = conn.info["query_start_time"].pop(-1)
