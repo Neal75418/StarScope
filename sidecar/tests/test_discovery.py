@@ -2,12 +2,14 @@
 Tests for discovery (GitHub search) endpoints.
 """
 
+from typing import Any
+
 from unittest.mock import patch, AsyncMock
 
 from services.github import GitHubRateLimitError, GitHubAPIError
 
 
-def _make_github_search_result(count=1, total_count=None):
+def _make_github_search_result(count=1, total_count=None) -> dict[str, Any]:
     """Helper to create a mock GitHub search API response."""
     items = []
     for i in range(count):

@@ -48,8 +48,7 @@ def _tracked(db, github_id: int, full_name: str) -> Repo:
 @pytest.fixture(autouse=True)
 def _has_token_and_not_first_sync(test_db, monkeypatch):
     """預設情境：已設定 token、且不是首次同步（首次同步的規則見 Task 5）。"""
-    import services.star_sync as mod
-    monkeypatch.setattr(mod, "get_setting", _fake_settings({
+    monkeypatch.setattr("services.star_sync.get_setting", _fake_settings({
         AppSettingKey.GITHUB_TOKEN: "gho_fake",
         AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
     }))
@@ -88,8 +87,7 @@ async def test_fetch_failure_never_archives_anything(test_db):
 
 async def test_missing_token_makes_no_request_at_all(test_db, monkeypatch):
     """不依賴「回傳 0 筆」那道閘兜底——根本不該送出請求。"""
-    import services.star_sync as mod
-    monkeypatch.setattr(mod, "get_setting", _fake_settings({}))
+    monkeypatch.setattr("services.star_sync.get_setting", _fake_settings({}))
 
     gh = FakeGitHub(stars=[_star(1, "a/one")])
     result = await sync_starred_repos(test_db, gh)
@@ -119,10 +117,9 @@ async def test_added_repo_carries_the_star_date(test_db):
 
 async def test_a_second_sync_is_refused_while_one_is_running(test_db, monkeypatch):
     """自動同步與手動同步並行會算出同樣的新增集合，重複 insert 撞 full_name 唯一鍵。"""
-    import services.star_sync as mod
     from utils.time import utc_now
 
-    monkeypatch.setattr(mod, "get_setting", _fake_settings({
+    monkeypatch.setattr("services.star_sync.get_setting", _fake_settings({
         AppSettingKey.GITHUB_TOKEN: "gho_fake",
         AppSettingKey.LAST_STAR_SYNC_AT: "2026-08-01T00:00:00Z",
         # 鎖記的是開始時間；剛開始的鎖才算有效（陳舊的鎖見下一條測試）
@@ -173,7 +170,6 @@ async def test_a_killed_sync_does_not_wedge_every_future_sync(test_db, monkeypat
     那期間關掉 app 是完全正常的操作——若鎖留著，之後每一次同步都回 already_running，
     而且沒有任何介面能解除。
     """
-    import services.star_sync as mod
     from utils.time import utc_now
     from datetime import timedelta
 
@@ -183,8 +179,8 @@ async def test_a_killed_sync_does_not_wedge_every_future_sync(test_db, monkeypat
         # 上一輪在一小時前開始，之後行程被殺，finally 從未執行
         AppSettingKey.STAR_SYNC_RUNNING: (utc_now() - timedelta(hours=1)).isoformat(),
     }
-    monkeypatch.setattr(mod, "get_setting", lambda key, db=None: store.get(key))
-    monkeypatch.setattr(mod, "set_setting",
+    monkeypatch.setattr("services.star_sync.get_setting", lambda key, db=None: store.get(key))
+    monkeypatch.setattr("services.star_sync.set_setting",
                         lambda key, value, db=None: store.__setitem__(key, value))
 
     result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/one")]))

@@ -17,8 +17,10 @@ ALLOWED = ["tauri://localhost", "http://localhost:1420"]
 
 def _build_app() -> FastAPI:
     app = FastAPI()
-    # 跟 main.py 一樣：CORS 最後 add、在最外層
+    # 跟 main.py 一樣：CORS 最後 add、在最外層（add_middleware 的 ParamSpec 簽名 PyCharm 不支援，會誤報型別）
+    # noinspection PyTypeChecker
     app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED)
+    # noinspection PyTypeChecker
     app.add_middleware(CORSMiddleware, allow_origins=ALLOWED,
                        allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 

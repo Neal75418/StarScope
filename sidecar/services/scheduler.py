@@ -103,9 +103,12 @@ FETCH_CONCURRENCY = 5
 def get_scheduler() -> AsyncIOScheduler:
     """取得全域排程器實例（使用 SQLAlchemy jobstore 持久化）。"""
     global _scheduler
-    if _scheduler is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    scheduler = _scheduler
+    if scheduler is None:
         with _scheduler_lock:
-            if _scheduler is None:
+            scheduler = _scheduler
+            if scheduler is None:
                 jobstore_engine = create_engine(
                     DATABASE_URL,
                     connect_args={"check_same_thread": False, "timeout": 30},
@@ -120,8 +123,8 @@ def get_scheduler() -> AsyncIOScheduler:
                 jobstores = {
                     "default": SQLAlchemyJobStore(engine=jobstore_engine),
                 }
-                _scheduler = AsyncIOScheduler(jobstores=jobstores)
-    return _scheduler
+                scheduler = _scheduler = AsyncIOScheduler(jobstores=jobstores)
+    return scheduler
 
 
 def _track_repo_failure(repo_id: int, full_name: str, reason: str) -> None:

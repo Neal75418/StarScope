@@ -711,12 +711,15 @@ _detector_lock = threading.Lock()
 def get_anomaly_detector() -> AnomalyDetector:
     """取得預設的異常偵測器實例。"""
     global _detector
-    if _detector is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    detector = _detector
+    if detector is None:
         with _detector_lock:
-            if _detector is None:
-                _detector = AnomalyDetector()
+            detector = _detector
+            if detector is None:
+                detector = _detector = AnomalyDetector()
                 logger.info("[異常偵測] 異常偵測器已初始化")
-    return _detector
+    return detector
 
 
 def run_detection(db: Session) -> dict[str, Any]:

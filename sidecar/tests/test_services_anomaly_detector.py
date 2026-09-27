@@ -236,6 +236,7 @@ class TestDetectBreakout:
         assert result is not None
         assert result.signal_type == EarlySignalType.BREAKOUT
         assert result.baseline_value is not None
+        assert result.velocity_value is not None
         assert result.baseline_value < result.velocity_value
         assert result.baseline_value == pytest.approx((30 - 35) / 23), \
             "前幾週的 velocity：(30 天總量 − 7 天量) / 23 天"
@@ -713,16 +714,11 @@ class TestDeltasAreNormalisedByActualDaySpan:
     """
 
     @staticmethod
-    def _snaps(pairs):
+    def _snaps(pairs) -> list[RepoSnapshot]:
         """(日期, 星數) 由新到舊，與 detect_sudden_spike 收到的順序一致。"""
         from datetime import date
 
-        class _S:
-            def __init__(self, d, stars):
-                self.snapshot_date = date.fromisoformat(d)
-                self.stars = stars
-
-        return [_S(d, n) for d, n in pairs]
+        return [RepoSnapshot(repo_id=1, stars=n, snapshot_date=date.fromisoformat(d)) for d, n in pairs]
 
     def test_the_real_false_positive_no_longer_fires(self):
         from services.anomaly_detector import (
@@ -993,6 +989,7 @@ class TestEscalation:
         save_detected_signals([late_low], test_db)
 
         test_db.refresh(high)
+        assert high.expires_at is not None
         assert high.expires_at > utc_now()
 
     def test_saving_an_escalation_expires_what_it_replaces(self, test_db, mock_repo):
@@ -1013,7 +1010,10 @@ class TestEscalation:
 
         test_db.refresh(old)
         test_db.refresh(other_type)
-        assert old.expires_at <= utc_now()
         test_db.refresh(other_repos_signal)
+        assert old.expires_at is not None
+        assert other_type.expires_at is not None
+        assert other_repos_signal.expires_at is not None
+        assert old.expires_at <= utc_now()
         assert other_type.expires_at > utc_now()  # 別的類型不受影響
         assert other_repos_signal.expires_at > utc_now()  # 別的 repo 不受影響

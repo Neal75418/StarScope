@@ -17,7 +17,7 @@ NOW = datetime(2026, 8, 1, 12, 0, 0)
 TODAY = date(2026, 8, 1)
 
 
-def _gh_item(gid: int, full_name: str, *, topics=None, language="Rust",
+def _gh_item(gid: int, full_name: str, *, topics: list[str] | None = None, language: str | None = "Rust",
              stars=200, days_old=30, days_since_push=3):
     owner, name = full_name.split("/")
     return {

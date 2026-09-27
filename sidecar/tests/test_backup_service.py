@@ -108,6 +108,8 @@ class TestCreateBackup:
             b2 = service.create_backup()
 
         assert b1 != b2
+        assert b1 is not None
+        assert b2 is not None
         assert b1.exists()
         assert b2.exists()
 
@@ -132,6 +134,7 @@ class TestCleanupOldBackups:
 
         assert deleted == 1
         assert not old_backup.exists()
+        assert new_backup is not None
         assert new_backup.exists()
 
     def test_keeps_recent_backups(self, service):

@@ -313,8 +313,11 @@ _auth_service_lock = threading.Lock()
 def get_github_auth_service() -> GitHubAuthService:
     """取得 GitHub 驗證服務的 singleton 實例。"""
     global _auth_service
-    if _auth_service is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    service = _auth_service
+    if service is None:
         with _auth_service_lock:
-            if _auth_service is None:
-                _auth_service = GitHubAuthService()
-    return _auth_service
+            service = _auth_service
+            if service is None:
+                service = _auth_service = GitHubAuthService()
+    return service

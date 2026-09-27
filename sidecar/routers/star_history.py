@@ -137,7 +137,7 @@ def get_portfolio_history(
 
 
 # 輔助函式
-def _parse_starred_at(starred_at: str) -> date | None:
+def _parse_starred_at(starred_at: str | None) -> date | None:
     """將 ISO datetime 字串解析為 date。"""
     if not starred_at:
         return None

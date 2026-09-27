@@ -90,10 +90,11 @@ def test_release_mode_passes_the_app_object_not_an_import_string():
 def test_frozen_binary_ignores_debug(monkeypatch):
     """打包後的 binary 就算讀到 DEBUG=true（使用者環境變數、上層目錄的 .env）也不能開 reload：
     reloader 會先佔住 port，子行程再跑一次入口又綁同一個 port，結果行程活著卻永遠不服務。"""
-    import sys
     import main
 
-    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    # sys.frozen 只有 PyInstaller 打包後才存在，型別存根裡沒有
+    # noinspection PyUnresolvedReferences
+    monkeypatch.setattr("sys.frozen", True, raising=False)
     with patch.object(main, "DEBUG", True), patch("main.uvicorn.Server") as server_cls, \
             patch("main.uvicorn.run") as run:
         main.run_server()

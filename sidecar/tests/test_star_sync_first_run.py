@@ -14,7 +14,6 @@ from tests.test_star_sync_service import FakeGitHub, _star, _tracked
 @pytest.fixture(autouse=True)
 def _has_token_but_never_synced(monkeypatch):
     """有 token，但 LAST_STAR_SYNC_AT 從未寫入——即首次同步。"""
-    import services.star_sync as mod
 
     store: dict[str, str] = {AppSettingKey.GITHUB_TOKEN: "gho_fake"}
 
@@ -24,8 +23,8 @@ def _has_token_but_never_synced(monkeypatch):
     def _set(key, value, db=None):
         store[key] = value
 
-    monkeypatch.setattr(mod, "get_setting", _get)
-    monkeypatch.setattr(mod, "set_setting", _set)
+    monkeypatch.setattr("services.star_sync.get_setting", _get)
+    monkeypatch.setattr("services.star_sync.set_setting", _set)
     return store
 
 

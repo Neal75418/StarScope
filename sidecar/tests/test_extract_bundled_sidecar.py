@@ -16,6 +16,8 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "extract_bundled_sidecar.py"
 _spec = importlib.util.spec_from_file_location("extract_bundled_sidecar", SCRIPT)
+assert _spec is not None
+assert _spec.loader is not None
 ebs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ebs)
 

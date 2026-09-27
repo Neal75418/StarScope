@@ -15,6 +15,8 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "stage_sidecar.py"
 _spec = importlib.util.spec_from_file_location("stage_sidecar", SCRIPT)
+assert _spec is not None
+assert _spec.loader is not None
 stage_sidecar = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(stage_sidecar)
 

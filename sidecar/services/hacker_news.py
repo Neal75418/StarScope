@@ -155,7 +155,7 @@ def is_relevant_story(title: str, url: str, owner: str, name: str) -> bool:
 
 def _parse_hn_hit(hit: dict, seen_ids: set) -> HNStory | None:
     """將單一 HN API 結果解析為 HNStory，無效或重複時回傳 None。"""
-    object_id = hit.get("objectID")
+    object_id: str | None = hit.get("objectID")
     if not object_id or object_id in seen_ids:
         return None
 
@@ -229,9 +229,10 @@ class HackerNewsService:
         每次呼叫都開新 client 等於每次都重跑一次 TLS 握手。整批掃描時這是主要成本：
         94 個 repo × 2 次查詢實測 104 秒，光是改成共用連線就降到 80 秒。
         """
-        if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(timeout=self.timeout)
-        return self._client
+        client = self._client
+        if client is None or client.is_closed:
+            client = self._client = httpx.AsyncClient(timeout=self.timeout)
+        return client
 
     async def aclose(self) -> None:
         """關閉底層 HTTP client。"""
@@ -301,11 +302,14 @@ _hn_service_lock = threading.Lock()
 def get_hn_service() -> HackerNewsService:
     """取得預設的 HN 服務實例（thread-safe double-checked locking）。"""
     global _default_service
-    if _default_service is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    service = _default_service
+    if service is None:
         with _hn_service_lock:
-            if _default_service is None:
-                _default_service = HackerNewsService()
-    return _default_service
+            service = _default_service
+            if service is None:
+                service = _default_service = HackerNewsService()
+    return service
 
 
 async def close_hn_service() -> None:

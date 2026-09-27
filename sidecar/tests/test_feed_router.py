@@ -135,12 +135,16 @@ def test_opened_records_first_click_and_does_not_overwrite(client, test_db):
     assert client.post(f"/api/feed/items/{item.id}/opened").status_code == 200
 
     test_db.expire_all()
-    first = test_db.get(FeedItem, item.id).opened_at
+    row = test_db.get(FeedItem, item.id)
+    assert row is not None
+    first = row.opened_at
     assert first is not None
 
     assert client.post(f"/api/feed/items/{item.id}/opened").status_code == 200
     test_db.expire_all()
-    assert test_db.get(FeedItem, item.id).opened_at == first
+    row = test_db.get(FeedItem, item.id)
+    assert row is not None
+    assert row.opened_at == first
 
 
 def test_opened_and_feedback_coexist(client, test_db):
@@ -155,6 +159,7 @@ def test_opened_and_feedback_coexist(client, test_db):
 
     test_db.expire_all()
     row = test_db.get(FeedItem, item.id)
+    assert row is not None
     assert row.opened_at is not None, "加入追蹤不該抹掉點開記錄"
     assert row.feedback == "starred"
 

@@ -72,6 +72,7 @@ class TestSetSetting:
         set_setting("existing_key", "new_value", test_db)
 
         result = test_db.query(AppSetting).filter(AppSetting.key == "existing_key").first()
+        assert result is not None
         assert result.value == "new_value"
 
     def test_creates_session_when_none_provided(self):

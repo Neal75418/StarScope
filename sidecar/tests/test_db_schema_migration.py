@@ -7,6 +7,7 @@
 """
 import pytest
 import sqlalchemy as sa
+from sqlalchemy import event
 
 from db.database import SchemaNeedsMigration, ensure_columns
 from db.models import Base
@@ -198,7 +199,7 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     other_process = sa.create_engine(f"sqlite:///{path}")
     raced: list[str] = []
 
-    @sa.event.listens_for(engine, "before_cursor_execute")
+    @event.listens_for(engine, "before_cursor_execute")
     def _other_process_wins(conn, cursor, statement, parameters, context, executemany):
         if statement.startswith("ALTER TABLE") and not raced:
             raced.append(statement)

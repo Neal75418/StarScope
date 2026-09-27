@@ -56,6 +56,8 @@ def create_github_retry_decorator(max_attempts: int = 5) -> Any:
     - GitHubRateLimitError (403)
     - GitHubAPIError（暫時性錯誤，排除 404）
     """
+    # logging.Logger 符合 tenacity 的 LoggerProtocol（mypy 認），PyCharm 比對 Protocol 的 positional-only 參數會誤報
+    # noinspection PyTypeChecker
     return retry(
         retry=retry_if_exception(_should_retry_github_error),
         wait=wait_exponential_jitter(initial=4, max=60, jitter=2),

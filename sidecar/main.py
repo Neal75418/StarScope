@@ -356,20 +356,25 @@ ALLOWED_ORIGINS = get_allowed_origins()
 # Per-session secret 驗證 middleware（preflight 由外層的 CORS 直接回應，到不了這裡）
 app.add_middleware(SessionAuthMiddleware)
 
+# add_middleware 的簽名用 ParamSpec 描述 middleware 的建構參數，PyCharm 還不支援，以下四個呼叫都會誤報型別
 # 不依賴 secret 的 Host/Origin 檢查：沒有 secret 的開發模式也要擋住別的網站。
 # 掛在 Logging 內層，被拒絕的請求也會帶 X-Request-ID、進 access log
+# noinspection PyTypeChecker
 app.add_middleware(LocalRequestGuardMiddleware, allowed_origins=ALLOWED_ORIGINS)
 
 # 沒接住的例外在這裡轉成 500，才會經過 CORS；掛在 Logging 內層，500 照樣進 access log
+# noinspection PyTypeChecker
 app.add_middleware(UnhandledErrorMiddleware)
 
 # Request/Response 日誌 middleware
+# noinspection PyTypeChecker
 app.add_middleware(
     LoggingMiddleware,
     exclude_paths=["/api/health", "/"],
     log_headers=DEBUG,  # 僅在 debug 模式記錄 headers
 )
 
+# noinspection PyTypeChecker
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,

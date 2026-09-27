@@ -11,6 +11,8 @@ from middleware.logging import LoggingMiddleware
 
 def _build_app(**middleware_kwargs) -> TestClient:
     app = FastAPI()
+    # add_middleware 的 ParamSpec 簽名 PyCharm 不支援，會誤報型別
+    # noinspection PyTypeChecker
     app.add_middleware(LoggingMiddleware, **middleware_kwargs)
 
     @app.get("/api/echo")

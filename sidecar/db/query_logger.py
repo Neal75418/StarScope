@@ -35,10 +35,11 @@ def setup_query_logging(engine: Engine, enable: bool = True) -> None:
         engine: SQLAlchemy Engine 實例
         enable: 是否啟用查詢日誌（預設 True）
 
-    Example:
-        >>> from db.database import engine
-        >>> from db.query_logger import setup_query_logging
-        >>> setup_query_logging(engine)
+    Example::
+
+        from db.database import engine
+        from db.query_logger import setup_query_logging
+        setup_query_logging(engine)
     """
     if not enable:
         logger.info("[查詢日誌] 查詢日誌已停用")

@@ -84,8 +84,8 @@ def update_repo_from_github(repo: Repo, github_data: dict, db: Session) -> None:
     repo.language = github_data.get("language")
     # id 相同就是同一個 repo，改名要跟著更新——否則下次還是拿舊名去查，
     # 一直依賴導向，而舊名總有一天會被佔走
-    incoming_full_name = github_data.get("full_name")
-    if incoming_full_name and incoming_full_name != repo.full_name:
+    incoming_full_name: str = github_data.get("full_name") or repo.full_name
+    if incoming_full_name != repo.full_name:
         logger.info(f"[Repo] {repo.full_name} 已更名為 {incoming_full_name}")
         repo.full_name = incoming_full_name
         repo.owner = (github_data.get("owner") or {}).get("login") or repo.owner

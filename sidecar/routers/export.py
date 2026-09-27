@@ -6,7 +6,7 @@
 import csv
 import io
 import json
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 # 匯出一律用 Response 而非 StreamingResponse：內容在回傳前就已完整存在記憶體
@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, Query
 # 200 個 repo 的 indent=2 JSON 是 3,805 行＝3,805 個 chunk，實測 449ms vs 13ms。
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.config import JsonDict
 from sqlalchemy.orm import Session
 
 from schemas.time import to_utc_iso
@@ -24,6 +25,49 @@ from services.queries import build_snapshot_map, build_signal_map, build_stars_m
 from utils.time import utc_now
 
 router = APIRouter(prefix="/api/export", tags=["export"])
+
+
+_EXPORTED_REPO_EXAMPLE: JsonDict = {
+    "example": {
+        "id": 1,
+        "owner": "torvalds",
+        "name": "linux",
+        "full_name": "torvalds/linux",
+        "url": "https://github.com/torvalds/linux",
+        "description": "Linux kernel source tree",
+        "language": "C",
+        "topics": '["kernel", "linux", "operating-system"]',
+        "added_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-02T00:00:00Z",
+        "stars": 150000,
+        "forks": 50000,
+        "stars_delta_7d": 500.0,
+        "stars_delta_30d": 2000.0,
+        "velocity": 100.0,
+        "acceleration": 5.0,
+        "trend": 0.8,
+    }
+}
+
+_WATCHLIST_EXAMPLE: JsonDict = {
+    "example": {
+        "exported_at": "2024-01-15T12:00:00Z",
+        "total": 42,
+        "repos": [
+            {
+                "id": 1,
+                "owner": "torvalds",
+                "name": "linux",
+                "full_name": "torvalds/linux",
+                "url": "https://github.com/torvalds/linux",
+                "description": "Linux kernel source tree",
+                "language": "C",
+                "stars": 150000,
+                "velocity": 100.0,
+            }
+        ]
+    }
+}
 
 
 # OpenAPI 文件用回應模型
@@ -47,27 +91,7 @@ class ExportedRepo(BaseModel):
     acceleration: float | None = Field(None, description="Star 加速度")
     trend: float | None = Field(None, description="趨勢分數")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "id": 1,
-            "owner": "torvalds",
-            "name": "linux",
-            "full_name": "torvalds/linux",
-            "url": "https://github.com/torvalds/linux",
-            "description": "Linux kernel source tree",
-            "language": "C",
-            "topics": '["kernel", "linux", "operating-system"]',
-            "added_at": "2024-01-01T00:00:00Z",
-            "updated_at": "2024-01-02T00:00:00Z",
-            "stars": 150000,
-            "forks": 50000,
-            "stars_delta_7d": 500.0,
-            "stars_delta_30d": 2000.0,
-            "velocity": 100.0,
-            "acceleration": 5.0,
-            "trend": 0.8,
-        }
-    })
+    model_config = ConfigDict(json_schema_extra=_EXPORTED_REPO_EXAMPLE)
 
 
 class WatchlistExportResponse(BaseModel):
@@ -76,25 +100,7 @@ class WatchlistExportResponse(BaseModel):
     total: int = Field(..., description="Repo 總數")
     repos: list[ExportedRepo] = Field(..., description="Repo 列表（含訊號）")
 
-    model_config = ConfigDict(json_schema_extra={
-        "example": {
-            "exported_at": "2024-01-15T12:00:00Z",
-            "total": 42,
-            "repos": [
-                {
-                    "id": 1,
-                    "owner": "torvalds",
-                    "name": "linux",
-                    "full_name": "torvalds/linux",
-                    "url": "https://github.com/torvalds/linux",
-                    "description": "Linux kernel source tree",
-                    "language": "C",
-                    "stars": 150000,
-                    "velocity": 100.0,
-                }
-            ]
-        }
-    })
+    model_config = ConfigDict(json_schema_extra=_WATCHLIST_EXAMPLE)
 
 
 def _build_repo_dict(
@@ -145,16 +151,31 @@ def _get_repos_with_signals(repos: list["Repo"], db: Session) -> list[dict]:
     ]
 
 
-@router.get(
-    "/watchlist.json",
-    response_class=Response,
-    responses={
-        200: {
-            "description": "JSON 格式的 watchlist 匯出",
-            "model": WatchlistExportResponse,
+_WATCHLIST_JSON_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "JSON 格式的 watchlist 匯出",
+        "model": WatchlistExportResponse,
+    }
+}
+
+_WATCHLIST_CSV_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {
+        "description": "CSV 格式的 watchlist 匯出",
+        "content": {
+            "text/csv": {
+                "schema": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV 檔案，包含欄位：full_name, owner, name, url, language, description, stars, forks, velocity, stars_delta_7d, stars_delta_30d, acceleration, trend, added_at"
+                },
+                "example": "full_name,owner,name,url,language,stars,velocity\ntorvalds/linux,torvalds,linux,https://github.com/torvalds/linux,C,150000,100.0\n"
+            }
         }
     }
-)
+}
+
+
+@router.get("/watchlist.json", response_class=Response, responses=_WATCHLIST_JSON_RESPONSES)
 def export_watchlist_json(
     db: Session = Depends(get_db)
 ) -> Response:
@@ -188,25 +209,7 @@ CSV_COLUMNS = [
 ]
 
 
-@router.get(
-    "/watchlist.csv",
-    response_class=Response,
-    responses={
-        200: {
-            "description": "CSV 格式的 watchlist 匯出",
-            "content": {
-                "text/csv": {
-                    "schema": {
-                        "type": "string",
-                        "format": "binary",
-                        "description": "CSV 檔案，包含欄位：full_name, owner, name, url, language, description, stars, forks, velocity, stars_delta_7d, stars_delta_30d, acceleration, trend, added_at"
-                    },
-                    "example": "full_name,owner,name,url,language,stars,velocity\ntorvalds/linux,torvalds,linux,https://github.com/torvalds/linux,C,150000,100.0\n"
-                }
-            }
-        }
-    }
-)
+@router.get("/watchlist.csv", response_class=Response, responses=_WATCHLIST_CSV_RESPONSES)
 def export_watchlist_csv(
     db: Session = Depends(get_db)
 ) -> Response:

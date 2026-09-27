@@ -425,6 +425,7 @@ class TestGetConnectionStatus:
                     result = await GitHubAuthService.get_connection_status()
 
                     assert result.connected is False
+                    assert result.error is not None
                     assert "expired" in result.error.lower() or "revoked" in result.error.lower()
                     assert mock_delete.call_count == 2
 
@@ -443,6 +444,7 @@ class TestGetConnectionStatus:
                 result = await GitHubAuthService.get_connection_status()
 
                 assert result.connected is False  # Cannot verify connection on timeout
+                assert result.error is not None
                 assert "timeout" in result.error.lower()
 
 

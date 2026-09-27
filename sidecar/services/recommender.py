@@ -418,12 +418,15 @@ _recommender_lock = threading.Lock()
 def get_recommender_service() -> RecommenderService:
     """取得預設的推薦服務實例（使用 double-checked locking）。"""
     global _recommender
-    if _recommender is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    service = _recommender
+    if service is None:
         with _recommender_lock:
-            if _recommender is None:
-                _recommender = RecommenderService()
+            service = _recommender
+            if service is None:
+                service = _recommender = RecommenderService()
                 logger.info("[推薦] 推薦服務已初始化")
-    return _recommender
+    return service
 
 
 def find_similar_repos(repo_id: int, db: Session, limit: int = 10) -> list[dict]:

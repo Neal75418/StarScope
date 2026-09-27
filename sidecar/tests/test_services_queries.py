@@ -58,7 +58,8 @@ class TestGetSnapshotForRepo:
     def test_falls_back_to_the_query_when_the_map_misses(self, test_db, mock_repo):
         _seed(test_db, mock_repo.id, [(0, 2000)])
 
-        snap = get_snapshot_for_repo(mock_repo.id, test_db, {99999: None})
+        other = RepoSnapshot(repo_id=99999, stars=1, forks=0, watchers=0, open_issues=0, snapshot_date=utc_today())
+        snap = get_snapshot_for_repo(mock_repo.id, test_db, {99999: other})
 
         assert snap is not None
         assert snap.stars == 2000

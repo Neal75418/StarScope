@@ -9,7 +9,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, overload
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
@@ -142,6 +142,24 @@ def _check_github_errors(
     return True
 
 
+@overload
+def handle_github_response(
+    response: "httpx.Response", raise_on_error: Literal[True] = True, context: str = ""
+) -> dict: ...
+
+
+@overload
+def handle_github_response(
+    response: "httpx.Response", raise_on_error: Literal[False], context: str = ""
+) -> dict | None: ...
+
+
+@overload
+def handle_github_response(
+    response: "httpx.Response", raise_on_error: bool, context: str = ""
+) -> dict | None: ...
+
+
 def handle_github_response(
     response: "httpx.Response",
     raise_on_error: bool = True,
@@ -207,12 +225,13 @@ class GitHubService:
     @property
     def client(self) -> httpx.AsyncClient:
         """取得共用的 httpx.AsyncClient（連線池復用）。"""
-        if self._client is None or self._client.is_closed:
+        client = self._client
+        if client is None or client.is_closed:
             # follow_redirects：GitHub 對改名或轉移過的 repo 回 301，httpx 預設不跟隨，
             # 那個 repo 的抓取就會失敗——而且是無聲的，排程記一筆錯誤跳過，
             # 它從此不再更新（實測 facebook/react → /repositories/10270250）
-            self._client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
-        return self._client
+            client = self._client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
+        return client
 
     async def aclose(self) -> None:
         """關閉底層 HTTP client。"""
@@ -592,11 +611,14 @@ def get_github_service() -> GitHubService:
     Token 變更時呼叫 reset_github_service() 以刷新。
     """
     global _default_service
-    if _default_service is None:
+    # 走區域變數：模組全域是 Optional，型別檢查看不到 with 區塊裡的收窄
+    service = _default_service
+    if service is None:
         with _service_lock:
-            if _default_service is None:
-                _default_service = GitHubService(token=resolve_github_token())
-    return _default_service
+            service = _default_service
+            if service is None:
+                service = _default_service = GitHubService(token=resolve_github_token())
+    return service
 
 
 async def close_github_service() -> None:

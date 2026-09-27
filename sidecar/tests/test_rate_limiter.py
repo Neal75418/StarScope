@@ -3,7 +3,7 @@ Tests for rate limiter retry functionality.
 Verifies tenacity retry behavior for GitHub API calls.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from tenacity import wait_none
@@ -46,9 +46,9 @@ class TestFetchRepoWithRetry:
             ]
         )
 
-        # 直接 patch 已建構的 retry decorator 的 wait 策略
-        with patch.object(fetch_repo_with_retry.retry, "wait", wait_none()):
-            result = await fetch_repo_with_retry(mock_github, "owner", "repo")
+        # retry_with 複製一份 decorator 換掉 wait 策略，不動共用的 retry 物件
+        no_wait = fetch_repo_with_retry.retry_with(wait=wait_none())
+        result = await no_wait(mock_github, "owner", "repo")
 
         assert result == {"stargazers_count": 100}
         assert mock_github.get_repo.call_count == 3
@@ -64,8 +64,8 @@ class TestFetchRepoWithRetry:
             ]
         )
 
-        with patch.object(fetch_repo_with_retry.retry, "wait", wait_none()):
-            result = await fetch_repo_with_retry(mock_github, "owner", "repo")
+        no_wait = fetch_repo_with_retry.retry_with(wait=wait_none())
+        result = await no_wait(mock_github, "owner", "repo")
 
         assert result == {"stargazers_count": 200}
         assert mock_github.get_repo.call_count == 2
@@ -99,10 +99,9 @@ class TestFetchRepoWithRetry:
         async def fetch_with_limited_retry(github, owner, name):
             return await github.get_repo(owner, name)
 
-        # patch 新建 decorator 的 wait 策略
-        with patch.object(fetch_with_limited_retry.retry, "wait", wait_none()):
-            with pytest.raises(GitHubRateLimitError):
-                await fetch_with_limited_retry(mock_github, "owner", "repo")
+        no_wait = fetch_with_limited_retry.retry_with(wait=wait_none())
+        with pytest.raises(GitHubRateLimitError):
+            await no_wait(mock_github, "owner", "repo")
 
         assert mock_github.get_repo.call_count == 3
 
@@ -121,8 +120,8 @@ class TestCreateGitHubRetryDecorator:
             call_count += 1
             raise GitHubRateLimitError("Rate limited", 403)
 
-        with patch.object(failing_function.retry, "wait", wait_none()):
-            with pytest.raises(GitHubRateLimitError):
-                await failing_function()
+        no_wait = failing_function.retry_with(wait=wait_none())
+        with pytest.raises(GitHubRateLimitError):
+            await no_wait()
 
         assert call_count == 2

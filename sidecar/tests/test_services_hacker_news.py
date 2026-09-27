@@ -45,6 +45,7 @@ class TestParseCreatedAt:
     def test_parses_valid_timestamp(self):
         """Test parses valid ISO timestamp."""
         result = hn_module._parse_created_at("2024-01-15T12:30:00Z")
+        assert result is not None
         assert result.year == 2024
         assert result.month == 1
         assert result.day == 15
@@ -52,6 +53,7 @@ class TestParseCreatedAt:
     def test_parses_with_timezone(self):
         """Test parses timestamp with timezone."""
         result = hn_module._parse_created_at("2024-01-15T12:30:00+00:00")
+        assert result is not None
         assert result.tzinfo is not None
 
     def test_returns_none_on_invalid(self):
@@ -116,6 +118,7 @@ class TestParseHnHit:
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
+        assert result is not None
         assert result.url == "https://news.ycombinator.com/item?id=12345"
 
     def test_handles_missing_fields(self):
@@ -125,6 +128,7 @@ class TestParseHnHit:
 
         result = hn_module._parse_hn_hit(hit, seen_ids)
 
+        assert result is not None
         assert result.title == ""
         assert result.points == 0
         assert result.num_comments == 0

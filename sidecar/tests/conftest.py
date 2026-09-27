@@ -15,7 +15,7 @@ import tempfile
 if "STARSCOPE_DATA_DIR" not in os.environ:
     _data_dir = tempfile.mkdtemp(prefix="starscope-tests-")
     os.environ["STARSCOPE_DATA_DIR"] = _data_dir
-    atexit.register(shutil.rmtree, _data_dir, ignore_errors=True)
+    atexit.register(lambda: shutil.rmtree(_data_dir, ignore_errors=True))
 
 from typing import Generator
 from unittest.mock import AsyncMock, patch
