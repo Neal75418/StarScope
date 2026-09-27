@@ -311,9 +311,12 @@ npm run tauri dev                        # 終端機 2
 
 SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_dir()` 決定，優先序：
 
-1. `STARSCOPE_DATA_DIR` 環境變數（測試或自訂路徑）
-2. `TAURI_APP_DATA_DIR`（正式環境由 Tauri 注入）
-3. `~/.starscope`（開發環境回退）
+1. `STARSCOPE_DATA_DIR` 環境變數（測試、smoke test、打包版實測的隔離）
+2. `~/.starscope`：開發模式、安裝版、launchd 的 collector 共用這一份
+
+⚠️ 安裝版也用 `~/.starscope`，也就是真實資料。任何會啟動打包版或 sidecar 的實驗都要設 `STARSCOPE_DATA_DIR`。
+Rust 不能用任何環境變數傳資料目錄給 sidecar，`STARSCOPE_DATA_DIR` 也不行（它最優先）：以前傳過 `TAURI_APP_DATA_DIR`，
+安裝版就看不到 collector 寫的資料。Python 端忽略 `TAURI_APP_DATA_DIR` 由 `tests/test_app_data_dir.py` 守住，Rust 端沒有測試守。
 
 除錯找資料庫時別在 `sidecar/` 底下找。
 
@@ -346,6 +349,12 @@ server_default、新欄位帶外鍵／`unique=True`／唯一索引／表級約�
 引入時 alembic 會自帶版本表，所以**現在不要先發明一個手工維護的 schema 版本號**。
 `AppSettingKey.LAST_OPENED_APP_VERSION` 記的是「上次開啟這個 DB 的 app 版本」，
 用途是診斷（外部使用者沒有遙測），不是遷移依據。
+
+**schema 變更必須維持加法**：安裝版與開發模式可能跑不同版本的程式碼，卻共用 `~/.starscope` 同一個資料庫。
+`ensure_columns()` 只新增欄位、索引，舊版程式會忽略它不認識的欄位與資料表，所以加法變更兩邊都能用；
+改名、刪欄位、改型別會讓其中一邊壞掉。同一個資料庫也存著 APScheduler 的排程：job 的 id 與函式只能新增，
+不能改名或刪除——另一個版本還原不了的 job 會被刪掉。只靠新版寫入才成立的資料條件（例如只有 Python 端
+`default=`、沒有 `server_default` 的欄位），舊版寫入的資料列不會滿足。
 
 ### API 回應格式
 

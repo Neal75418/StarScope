@@ -244,11 +244,9 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
             }
         };
 
-        // 將 app data dir 與 session secret 透過環境變數傳給 sidecar 子程序，
-        // 而非使用 std::env::set_var（在多執行緒環境有 data race 風險）。
-        if let Ok(app_data_dir) = app.path().app_data_dir() {
-            cmd = cmd.env("TAURI_APP_DATA_DIR", app_data_dir.to_string_lossy().to_string());
-        }
+        // session secret 透過 Command::env() 傳給 sidecar，而不是 std::env::set_var
+        //（在多執行緒環境有 data race 風險）。資料目錄不傳：安裝版與開發模式、collector
+        // 共用 sidecar 預設的 ~/.starscope（見 db/database.py 的 get_app_data_dir）
         cmd = cmd.env("STARSCOPE_SESSION_SECRET", session_secret);
         // sidecar 以它看門（sidecar/utils/parent_watchdog.py）：app 當掉或被強制結束、
         // cleanup_sidecar 來不及跑時，sidecar 發現父行程不在就自己結束

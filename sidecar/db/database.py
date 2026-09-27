@@ -15,20 +15,19 @@ logger = logging.getLogger(__name__)
 
 def get_app_data_dir() -> Path:
     """
-    取得 OS 標準的應用程式資料目錄，可透過環境變數覆蓋。
+    取得資料目錄。開發模式、安裝版、launchd 的 collector 都用同一個位置，
+    三者才看得到同一份資料。
 
     優先順序:
-    1. STARSCOPE_DATA_DIR — 明確覆蓋（測試或自訂路徑）
-    2. TAURI_APP_DATA_DIR — Tauri 正式環境注入
-    3. 回退至 ~/.starscope（開發環境）
+    1. STARSCOPE_DATA_DIR — 明確覆蓋（測試、smoke test、打包版實測的隔離）
+    2. ~/.starscope
+
+    不讀 TAURI_APP_DATA_DIR：安裝版以前由 Rust 傳入 Application Support 底下的路徑，
+    結果看不到 collector 寫的資料。
     """
     if env_path := os.environ.get("STARSCOPE_DATA_DIR"):
         return Path(env_path)
 
-    if tauri_path := os.environ.get("TAURI_APP_DATA_DIR"):
-        return Path(tauri_path)
-
-    # 開發環境回退
     return Path.home() / ".starscope"
 
 
