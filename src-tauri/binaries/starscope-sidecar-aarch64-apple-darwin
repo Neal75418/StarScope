@@ -1,2 +1,0 @@
-#\!/bin/bash
-echo "Placeholder sidecar - run python main.py in sidecar/ for development"

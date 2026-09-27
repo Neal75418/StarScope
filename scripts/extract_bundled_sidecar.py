@@ -3,13 +3,15 @@
 setup-sidecar 的 smoke test 跑的是 PyInstaller 的產物；這裡跑的是安裝檔裡的那一份，證明
 使用者實際裝到的能跑（Windows、Linux 沒辦法手動測）：
 - macOS：.app/Contents/Resources/sidecar/
-- Linux：dpkg-deb -x 解開 .deb
+- Linux：dpkg-deb -x 解開 .deb；第三個參數給 appimage 則用 --appimage-extract 解開 .AppImage
+  （不需要 FUSE）。AppImage 另外驗是因為 linuxdeploy 會改寫 usr/lib 裡的 ELF（rpath、strip），
+  PyInstaller 執行檔尾端接著封存檔，改壞了 .deb 照樣正常
 - Windows：msiexec /a（管理安裝：只解開檔案，不註冊、不需要解除安裝）解開 .msi
 
 取出的位置刻意含空白（Windows 的 C:\\Program Files 就有），名字則避開系統資料夾。Unix 上再把整份設成唯讀：
 沒搬進「應用程式」就打開的 macOS app 會被 App Translocation 放到唯讀位置執行。
 
-用法：python scripts/extract_bundled_sidecar.py <bundle 目錄> <輸出目錄>
+用法：python scripts/extract_bundled_sidecar.py <bundle 目錄> <輸出目錄> [deb|appimage]
 """
 
 from __future__ import annotations
@@ -56,9 +58,11 @@ def _set_writable(folder: Path, writable: bool) -> None:
         path.chmod(mode | stat.S_IWUSR if writable else mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
 
 
-def extract(bundle: Path, out: Path, platform: str = sys.platform) -> Path:
+def extract(bundle: Path, out: Path, platform: str = sys.platform, kind: str | None = None) -> Path:
     bundle = bundle.resolve()
     out = out.resolve()
+    if kind is not None and not platform.startswith("linux"):
+        raise ExtractError(f"只有 Linux 需要指定安裝檔種類：{kind}")
     if bundle.is_relative_to(out):
         raise ExtractError(f"安裝檔 {bundle} 在輸出目錄 {out} 裡面（參數對調了？）")
     # 只刪自己建立的那個資料夾，out 裡別的東西不動：out 給錯（例如變數是空的變成 "."）時不能全刪
@@ -74,12 +78,22 @@ def extract(bundle: Path, out: Path, platform: str = sys.platform) -> Path:
         source = find_sidecar(app / "Contents" / "Resources", exe_name).parent
         shutil.copytree(source, install / "sidecar")
     elif platform.startswith("linux"):
-        deb = _single(bundle, "deb/*.deb")
-        subprocess.run(["dpkg-deb", "-x", str(deb), str(install)], check=True)
+        kind = kind or "deb"
+        if kind == "deb":
+            deb = _single(bundle, "deb/*.deb")
+            subprocess.run(["dpkg-deb", "-x", str(deb), str(install)], check=True, stdout=subprocess.DEVNULL)
+        elif kind == "appimage":
+            image = _single(bundle, "appimage/*.AppImage")
+            image.chmod(image.stat().st_mode | stat.S_IXUSR)
+            # 解到 cwd 底下的 squashfs-root。它會把解出來的每個檔案逐行印到 stdout，而 CI 用 $(...) 接
+            # 這支腳本的 stdout：解開工具的輸出一律丟掉，stdout 只留最後那一行路徑
+            subprocess.run([str(image), "--appimage-extract"], cwd=install, check=True, stdout=subprocess.DEVNULL)
+        else:
+            raise ExtractError(f"Linux 的安裝檔種類只認得 deb 或 appimage：{kind}")
     elif platform == "win32":
         msi = _single(bundle, "msi/*.msi")
         # 字串直接交給 CreateProcess：TARGETDIR 的值含空白，要用 msiexec 認得的 PROP="value" 形式
-        subprocess.run(f'msiexec /a "{msi}" /qn TARGETDIR="{install}"', check=True)
+        subprocess.run(f'msiexec /a "{msi}" /qn TARGETDIR="{install}"', check=True, stdout=subprocess.DEVNULL)
     else:
         raise ExtractError(f"不支援的平台：{platform}")
 
@@ -93,9 +107,10 @@ if __name__ == "__main__":
     for stream in (sys.stdout, sys.stderr):
         if isinstance(stream, io.TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
-    if len(sys.argv) != 3:
-        sys.exit(f"用法: {sys.argv[0]} <bundle 目錄> <輸出目錄>")
+    if len(sys.argv) not in (3, 4):
+        sys.exit(f"用法: {sys.argv[0]} <bundle 目錄> <輸出目錄> [deb|appimage]")
     try:
-        print(extract(Path(sys.argv[1]), Path(sys.argv[2])).as_posix())
+        kind = sys.argv[3] if len(sys.argv) == 4 else None
+        print(extract(Path(sys.argv[1]), Path(sys.argv[2]), kind=kind).as_posix())
     except (ExtractError, subprocess.CalledProcessError) as e:
         sys.exit(f"❌ {e}")

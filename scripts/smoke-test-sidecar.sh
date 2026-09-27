@@ -16,7 +16,7 @@ if [ ! -f "$BINARY" ]; then
 fi
 BINARY="$(cd "$(dirname "$BINARY")" && pwd)/$(basename "$BINARY")"
 PORT=18008            # 不用 8008：避免撞到開發者正在跑的 sidecar
-TIMEOUT_SECONDS=120   # onefile 首次啟動要解壓，本機實測約 22 秒，CI runner 更慢
+TIMEOUT_SECONDS=120   # 新檔案第一次執行時會被掃描（macOS 實測最慢 26 秒；Windows 的防毒更慢）
 PARENT_GONE_TIMEOUT_SECONDS=15   # 看門每 2 秒檢查一次，加上 uvicorn 正常關閉的時間
 HEALTH_URL="http://127.0.0.1:$PORT/api/health"
 
@@ -41,7 +41,7 @@ stop_sidecar() {
     kill -0 "$PID" 2>/dev/null || return 0
     sleep 1
   done
-  # onefile 是 bootloader 父行程＋Python 子行程：只殺父行程，子行程會變孤兒繼續佔著 port
+  # 子行程也一起收：萬一哪天換回 onefile，它會多一個 bootloader 父行程
   pkill -9 -P "$PID" 2>/dev/null || true
   kill -9 "$PID" 2>/dev/null || true
 }

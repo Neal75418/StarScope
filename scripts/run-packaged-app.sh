@@ -3,9 +3,9 @@
 #
 # 開發模式（start-dev.sh）不走打包後的啟停路徑，sidecar 生命週期、冷啟動這類問題只有打包版看得到。
 # 這支腳本：
-# - 打包 sidecar 到暫存區，tauri build 以 --config 指向它，不動 repo 裡的 placeholder
+# - 打包 onedir 到暫存區，tauri build 以 --config 指向它，不動 repo 的 src-tauri/sidecar/
 # - 以 env -i 從零建環境：shell 裡的 token 一個都帶不進去；keyring 換成 null、GITHUB_TOKEN 設空
-# - STARSCOPE_DATA_DIR 指到暫存區：它優先於 Tauri 注入的資料目錄，不會碰到真實資料庫
+# - STARSCOPE_DATA_DIR 指到暫存區：預設的 ~/.starscope 就是真實資料（安裝版、開發模式、collector 共用）
 # - cwd 在暫存區：打包後的 sidecar 會從 cwd 往上找 .env，repo 根目錄那份放著真 token
 # - app 結束後檢查有沒有殘留的 sidecar、8008 有沒有放開
 #
@@ -27,25 +27,34 @@ WORK="${TMP_ROOT%/}/starscope-packaged-app"
 APP="$REPO/src-tauri/target/release/bundle/macos/StarScope.app"
 PORT=8008   # 打包版的 sidecar 固定用 8008
 
+SIDECAR="$APP/Contents/Resources/sidecar/starscope-sidecar"
+PY="$REPO/sidecar/.venv/bin/python"
+
 if [ "${1:-}" != "--skip-build" ]; then
   TRIPLE="$(rustc -vV | sed -n 's/^host: //p')"
   [ -n "$TRIPLE" ] || { echo "❌ 讀不到 rustc 的 host triple"; exit 1; }
-  rm -rf "$WORK/build" "$WORK/dist" "$WORK/bin" && mkdir -p "$WORK/bin" || exit 1
+  rm -rf "$WORK/build" "$WORK/dist" "$WORK/sidecar" && mkdir -p "$WORK" || exit 1
 
   echo "== 打包 sidecar（${TRIPLE}）"
-  (cd "$REPO/sidecar" && STARSCOPE_TARGET_TRIPLE="$TRIPLE" .venv/bin/pyinstaller starscope-sidecar.spec \
+  (cd "$REPO/sidecar" && .venv/bin/pyinstaller starscope-sidecar.spec \
     --distpath "$WORK/dist" --workpath "$WORK/build" --noconfirm >"$WORK/pyinstaller.log" 2>&1) \
     || { echo "❌ sidecar 打包失敗，見 $WORK/pyinstaller.log"; exit 1; }
-  cp "$WORK/dist/starscope-sidecar-$TRIPLE" "$WORK/bin/" || exit 1
+  "$PY" "$REPO/scripts/stage_sidecar.py" "$WORK/dist/starscope-sidecar" "$WORK/sidecar" || exit 1
+  "$PY" "$REPO/scripts/check_sidecar_binary.py" "$WORK/sidecar" "$TRIPLE" || exit 1
 
   echo "== 打包 app"
-  # externalBin 不帶 triple 後綴，Tauri 會自己補
+  # --config 是 JSON merge patch：resources 會合併而不是取代，要用 null 拿掉 repo 那一項（只有 README），
+  # 否則兩個來源都會打包進 sidecar/
   (cd "$REPO" && npx tauri build --bundles app \
-    --config "{\"bundle\":{\"externalBin\":[\"$WORK/bin/starscope-sidecar\"]}}" >"$WORK/tauri-build.log" 2>&1) \
+    --config "{\"bundle\":{\"resources\":{\"sidecar/\":null,\"$WORK/sidecar/\":\"sidecar/\"}}}" >"$WORK/tauri-build.log" 2>&1) \
     || { echo "❌ app 打包失敗，見 $WORK/tauri-build.log"; exit 1; }
 fi
 
-[ -x "$APP/Contents/MacOS/starscope" ] || { echo "❌ 找不到 ${APP}，先不帶 --skip-build 跑一次"; exit 1; }
+[ -x "$APP/Contents/MacOS/starscope" ] && [ -x "$SIDECAR" ] \
+  || { echo "❌ ${APP} 不完整，先不帶 --skip-build 跑一次"; exit 1; }
+[ ! -e "$APP/Contents/Resources/sidecar/README.md" ] \
+  || { echo "❌ repo 的 src-tauri/sidecar/README.md 也被打包進去了：--config 沒有取代 resources"; exit 1; }
+codesign --verify --deep --strict "$APP" || { echo "❌ 簽章驗證失敗（下載後會被判「已損毀」）"; exit 1; }
 
 # 已經有東西在 8008：新 sidecar 綁不到就退出，前端連到的是別人，結果全都不準
 if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
@@ -68,7 +77,7 @@ echo "== app 已結束（exit $?）"
 
 # 只看執行檔路徑（comm），不看參數：macOS 上讀別的行程的參數可能溢出到它的環境變數
 # 比對這次打包產物的完整路徑：只寫 StarScope.app/... 會連 /Applications 裡安裝的版本一起算進去
-leftover() { ps -axo pid=,comm= | grep -F "$APP/Contents/MacOS/starscope-sidecar" | grep -v grep; }
+leftover() { ps -axo pid=,comm= | grep -F "$SIDECAR" | grep -v grep; }
 for _ in {1..5}; do
   if ! leftover >/dev/null && ! lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
     echo "✅ 沒有殘留的 sidecar，port $PORT 已放開"

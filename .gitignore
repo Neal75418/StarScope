@@ -44,6 +44,9 @@ env/
 build/
 *.spec
 !sidecar/starscope-sidecar.spec
+# 打包時由 scripts/stage_sidecar.py 放進來的 sidecar（repo 只留 README）
+src-tauri/sidecar/*
+!src-tauri/sidecar/README.md
 
 # SQLite database
 *.db

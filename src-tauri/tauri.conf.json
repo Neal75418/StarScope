@@ -35,8 +35,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": [
-      "binaries/starscope-sidecar"
-    ]
+    "resources": {
+      "sidecar/": "sidecar/"
+    },
+    "macOS": {
+      "signingIdentity": "-"
+    }
   }
 }

@@ -2,9 +2,6 @@
 # PyInstaller spec file for StarScope sidecar
 # Build with: pyinstaller starscope-sidecar.spec
 
-import os
-import platform
-
 block_cipher = None
 
 a = Analysis(
@@ -54,37 +51,33 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
-# 產物檔名要對上 Tauri 的 --target。CI 由 setup-sidecar action 以 STARSCOPE_TARGET_TRIPLE
-# 明確指定：用執行中的架構去猜，猜錯時檔名對不上，Tauri 會安靜地改包 repo 裡的 placeholder。
-# 本機直接跑 pyinstaller 時才退回用平台推斷
-system = platform.system().lower()
-if os.environ.get('STARSCOPE_TARGET_TRIPLE'):
-    target_triple = os.environ['STARSCOPE_TARGET_TRIPLE']
-elif system == 'darwin':
-    target_triple = 'aarch64-apple-darwin' if platform.machine() == 'arm64' else 'x86_64-apple-darwin'
-elif system == 'windows':
-    target_triple = 'x86_64-pc-windows-msvc'
-else:
-    target_triple = 'x86_64-unknown-linux-gnu'
-
+# onedir：執行檔加上 _internal/。onefile 每次啟動都要把整包解壓到暫存目錄（實測 8–10 秒），
+# onedir 直接載入（約 1 秒）。整個資料夾由 scripts/stage_sidecar.py 放進 src-tauri/sidecar/，
+# 作為 Tauri 的 resources 打包（externalBin 只能放單一執行檔）。架構不寫在檔名上：
+# scripts/check_sidecar_binary.py 讀執行檔的檔頭來檢查
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
-    name=f'starscope-sidecar-{target_triple}',
+    exclude_binaries=True,
+    name='starscope-sidecar',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    upx=False,  # UPX 壓過的 macOS dylib 簽章會失效
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='starscope-sidecar',
 )

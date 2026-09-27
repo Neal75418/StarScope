@@ -2,6 +2,7 @@
 
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -40,6 +41,10 @@ const STARSCOPE_RELEASE_WAIT: Duration = Duration::from_secs(6);
 const STARSCOPE_RELEASE_POLL: Duration = Duration::from_millis(250);
 /// sidecar 狀態變化時送給前端的事件
 const SIDECAR_STATUS_EVENT: &str = "sidecar-status";
+/// 打包進 resources 的 sidecar 資料夾：與 tauri.conf.json 的 bundle.resources 一致
+const SIDECAR_RESOURCE_DIR: &str = "sidecar";
+/// sidecar 執行檔的名字（Windows 另外加 .exe）
+const SIDECAR_EXECUTABLE: &str = "starscope-sidecar";
 
 /// 誰佔著 sidecar 的 port（沒人佔時 port_holder 回 None）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -193,8 +198,7 @@ fn retry_delay_ms(attempt: u32, initial_delay_ms: u64) -> u64 {
 }
 
 /// 啟動 Python sidecar，失敗時以 exponential backoff 重試，最終優雅降級。
-/// 透過 `Command::env()` 傳遞 app data dir 及 session secret，
-/// 避免在多執行緒環境呼叫 `std::env::set_var`。
+/// session secret 透過 `Command::env()` 傳給 sidecar，避免在多執行緒環境呼叫 `std::env::set_var`。
 /// 在背景執行緒中執行，避免阻塞 UI 主執行緒。
 fn start_sidecar(app: &App) {
     // 先註冊空的 SidecarState，讓其他元件可以安全存取
@@ -217,32 +221,47 @@ fn start_sidecar(app: &App) {
     });
 }
 
+/// 打包進 resources 的 sidecar 執行檔。不在就回 Err：重試不會讓它出現
+fn locate_sidecar(resource_dir: &Path) -> Result<PathBuf, String> {
+    // Windows 的 resource_dir 來自 canonicalize，是 \\?\C:\… 的 verbatim 形式；PyInstaller 從
+    // 執行檔路徑推算 _internal，給它一般的路徑（其他平台 simplified 是 no-op）
+    let program = dunce::simplified(resource_dir)
+        .join(SIDECAR_RESOURCE_DIR)
+        .join(format!("{SIDECAR_EXECUTABLE}{}", std::env::consts::EXE_SUFFIX));
+    if program.is_file() {
+        Ok(program)
+    } else {
+        Err(format!("找不到 {}", program.display()))
+    }
+}
+
 /// 在背景執行緒中以 exponential backoff 重試啟動 sidecar。
 fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
-    // port 被佔著就不啟動：啟動了也綁不到 port、白等 8 秒後 exit 1，而前端會連到佔用者。
-    // 開發時 start-dev.sh 本來就在 8008 跑自己的 sidecar：不檢查 port，讓前端直接探測
+    // 開發時 start-dev.sh 在 8008 跑自己的 sidecar：不 spawn、不檢查 port，讓前端直接探測
     if cfg!(debug_assertions) {
         set_sidecar_status(app, SidecarStatus::External);
-    } else if let Some(holder) =
+        return;
+    }
+    // port 被佔著就不啟動：啟動了也綁不到 port 就退出，而前端會連到佔用者
+    if let Some(holder) =
         wait_for_port(|| port_holder(SIDECAR_PORT), STARSCOPE_RELEASE_WAIT, STARSCOPE_RELEASE_POLL)
     {
         warn!("連接埠 {SIDECAR_PORT} 已被佔用（{holder:?}），不啟動 sidecar");
         set_sidecar_status(app, SidecarStatus::PortInUse { holder });
         return;
     }
+    let program = match app.path().resource_dir().map_err(|e| e.to_string()).and_then(|dir| locate_sidecar(&dir)) {
+        Ok(program) => program,
+        Err(e) => {
+            warn!("沒有打包好的 sidecar：{e}");
+            report_spawn_failed(app);
+            return;
+        }
+    };
 
     for attempt in 0..=MAX_RETRIES {
-        // 每次重試都重建 Command，因為 spawn() 會 consume self。
-        let mut cmd = match app.shell().sidecar("starscope-sidecar") {
-            Ok(c) => c,
-            Err(e) => {
-                // 解析不出 sidecar 的路徑（shell plugin 不檢查檔案存不存在：檔案不見時是下面的
-                // spawn 失敗、重試用完才回報），重試無意義
-                warn!("找不到 sidecar: {e}，開發環境請執行 './start-dev.sh'");
-                report_spawn_failed(app);
-                return;
-            }
-        };
+        // 每次重試都重建 Command，因為 spawn() 會 consume self
+        let mut cmd = app.shell().command(&program);
 
         // session secret 透過 Command::env() 傳給 sidecar，而不是 std::env::set_var
         //（在多執行緒環境有 data race 風險）。資料目錄不傳：安裝版與開發模式、collector
@@ -251,34 +270,21 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
         // sidecar 以它看門（sidecar/utils/parent_watchdog.py）：app 當掉或被強制結束、
         // cleanup_sidecar 來不及跑時，sidecar 發現父行程不在就自己結束
         cmd = cmd.env("STARSCOPE_PARENT_PID", std::process::id().to_string());
-
-        // 發行版必須以 production 模式跑 sidecar：main.py 的 ENV 預設是
-        // development（docs 端點開著、CORS 多放行 localhost:1420/1421），而整條
-        // 打包鏈先前沒有任何地方設它——「正式環境才關閉」的防線從未生效過
-        // （第三方安全審查發現）。用 debug_assertions 區分：tauri dev 是 debug
-        // build 不注入，維持開發模式；打包的 release build 注入 production。
-        #[cfg(not(debug_assertions))]
-        {
-            cmd = cmd.env("ENV", "production");
-        }
+        // 發行版必須以 production 模式跑 sidecar：main.py 的 ENV 預設是 development
+        //（docs 端點開著、CORS 多放行 localhost:1420/1421）
+        cmd = cmd.env("ENV", "production");
 
         match cmd.spawn() {
             Ok((rx, child)) => {
                 if attempt > 0 {
                     info!("Sidecar 在第 {attempt} 次重試後啟動成功");
                 }
-                if !cfg!(debug_assertions) {
-                    set_sidecar_status(app, SidecarStatus::Running);
-                }
+                set_sidecar_status(app, SidecarStatus::Running);
                 let state = app.state::<SidecarState>();
                 let exit_app = app.clone();
                 let quitting = state.quitting.clone();
                 tauri::async_runtime::spawn(watch_sidecar_exit(rx, state.exited.clone(), move |code| {
-                    // 開發時資料由 start-dev.sh 的 sidecar 提供：這裡 spawn 的（若 binaries/ 放了真的
-                    // binary）綁不到 8008 就結束，不能因此讓前端說「資料引擎已停止」
-                    if !cfg!(debug_assertions) {
-                        report_exit(&quitting, code, |status| set_sidecar_status(&exit_app, status));
-                    }
+                    report_exit(&quitting, code, |status| set_sidecar_status(&exit_app, status));
                 }));
                 if let Ok(mut guard) = state.child.lock() {
                     *guard = Some(child);
@@ -296,7 +302,7 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
                     std::thread::sleep(std::time::Duration::from_millis(delay_ms));
                 } else {
                     warn!(
-                        "Sidecar 啟動失敗 (嘗試 {}/{})，已達重試上限: {e}，開發環境請執行 './start-dev.sh'",
+                        "Sidecar 啟動失敗 (嘗試 {}/{})，已達重試上限: {e}",
                         attempt + 1,
                         MAX_RETRIES + 1
                     );
@@ -606,6 +612,78 @@ mod tests {
         assert!(config["app"].get("trayIcon").is_none());
     }
 
+    /// 每個測試自己的暫存目錄（dev-dependencies 沒有 tempfile）
+    fn scratch_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("starscope-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn locate_sidecar_finds_the_bundled_executable() {
+        let resources = scratch_dir("locate-found");
+        let folder = resources.join(SIDECAR_RESOURCE_DIR);
+        std::fs::create_dir_all(&folder).unwrap();
+        let exe = folder.join(format!("{SIDECAR_EXECUTABLE}{}", std::env::consts::EXE_SUFFIX));
+        std::fs::write(&exe, b"").unwrap();
+
+        assert_eq!(locate_sidecar(&resources), Ok(exe));
+        std::fs::remove_dir_all(&resources).unwrap();
+    }
+
+    #[test]
+    fn locate_sidecar_reports_a_folder_that_holds_only_the_readme() {
+        // 忘了 stage：resources 裡只有 repo 的 README。直接回報，不讓使用者白等重試
+        let resources = scratch_dir("locate-readme");
+        let folder = resources.join(SIDECAR_RESOURCE_DIR);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("README.md"), b"").unwrap();
+
+        assert!(locate_sidecar(&resources).is_err());
+        std::fs::remove_dir_all(&resources).unwrap();
+    }
+
+    #[test]
+    fn locate_sidecar_hands_over_a_plain_path() {
+        // Windows 的 resource_dir 來自 canonicalize，是 \\?\C:\… 的 verbatim 形式：這條只在 Windows
+        //（發版預演的 Rust 測試）才真的驗到東西，其他平台 canonicalize 沒有前綴
+        let resources = scratch_dir("locate-plain").canonicalize().unwrap();
+        let folder = resources.join(SIDECAR_RESOURCE_DIR);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join(format!("{SIDECAR_EXECUTABLE}{}", std::env::consts::EXE_SUFFIX)), b"").unwrap();
+
+        let program = locate_sidecar(&resources).unwrap();
+
+        assert!(!program.to_string_lossy().starts_with(r"\\?\"), "{}", program.display());
+        assert!(program.is_file());
+        std::fs::remove_dir_all(&resources).unwrap();
+    }
+
+    #[test]
+    fn locate_sidecar_does_not_take_a_folder_for_the_executable() {
+        let resources = scratch_dir("locate-dir");
+        let exe_path = resources
+            .join(SIDECAR_RESOURCE_DIR)
+            .join(format!("{SIDECAR_EXECUTABLE}{}", std::env::consts::EXE_SUFFIX));
+        std::fs::create_dir_all(&exe_path).unwrap();
+
+        assert!(locate_sidecar(&resources).is_err());
+        std::fs::remove_dir_all(&resources).unwrap();
+    }
+
+    #[test]
+    fn the_sidecar_ships_as_a_signed_resource_folder() {
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let bundle = &config["bundle"];
+        // externalBin 只能放單一執行檔；onedir 整個資料夾放 resources，位置要跟 locate_sidecar 一致
+        assert!(bundle.get("externalBin").is_none());
+        let target = format!("{SIDECAR_RESOURCE_DIR}/");
+        assert_eq!(bundle["resources"][target.as_str()], serde_json::Value::String(target.clone()));
+        // 沒有完整的 bundle 簽章時，下載的 app 在 Apple Silicon 上被判「已損毀」，沒有強制打開可按
+        assert_eq!(bundle["macOS"]["signingIdentity"], "-");
+    }
+
     #[test]
     fn sidecar_status_serialises_the_way_the_frontend_reads_it() {
         let json = |status: SidecarStatus| serde_json::to_string(&status).unwrap();
@@ -850,12 +928,9 @@ fn wait_for_port(
     }
 }
 
-/// 沒能啟動 sidecar 時告訴前端。只在 release build：開發時 binaries/ 裡是 placeholder，
-/// spawn 一定失敗，資料由 start-dev.sh 的 sidecar 提供
+/// 沒能啟動 sidecar 時告訴前端（只有 release 會走到：debug 不 spawn）
 fn report_spawn_failed(app: &AppHandle) {
-    if !cfg!(debug_assertions) {
-        set_sidecar_status(app, SidecarStatus::SpawnFailed);
-    }
+    set_sidecar_status(app, SidecarStatus::SpawnFailed);
 }
 
 /// 前端啟動時讀一次 sidecar 狀態（之後聽 sidecar-status 事件）
@@ -864,14 +939,11 @@ fn get_sidecar_status(state: tauri::State<'_, SidecarState>) -> SidecarStatus {
     state.status.lock().map(|s| s.clone()).unwrap_or(SidecarStatus::Starting)
 }
 
-/// 送 SIGTERM 並等 `has_exited()` 成立。onefile 的 bootloader 會把 SIGTERM 轉給 Python
-/// 子行程，uvicorn 走正常關閉；直接 SIGKILL 只會殺到 bootloader，Python 子行程留下來佔著 port。
+/// 送 SIGTERM 並等 `has_exited()` 成立：uvicorn 收到 SIGTERM 會走正常關閉（停排程、關 HTTP client）。
 ///
 /// 已經結束就什麼都不送：它的 PID 可能已經分給別的行程。結束與否看 shell plugin 的回報，
-/// 不看 kill(pid, 0)。回報要等 stdout／stderr 的 pipe 全部關閉才送出，所以比回收晚：平常只差
-/// 幾毫秒；但 app 執行中若只有 onefile 的 bootloader 被殺、Python 子行程還拿著 pipe，就一直
-/// 不會回報，這裡仍會對那個已回收的 PID 送 SIGTERM。要根治得繞過 shell plugin 自己持有子行程
-///（shared_child 能在持鎖時確認沒被回收才送 signal）。
+/// 不看 kill(pid, 0)。回報要等 stdout／stderr 的 pipe 全部關閉才送出，比回收晚幾毫秒，
+/// 這段空檔裡仍可能對剛回收的 PID 送 SIGTERM。
 #[cfg(unix)]
 fn terminate_gracefully(pid: u32, has_exited: impl Fn() -> bool, timeout: Duration) -> bool {
     if has_exited() {
@@ -884,8 +956,9 @@ fn terminate_gracefully(pid: u32, has_exited: impl Fn() -> bool, timeout: Durati
     wait_until(has_exited, timeout, SIDECAR_STOP_POLL)
 }
 
-/// 結束 sidecar。Unix 先 SIGTERM、等 SIDECAR_STOP_TIMEOUT，仍在才 SIGKILL；
-/// Windows 沒有 SIGTERM，直接 kill（onefile 的 Python 子行程由 sidecar 的父行程看門收掉）。
+/// 結束 sidecar。Unix 先 SIGTERM、等 SIDECAR_STOP_TIMEOUT，仍在才 SIGKILL。
+/// Windows 沒有 SIGTERM，直接 kill：onedir 只有一個行程，kill 就是結束 Python 本身，不走
+/// uvicorn 的正常關閉——最壞丟掉一次進行中的抓取，SQLite 每次 commit 都是原子的。
 /// 以 take() 取出 child，關視窗與 RunEvent::Exit 都呼叫也不會重複處理。
 fn cleanup_sidecar(app: &AppHandle) {
     let Some(state) = app.try_state::<SidecarState>() else { return };

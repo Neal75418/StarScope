@@ -1,9 +1,9 @@
 name: Setup Sidecar
-description: Set up Python, install dependencies, build sidecar binary, and copy to Tauri binaries
+description: Set up Python, install dependencies, build the onedir sidecar, smoke-test it and stage it into src-tauri/sidecar
 
 inputs:
   target:
-    description: Rust target triple（決定產物檔名與包進安裝檔前的架構檢查；Python 的架構由 runner 決定，這個值改不了它）
+    description: Rust target triple（用來在包進安裝檔前檢查架構；Python 的架構由 runner 決定，這個值改不了它）
     required: true
 
 runs:
@@ -27,33 +27,23 @@ runs:
         pip install pyinstaller -c sidecar/constraints.txt
 
     # PyInstaller 預設只產出執行中架構的 binary（跨架構要所有依賴都有 fat wheel，本專案不成立），
-    # 所以每個 target 都要在該架構的 runner 上打包
-    #（見 release.yml 的 matrix）。檔名由 target 決定而不是由 spec 猜：架構錯時，
-    # 下面的檢查才會說「arm64 但需要 x86_64」，而不是誤導人的「這是 placeholder」
-    - name: Build sidecar binary
+    # 所以每個 target 都要在該架構的 runner 上打包（見 release.yml 的 matrix）
+    - name: Build sidecar
       shell: bash
       working-directory: sidecar
-      env:
-        STARSCOPE_TARGET_TRIPLE: ${{ inputs.target }}
       run: pyinstaller starscope-sidecar.spec
 
-    # 原始碼的測試看不到打包後才會壞的問題，所以在 binary 被包進安裝檔之前實際執行它
-    - name: Smoke test sidecar binary
+    # 原始碼的測試看不到打包後才會壞的問題，所以在包進安裝檔之前實際執行它
+    - name: Smoke test sidecar
       shell: bash
-      run: scripts/smoke-test-sidecar.sh sidecar/dist/starscope-sidecar-*
+      run: scripts/smoke-test-sidecar.sh "sidecar/dist/starscope-sidecar/starscope-sidecar${{ runner.os == 'Windows' && '.exe' || '' }}"
 
-    - name: Copy sidecar binary to Tauri binaries (Unix)
-      if: runner.os != 'Windows'
+    # 放進 Tauri 打包的 resources：清空 repo 裡的 README，攤平 symlink（Tauri 會把指向資料夾的默默丟掉）
+    - name: Stage sidecar for Tauri
       shell: bash
-      run: cp sidecar/dist/starscope-sidecar-* src-tauri/binaries/
+      run: python scripts/stage_sidecar.py sidecar/dist/starscope-sidecar src-tauri/sidecar
 
-    - name: Copy sidecar binary to Tauri binaries (Windows)
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: Copy-Item "sidecar\dist\starscope-sidecar-*.exe" -Destination "src-tauri\binaries\" -Force
-
-    # Tauri 依 --target 取檔。檔名對不上時它會安靜地包進 repo 裡同名的 placeholder，
-    # smoke test 看不到這件事（它跑的是打包產物，不是 Tauri 實際取用的檔）
-    - name: Verify the binary Tauri will bundle
+    # 架構錯（Intel 版在 arm64 runner 上打包）或內容不完整時，Tauri 照樣產出安裝檔
+    - name: Verify the sidecar Tauri will bundle
       shell: bash
-      run: python scripts/check_sidecar_binary.py "src-tauri/binaries/starscope-sidecar-${{ inputs.target }}${{ runner.os == 'Windows' && '.exe' || '' }}" "${{ inputs.target }}"
+      run: python scripts/check_sidecar_binary.py src-tauri/sidecar "${{ inputs.target }}"

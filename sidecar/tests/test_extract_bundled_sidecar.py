@@ -138,7 +138,7 @@ def _fake_run(monkeypatch, make_tree):
     calls = []
 
     def fake(cmd, *args, **kwargs):
-        calls.append(cmd)
+        calls.append((cmd, kwargs))
         make_tree()
         return subprocess.CompletedProcess(cmd, 0)
 
@@ -162,10 +162,51 @@ def test_linux_extracts_the_deb_and_finds_the_sidecar(tmp_path, monkeypatch):
 
     exe = ebs.extract(bundle, tmp_path / "out", platform="linux")
 
-    assert calls == [["dpkg-deb", "-x", str(deb), str(install)]]
+    assert [c for c, _ in calls] == [["dpkg-deb", "-x", str(deb), str(install)]]
+    assert calls[0][1].get("stdout") == subprocess.DEVNULL  # stdout 只能有那一行路徑：CI 用 $(...) 接
     assert exe == install / "usr" / "lib" / "StarScope" / "sidecar" / "starscope-sidecar"
     if os.name != "nt":
         assert not os.access(exe.parent, os.W_OK)  # Linux 也設唯讀，跟 macOS 一樣
+
+
+def test_linux_extracts_the_appimage_when_asked(tmp_path, monkeypatch):
+    # linuxdeploy 會改寫 usr/lib 裡的 ELF：.deb 正常不代表 AppImage 裡的執行檔沒被改壞
+    bundle = tmp_path / "bundle"
+    (bundle / "appimage").mkdir(parents=True)
+    image = bundle / "appimage" / "StarScope_1.0.0_amd64.AppImage"
+    image.write_bytes(b"img")
+    install = tmp_path / "out" / ebs.INSTALL_DIR_NAME
+
+    def make_tree():
+        folder = install / "squashfs-root" / "usr" / "lib" / "StarScope" / "sidecar"
+        (folder / "_internal").mkdir(parents=True)
+        (folder / "starscope-sidecar").write_bytes(b"exe")
+
+    calls = _fake_run(monkeypatch, make_tree)
+
+    exe = ebs.extract(bundle, tmp_path / "out", platform="linux", kind="appimage")
+
+    assert calls[0][0] == [str(image), "--appimage-extract"]
+    assert calls[0][1]["cwd"] == install  # squashfs-root 解在 cwd 底下
+    # --appimage-extract 會把解出來的每個檔案逐行印到 stdout，會混進 CI 用 $(...) 接的那一行路徑
+    assert calls[0][1].get("stdout") == subprocess.DEVNULL
+    if os.name != "nt":
+        assert os.access(image, os.X_OK)  # 下載下來的 AppImage 沒有執行位元
+    assert exe.relative_to(install).parts[0] == "squashfs-root"
+
+
+def test_linux_rejects_an_unknown_installer_kind(tmp_path):
+    (tmp_path / "bundle").mkdir()
+
+    with pytest.raises(ebs.ExtractError, match="deb 或 appimage"):
+        ebs.extract(tmp_path / "bundle", tmp_path / "out", platform="linux", kind="rpm")
+
+
+def test_kind_is_only_for_linux(tmp_path):
+    _fake_app(tmp_path / "bundle")
+
+    with pytest.raises(ebs.ExtractError, match="只有 Linux"):
+        ebs.extract(tmp_path / "bundle", tmp_path / "out", platform="darwin", kind="appimage")
 
 
 def test_windows_runs_an_admin_install_with_quoted_paths(tmp_path, monkeypatch):
@@ -185,10 +226,12 @@ def test_windows_runs_an_admin_install_with_quoted_paths(tmp_path, monkeypatch):
 
     exe = ebs.extract(bundle, tmp_path / "out", platform="win32")
 
-    assert len(calls) == 1 and isinstance(calls[0], str)
-    assert calls[0].startswith("msiexec /a ")
-    assert f'"{msi}"' in calls[0]
-    assert f'TARGETDIR="{install}"' in calls[0]
+    assert len(calls) == 1 and isinstance(calls[0][0], str)
+    cmd = calls[0][0]
+    assert cmd.startswith("msiexec /a ")
+    assert f'"{msi}"' in cmd
+    assert f'TARGETDIR="{install}"' in cmd
+    assert calls[0][1].get("stdout") == subprocess.DEVNULL
     assert exe.name == "starscope-sidecar.exe"
     assert os.access(exe.parent, os.W_OK)  # Windows 不設唯讀
 

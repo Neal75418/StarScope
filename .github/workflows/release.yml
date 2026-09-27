@@ -95,8 +95,30 @@ jobs:
             Download the appropriate file for your platform:
             - **macOS (Intel)**: `.dmg` file for x86_64
             - **macOS (Apple Silicon)**: `.dmg` file for aarch64
+            - macOS will say Apple cannot verify the app: see [first launch on macOS](https://github.com/${{ github.repository }}#macos--首次開啟)
             - **Windows**: `.msi` or `.exe` installer
             - **Linux**: `.AppImage` or `.deb` package
           releaseDraft: true
           prerelease: false
           args: --target ${{ matrix.target }}
+
+      # 從安裝檔取出 sidecar 再跑一次 smoke test，證明使用者實際裝到的那份能跑（Windows、Linux 沒辦法手動測）。
+      # 正式發版也要跑：draft release 在這一步之前就建好了，這一步紅了就不要發佈
+      - name: Smoke test the sidecar inside the installer
+        shell: bash
+        run: |
+          SIDECAR="$(python scripts/extract_bundled_sidecar.py "src-tauri/target/${{ matrix.target }}/release/bundle" "$RUNNER_TEMP/bundled-sidecar")"
+          scripts/smoke-test-sidecar.sh "$SIDECAR"
+
+      # AppImage 另外驗：linuxdeploy 會改寫 usr/lib 裡的 ELF（rpath、strip），PyInstaller 執行檔尾端接著封存檔，
+      # 改壞了 .deb 照樣正常。NSIS 的 .exe 與 .rpm 沒驗（NSIS 只是複製檔案；rpm 沒有現成的解開工具）
+      - name: Smoke test the sidecar inside the AppImage
+        if: runner.os == 'Linux'
+        run: |
+          SIDECAR="$(python scripts/extract_bundled_sidecar.py "src-tauri/target/${{ matrix.target }}/release/bundle" "$RUNNER_TEMP/bundled-appimage" appimage)"
+          scripts/smoke-test-sidecar.sh "$SIDECAR"
+
+      # 沒有完整的 bundle 簽章時，下載的 app 在 Apple Silicon 上被判「已損毀」，沒有強制打開可按（v1.0.0 就是這樣）
+      - name: Verify the macOS signature
+        if: runner.os == 'macOS'
+        run: codesign --verify --deep --strict --verbose=2 "src-tauri/target/${{ matrix.target }}/release/bundle/macos/StarScope.app"
