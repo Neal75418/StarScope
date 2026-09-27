@@ -74,8 +74,9 @@ class TestHandleGitHubResponse:
 
     def test_handles_404_with_raise(self):
         """Test raises GitHubNotFoundError on 404."""
+        response = _make_response(404)
         with pytest.raises(GitHubNotFoundError) as exc_info:
-            handle_github_response(_make_response(404), raise_on_error=True, context="owner/repo")
+            handle_github_response(response, raise_on_error=True, context="owner/repo")
 
         assert exc_info.value.status_code == 404
         assert "owner/repo" in str(exc_info.value)
@@ -127,8 +128,9 @@ class TestHandleGitHubResponse:
 
     def test_handles_401_unauthorized(self):
         """Test raises GitHubAPIError on 401."""
+        response = _make_response(401)
         with pytest.raises(GitHubAPIError) as exc_info:
-            handle_github_response(_make_response(401), raise_on_error=True)
+            handle_github_response(response, raise_on_error=True)
 
         assert exc_info.value.status_code == 401
         assert "authentication" in str(exc_info.value).lower()

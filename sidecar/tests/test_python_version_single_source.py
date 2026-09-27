@@ -65,4 +65,4 @@ def test_the_docs_quote_the_same_version():
 
 def test_the_venv_running_the_tests_matches_the_file():
     # 這次問題的根因：本機 venv 是別的版本，constraints.txt 從它產生，CI 用另一版去裝
-    assert f"{sys.version_info[0]}.{sys.version_info[1]}" == VERSION
+    assert VERSION == f"{sys.version_info[0]}.{sys.version_info[1]}"

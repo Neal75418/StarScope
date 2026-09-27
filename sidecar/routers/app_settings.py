@@ -80,16 +80,11 @@ class SignalThresholdsUpdate(BaseModel):
     breakout_velocity_threshold: float | None = None
     viral_hn_min_score: int | None = None
 
-    @field_validator("rising_star_min_velocity", "sudden_spike_multiplier", "breakout_velocity_threshold")
+    @field_validator(
+        "rising_star_min_velocity", "sudden_spike_multiplier", "breakout_velocity_threshold", "viral_hn_min_score"
+    )
     @classmethod
-    def validate_positive_float(cls, v: float | None) -> float | None:
-        if v is not None and v <= 0:
-            raise ValueError("must be greater than 0")
-        return v
-
-    @field_validator("viral_hn_min_score")
-    @classmethod
-    def validate_positive_int(cls, v: int | None) -> int | None:
+    def validate_positive(cls, v: float | None) -> float | None:
         if v is not None and v <= 0:
             raise ValueError("must be greater than 0")
         return v

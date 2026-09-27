@@ -25,6 +25,8 @@ from utils.time import utc_now
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
+CSV_MEDIA_TYPE = "text/csv"
+
 
 _EXPORTED_REPO_EXAMPLE: dict[str, Any] = {
     "example": {
@@ -161,7 +163,7 @@ _WATCHLIST_CSV_RESPONSES: dict[int | str, dict[str, Any]] = {
     200: {
         "description": "CSV 格式的 watchlist 匯出",
         "content": {
-            "text/csv": {
+            CSV_MEDIA_TYPE: {
                 "schema": {
                     "type": "string",
                     "format": "binary",
@@ -231,7 +233,7 @@ def export_watchlist_csv(
 
     return Response(
         content=output.getvalue(),
-        media_type="text/csv",
+        media_type=CSV_MEDIA_TYPE,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_watchlist_{utc_now().strftime("%Y%m%d")}.csv"'
         }
@@ -326,7 +328,7 @@ def export_trends_csv(
         writer.writerow(repo_dict)
     return Response(
         content=output.getvalue(),
-        media_type="text/csv",
+        media_type=CSV_MEDIA_TYPE,
         headers={
             "Content-Disposition": f'attachment; filename="starscope_trends_{utc_now().strftime("%Y%m%d")}.csv"'
         }

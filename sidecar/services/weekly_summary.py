@@ -29,11 +29,11 @@ def _fetch_snapshot_deltas(
     period_start: date,
     period_end: date,
     days: int = 7,
-) -> tuple[dict[int, int], dict[int, int], dict[int, int], int]:
+) -> tuple[dict[int, int], dict[int, int], int]:
     """取得每個 repo 的最新 / N 天前快照並計算星數差異。
 
     Returns:
-        ``(latest_map, old_map, repo_deltas, total_new_stars)``
+        ``(latest_map, repo_deltas, total_new_stars)``
     """
     # 「最新」端要求精確落在 period_end（今天），與 analyzer.calculate_delta 的
     # current_snapshot 一致（backtrack=0，見 _find_snapshot(snap_by_date, today, 0)）。
@@ -88,7 +88,7 @@ def _fetch_snapshot_deltas(
 
     total_new_stars = sum(repo_deltas.values())
 
-    return latest_map, old_map, repo_deltas, total_new_stars
+    return latest_map, repo_deltas, total_new_stars
 
 
 def _preload_signal_and_repo_maps(
@@ -302,7 +302,7 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     total_repos: int = db.query(func.count(Repo.id)).scalar() or 0
 
     # --- 每個 repo 的星數差值（最新快照 vs N 天前快照）---
-    latest_map, old_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, baseline_date, period_end, days)
+    latest_map, repo_deltas, total_new_stars = _fetch_snapshot_deltas(db, baseline_date, period_end, days)
 
     # --- 訊號對映 & repo 資訊 ---
     signal_map, repo_info = _preload_signal_and_repo_maps(db)

@@ -374,8 +374,9 @@ async def test_quota_exhaustion_with_nothing_written_surfaces_as_rate_limit(test
         async def search_repos(self, **kwargs):
             raise GitHubRateLimitError("quota exhausted")
 
+    github = FullyRateLimitedGitHub()
     with pytest.raises(GitHubRateLimitError):
-        await generate_feed(test_db, FullyRateLimitedGitHub(), TODAY)
+        await generate_feed(test_db, github, TODAY)
 
     assert test_db.query(FeedItem).count() == 0
 

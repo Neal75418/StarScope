@@ -10,6 +10,7 @@ assertion rewrite 會把比較的物件整個印出來——整份 os.environ �
 """
 
 import os
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -35,9 +36,11 @@ def test_a_dotenv_file_cannot_bring_the_token_back(tmp_path):
     dotenv_file = tmp_path / ".env"
     dotenv_file.write_text(f"{GITHUB_TOKEN_ENV_VAR}=fake_token_from_dotenv\n")
 
-    load_dotenv(dotenv_file)
-    leaked = bool(os.environ.get(GITHUB_TOKEN_ENV_VAR))
-    os.environ[GITHUB_TOKEN_ENV_VAR] = ""  # 萬一洩漏了，別讓後面的測試帶著它跑
+    # patch.dict 離開時整份還原（新加的 key 也會移掉）：萬一洩漏了，別讓後面的測試帶著它跑。
+    # monkeypatch.delenv(raising=False) 在 key 不存在時不留還原紀錄，正好在會洩漏的那種情況失效
+    with patch.dict(os.environ):
+        load_dotenv(dotenv_file)
+        leaked = bool(os.environ.get(GITHUB_TOKEN_ENV_VAR))
 
     assert not leaked, ".env 裡的 GITHUB_TOKEN 回到了環境變數"
 
