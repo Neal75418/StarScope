@@ -2,8 +2,21 @@
 Pytest fixtures for StarScope tests.
 """
 
+import atexit
 import os
+import shutil
 import sys
+import tempfile
+
+# 沒拿到 STARSCOPE_DATA_DIR 就指到暫存目錄，而且要在 import db.database 之前：它在 import 時就
+# 固定資料庫路徑，預設是真實資料所在的 ~/.starscope（安裝版、開發模式、collector 共用）。
+# APScheduler 的 jobstore 用的是真的 DATABASE_URL，跑 lifespan 的測試會把排程寫進去
+#（tests/test_suite_isolation.py 守住）
+if "STARSCOPE_DATA_DIR" not in os.environ:
+    _data_dir = tempfile.mkdtemp(prefix="starscope-tests-")
+    os.environ["STARSCOPE_DATA_DIR"] = _data_dir
+    atexit.register(shutil.rmtree, _data_dir, ignore_errors=True)
+
 from typing import Generator
 from unittest.mock import AsyncMock, patch
 
