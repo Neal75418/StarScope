@@ -6,6 +6,8 @@
 
 import importlib.util
 import os
+import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +18,11 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "extract_bundled_side
 _spec = importlib.util.spec_from_file_location("extract_bundled_sidecar", SCRIPT)
 ebs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ebs)
+
+
+def _writable(path: Path) -> bool:
+    # 看權限位元，不用 os.access：root（例如在容器裡跑測試）對唯讀目錄的 os.access 也是 True
+    return bool(stat.S_IMODE(path.stat().st_mode) & stat.S_IWUSR)
 
 
 def _fake_app(bundle: Path, name: str = "StarScope.app") -> Path:
@@ -73,8 +80,8 @@ def test_macos_copy_is_read_only(tmp_path):
 
     exe = ebs.extract(tmp_path / "bundle", tmp_path / "out", platform="darwin")
 
-    assert not os.access(exe.parent, os.W_OK)
-    assert not os.access(exe.parent / "_internal", os.W_OK)
+    assert not _writable(exe.parent)
+    assert not _writable(exe.parent / "_internal")
 
 
 def test_extracting_twice_replaces_the_read_only_copy(tmp_path):
@@ -166,7 +173,7 @@ def test_linux_extracts_the_deb_and_finds_the_sidecar(tmp_path, monkeypatch):
     assert calls[0][1].get("stdout") == subprocess.DEVNULL  # stdout 只能有那一行路徑：CI 用 $(...) 接
     assert exe == install / "usr" / "lib" / "StarScope" / "sidecar" / "starscope-sidecar"
     if os.name != "nt":
-        assert not os.access(exe.parent, os.W_OK)  # Linux 也設唯讀，跟 macOS 一樣
+        assert not _writable(exe.parent)  # Linux 也設唯讀，跟 macOS 一樣
 
 
 def test_linux_extracts_the_appimage_when_asked(tmp_path, monkeypatch):
@@ -233,15 +240,40 @@ def test_windows_runs_an_admin_install_with_quoted_paths(tmp_path, monkeypatch):
     assert f'TARGETDIR="{install}"' in cmd
     assert calls[0][1].get("stdout") == subprocess.DEVNULL
     assert exe.name == "starscope-sidecar.exe"
-    assert os.access(exe.parent, os.W_OK)  # Windows 不設唯讀
+    assert _writable(exe.parent)  # Windows 不設唯讀
+
+
+def _bundle_for_this_platform(tmp_path: Path) -> Path:
+    """CLI 依 sys.platform 找安裝檔：macOS 造假的 .app；Linux 用 dpkg-deb 造一個真的迷你 .deb
+    （test.yml 跑在 ubuntu，deb 那條路因此在發版預演之前就真的走過）；其他平台跳過。"""
+    bundle = tmp_path / "bundle"
+    if sys.platform == "darwin":
+        _fake_app(bundle)
+        return bundle
+    if sys.platform.startswith("linux") and shutil.which("dpkg-deb"):
+        root = tmp_path / "pkg"
+        (root / "DEBIAN").mkdir(parents=True)
+        (root / "DEBIAN" / "control").write_text(
+            "Package: starscope-test\nVersion: 0\nArchitecture: all\nMaintainer: test\nDescription: test\n"
+        )
+        folder = root / "usr" / "lib" / "StarScope" / "sidecar"
+        (folder / "_internal").mkdir(parents=True)
+        (folder / "starscope-sidecar").write_bytes(b"exe")
+        (bundle / "deb").mkdir(parents=True)
+        subprocess.run(
+            ["dpkg-deb", "-b", str(root), str(bundle / "deb" / "starscope-test_0_all.deb")],
+            check=True, stdout=subprocess.DEVNULL,
+        )
+        return bundle
+    pytest.skip("這個平台沒有能在測試裡造出來的安裝檔")
 
 
 def test_cli_prints_exactly_one_posix_path(tmp_path):
     # CI 用 $(...) 接 stdout 交給 smoke test：只能是一行路徑，Git Bash 吃不下反斜線
-    _fake_app(tmp_path / "bundle")
+    bundle = _bundle_for_this_platform(tmp_path)
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), str(tmp_path / "bundle"), str(tmp_path / "out")],
+        [sys.executable, str(SCRIPT), str(bundle), str(tmp_path / "out")],
         capture_output=True, text=True, encoding="utf-8", timeout=30,
     )
 
