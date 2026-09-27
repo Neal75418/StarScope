@@ -261,7 +261,8 @@ class TestWriteReadRoundTrip:
 
     def test_a_freshly_created_backup_is_found(self, service, temp_db, backup_dir):
         created = service.create_backup()
-        assert created is not None and created.exists()
+        assert created is not None
+        assert created.exists()
 
         from services.backup import find_latest_backup
 
@@ -287,7 +288,9 @@ class TestWriteReadRoundTrip:
         first = service.create_backup()
         time.sleep(1.05)
         second = service.create_backup()
-        assert first is not None and second is not None and first != second
+        assert first is not None
+        assert second is not None
+        assert first != second
 
         from services.backup import find_latest_backup
         from datetime import datetime, timezone

@@ -760,7 +760,8 @@ class TestDeltasAreNormalisedByActualDaySpan:
 
         assert latest == pytest.approx(400.0)
         assert avg == pytest.approx(20.0)
-        assert latest > avg * SUDDEN_SPIKE_MULTIPLIER and latest >= SUDDEN_SPIKE_MIN_ABSOLUTE
+        assert latest > avg * SUDDEN_SPIKE_MULTIPLIER
+        assert latest >= SUDDEN_SPIKE_MIN_ABSOLUTE
 
     def test_same_day_duplicates_are_skipped_not_divided_by_zero(self):
         """同一天兩筆快照 span=0，直接除會炸。"""

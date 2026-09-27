@@ -84,7 +84,8 @@ class _FakeKernel32:
         return self._handle
 
     def WaitForSingleObject(self, handle: int, timeout_ms: int) -> int:
-        assert handle == self._handle and timeout_ms == 0
+        assert handle == self._handle
+        assert timeout_ms == 0
         return self._waits.pop(0)
 
     def CloseHandle(self, handle: int) -> None:

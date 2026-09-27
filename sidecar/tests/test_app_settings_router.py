@@ -219,7 +219,6 @@ class TestResetAllData:
         assert test_db.query(Repo).count() == 0
 
     def test_deletes_related_data(self, client, test_db, mock_repo_with_snapshots):
-        repo, snapshots = mock_repo_with_snapshots
         resp = client.post("/api/settings/reset-data", json={"confirm": "RESET"})
         assert resp.status_code == 200
         assert test_db.query(RepoSnapshot).count() == 0

@@ -64,7 +64,8 @@ def test_missing_columns_are_restored_without_touching_rows(tmp_path):
         row = conn.execute(sa.text(
             "SELECT full_name, starred_at, unstarred_at FROM repos WHERE id = 1")).one()
     assert row[0] == "a/one", "既有資料必須原封不動"
-    assert row[1] is None and row[2] is None, "補上的欄位對既有列應為 NULL"
+    assert row[1] is None, "補上的欄位對既有列應為 NULL"
+    assert row[2] is None, "補上的欄位對既有列應為 NULL"
 
 
 def test_source_of_truth_is_the_model_not_a_hand_written_list(tmp_path):
@@ -263,7 +264,8 @@ def test_existing_index_under_another_name_is_not_duplicated(tmp_path):
     ensure_columns(engine, metadata=md)
 
     names = _index_names(engine, "repos")
-    assert "manual_lang" in names and "ix_repos_language_new" not in names
+    assert "manual_lang" in names
+    assert "ix_repos_language_new" not in names
 
 
 def test_unique_index_on_new_column_fails_loudly(tmp_path):

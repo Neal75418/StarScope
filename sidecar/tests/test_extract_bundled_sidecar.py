@@ -233,7 +233,8 @@ def test_windows_runs_an_admin_install_with_quoted_paths(tmp_path, monkeypatch):
 
     exe = ebs.extract(bundle, tmp_path / "out", platform="win32")
 
-    assert len(calls) == 1 and isinstance(calls[0][0], str)
+    assert len(calls) == 1
+    assert isinstance(calls[0][0], str)
     cmd = calls[0][0]
     assert cmd.startswith("msiexec /a ")
     assert f'"{msi}"' in cmd

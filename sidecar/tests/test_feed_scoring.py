@@ -51,7 +51,8 @@ def test_keyword_match_in_description():
 def test_keyword_no_description_no_crash():
     score, matched = compute_interest_match(
         [], None, "x", None, [_interest("quant", InterestKind.KEYWORD, 1)])
-    assert score == 0.0 and matched == []
+    assert score == 0.0
+    assert matched == []
 
 
 def test_multiple_hits_sum():

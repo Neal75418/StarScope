@@ -12,7 +12,8 @@ def test_create_interest(client):
     resp = client.post(BASE, json={"term": "tauri", "kind": "topic", "weight": 3})
     assert resp.status_code == 200
     data = resp.json()["data"]
-    assert data["term"] == "tauri" and data["weight"] == 3
+    assert data["term"] == "tauri"
+    assert data["weight"] == 3
 
 
 def test_create_duplicate_term_kind_conflict(client):

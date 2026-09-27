@@ -52,11 +52,13 @@ class TestGetSnapshotForRepo:
 
         snap = get_snapshot_for_repo(mock_repo.id, test_db, {mock_repo.id: preloaded})
 
-        assert snap is not None and snap.stars == 7777
+        assert snap is not None
+        assert snap.stars == 7777
 
     def test_falls_back_to_the_query_when_the_map_misses(self, test_db, mock_repo):
         _seed(test_db, mock_repo.id, [(0, 2000)])
 
         snap = get_snapshot_for_repo(mock_repo.id, test_db, {99999: None})
 
-        assert snap is not None and snap.stars == 2000
+        assert snap is not None
+        assert snap.stars == 2000

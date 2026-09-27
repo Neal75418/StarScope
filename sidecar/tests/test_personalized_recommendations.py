@@ -270,9 +270,8 @@ class TestPersonalizedRecommendations:
         target_ids = {target_neg.id, target_pos.id}
         filtered = [r for r in recs if r["repo_id"] in target_ids]
 
-        # target_neg: 0.7 * 1.0 = 0.7
-        # target_pos: 0.6 * 1.05 = 0.63
-        # target_neg still wins because base similarity is much higher
+        # target_neg 的分數是 0.7×1.0＝0.7，target_pos 是 0.6×1.05＝0.63：
+        # 基礎相似度差距大，target_neg 仍然贏
         assert filtered[0]["repo_id"] == target_neg.id
         assert filtered[1]["repo_id"] == target_pos.id
 

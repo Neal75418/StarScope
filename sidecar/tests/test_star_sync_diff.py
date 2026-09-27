@@ -21,7 +21,9 @@ def _remote(github_id: int, full_name: str) -> RemoteStar:
 def test_new_star_becomes_added():
     d = diff_starred(local=[], remote=[_remote(1, "a/one")])
     assert [r.full_name for r in d.added] == ["a/one"]
-    assert d.restored == [] and d.renamed == [] and d.archived == []
+    assert d.restored == []
+    assert d.renamed == []
+    assert d.archived == []
 
 
 def test_unstarred_on_github_becomes_archived():
@@ -50,7 +52,8 @@ def test_rename_is_not_an_archive_plus_add():
     歷史快照從此斷成兩截。
     """
     d = diff_starred(local=[_local(1, "a/old")], remote=[_remote(1, "a/new")])
-    assert d.added == [] and d.archived == []
+    assert d.added == []
+    assert d.archived == []
     assert [(repo.full_name, star.full_name) for repo, star in d.renamed] == \
         [("a/old", "a/new")]
 
@@ -75,7 +78,8 @@ def test_matched_repo_gets_its_star_date_filled_in():
 
     d = diff_starred(local=[local], remote=[_remote(1, "a/one")])
 
-    assert d.added == [] and d.restored == []
+    assert d.added == []
+    assert d.restored == []
     assert [(r.full_name, s.starred_at) for r, s in d.restamped] == \
         [("a/one", datetime(2026, 8, 10))]
 

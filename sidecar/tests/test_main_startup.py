@@ -54,7 +54,8 @@ def test_github_token_check_runs_after_init_db(test_session_local):
             pass
 
     token_read = ("get_setting", AppSettingKey.GITHUB_TOKEN)
-    assert "init_db" in order and token_read in order, order
+    assert "init_db" in order, order
+    assert token_read in order, order
     assert order.index("init_db") < order.index(token_read), order
 
 

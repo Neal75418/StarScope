@@ -106,7 +106,7 @@ def block_real_network() -> Generator[None, None, None]:
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_engine():
     """Create a test database engine."""
     engine = create_engine(
@@ -119,7 +119,7 @@ def test_engine():
     Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_db(test_engine) -> Generator[Session, None, None]:
     """Create a test database session."""
     testing_session_local = sessionmaker(
@@ -132,13 +132,13 @@ def test_db(test_engine) -> Generator[Session, None, None]:
         db.close()
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def test_session_local(test_engine):
     """Create a session factory bound to the test engine."""
     return sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=test_engine)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def client(test_db, test_session_local) -> Generator[TestClient, None, None]:
     """
     Create a test client with database override.

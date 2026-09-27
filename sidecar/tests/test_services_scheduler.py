@@ -754,4 +754,5 @@ class TestDetectionSaveFailureSurfacesInJobLog:
             counts = await fetch_all_repos_job()
 
         assert counts is not None
-        assert counts["success"] == 1 and counts["errors"] == 0
+        assert counts["success"] == 1
+        assert counts["errors"] == 0

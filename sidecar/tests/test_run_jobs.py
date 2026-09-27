@@ -124,7 +124,8 @@ class TestHeartbeatHonesty:
             "success": 0, "errors": 0, "skipped": 0, "job_error": "database is locked",
         })
         out = _run(m)
-        assert "degraded" in out and "database is locked" in out
+        assert "degraded" in out
+        assert "database is locked" in out
 
     def test_lock_held_by_app_is_ok(self):
         """None＝App 行程正在抓，資料由它負責——這不是失敗。"""

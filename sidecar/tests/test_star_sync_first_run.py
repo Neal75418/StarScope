@@ -37,7 +37,8 @@ async def test_first_sync_lists_local_only_repos_instead_of_archiving_them(test_
     assert result.archived == 0
     assert result.pending_local_only == ["a/local-only"]
     row = test_db.query(Repo).filter(Repo.full_name == "a/local-only").first()
-    assert row is not None and row.unstarred_at is None
+    assert row is not None
+    assert row.unstarred_at is None
 
 
 async def test_first_sync_still_adds_what_is_new(test_db):
