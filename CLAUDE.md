@@ -133,7 +133,7 @@ venv 不存在時：`cd sidecar && python3 -m venv .venv && .venv/bin/pip instal
 健康檢查通過後殺掉假的父行程，binary 要在 15 秒內自己結束並放開 port。
 
 Rust：`cd src-tauri && cargo test --lib`（CI 不編譯 Rust；第一次在 Windows／Linux 編譯是打 tag 時的 release.yml）。
-打包版實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 裡的 placeholder；
+打包版實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 的 `src-tauri/sidecar/`；
 前端 localStorage 與已安裝的 StarScope 共用，隔離不了。
 ⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停（計時器、請求都不跑），要先點一下視窗再觀察。
 
@@ -166,6 +166,9 @@ e2e 大量 Loading 逾時時先看 `/tmp/starscope-e2e/starscope.log` 的 `-->`�
 ./start-dev.sh                  # 建議：檢查 venv、清掉佔用 8008 的殘留 process、
                                 # trap 訊號時一併關掉 sidecar
 ```
+
+⚠️ 開發前先關掉安裝版：兩者都用 8008。`start-dev.sh` 會 `kill -9` 佔著 8008 的行程，也就是安裝版的 sidecar；
+安裝版開著時直接跑 `tauri dev`，dev 前端會連到安裝版的 sidecar，session secret 對不上，整片 403。
 
 手動兩個終端機的話要自己記得清 port（上次沒關乾淨會直接撞埠）：
 
@@ -228,7 +231,8 @@ npm run tauri dev                        # 終端機 2
 編譯、打包，並多跑一次 `cargo test --lib --locked`。`test.yml` 不編譯 Rust、也不打包 sidecar，
 所以打包後才會壞的問題原本都要到打 tag 才第一次出現（v1.0.0 以前每一版的 sidecar 都起不來，Intel 版還包著 placeholder）。
 只改 sidecar 時可先跑 `verify-sidecar.yml`（約 2 分鐘）：它和 release 共用 `setup-sidecar` action——打包、smoke test、
-確認 Tauri 會包進的是對應架構的真 binary。
+stage 進 `src-tauri/sidecar/`、確認是對應架構的完整 onedir。release（含預演）另外從安裝檔（.app、.deb 與 AppImage、.msi；
+NSIS 的 .exe 與 .rpm 沒驗）取出 sidecar 再跑一次 smoke test，macOS 並驗證簽章。
 
 ### 注意事項
 
@@ -280,8 +284,10 @@ npm run tauri dev                        # 終端機 2
 - 每一種正常結束都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`。
   當掉、被強制結束時走不到它，只能靠 sidecar 的父行程看門
 - sidecar 結束後不能再對它的 PID 送任何 signal（可能已換人）：「已結束」看 shell plugin 的 `Terminated`，不用 `kill(pid, 0)`
-- 看門不是當機備援，不能拿掉：Windows 沒有 SIGTERM，`kill()` 只殺到 onefile 的 bootloader，
-  **Windows 每一次結束都靠看門收掉 Python 子行程**
+- 看門不能拿掉：app 當掉、被強制結束時走不到 `cleanup_sidecar`，只能靠它
+- sidecar 是 onedir（`src-tauri/sidecar/`，作為 Tauri resources 打包），只有一個行程：Unix 的 SIGTERM
+  直接送到 Python；Windows 的 `kill()` 直接結束 Python，不走正常關閉（SQLite 每次 commit 都是原子的，最壞丟掉一次進行中的抓取）
+- debug build 不 spawn sidecar：開發時由 `start-dev.sh` 提供
 - 看門只在有 `STARSCOPE_PARENT_PID` 時啟動；start-dev、e2e、collector、pytest 都不設
 - `/api/health` 不驗 session secret，別人的 sidecar（舊版孤兒、還在退出的上一個）也答得出來：
   前端在 Tauri 裡要等 Rust 的 `sidecar-status` 說 `running`／`external` 才探測
@@ -290,8 +296,6 @@ npm run tauri dev                        # 終端機 2
 - release 在 spawn 前檢查 8008：StarScope 佔著就等最多 6 秒（上一個正在退出），仍被佔或是別的程式就不 spawn、
   回報 `port_in_use`；Rust 回報的原因由 `App.tsx` 換成說明卡片，不掛頁面
 - single-instance 只在 release 註冊：dev 與 release 共用 identifier，否則打包版開著時 `tauri dev` 會一聲不響地結束
-
-⚠️ onefile 打包時，直接 kill 只殺到 bootloader，Python 子行程會佔著 8008，下次開 app 就是「連接埠被佔用」。
 
 ### 存檔走 Rust 的 `save_file` command，不註冊 fs plugin
 

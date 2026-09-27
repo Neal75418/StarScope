@@ -129,13 +129,16 @@ graph TB
 
 ### macOS — 首次開啟
 
-未簽名 binary 會被 Gatekeeper 攔截。任一方法:
+StarScope 沒有經過 Apple 公證，第一次打開時 macOS 會說「Apple 無法驗證」。任一方法：
 
-```bash
-xattr -d com.apple.quarantine /Applications/StarScope.app
-```
+1. 按「完成」，到「系統設定 → 隱私權與安全性」，在最下面按「強制打開」，輸入密碼後再按「打開」
+2. 或在終端機執行：
 
-或:右鍵 → 開啟 → 確認開啟(僅需一次)。
+   ```bash
+   xattr -d com.apple.quarantine /Applications/StarScope.app
+   ```
+
+每次更新後都要再做一次。1.0.0 的簽章不完整，macOS 會說它「已損毀」，只能用方法 2。
 
 ### Windows — 首次開啟
 
@@ -198,7 +201,8 @@ npm run tauri dev                        # 終端機 2 — Tauri 開發模式
 ### 建置與測試
 
 ```bash
-npm run tauri build              # 建置桌面應用
+npm run tauri build              # 建置桌面應用（src-tauri/sidecar/ 只有 README，包出來的 app 沒有 sidecar；
+                                 # 本機要試打包版用 scripts/run-packaged-app.sh，它會先打包 sidecar 放進去）
 
 npx vitest run                                  # 前端單元測試（npm run test 是 watch 模式）
 cd sidecar && .venv/bin/python -m pytest tests/ # 後端測試

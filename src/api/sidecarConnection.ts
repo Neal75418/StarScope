@@ -36,7 +36,7 @@ export const PROBE_TIMEOUT_MS = 2_000;
 const MISSES_BEFORE_DOWN = 2;
 /**
  * 從沒連上過、又超過這麼久，才從「啟動中」改說「沒有回應」。
- * onefile 裝好後第一次開實測 22.8 秒，CI runner 更慢。
+ * onedir 平常約 1 秒，但新檔案第一次執行時系統會先掃描：macOS 實測最慢 26 秒，Windows 的防毒更慢。
  */
 export const STARTUP_GRACE_MS = 45_000;
 
