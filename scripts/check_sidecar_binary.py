@@ -1,11 +1,11 @@
-"""確認要包進安裝檔的 sidecar 是目標平台的真 binary。
+"""確認要包進安裝檔的 sidecar 資料夾是目標平台的完整 onedir。
 
-src-tauri/binaries/ 裡放著給開發用的 placeholder（幾十 bytes 的 shell script），檔名與正式
-binary 一模一樣。打包出來的檔名若與 Tauri 的 --target 對不上，Tauri 不會報錯，而是把
-placeholder 包進去——安裝檔照樣產出，裝起來 sidecar 一啟動就只印一行字。smoke test 抓不到：
-它跑的是打包產物，不是 Tauri 實際取用的那個檔。
+PyInstaller 只產出執行中架構的 binary：Intel 版在 arm64 runner 上打包，架構就是錯的，
+而 Tauri 照樣產出安裝檔。資料夾不完整（忘了 stage、只剩 repo 的 README、少了 _internal）
+或留著 symlink（Tauri 會把指向資料夾的默默丟掉）時也一樣。smoke test 跑的是
+PyInstaller 的產物，不是 Tauri 實際取用的那一份，所以這裡另外檢查。
 
-用法：python scripts/check_sidecar_binary.py <binary 路徑> <target triple>
+用法：python scripts/check_sidecar_binary.py <sidecar 資料夾> <target triple>
 """
 
 from __future__ import annotations  # 開發機的系統 python3 可能是 3.9
@@ -15,7 +15,7 @@ import struct
 import sys
 from pathlib import Path
 
-MIN_REAL_BINARY_BYTES = 1_000_000  # PyInstaller 產物是幾十 MB；placeholder 不到 100 bytes
+EXECUTABLE = "starscope-sidecar"
 
 # target triple → (格式, 架構)
 EXPECTED = {
@@ -48,20 +48,25 @@ def identify(data: bytes) -> tuple[str, str]:
     return "unknown", "unknown"
 
 
-def check(path: Path, target: str) -> str | None:
+def check(folder: Path, target: str) -> str | None:
     """通過回 None，否則回失敗原因。"""
     if target not in EXPECTED:
         return f"不認得的 target：{target}"
-    if not path.is_file():
-        return f"找不到 {path}"
-    size = path.stat().st_size
-    if size < MIN_REAL_BINARY_BYTES:
-        return f"{path} 只有 {size} bytes，是 placeholder 而不是打包出來的 sidecar"
-    with path.open("rb") as f:
+    if not folder.is_dir():
+        return f"找不到 sidecar 資料夾：{folder}"
+    exe = folder / (EXECUTABLE + (".exe" if EXPECTED[target][0] == "PE" else ""))
+    if not exe.is_file():
+        return f"{folder} 裡沒有 {exe.name}（忘了用 scripts/stage_sidecar.py 放進來？）"
+    with exe.open("rb") as f:
         header = f.read(4096)
     actual = identify(header)
     if actual != EXPECTED[target]:
-        return f"{path} 是 {actual[0]} {actual[1]}，但 {target} 需要 {EXPECTED[target][0]} {EXPECTED[target][1]}"
+        return f"{exe} 是 {actual[0]} {actual[1]}，但 {target} 需要 {EXPECTED[target][0]} {EXPECTED[target][1]}"
+    if not (folder / "_internal").is_dir():
+        return f"{folder} 裡沒有 _internal/：不是完整的 onedir"
+    links = [p for p in folder.rglob("*") if p.is_symlink()]
+    if links:
+        return f"{folder} 裡還有 symlink（Tauri 會默默丟掉指向資料夾的）：{links[0]}"
     return None
 
 
@@ -72,8 +77,8 @@ if __name__ == "__main__":
         if isinstance(stream, io.TextIOWrapper):
             stream.reconfigure(encoding="utf-8")
     if len(sys.argv) != 3:
-        sys.exit(f"用法: {sys.argv[0]} <binary 路徑> <target triple>")
+        sys.exit(f"用法: {sys.argv[0]} <sidecar 資料夾> <target triple>")
     problem = check(Path(sys.argv[1]), sys.argv[2])
     if problem:
         sys.exit(f"❌ {problem}")
-    print(f"✅ {sys.argv[1]} 是 {sys.argv[2]} 的真 binary")
+    print(f"✅ {sys.argv[1]} 是 {sys.argv[2]} 的完整 sidecar")
