@@ -6,80 +6,46 @@
 
 **文件分工**：
 
-| 文件                      | 讀者                             | 內容                                                                         |
-|---------------------------|----------------------------------|------------------------------------------------------------------------------|
-| `README.md`               | 對外                             | 專案介紹、安裝、API 端點表                                                   |
-| **本檔**                  | Claude Code                      | 路徑陷阱、跨層約定、**現行**設計取捨                                         |
-| `docs/superpowers/specs/` | 需要知道「當初為什麼這樣決定」時 | 各功能定案當下的設計紀錄。**刻意不隨程式碼更新**，讀法見該目錄的 `README.md` |
+| 文件                      | 讀者                                              | 內容                                                                                                                       |
+|---------------------------|---------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------|
+| `README.md`               | 對外                                              | 專案介紹、安裝、API 端點表                                                                                                 |
+| **本檔**                  | Claude Code，每個 session                         | 指令、跨層約定、跨層陷阱、**現行**設計取捨                                                                                                   |
+| `.claude/rules/*.md`      | Claude Code，讀到檔頭 `paths:` 符合的檔案時才載入 | 單一層的約定與陷阱：`sidecar.md`（Python）、`frontend.md`（React）、`sidecar-lifecycle.md`（Rust、啟停相關檔案、腳本、CI） |
+| `docs/superpowers/specs/` | 需要知道「當初為什麼這樣決定」時                  | 各功能定案當下的設計紀錄。**刻意不隨程式碼更新**，讀法見該目錄的 `README.md`                                               |
 
-⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在
-`vitest.config.ts`、bundle 上限在 `scripts/check-bundle-size.sh`、降級等級是
-`DegradationLevel` 這個 union type、事件名與錯誤訊息是 `constants/` 裡的具名常數、
-sidecar 的 shutdown 順序由 `sidecar/tests/test_main_lifecycle.py` 斷言。
-**要知道規則是什麼就去看那些地方**——它們違反時會紅，散文不會。
-本檔只記錄「機器守不住、且從 code 看不出來」的部分。
+⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在 `vitest.config.ts`、bundle 上限在
+`scripts/check-bundle-size.sh`、降級等級是 `DegradationLevel` 這個 union type、事件名與錯誤訊息是 `constants/` 裡的
+具名常數、sidecar 的 shutdown 順序由 `sidecar/tests/test_main_lifecycle.py` 斷言。**要知道規則是什麼就去看那些地方**——
+它們違反時會紅，散文不會。本檔與 rules 只記錄「機器守不住、且從 code 看不出來」的部分。
 
-⚠️ **`src/api/types.ts` 是手寫的，沒有任何機制擋前後端型別漂移。** 曾經有一支
-`scripts/check-api-drift.sh`，但它守錯方向——只檢查「後端有、前端沒宣告」（前端沒用到，
-通常無害），對「前端宣告了後端根本不送的欄位」完全瞎（執行期永遠 `undefined`
-而 TS 說它存在），加上沒有任何地方執行它，已刪除。
-**真的被漂移咬到時，正解是啟用 `npm run generate:types`（`openapi-typescript`）
-讓型別從 OpenAPI schema 產生，drift 就結構上不可能發生——不要再寫一支更好的
-檢查腳本。** 代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
+⚠️ **`src/api/types.ts` 是手寫的，沒有任何機制擋前後端型別漂移**（曾有的 `scripts/check-api-drift.sh` 守錯方向——只檢查
+「後端有、前端沒宣告」，對「前端宣告了後端根本不送的欄位」完全瞎——也沒有任何地方執行它，已刪）。真的被漂移咬到時，正解是啟用 `npm run generate:types`（`openapi-typescript`）讓型別從 OpenAPI
+schema 產生，drift 就結構上不可能發生——**不要再寫一支更好的檢查腳本**。代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
 
-⚠️ **但「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後，
-一定要做兩件事，否則你守的是一個裝飾品：
+⚠️ **「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後一定做兩件事，否則你守的是一個裝飾品：
 
-1. **grep 誰執行它。** 找不到引用點就是死的。本專案踩過兩次：`tsconfig.node.json`
-   與 `e2e/tsconfig.json` 都存在、看起來在運作，實際上沒有任何地方執行——
-   實測往 `vite.config.ts` 塞 `const x: number = "字串"`，`npm run type-check`
-   退出碼 0。當時 `tsconfig.json` 靠 `references` 指向前者，但 plain `tsc`
-   **只有 `tsc -b` 才會**跟著檢查 referenced project，而全 repo 沒有一處跑 `tsc -b`。
-   現在的做法是**不用 `references`，改在 `type-check` 裡明確串接三個 `tsc -p`**——
-   要看目前串了哪些，讀 `package.json` 的 `type-check`，不要相信這裡的敘述。
-2. **注入一個必被抓到的錯，確認它真的紅**（`const __g = 1; __g.toUpperCase();`）。
-   我第一次補這個檢查時只加了 `allowJs` 沒加 `checkJs`，`.js` 進得來但根本不檢查，
-   拿到的「零錯誤」是假的。
-   ⚠️ 驗證用的**指令與旗標要跟真實消費者一致**：CI 跑 `npm run type-check`，
-   IDE 跑不帶旗標的 `tsc -p`。我只驗前者，漏掉 `composite: true` 會強制 emit 而
-   `allowJs` 沒配 `outDir` ⇒ `TS5055` 想把編譯結果寫回原始碼。
-   ⚠️ **「跑個檢查指令」不等於唯讀**——那次不帶 `--noEmit` 的重現真的在根目錄寫出了
-   `vite.config.js`、`playwright.config.js` 等七個檔案，同名 `.js` 會遮蔽 `.ts`。
-   ⚠️ 判涵蓋範圍用 `tsc -p <config> --listFilesOnly`，不要自己 parse tsconfig
-   （JSON with comments，`//.*` 這種剝法會把 `/* Bundler mode */` 弄壞）。
+1. **grep 誰執行它**，找不到引用點就是死的。plain `tsc` 不會跟著檢查 tsconfig `references` 指到的 project（只有 `tsc -b` 會），
+   所以 `type-check` **不用 `references`，改為明確串接三個 `tsc -p`**——串了哪些讀 `package.json`，不要相信這裡的敘述。
+2. **注入一個必被抓到的錯，確認它真的紅**（`const __g = 1; __g.toUpperCase();`），而且**指令與旗標要跟真實消費者一致**
+   （CI 跑 `npm run type-check`，IDE 跑不帶旗標的 `tsc -p`；只加 `allowJs` 沒加 `checkJs` 的「零錯誤」是假的）。
+   **「跑個檢查指令」不等於唯讀**：不帶 `--noEmit` 的 `tsc` 會把 `.js` 寫回原始碼旁邊，同名 `.js` 會遮蔽 `.ts`。
+   `tsconfig.node.json` 的 `outDir` 不能拿掉：`composite: true` 強制 emit，沒有 `outDir` 時 IDE 的 `tsc -p` 報 `TS5055`。
+   判涵蓋範圍用 `tsc -p <config> --listFilesOnly`，不要自己 parse tsconfig（JSON with comments）。
 
 ---
 
 ## 專案概述
 
-StarScope 是一款桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。使用 Tauri v2（Rust + React + Python sidecar）建構。
+StarScope 是桌面應用程式，透過速度分析（而非 star 絕對數量）幫助工程師理解 GitHub 專案的發展動能。Tauri v2：
+`src-tauri/`（Rust，系統匣、OS 通知、spawn 並監管 sidecar）、`src/`（React 19）、`sidecar/`（FastAPI＋SQLite，:8008，
+對 GitHub 與 Hacker News API）。架構圖見 README。
 
-應用分兩層：**發現層**（Discovery 頁的 For You feed——依使用者興趣清單每日產生個人化推薦）與**監測層**（Watchlist、Trends、Compare、警報——對已追蹤 repo 做時序快照與訊號分析）。監測層的所有功能都依賴發現層或使用者手動把 repo 加入 watchlist，watchlist 為空時整個監測層不會有資料。
+應用分兩層：**發現層**（Discovery 頁的 For You feed——依使用者興趣清單每日產生個人化推薦）與**監測層**（Watchlist、Trends、
+Compare、警報——對已追蹤 repo 做時序快照與訊號分析）。監測層的所有功能都依賴發現層或使用者手動把 repo 加入 watchlist，
+watchlist 為空時整個監測層不會有資料。
 
-```mermaid
-graph TB
-    T["src-tauri/<br/>Rust · 系統匣 · OS 通知"]
-    F["src/<br/>React 19 · Pages · Hooks"]
-    B["sidecar/<br/>FastAPI · Services · SQLite"]
-
-    T -->|"WebView 載入"| F
-    T ==>|"spawn 並監管進程"| B
-    F <-->|"HTTP :8008"| B
-    B --> G["GitHub API"]
-    B --> H["Hacker News API"]
-
-    classDef rust fill:#ce422b,stroke:#8b2c1d,color:#fff
-    classDef web fill:#3b82f6,stroke:#1d4ed8,color:#fff
-    classDef py fill:#8b5cf6,stroke:#6d28d9,color:#fff
-    classDef ext fill:#475569,stroke:#1e293b,color:#fff
-    class T rust
-    class F web
-    class B py
-    class G,H ext
-```
-
-⚠️ 圖上那條粗線是重點：**Python sidecar 是 Rust 進程 spawn 出來的子進程**（`src-tauri/src/lib.rs`），
-不是獨立服務。App 關掉時它要跟著收——開發時手動起 sidecar 忘了關，下次會直接撞埠。
+⚠️ **Python sidecar 是 Rust 進程 spawn 出來的子進程**（`src-tauri/src/lib.rs`），不是獨立服務。App 關掉時它要跟著收——
+開發時手動起 sidecar 忘了關，下次會直接撞埠。
 
 ---
 
@@ -100,9 +66,8 @@ npm run build:analyze    # Bundle 大小分析
 
 ### Python Sidecar
 
-⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest`。**
-macOS 內建的 `python3` 是 3.9，而 `constants.py` 與 `db/models.py` 用了 `StrEnum`
-（Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
+⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest`。** macOS 內建的 `python3` 是 3.9，而 `constants.py` 與
+`db/models.py` 用了 `StrEnum`（Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
 Python 版本以 repo 根目錄的 `.python-version`（3.13）為準：CI 的 `actions/setup-python` 讀它，本機 venv 也要用同一版
 （`python3.13 -m venv`；`uv venv --seed`、pyenv 會自動讀），mypy 不另設 `python_version`、跟著直譯器走。
 升版改 `.python-version`，然後跑 `tests/test_python_version_single_source.py`：它會指出 README、本段、CI 裡還有哪裡沒跟上，
@@ -119,26 +84,7 @@ cd sidecar
 
 venv 不存在時：`cd sidecar && python3.13 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
 
-⚠️ **Python 依賴的版本鎖在 `sidecar/constraints.txt`**（開發機 venv 的 pip freeze），CI 與 release 都用
-`-c constraints.txt` 安裝；`requirements.txt` 只宣告範圍。不要手改 constraints。升級流程：venv 裡
-`pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit 兩個檔（venv 要裝 pyinstaller，
-沒裝腳本會擋）。`tests/test_constraints.py` 守住每個 requirement 都有鎖、且鎖的版本在範圍內。
-鎖不到開發機沒裝的平台限定套件（greenlet、Windows 的 tzdata 等），清單見 constraints.txt 開頭。
-
-⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：
-- `isolate_github_credentials`：keyring 換成 null；`GITHUB_TOKEN` 設成**空字串佔位而不是刪掉**——`main.py` import 時的
-  `load_dotenv()` 會補回不存在的 key。它從 `main.py` 所在目錄往上找第一個 `.env`（coverage／debugger 底下改從 cwd 找），
-  沒有 `sidecar/.env` 時就會找到 repo 根目錄那份放著真 token 的
-- `block_real_network`：httpx 的真 transport 一律拋錯（MockTransport、TestClient 不受影響）。它只擋流量：錯誤一樣被 lifespan
-  吞掉、全套照樣綠，只在 captured log 留一行「測試不能連外網」——漏 mock 不會因此浮上來
-
-打包後的 binary 用 `scripts/smoke-test-sidecar.sh` 跑，它另外 cd 到暫存目錄、清空 token、keyring 換成 null、指定 `STARSCOPE_DATA_DIR`；
-健康檢查通過後殺掉假的父行程，binary 要在 15 秒內自己結束並放開 port。
-
-Rust：`cd src-tauri && cargo test --lib`（CI 不編譯 Rust；第一次在 Windows／Linux 編譯是打 tag 時的 release.yml）。
-打包版實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 的 `src-tauri/sidecar/`；
-前端 localStorage 與已安裝的 StarScope 共用，隔離不了。
-⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停（計時器、請求都不跑），要先點一下視窗再觀察。
+Rust：`cd src-tauri && cargo test --lib`（`test.yml` 不編譯 Rust；Windows／Linux 只在 `release.yml` 編）。
 
 ### 單元測試（Vitest）
 
@@ -166,20 +112,14 @@ e2e 大量 Loading 逾時時先看 `/tmp/starscope-e2e/starscope.log` 的 `-->`�
 ### 完整開發流程
 
 ```bash
-./start-dev.sh                  # 建議：檢查 venv、清掉佔用 8008 的殘留 process、
-                                # trap 訊號時一併關掉 sidecar
+./start-dev.sh                  # 建議：檢查 venv、清掉佔用 8008 的殘留 process、trap 訊號時一併關掉 sidecar
 ```
 
 ⚠️ 開發前先關掉安裝版：兩者都用 8008。`start-dev.sh` 會 `kill -9` 佔著 8008 的行程，也就是安裝版的 sidecar；
 安裝版開著時直接跑 `tauri dev`，dev 前端會連到安裝版的 sidecar，session secret 對不上，整片 403。
 
-手動兩個終端機的話要自己記得清 port（上次沒關乾淨會直接撞埠）：
-
-```bash
-lsof -ti:8008 | xargs kill -9   # 先清殘留
-cd sidecar && .venv/bin/python main.py   # 終端機 1
-npm run tauri dev                        # 終端機 2
-```
+手動兩個終端機的話要自己清 port（上次沒關乾淨會直接撞埠）：`lsof -ti:8008 | xargs kill -9`，然後
+`cd sidecar && .venv/bin/python main.py`（終端機 1）與 `npm run tauri dev`（終端機 2）。
 
 ---
 
@@ -187,223 +127,60 @@ npm run tauri dev                        # 終端機 2
 
 目錄結構用 `ls` 就看得到（README 有完整樹狀圖），這裡只記從名字看不出來的：
 
-- `sidecar/routers/dependencies.py` **不是端點模組**，是 `Depends()` 的共用注入 helper
-  ——數路由模組時要扣掉它
+- `sidecar/routers/dependencies.py` **不是端點模組**，是 `Depends()` 的共用注入 helper——數路由模組時要扣掉它
 - `src-tauri/src/main.rs` 只是進入點，實作全在 `lib.rs`（sidecar 管理、系統匣、視窗控制、存檔 command `save_file`）
 - 前端測試散在各目錄的 `__tests__/`，不是集中一處
 
----
-
-## 關鍵前端 Hooks
-
-| Hook                     | 說明                                                         |
-|--------------------------|--------------------------------------------------------------|
-| `useOSNotification`      | OS 層級通知（Tauri notification plugin）— 權限管理、發送通知 |
-| `useNotifications`       | 通知中心整合 — 儲存、輪詢、操作、OS 通知整合                 |
-| `useNotificationPolling` | 通知輪詢 — 定時取得已觸發警報，偵測新通知並發送 OS 推播      |
-| `useImport`              | 批次匯入 — CSV/JSON/TXT 檔案解析、文字貼上                   |
-| `useImportExecutor`      | 匯入執行器 — 循序調用 addRepo API、進度追蹤                  |
-| `useAlertRules`          | 警報規則管理 — CRUD 操作、手動檢查、表單狀態                 |
-| `useFeed`                | For You feed — 當日推薦、空清單自動產生一次、⭐/🚫 回饋      |
-| `useInterests`           | 興趣清單與黑名單 CRUD（驅動 feed 的排序來源）                |
-
----
-
 ## 環境設定
 
-⚠️ **repo 裡有兩份 `.env.example`，用途不同**：
-
-- `sidecar/.env.example` → Python 端（`GITHUB_CLIENT_ID` / `GITHUB_TOKEN` / `PORT` 等）
-- 根目錄的 `.env.example` → Vite 端（`VITE_API_URL`）
-
-內容直接 `cat` 該檔，這裡不複製一份免得漂移。不設 token 也能跑，只是 GitHub 配額降到 60/hr。
+⚠️ **repo 裡有兩份 `.env.example`，用途不同**：`sidecar/.env.example` 是 Python 端（`GITHUB_CLIENT_ID` / `GITHUB_TOKEN` /
+`PORT` 等），根目錄的是 Vite 端（`VITE_API_URL`）。內容直接 `cat` 該檔，這裡不複製一份免得漂移。不設 token 也能跑，只是
+GitHub 配額降到 60/hr。
 
 ---
 
-## 測試策略
+## 測試策略與發版
 
-| 類型     | 工具             | 位置                         |
-|----------|------------------|------------------------------|
-| 單元測試 | Vitest           | `src/**/__tests__/`          |
-| 後端測試 | pytest（非同步） | `sidecar/tests/`             |
-| E2E 測試 | Playwright       | `e2e/`                       |
-| CI       | GitHub Actions   | `.github/workflows/test.yml` |
-| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包）、`verify-sidecar.yml`（只打包 sidecar） |
+| 類型       | 工具                       | 位置                                                                                   |
+|------------|----------------------------|----------------------------------------------------------------------------------------|
+| 單元測試   | Vitest                     | `src/**/__tests__/`                                                                    |
+| 後端測試   | pytest（非同步）           | `sidecar/tests/`                                                                       |
+| E2E 測試   | Playwright                 | `e2e/`                                                                                 |
+| CI         | GitHub Actions             | `.github/workflows/test.yml`                                                           |
+| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包）、`verify-sidecar.yml`（只打包 sidecar）          |
 
 ⚠️ **打 tag 前先在 main 上手動跑 `Release`（預演），四個 job 全綠再打。** 手動觸發時不建立 release，只照發版的步驟
-編譯、打包，並多跑一次 `cargo test --lib --locked`。`test.yml` 不編譯 Rust、也不打包 sidecar，
-所以打包後才會壞的問題原本都要到打 tag 才第一次出現（v1.0.0 以前每一版的 sidecar 都起不來，Intel 版還包著 placeholder）。
-只改 sidecar 時可先跑 `verify-sidecar.yml`（約 2 分鐘）：它和 release 共用 `setup-sidecar` action——打包、smoke test、
-stage 進 `src-tauri/sidecar/`、確認是對應架構的完整 onedir。release（含預演）另外從安裝檔（.app、.deb 與 AppImage、.msi；
-NSIS 的 .exe 與 .rpm 沒驗）取出 sidecar 再跑一次 smoke test，macOS 並驗證簽章。
+編譯、打包，並多跑一次 `cargo test --lib --locked`。`test.yml` 不編譯 Rust、也不打包 sidecar，安裝檔層級的問題（Rust 在
+Windows／Linux 編不編得過、安裝檔裡的 sidecar 能不能跑、簽章）只有預演看得到（v1.0.0 以前每一版的 sidecar 都起不來，
+Intel 版還包著 placeholder）。只改 sidecar 時可先跑 `verify-sidecar.yml`
+（約 2 分鐘）：它和 release 共用 `setup-sidecar` action——打包、smoke test、stage 進 `src-tauri/sidecar/`、確認是對應架構的
+完整 onedir。release（含預演）另外從安裝檔（.app、.deb 與 AppImage、.msi；NSIS 的 .exe 與 .rpm 沒驗）取出 sidecar 再跑一次
+smoke test，macOS 並驗證簽章。
 
-### 注意事項
+打包版本機實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 的 `src-tauri/sidecar/`；
+前端 localStorage 與已安裝的 StarScope 共用，隔離不了。⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停
+（計時器、請求都不跑），要先點一下視窗再觀察。
 
+### 跨層陷阱
+
+- ⚠️ **API 時間要帶時區**：sidecar response model 的 datetime 欄位用 `UtcDateTime`、手寫輸出用 `to_utc_iso()`
+  （`sidecar/schemas/time.py`，`tests/test_api_timestamps_utc.py` 守住）。只有日期的值用 `formatCalendarDate`／`localDateStamp`，
+  不要經本地時區轉換。前端 `doFetch` 補 `Z` 是雙保險，新增的 fetch 路徑仍要經過它。CI 跑在 UTC 看不出時區 bug，測試要自己設
+  `process.env.TZ`
+- ⚠️ **資料庫位置（最常踩的坑）**：SQLite **不在 repo 目錄裡**。`db/database.py` 的 `get_app_data_dir()`：`STARSCOPE_DATA_DIR`
+  （測試、smoke test、打包版實測的隔離）→ `~/.starscope`（開發模式、安裝版、launchd 的 collector 共用這一份，**也就是真實資料**）。
+  任何會啟動打包版或 sidecar 的實驗都要設 `STARSCOPE_DATA_DIR`。Rust 不能用任何環境變數傳資料目錄給 sidecar，`STARSCOPE_DATA_DIR`
+  也不行（它最優先）：以前傳過 `TAURI_APP_DATA_DIR`，安裝版就看不到 collector 寫的資料。Python 端忽略 `TAURI_APP_DATA_DIR` 由
+  `tests/test_app_data_dir.py` 守住，Rust 端沒有測試守。除錯找資料庫時別在 `sidecar/` 底下找
+- 所有端點回傳統一的 `ApiResponse[T]`：`{success, data, message, error}`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data`
+  欄位**——新增端點時若忘了包 `success_response()`，前端會拿到 undefined
+- 桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴
 - ⚠️ Tauri 的 WebView 不處理 `<a download>`（wry 沒有 download handler 時直接取消），存檔一律用 `utils/saveFile`
 - ⚠️ 正式版 CSP 的 `img-src` 不含 `blob:`：單元測試與 Vite 下的 e2e 都沒有 CSP，這類錯誤只會在正式版出現
 - ⚠️ tauri-plugin-dialog 會把 `window.confirm` 換成回傳 Promise 的版本（永遠 truthy）；ESLint 的 `no-alert` 擋著，確認一律用 `ConfirmDialog`
-- 重構 hooks 時需同步更新測試 mocks（例：`useWatchlist` → `useWatchlistState` + `useWatchlistActions`）
-- 測試單一檔案 - `npx vitest run path/to/file.test.tsx`
-- Context Provider 包裹順序 - `WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部
-- ⚠️ **jsdom 不處理 CSS**：`toHaveClass("negative")` 對「有對應規則」與「規則根本不存在」
-  完全無法區分，顏色／版面類的回歸測試只守得到 class 名那一層。要驗實際外觀得在瀏覽器
-  量 `getComputedStyle()`
-- E2E selector：**斷言目標**一律用 `data-testid`（class 名會隨改版消失，測試會變成假綠）；
-  單純要框出一塊範圍再往裡面找時可以用 class（`page.locator(".alert-rule-form")`）——
-  這種用法壞掉時會直接找不到元素而紅，不會靜默通過
-- ⚠️ **新增會寫入共用資源的 E2E spec，要加進 `playwright.config.ts` 的 `DB_MUTATING_SPECS`**
-  ——那組 spec 只在 chromium 串行跑、用專屬 port 8009/1421 與獨立 DB，
-  `reuseExistingServer: false` 是刻意的：否則會接管你正在跑的真實 sidecar，
-  把當天 feed 提前消耗掉，而 `seen_repos` 是永久的（推薦過的 repo 不會再出現）
+- ⚠️ 改 Tauri 平台或 scheme 時同步 `sidecar/main.py` 的 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）
 
 ---
-
-## 安全性決策記錄
-
-### CSP `style-src 'unsafe-inline'`
-
-`tauri.conf.json` 中的 CSP 使用 `style-src 'self' 'unsafe-inline'`。此決策的原因：
-
-- **必要性**：Recharts 在 runtime 注入 inline styles，無法避免
-- **風險評估**：`unsafe-inline` 僅適用於 `style-src`，`script-src` 並未包含 `unsafe-inline`（這是更關鍵的安全邊界）
-- **Desktop 應用環境**：Tauri 應用不暴露於公共網路，XSS 攻擊面遠小於 Web 應用
-- **結論**：可接受的 tradeoff。若未來 Recharts 支援 nonce-based CSP，應升級
-
-### Sidecar 的兩層本機防護
-
-- `SessionAuthMiddleware`：只在 Tauri 注入 secret 時生效（正式版）；手動啟動的 sidecar（start-dev.sh、e2e）整個放行
-- `LocalRequestGuardMiddleware`：不分模式，Host 必須是 loopback、帶 Origin 就必須在 `ALLOWED_ORIGINS`
-
-⚠️ `add_middleware` 後加的在外層：`CORSMiddleware` 必須**最後** add。沒接住的例外由 `UnhandledErrorMiddleware`
-轉成 500 才會經過 CORS。順序錯了，內層的 403／500 不帶 CORS header，前端只顯示「Network error」
-（`tests/test_cors_on_error_responses.py` 守住）。
-
-⚠️ 第二層擋不住跨站 GET（`<img src>` 不帶 Origin）⇒ **GET 端點不能改資料、不能寫 GitHub**。
-⚠️ 改 Tauri 平台或 scheme 時同步 `get_allowed_origins()`：漏一個＝那個平台每個請求 403（Windows 是 `http://tauri.localhost`）。
-
-### sidecar 生命週期
-
-改啟停邏輯前先讀 `src-tauri/src/lib.rs` 的 `cleanup_sidecar`、`start_sidecar_with_retry` 與 `sidecar/utils/parent_watchdog.py`。不能破壞的：
-- 每一種正常結束都要走到 `cleanup_sidecar`：Cmd+Q、系統列 Quit 不觸發 `CloseRequested`，只走 `RunEvent::Exit`。
-  當掉、被強制結束時走不到它，只能靠 sidecar 的父行程看門
-- sidecar 結束後不能再對它的 PID 送任何 signal（可能已換人）：「已結束」看 shell plugin 的 `Terminated`，不用 `kill(pid, 0)`
-- 看門不能拿掉：app 當掉、被強制結束時走不到 `cleanup_sidecar`，只能靠它
-- sidecar 是 onedir（`src-tauri/sidecar/`，作為 Tauri resources 打包），只有一個行程：Unix 的 SIGTERM
-  直接送到 Python；Windows 的 `kill()` 直接結束 Python，不走正常關閉（SQLite 每次 commit 都是原子的，最壞丟掉一次進行中的抓取）
-- debug build 不 spawn sidecar：開發時由 `start-dev.sh` 提供
-- 看門只在有 `STARSCOPE_PARENT_PID` 時啟動；start-dev、e2e、collector、pytest 都不設
-- `/api/health` 不驗 session secret，別人的 sidecar（舊版孤兒、還在退出的上一個）也答得出來：
-  前端在 Tauri 裡要等 Rust 的 `sidecar-status` 說 `running`／`external` 才探測
-- `start_sidecar_with_retry` 的每一條出口都要 `set_sidecar_status`：前端關著探測閘門等它，漏設的話畫面停在「啟動中」、
-  重試鈕按了也不會探測
-- release 在 spawn 前檢查 8008：StarScope 佔著就等最多 6 秒（上一個正在退出），仍被佔或是別的程式就不 spawn、
-  回報 `port_in_use`；Rust 回報的原因由 `App.tsx` 換成說明卡片，不掛頁面
-- single-instance 只在 release 註冊：dev 與 release 共用 identifier，否則打包版開著時 `tauri dev` 會一聲不響地結束
-
-### 存檔走 Rust 的 `save_file` command，不註冊 fs plugin
-
-- 前端只交出內容與建議檔名（`src/utils/saveFile.ts`），對話框與寫檔都在 Rust；capabilities 不開任何 `dialog:*`／`fs:*`
-- 不用 fs plugin：dialog 選過的檔、拖進視窗的檔案與資料夾（遞迴）會留在可寫 scope 直到 app 關閉，前端被注入腳本就能不經對話框寫入
-- 檔名在 Rust 端淨化（`sanitize_save_file_name`）：Windows 與 GTK 的檔名欄接受完整路徑
-
-### API 不使用版本化路徑
-
-桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴。
-
----
-
-## 後端約定與陷阱
-
-### 資料庫實際位置（最常踩的坑）
-
-SQLite **不在 repo 目錄裡**。路徑由 `db/database.py` 的 `get_app_data_dir()` 決定，優先序：
-
-1. `STARSCOPE_DATA_DIR` 環境變數（測試、smoke test、打包版實測的隔離）
-2. `~/.starscope`：開發模式、安裝版、launchd 的 collector 共用這一份
-
-⚠️ 安裝版也用 `~/.starscope`，也就是真實資料。任何會啟動打包版或 sidecar 的實驗都要設 `STARSCOPE_DATA_DIR`。
-Rust 不能用任何環境變數傳資料目錄給 sidecar，`STARSCOPE_DATA_DIR` 也不行（它最優先）：以前傳過 `TAURI_APP_DATA_DIR`，
-安裝版就看不到 collector 寫的資料。Python 端忽略 `TAURI_APP_DATA_DIR` 由 `tests/test_app_data_dir.py` 守住，Rust 端沒有測試守。
-
-除錯找資料庫時別在 `sidecar/` 底下找。
-
-### ⚠️ schema 變更：不走 alembic
-
-`sidecar/alembic/` 存在，但**不在啟動路徑上**——那個目錄只有一份 2026-01 的初始
-schema，沒有任何程式碼引用它。實際機制是 `init_db()` 的兩步：`create_all()` 建新表，
-`ensure_columns()` 把既有表補齊到目前 model 的欄位。
-
-**加欄位不需要登記在任何地方**：`ensure_columns()` 直接拿 `Base.metadata` 跟使用者的
-資料庫比對，少什麼補什麼。先前是手工清單，漏登記時開發者的空資料庫由 `create_all()`
-建好、一切正常，只有既有使用者會炸「no such column」——那是本機重現不出來的失敗，
-所以改成從 model 推導。
-
-**它只做兩件事：加「可為空（或有 server_default）的欄位」、把非唯一索引對齊 model**
-（`CREATE INDEX IF NOT EXISTS`，新欄位與既有欄位都算）。原則：能安全補的加法一律補，
-補了會炸資料的一律拒絕。只有部分補不了的差異偵測得到：新欄位 NOT NULL 又沒有
-server_default、新欄位帶外鍵／`unique=True`／唯一索引／表級約束——這些會拋
-`SchemaNeedsMigration` 讓啟動當場失敗。下面清單裡的其他情況**偵測不到**，會靜默留著
-差異；不要指望啟動失敗來提醒你。
-
-⚠️ **下列任一成立就該正式引入 alembic，不要憑感覺**：
-
-- 改欄位型別、改名、刪欄位
-- 在**既有欄位**上加唯一約束或唯一索引（非唯一索引 `ensure_columns()` 會補；唯一的
-  偵測不到：有 upsert 的表會在 `ON CONFLICT` 炸，沒有的會靜默收下重複資料）
-- 需要回填或轉換既有資料
-- 需要辨識並拒絕不相容的資料庫
-
-引入時 alembic 會自帶版本表，所以**現在不要先發明一個手工維護的 schema 版本號**。
-`AppSettingKey.LAST_OPENED_APP_VERSION` 記的是「上次開啟這個 DB 的 app 版本」，
-用途是診斷（外部使用者沒有遙測），不是遷移依據。
-
-**schema 變更必須維持加法**：安裝版與開發模式可能跑不同版本的程式碼，卻共用 `~/.starscope` 同一個資料庫。
-`ensure_columns()` 只新增欄位、索引，舊版程式會忽略它不認識的欄位與資料表，所以加法變更兩邊都能用；
-改名、刪欄位、改型別會讓其中一邊壞掉。同一個資料庫也存著 APScheduler 的排程：job 的 id 與函式只能新增，
-不能改名或刪除——另一個版本還原不了的 job 會被刪掉。只靠新版寫入才成立的資料條件（例如只有 Python 端
-`default=`、沒有 `server_default` 的欄位），舊版寫入的資料列不會滿足。
-
-### API 回應格式
-
-所有端點回傳統一的 `ApiResponse[T]`：`{success, data, message, error}`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data` 欄位**，所以前端拿到的是 `data` 的內容而非整個信封——新增端點時若忘了包 `success_response()`，前端會拿到 undefined。
-
-### endpoint 沒有 await 就寫 `def`
-
-Session 是同步的：`async def` 裡的查詢跑在 event loop 上，連線池用完時 checkout 會卡住整個 loop，
-佔著連線的請求又等 loop 來收尾 get_db，形成死鎖。症狀是前端整排停在 Loading，連 preflight 都不回，要等 30 秒 pool timeout 才鬆開。
-測試的 `StaticPool` 看不到這個問題；`tests/test_endpoint_concurrency.py` 守住。
-有 await 的 endpoint（如 `feed/generate`）、啟動同步、排程 job 仍在 loop 上做 DB，靠 engine 用 `NullPool`
-（`create_app_engine`）不排隊撐住。⚠️ 別改回有上限的連線池：連線佔用數跟著進行中的請求數走，加大池子也擋不住。
-
-### 服務間依賴
-
-查法：`grep -rn "from services\." sidecar/services/`
-
-⚠️ **頂層 grep 抓不全**——`scheduler.py` 與 `github.py` 有函式內延遲 import 用來迴避循環依賴，
-不掃函式體會漏掉。
-
-真正需要記的是扇出規模：`scheduler.py` 是排程樞紐，牽動 **9 個** service
-（alerts / anomaly_detector / backup / context_fetcher / feed_generator / github /
-release_fetcher / settings / snapshot）。改 alerts 或 anomaly_detector 都會碰到它。
-
----
-
-## 無頭收集器（不開 App 也收資料）
-
-`sidecar/run_jobs.py` 由 launchd 每小時跑一次（plist 在 `scripts/launchd/`，
-裝在 `~/Library/LaunchAgents/`）。**做什麼、為什麼安全、離線怎麼辦，都寫在
-它的 docstring 裡**——不在這裡複述。
-
-- 生死看心跳：`~/.starscope/jobs.log` 每輪一行。停止更新＝launchd 斷了
-  （最常見原因：repo 搬家後 plist 裡的絕對路徑失效）
-- 與開著的 App 併發安全的關鍵是「skip 查 DB 的 fetched_at」，不是行程內的鎖
-- ⚠️ dev 模式下改 `sidecar/` 的檔案會觸發 uvicorn 熱重載＝重跑啟動序列
-  （star 同步＋抓取）。重載風暴可能把 star 同步殺在半路留下鎖——
-  鎖有 10 分鐘 TTL 會自癒，看到「already_running」先看時間再懷疑卡死
-- ⚠️ **INFO 級的日誌在 collector 完全看不到**：它從不呼叫 `setup_logging`，
-  root logger 沒有 handler，只有 `logging.lastResort`（WARNING 級）在收。
-  所以「jobs.log 沒有某條 INFO」**不能**當成「那件事沒發生」的證據；
-  WARNING 以上缺席才是有效證據
 
 ## 提交慣例
 
@@ -414,106 +191,18 @@ npm run lint && npm run format:check && npm run type-check
 cd sidecar && .venv/bin/ruff check . && .venv/bin/mypy . --config-file mypy.ini && .venv/bin/python -m pytest tests/ -q
 ```
 
-Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)：
-
-| 類型       | 用途       | 範例                                        |
-|------------|------------|---------------------------------------------|
-| `feat`     | 新功能     | `feat(watchlist): add batch import`         |
-| `fix`      | 修 bug     | `fix(scheduler): handle timezone edge case` |
-| `docs`     | 文件       | `docs: update API endpoint table`           |
-| `refactor` | 重構       | `refactor: extract logger utility`          |
-| `test`     | 測試       | `test: add coverage for useAsyncFetch`      |
-| `perf`     | 效能       | `perf: memoize expensive calculations`      |
-| `chore`    | 建置／工具 | `chore: bump dependencies`                  |
-
-程式碼風格：TypeScript 走 Prettier + ESLint（`npm run lint:fix`），Python 走 Ruff（`.venv/bin/ruff check --fix .`）。
-
----
+Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)（`feat` / `fix` / `docs` / `refactor` / `test` /
+`perf` / `chore`，可帶 scope，例：`feat(watchlist): add batch import`）。程式碼風格：TypeScript 走 Prettier + ESLint
+（`npm run lint:fix`），Python 走 Ruff（`.venv/bin/ruff check --fix .`）。
 
 ## 註解與日誌慣例
 
-### 註解
-
-- 一律繁體中文，技術術語保留英文；用語統一「回應」不用「響應」
-- 只寫程式碼本身看不出來的約束或原因（why），不重述下一行在做什麼，不寫變更史（「原本」「新增」「取代」「簡化後」句式禁用——改寫成現在式的約束句）
-- 檔案頭一律 `/** */`（TS）／`"""docstring"""`（Python）描述模組職責；公開函式配一行說明（與 Python docstring 全覆蓋的立場一致），行內註解只留 why
+- 註解一律繁體中文，技術術語保留英文；用語統一「回應」不用「響應」
+- 只寫程式碼本身看不出來的約束或原因（why），不重述下一行在做什麼，不寫變更史（「原本」「新增」「取代」「簡化後」句式禁用——
+  改寫成現在式的約束句）
+- 檔案頭一律 `/** */`（TS）／`"""docstring"""`（Python）描述模組職責；公開函式配一行說明（與 Python docstring 全覆蓋的立場一致），
+  行內註解只留 why
 - **豁免區**（維持原樣，勿翻譯或改寫）：`sidecar/alembic/`（模板產物）、Rust `SAFETY:` 區塊（生態慣例用英文）、`src/test/` 測試基建
-
-### 日誌
-
-- Python：`[模組名] 繁中訊息`，同一模組固定同一個 prefix；middleware 的 `[request_id]` 動態 prefix 是刻意的請求追蹤格式
-- 前端：一律走 `utils/logger`（生產環境 no-op），訊息帶 `[元件名]` prefix；唯一例外是 `main.tsx` 的全域 error handler（裸 console，理由見該處註解）
-- Rust：不加 bracket prefix（tracing target 已提供模組上下文）
-
----
-
-## 前端架構模式
-
-⚠️ **API 時間要帶時區**：sidecar response model 的 datetime 欄位用 `UtcDateTime`、手寫輸出用 `to_utc_iso()`（`sidecar/schemas/time.py`，`tests/test_api_timestamps_utc.py` 守住）。只有日期的值用 `formatCalendarDate`／`localDateStamp`，不要經本地時區轉換。前端 `doFetch` 補 `Z` 是雙保險，新增的 fetch 路徑仍要經過它。CI 跑在 UTC 看不出時區 bug，測試要自己設 `process.env.TZ`。
-
-### React Query 資料層
-
-- **QueryClient 設定**（`lib/react-query.ts`）— staleTime 5min、gcTime 30min、retry 1
-- **queryKeys 工廠** — 型別安全的 query key 生成器，避免魔術字串
-- **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
-- **測試工具** — `createTestQueryClient()` 提供零快取零重試的測試用 QueryClient
-- **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
-  不是瀏覽器有網路。連不上時查詢暫停、連上後自動接著跑；別處不要 `onlineManager.setEventListener`、
-  不要給查詢加 `networkMode: 'always'`。在 Tauri 裡探測還要過 Rust 狀態的閘門（`gateOpen`）：新增的探測入口一律走
-  `probe()`，不要直接打 health
-- 寫入（mutations 預設 `networkMode: 'always'`）在 sidecar 連不上時立刻失敗，不排隊：每個寫入都要在畫面上說明失敗
-- ⚠️ 查詢暫停時 `isLoading` 是 false（`isPending` 才是 true）：所以這次開 app 還沒連上過 sidecar 之前，
-  `App.tsx` 不渲染頁面，否則頁面會畫出「還沒追蹤任何專案」之類的空狀態
-- ⚠️ 要 `reset()` 另一個 mutation 之前先問 `queryClient.isMutating({ mutationKey })`，不要看渲染當下的 `isPending`：
-  React Query 以 setTimeout(0) 才通知畫面；對還在跑的 mutation 呼叫 `reset()`，會讓那次請求的結果（包括失敗）不再回到畫面
-
-### 輪詢與計時器（兩個 hook，別選錯）
-
-`hooks/useSmartInterval.ts` 匯出兩個，差別在**暫停的條件**，不是實作細節：
-
-- `useSmartInterval(ms)` — 給 React Query 的 `refetchInterval`。隱藏**或離線**時暫停。
-- `useVisibleInterval(cb, ms | false)` — 給顯示用計時器（相對時間、倒數）。**只看可見性**，
-  因為倒數與網路無關，離線時該繼續走。恢復可見時會先補跑一次再重啟計時——
-  隱藏期間畫面上的值已經過期，只重啟計時的話使用者會盯著一個舊值直到下一次 tick。
-
-⚠️ 唯一刻意不套的地方是 `api/sidecarConnection.ts` 的 health 探測：它**必須**在頁面隱藏時繼續跑，
-否則偵測不到 sidecar 復活，橫幅會一直掛著。該處有註解說明，不要「順手修正」。
-
-### For You Feed 資料層
-
-- `useFeed()` 回傳 `{ items, feedDate, isLoading, isGenerating, isError, stats, feedback }`
-  - `stats` 尚未載到時是 `null`，**不要用 0 佔位**——那會被讀成「真的是 0 次」
-  - **自動產生機制**：當日 feed 為空時自動觸發一次 `generateFeed`，用 `autoGenerated` ref 確保每次 mount 至多一次。產生後仍為空（例如興趣清單未設定）不會重試，避免無限迴圈
-  - **刻意沒有手動重試按鈕**：feed 一天一批，有內容時後端冪等、無興趣時 `generate_feed` 直接 `return 0`，按了都不會有變化；真正需要重試的「產生失敗」情境，離開頁面再回來就會重新掛載並自動重試
-  - `isError` 必須同時涵蓋查詢與產生失敗——generate 掛掉時 query 仍會成功回傳空清單，只看查詢會把 API 失敗誤報成「還沒設定興趣」
-- `useInterests()` 的 `create`/`remove` 使用 `mutateAsync` 回傳 Promise，讓呼叫端能依實際結果決定 toast（避免失敗仍顯示成功）
-- ⚠️ **`@tanstack/query-core` 5.95.2 的 `mutationFn` 會收到 `(variables, context)` 兩個參數**——直接把單參數的 client 函式當 `mutationFn` 傳入會多收 context。務必包成箭頭函式：`(id) => deleteInterest(id)`
-
-### 自上次以來摘要（Dashboard 段一）
-
-- 「新」＝資料列 id 大於游標，不是時間：release／HN 是 upsert（重抓會刷新 `fetched_at`），`published_at` 可能早於得知的時間
-- `POST /api/digest/seen` 帶 GET 回應的 cursor（不是當下最大 id）；後端只進不退，但刪除規則／repo／context 清理後會壓低（表沒有 AUTOINCREMENT，id 會重用）
-- `queryKeys.digest` 刻意不在 `dashboard` 底下：Dashboard 重整會 invalidate 整棵，重抓只回新項目會蓋掉這批；重整改走 `appendNew`
-- `useDigest` 只在 `canMarkSeen`（面板真的渲染）時送 seen，每個快取物件只送一次——重新掛載重送舊 cursor 會把壓低的游標抬回去
-- 啟動頁先等 sidecarConnection 連上（最多到 `STARTUP_GRACE_MS`）再給 digest 1 秒：發行版 sidecar 冷啟動要好幾秒
-
-### Watchlist Context + useReducer
-
-- 資料層由 React Query 管理，Context 只負責 UI 狀態
-- `LoadingState` 使用 Discriminated Unions 消除不可能狀態
-- Context 分層（優化 re-render）：`WatchlistStateContext`（只讀狀態）／ `WatchlistActionsContext`（業務邏輯）
-- Selector hooks 精準訂閱：`useSortedFilteredRepos()`、`useLoadingRepo()`、`useIsRefreshing()`、`useIsRecalculating()`
-- 測試策略 — Mock Context hooks：`useWatchlistState`、`useWatchlistActions`
-
-### React-Window 虛擬滾動（v2 API，陷阱多）
-
-- **v2 使用 `rowComponent` prop，不是 v1 的 `children` render prop**（版本查 `package.json`，別寫死在這裡）
-- `List` 的必填 props 是 `rowComponent`、`rowCount`、`rowHeight`、**`rowProps`**
-  ——`style` 是**選填**（型別定義裡有 `?`）。實務上 `style` 要給高度才捲得動，
-  但漏掉 `rowProps` 才是唯一會讓 `tsc` 紅字的那個
-- ⚠️ `rowComponent` **必須是模組層級的穩定引用**，資料一律走 `rowProps`。
-  v2 內部是 `useMemo(() => memo(rowComponent), [rowComponent])`——在元件內定義 row component
-  會讓每次 render 整張表重掛
-- 動態行高：`rowHeight` 支援 `(index: number) => number`，收合／展開兩種高度定義在 `pages/watchlist/RepoList.tsx`（`COLLAPSED_ITEM_SIZE` / `EXPANDED_ITEM_SIZE`）——**卡片改版時務必同步調整，行高寫死在 JS、CSS 改了不會自動反映**
-- 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理
-- **避免**：直接傳 `itemData` 到 `List`（改用 `rowProps`）；在 `RowComponent` 中用 inline arrow 當 memoized 子元件的 callback（會破壞 `RepoCard` 的 `memo`）——`onChartToggle` 因此設計成接受 `(repoId: number)` 參數
+- 日誌：Python 用 `[模組名] 繁中訊息`，同一模組固定同一個 prefix，middleware 的 `[request_id]` 動態 prefix 是刻意的請求追蹤格式；
+  前端一律走 `utils/logger`（生產環境 no-op），訊息帶 `[元件名]` prefix，唯一例外是 `main.tsx` 的全域 error handler
+  （裸 console，理由見該處註解）；Rust 不加 bracket prefix（tracing target 已提供模組上下文）
