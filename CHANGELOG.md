@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] — 2026-09-27
+
 ### 新增功能
 
 - **For You 每日個人化推薦（Phase A）** — Discovery 頁面新增每日自動產生的個人化推薦清單，依你在設定頁設定的興趣主題／語言／關鍵字挑選；可標星加入 watchlist 或標記不感興趣，藉此調整未來推薦。設定頁新增興趣清單管理（新增／移除、黑名單排除詞）
@@ -301,7 +305,9 @@
 
 ---
 
-[Unreleased]: https://github.com/Neal75418/StarScope/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/Neal75418/StarScope/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Neal75418/StarScope/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Neal75418/StarScope/compare/v0.4.3...v1.0.0
 [0.4.1]: https://github.com/Neal75418/StarScope/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/Neal75418/StarScope/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/Neal75418/StarScope/compare/v0.2.0...v0.3.0
