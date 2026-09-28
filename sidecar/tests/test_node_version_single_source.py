@@ -5,6 +5,7 @@ CI 曾經寫死 Node 20，本機是 24；20 在 2026-04 停止維護後，vitest
 （同樣的理由見 test_python_version_single_source.py）。
 """
 
+import json
 import re
 from pathlib import Path
 
@@ -40,3 +41,9 @@ def test_every_ci_setup_node_reads_the_version_file():
 def test_the_readme_quotes_the_same_version():
     readme = (REPO / "README.md").read_text(encoding="utf-8")
     assert f"| Node.js | {VERSION}（以 `.nvmrc` 為準）" in readme
+
+
+def test_node_types_match_the_runtime():
+    # @types/node 描述的是某個 Node 主版本的 API：比執行環境新，就能寫出型別檢查會過、執行時卻不存在的呼叫
+    dev = json.loads((REPO / "package.json").read_text(encoding="utf-8"))["devDependencies"]
+    assert re.fullmatch(rf"[\^~]?{VERSION}\.\d+\.\d+", dev["@types/node"]), dev["@types/node"]

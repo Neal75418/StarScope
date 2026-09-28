@@ -12,14 +12,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html", "lcov"],
+      // Vitest 5 起這裡是完整路徑比對（不再是「包含」）：目錄要寫成 dir/**，只寫 "src/test/" 會什麼都排除不到
       exclude: [
-        "node_modules/",
-        "src/test/",
+        "**/node_modules/**",
+        "src/test/**",
         "**/*.d.ts",
         "**/*.config.*",
-        "**/dist",
-        "src-tauri/",
-        "e2e/",
+        "**/dist/**",
+        "src-tauri/**",
+        "e2e/**",
         "**/index.ts",
       ],
       thresholds: {
