@@ -21,11 +21,7 @@ import { RATE_LIMITED_EVENT } from "../constants/events";
 
 /** 應用降級狀態。 */
 export type DegradationLevel =
-  | "online"
-  | "offline"
-  | "sidecar-starting"
-  | "sidecar-down"
-  | "rate-limited";
+  "online" | "offline" | "sidecar-starting" | "sidecar-down" | "rate-limited";
 
 /** 降級狀態橫幅訊息的 i18n key。 */
 export type StatusMessageKey =

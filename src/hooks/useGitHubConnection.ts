@@ -14,12 +14,7 @@ import { useDeviceFlowPolling } from "./useDeviceFlowPolling";
 import { logger } from "../utils/logger";
 
 export type ConnectionState =
-  | "loading"
-  | "disconnected"
-  | "connecting"
-  | "awaiting_auth"
-  | "connected"
-  | "error";
+  "loading" | "disconnected" | "connecting" | "awaiting_auth" | "connected" | "error";
 
 interface UseGitHubConnectionResult {
   state: ConnectionState;
