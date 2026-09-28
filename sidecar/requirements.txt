@@ -1,6 +1,8 @@
 # FastAPI and server
 # 0.137.2 起才有 fastapi.routing.iter_route_contexts（tests/test_api_timestamps_utc.py 用它走訪子 router 的路由）
 fastapi>=0.137.2,<1.0.0
+# fastapi 0.133 起不再限制 starlette 的上限：明列並鎖在 1.x，下一個 major 要另外評估，不該由 -U 悄悄帶進來
+starlette>=1.7.0,<2.0.0
 pydantic>=2.0.0,<3.0.0  # Explicitly listed for IDE support (bundled with FastAPI)
 uvicorn[standard]>=0.34.0,<1.0.0
 python-dotenv>=1.0.0,<2.0.0
@@ -29,7 +31,10 @@ pytest>=8.3.3,<10.0.0
 pytest-asyncio>=0.24.0,<2.0.0
 pytest-cov>=6.0.0,<8.0.0
 pytest-timeout>=2.3.0,<3.0.0
+# starlette 1.x 的 TestClient 以 httpx2 為準：沒裝會退回 httpx 並發棄用警告，而且型別檢查看到的 TestClient 回應變成 Any。
+# 只有測試用得到（正式的 GitHub client 用 httpx，打包也不會收進 starlette.testclient）
+httpx2>=2.13.0,<3.0.0
 
 # Lint 與型別檢查（CI 與本機用同一個版本；minor 版本可能改規則行為，所以鎖在同一個 minor）
 ruff>=0.16.9,<0.17.0
-mypy>=1.19.1,<1.20.0
+mypy>=2.3.1,<2.4.0
