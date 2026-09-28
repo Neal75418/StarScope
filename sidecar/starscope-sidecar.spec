@@ -42,7 +42,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    # PyInstaller 的 pydantic hook 會收進 pydantic 所有子模組，包括給 mypy 用的外掛（pydantic.mypy、
+    # pydantic.v1.mypy），連帶把整個 mypy 和它的原生擴充（librt、ast_serialize）打包進出貨的 sidecar。
+    # 執行期沒有任何程式碼 import 它們：開發工具不該跟著 app 出貨，也不該多一個要簽章的原生 binary
+    excludes=["mypy", "pydantic.mypy", "pydantic.v1.mypy", "librt", "ast_serialize"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
