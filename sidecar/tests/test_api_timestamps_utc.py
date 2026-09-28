@@ -10,11 +10,14 @@ DB 存 naive UTC；不帶時區的 "2026-09-25T12:00:00" 會被前端 new Date()
   （手寫 isoformat() 的地方，結構測試看不到）
 """
 
+import importlib
+import pkgutil
 import re
 import typing
 from datetime import datetime, timedelta
 
-from fastapi.routing import APIRoute
+from fastapi import APIRouter
+from fastapi.routing import APIRoute, RouteContext, iter_route_contexts
 from pydantic import BaseModel, PlainSerializer
 
 from constants import ContextSignalType, EarlySignalSeverity, EarlySignalType
@@ -54,12 +57,42 @@ def _bare_datetimes(tp: typing.Any, where: str, seen: set) -> list[str]:
     return [hit for arg in typing.get_args(tp) for hit in _bare_datetimes(arg, where, seen)]
 
 
-def _response_models():
+def _api_routes() -> list[RouteContext]:
+    """所有 APIRoute，含 include_router 掛進來的，path 已經加上 prefix。
+
+    不能直接走訪 app.routes：FastAPI 0.137 起子 router 包在 _IncludedRouter 裡、不再攤平，
+    app.routes 只看得到掛在 app 本身的路由。兩條測試會因此只掃到 "/"，結構測試照樣是綠的。
+    """
     import main
 
-    for route in main.app.routes:
-        if isinstance(route, APIRoute) and route.response_model is not None:
+    return [ctx for ctx in iter_route_contexts(main.app.routes) if isinstance(ctx.original_route, APIRoute)]
+
+
+def _response_models():
+    for route in _api_routes():
+        if route.response_model is not None:
             yield route, route.response_model
+
+
+def _declared_routes() -> list[tuple[str, frozenset[str]]]:
+    """各 router 模組自己登記的路由，加上直接掛在 app 上的；不經過 FastAPI 的 include 機制。"""
+    import main
+    import routers
+
+    declared = [(r.path, frozenset(r.methods)) for r in main.app.routes if isinstance(r, APIRoute)]
+    for info in pkgutil.iter_modules(routers.__path__):
+        router = getattr(importlib.import_module(f"routers.{info.name}"), "router", None)
+        if isinstance(router, APIRouter):  # dependencies.py 是注入 helper，沒有 router
+            declared += [(r.path, frozenset(r.methods)) for r in router.routes if isinstance(r, APIRoute)]
+    return sorted(declared)
+
+
+def test_route_scan_covers_every_declared_route():
+    # 掃描範圍的前提：掃到的就是 routers/ 登記的全部路由。框架再改一次路由結構，這裡會紅，
+    # 而不是兩條測試空跑變綠；router 模組寫了卻沒在 main.py 掛上，也會在這裡紅。
+    # 不拿 app.openapi() 比：它跟 _api_routes() 用同一個 iter_route_contexts，漏了會一起漏
+    scanned = sorted((route.path, frozenset(route.methods)) for route in _api_routes())
+    assert scanned == _declared_routes()
 
 
 def test_every_response_model_datetime_is_serialised_as_utc():
@@ -112,12 +145,11 @@ def _seed(db, repo):
 def test_no_get_endpoint_returns_an_offset_less_datetime(client, test_db, mock_repo_with_snapshots):
     repo, _ = mock_repo_with_snapshots
     ids = _seed(test_db, repo)
-    import main
 
     naive: list[str] = []
     answered: set[str] = set()
-    for route in main.app.routes:
-        if not isinstance(route, APIRoute) or "GET" not in route.methods or route.path in NOT_API_TIMESTAMPS:
+    for route in _api_routes():
+        if "GET" not in route.methods or route.path in NOT_API_TIMESTAMPS:
             continue
         resp = client.get(route.path.format(**ids))
         if resp.status_code != 200:

@@ -1,5 +1,6 @@
 # FastAPI and server
-fastapi>=0.129.0,<1.0.0
+# 0.137.2 起才有 fastapi.routing.iter_route_contexts（tests/test_api_timestamps_utc.py 用它走訪子 router 的路由）
+fastapi>=0.137.2,<1.0.0
 pydantic>=2.0.0,<3.0.0  # Explicitly listed for IDE support (bundled with FastAPI)
 uvicorn[standard]>=0.34.0,<1.0.0
 python-dotenv>=1.0.0,<2.0.0
