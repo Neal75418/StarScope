@@ -164,7 +164,7 @@ chmod +x StarScope.AppImage
 
 | 工具      | 版本            |
 |---------|---------------|
-| Node.js | 20+ (LTS)     |
+| Node.js | 24（以 `.nvmrc` 為準） |
 | Rust    | latest stable |
 | Python  | 3.13（以 `.python-version` 為準） |
 
