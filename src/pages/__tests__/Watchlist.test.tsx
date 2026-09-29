@@ -132,11 +132,13 @@ vi.mock("../../hooks/useWatchlistBatchActions", () => ({
   }),
 }));
 
+const categoryTreeState = vi.hoisted(() => ({ reloadFailed: false }));
 vi.mock("../../hooks/useCategoryTree", () => ({
   useCategoryTree: () => ({
     tree: [],
     loading: false,
     error: null,
+    reloadFailed: categoryTreeState.reloadFailed,
     fetchCategories: vi.fn(),
     handleCreateCategory: vi.fn(),
     handleUpdateCategory: vi.fn(),
@@ -233,6 +235,7 @@ vi.mock("../../components/EmptyState", () => ({
 describe("Watchlist", () => {
   beforeEach(() => {
     signalSummary.value = { data: { repos_with_signals: 0 }, isError: false };
+    categoryTreeState.reloadFailed = false;
     vi.clearAllMocks();
 
     mockState = {
@@ -290,6 +293,17 @@ describe("Watchlist", () => {
       isRecalculating: false,
       isInitializing: false,
     };
+  });
+
+  it("says so when the category sidebar fails to reload", () => {
+    // 側欄保留舊的樹（不整塊換成錯誤畫面）：新增分類後重讀失敗時，表單已關、側欄看不到新分類，
+    // 不說的話使用者會以為沒建成功而再建一次
+    mockState.repos = [makeRepo()];
+    categoryTreeState.reloadFailed = true;
+
+    render(<Watchlist />);
+
+    expect(mockError).toHaveBeenCalledWith("Failed to load categories");
   });
 
   it("摘要的「有訊號」數整份清單，不是只數畫面上已載入的那幾張卡", () => {

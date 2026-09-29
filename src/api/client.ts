@@ -452,8 +452,8 @@ export async function recalculateAllSimilarities(): Promise<RecalculateAllRespon
 /**
  * 以樹狀結構取得分類。
  */
-export async function getCategoryTree(): Promise<CategoryTreeResponse> {
-  return apiCall<CategoryTreeResponse>(`/categories/tree`);
+export async function getCategoryTree(signal?: AbortSignal): Promise<CategoryTreeResponse> {
+  return apiCall<CategoryTreeResponse>(`/categories/tree`, { signal });
 }
 
 /**

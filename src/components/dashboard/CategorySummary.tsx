@@ -4,10 +4,8 @@
  */
 
 import { memo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getCategoryTree } from "../../api/client";
 import type { CategoryTreeNode } from "../../api/types";
-import { queryKeys } from "../../lib/react-query";
+import { useCategoryTreeQuery } from "../../hooks/useCategoryQueries";
 import { Skeleton } from "../Skeleton";
 import { useI18n } from "../../i18n";
 import { useNavigation } from "../../contexts/NavigationContext";
@@ -50,10 +48,8 @@ export const CategorySummary = memo(function CategorySummary() {
   const { t } = useI18n();
   const { navigateTo } = useNavigation();
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.dashboard.categories(),
-    queryFn: () => getCategoryTree(),
-  });
+  // 和 Watchlist 側欄共用同一份分類樹：在那裡改過分類、加入或移出分類之後，這裡打開就是新的
+  const { data, isLoading, isLoadingError } = useCategoryTreeQuery();
 
   if (isLoading) {
     return (
@@ -68,7 +64,8 @@ export const CategorySummary = memo(function CategorySummary() {
     );
   }
 
-  if (error) {
+  // 只有從沒載入成功過才顯示錯誤；已經有資料時，一次重讀失敗不該把整格換掉
+  if (isLoadingError) {
     return (
       <div className="dashboard-section">
         <h3>{t.dashboard.categorySummary.title}</h3>

@@ -8,8 +8,8 @@
 import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient, queryKeys } from "../../lib/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createTestQueryClient, invalidateTrackedRepos, queryKeys } from "../../lib/react-query";
 import { ApiError } from "../../api/types";
 import { WatchlistProvider, useWatchlistActions, useWatchlistState } from "../WatchlistContext";
 
@@ -245,37 +245,163 @@ describe("WatchlistContext actions", () => {
 describe("WatchlistContext category filter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks 不清 mockImplementationOnce 的佇列：某條測試沒用完的會漏到下一條
+    mockGetCategoryRepos.mockReset();
+  });
+
+  // 要從外面呼叫 invalidateTrackedRepos 的測試用：設定頁、探索頁那些入口只拿得到 QueryClient
+  function renderWithClient(client: QueryClient = createTestQueryClient()) {
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <WatchlistProvider>{children}</WatchlistProvider>
+      </QueryClientProvider>
+    );
+    return {
+      client,
+      ...renderHook(() => ({ actions: useWatchlistActions(), state: useWatchlistState() }), {
+        wrapper: Wrapper,
+      }),
+    };
+  }
+
+  const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 20)));
+
+  const loadFailed = expect.objectContaining({
+    type: "error",
+    message: "Couldn't load that category — showing all repositories",
   });
 
   it("filters to the category's members once they load", async () => {
     mockGetCategoryRepos.mockResolvedValue({ repos: [{ id: 3 }, { id: 7 }] });
     const { result } = renderCtx();
 
-    await act(() => result.current.actions.setCategory(5));
+    act(() => result.current.actions.setCategory(5));
 
     expect(result.current.state.filters.selectedCategoryId).toBe(5);
-    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
   });
 
   it("drops the selection and says so when the category fails to load", async () => {
-    // 以前只把成員設成 null：側欄停在這個分類，清單卻因為 null＝不篩選列出全部 repo，也沒有提示
+    // 以前只把成員設成 null：側欄停在這個分類，清單卻因為 null＝不篩選列出全部 repo，也沒有提示。
+    // 一般的 client（預設會重試）：apiCall 已經重試過網路錯誤，查詢再重試只會讓退回晚好幾秒
     mockGetCategoryRepos.mockRejectedValue(new Error("boom"));
-    const { result } = renderCtx();
+    const { result } = renderWithClient(new QueryClient());
 
-    await act(() => result.current.actions.setCategory(5));
+    act(() => result.current.actions.setCategory(5));
 
-    expect(result.current.state.filters.selectedCategoryId).toBeNull();
-    expect(result.current.state.toasts).toEqual([
-      expect.objectContaining({
-        type: "error",
-        message: "Couldn't load that category — showing all repositories",
-      }),
-    ]);
+    await waitFor(() => expect(result.current.state.filters.selectedCategoryId).toBeNull());
+    expect(result.current.state.toasts).toEqual([loadFailed]);
+    expect(mockGetCategoryRepos).toHaveBeenCalledTimes(1);
   });
 
-  it("drops the selection when a refresh that replaced the first load fails", async () => {
-    // 成員還沒載入時做了會刷新清單的動作：刷新會中止第一次載入、自己重抓，
-    // 這次再失敗的話就沒有任何成員快照，跟 setCategory 失敗是同一個處境
+  it("follows changes made by anything that refetches the tracked repos", async () => {
+    // 設定頁復原、立即同步、探索頁批次加入都只呼叫 invalidateTrackedRepos：成員不跟著重讀的話，
+    // 回到 Watchlist 時選著的分類少了剛復原的 repo，要重點一次分類才出現
+    mockGetCategoryRepos
+      .mockResolvedValueOnce({ repos: [{ id: 3 }] })
+      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] });
+    const { client, result } = renderWithClient();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3]));
+    act(() => invalidateTrackedRepos(client));
+
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
+  });
+
+  it("asks for the members once per refetch of the tracked repos", async () => {
+    mockGetCategoryRepos.mockResolvedValue({ repos: [{ id: 3 }] });
+    const { result } = renderCtx();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3]));
+    act(() => result.current.actions.invalidateRepos());
+    await settle();
+
+    expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloads the members when the selected category is picked again", async () => {
+    // 再點一次同一個分類＝重讀：伺服器上的歸屬改了，使用者有辦法手動跟上
+    mockGetCategoryRepos
+      .mockResolvedValueOnce({ repos: [{ id: 3 }] })
+      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] });
+    const { result } = renderCtx();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3]));
+    act(() => result.current.actions.setCategory(5));
+
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
+  });
+
+  it("cancels the old request when another category is picked", async () => {
+    // 慢回應不能寫進新選的分類；被中止的舊請求也不能被當成載入失敗而跳錯誤
+    const signals: AbortSignal[] = [];
+    mockGetCategoryRepos
+      .mockImplementationOnce((_id: number, signal: AbortSignal) => {
+        signals.push(signal);
+        return new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        });
+      })
+      .mockResolvedValueOnce({ repos: [{ id: 9 }] });
+    const { result } = renderCtx();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(1));
+    act(() => result.current.actions.setCategory(7));
+
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([9]));
+    expect(signals[0].aborted).toBe(true);
+    expect(result.current.state.filters.selectedCategoryId).toBe(7);
+    expect(result.current.state.toasts).toEqual([]);
+  });
+
+  it("keeps the loaded members when a later refresh fails", async () => {
+    // 有成員時清單仍照這個分類篩選，只是可能稍舊——不必把使用者踢回「全部」
+    mockGetCategoryRepos
+      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] })
+      .mockRejectedValueOnce(new Error("boom"));
+    const { result } = renderCtx();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
+    act(() => result.current.actions.invalidateRepos());
+    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2));
+    await settle();
+
+    expect(result.current.state.filters.selectedCategoryId).toBe(5);
+    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
+    expect(result.current.state.toasts).toEqual([]);
+  });
+
+  it("picks up a write that lands while the category is still loading", async () => {
+    // 第一次載入的請求是寫入前讀的：重讀若只是併進它，清單會停在舊成員，要再點一次分類才更新
+    let resolveFirst: (v: { repos: { id: number }[] }) => void = () => {};
+    mockGetCategoryRepos
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve;
+          })
+      )
+      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] });
+    const { client, result } = renderWithClient();
+
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(1));
+    act(() => invalidateTrackedRepos(client));
+    act(() => resolveFirst({ repos: [{ id: 3 }] }));
+
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
+    await settle();
+    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
+    expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back once when the load restarted by a refresh fails", async () => {
+    // 被中止的第一次載入不算失敗；重新發出的那次失敗時只退回一次、只跳一個錯誤
     mockGetCategoryRepos
       .mockImplementationOnce(
         (_id: number, signal: AbortSignal) =>
@@ -286,63 +412,55 @@ describe("WatchlistContext category filter", () => {
           })
       )
       .mockRejectedValueOnce(new Error("boom"));
-    const { result } = renderCtx();
+    const { client, result } = renderWithClient();
 
-    let firstLoad: Promise<void> = Promise.resolve();
-    act(() => {
-      firstLoad = result.current.actions.setCategory(5);
-    });
-    await act(() => result.current.actions.fetchRepo(1));
-    await act(() => firstLoad);
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(1));
+    act(() => invalidateTrackedRepos(client));
 
     await waitFor(() => expect(result.current.state.filters.selectedCategoryId).toBeNull());
-    expect(result.current.state.toasts).toEqual([
-      expect.objectContaining({
-        type: "error",
-        message: "Couldn't load that category — showing all repositories",
-      }),
-    ]);
+    await settle();
+    expect(result.current.state.toasts).toEqual([loadFailed]);
+    expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2);
   });
 
-  it("leaves a newly picked category alone when it aborts a pending refresh", async () => {
-    // 刷新被使用者改選分類中止時，失敗處理不能跑：剛選的分類還沒有成員快照，
-    // 會被當成「刷新失敗且沒有快照」而重置回「全部」
-    const abortOnly = (_id: number, signal: AbortSignal) =>
-      new Promise((_resolve, reject) => {
-        signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
-      });
-    mockGetCategoryRepos
-      .mockImplementationOnce(abortOnly)
-      .mockImplementationOnce(abortOnly)
-      .mockResolvedValueOnce({ repos: [{ id: 9 }] });
-    const { result } = renderCtx();
+  it("reloads a category it has shown before when the user comes back to it", async () => {
+    // 正式版 5 分鐘內視為新鮮：不主動重讀的話，回到看過的分類只會看到上次的快取
+    mockGetCategoryRepos.mockImplementation((id: number) =>
+      Promise.resolve({ repos: id === 5 ? [{ id: 3 }] : [{ id: 9 }] })
+    );
+    const { result } = renderWithClient(
+      new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } })
+    );
 
-    let firstLoad: Promise<void> = Promise.resolve();
-    act(() => {
-      firstLoad = result.current.actions.setCategory(5);
-    });
-    await act(() => result.current.actions.fetchRepo(1));
-    await act(() => result.current.actions.setCategory(7));
-    await act(() => firstLoad);
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3]));
+    act(() => result.current.actions.setCategory(7));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([9]));
+    mockGetCategoryRepos.mockImplementation((id: number) =>
+      Promise.resolve({ repos: id === 5 ? [{ id: 3 }, { id: 7 }] : [{ id: 9 }] })
+    );
+    act(() => result.current.actions.setCategory(5));
 
-    expect(result.current.state.filters.selectedCategoryId).toBe(7);
-    expect(result.current.state.filters.categoryRepoIds).toEqual([9]);
-    expect(result.current.state.toasts).toEqual([]);
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]));
   });
 
-  it("keeps the loaded members when a later refresh fails", async () => {
-    // 有成員快照時清單仍照這個分類篩選，只是可能稍舊——不必把使用者踢回「全部」
+  it("retries a category that failed before instead of failing again right away", async () => {
+    // 失敗的查詢會帶著錯誤留在快取裡（正式版 gcTime 30 分鐘；測試用 client 是 0，要用一般的）：
+    // 再點同一個分類必須真的重讀，而不是一掛上去就看到舊的錯誤、又被踢回「全部」
     mockGetCategoryRepos
-      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] })
-      .mockRejectedValueOnce(new Error("boom"));
-    const { result } = renderCtx();
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ repos: [{ id: 3 }] });
+    const { result } = renderWithClient(
+      new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    );
 
-    await act(() => result.current.actions.setCategory(5));
-    await act(() => result.current.actions.fetchRepo(1));
+    act(() => result.current.actions.setCategory(5));
+    await waitFor(() => expect(result.current.state.filters.selectedCategoryId).toBeNull());
+    act(() => result.current.actions.setCategory(5));
 
-    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.state.filters.categoryRepoIds).toEqual([3]));
     expect(result.current.state.filters.selectedCategoryId).toBe(5);
-    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
-    expect(result.current.state.toasts).toEqual([]);
+    expect(result.current.state.toasts).toEqual([loadFailed]);
   });
 });

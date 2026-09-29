@@ -234,25 +234,44 @@ describe("watchlistReducer", () => {
       expect(next.filters.selectedCategoryId).toBe(5);
     });
 
-    it("SET_CATEGORY with null clears category and repo IDs", () => {
+    it("SET_CATEGORY with null clears the selection", () => {
       const state = {
         ...initialState,
-        filters: { ...initialState.filters, selectedCategoryId: 5, categoryRepoIds: [1, 2] },
+        filters: { ...initialState.filters, selectedCategoryId: 5 },
       };
       const next = watchlistReducer(state, {
         type: "SET_CATEGORY",
         payload: { categoryId: null },
       });
       expect(next.filters.selectedCategoryId).toBeNull();
-      expect(next.filters.categoryRepoIds).toBeNull();
     });
 
-    it("SET_CATEGORY_REPOS updates categoryRepoIds", () => {
-      const next = watchlistReducer(initialState, {
-        type: "SET_CATEGORY_REPOS",
-        payload: { repoIds: [10, 20, 30] },
+    it("CATEGORY_LOAD_FAILED drops the selection and says so", () => {
+      // 只把成員當成 null 的話，側欄停在這個分類，清單卻因為 null＝不篩選列出全部 repo，也沒有提示
+      const state = {
+        ...initialState,
+        filters: { ...initialState.filters, selectedCategoryId: 5 },
+      };
+      const toast = { id: "t1", type: "error" as const, message: "Couldn't load that category" };
+      const next = watchlistReducer(state, {
+        type: "CATEGORY_LOAD_FAILED",
+        payload: { categoryId: 5, toast },
       });
-      expect(next.filters.categoryRepoIds).toEqual([10, 20, 30]);
+      expect(next.filters.selectedCategoryId).toBeNull();
+      expect(next.toasts).toEqual([toast]);
+    });
+
+    it("CATEGORY_LOAD_FAILED leaves a category the user has since picked alone", () => {
+      // 失敗和使用者改選落在同一個 tick：不能把剛選的分類踢回「全部」、也不能為它跳錯誤
+      const state = {
+        ...initialState,
+        filters: { ...initialState.filters, selectedCategoryId: 7 },
+      };
+      const next = watchlistReducer(state, {
+        type: "CATEGORY_LOAD_FAILED",
+        payload: { categoryId: 5, toast: { id: "t1", type: "error", message: "x" } },
+      });
+      expect(next).toBe(state);
     });
 
     it("SET_SEARCH_QUERY updates searchQuery", () => {

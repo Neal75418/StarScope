@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { QueryClient } from "@tanstack/react-query";
+import { describe, it, expect, vi } from "vitest";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import {
   queryKeys,
   queryClient,
@@ -23,6 +23,12 @@ describe("queryKeys", () => {
 
     it("generates detail key", () => {
       expect(queryKeys.repos.detail(42)).toEqual(["repos", "detail", 42]);
+    });
+
+    it("keeps the category views under the repos prefix", () => {
+      // 分類的數量與成員都不算封存的 repo：放在 repos 底下，任何重取 repo 清單的入口都會一起重讀
+      expect(queryKeys.repos.categoryTree()).toEqual(["repos", "categories", "tree"]);
+      expect(queryKeys.repos.categoryMembers(5)).toEqual(["repos", "categories", "members", 5]);
     });
   });
 
@@ -95,10 +101,6 @@ describe("queryKeys", () => {
         "portfolioHistory",
         30,
       ]);
-    });
-
-    it("generates categories key", () => {
-      expect(queryKeys.dashboard.categories()).toEqual(["dashboard", "categories"]);
     });
   });
 
@@ -202,6 +204,8 @@ describe("invalidateTrackedRepos", () => {
     const client = new QueryClient();
     const keys = [
       queryKeys.repos.lists(),
+      queryKeys.repos.categoryTree(),
+      queryKeys.repos.categoryMembers(5),
       queryKeys.alertRuleData.rules(),
       queryKeys.alerts.rules(),
       queryKeys.digest.session(),
@@ -215,7 +219,50 @@ describe("invalidateTrackedRepos", () => {
       true,
       true,
       true,
+      true,
+      true,
       false,
     ]);
+  });
+
+  it("restarts a category load that is still on its first request", async () => {
+    // 那個請求是寫入前讀的：併進它的話，第一次載入會帶回舊資料，而且把這次重讀的標記一起清掉
+    const client = new QueryClient();
+    let resolveFirst: (v: number[]) => void = () => {};
+    const queryFn = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<number[]>((r) => {
+            resolveFirst = r;
+          })
+      )
+      .mockResolvedValueOnce([3, 7]);
+    // 有人在看（跟 Watchlist 上選著的分類一樣），invalidate 才會重抓
+    const observer = new QueryObserver(client, {
+      queryKey: queryKeys.repos.categoryMembers(5),
+      queryFn,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1));
+
+    invalidateTrackedRepos(client);
+    resolveFirst([3]);
+
+    await vi.waitFor(() =>
+      expect(client.getQueryData(queryKeys.repos.categoryMembers(5))).toEqual([3, 7])
+    );
+    unsubscribe();
+  });
+
+  it("refetches the category tree even when nothing shows it right now", async () => {
+    // 側欄只在 Watchlist 頁掛著：在設定頁或探索頁改了名單，回到 Watchlist 時第一眼不該先看到舊數字
+    const client = new QueryClient();
+    const queryFn = vi.fn().mockResolvedValue({ tree: [], total: 0 });
+    await client.prefetchQuery({ queryKey: queryKeys.repos.categoryTree(), queryFn });
+
+    invalidateTrackedRepos(client);
+
+    await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
   });
 });

@@ -115,7 +115,14 @@ export function Watchlist() {
   );
 
   // 分類樹：提升到頁面層，讓 CategorySidebar 和 BatchActionBar 共用
-  const categoryTree = useCategoryTree(actions.invalidateRepos);
+  const categoryTree = useCategoryTree();
+
+  // 側欄重讀失敗時保留舊的樹（不整塊換成錯誤畫面，免得卸掉開著的編輯框），改用 toast 說出來：
+  // 新增分類後重讀失敗的話，表單已關、側欄卻看不到新分類，不說使用者會再建一次
+  const categoryReloadFailed = categoryTree.reloadFailed;
+  useEffect(() => {
+    if (categoryReloadFailed) actions.error(t.categories.loadError);
+  }, [categoryReloadFailed, actions, t.categories.loadError]);
 
   // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
   const categoryOps = useCategoryOperations(actions.invalidateRepos, actions.error);

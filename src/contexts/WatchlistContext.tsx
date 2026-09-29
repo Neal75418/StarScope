@@ -22,10 +22,10 @@ import {
   fetchRepo,
   fetchAllRepos,
   recalculateAllSimilarities,
-  getCategoryRepos,
 } from "../api/client";
 import { ApiError } from "../api/types";
 import { useReposQuery } from "../hooks/useReposQuery";
+import { useCategoryMembersQuery } from "../hooks/useCategoryQueries";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
@@ -81,6 +81,11 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   // ── React Query：repos 資料（連線成功後才啟用）──
   const reposQuery = useReposQuery({ enabled: isConnected });
 
+  // ── React Query：選定分類的成員。key 在 repos 前綴底下，任何重取 repo 清單的入口
+  // （包括只拿得到 QueryClient 的設定頁、探索頁）都會帶著它重讀 ──
+  const selectedCategoryId = reducerState.filters.selectedCategoryId;
+  const membersQuery = useCategoryMembersQuery(selectedCategoryId);
+
   // ── 合併 React Query 資料與 reducer UI 狀態 ──
   // 保持 WatchlistState 介面不變，消費端無須修改
   const state: WatchlistState = useMemo(() => {
@@ -96,18 +101,26 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     return {
       ...reducerState,
       repos: reposQuery.data ?? reducerState.repos,
+      filters: {
+        ...reducerState.filters,
+        categoryRepoIds: membersQuery.data ?? null,
+      },
       isConnected,
       loadingState: isInitializing ? { type: "initializing" as const } : reducerState.loadingState,
       error: mergedError,
     };
-  }, [reducerState, reposQuery.data, reposQuery.isLoading, reposQuery.error, isConnected]);
+  }, [
+    reducerState,
+    reposQuery.data,
+    reposQuery.isLoading,
+    reposQuery.error,
+    isConnected,
+    membersQuery.data,
+  ]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
   const stateRef = useRef(state);
   stateRef.current = state;
-
-  // 分類切換用 AbortController，防止快速切換時競態
-  const categoryAbortRef = useRef<AbortController | null>(null);
 
   // 空 deps 的 useCallback：只依賴穩定的 dispatch，讓 toast 便利方法引用永遠穩定
   const showToastFn = useCallback((type: ToastMessage["type"], message: string) => {
@@ -118,40 +131,27 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     });
   }, []);
 
-  // 重新載入當前分類的 repo 成員快照
-  const refreshCategoryRepos = useCallback(async () => {
-    const categoryId = stateRef.current.filters.selectedCategoryId;
-    if (categoryId === null) return;
+  // 選定分類的成員從沒載入成功過（沒有任何成員可用）：回到「全部」並提示。已經有成員時的
+  // 重讀失敗保留舊成員——清單仍照這個分類篩選，只是可能稍舊。換分類時舊請求由 React Query
+  // 中止，不會變成失敗；失敗與改選落在同一個 tick 時，reducer 會比對 categoryId
+  const categoryLoadFailed = membersQuery.isLoadingError;
+  const categoryLoadError = membersQuery.error;
+  useEffect(() => {
+    if (!categoryLoadFailed || selectedCategoryId === null) return;
+    logger.error("[Watchlist] 分類 Repo 載入失敗:", categoryLoadError);
+    dispatch({
+      type: "CATEGORY_LOAD_FAILED",
+      payload: {
+        categoryId: selectedCategoryId,
+        toast: { id: generateId(), type: "error", message: t.toast.categoryLoadFailed },
+      },
+    });
+  }, [categoryLoadFailed, categoryLoadError, selectedCategoryId, t]);
 
-    categoryAbortRef.current?.abort();
-    const controller = new AbortController();
-    categoryAbortRef.current = controller;
-
-    try {
-      const response = await getCategoryRepos(categoryId, controller.signal);
-      if (!controller.signal.aborted) {
-        dispatch({
-          type: "SET_CATEGORY_REPOS",
-          payload: { repoIds: response.repos.map((r) => r.id) },
-        });
-      }
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      logger.error("[Watchlist] 分類 Repo 重新載入失敗:", err);
-      // 還沒有成員快照（第一次載入被這次刷新中止）就跟 setCategory 失敗一樣處理。
-      // 有舊快照就留著：清單仍照這個分類篩選，只是可能稍舊
-      if (stateRef.current.filters.categoryRepoIds === null) {
-        dispatch({ type: "SET_CATEGORY", payload: { categoryId: null } });
-        showToastFn("error", t.toast.categoryLoadFailed);
-      }
-    }
-  }, [showToastFn, t]);
-
-  // invalidate repos cache 的便利函式（同時刷新分類快照）
+  // invalidate repos cache 的便利函式：選定分類的成員與分類樹都在 repos 前綴底下，會一起重讀
   const invalidateRepos = useCallback(() => {
     invalidateTrackedRepos(qc);
-    void refreshCategoryRepos();
-  }, [qc, refreshCategoryRepos]);
+  }, [qc]);
 
   // 清單成員變動（加入 / 取消追蹤）時另外刷新訊號：後端不算封存 repo 的訊號，
   // 取消追蹤後「有訊號」要立刻減少，重新加入封存過的 repo 時它的訊號要回來。
@@ -298,32 +298,14 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       cancelRemove: () => dispatch({ type: "CLOSE_REMOVE_CONFIRM" }),
 
       // 篩選操作
-      setCategory: async (categoryId: number | null) => {
-        categoryAbortRef.current?.abort();
-        categoryAbortRef.current = null;
-
+      setCategory: (categoryId: number | null) => {
         dispatch({ type: "SET_CATEGORY", payload: { categoryId } });
-
-        if (categoryId === null) return;
-
-        const controller = new AbortController();
-        categoryAbortRef.current = controller;
-
-        try {
-          const response = await getCategoryRepos(categoryId, controller.signal);
-          if (!controller.signal.aborted) {
-            dispatch({
-              type: "SET_CATEGORY_REPOS",
-              payload: { repoIds: response.repos.map((r) => r.id) },
-            });
-          }
-        } catch (err) {
-          if (controller.signal.aborted) return;
-          logger.error("[Watchlist] 分類 Repo 載入失敗:", err);
-          // 回到「全部」並說出來。只把成員快照設成 null 的話，側欄仍顯示選中這個分類，
-          // 清單卻因為 null＝不篩選而列出全部 repo，而且沒有任何提示
-          dispatch({ type: "SET_CATEGORY", payload: { categoryId: null } });
-          showToastFn("error", t.toast.categoryLoadFailed);
+        // 再點一次同一個分類＝重讀它的成員；換到看過的分類時先顯示快取、再重讀
+        if (categoryId !== null) {
+          void qc.invalidateQueries({
+            queryKey: queryKeys.repos.categoryMembers(categoryId),
+            exact: true,
+          });
         }
       },
 
@@ -342,7 +324,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       // 錯誤處理
       clearError: () => dispatch({ type: "CLEAR_ERROR" }),
 
-      // 輕量同步 — 僅 invalidate React Query cache + 刷新分類快照，不重抓 GitHub
+      // 輕量同步 — 僅 invalidate React Query cache（含分類樹與選定分類的成員），不重抓 GitHub
       invalidateRepos,
 
       // 連線重試 — invalidate React Query cache 觸發重新取得
@@ -352,7 +334,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         invalidateRepos();
       },
     }),
-    [t, showToastFn, invalidateRepos, invalidateMembership]
+    [qc, t, showToastFn, invalidateRepos, invalidateMembership]
   );
 
   // 監聽 Tauri tray「Refresh All」事件
