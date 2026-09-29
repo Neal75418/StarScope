@@ -17,6 +17,9 @@ const mockAddRepo = vi.fn();
 const mockUnstarRepo = vi.fn();
 const mockFetchAllRepos = vi.fn();
 const mockGetCategoryRepos = vi.fn();
+const mockGetSyncStatus = vi.fn((..._args: unknown[]) =>
+  Promise.resolve({ last_sync_at: null, running: false })
+);
 
 // 只換掉會打網路的那幾支，其餘（尤其 ApiError——client 從 ./types 再匯出它，
 // 整包換掉會讓 getErrorMessage 的 instanceof 檢查拿到 undefined）保留真身
@@ -28,6 +31,8 @@ vi.mock("../../api/client", async (importActual) => ({
   fetchAllRepos: (...a: unknown[]) => mockFetchAllRepos(...a),
   recalculateAllSimilarities: vi.fn(() => Promise.resolve()),
   getCategoryRepos: (...a: unknown[]) => mockGetCategoryRepos(...a),
+  // 背景同步的輪詢：不換掉的話會打到真的 sidecar
+  getSyncStatus: (...a: unknown[]) => mockGetSyncStatus(...a),
 }));
 
 vi.mock("../../hooks/useReposQuery", () => ({
@@ -239,6 +244,15 @@ describe("WatchlistContext actions", () => {
         })
       ).rejects.toThrow();
     });
+  });
+});
+
+describe("WatchlistContext background star sync", () => {
+  it("watches for star syncs that finish in the background", async () => {
+    // sidecar 啟動時與 launchd 收集器的同步不會通知前端：Provider 掛著就要開始看最後同步時間
+    renderCtx();
+
+    await waitFor(() => expect(mockGetSyncStatus).toHaveBeenCalled());
   });
 });
 

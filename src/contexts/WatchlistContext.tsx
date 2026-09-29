@@ -26,6 +26,7 @@ import {
 import { ApiError } from "../api/types";
 import { useReposQuery } from "../hooks/useReposQuery";
 import { useCategoryMembersQuery } from "../hooks/useCategoryQueries";
+import { useBackgroundStarSync } from "../hooks/useBackgroundStarSync";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
@@ -80,6 +81,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
   // ── React Query：repos 資料（連線成功後才啟用）──
   const reposQuery = useReposQuery({ enabled: isConnected });
+
+  // ── 背景星標同步（sidecar 啟動時、launchd 收集器）完成後重取追蹤名單：它們不會通知前端 ──
+  useBackgroundStarSync(isConnected);
 
   // ── React Query：選定分類的成員。key 在 repos 前綴底下，任何重取 repo 清單的入口
   // （包括只拿得到 QueryClient 的設定頁、探索頁）都會帶著它重讀 ──
