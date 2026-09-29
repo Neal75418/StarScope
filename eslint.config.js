@@ -1,3 +1,4 @@
+import { fixupPluginRules } from "@eslint/compat";
 import js from "@eslint/js";
 import globals from "globals";
 import reactPlugin from "eslint-plugin-react";
@@ -30,7 +31,13 @@ export default tseslint.config(
   {
     files: ["src/**/*.{ts,tsx}"],
     plugins: {
-      react: reactPlugin,
+      // eslint-plugin-react（最後發版 7.37.5，2025-04）與 jsx-a11y（6.10.2，2024-10）的 peer 只到 ESLint 9，
+      // 由 package.json 的 overrides 放寬。react 要包 fixupPluginRules，兩個原因：
+      // - react.version: "detect" 直接呼叫 ESLint 10 移除的 context.getFilename()，規則一載入就丟 TypeError
+      // - 判斷 JSDoc 標註的 class component 時呼叫已移除的 sourceCode.getJSDocComment()，錯誤被它自己的
+      //   try/catch 吞掉，相關規則會靜默失效
+      // jsx-a11y 只用 context.report／options／settings，不需要包
+      react: fixupPluginRules(reactPlugin),
       "react-hooks": reactHooksPlugin,
       "jsx-a11y": jsxA11y,
     },
