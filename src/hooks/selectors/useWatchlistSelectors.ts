@@ -11,20 +11,20 @@ import { relativeDelta } from "../../utils/relativeDelta";
 
 /**
  * 篩選後的 repos（套用分類篩選 + 搜尋篩選）
- * 純 selector — 從 state 讀取 categoryRepoIds，無副作用。
+ * 純 selector，無副作用。分類篩選直接用每個 repo 自己的 category_ids（追蹤清單回傳時就帶著），
+ * 不另查分類成員：沒有上限，選下去的那一刻就是完整結果。
  * 僅供檔內 useSortedFilteredRepos 組合使用，故不 export。
  */
 function useFilteredRepos(): RepoWithSignals[] {
   const state = useWatchlistState();
-  const { searchQuery, categoryRepoIds } = state.filters;
+  const { searchQuery, selectedCategoryId } = state.filters;
 
   return useMemo(() => {
     let result = state.repos;
 
     // 套用分類篩選
-    if (categoryRepoIds !== null) {
-      const idSet = new Set(categoryRepoIds);
-      result = result.filter((r) => idSet.has(r.id));
+    if (selectedCategoryId !== null) {
+      result = result.filter((r) => r.category_ids.includes(selectedCategoryId));
     }
 
     // 套用搜尋篩選
@@ -40,7 +40,7 @@ function useFilteredRepos(): RepoWithSignals[] {
     }
 
     return result;
-  }, [state.repos, categoryRepoIds, searchQuery]);
+  }, [state.repos, selectedCategoryId, searchQuery]);
 }
 
 /**

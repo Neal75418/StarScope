@@ -29,6 +29,8 @@ export interface RepoWithSignals {
   issues_delta_7d: number | null;
   issues_delta_30d: number | null;
   last_fetched: string | null;
+  /** 所屬分類（id 由小到大）：Watchlist 篩選分類時直接用它，不另查分類成員 */
+  category_ids: number[];
 }
 
 export interface RepoListResponse {
@@ -243,21 +245,6 @@ export interface CategoryUpdate {
   color?: string;
   parent_id?: number | null;
   sort_order?: number;
-}
-
-export interface CategoryRepo {
-  id: number;
-  full_name: string;
-  description: string | null;
-  language: string | null;
-  added_at: string;
-}
-
-export interface CategoryReposResponse {
-  category_id: number;
-  category_name: string;
-  repos: CategoryRepo[];
-  total: number;
 }
 
 export interface RepoCategoriesResponse {

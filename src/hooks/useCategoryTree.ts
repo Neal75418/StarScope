@@ -9,7 +9,7 @@ import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CategoryTreeNode, CategoryUpdate } from "../api/client";
 import { createCategory, updateCategory, deleteCategory } from "../api/client";
-import { queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
 import { useCategoryTreeQuery } from "./useCategoryQueries";
 import { useI18n } from "../i18n";
 import { logger } from "../utils/logger";
@@ -42,7 +42,7 @@ export function useCategoryTree(): UseCategoryTreeResult {
     await refetch();
   }, [refetch]);
 
-  /** 分類結構變了：只重讀樹。新增、改名、刪除都不改任何分類的成員，不必對已刪的分類發請求 */
+  /** 分類結構變了（新增、改名）：只重讀樹，這些不改任何 repo 屬於哪些分類 */
   const reloadTree = useCallback(() => {
     void qc.invalidateQueries({ queryKey: queryKeys.repos.categoryTree() });
   }, [qc]);
@@ -50,10 +50,7 @@ export function useCategoryTree(): UseCategoryTreeResult {
   const handleCreateCategory = useCallback(
     async (name: string): Promise<boolean> => {
       try {
-        const created = await createCategory({ name });
-        // categories 沒有 AUTOINCREMENT：新分類可能重用剛刪掉的分類的 id，
-        // 先丟掉那個 id 的成員快取，第一次點它才不會閃出舊分類的成員
-        qc.removeQueries({ queryKey: queryKeys.repos.categoryMembers(created.id), exact: true });
+        await createCategory({ name });
         reloadTree();
         return true;
       } catch (err) {
@@ -61,7 +58,7 @@ export function useCategoryTree(): UseCategoryTreeResult {
         return false;
       }
     },
-    [qc, reloadTree]
+    [reloadTree]
   );
 
   const handleUpdateCategory = useCallback(
@@ -82,14 +79,16 @@ export function useCategoryTree(): UseCategoryTreeResult {
     async (categoryId: number): Promise<boolean> => {
       try {
         await deleteCategory(categoryId);
-        reloadTree();
+        // 刪掉的分類的成員關係跟著消失，各 repo 的 category_ids 要重讀：categories 沒有 AUTOINCREMENT，
+        // 新分類可能重用這個 id，留著舊的 category_ids 會讓那些 repo 出現在新分類裡
+        invalidateTrackedRepos(qc);
         return true;
       } catch (err) {
         logger.error("[CategoryTree] 分類刪除失敗:", err);
         return false;
       }
     },
-    [reloadTree]
+    [qc]
   );
 
   return {

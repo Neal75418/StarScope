@@ -123,6 +123,9 @@ class RepoWithSignals(RepoResponse):
     # 最新快照日期
     last_fetched: UtcDateTime | None = None
 
+    # 所屬分類（id 由小到大）：前端用它篩選分類，不另查分類成員
+    category_ids: list[int] = []
+
 
 class RepoListResponse(BaseModel):
     """Repo 列表回應 schema。"""

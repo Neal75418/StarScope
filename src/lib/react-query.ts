@@ -62,11 +62,9 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.repos.details(), id] as const,
     archived: () => [...queryKeys.repos.all, "archived"] as const,
     syncStatus: () => [...queryKeys.repos.all, "sync-status"] as const,
-    // 分類的數量與成員都不算封存的 repo，追蹤名單一變就要重讀：放在 repos 底下，
+    // 分類的數量不算封存的 repo，追蹤名單一變就要重讀：放在 repos 底下，
     // 重取 repo 清單的入口（invalidateTrackedRepos）會一起帶到
     categoryTree: () => [...queryKeys.repos.all, "categories", "tree"] as const,
-    categoryMembers: (categoryId: number | null) =>
-      [...queryKeys.repos.all, "categories", "members", categoryId] as const,
   },
 
   // 早期信號
@@ -204,7 +202,7 @@ export const queryKeys = {
  * 警報規則看不看得到跟著 repo 走（後端把綁在封存 repo 上的規則當成不存在），
  * 規則清單留著舊資料的話，切換、編輯、刪除那條規則都會 404，復原的 repo 的規則也不會回來。
  * 兩份規則快取都要重取（設定頁的規則清單、Dashboard 判斷有沒有規則用的那份）。
- * 分類樹與分類成員在 repos 前綴底下會一起重讀；沒有畫面顯示的分類樹也先在背景重讀，
+ * 分類樹在 repos 前綴底下會一起重讀（分類成員就是各 repo 的 category_ids）；沒有畫面顯示的分類樹也先在背景重讀，
  * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。早期訊號同理不算封存的 repo，
  * 取消追蹤或復原之後「有訊號」要跟著變。
  */

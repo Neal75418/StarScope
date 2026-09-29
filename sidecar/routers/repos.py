@@ -41,7 +41,7 @@ from services.github import (
     GitHubService,
     get_github_service,
 )
-from services.queries import build_signal_map, build_snapshot_map
+from services.queries import build_category_map, build_signal_map, build_snapshot_map
 from services.rate_limiter import fetch_repo_with_retry
 from services.settings import get_setting
 from services.star_sync import sync_starred_repos, sync_is_running
@@ -114,7 +114,8 @@ def _create_repo_from_github(owner: str, name: str, github_data: dict) -> Repo:
 def _build_repo_with_signals(
     repo: Repo,
     snapshot: RepoSnapshot | None,
-    signals: dict[str, float | int]
+    signals: dict[str, float | int],
+    category_ids: list[int],
 ) -> RepoWithSignals:
     """從預先抓取的資料建立 RepoWithSignals 回應。"""
     return RepoWithSignals(
@@ -140,6 +141,7 @@ def _build_repo_with_signals(
         issues_delta_7d=signals.get(SignalType.ISSUES_DELTA_7D),
         issues_delta_30d=signals.get(SignalType.ISSUES_DELTA_30D),
         last_fetched=snapshot.fetched_at if snapshot else None,
+        category_ids=category_ids,
     )
 
 
@@ -154,7 +156,8 @@ def get_repo_with_signals(repo: Repo, db: Session) -> RepoWithSignals:
     return _build_repo_with_signals(
         repo,
         snapshot_map.get(repo.id),
-        signal_map.get(repo.id, {})
+        signal_map.get(repo.id, {}),
+        build_category_map(db, [repo.id]).get(repo.id, []),
     )
 
 
@@ -185,13 +188,15 @@ def _build_repo_list_response(
     repo_ids: list[int] = [r.id for r in repos]
     snapshot_map = build_snapshot_map(db, repo_ids)
     signal_map = build_signal_map(db, repo_ids)
+    category_map = build_category_map(db, repo_ids)
 
     # noinspection PyTypeChecker
     repos_with_signals = [
         _build_repo_with_signals(
             repo,
             snapshot_map.get(repo.id),
-            signal_map.get(repo.id, {})
+            signal_map.get(repo.id, {}),
+            category_map.get(repo.id, []),
         )
         for repo in repos
     ]

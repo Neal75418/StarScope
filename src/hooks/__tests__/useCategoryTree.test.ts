@@ -134,22 +134,6 @@ describe("useCategoryTree", () => {
     await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
   });
 
-  it("forgets cached members of a deleted category whose id a new one reuses", async () => {
-    // categories 沒有 AUTOINCREMENT：刪掉最大 id 後新分類會拿到同一個 id，第一次點它不能先閃出舊分類的成員
-    vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
-    vi.mocked(apiClient.createCategory).mockResolvedValue(created);
-
-    const { client, result } = renderTree();
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    client.setQueryData(queryKeys.repos.categoryMembers(created.id), [9]);
-
-    await act(async () => {
-      await result.current.handleCreateCategory("Backend");
-    });
-
-    expect(client.getQueryData(queryKeys.repos.categoryMembers(created.id))).toBeUndefined();
-  });
-
   it("handles create category error", async () => {
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
     vi.mocked(apiClient.createCategory).mockRejectedValue(new Error("Create failed"));
@@ -169,8 +153,9 @@ describe("useCategoryTree", () => {
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
     vi.mocked(apiClient.updateCategory).mockResolvedValue({ ...created, id: 1, name: "Updated" });
 
-    const { result } = renderTree();
+    const { client, result } = renderTree();
     await waitFor(() => expect(result.current.loading).toBe(false));
+    client.setQueryData(queryKeys.repos.lists(), []);
 
     let success = false;
     await act(async () => {
@@ -180,6 +165,8 @@ describe("useCategoryTree", () => {
     expect(success).toBe(true);
     expect(apiClient.updateCategory).toHaveBeenCalledWith(1, { name: "Updated" });
     await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+    // 改名不改任何 repo 屬於哪些分類，不必連整份追蹤清單一起重抓
+    expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(false);
   });
 
   it("keeps showing the current tree while it reloads after a change", async () => {
@@ -216,15 +203,15 @@ describe("useCategoryTree", () => {
     expect(success).toBe(false);
   });
 
-  it("deletes a category and reloads the tree without refetching members", async () => {
-    // 分類結構的變動不改任何分類的成員；刪掉的若是選中的分類，側欄會把選取改回「全部」，
-    // 不必再對一個已經不存在的分類發請求
+  it("deletes a category and reloads the tracked repos along with the tree", async () => {
+    // 刪掉的分類的成員關係跟著消失，各 repo 的 category_ids 要重讀：categories 沒有 AUTOINCREMENT，
+    // 新分類可能重用這個 id，留著舊的 category_ids 會讓那些 repo 出現在新分類裡
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
     vi.mocked(apiClient.deleteCategory).mockResolvedValue({ status: "ok", message: "Deleted" });
 
     const { client, result } = renderTree();
     await waitFor(() => expect(result.current.loading).toBe(false));
-    client.setQueryData(queryKeys.repos.categoryMembers(1), [3]);
+    client.setQueryData(queryKeys.repos.lists(), []);
 
     let success = false;
     await act(async () => {
@@ -234,7 +221,7 @@ describe("useCategoryTree", () => {
     expect(success).toBe(true);
     expect(apiClient.deleteCategory).toHaveBeenCalledWith(1);
     await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
-    expect(client.getQueryState(queryKeys.repos.categoryMembers(1))?.isInvalidated).toBe(false);
+    expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
   });
 
   it("handles delete category error", async () => {

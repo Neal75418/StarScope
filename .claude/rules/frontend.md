@@ -34,10 +34,11 @@ paths:
 - ⚠️ **追蹤名單可能變動的操作（加入、取消追蹤、復原、刪除封存、同步、匯入）之後用 `invalidateTrackedRepos(qc)` 重取**
   （`lib/react-query.ts`），不要只 invalidate `queryKeys.repos.all`：警報規則看不看得到跟著 repo 走（後端把綁在封存 repo 上的
   規則當成不存在），規則快取沒一起重取的話，對過期的規則切換／編輯／刪除會 404，復原的 repo 的規則也不會回來
-- ⚠️ **分類樹與選定分類的成員放在 React Query**（`hooks/useCategoryQueries.ts`，key 在 `queryKeys.repos` 底下），追蹤名單或
-  分類歸屬一變就跟著 `invalidateTrackedRepos` 重讀——不要放回 Context 或 local state（以前那樣，設定頁、探索頁的入口碰不到，
-  分類畫面就停在舊值）。`invalidateTrackedRepos` 先 cancel 分類查詢再 invalidate，順序不能換：還在第一次載入時 invalidate 只會
-  併進寫入前的請求。新增分類要 `removeQueries` 那個 id 的成員快取（categories 沒有 AUTOINCREMENT，id 會重用）
+- ⚠️ **分類篩選用每個 repo 自己的 `category_ids`**（`GET /api/repos` 回傳時就帶著），不另查分類成員（那支端點預設只回 100 筆）。
+  分類樹放在 React Query（`hooks/useCategoryQueries.ts`，key 在 `queryKeys.repos` 底下），追蹤名單或分類歸屬一變就跟著
+  `invalidateTrackedRepos` 重讀——不要放回 Context 或 local state（以前那樣，設定頁、探索頁的入口碰不到，側欄數量就停在舊值）。
+  `invalidateTrackedRepos` 先 cancel 分類查詢再 invalidate，順序不能換：還在第一次載入時 invalidate 只會併進寫入前的請求。
+  刪除分類要 `invalidateTrackedRepos`（categories 沒有 AUTOINCREMENT，新分類會重用 id，留著舊的 `category_ids` 會串到新分類）
 - 背景星標同步（sidecar 啟動時、launchd 收集器）不會通知前端：`useBackgroundStarSync`（WatchlistProvider 掛著）每分鐘看一次
   `last_sync_at`，變了才重取
 - **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
@@ -84,7 +85,7 @@ paths:
 
 ## Watchlist Context + useReducer
 
-資料層由 React Query 管理，Context 只負責 UI 狀態（`repos`、`filters.categoryRepoIds` 由 Provider 從 React Query 併入，reducer 不寫）；
+資料層由 React Query 管理，Context 只負責 UI 狀態（`repos` 由 Provider 從 React Query 併入，reducer 不寫）；
 `LoadingState` 用 Discriminated Unions 消除不可能狀態。Context 分層以優化
 re-render：`WatchlistStateContext`（只讀狀態）／`WatchlistActionsContext`（業務邏輯），selector hooks（`useSortedFilteredRepos()`、
 `useLoadingRepo()`、`useIsRefreshing()`、`useIsRecalculating()`）精準訂閱。測試策略是 mock `useWatchlistState`、`useWatchlistActions`。

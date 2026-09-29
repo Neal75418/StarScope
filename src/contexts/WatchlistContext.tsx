@@ -25,18 +25,16 @@ import {
 } from "../api/client";
 import { ApiError } from "../api/types";
 import { useReposQuery } from "../hooks/useReposQuery";
-import { useCategoryMembersQuery } from "../hooks/useCategoryQueries";
 import { useBackgroundStarSync } from "../hooks/useBackgroundStarSync";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
-import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
 import { useI18n, interpolate } from "../i18n";
 import { generateId } from "../utils/id";
-import { logger } from "../utils/logger";
 import { DATA_RESET_EVENT } from "../constants/events";
 import {
   watchlistReducer,
@@ -85,11 +83,6 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   // ── 背景星標同步（sidecar 啟動時、launchd 收集器）完成後重取追蹤名單：它們不會通知前端 ──
   useBackgroundStarSync(isConnected);
 
-  // ── React Query：選定分類的成員。key 在 repos 前綴底下，任何重取 repo 清單的入口
-  // （包括只拿得到 QueryClient 的設定頁、探索頁）都會帶著它重讀 ──
-  const selectedCategoryId = reducerState.filters.selectedCategoryId;
-  const membersQuery = useCategoryMembersQuery(selectedCategoryId);
-
   // ── 合併 React Query 資料與 reducer UI 狀態 ──
   // 保持 WatchlistState 介面不變，消費端無須修改
   const state: WatchlistState = useMemo(() => {
@@ -105,22 +98,11 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     return {
       ...reducerState,
       repos: reposQuery.data ?? reducerState.repos,
-      filters: {
-        ...reducerState.filters,
-        categoryRepoIds: membersQuery.data ?? null,
-      },
       isConnected,
       loadingState: isInitializing ? { type: "initializing" as const } : reducerState.loadingState,
       error: mergedError,
     };
-  }, [
-    reducerState,
-    reposQuery.data,
-    reposQuery.isLoading,
-    reposQuery.error,
-    isConnected,
-    membersQuery.data,
-  ]);
+  }, [reducerState, reposQuery.data, reposQuery.isLoading, reposQuery.error, isConnected]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
   const stateRef = useRef(state);
@@ -135,24 +117,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     });
   }, []);
 
-  // 選定分類的成員從沒載入成功過（沒有任何成員可用）：回到「全部」並提示。已經有成員時的
-  // 重讀失敗保留舊成員——清單仍照這個分類篩選，只是可能稍舊。換分類時舊請求由 React Query
-  // 中止，不會變成失敗；失敗與改選落在同一個 tick 時，reducer 會比對 categoryId
-  const categoryLoadFailed = membersQuery.isLoadingError;
-  const categoryLoadError = membersQuery.error;
-  useEffect(() => {
-    if (!categoryLoadFailed || selectedCategoryId === null) return;
-    logger.error("[Watchlist] 分類 Repo 載入失敗:", categoryLoadError);
-    dispatch({
-      type: "CATEGORY_LOAD_FAILED",
-      payload: {
-        categoryId: selectedCategoryId,
-        toast: { id: generateId(), type: "error", message: t.toast.categoryLoadFailed },
-      },
-    });
-  }, [categoryLoadFailed, categoryLoadError, selectedCategoryId, t]);
-
-  // invalidate repos cache 的便利函式：選定分類的成員與分類樹都在 repos 前綴底下，會一起重讀
+  // invalidate repos cache 的便利函式：分類樹、訊號、警報規則也會一起重讀（見 invalidateTrackedRepos）
   const invalidateRepos = useCallback(() => {
     invalidateTrackedRepos(qc);
   }, [qc]);
@@ -294,16 +259,9 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       cancelRemove: () => dispatch({ type: "CLOSE_REMOVE_CONFIRM" }),
 
       // 篩選操作
-      setCategory: (categoryId: number | null) => {
-        dispatch({ type: "SET_CATEGORY", payload: { categoryId } });
-        // 再點一次同一個分類＝重讀它的成員；換到看過的分類時先顯示快取、再重讀
-        if (categoryId !== null) {
-          void qc.invalidateQueries({
-            queryKey: queryKeys.repos.categoryMembers(categoryId),
-            exact: true,
-          });
-        }
-      },
+      // 分類篩選用每個 repo 自己的 category_ids（追蹤清單回傳時就帶著），選下去就生效，不發請求
+      setCategory: (categoryId: number | null) =>
+        dispatch({ type: "SET_CATEGORY", payload: { categoryId } }),
 
       setSearchQuery: (query: string) => dispatch({ type: "SET_SEARCH_QUERY", payload: { query } }),
 
@@ -320,7 +278,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
       // 錯誤處理
       clearError: () => dispatch({ type: "CLEAR_ERROR" }),
 
-      // 輕量同步 — 僅 invalidate React Query cache（含分類樹與選定分類的成員），不重抓 GitHub
+      // 輕量同步 — 僅 invalidate React Query cache，不重抓 GitHub
       invalidateRepos,
 
       // 連線重試 — invalidate React Query cache 觸發重新取得
@@ -330,7 +288,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         invalidateRepos();
       },
     }),
-    [qc, t, showToastFn, invalidateRepos]
+    [t, showToastFn, invalidateRepos]
   );
 
   // 監聽 Tauri tray「Refresh All」事件

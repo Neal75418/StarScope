@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, Query, aliased
 from sqlalchemy.sql.selectable import Subquery
 
 from constants import SignalType
-from db.models import Signal, RepoSnapshot, Repo
+from db.models import Signal, RepoSnapshot, Repo, RepoCategory
 
 # 排序欄位 → SignalType 的映射（trends 與 export 共用）
 TREND_SORT_SIGNAL_MAP: dict[str, str] = {
@@ -147,6 +147,29 @@ def _build_latest_snapshot_subquery(
         subq_query = subq_query.filter(RepoSnapshot.repo_id.in_(repo_ids))
 
     return subq_query.group_by(RepoSnapshot.repo_id).subquery()
+
+
+def build_category_map(db: Session, repo_ids: list[int]) -> dict[int, list[int]]:
+    """
+    預先載入每個 repo 屬於哪些分類。
+
+    前端篩選分類時直接用追蹤清單過濾，不另查分類成員（成員端點有分頁上限，大分類會被截斷）。
+
+    Returns:
+        {repo_id: [category_id, ...]}，category_id 由小到大；不屬於任何分類的 repo 不在 map 裡
+    """
+    if not repo_ids:
+        return {}
+    rows = (
+        db.query(RepoCategory.repo_id, RepoCategory.category_id)
+        .filter(RepoCategory.repo_id.in_(repo_ids))
+        .order_by(RepoCategory.repo_id, RepoCategory.category_id)
+        .all()
+    )
+    category_map: dict[int, list[int]] = {}
+    for repo_id, category_id in rows:
+        category_map.setdefault(repo_id, []).append(category_id)
+    return category_map
 
 
 def build_snapshot_map(

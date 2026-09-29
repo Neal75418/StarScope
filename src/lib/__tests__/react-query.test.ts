@@ -26,9 +26,8 @@ describe("queryKeys", () => {
     });
 
     it("keeps the category views under the repos prefix", () => {
-      // 分類的數量與成員都不算封存的 repo：放在 repos 底下，任何重取 repo 清單的入口都會一起重讀
+      // 分類的數量不算封存的 repo：放在 repos 底下，任何重取 repo 清單的入口都會一起重讀
       expect(queryKeys.repos.categoryTree()).toEqual(["repos", "categories", "tree"]);
-      expect(queryKeys.repos.categoryMembers(5)).toEqual(["repos", "categories", "members", 5]);
     });
   });
 
@@ -205,7 +204,6 @@ describe("invalidateTrackedRepos", () => {
     const keys = [
       queryKeys.repos.lists(),
       queryKeys.repos.categoryTree(),
-      queryKeys.repos.categoryMembers(5),
       // 訊號也不算封存的 repo：設定頁復原、探索頁加入之後「有訊號」要跟著變
       queryKeys.signals.summary(),
       queryKeys.alertRuleData.rules(),
@@ -218,7 +216,6 @@ describe("invalidateTrackedRepos", () => {
 
     // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
     expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
-      true,
       true,
       true,
       true,
@@ -241,9 +238,9 @@ describe("invalidateTrackedRepos", () => {
           })
       )
       .mockResolvedValueOnce([3, 7]);
-    // 有人在看（跟 Watchlist 上選著的分類一樣），invalidate 才會重抓
+    // 有人在看（跟 Watchlist 的側欄一樣），invalidate 才會重抓
     const observer = new QueryObserver(client, {
-      queryKey: queryKeys.repos.categoryMembers(5),
+      queryKey: queryKeys.repos.categoryTree(),
       queryFn,
     });
     const unsubscribe = observer.subscribe(() => {});
@@ -253,7 +250,7 @@ describe("invalidateTrackedRepos", () => {
     resolveFirst([3]);
 
     await vi.waitFor(() =>
-      expect(client.getQueryData(queryKeys.repos.categoryMembers(5))).toEqual([3, 7])
+      expect(client.getQueryData(queryKeys.repos.categoryTree())).toEqual([3, 7])
     );
     unsubscribe();
   });

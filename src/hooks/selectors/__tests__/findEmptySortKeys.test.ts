@@ -34,6 +34,7 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
     issues_delta_7d: null,
     issues_delta_30d: null,
     last_fetched: "2026-08-22T00:00:00Z",
+    category_ids: [],
     ...overrides,
   };
 }

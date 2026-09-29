@@ -47,9 +47,6 @@ export interface WatchlistState {
   filters: {
     selectedCategoryId: number | null;
     searchQuery: string;
-    // 選定分類的成員 repo id：WatchlistProvider 從 React Query 併入（同 repos），reducer 不寫它。
-    // null＝沒選分類或還沒載入，此時不篩選
-    categoryRepoIds: number[] | null;
   };
 
   // 通知狀態
@@ -90,7 +87,6 @@ export type WatchlistAction =
 
   // 篩選操作
   | { type: "SET_CATEGORY"; payload: { categoryId: number | null } }
-  | { type: "CATEGORY_LOAD_FAILED"; payload: { categoryId: number; toast: ToastMessage } }
   | { type: "SET_SEARCH_QUERY"; payload: { query: string } }
 
   // Toast 操作
@@ -167,7 +163,6 @@ export const initialState: WatchlistState = {
   filters: {
     selectedCategoryId: null,
     searchQuery: "",
-    categoryRepoIds: null,
   },
   toasts: [],
 };
@@ -373,20 +368,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
           ...state.filters,
           selectedCategoryId: action.payload.categoryId,
         },
-      };
-
-    // 選定分類的成員載入失敗：回到「全部」並說出來。只當成沒有成員的話，側欄停在這個分類，
-    // 清單卻因為 null＝不篩選而列出全部 repo，而且沒有任何提示。
-    // 失敗的已經不是選著的分類（使用者在同一個 tick 改選了）就不動
-    case "CATEGORY_LOAD_FAILED":
-      if (state.filters.selectedCategoryId !== action.payload.categoryId) return state;
-      return {
-        ...state,
-        filters: {
-          ...state.filters,
-          selectedCategoryId: null,
-        },
-        toasts: [...state.toasts, action.payload.toast],
       };
 
     case "SET_SEARCH_QUERY":

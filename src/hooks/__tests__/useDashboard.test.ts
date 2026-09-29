@@ -52,6 +52,7 @@ function makeRepo(overrides: Partial<apiClient.RepoWithSignals> = {}): apiClient
     issues_delta_7d: null,
     issues_delta_30d: null,
     last_fetched: "2024-01-15T00:00:00Z",
+    category_ids: [],
     ...overrides,
   };
 }

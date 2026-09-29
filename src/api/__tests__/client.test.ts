@@ -18,7 +18,6 @@ import {
   getCategoryTree,
   createCategory,
   deleteCategory,
-  getCategoryRepos,
   addRepoToCategory,
   getRepoCategories,
   listEarlySignals,
@@ -523,19 +522,6 @@ describe("API Client", () => {
 
       const result = await deleteCategory(1);
       expect(result.status).toBe("success");
-    });
-  });
-
-  describe("getCategoryRepos", () => {
-    it("returns repos in category", async () => {
-      const mockResponse = { category_id: 1, category_name: "Frontend", repos: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getCategoryRepos(1);
-      expect(result.category_id).toBe(1);
     });
   });
 

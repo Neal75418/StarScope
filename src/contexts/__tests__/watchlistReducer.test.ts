@@ -246,34 +246,6 @@ describe("watchlistReducer", () => {
       expect(next.filters.selectedCategoryId).toBeNull();
     });
 
-    it("CATEGORY_LOAD_FAILED drops the selection and says so", () => {
-      // 只把成員當成 null 的話，側欄停在這個分類，清單卻因為 null＝不篩選列出全部 repo，也沒有提示
-      const state = {
-        ...initialState,
-        filters: { ...initialState.filters, selectedCategoryId: 5 },
-      };
-      const toast = { id: "t1", type: "error" as const, message: "Couldn't load that category" };
-      const next = watchlistReducer(state, {
-        type: "CATEGORY_LOAD_FAILED",
-        payload: { categoryId: 5, toast },
-      });
-      expect(next.filters.selectedCategoryId).toBeNull();
-      expect(next.toasts).toEqual([toast]);
-    });
-
-    it("CATEGORY_LOAD_FAILED leaves a category the user has since picked alone", () => {
-      // 失敗和使用者改選落在同一個 tick：不能把剛選的分類踢回「全部」、也不能為它跳錯誤
-      const state = {
-        ...initialState,
-        filters: { ...initialState.filters, selectedCategoryId: 7 },
-      };
-      const next = watchlistReducer(state, {
-        type: "CATEGORY_LOAD_FAILED",
-        payload: { categoryId: 5, toast: { id: "t1", type: "error", message: "x" } },
-      });
-      expect(next).toBe(state);
-    });
-
     it("SET_SEARCH_QUERY updates searchQuery", () => {
       const next = watchlistReducer(initialState, {
         type: "SET_SEARCH_QUERY",
@@ -349,7 +321,6 @@ describe("watchlistReducer", () => {
         filters: {
           selectedCategoryId: 5,
           searchQuery: "react",
-          categoryRepoIds: [1, 2, 3],
         },
         error: "some error",
       };
