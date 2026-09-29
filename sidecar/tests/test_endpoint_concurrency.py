@@ -23,7 +23,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from db.database import create_app_engine, get_db
+from db.database import create_app_engine, get_db, sqlite_url
 from db.models import Base
 
 ROUTERS_DIR = Path(__file__).resolve().parent.parent / "routers"
@@ -75,7 +75,7 @@ def test_the_scan_finds_the_endpoints():
 def one_connection_engine(client, tmp_path):
     """連線池只有一條連線、不 overflow；get_db 改用它。"""
     engine = create_engine(
-        f"sqlite:///{tmp_path / 'pool.db'}",
+        sqlite_url(tmp_path / "pool.db"),
         connect_args={"check_same_thread": False},
         pool_size=1,
         max_overflow=0,
@@ -124,7 +124,7 @@ async def test_waiting_for_a_connection_does_not_freeze_the_server(client, one_c
 async def test_app_engine_serves_a_burst_without_queueing(client, tmp_path):
     # 用正式的 engine 設定。有上限的連線池在這個量下會排隊：threadpool 裡的請求逾時回 500，
     # 在 loop 上查 DB 的 feed/generate 則把整個 loop 卡到 pool timeout
-    engine = create_app_engine(f"sqlite:///{tmp_path / 'burst.db'}")
+    engine = create_app_engine(sqlite_url(tmp_path / "burst.db"))
     Base.metadata.create_all(bind=engine)
     session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

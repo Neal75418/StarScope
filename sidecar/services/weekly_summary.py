@@ -215,7 +215,7 @@ def _get_hn_mentions(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
             ContextSignal.published_at >= week_ago,
         )
-        .order_by(ContextSignal.score.desc().nullslast())
+        .order_by(ContextSignal.score.desc().nulls_last())
         .limit(10)
         .all()
     )
@@ -268,7 +268,7 @@ def _get_releases(
             ContextSignal.signal_type == ContextSignalType.RELEASE,
             ContextSignal.published_at >= week_ago,
         )
-        .order_by(ContextSignal.published_at.desc().nullslast())
+        .order_by(ContextSignal.published_at.desc().nulls_last())
         .limit(20)
         .all()
     )

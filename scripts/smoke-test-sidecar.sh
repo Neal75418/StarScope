@@ -16,7 +16,7 @@ if [ ! -f "$BINARY" ]; then
 fi
 BINARY="$(cd "$(dirname "$BINARY")" && pwd)/$(basename "$BINARY")"
 PORT=18008            # 不用 8008：避免撞到開發者正在跑的 sidecar
-TIMEOUT_SECONDS=120   # 新檔案第一次執行時會被掃描（macOS 實測最慢 26 秒；Windows 的防毒更慢）
+TIMEOUT_SECONDS=120   # 新檔案第一次執行時會被掃描（macOS 實測最慢 31 秒；Windows 的防毒更慢）
 PARENT_GONE_TIMEOUT_SECONDS=15   # 看門每 2 秒檢查一次，加上 uvicorn 正常關閉的時間
 HEALTH_URL="http://127.0.0.1:$PORT/api/health"
 

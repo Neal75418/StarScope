@@ -91,6 +91,8 @@ Desktop.ini
 src-tauri/target/
 src-tauri/gen/
 coverage/
+# Vitest 5 的 html／json／junit reporter 與 attachments 預設輸出目錄
+.vitest/
 
 # TypeScript incremental build info (composite projects)
 *.tsbuildinfo

@@ -262,7 +262,6 @@ def _cleanup_signals_by_limit(db: Session, max_per_repo: int) -> int:
             .filter(ContextSignal.repo_id == repo_id)
             .order_by(ContextSignal.fetched_at.desc())
             .limit(max_per_repo)
-            .subquery()
         )
 
         # 刪除不在保留清單中的訊號
@@ -270,7 +269,7 @@ def _cleanup_signals_by_limit(db: Session, max_per_repo: int) -> int:
             db.query(ContextSignal)
             .filter(
                 ContextSignal.repo_id == repo_id,
-                ~ContextSignal.id.in_(keep_ids)  # type: ignore[arg-type]
+                ~ContextSignal.id.in_(keep_ids)
             )
             .delete(synchronize_session=False)
         )

@@ -4,7 +4,7 @@ import threading
 
 from sqlalchemy.orm import sessionmaker
 
-from db.database import create_app_engine
+from db.database import create_app_engine, sqlite_url
 from db.models import AppSetting, AppSettingKey, Base
 from services.digest import DigestCursor, clear_cursor, load_cursor, save_cursor
 
@@ -59,7 +59,7 @@ def test_concurrent_saves_do_not_lose_the_larger_cursor(tmp_path, monkeypatch):
     # （游標倒退），第一次寫入時則是其中一個撞 UNIQUE 回 500
     import services.digest as digest_module
 
-    engine = create_app_engine(f"sqlite:///{tmp_path / 'cursor.db'}")
+    engine = create_app_engine(sqlite_url(tmp_path / "cursor.db"))
     Base.metadata.create_all(bind=engine)
     session_local = sessionmaker(bind=engine)
     real_load = digest_module.load_cursor

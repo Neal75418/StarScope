@@ -9,7 +9,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy import event
 
-from db.database import SchemaNeedsMigration, ensure_columns
+from db.database import SchemaNeedsMigration, ensure_columns, sqlite_url
 from db.models import Base
 
 
@@ -25,7 +25,7 @@ def _old_db(path, omit: dict[str, list[str]]) -> sa.Engine:
     隨 model 演進而腐爛。手寫骨架漏掉某個 NOT NULL 欄位時，測到的就不再是
     「使用者的舊資料庫」，而是一個現實中不存在的形狀。
     """
-    engine = sa.create_engine(f"sqlite:///{path}")
+    engine = sa.create_engine(sqlite_url(path))
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         for table, cols in omit.items():
@@ -101,7 +101,7 @@ def test_running_twice_is_a_no_op(tmp_path):
 
 def test_absent_table_is_skipped(tmp_path):
     """全新資料庫在 create_all 之前沒有任何表，這裡不該試圖 ALTER 不存在的表。"""
-    engine = sa.create_engine(f"sqlite:///{tmp_path / 'fresh.db'}")
+    engine = sa.create_engine(sqlite_url(tmp_path / "fresh.db"))
 
     ensure_columns(engine)  # 不該拋 no such table
 
@@ -196,7 +196,7 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     path = tmp_path / "race.db"
     # 兩個缺欄位：第一個被搶先，第二個必須仍補得上——釘住容忍錯誤之後連線池沒有壞掉
     engine = _old_db(path, {"repos": ["starred_at", "unstarred_at"]})
-    other_process = sa.create_engine(f"sqlite:///{path}")
+    other_process = sa.create_engine(sqlite_url(path))
     raced: list[str] = []
 
     @event.listens_for(engine, "before_cursor_execute")

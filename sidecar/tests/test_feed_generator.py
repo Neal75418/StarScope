@@ -3,10 +3,13 @@ import json
 import os
 import tempfile
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from db.database import sqlite_url
 
 from db.models import (
     Base, Interest, InterestKind, ExcludeTerm, FeedItem, SeenRepo, Repo, FeedCandidate,
@@ -186,7 +189,7 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     try:
-        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
         session_local = sessionmaker(
             autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
@@ -251,7 +254,7 @@ async def test_concurrent_generate_race_with_multiple_candidates():
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
     try:
-        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
         session_local = sessionmaker(
             autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
