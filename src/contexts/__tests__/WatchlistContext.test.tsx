@@ -16,6 +16,7 @@ import { WatchlistProvider, useWatchlistActions, useWatchlistState } from "../Wa
 const mockAddRepo = vi.fn();
 const mockUnstarRepo = vi.fn();
 const mockFetchAllRepos = vi.fn();
+const mockGetCategoryRepos = vi.fn();
 
 // 只換掉會打網路的那幾支，其餘（尤其 ApiError——client 從 ./types 再匯出它，
 // 整包換掉會讓 getErrorMessage 的 instanceof 檢查拿到 undefined）保留真身
@@ -26,7 +27,7 @@ vi.mock("../../api/client", async (importActual) => ({
   fetchRepo: vi.fn(() => Promise.resolve()),
   fetchAllRepos: (...a: unknown[]) => mockFetchAllRepos(...a),
   recalculateAllSimilarities: vi.fn(() => Promise.resolve()),
-  getCategoryRepos: vi.fn(() => Promise.resolve([])),
+  getCategoryRepos: (...a: unknown[]) => mockGetCategoryRepos(...a),
 }));
 
 vi.mock("../../hooks/useReposQuery", () => ({
@@ -58,6 +59,7 @@ describe("WatchlistContext actions", () => {
     mockAddRepo.mockResolvedValue(undefined);
     mockUnstarRepo.mockResolvedValue(undefined);
     mockFetchAllRepos.mockResolvedValue(undefined);
+    mockGetCategoryRepos.mockResolvedValue({ repos: [] });
   });
 
   describe("refreshAll", () => {
@@ -171,11 +173,13 @@ describe("WatchlistContext actions", () => {
         </QueryClientProvider>
       );
       const hook = renderHook(() => useWatchlistActions(), { wrapper: Wrapper });
-      const signalsInvalidated = () =>
+      const invalidated = (key: readonly unknown[]) =>
         invalidate.mock.calls.some(
-          (call) => JSON.stringify(call[0]?.queryKey) === JSON.stringify(queryKeys.signals.all)
+          (call) => JSON.stringify(call[0]?.queryKey) === JSON.stringify(key)
         );
-      return { actions: () => hook.result.current, signalsInvalidated };
+      const signalsInvalidated = () => invalidated(queryKeys.signals.all);
+      const rulesInvalidated = () => invalidated(queryKeys.alertRuleData.rules());
+      return { actions: () => hook.result.current, signalsInvalidated, rulesInvalidated };
     }
 
     it("取消追蹤成功後", async () => {
@@ -210,6 +214,16 @@ describe("WatchlistContext actions", () => {
 
       expect(signalsInvalidated()).toBe(true);
     });
+
+    it("invalidateRepos 連警報規則清單一起重取", () => {
+      // 加入／取消追蹤、匯入、探索頁、批次操作都走這支。後端把綁在封存 repo 上的規則
+      // 當成不存在：規則清單留著舊資料的話，切換、編輯、刪除那條規則都會 404
+      const { actions, rulesInvalidated } = renderWithClient();
+
+      act(() => actions().invalidateRepos());
+
+      expect(rulesInvalidated()).toBe(true);
+    });
   });
 
   describe("removeRepo", () => {
@@ -225,5 +239,110 @@ describe("WatchlistContext actions", () => {
         })
       ).rejects.toThrow();
     });
+  });
+});
+
+describe("WatchlistContext category filter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("filters to the category's members once they load", async () => {
+    mockGetCategoryRepos.mockResolvedValue({ repos: [{ id: 3 }, { id: 7 }] });
+    const { result } = renderCtx();
+
+    await act(() => result.current.actions.setCategory(5));
+
+    expect(result.current.state.filters.selectedCategoryId).toBe(5);
+    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
+  });
+
+  it("drops the selection and says so when the category fails to load", async () => {
+    // 以前只把成員設成 null：側欄停在這個分類，清單卻因為 null＝不篩選列出全部 repo，也沒有提示
+    mockGetCategoryRepos.mockRejectedValue(new Error("boom"));
+    const { result } = renderCtx();
+
+    await act(() => result.current.actions.setCategory(5));
+
+    expect(result.current.state.filters.selectedCategoryId).toBeNull();
+    expect(result.current.state.toasts).toEqual([
+      expect.objectContaining({
+        type: "error",
+        message: "Couldn't load that category — showing all repositories",
+      }),
+    ]);
+  });
+
+  it("drops the selection when a refresh that replaced the first load fails", async () => {
+    // 成員還沒載入時做了會刷新清單的動作：刷新會中止第一次載入、自己重抓，
+    // 這次再失敗的話就沒有任何成員快照，跟 setCategory 失敗是同一個處境
+    mockGetCategoryRepos
+      .mockImplementationOnce(
+        (_id: number, signal: AbortSignal) =>
+          new Promise((_resolve, reject) => {
+            signal.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError"))
+            );
+          })
+      )
+      .mockRejectedValueOnce(new Error("boom"));
+    const { result } = renderCtx();
+
+    let firstLoad: Promise<void> = Promise.resolve();
+    act(() => {
+      firstLoad = result.current.actions.setCategory(5);
+    });
+    await act(() => result.current.actions.fetchRepo(1));
+    await act(() => firstLoad);
+
+    await waitFor(() => expect(result.current.state.filters.selectedCategoryId).toBeNull());
+    expect(result.current.state.toasts).toEqual([
+      expect.objectContaining({
+        type: "error",
+        message: "Couldn't load that category — showing all repositories",
+      }),
+    ]);
+  });
+
+  it("leaves a newly picked category alone when it aborts a pending refresh", async () => {
+    // 刷新被使用者改選分類中止時，失敗處理不能跑：剛選的分類還沒有成員快照，
+    // 會被當成「刷新失敗且沒有快照」而重置回「全部」
+    const abortOnly = (_id: number, signal: AbortSignal) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    mockGetCategoryRepos
+      .mockImplementationOnce(abortOnly)
+      .mockImplementationOnce(abortOnly)
+      .mockResolvedValueOnce({ repos: [{ id: 9 }] });
+    const { result } = renderCtx();
+
+    let firstLoad: Promise<void> = Promise.resolve();
+    act(() => {
+      firstLoad = result.current.actions.setCategory(5);
+    });
+    await act(() => result.current.actions.fetchRepo(1));
+    await act(() => result.current.actions.setCategory(7));
+    await act(() => firstLoad);
+
+    expect(result.current.state.filters.selectedCategoryId).toBe(7);
+    expect(result.current.state.filters.categoryRepoIds).toEqual([9]);
+    expect(result.current.state.toasts).toEqual([]);
+  });
+
+  it("keeps the loaded members when a later refresh fails", async () => {
+    // 有成員快照時清單仍照這個分類篩選，只是可能稍舊——不必把使用者踢回「全部」
+    mockGetCategoryRepos
+      .mockResolvedValueOnce({ repos: [{ id: 3 }, { id: 7 }] })
+      .mockRejectedValueOnce(new Error("boom"));
+    const { result } = renderCtx();
+
+    await act(() => result.current.actions.setCategory(5));
+    await act(() => result.current.actions.fetchRepo(1));
+
+    await waitFor(() => expect(mockGetCategoryRepos).toHaveBeenCalledTimes(2));
+    expect(result.current.state.filters.selectedCategoryId).toBe(5);
+    expect(result.current.state.filters.categoryRepoIds).toEqual([3, 7]);
+    expect(result.current.state.toasts).toEqual([]);
   });
 });

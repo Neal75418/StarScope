@@ -186,7 +186,8 @@ def _snapshot_days_covered(db: Session) -> int:
     """
     # scalar() 的回傳型別是 Any，不註記的話整個運算式都是 Any，mypy 會擋下
     # 「宣告回 int 卻回 Any」——CI 的 mypy 步驟就是這樣紅的
-    earliest: date | None = db.query(func.min(RepoSnapshot.snapshot_date)).scalar()
+    # join：封存 repo 的舊快照還在資料庫裡，不 join 的話只有它夠久時提示會說歷史已經夠了
+    earliest: date | None = db.query(func.min(RepoSnapshot.snapshot_date)).join(RepoSnapshot.repo).scalar()
     if earliest is None:
         return 0
     return (utc_today() - earliest).days

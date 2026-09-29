@@ -7,7 +7,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSyncStatus, resolveLocalOnly, syncStars } from "../api/client";
-import { queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
 
 const SYNC_KEY = ["starSync", "sync"] as const;
 const RESOLVE_KEY = ["starSync", "resolve"] as const;
@@ -33,9 +33,9 @@ export function useStarSync() {
     mutationKey: SYNC_KEY,
     mutationFn: () => syncStars(),
     onSuccess: () => {
-      // 同步會新增、封存與復原 repo，追蹤清單與封存清單都要重取；
-      // 用 repos.all 當前綴一次涵蓋，避免日後新增查詢時漏掉
-      void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+      // 同步會新增、封存與復原 repo，追蹤清單與封存清單都要重取（repos.all 前綴一次涵蓋，
+      // 避免日後新增查詢時漏掉），綁在封存 repo 上的警報規則也跟著消失或回來
+      invalidateTrackedRepos(queryClient);
     },
   });
 
@@ -46,7 +46,7 @@ export function useStarSync() {
       resolveLocalOnly(action, fullNames),
     onSuccess: () => {
       resetUnlessRunning(SYNC_KEY, mutation.reset);
-      void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+      invalidateTrackedRepos(queryClient);
     },
   });
 

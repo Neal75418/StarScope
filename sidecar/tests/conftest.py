@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from constants import SignalType
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 
@@ -31,7 +31,7 @@ from sqlalchemy.pool import StaticPool
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db.models import Base
-from db.database import get_db
+from db.database import get_db, set_sqlite_pragma
 from db.soft_delete import install_archive_filter
 
 # 正式環境在 init_db() 註冊，但測試不走 init_db——不在這裡裝的話，測試看到的是
@@ -114,6 +114,10 @@ def test_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # 跟正式的 engine 一樣每條連線都跑 set_sqlite_pragma，尤其是 foreign_keys=ON：
+    # 少了它，刪除 repo 時靠 ON DELETE CASCADE 的表（例如 triggered_alerts）在測試裡不會連帶刪除，
+    # 測試看到的刪除後狀態跟正式環境不同
+    event.listen(engine, "connect", set_sqlite_pragma)
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)

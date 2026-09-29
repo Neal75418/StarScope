@@ -32,7 +32,8 @@ def find_empty_trend_sorts(db: Session) -> list[str]:
     前的快照、30 天增量要 30 天前的）。前端據此停用對應頁籤並說明原因，
     資料補齊後這個清單會自己變空。
     """
-    present = {row[0] for row in db.query(Signal.signal_type).distinct()}
+    # join：只有封存 repo 算得出某種訊號時，那個排序鍵照樣只會得到空榜單
+    present = {row[0] for row in db.query(Signal.signal_type).join(Signal.repo).distinct()}
     return [key for key, signal_type in TREND_SORT_SIGNAL_MAP.items() if signal_type not in present]
 
 

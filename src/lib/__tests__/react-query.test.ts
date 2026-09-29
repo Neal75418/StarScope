@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { queryKeys, queryClient, createTestQueryClient } from "../react-query";
+import { QueryClient } from "@tanstack/react-query";
+import {
+  queryKeys,
+  queryClient,
+  createTestQueryClient,
+  invalidateTrackedRepos,
+} from "../react-query";
 
 describe("queryKeys", () => {
   describe("repos", () => {
@@ -186,5 +192,30 @@ describe("createTestQueryClient", () => {
     const defaults = testClient.getDefaultOptions();
     expect(defaults.queries?.retry).toBe(false);
     expect(defaults.mutations?.retry).toBe(false);
+  });
+});
+
+describe("invalidateTrackedRepos", () => {
+  it("also refreshes both caches of the alert rule list, whose visibility follows the tracked repos", () => {
+    // 後端把綁在封存 repo 上的規則當成不存在：清單留著舊資料的話，
+    // 切換、編輯、刪除那條規則會 404，復原的 repo 的規則也不會回來
+    const client = new QueryClient();
+    const keys = [
+      queryKeys.repos.lists(),
+      queryKeys.alertRuleData.rules(),
+      queryKeys.alerts.rules(),
+      queryKeys.digest.session(),
+    ];
+    for (const key of keys) client.setQueryData(key, []);
+
+    invalidateTrackedRepos(client);
+
+    // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
+    expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
+      true,
+      true,
+      false,
+    ]);
   });
 });

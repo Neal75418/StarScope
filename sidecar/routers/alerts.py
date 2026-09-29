@@ -6,7 +6,8 @@ from typing import Annotated, get_args, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
+from sqlalchemy.orm import Query as OrmQuery, Session, joinedload
 
 from schemas.time import UtcDateTime
 from db.database import get_db
@@ -129,6 +130,29 @@ class CheckAlertsResponse(BaseModel):
 
 # --- 輔助函式 ---
 
+def _visible_rules(db: Session) -> OrmQuery[AlertRule]:
+    """看得到的警報規則：全域規則，以及綁在照常追蹤的 repo 上的規則。
+
+    綁在封存 repo 上的規則不會再觸發（check_all_alerts 看不到那個 repo），列出來 repo_name 是 None，
+    畫面會把它顯示成「所有 repo」。封存的 repo 在一般畫面上視同刪除，所以列出、用 id 查、改、刪都當它不存在，
+    restar 之後原封不動地回來。outer join 時封存條件落在 ON 子句，封存的 repo 會以 NULL 出現
+    """
+    # joinedload 避免存取 rule.repo 時的 N+1 查詢
+    return (
+        db.query(AlertRule)
+        .outerjoin(AlertRule.repo)
+        .filter(or_(AlertRule.repo_id.is_(None), Repo.id.is_not(None)))
+        .options(joinedload(AlertRule.repo))
+    )
+
+
+def _get_rule_or_404(rule_id: int, db: Session) -> AlertRule:
+    rule: AlertRule | None = _visible_rules(db).filter(AlertRule.id == rule_id).first()
+    if not rule:
+        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
+    return rule
+
+
 def _to_alert_rule_response(rule: AlertRule) -> AlertRuleResponse:
     """將 AlertRule model 轉換為 AlertRuleResponse。"""
     return AlertRuleResponse(
@@ -191,15 +215,8 @@ def list_rules(
         db: 資料庫 session
     """
 
-    # 使用 joinedload 避免存取 rule.repo 時的 N+1 查詢
     # noinspection PyTypeChecker
-    rules: list[AlertRule] = (
-        db.query(AlertRule)
-        .options(joinedload(AlertRule.repo))
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    rules: list[AlertRule] = _visible_rules(db).offset(skip).limit(limit).all()
 
     return success_response(data=[_to_alert_rule_response(rule) for rule in rules])
 
@@ -235,9 +252,7 @@ def create_rule(rule: AlertRuleCreate, db: Annotated[Session, Depends(get_db)]) 
 @router.get("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 def get_rule(rule_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """取得特定警報規則。"""
-    rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
+    rule = _get_rule_or_404(rule_id, db)
 
     return success_response(data=_to_alert_rule_response(rule))
 
@@ -245,9 +260,7 @@ def get_rule(rule_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
 @router.patch("/rules/{rule_id}", response_model=ApiResponse[AlertRuleResponse])
 def update_rule(rule_id: int, update: AlertRuleUpdate, db: Annotated[Session, Depends(get_db)]) -> dict:
     """更新警報規則。"""
-    rule: AlertRule | None = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
+    rule = _get_rule_or_404(rule_id, db)
 
     # signal_type 與 operator 由 Pydantic Literal 型別驗證。
     if update.signal_type is not None:
@@ -282,9 +295,7 @@ def update_rule(rule_id: int, update: AlertRuleUpdate, db: Annotated[Session, De
 @router.delete("/rules/{rule_id}", response_model=ApiResponse[StatusResponse])
 def delete_rule(rule_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """刪除警報規則。"""
-    rule = db.query(AlertRule).filter(AlertRule.id == rule_id).first()
-    if not rule:
-        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
+    rule = _get_rule_or_404(rule_id, db)
 
     db.delete(rule)
     db.commit()
@@ -301,9 +312,12 @@ def list_triggered_alerts(
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> dict:
     """列出已觸發的警報。"""
-    # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢
+    # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢。
+    # inner join 讓 soft_delete 的封存條件排除封存 repo 的警報；只靠 joinedload，
+    # 警報照樣撈出來、alert.repo 卻是 None，整個清單 500
     query = (
         db.query(TriggeredAlert)
+        .join(TriggeredAlert.repo)
         .options(
             joinedload(TriggeredAlert.rule),
             joinedload(TriggeredAlert.repo)

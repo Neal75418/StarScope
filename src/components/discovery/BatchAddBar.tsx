@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useRef, useEffect, memo } from "react";
 import { batchAddRepos } from "../../api/client";
-import { queryKeys } from "../../lib/react-query";
+import { invalidateTrackedRepos } from "../../lib/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { useToast } from "../Toast";
@@ -45,7 +45,7 @@ export const BatchAddBar = memo(function BatchAddBar({
             .replace("{count}", String(result.success))
             .replace("{total}", String(result.total))
         );
-        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+        invalidateTrackedRepos(queryClient);
         onDone();
       } else if (result.success > 0) {
         // 部分成功 — 保留 selection 讓使用者可重試失敗的
@@ -54,7 +54,7 @@ export const BatchAddBar = memo(function BatchAddBar({
             .replace("{count}", String(result.success))
             .replace("{total}", String(result.total))
         );
-        void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+        invalidateTrackedRepos(queryClient);
       } else {
         // 全部失敗
         toast.error(t.toast.error);

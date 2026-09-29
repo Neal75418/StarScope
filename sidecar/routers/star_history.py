@@ -97,9 +97,12 @@ def get_portfolio_history(
     today = utc_now().date()
     cutoff = today - timedelta(days=days)
 
+    # join Repo 讓 soft_delete 的封存條件排除封存 repo：取消追蹤之後總數要跟著下降，
+    # 跟儀表板上其他只算追蹤中 repo 的數字一致
     rows = (
         db.query(RepoSnapshot.snapshot_date, RepoSnapshot.repo_id, RepoSnapshot.stars,
                  RepoSnapshot.fetched_at)
+        .join(RepoSnapshot.repo)
         .filter(RepoSnapshot.snapshot_date >= cutoff)
         .all()
     )

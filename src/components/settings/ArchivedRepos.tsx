@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { deleteArchivedRepo, getArchivedRepos, restarRepo } from "../../api/client";
-import { queryKeys } from "../../lib/react-query";
+import { invalidateTrackedRepos, queryKeys } from "../../lib/react-query";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { Skeleton } from "../Skeleton";
 import { interpolate } from "../../i18n";
@@ -28,7 +28,7 @@ export function ArchivedRepos() {
 
   const invalidate = () => {
     // 復原會讓 repo 回到追蹤清單，刪除會讓它從封存清單消失——兩者都要重取
-    void queryClient.invalidateQueries({ queryKey: queryKeys.repos.all });
+    invalidateTrackedRepos(queryClient);
   };
 
   // 明確包一層：TanStack v5 的 mutationFn 會收到 (variables, context)，裸名傳遞

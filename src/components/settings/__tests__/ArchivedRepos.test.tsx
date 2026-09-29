@@ -11,12 +11,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ArchivedRepos } from "../ArchivedRepos";
 import * as client from "../../../api/client";
+import { queryKeys } from "../../../lib/react-query";
 
 vi.mock("../../../api/client");
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return { ...render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>), qc };
 }
 
 const ROW = {
@@ -62,6 +63,18 @@ describe("ArchivedRepos", () => {
     fireEvent.click(await screen.findByTestId("archived-restar-7"));
 
     await waitFor(() => expect(client.restarRepo).toHaveBeenCalledWith(7));
+  });
+
+  it("refreshes the alert rule list after a restore — rules on that repo come back with it", async () => {
+    // 規則清單就在同一頁下方：不重取的話要離開設定頁、等 5 分鐘才會出現
+    const { qc } = renderWithClient(<ArchivedRepos />);
+    qc.setQueryData(queryKeys.alertRuleData.rules(), []);
+
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+
+    await waitFor(() =>
+      expect(qc.getQueryState(queryKeys.alertRuleData.rules())?.isInvalidated).toBe(true)
+    );
   });
 
   it("does not delete until the confirmation is accepted", async () => {

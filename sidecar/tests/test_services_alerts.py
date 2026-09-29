@@ -203,18 +203,24 @@ class TestGetReposForRule:
         repos = alerts_module._get_repos_for_rule_from_map(rule, repo_map, all_repos)
         assert len(repos) == 3
 
-    def test_nonexistent_repo(self, test_db):
-        """Test getting nonexistent repo returns empty list."""
+    def test_rule_bound_to_an_archived_repo_matches_nothing(self, test_db, mock_repo):
+        """綁定的 repo 被封存後，規則不套用到任何 repo。
+
+        外鍵開著的正式環境寫不進指向不存在 repo 的規則；repo 在、卻查不到的真實情況是它被封存了
+        （全域封存過濾讓它不出現在 repo 清單裡）。
+        """
         rule = AlertRule(
             name="Test Rule",
             signal_type="velocity",
             operator=AlertOperator.GT,
             threshold=10.0,
             enabled=True,
-            repo_id=99999,  # Doesn't exist
+            repo_id=mock_repo.id,
         )
         test_db.add(rule)
+        mock_repo.unstarred_at = utc_now()
         test_db.commit()
+        test_db.expire_all()
 
         all_repos = test_db.query(Repo).all()
         repo_map = {r.id: r for r in all_repos}

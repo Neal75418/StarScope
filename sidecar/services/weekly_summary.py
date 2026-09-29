@@ -40,8 +40,10 @@ def _fetch_snapshot_deltas(
     # 原本用不設下限的 func.max 取「這個 repo 有史以來最新一筆」，抓取斷了好幾天
     # 的 repo 會拿過期快照冒充「最新」，跟更早的基準配對出一個涵蓋範圍遠超過
     # 宣稱窗口的 delta（例如「7 天」實際跨了 12 天），而且畫面上看不出任何異常。
+    # join Repo 讓 soft_delete 的封存條件排除封存 repo：否則它的星數算進總數、還以 "unknown" 出現在漲跌榜
     latest_snapshots = (
         db.query(RepoSnapshot)
+        .join(RepoSnapshot.repo)
         .filter(RepoSnapshot.snapshot_date == period_end)
         .all()
     )
@@ -99,7 +101,8 @@ def _preload_signal_and_repo_maps(
     Returns:
         ``(signal_map, repo_info)``
     """
-    all_signals = db.query(Signal).filter(
+    # join Repo：封存 repo 的訊號不能算進加速／減速的 repo 數
+    all_signals = db.query(Signal).join(Signal.repo).filter(
         Signal.signal_type.in_([SignalType.VELOCITY, SignalType.TREND, SignalType.ACCELERATION])
     ).all()
     signal_map: dict[int, dict[str, float]] = {}
@@ -168,8 +171,10 @@ def _get_alert_and_signal_stats(
     Returns:
         ``(alerts_triggered, early_signals_detected, early_signals_by_type)``
     """
+    # 兩個計數都 join Repo：封存 repo 的警報與訊號不算進本週的數字
     alerts_triggered: int = (
         db.query(func.count(TriggeredAlert.id))
+        .join(TriggeredAlert.repo)
         .filter(TriggeredAlert.triggered_at >= week_ago)
         .scalar()
         or 0
@@ -177,6 +182,7 @@ def _get_alert_and_signal_stats(
 
     early_signals = (
         db.query(EarlySignal)
+        .join(EarlySignal.repo)
         .filter(EarlySignal.detected_at >= week_ago)
         .all()
     )
@@ -201,8 +207,10 @@ def _get_hn_mentions(
     面板因此變成一份靜止的歷史最高分排行，掛在寫著「近 7 天」的標題底下，
     裡面有 2019 年和 2021 年的故事，而且永遠不會變。
     """
+    # join Repo 讓 soft_delete 的封存條件排除封存 repo 的訊號（否則照樣列出、repo_name 變成 "unknown"）
     hn_signals = (
         db.query(ContextSignal)
+        .join(ContextSignal.repo)
         .filter(
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS,
             ContextSignal.published_at >= week_ago,
@@ -252,8 +260,10 @@ def _get_releases(
     被標記的（breaking / security / deprecation）排在前面：一週 14 個新版本裡
     通常只有 1-2 個標記得到，那就是「今天該點進去」的那幾個，不該混在時間序裡。
     """
+    # join Repo 的理由同 _get_hn_mentions
     signals = (
         db.query(ContextSignal)
+        .join(ContextSignal.repo)
         .filter(
             ContextSignal.signal_type == ContextSignalType.RELEASE,
             ContextSignal.published_at >= week_ago,

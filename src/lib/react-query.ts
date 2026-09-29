@@ -196,6 +196,18 @@ export const queryKeys = {
 } as const;
 
 /**
+ * 重取 repo 清單。要重取時用這支，不要只 invalidate repos.all：
+ * 警報規則看不看得到跟著 repo 走（後端把綁在封存 repo 上的規則當成不存在），
+ * 規則清單留著舊資料的話，切換、編輯、刪除那條規則都會 404，復原的 repo 的規則也不會回來。
+ * 兩份規則快取都要重取（設定頁的規則清單、Dashboard 判斷有沒有規則用的那份）。
+ */
+export function invalidateTrackedRepos(client: QueryClient): void {
+  void client.invalidateQueries({ queryKey: queryKeys.repos.all });
+  void client.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });
+  void client.invalidateQueries({ queryKey: queryKeys.alerts.rules() });
+}
+
+/**
  * 建立測試用的 QueryClient（不重試、不快取）。
  */
 export function createTestQueryClient() {

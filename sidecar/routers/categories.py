@@ -117,17 +117,20 @@ class RepoCategoriesResponse(BaseModel):
 
 # 輔助函式
 def _build_repo_count_map(db: Session) -> dict[int, int]:
-    """以單一查詢批次載入所有分類的 repo 數量。"""
+    """以單一查詢批次載入所有分類的 repo 數量（不算封存的）。"""
+    # 分類與封存 repo 的關聯刻意保留（復原後原封不動回來），所以計數要 join Repo，
+    # 讓 soft_delete 的封存條件把它們排除；只數 repo_categories 會把封存的算進去
     rows = db.query(
         RepoCategory.category_id,
         func.count(RepoCategory.repo_id),
-    ).group_by(RepoCategory.category_id).all()
+    ).join(RepoCategory.repo).group_by(RepoCategory.category_id).all()
     return dict(rows)
 
 
 def _get_repo_count(category_id: int, db: Session) -> int:
-    """取得單一分類中的 repo 數量。"""
-    return db.query(RepoCategory).filter(RepoCategory.category_id == category_id).count()
+    """取得單一分類中的 repo 數量（不算封存的，理由同 _build_repo_count_map）。"""
+    return (db.query(RepoCategory).join(RepoCategory.repo)
+            .filter(RepoCategory.category_id == category_id).count())
 
 
 def _category_base_fields(category: Category, repo_count_map: dict[int, int]) -> dict:
@@ -378,14 +381,14 @@ def get_category_repos(
     """
     category = _get_category_or_404(category_id, db)
 
-    # 取得總數
-    total = db.query(RepoCategory).filter(
-        RepoCategory.category_id == category_id
-    ).count()
+    total = _get_repo_count(category_id, db)
 
+    # inner join 才會讓 soft_delete 的封存條件排除封存 repo 的成員列；只靠 joinedload（LEFT JOIN）
+    # 條件落在 ON 子句，成員列照樣撈出來、repo 卻是 None，整頁 500
     # noinspection PyTypeChecker
     repo_categories: list[RepoCategory] = (
         db.query(RepoCategory)
+        .join(RepoCategory.repo)
         .options(joinedload(RepoCategory.repo))
         .filter(RepoCategory.category_id == category_id)
         .order_by(RepoCategory.id)

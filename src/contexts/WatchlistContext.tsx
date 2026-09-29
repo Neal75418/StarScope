@@ -29,7 +29,7 @@ import { useReposQuery } from "../hooks/useReposQuery";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
-import { queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
 import type { ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
@@ -138,12 +138,18 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
     } catch (err) {
       if (controller.signal.aborted) return;
       logger.error("[Watchlist] 分類 Repo 重新載入失敗:", err);
+      // 還沒有成員快照（第一次載入被這次刷新中止）就跟 setCategory 失敗一樣處理。
+      // 有舊快照就留著：清單仍照這個分類篩選，只是可能稍舊
+      if (stateRef.current.filters.categoryRepoIds === null) {
+        dispatch({ type: "SET_CATEGORY", payload: { categoryId: null } });
+        showToastFn("error", t.toast.categoryLoadFailed);
+      }
     }
-  }, []);
+  }, [showToastFn, t]);
 
   // invalidate repos cache 的便利函式（同時刷新分類快照）
   const invalidateRepos = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: queryKeys.repos.all });
+    invalidateTrackedRepos(qc);
     void refreshCategoryRepos();
   }, [qc, refreshCategoryRepos]);
 
@@ -314,7 +320,10 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
         } catch (err) {
           if (controller.signal.aborted) return;
           logger.error("[Watchlist] 分類 Repo 載入失敗:", err);
-          dispatch({ type: "SET_CATEGORY_REPOS", payload: { repoIds: null } });
+          // 回到「全部」並說出來。只把成員快照設成 null 的話，側欄仍顯示選中這個分類，
+          // 清單卻因為 null＝不篩選而列出全部 repo，而且沒有任何提示
+          dispatch({ type: "SET_CATEGORY", payload: { categoryId: null } });
+          showToastFn("error", t.toast.categoryLoadFailed);
         }
       },
 

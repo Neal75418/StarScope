@@ -11,12 +11,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { StarSyncSection } from "../StarSyncSection";
 import * as client from "../../../api/client";
+import { queryKeys } from "../../../lib/react-query";
 
 vi.mock("../../../api/client");
 
 function renderWithClient(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return { ...render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>), qc };
 }
 
 const NOTHING: client.SyncResult = {
@@ -111,6 +112,25 @@ describe("StarSyncSection", () => {
     fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
 
     await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledWith("star", ["a/one"]));
+  });
+
+  it("refreshes the alert rule list after a sync and after a pending-list action", async () => {
+    // 同步會封存或復原 repo，待決清單的「封存」會封存 repo：綁在上面的規則跟著消失或回來，
+    // 而規則清單就在同一頁下方
+    vi.mocked(client.syncStars).mockResolvedValue({ ...NOTHING, pending_local_only: ["a/one"] });
+    vi.mocked(client.resolveLocalOnly).mockResolvedValue({ handled: 1 });
+    const { qc } = renderWithClient(<StarSyncSection />);
+    const rulesInvalidated = () => qc.getQueryState(queryKeys.alertRuleData.rules())?.isInvalidated;
+
+    qc.setQueryData(queryKeys.alertRuleData.rules(), []);
+    fireEvent.click(await screen.findByTestId("star-sync-btn"));
+    await waitFor(() => expect(rulesInvalidated()).toBe(true));
+
+    // 重新寫入會清掉 invalidated 旗標，才看得出第二次是待決清單的動作觸發的
+    qc.setQueryData(queryKeys.alertRuleData.rules(), []);
+    fireEvent.click(await screen.findByTestId("star-sync-pending-archive"));
+    await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledWith("archive", ["a/one"]));
+    await waitFor(() => expect(rulesInvalidated()).toBe(true));
   });
 
   it("surfaces a failed pending-list action instead of leaving the button silent", async () => {
