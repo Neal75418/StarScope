@@ -298,8 +298,10 @@ body {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  backdrop-filter: blur(var(--glass-blur));
+  /* 前綴版要寫在前面：Lightning CSS（Vite 8 的 CSS minifier）把兩行當同一個屬性合併，只留下後寫的那行，
+     而 Windows 的 WebView2（Chromium）不認 -webkit- 版本 */
   -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
 }
 
 .nav-container {

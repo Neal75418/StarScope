@@ -25,11 +25,15 @@ export default defineConfig(async () => ({
 
   // Build optimizations
   build: {
-    rollupOptions: {
+    // 維持 Vite 7 的預設目標。Vite 8 把預設提高到 safari16.4／chrome111，CSS 的 media query 會被改寫成
+    // range 語法 (width<=768px)，WebKitGTK 2.40 以前（沒更新的 Linux 發行版）認不得，斷點會靜默失效
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          // Separate large charting library for better caching
-          recharts: ["recharts"],
+        // 沿用原本的切法，把 recharts 分成獨立的一塊（Rollup 的 manualChunks 物件寫法 Rolldown 不支援）。
+        // 它跟主程式共用的依賴也會被收進這一塊，所以 index.html 仍會在啟動時預載它（升級前的 Rollup 設定也一樣）
+        codeSplitting: {
+          groups: [{ name: "recharts", test: /node_modules[\\/]recharts[\\/]/ }],
         },
       },
     },
