@@ -65,6 +65,20 @@ Session 是同步的：`async def` 裡的查詢跑在 event loop 上，連線池
 有 await 的 endpoint（如 `feed/generate`）、啟動同步、排程 job 仍在 loop 上做 DB，靠 engine 用 `NullPool`
 （`create_app_engine`）不排隊撐住。⚠️ 別改回有上限的連線池：連線佔用數跟著進行中的請求數走，加大池子也擋不住。
 
+## 封存的 repo：查別張表要 join Repo
+
+取消追蹤＝封存（`unstarred_at` 有值），資料全留、復原後整組回來；一般畫面上它要跟永久刪除一樣看不到、不算進任何數字。
+`db/soft_delete.py` 讓每個 SELECT 自動排除封存的 `Repo`，但**只管得到查詢裡出現的 Repo**：查別張表（RepoCategory、AlertRule、
+TriggeredAlert、RepoSnapshot、Signal、ContextSignal、EarlySignal…）沒有 `.join(X.repo)` 的話，封存 repo 的資料會被列出或
+算進數字，關聯則載入成 None、拿來用就 500。
+
+- outer join 時封存條件落在 ON 子句（封存的 repo 以 NULL 出現），要自己過濾（例：`routers/alerts.py` 的 `_visible_rules`）；
+  要看得到封存的列用 `include_archived()`
+- ⚠️ `tests/test_archived_repos_hidden.py` 逐一比對每個 GET 端點在「封存」與「永久刪除」下的回應，必須一樣；回應會跟著封存變的
+  端點要列進 `CHANGES_WHEN_ARCHIVED`（雙向比對，新端點沒列會紅）
+- ⚠️ AlertRule、TriggeredAlert、RepoCategory、SimilarRepo 的刪除只靠 DB 的 `ON DELETE CASCADE`：自己建 engine 要掛
+  `set_sqlite_pragma`（開 foreign_keys），否則刪不乾淨——conftest 的 test engine 已掛
+
 ## 本機防護與 middleware 順序
 
 - `SessionAuthMiddleware`：只在 Tauri 注入 secret 時生效（正式版）；手動啟動的 sidecar（start-dev.sh、e2e）整個放行

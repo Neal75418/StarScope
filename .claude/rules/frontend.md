@@ -28,6 +28,9 @@ paths:
   query key 生成器，避免魔術字串；**測試工具** `createTestQueryClient()` 提供零快取零重試的 QueryClient
 - **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），
   成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
+- ⚠️ **追蹤名單可能變動的操作（加入、取消追蹤、復原、刪除封存、同步、匯入）之後用 `invalidateTrackedRepos(qc)` 重取**
+  （`lib/react-query.ts`），不要只 invalidate `queryKeys.repos.all`：警報規則看不看得到跟著 repo 走（後端把綁在封存 repo 上的
+  規則當成不存在），規則快取沒一起重取的話，對過期的規則切換／編輯／刪除會 404，復原的 repo 的規則也不會回來
 - **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
   不是瀏覽器有網路。連不上時查詢暫停、連上後自動接著跑；別處不要 `onlineManager.setEventListener`、
   不要給查詢加 `networkMode: 'always'`。在 Tauri 裡探測還要過 Rust 狀態的閘門（`gateOpen`）：新增的探測入口一律走
