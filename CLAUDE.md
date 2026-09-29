@@ -68,8 +68,8 @@ npm run build:analyze    # Bundle 大小分析
 
 ⚠️ **一律走 `sidecar/.venv/`，不要用裸 `python` / `pytest`。** macOS 內建的 `python3` 是 3.9，而 `constants.py` 與
 `db/models.py` 用了 `StrEnum`（Python 3.11+，共 11 個類別的基底），裸執行會直接 `ImportError: cannot import name 'StrEnum'`。
-Python 版本以 repo 根目錄的 `.python-version`（3.13）為準：CI 的 `actions/setup-python` 讀它，本機 venv 也要用同一版
-（`python3.13 -m venv`；`uv venv --seed`、pyenv 會自動讀），mypy 不另設 `python_version`、跟著直譯器走。
+Python 版本以 repo 根目錄的 `.python-version`（3.14）為準：CI 的 `actions/setup-python` 讀它，本機 venv 也要用同一版
+（`python3.14 -m venv`；`uv venv --seed`、pyenv 會自動讀），mypy 不另設 `python_version`、跟著直譯器走。
 升版改 `.python-version`，然後跑 `tests/test_python_version_single_source.py`：它會指出 README、本段、CI 裡還有哪裡沒跟上，
 也會在本機 venv 不是這一版時變紅。
 
@@ -82,7 +82,7 @@ cd sidecar
 .venv/bin/ruff check --fix .                       # Python lint（CI 也跑；規則明確列在 ruff.toml，不吃 Ruff 預設值）
 ```
 
-venv 不存在時：`cd sidecar && python3.13 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
+venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
 
 Rust：`cd src-tauri && cargo test --lib`（`test.yml` 不編譯 Rust；Windows／Linux 只在 `release.yml` 編）。
 

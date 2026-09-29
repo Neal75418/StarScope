@@ -8,7 +8,7 @@ _Don't just count stars — catch rising stars early._
 
 ![Tauri](https://img.shields.io/badge/Tauri-v2-24C8D8?logo=tauri&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.129+-009688?logo=fastapi&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white)
@@ -91,7 +91,7 @@ graph TB
         end
     end
 
-    subgraph Engine["⚙️ Data Engine — Python 3.13"]
+    subgraph Engine["⚙️ Data Engine — Python 3.14"]
         direction TB
         API["FastAPI :8008"]
         Services["Core Services<br/>GitHub Fetcher<br/>Signal Analyzer<br/>Anomaly Detector<br/>Context Fetcher<br/>Recommender<br/>Feed Generator"]
@@ -166,7 +166,7 @@ chmod +x StarScope.AppImage
 |---------|---------------|
 | Node.js | 24（以 `.nvmrc` 為準） |
 | Rust    | latest stable |
-| Python  | 3.13（以 `.python-version` 為準） |
+| Python  | 3.14（以 `.python-version` 為準） |
 
 ### 安裝
 
@@ -179,7 +179,7 @@ npm install
 
 # Python 依賴（版本以根目錄的 .python-version 為準，uv／pyenv 會自動讀它；
 # 一定要用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
-cd sidecar && python3.13 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt && cd ..
+cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt && cd ..
 
 # 環境設定（選用，提升 GitHub API 配額）
 cp sidecar/.env.example sidecar/.env
