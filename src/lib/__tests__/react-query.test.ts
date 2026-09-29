@@ -206,6 +206,8 @@ describe("invalidateTrackedRepos", () => {
       queryKeys.repos.lists(),
       queryKeys.repos.categoryTree(),
       queryKeys.repos.categoryMembers(5),
+      // 訊號也不算封存的 repo：設定頁復原、探索頁加入之後「有訊號」要跟著變
+      queryKeys.signals.summary(),
       queryKeys.alertRuleData.rules(),
       queryKeys.alerts.rules(),
       queryKeys.digest.session(),
@@ -216,6 +218,7 @@ describe("invalidateTrackedRepos", () => {
 
     // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
     expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
       true,
       true,
       true,

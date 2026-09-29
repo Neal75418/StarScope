@@ -205,7 +205,8 @@ export const queryKeys = {
  * 規則清單留著舊資料的話，切換、編輯、刪除那條規則都會 404，復原的 repo 的規則也不會回來。
  * 兩份規則快取都要重取（設定頁的規則清單、Dashboard 判斷有沒有規則用的那份）。
  * 分類樹與分類成員在 repos 前綴底下會一起重讀；沒有畫面顯示的分類樹也先在背景重讀，
- * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。
+ * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。早期訊號同理不算封存的 repo，
+ * 取消追蹤或復原之後「有訊號」要跟著變。
  */
 export function invalidateTrackedRepos(client: QueryClient): void {
   // 還在第一次載入的分類查詢，請求是寫入前讀的：沒有資料時 React Query 不中止它，invalidate 只會
@@ -214,6 +215,7 @@ export function invalidateTrackedRepos(client: QueryClient): void {
   void client.cancelQueries({ queryKey: [...queryKeys.repos.all, "categories"] });
   void client.invalidateQueries({ queryKey: queryKeys.repos.all });
   void client.refetchQueries({ queryKey: queryKeys.repos.categoryTree(), type: "inactive" });
+  void client.invalidateQueries({ queryKey: queryKeys.signals.all });
   void client.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });
   void client.invalidateQueries({ queryKey: queryKeys.alerts.rules() });
 }
