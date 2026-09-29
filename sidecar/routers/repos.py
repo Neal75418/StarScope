@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from typing import Annotated, Literal
 
 from pydantic import BaseModel
-from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from constants import (
@@ -164,7 +163,7 @@ def _build_repo_list_response(
     per_page: int | None = None,
 ) -> RepoListResponse:
     """建立含所有 repo 及其訊號的 RepoListResponse。支援可選分頁。"""
-    query = db.query(Repo).order_by(desc(Repo.added_at))
+    query = db.query(Repo).order_by(Repo.added_at.desc())
     total = query.count()
 
     if total == 0:
@@ -461,7 +460,7 @@ def list_archived(db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     rows = (include_archived(db.query(Repo))
             .filter(Repo.unstarred_at.isnot(None))
-            .order_by(desc(Repo.unstarred_at)).all())
+            .order_by(Repo.unstarred_at.desc()).all())
     return success_response(RepoListResponse(
         repos=[get_repo_with_signals(r, db) for r in rows], total=len(rows)))
 

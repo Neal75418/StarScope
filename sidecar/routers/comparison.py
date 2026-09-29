@@ -9,7 +9,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
-from sqlalchemy import asc
 
 from constants import SignalType, TimeRange
 from db.database import get_db
@@ -129,7 +128,7 @@ def comparison_chart(
     )
     if start_date:
         snapshot_query = snapshot_query.filter(RepoSnapshot.snapshot_date >= start_date)
-    snapshot_query = snapshot_query.order_by(asc(RepoSnapshot.snapshot_date))
+    snapshot_query = snapshot_query.order_by(RepoSnapshot.snapshot_date.asc())
     all_snapshots = snapshot_query.all()
 
     # 依 repo_id 分組

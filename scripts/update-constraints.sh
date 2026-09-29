@@ -20,9 +20,7 @@ FREEZE="$(.venv/bin/pip freeze --exclude-editable)"
 #
 # 不要手改：升級套件後執行 scripts/update-constraints.sh 重新產生。
 # ⚠️ 鎖不到的：constraints 只限制「要裝的話裝哪一版」，開發機沒裝、其他平台才會裝的套件不在 freeze 裡，
-# 仍會裝到最新版。例如 greenlet（SQLAlchemy 只在 x86_64／aarch64 等機型拉它，Mac arm64 不算，
-# 所以 CI 的 ubuntu、Intel Mac、Windows 都會裝）、Linux 上 keyring 的 SecretStorage／cryptography、
-# Windows 上的 tzdata／pefile。
+# 仍會裝到最新版。例如 Linux 上 keyring 的 SecretStorage／cryptography、Windows 上的 tzdata／pefile。
 EOF
   echo "$FREEZE"
 } > constraints.txt

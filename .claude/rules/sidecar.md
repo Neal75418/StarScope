@@ -16,7 +16,7 @@ paths:
 `-c constraints.txt` 安裝；`requirements.txt` 只宣告範圍。不要手改 constraints。升級流程：venv 裡
 `pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit 兩個檔（venv 要裝 pyinstaller，
 沒裝腳本會擋）。`tests/test_constraints.py` 守住每個 requirement 都有鎖、且鎖的版本在範圍內。
-鎖不到開發機沒裝的平台限定套件（greenlet、Windows 的 tzdata 等），清單見 constraints.txt 開頭。
+鎖不到開發機沒裝的平台限定套件（Linux 的 SecretStorage、Windows 的 tzdata 等），清單見 constraints.txt 開頭。
 
 ⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：
 - `isolate_github_credentials`：keyring 換成 null；`GITHUB_TOKEN` 設成**空字串佔位而不是刪掉**——`main.py` import 時的

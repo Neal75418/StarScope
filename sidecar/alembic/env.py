@@ -24,7 +24,9 @@ from db.database import DATABASE_URL  # noqa: E402
 config = context.config
 
 # Set the SQLAlchemy URL from our database configuration
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# configparser 把 % 當插值語法，URL 裡的 % 要寫成 %%。SQLAlchemy 2.1 會跳脫 database 段，
+# 所以 Windows 路徑（C%3A%5C…）和非 ASCII 的使用者名稱一定含 %，少了這行 alembic 一讀設定就炸
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

@@ -126,6 +126,25 @@ class TestCategoryEndpoints:
         assert len(parent_node["children"]) == 1
         assert parent_node["children"][0]["name"] == "Tree Child"
 
+    def test_tree_reports_how_many_repos_each_category_holds(self, client, test_db):
+        """每個分類的 repo_count 是自己底下的 repo 數量，沒有 repo 的是 0（_build_repo_count_map 算的）。"""
+        from db.models import Repo
+
+        repos = [
+            Repo(owner="o", name=f"r{i}", full_name=f"o/r{i}", url=f"https://github.com/o/r{i}", github_id=9000 + i)
+            for i in range(3)
+        ]
+        test_db.add_all(repos)
+        test_db.commit()
+        ids = {name: client.post("/api/categories", json={"name": name}).json()["data"]["id"]
+               for name in ("Two", "One", "Empty")}
+        for repo in repos[:2]:
+            assert client.post(f"/api/categories/{ids['Two']}/repos/{repo.id}").status_code == 200
+        assert client.post(f"/api/categories/{ids['One']}/repos/{repos[2].id}").status_code == 200
+
+        tree = client.get("/api/categories/tree").json()["data"]["tree"]
+
+        assert {node["name"]: node["repo_count"] for node in tree} == {"Two": 2, "One": 1, "Empty": 0}
 
 class TestCategoryUpdate:
     """Test cases for category update operations."""

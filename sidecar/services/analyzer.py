@@ -11,7 +11,7 @@ StarScope 的訊號計算引擎。
 
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import delete, desc
+from sqlalchemy import delete
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from db.models import RepoSnapshot, Signal
@@ -49,7 +49,7 @@ def get_snapshot_for_date(
     return (
         db.query(RepoSnapshot)
         .filter(RepoSnapshot.repo_id == repo_id, RepoSnapshot.snapshot_date <= target_date)
-        .order_by(desc(RepoSnapshot.snapshot_date))
+        .order_by(RepoSnapshot.snapshot_date.desc())
         .first()
     )
 

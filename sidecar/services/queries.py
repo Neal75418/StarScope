@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import desc, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session, Query, aliased
 from sqlalchemy.sql.selectable import Subquery
 
@@ -80,7 +80,7 @@ def query_trending_repos(
     # 不需要 coalesce
     return (
         query
-        .order_by(desc(sort_signal.value))
+        .order_by(sort_signal.value.desc())
         .limit(limit)
         .all()
     )
@@ -215,7 +215,7 @@ def build_stars_map(
         .all()
     )
 
-    return dict(results)  # type: ignore[arg-type]
+    return dict(results)
 
 
 def get_snapshot_for_repo(

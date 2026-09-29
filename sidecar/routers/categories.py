@@ -121,7 +121,7 @@ def _build_repo_count_map(db: Session) -> dict[int, int]:
     rows = db.query(
         RepoCategory.category_id,
         func.count(RepoCategory.repo_id),
-    ).group_by(RepoCategory.category_id).tuples().all()
+    ).group_by(RepoCategory.category_id).all()
     return dict(rows)
 
 

@@ -15,9 +15,10 @@ httpx[http2]>=0.28.0,<1.0.0
 tenacity>=9.1.4,<10.0.0
 
 # Database
-# 鎖在 2.0：2.1 的型別宣告讓 order_by(desc(...)) 過不了 mypy（執行期測試照樣通過）。
-# 升 2.1 要另外做並送審，不該由 CI 全新安裝時悄悄帶進來
-sqlalchemy>=2.0.46,<2.1
+# 鎖在同一個 minor：2.0 → 2.1 改了型別宣告（order_by(desc(X)) 過不了 mypy，執行期測試照樣全過）、
+# 棄用了 Query.tuples()、URL 的 database 段改成先 percent-decode（見 db/database.py 的 sqlite_url）。
+# 下一個 minor 要另外做並送審，不該由 CI 全新安裝時悄悄帶進來
+sqlalchemy>=2.1.1,<2.2
 alembic>=1.18.4,<2.0.0
 
 # Background scheduler

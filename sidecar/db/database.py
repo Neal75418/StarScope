@@ -5,7 +5,7 @@ import os
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import Column, Engine, MetaData, PrimaryKeyConstraint, Table, create_engine, event
+from sqlalchemy import URL, Column, Engine, MetaData, PrimaryKeyConstraint, Table, create_engine, event
 from sqlalchemy.schema import ColumnCollectionConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
@@ -36,8 +36,19 @@ APP_DATA_DIR = get_app_data_dir()
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 DATABASE_PATH = APP_DATA_DIR / "starscope.db"
 
+
+def sqlite_url(path: Path) -> str:
+    """SQLite 檔案路徑轉成連線 URL，解析回來要是同一個路徑。
+
+    不能用 f"sqlite:///{path}" 直接拼："?" 之後一向會被當成查詢參數；SQLAlchemy 2.1 起 database 段
+    還會先 percent-decode（"%41" 變成 "A"）。2.1 的 render_as_string 會把 database 段跳脫、
+    make_url 再解回原路徑（2.0 的 render_as_string 不跳脫，所以這個寫法依賴 2.1）。
+    """
+    return URL.create("sqlite", database=str(path)).render_as_string(hide_password=False)
+
+
 # SQLite 連線 URL
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+DATABASE_URL = sqlite_url(DATABASE_PATH)
 
 
 def set_sqlite_pragma(dbapi_connection, _connection_record):

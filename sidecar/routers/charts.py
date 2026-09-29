@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
 from constants import TimeRange
@@ -69,7 +68,7 @@ def get_stars_chart(
             RepoSnapshot.repo_id == repo_id,
             RepoSnapshot.snapshot_date >= start_date
         )
-        .order_by(asc(RepoSnapshot.snapshot_date))
+        .order_by(RepoSnapshot.snapshot_date.asc())
         .all()
     )
 

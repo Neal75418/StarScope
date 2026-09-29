@@ -9,7 +9,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func
+from sqlalchemy import and_, func
 
 from constants import ContextSignalType, MIN_HN_SCORE_FOR_BADGE, RECENT_THRESHOLD_DAYS
 from schemas.time import UtcDateTime
@@ -113,7 +113,7 @@ def get_context_signals(
             )
         query = query.filter(ContextSignal.signal_type == signal_type)
 
-    signals = query.order_by(desc(ContextSignal.published_at)).limit(limit).all()
+    signals = query.order_by(ContextSignal.published_at.desc()).limit(limit).all()
 
     context_response = ContextSignalsResponse(
         signals=[ContextSignalResponse.model_validate(s) for s in signals],
@@ -149,7 +149,7 @@ def get_context_badges(
             ContextSignal.repo_id == repo_id,
             ContextSignal.signal_type == ContextSignalType.HACKER_NEWS
         )
-        .order_by(desc(ContextSignal.score))
+        .order_by(ContextSignal.score.desc())
         .first()
     )
     if top_hn and top_hn.score and top_hn.score >= MIN_HN_SCORE_FOR_BADGE:
