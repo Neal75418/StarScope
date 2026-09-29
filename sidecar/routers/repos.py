@@ -38,6 +38,7 @@ from schemas.response import ApiResponse, success_response
 from services.github import (
     GitHubAPIError,
     GitHubNotFoundError,
+    GitHubService,
     get_github_service,
 )
 from services.queries import build_signal_map, build_snapshot_map
@@ -229,6 +230,57 @@ def list_repos(
     )
 
 
+async def _add_or_restore_repo(
+    owner: str, name: str, github: GitHubService, db: Session
+) -> tuple[Repo, Literal["created", "restored", "already_tracked"]]:
+    """把 repo 放進追蹤清單：新的建列，封存的復原，已在追蹤的原樣回傳。
+
+    單筆與批次加入共用這一份。各寫一份時復原只補在單筆那邊，批次加入遇到封存的
+    repo 只會略過——探索頁把它當成沒追蹤、可以勾選，卻永遠加不回來。
+    GitHub 例外往外拋、由呼叫端回報；拋出時本機沒有任何改動。
+    """
+    # 必須看得到封存的列：full_name 是唯一鍵，看不到就會一路往下打 GitHub 再 INSERT 撞鍵回 500
+    existing = include_archived(
+        db.query(Repo)).filter(Repo.full_name == f"{owner}/{name}").first()
+    if existing is not None and existing.unstarred_at is None:
+        return existing, "already_tracked"
+
+    # 先寫 GitHub 再改本機（新建與復原都一樣）。反向順序會在寫入失敗時留下本機有、遠端沒有的狀態，
+    # 而下一次同步會把它判成「使用者取消了 star」而封存——加進去的東西自己消失。
+    #
+    # 沒有 token 時只改本機：star 寫入需要認證，但讀取可以匿名。這不會造成漂移，
+    # 因為同步在沒有 token 時同樣不執行；等到日後連結帳號，那一次就是「首次同步」，
+    # 而首次同步不自動封存，會把這些列出來讓使用者決定。
+    starred_now = False
+    if github.can_write:
+        await github.star_repo(owner, name)
+        starred_now = True
+
+    if existing is not None:
+        # 封存的列＝使用者取消過又反悔。復原同一列（快照、訊號、分類、警報規則都還在），
+        # 而不是回「已經在清單裡」——畫面上根本沒有它，使用者會被永久擋住
+        existing.unstarred_at = None
+        db.commit()
+        db.refresh(existing)
+        return existing, "restored"
+
+    github_data = await github.get_repo(owner, name)
+    repo = _create_repo_from_github(owner, name, github_data)
+    if starred_now:
+        # PUT 回 204 空 body，拿不到 GitHub 的精確時間，但「剛剛」是夠好的近似，
+        # 下次同步會用 GitHub 的值覆蓋。留 NULL 的話，使用者若馬上又取消追蹤，
+        # 那一列就永遠沒有收藏日期——而那是判斷去留的依據。
+        repo.starred_at = utc_now()
+    db.add(repo)
+    db.flush()
+    db.refresh(repo)
+
+    # 建立初始快照（使用共用服務確保欄位映射一致）
+    create_or_update_snapshot(repo, github_data, db)
+    db.commit()
+    return repo, "created"
+
+
 @router.post("/repos", response_model=ApiResponse[RepoWithSignals], status_code=status.HTTP_201_CREATED)
 async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
@@ -243,67 +295,17 @@ async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db
     # 驗證輸入以防止 SSRF
     _validate_github_identifier(owner, name)
 
-    full_name = f"{owner}/{name}"
-
-    # 檢查是否已存在。必須看得到封存的列：full_name 是唯一鍵，看不到就會一路往下
-    # 打 GitHub 再 INSERT 撞鍵回 500
-    existing = include_archived(
-        db.query(Repo)).filter(Repo.full_name == full_name).first()
-    if existing is not None and existing.unstarred_at is not None:
-        # 封存的列＝使用者取消過又反悔。重新 star 並復原，而不是回 400——那會說
-        # 「已經在清單裡」，但畫面上根本沒有它，使用者被永久擋住。
-        github = get_github_service()
-        if github.can_write:
-            await github.star_repo(owner, name)
-        existing.unstarred_at = None
-        db.commit()
-        db.refresh(existing)
-        return success_response(
-            data=get_repo_with_signals(existing, db),
-            message=f"Repository {full_name} restored to watchlist",
-        )
-    if existing:
+    # GitHub 例外由 main.py 中的全域例外處理器處理
+    repo, outcome = await _add_or_restore_repo(owner, name, get_github_service(), db)
+    if outcome == "already_tracked":
         raise HTTPException(
             status_code=400,
-            detail=f"Repository {full_name} is already in your watchlist"
+            detail=f"Repository {repo.full_name} is already in your watchlist"
         )
 
-    # 從 GitHub 抓取 repo 資訊
-    # GitHub 例外由 main.py 中的全域例外處理器處理。
-    github = get_github_service()
-
-    # 先寫 GitHub 再建本機列。反向順序會在寫入失敗時留下本機有、遠端沒有的狀態，
-    # 而下一次同步會把它判成「使用者取消了 star」而封存——加進去的東西自己消失。
-    #
-    # 沒有 token 時只建本機列：star 寫入需要認證，但讀取可以匿名。這不會造成漂移，
-    # 因為同步在沒有 token 時同樣不執行；等到日後連結帳號，那一次就是「首次同步」，
-    # 而首次同步不自動封存，會把這些列出來讓使用者決定。
-    starred_now = False
-    if github.can_write:
-        await github.star_repo(owner, name)
-        starred_now = True
-
-    github_data = await github.get_repo(owner, name)
-
-    # 建立 repo 紀錄
-    repo = _create_repo_from_github(owner, name, github_data)
-    if starred_now:
-        # PUT 回 204 空 body，拿不到 GitHub 的精確時間，但「剛剛」是夠好的近似，
-        # 下次同步會用 GitHub 的值覆蓋。留 NULL 的話，使用者若馬上又取消追蹤，
-        # 那一列就永遠沒有收藏日期——而那是判斷去留的依據。
-        repo.starred_at = utc_now()
-    db.add(repo)
-    db.flush()
-    db.refresh(repo)
-
-    # 建立初始快照（使用共用服務確保欄位映射一致）
-    create_or_update_snapshot(repo, github_data, db)
-    db.commit()
-
-    repo_with_signals = get_repo_with_signals(repo, db)
     return success_response(
-        data=repo_with_signals,
-        message=f"Repository {repo.full_name} added to watchlist"
+        data=get_repo_with_signals(repo, db),
+        message=f"Repository {repo.full_name} {'restored to' if outcome == 'restored' else 'added to'} watchlist"
     )
 
 
@@ -364,7 +366,7 @@ async def batch_add_repos(
 ) -> dict:
     """
     批次將多個 repo 加入追蹤清單。
-    已存在的 repo 會被跳過，失敗的不會中斷整個批次。
+    已在追蹤的 repo 會被跳過、封存的會復原（同單筆加入），失敗的不會中斷整個批次。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
     github = get_github_service()
@@ -391,36 +393,8 @@ async def batch_add_repos(
             errors.append(f"{full_name}: {e.detail}")
             continue
 
-        # 同上：必須看得到封存的列，否則會撞 full_name 唯一鍵
-        existing = include_archived(
-            db.query(Repo)).filter(Repo.full_name == full_name).first()
-        if existing:
-            skipped += 1
-            continue
-
         try:
-            # 同 add_repo：先 star 才建列（無 token 時略過，理由見該處）
-            starred_now = False
-            if github.can_write:
-                await github.star_repo(owner, name)
-                starred_now = True
-
-            # 從 GitHub 抓取 repo 資訊
-            github_data = await github.get_repo(owner, name)
-
-            # 建立 repo 紀錄
-            repo = _create_repo_from_github(owner, name, github_data)
-            if starred_now:
-                repo.starred_at = utc_now()
-            db.add(repo)
-            db.flush()
-            db.refresh(repo)
-
-            # 建立初始快照
-            create_or_update_snapshot(repo, github_data, db)
-            db.commit()
-            success += 1
-
+            _, outcome = await _add_or_restore_repo(owner, name, github, db)
         except GitHubNotFoundError:
             failed += 1
             errors.append(f"{full_name}: 在 GitHub 上找不到")
@@ -436,6 +410,11 @@ async def batch_add_repos(
             errors.append(f"{full_name}: 未預期錯誤 - {e}")
             db.rollback()
             continue
+
+        if outcome == "already_tracked":
+            skipped += 1
+        else:
+            success += 1
 
     return success_response(
         data=BatchImportResult(

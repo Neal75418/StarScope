@@ -5,7 +5,7 @@
 """
 import pytest
 
-from db.models import Repo
+from db.models import AlertRule, Category, Repo, RepoCategory, RepoSnapshot
 from services.github import GitHubAPIError
 
 
@@ -48,6 +48,16 @@ class FakeGitHub:
             "created_at": "2026-01-01T00:00:00Z",
             "pushed_at": "2026-08-01T00:00:00Z",
         }
+
+
+@pytest.fixture(autouse=True)
+def fresh_limiter():
+    # 批次加入限流 5/minute，計數是模組層級的記憶體狀態：整個檔累積超過五次就會被 429 擋下
+    from middleware.rate_limit import limiter
+
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 @pytest.fixture
@@ -140,6 +150,7 @@ def test_adding_an_archived_repo_restores_it(client, test_db, fake_github):
     resp = client.post("/api/repos", json={"owner": "a", "name": "one"})
 
     assert resp.status_code == 201
+    assert resp.json()["message"] == "Repository a/one restored to watchlist"
     assert fake_github.starred == [("a", "one")], "復原必須也在 GitHub 上重新 star"
     rows = include_archived(test_db.query(Repo)).all()
     assert len(rows) == 1, "不得建立第二列"
@@ -171,3 +182,131 @@ def test_adding_without_a_token_records_no_star_time(client, test_db, monkeypatc
 
     row = test_db.query(Repo).filter(Repo.full_name == "a/one").one()
     assert row.starred_at is None
+
+
+def _archived_row(test_db, owner: str = "a", name: str = "one") -> int:
+    from datetime import datetime
+
+    repo = Repo(owner=owner, name=name, full_name=f"{owner}/{name}",
+                url=f"https://github.com/{owner}/{name}", github_id=1,
+                unstarred_at=datetime(2026, 8, 16))
+    test_db.add(repo)
+    test_db.commit()
+    return repo.id
+
+
+def _rows(test_db, full_name: str) -> list[Repo]:
+    from db.soft_delete import include_archived
+
+    # 正式環境每個請求一個 session，沒 commit 的寫入在 get_db 收尾時就消失；測試的 client 共用 test_db，
+    # 先 rollback 才看得出 endpoint 有沒有真的 commit（只 expire 的話，已 flush 未 commit 的照樣讀得到）
+    test_db.rollback()
+    # include_archived 回傳 Any，不註記的話 mypy 擋「宣告回 list[Repo] 卻回 Any」
+    rows: list[Repo] = include_archived(test_db.query(Repo)).filter(Repo.full_name == full_name).all()
+    return rows
+
+
+def test_batch_adding_an_archived_repo_restores_it(client, test_db, fake_github):
+    """探索頁把封存的 repo 當成沒追蹤、可以勾選，批次加入要跟單筆一樣復原它。
+
+    只看「列存不存在」就略過的話，畫面顯示部分成功（Added 1/2），那個 repo 仍封存、
+    看不到，重試也一樣。復原的必須是同一列：舊快照、分類、警報規則都還在。刪掉重建的話
+    這些會被 cascade 帶走，而 id 可能被重用，只比 id 看不出來。
+    """
+    from datetime import date
+
+    repo_id = _archived_row(test_db)
+    category = Category(name="Rust")
+    test_db.add(category)
+    test_db.flush()
+    test_db.add_all([
+        RepoSnapshot(repo_id=repo_id, stars=900, forks=1, snapshot_date=date(2026, 8, 1)),
+        RepoCategory(repo_id=repo_id, category_id=category.id),
+        AlertRule(name="fast", signal_type="velocity", operator=">", threshold=1.0,
+                  repo_id=repo_id, enabled=True),
+    ])
+    test_db.commit()
+
+    resp = client.post("/api/repos/batch",
+                       json={"repos": [{"owner": "a", "name": "one"},
+                                       {"owner": "b", "name": "two"}]})
+
+    data = resp.json()["data"]
+    assert (data["success"], data["skipped"], data["failed"]) == (2, 0, 0)
+    assert fake_github.starred == [("a", "one"), ("b", "two")], "復原必須也在 GitHub 上重新 star"
+    rows = _rows(test_db, "a/one")
+    assert len(rows) == 1, "不得建立第二列"
+    assert rows[0].unstarred_at is None
+    kept = rows[0].id
+    old = test_db.query(RepoSnapshot).filter(RepoSnapshot.repo_id == kept,
+                                             RepoSnapshot.snapshot_date == date(2026, 8, 1))
+    assert old.count() == 1, "歷史快照要還在"
+    assert test_db.query(RepoCategory).filter(RepoCategory.repo_id == kept).count() == 1
+    assert test_db.query(AlertRule).filter(AlertRule.repo_id == kept).count() == 1
+
+
+def test_a_later_failure_in_a_batch_does_not_undo_earlier_items(client, test_db, monkeypatch):
+    """每一筆各自 commit：後面某一筆失敗時的 rollback，不能撤掉前面已經成功的復原與新建。"""
+    class FailSome(FakeGitHub):
+        async def star_repo(self, owner: str, name: str) -> None:
+            if owner in ("x", "y"):
+                raise GitHubAPIError("star failed", status_code=403)
+            await super().star_repo(owner, name)
+
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: FailSome())
+    _archived_row(test_db)
+
+    resp = client.post("/api/repos/batch",
+                       json={"repos": [{"owner": "a", "name": "one"}, {"owner": "x", "name": "bad"},
+                                       {"owner": "b", "name": "two"}, {"owner": "y", "name": "bad"}]})
+
+    data = resp.json()["data"]
+    assert (data["success"], data["failed"]) == (2, 2)
+    assert _rows(test_db, "a/one")[0].unstarred_at is None
+    assert len(_rows(test_db, "b/two")) == 1
+
+
+def test_batch_skips_a_repo_already_tracked_without_touching_github(client, test_db,
+                                                                    fake_github):
+    test_db.add(Repo(owner="a", name="one", full_name="a/one",
+                     url="https://github.com/a/one", github_id=1))
+    test_db.commit()
+
+    resp = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "one"}]})
+
+    data = resp.json()["data"]
+    assert (data["success"], data["skipped"], data["failed"]) == (0, 1, 0)
+    assert fake_github.starred == []
+
+
+@pytest.mark.parametrize("endpoint", ["single", "batch"])
+def test_an_archived_repo_stays_archived_when_the_star_fails(client, test_db, monkeypatch,
+                                                              endpoint):
+    """復原也是先寫 GitHub、成功才改本機，兩個入口都一樣。"""
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: FakeGitHub(fail_star=True))
+    _archived_row(test_db)
+
+    if endpoint == "single":
+        assert client.post("/api/repos", json={"owner": "a", "name": "one"}).status_code == 502
+    else:
+        resp = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "one"}]})
+        assert resp.json()["data"]["failed"] == 1
+
+    assert _rows(test_db, "a/one")[0].unstarred_at is not None
+
+
+def test_batch_restores_without_a_token(client, test_db, monkeypatch):
+    """沒有 token 時復原只改本機，跟單筆加入、新建列的規則一樣（理由見 test_add_still_works_without_a_token）。"""
+    class NoToken(FakeGitHub):
+        can_write = False
+
+        async def star_repo(self, owner: str, name: str) -> None:
+            raise AssertionError("沒有 token 時不該嘗試寫入")
+
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: NoToken())
+    _archived_row(test_db)
+
+    resp = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "one"}]})
+
+    assert resp.json()["data"]["success"] == 1
+    assert _rows(test_db, "a/one")[0].unstarred_at is None
