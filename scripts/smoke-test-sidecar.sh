@@ -63,7 +63,8 @@ cleanup() {
 trap cleanup EXIT
 
 # 在本機跑時不能碰到開發者的資料與憑證：
-# - cd 到暫存目錄：打包後的 binary 會從 CWD 往上找 .env（python-dotenv 的 frozen 分支）
+# - cd 到暫存目錄：打包版不讀 .env（main.py 的 _load_dotenv_unless_frozen），但從舊版安裝檔取出的
+#   binary 仍會從 CWD 往上找 .env（python-dotenv 的 frozen 分支）
 # - 清空 GITHUB_TOKEN、keyring 換成 null backend：否則會讀到 Keychain 裡的真 token 並用它打 GitHub
 # - ENV=production 比照 Tauri release build 的注入（src-tauri/src/lib.rs）。Tauri 不設 DEBUG、
 #   會繼承使用者環境；這裡固定 false 是為了跟開發者的環境隔開，frozen＋DEBUG=true 的情況

@@ -6,7 +6,8 @@
 # - 打包 onedir 到暫存區，tauri build 以 --config 指向它，不動 repo 的 src-tauri/sidecar/
 # - 以 env -i 從零建環境：shell 裡的 token 一個都帶不進去；keyring 換成 null、GITHUB_TOKEN 設空
 # - STARSCOPE_DATA_DIR 指到暫存區：預設的 ~/.starscope 就是真實資料（安裝版、開發模式、collector 共用）
-# - cwd 在暫存區：打包後的 sidecar 會從 cwd 往上找 .env，repo 根目錄那份放著真 token
+# - cwd 在暫存區：打包版的 sidecar 不讀 .env（main.py 的 _load_dotenv_unless_frozen），但 --skip-build
+#   可能沿用不含這個行為的舊包，那種版本會從 cwd 往上找 .env，repo 根目錄那份放著真 token
 # - app 結束後檢查有沒有殘留的 sidecar、8008 有沒有放開
 #
 # 前端的 localStorage（介面偏好）跟已安裝的 StarScope 共用同一個 app identifier，這點隔離不了。

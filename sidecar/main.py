@@ -19,8 +19,21 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from slowapi.errors import RateLimitExceeded
 
-# 從 .env 檔載入環境變數（必須在讀取環境變數前呼叫）
-load_dotenv()
+
+def _load_dotenv_unless_frozen() -> None:
+    """從原始碼執行時讀 .env（python-dotenv 從 main.py 所在目錄往上找第一個）；打包版不讀。
+
+    打包後 python-dotenv 改從 cwd 往上找 .env：從終端機啟動安裝版時，cwd 上層任何一個 .env 都能
+    帶進 HTTPS_PROXY、SSL_CERT_FILE、GITHUB_TOKEN 這類會改變對外連線的變數。安裝版需要的設定
+    都有內建預設值，或由 Tauri 以環境變數傳入。
+    """
+    if getattr(sys, "frozen", False):
+        return
+    load_dotenv()
+
+
+# 必須在讀取環境變數前呼叫
+_load_dotenv_unless_frozen()
 
 from constants import APP_VERSION, DEFAULT_FETCH_INTERVAL_MINUTES, GITHUB_TOKEN_ENV_VAR
 from db import init_db
@@ -404,7 +417,7 @@ def run_server() -> None:
     host = "127.0.0.1"
     port = int(os.getenv("PORT", "8008"))
     # 打包後的 binary 不開 reload：reloader 先佔住 port，子行程再跑一次入口又綁同一個
-    # port，結果行程活著卻永遠不服務。DEBUG 仍可能經由使用者環境變數或上層目錄的 .env 進來
+    # port，結果行程活著卻永遠不服務。DEBUG 仍可能經由使用者的環境變數進來
     if DEBUG and not getattr(sys, "frozen", False):
         # hot reload 只能吃 import 字串：reloader 在子行程裡重新 import 這個模組
         uvicorn.run(
@@ -419,8 +432,11 @@ def run_server() -> None:
         )
     else:
         # 傳物件而不是 "main:app"：PyInstaller 打包後入口模組叫 __main__，
-        # 沒有名為 main 的模組可以 import
-        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port))
+        # 沒有名為 main 的模組可以 import。
+        # log_config=None：預設設定讓 uvicorn.error 只寫 stderr、不傳到 root，而安裝版的 stderr
+        # 沒有人收——lifespan 啟動失敗的 traceback 就不會進 starscope.log。不讓 uvicorn 動 logging
+        # 也保住 setup_logging 對 uvicorn.access 設的 WARNING（請求已由 LoggingMiddleware 記錄）
+        server = uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_config=None))
         # Tauri 會告訴我們它的 PID：它當掉或被強制結束時，sidecar 要自己走正常關閉，
         # 不能佔著 port 讓下次開 app 整片 403（見 utils/parent_watchdog.py）
         parent_pid = parent_pid_from_env(os.environ)
