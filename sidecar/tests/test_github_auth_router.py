@@ -53,13 +53,13 @@ class TestDeviceFlow:
 
         with patch("routers.github_auth.get_github_auth_service") as mock_get:
             mock_service = AsyncMock()
-            mock_service.initiate_device_flow.side_effect = GitHubAuthError("Client ID not configured")
+            mock_service.initiate_device_flow.side_effect = GitHubAuthError("Failed to initiate device flow: 422")
             mock_get.return_value = mock_service
 
             response = client.post("/api/github-auth/device-code")
 
         assert response.status_code == 400
-        assert "Client ID not configured" in response.json()["detail"]
+        assert "Failed to initiate device flow: 422" in response.json()["detail"]
 
 
 class TestPollAuthorization:

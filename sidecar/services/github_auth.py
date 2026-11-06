@@ -23,9 +23,10 @@ GITHUB_ACCESS_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 GITHUB_RATE_LIMIT_URL = "https://api.github.com/rate_limit"
 
-# 從環境變數讀取 Client ID
-# 使用者需在 .env 檔案中設定
+# Device Flow 用的 OAuth App。client ID 不是秘密（Device Flow 不使用 client secret），所以內建在
+# 程式碼裡：從 Releases 安裝的版本沒有 .env，也不會有人替它設環境變數。環境變數有值時以它為準
 GITHUB_CLIENT_ID_ENV_VAR = "GITHUB_CLIENT_ID"
+DEFAULT_GITHUB_CLIENT_ID = "Ov23liWSTKWiytbHhyuK"
 
 # StarScope 所需的 OAuth scopes
 # - public_repo: star / unstar 需要的最小 OAuth scope。它不只管 star——同時是使用者
@@ -66,12 +67,8 @@ class GitHubAuthService:
     """處理 GitHub Device Flow 驗證的服務。"""
 
     def __init__(self) -> None:
-        self.client_id = os.getenv(GITHUB_CLIENT_ID_ENV_VAR)
-        if not self.client_id:
-            logger.warning(
-                f"[GitHub 驗證] 未設定 GitHub Client ID，"
-                f"請在 .env 檔案中設定 {GITHUB_CLIENT_ID_ENV_VAR} 以啟用 GitHub OAuth"
-            )
+        # 用 or 而不是 getenv 的預設值參數：.env 裡留空的 `GITHUB_CLIENT_ID=` 會讓 getenv 回空字串
+        self.client_id = os.getenv(GITHUB_CLIENT_ID_ENV_VAR) or DEFAULT_GITHUB_CLIENT_ID
 
     async def initiate_device_flow(self) -> DeviceCodeResponse:
         """
@@ -81,12 +78,6 @@ class GitHubAuthService:
         Raises:
             GitHubAuthError: device flow 啟動失敗時拋出
         """
-        if not self.client_id:
-            raise GitHubAuthError(
-                f"GitHub Client ID not configured. "
-                f"Please set {GITHUB_CLIENT_ID_ENV_VAR} in your .env file."
-            )
-
         async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 GITHUB_DEVICE_CODE_URL,
@@ -125,10 +116,6 @@ class GitHubAuthService:
                 - error:（僅錯誤時）
         """
         logger.info(f"[GitHub 驗證] 正在輪詢 token，device_code: {device_code[:8]}...")
-
-        if not self.client_id:
-            logger.error("[GitHub 驗證] 未設定 Client ID")
-            return {"status": "error", "error": "Client ID not configured"}
 
         async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT_SECONDS) as client:
             response = await client.post(

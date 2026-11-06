@@ -4,6 +4,7 @@ Tests for services/github_auth.py - GitHub Device Flow authentication service.
 
 import pytest
 import os
+import re
 from unittest.mock import patch, MagicMock, AsyncMock
 
 import httpx
@@ -27,27 +28,39 @@ class TestGitHubAuthServiceInit:
             service = GitHubAuthService()
             assert service.client_id == "test-client-id"
 
-    def test_handles_missing_client_id(self):
-        """Test handles missing client ID gracefully."""
-        env = os.environ.copy()
-        env.pop("GITHUB_CLIENT_ID", None)
+    @pytest.mark.parametrize(
+        "env",
+        [
+            pytest.param({}, id="未設定"),
+            # .env 裡留一行 `GITHUB_CLIENT_ID=` 時，os.getenv 拿到的是空字串而不是 None
+            pytest.param({"GITHUB_CLIENT_ID": ""}, id="空字串"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_device_flow_uses_the_built_in_client_id_without_env(self, env):
+        """從 Releases 安裝的版本沒有 .env 也沒有這個環境變數，Device Flow 仍要能啟動。"""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "device_code": "dc", "user_code": "U", "verification_uri": "https://github.com/login/device",
+            "expires_in": 900, "interval": 5,
+        }
 
         with patch.dict(os.environ, env, clear=True):
-            service = GitHubAuthService()
-            assert service.client_id is None
+            with patch('httpx.AsyncClient') as mock_client_class:
+                mock_client = AsyncMock()
+                mock_client.post.return_value = mock_response
+                mock_client_class.return_value.__aenter__.return_value = mock_client
+
+                await GitHubAuthService().initiate_device_flow()
+
+        sent = mock_client.post.call_args.kwargs["data"]["client_id"]
+        # GitHub OAuth App 的 client ID 格式：Ov23 開頭、共 20 字元
+        assert re.fullmatch(r"Ov23[A-Za-z0-9]{16}", sent)
 
 
 class TestInitiateDeviceFlow:
     """Tests for initiate_device_flow method."""
-
-    @pytest.mark.asyncio
-    async def test_raises_without_client_id(self):
-        """Test raises error when client ID not configured."""
-        with patch.dict(os.environ, {}, clear=True):
-            service = GitHubAuthService()
-
-            with pytest.raises(GitHubAuthError, match="Client ID not configured"):
-                await service.initiate_device_flow()
 
     @pytest.mark.asyncio
     async def test_successful_initiation(self):
@@ -122,16 +135,6 @@ class TestInitiateDeviceFlow:
 
 class TestPollForToken:
     """Tests for poll_for_token method."""
-
-    @pytest.mark.asyncio
-    async def test_returns_error_without_client_id(self):
-        """Test returns error when client ID not configured."""
-        with patch.dict(os.environ, {}, clear=True):
-            service = GitHubAuthService()
-            result = await service.poll_for_token("device_code")
-
-            assert result["status"] == "error"
-            assert "Client ID" in result["error"]
 
     @pytest.mark.asyncio
     async def test_returns_pending_on_authorization_pending(self):

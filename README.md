@@ -181,9 +181,9 @@ npm install
 # 一定要用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
 cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt && cd ..
 
-# 環境設定（選用，提升 GitHub API 配額）
+# 環境設定（選用）：提升 GitHub API 配額用 app 內的「連結 GitHub」即可，不需要設定；
+# 要改用自己的 OAuth App 或 Personal Access Token 時才需要 sidecar/.env
 cp sidecar/.env.example sidecar/.env
-# 編輯 sidecar/.env 填入 GITHUB_CLIENT_ID 或 GITHUB_TOKEN
 ```
 
 ### 開發模式
