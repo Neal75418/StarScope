@@ -10,6 +10,11 @@ keyring>=25.0.0,<27.0.0
 
 # HTTP client for GitHub API (http2 extra used by testing and production)
 httpx[http2]>=0.28.0,<1.0.0
+# httpx 只信任 certifi 的 CA 清單（不看 OS 的信任庫）。2026.10.18 起不再含中繼憑證私鑰外洩的
+# emSign ECC Root CA - G3（GHSA-6q48-6c7w-9gw2）；下限設在審過的 2026.10.23，它也跟上 Mozilla 清單
+# 拿掉了 emSign C1／C3。它是間接依賴：不列下限的話，從舊 venv 重新產生 constraints 就會無聲退回去，
+# tests/test_constraints.py 守住鎖定版本不低於這裡
+certifi>=2026.10.23
 
 # Retry with exponential backoff
 tenacity>=9.1.4,<10.0.0
