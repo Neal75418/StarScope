@@ -19,7 +19,8 @@ const sleep = (ms: number) =>
 beforeAll(async () => {
   // 先把 lazy 載入的 Dashboard 抓進來：斷言靠的是 gate，不能靠 chunk 在時限內載完
   await import("../pages/Dashboard");
-});
+  // 整套平行跑或冷啟動時，載入整個 Dashboard 可能超過 vitest 預設 10 秒的 hook 時限，整檔的測試被跳過、該檔記為失敗
+}, 30_000);
 
 beforeEach(() => {
   localStorage.clear(); // 預設落在 Dashboard：不等 digest、直接渲染的那條路

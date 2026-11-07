@@ -37,7 +37,8 @@ vi.mock("../api/sessionSecret", () => ({ getSessionSecret: async () => null }));
 
 beforeAll(async () => {
   await import("../pages/Dashboard");
-});
+  // 整套平行跑或冷啟動時，載入整個 Dashboard 可能超過 vitest 預設 10 秒的 hook 時限，整檔的測試被跳過、該檔記為失敗
+}, 30_000);
 
 beforeEach(() => {
   localStorage.clear();
