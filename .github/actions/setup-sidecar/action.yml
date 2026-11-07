@@ -15,18 +15,16 @@ runs:
         # 版本以 repo 根目錄的 .python-version 為準（本機 venv、mypy 也跟它走）；這個版本會打包進安裝檔
         python-version-file: '.python-version'
         cache: 'pip'
-        cache-dependency-path: |
-          sidecar/requirements.txt
-          sidecar/constraints.txt
+        cache-dependency-path: sidecar/packaging.lock
 
     - name: Install sidecar dependencies
       shell: bash
+      # 只裝 packaging.lock：執行期依賴加上 PyInstaller，版本以開發機的 constraints 為準（constraints 沒鎖的平台專屬套件
+      # 取重產當下的最新版），每個檔案都要對過雜湊
+      # （下載、快取或鏡像站被竄改時 pip 直接失敗）。--only-binary：從原始碼建置時抓的建置依賴不驗雜湊。
+      # pip 用 setup-python 內建的那一版，不另外升級
       run: |
-        python -m pip install --upgrade pip
-        # -c：打包開發機實際在用的版本（含 PyInstaller 本身），而不是範圍內的最新版。
-        # 只裝執行期依賴：測試與 lint 工具在 requirements-dev.txt，不進打包環境
-        pip install -r sidecar/requirements.txt -c sidecar/constraints.txt
-        pip install pyinstaller -c sidecar/constraints.txt
+        pip install --require-hashes --only-binary :all: -r sidecar/packaging.lock
 
     # PyInstaller 預設只產出執行中架構的 binary（跨架構要所有依賴都有 fat wheel，本專案不成立），
     # 所以每個 target 都要在該架構的 runner 上打包（見 release.yml 的 matrix）

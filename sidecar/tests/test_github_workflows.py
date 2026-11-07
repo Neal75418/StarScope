@@ -56,6 +56,24 @@ def test_every_checkout_drops_its_credentials():
     assert not problems, f"checkout 沒有設 persist-credentials: false：{problems}"
 
 
+def test_the_packaging_environment_installs_only_hash_checked_wheels():
+    """打包環境的每個套件都要對過雜湊、都是預先編好的 wheel：從原始碼建置時抓的建置依賴不驗雜湊。
+
+    pip 本身也不另外升級：setup-python 內建的那一版就夠，升級等於多裝一個沒鎖版本的套件。
+    """
+    action = yaml.safe_load((REPO / ".github" / "actions" / "setup-sidecar" / "action.yml").read_text(encoding="utf-8"))
+    installs = [
+        line.strip()
+        for step in _steps(action)
+        for line in str(step.get("run", "")).splitlines()
+        if "pip install" in line and not line.strip().startswith("#")
+    ]
+    assert len(installs) == 1, installs
+    (install,) = installs
+    for required in ("--require-hashes", "--only-binary :all:", "-r sidecar/packaging.lock"):
+        assert required in install, install
+
+
 def _release_step(job: str, name: str) -> dict[str, Any]:
     release = yaml.safe_load((REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
     (step,) = [s for s in release["jobs"][job]["steps"] if s.get("name") == name]

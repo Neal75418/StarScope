@@ -43,7 +43,8 @@ a = Analysis(
     # PyInstaller 的 pydantic hook 會收進 pydantic 所有子模組，包括給 mypy 用的外掛（pydantic.mypy、
     # pydantic.v1.mypy），連帶把整個 mypy 和它的原生擴充（librt、ast_serialize）打包進出貨的 sidecar。
     # 執行期沒有任何程式碼 import 它們：開發工具不該跟著 app 出貨，也不該多一個要簽章的原生 binary。
-    # CI 的打包環境只裝 requirements.txt、本來就沒有 mypy；本機用開發 venv 打包（scripts/run-packaged-app.sh）時仍需要排除
+    # CI 的打包環境只裝 packaging.lock（執行期依賴＋PyInstaller）、本來就沒有 mypy；本機用開發 venv 打包
+    # （scripts/run-packaged-app.sh）時仍需要排除
     excludes=["mypy", "pydantic.mypy", "pydantic.v1.mypy", "librt", "ast_serialize"],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

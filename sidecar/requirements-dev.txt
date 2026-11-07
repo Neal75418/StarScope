@@ -1,5 +1,5 @@
 # 本機 venv 與 CI 的後端測試（test-backend）用：執行期依賴之外，再加測試、lint、型別檢查的工具。
-# 打包（.github/actions/setup-sidecar）只裝 requirements.txt：開發工具不該進打包環境，更不該跟著 app 出貨
+# 打包環境只裝 packaging.lock（執行期依賴＋PyInstaller）：開發工具不該進打包環境，更不該跟著 app 出貨
 -r requirements.txt
 
 # 沒有執行期消費者，只為了讓 alembic/ 目錄在編輯器裡解析得出來；見 alembic/README.md

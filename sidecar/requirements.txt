@@ -1,5 +1,5 @@
-# 執行期依賴：打包環境（.github/actions/setup-sidecar）只裝這份。測試、lint 等開發工具放 requirements-dev.txt，
-# 放在這裡會進打包環境，被別的套件間接 import 到時還會跟著 app 出貨
+# 執行期依賴。打包環境裝的 packaging.lock 由這份（經 packaging.in）產生，改了要跑 scripts/update-constraints.sh。
+# 測試、lint 等開發工具放 requirements-dev.txt：放在這裡會進打包環境，被別的套件間接 import 到時還會跟著 app 出貨
 
 # FastAPI and server
 # 0.137.2 起才有 fastapi.routing.iter_route_contexts（tests/test_api_timestamps_utc.py 用它走訪子 router 的路由）

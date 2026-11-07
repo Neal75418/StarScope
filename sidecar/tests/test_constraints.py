@@ -56,5 +56,6 @@ def test_pins_satisfy_the_declared_ranges():
 
 
 def test_the_release_packaging_tool_is_pinned_too():
-    # release 的 composite action 另外 `pip install pyinstaller`：它產出發行版，漂移的影響最直接
+    # packaging.lock 的 PyInstaller 版本取自 constraints：沒鎖的話，重產鎖檔會解到最新版（packaging.in 沒寫範圍），
+    # test_packaging_lock 也會因為它只在鎖檔裡而紅。它產出發行版，漂移的影響最直接
     assert "pyinstaller" in _pins()

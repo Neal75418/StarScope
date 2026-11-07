@@ -1,0 +1,4 @@
+# 打包環境要裝的東西：執行期依賴加上打包工具。scripts/update-constraints.sh 依 constraints.txt 的版本
+# 從這份產生 packaging.lock（各平台適用、附雜湊），setup-sidecar 只裝那份
+-r requirements.txt
+pyinstaller

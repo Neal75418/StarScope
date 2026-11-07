@@ -12,12 +12,20 @@ paths:
 
 ## 依賴與測試環境
 
-⚠️ **Python 依賴的版本鎖在 `sidecar/constraints.txt`**（開發機 venv 的 pip freeze），CI 與 release 都用
-`-c constraints.txt` 安裝；requirements 檔只宣告範圍：`requirements.txt` 是執行期依賴（打包與 CI 的 E2E 只裝它），
-`requirements-dev.txt` 用 `-r` 帶進它、再加測試與 lint 工具（本機 venv 與 CI 的後端測試裝這個）。不要手改 constraints。升級流程：venv 裡
-`pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit 兩個檔（venv 要裝 pyinstaller，
-沒裝腳本會擋）。`tests/test_constraints.py` 從 requirements-dev.txt 跟著 `-r` 走，守住每個 requirement 都有鎖、且鎖的版本在範圍內。
-鎖不到開發機沒裝的平台限定套件（Linux 的 SecretStorage、Windows 的 tzdata 等），清單見 constraints.txt 開頭。
+⚠️ **Python 依賴分三份宣告、兩份鎖**：
+- `requirements.txt`：執行期依賴，只宣告範圍。CI 的 E2E 只裝它（跟打包同一份依賴，誤放到 dev 檔的執行期依賴會在那裡啟動失敗）。
+- `requirements-dev.txt`：用 `-r` 帶進執行期依賴，再加測試與 lint 工具。本機 venv 與 CI 的後端測試裝這個。
+- `packaging.in`：打包環境的輸入（執行期依賴＋pyinstaller）。
+- `constraints.txt`：開發機 venv 的 pip freeze，test.yml 以 `-c constraints.txt` 安裝。鎖不到開發機沒裝的平台限定套件
+  （Linux 的 SecretStorage 等）——只影響 test.yml 的測試與 E2E（Linux）。
+- `packaging.lock`：`packaging.in` 在 constraints 的版本下用 uv 解出各平台適用的一份、每個套件附雜湊；打包環境
+  （setup-sidecar）只用 `--require-hashes --only-binary :all:` 裝它，平台限定套件也鎖住。constraints 沒鎖的平台限定套件
+  （cryptography、tzdata…）每次重產都取當下最新版，commit 前看一下鎖檔的 diff。
+
+兩份鎖都不要手改。升級流程：venv 裡 `pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit
+constraints.txt 與 packaging.lock，改了 requirements 檔的範圍就連它一起（venv 要裝 pyinstaller、本機要有 uv，缺了腳本會擋）。`tests/test_constraints.py` 從
+requirements-dev.txt 跟著 `-r` 走，守住每個 requirement 都有鎖且在範圍內；`tests/test_packaging_lock.py` 守住鎖檔的版本跟
+constraints 一致、每個套件都有雜湊、packaging.in 的每個套件都在裡面、只在鎖檔裡的套件都是開發機用不到的平台限定套件。
 
 ⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：
 - `isolate_github_credentials`：keyring 換成 null；`GITHUB_TOKEN` 設成**空字串佔位而不是刪掉**——`main.py` import 時的
