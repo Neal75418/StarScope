@@ -1,8 +1,12 @@
 name: Release
 
 # 推 v* tag＝正式發版（建立 draft release）。
-# 手動觸發（Run workflow）＝發版預演：四個平台照發版的步驟編譯、打包，但不建立 release——
-# CI 平時不編譯 Rust，打 tag 前在這裡先確認每個平台都編得過、包得出來。
+# 在 branch 上手動觸發（Run workflow）＝發版預演：四個平台照發版的步驟編譯、打包，並核對整組安裝檔，但不建立
+# release——CI 平時不編譯 Rust，打 tag 前在這裡先確認每個平台都編得過、包得出來。手動觸發時選了 tag 就是正式發版。
+#
+# 權限拆開：build 只有讀取權限，能改寫 release 的 token 只給 publish。build 會執行 npm 與 cargo 的建置腳本、
+# PyInstaller 和它們的所有依賴，其中任何一個被動了手腳，都不該拿得到能換掉公開 Release 安裝檔的 token。
+# 外部 action 一律釘 commit SHA（tag 可以被改指到別的 commit），後面註明對應的版本
 on:
   push:
     tags:
@@ -13,15 +17,18 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
-  release:
+  build:
     permissions:
-      contents: write
+      contents: read
     timeout-minutes: 45
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        # 改 target 要一起改 scripts/release_assets.py 的 INSTALLERS 與預期檔名
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -34,21 +41,28 @@ jobs:
             target: x86_64-pc-windows-msvc
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
+      # runner 映像內建 rustup，直接用它裝，不經第三方 action
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --target "${{ matrix.target }}" --no-self-update
+          rustup default stable
 
+      # 正式發版不用快取：快取裡是編好的依賴，cargo 不驗內容，而 default branch 上其他 workflow 寫的快取
+      # tag 的 run 讀得到。預演照樣用（產物不發佈），省時間
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
+        if: github.ref_type != 'tag'
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
@@ -79,31 +93,16 @@ jobs:
           npm run build
           cd src-tauri && cargo test --lib --locked
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v1
+      - name: Build installers
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # 不是 tag（手動預演）時留空：tagName、releaseName、releaseId 都沒給，tauri-action 只編譯與打包
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-          releaseName: ${{ github.ref_type == 'tag' && format('StarScope {0}', github.ref_name) || '' }}
-          releaseBody: |
-            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-
-            ## Installation
-
-            Download the appropriate file for your platform:
-            - **macOS (Intel)**: `.dmg` file for x86_64
-            - **macOS (Apple Silicon)**: `.dmg` file for aarch64
-            - macOS will say Apple cannot verify the app: see [first launch on macOS](https://github.com/${{ github.repository }}#macos--首次開啟)
-            - **Windows**: `.msi` or `.exe` installer
-            - **Linux**: `.AppImage` or `.deb` package
-          releaseDraft: true
-          prerelease: false
-          args: --target ${{ matrix.target }}
+          # CI=true 時 tauri 打 dmg 會跳過排版（視窗大小、app 與 Applications 的圖示位置），打開 dmg 沒有拖曳安裝的樣子；
+          # 這個變數讓它照常排版。只有 macOS 的 dmg 會讀它
+          TAURI_BUNDLER_DMG_IGNORE_CI: 'true'
+        run: npm run tauri -- build --target "${{ matrix.target }}"
 
       # 從安裝檔取出 sidecar 再跑一次 smoke test，證明使用者實際裝到的那份能跑（Windows、Linux 沒辦法手動測）。
-      # 正式發版也要跑：draft release 在這一步之前就建好了，這一步紅了就不要發佈
+      # 正式發版也要跑：publish 要等四個平台的這一步都過了才會建立 release
       - name: Smoke test the sidecar inside the installer
         shell: bash
         run: |
@@ -122,3 +121,96 @@ jobs:
       - name: Verify the macOS signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "src-tauri/target/${{ matrix.target }}/release/bundle/macos/StarScope.app"
+
+      - name: Collect release assets
+        shell: bash
+        run: python scripts/release_assets.py collect "src-tauri/target/${{ matrix.target }}/release/bundle" "${{ matrix.target }}" "$RUNNER_TEMP/release-assets"
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-assets-${{ matrix.target }}
+          path: ${{ runner.temp }}/release-assets/
+          if-no-files-found: error
+          # 安裝檔本身已經壓縮過，再壓只是多花時間
+          compression-level: 0
+          retention-days: 7
+
+  # 預演：四個平台的安裝檔要剛好是這個版本該有的那一組，打 tag 之前就先知道
+  verify:
+    if: github.ref_type != 'tag'
+    needs: build
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 不合併：每個 artifact 一個資料夾，verify 才看得出哪個平台多了、少了什麼，同名檔也不會互相覆蓋
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-assets-*
+          path: release-assets
+
+      - name: Verify release assets
+        run: python3 scripts/release_assets.py verify release-assets src-tauri/tauri.conf.json
+
+  publish:
+    if: github.ref_type == 'tag'
+    needs: build
+    permissions:
+      contents: write
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 不合併：每個 artifact 一個資料夾，verify 才看得出哪個平台多了、少了什麼，同名檔也不會互相覆蓋
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-assets-*
+          path: release-assets
+
+      - name: Verify release assets
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 scripts/release_assets.py verify release-assets src-tauri/tauri.conf.json --tag "$TAG"
+
+      # 三種情況分開：已有一個 draft（上次建好、上傳到一半失敗後重跑）就補傳；沒有 release 才建；其他（已經發佈、
+      # 同一個 tag 不只一個）不動。帶 --draft 時 gh 不檢查同一個 tag 有沒有已發佈的 release，所以要自己先查。
+      # 用 REST 列出全部 release（含 draft）判斷：gh release view 分兩個來源查，兩邊都失敗時只要一邊是 not found
+      # 就回 not found，查 draft 那邊連線失敗也會被說成沒有
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          NOTES: |
+            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+
+            Download the appropriate file for your platform:
+            - **macOS (Intel)**: `.dmg` file for x86_64
+            - **macOS (Apple Silicon)**: `.dmg` file for aarch64
+            - macOS will say Apple cannot verify the app: see [first launch on macOS](https://github.com/${{ github.repository }}#macos--首次開啟)
+            - **Windows**: `.msi` or `.exe` installer
+            - **Linux**: `.AppImage` or `.deb` package
+        run: |
+          printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+          # 查不到清單（網路、權限）時 set -e 直接中止：不能當成「沒有 release」而再建一個 draft
+          drafts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[] | select(.tag_name == env.TAG) | .draft')"
+          case "$drafts" in
+            "")
+              gh release create "$TAG" release-assets/*/* --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+                --title "StarScope $TAG" --notes-file "$RUNNER_TEMP/notes.md" ;;
+            true)
+              gh release upload "$TAG" release-assets/*/* --repo "$GITHUB_REPOSITORY" --clobber ;;
+            *)
+              echo "::error::$TAG 已經有 release，不再上傳（draft=${drafts//$'\n'/ }）"
+              exit 1 ;;
+          esac

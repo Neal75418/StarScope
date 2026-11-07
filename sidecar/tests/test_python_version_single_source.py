@@ -4,7 +4,7 @@
 以前 CI 寫 3.12、本機 venv 是 3.13，constraints.txt 從本機產生，CI 卻用另一個版本去裝；
 本機全綠的東西到 CI 才第一次在別的版本上跑。版本號多寫一份，就多一個會漂走的地方。
 
-不用 PyYAML 解析（它不在 requirements 裡）：setup-python 的 with 區塊結構固定，用文字切就夠。
+不用 YAML 解析：setup-python 的 with 區塊結構固定，用文字切就夠。
 """
 
 import re

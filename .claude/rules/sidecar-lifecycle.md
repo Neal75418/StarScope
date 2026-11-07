@@ -50,6 +50,10 @@ paths:
 - `tauri.conf.json` 的 `bundle.macOS.signingIdentity: "-"`：沒有完整的 bundle 簽章時，下載的 app 在 Apple Silicon 上被判
   「已損毀」、沒有強制打開可按；CI 以 `codesign --verify --deep --strict` 把關。`lib.rs` 的測試鎖住 resources、簽章、
   沒有 `externalBin`、沒有設定檔的 `trayIcon`（會多一個沒選單的白色方塊）
+- `release.yml` 的權限拆開：build（只能讀）在各平台產出安裝檔、上傳成 artifact；能改寫 release 的 token 只給 publish，
+  它用 `scripts/release_assets.py verify` 逐個 artifact 核對過檔名才建 draft。外部 action 一律寫成
+  `owner/repo@<40 字元 SHA> # vX.Y.Z`、checkout 一律 `persist-credentials: false`（`sidecar/tests/test_github_workflows.py` 守住）；
+  正式發版不讀 rust-cache（快取的編譯產物不驗內容）。改 matrix 的 target 要一起改 `release_assets.py` 的 INSTALLERS 與預期檔名
 - Windows 的 `resource_dir()` 來自 canonicalize、帶 `\\?\` 前綴：`locate_sidecar` 先 `dunce::simplified` 再交給 PyInstaller
 
 ## 存檔走 Rust 的 `save_file` command，不註冊 fs plugin

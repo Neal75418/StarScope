@@ -141,17 +141,18 @@ GitHub 配額降到 60/hr。
 
 ## 測試策略與發版
 
-| 類型       | 工具                       | 位置                                                                                   |
-|------------|----------------------------|----------------------------------------------------------------------------------------|
-| 單元測試   | Vitest                     | `src/**/__tests__/`                                                                    |
-| 後端測試   | pytest（非同步）           | `sidecar/tests/`                                                                       |
-| E2E 測試   | Playwright                 | `e2e/`                                                                                 |
-| CI         | GitHub Actions             | `.github/workflows/test.yml`                                                           |
-| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包）、`verify-sidecar.yml`（只打包 sidecar）          |
+| 類型       | 工具                       | 位置                                                                                          |
+|------------|----------------------------|-----------------------------------------------------------------------------------------------|
+| 單元測試   | Vitest                     | `src/**/__tests__/`                                                                           |
+| 後端測試   | pytest（非同步）           | `sidecar/tests/`                                                                              |
+| E2E 測試   | Playwright                 | `e2e/`                                                                                        |
+| CI         | GitHub Actions             | `.github/workflows/test.yml`                                                                  |
+| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包、核對整組安裝檔）、`verify-sidecar.yml`（只打包 sidecar） |
 
-⚠️ **打 tag 前先在 main 上手動跑 `Release`（預演），四個 job 全綠再打。** 手動觸發時不建立 release，只照發版的步驟
-編譯、打包，並多跑一次 `cargo test --lib --locked`。`test.yml` 不編譯 Rust、也不打包 sidecar，安裝檔層級的問題（Rust 在
-Windows／Linux 編不編得過、安裝檔裡的 sidecar 能不能跑、簽章）只有預演看得到（v1.0.0 以前每一版的 sidecar 都起不來，
+⚠️ **打 tag 前先在 main 上手動跑 `Release`（預演），所有 job（四個 build 加 verify）全綠再打。** 在 branch 上手動觸發才是
+預演（選了 tag 就是正式發版）：照發版的步驟編譯、打包、核對整組安裝檔的檔名，並多跑一次 `cargo test --lib --locked`，但不建立
+release。平常的 CI 不打包 sidecar，`rust.yml` 也只在 Linux 編 Rust，安裝檔層級的問題（Rust 在 Windows 編不編得過、安裝檔裡的
+sidecar 能不能跑、簽章）只有預演看得到（v1.0.0 以前每一版的 sidecar 都起不來，
 Intel 版還包著 placeholder）。只改 sidecar 時可先跑 `verify-sidecar.yml`
 （約 2 分鐘）：它和 release 共用 `setup-sidecar` action——打包、smoke test、stage 進 `src-tauri/sidecar/`、確認是對應架構的
 完整 onedir。release（含預演）另外從安裝檔（.app、.deb 與 AppImage、.msi；NSIS 的 .exe 與 .rpm 沒驗）取出 sidecar 再跑一次

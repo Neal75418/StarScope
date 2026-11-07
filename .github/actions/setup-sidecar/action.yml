@@ -10,7 +10,7 @@ runs:
   using: composite
   steps:
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         # 版本以 repo 根目錄的 .python-version 為準（本機 venv、mypy 也跟它走）；這個版本會打包進安裝檔
         python-version-file: '.python-version'

@@ -6,6 +6,8 @@
 alembic>=1.18.4,<2.0.0
 
 # Testing
+# 測試讀 .github 底下的 workflow（tests/test_github_workflows.py）
+pyyaml>=6.0,<7.0
 pytest>=8.3.3,<10.0.0
 pytest-asyncio>=0.24.0,<2.0.0
 pytest-cov>=6.0.0,<8.0.0
