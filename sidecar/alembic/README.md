@@ -16,10 +16,11 @@ model（新欄位、既有欄位都算）。原則是能安全補的加法一律
 留著差異，只能靠人判斷。碰到任何一種就是正式引入 alembic 的時機，判準寫在 CLAUDE.md
 的「schema 變更」一節。
 
-## 為什麼 alembic 還在 requirements.txt
+## 為什麼 alembic 在 requirements-dev.txt
 
 它沒有任何執行期消費者：mypy 設了 `exclude = alembic/`，pytest 只跑 `tests/`，
-PyInstaller 靠靜態 import 分析所以不會打包它。留著只為了讓這個目錄裡的檔案在
-編輯器裡解析得出來（`from alembic import op`），以及日後真的要引入時不必重裝。
+PyInstaller 靠靜態 import 分析所以不會打包它。留在開發依賴只為了讓這個目錄裡的檔案在
+編輯器裡解析得出來（`from alembic import op`），以及日後真的要引入時本機已經有它。
+真的引入（啟動時跑 migration）時要搬回執行期的 requirements.txt，打包環境才裝得到。
 
 清理依賴時不要把它當成孤兒移除。

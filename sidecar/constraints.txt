@@ -1,5 +1,5 @@
-# CI 與 release 安裝時用的版本鎖定（pip install -r requirements.txt -c constraints.txt）。
-# 內容是開發機（macOS arm64）venv 的 pip freeze。requirements.txt 只宣告範圍；沒有這份檔案的話，
+# CI 與 release 安裝時用的版本鎖定（pip install -r requirements-dev.txt／requirements.txt -c constraints.txt）。
+# 內容是開發機（macOS arm64）venv 的 pip freeze。requirements 檔只宣告範圍；沒有這份檔案的話，
 # CI 全新安裝會悄悄裝到範圍內的最新版。
 #
 # 不要手改：升級套件後執行 scripts/update-constraints.sh 重新產生。

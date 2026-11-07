@@ -82,7 +82,7 @@ cd sidecar
 .venv/bin/ruff check --fix .                       # Python lint（CI 也跑；規則明確列在 ruff.toml，不吃 Ruff 預設值）
 ```
 
-venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt -c constraints.txt`
+venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt`
 
 Rust：`cd src-tauri && cargo test --lib`（`test.yml` 不編譯 Rust；Windows／Linux 只在 `release.yml` 編）。
 

@@ -23,7 +23,8 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        # -c：打包開發機實際在用的版本（含 PyInstaller 本身），而不是範圍內的最新版
+        # -c：打包開發機實際在用的版本（含 PyInstaller 本身），而不是範圍內的最新版。
+        # 只裝執行期依賴：測試與 lint 工具在 requirements-dev.txt，不進打包環境
         pip install -r sidecar/requirements.txt -c sidecar/constraints.txt
         pip install pyinstaller -c sidecar/constraints.txt
 

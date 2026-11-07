@@ -13,9 +13,10 @@ paths:
 ## 依賴與測試環境
 
 ⚠️ **Python 依賴的版本鎖在 `sidecar/constraints.txt`**（開發機 venv 的 pip freeze），CI 與 release 都用
-`-c constraints.txt` 安裝；`requirements.txt` 只宣告範圍。不要手改 constraints。升級流程：venv 裡
+`-c constraints.txt` 安裝；requirements 檔只宣告範圍：`requirements.txt` 是執行期依賴（打包與 CI 的 E2E 只裝它），
+`requirements-dev.txt` 用 `-r` 帶進它、再加測試與 lint 工具（本機 venv 與 CI 的後端測試裝這個）。不要手改 constraints。升級流程：venv 裡
 `pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit 兩個檔（venv 要裝 pyinstaller，
-沒裝腳本會擋）。`tests/test_constraints.py` 守住每個 requirement 都有鎖、且鎖的版本在範圍內。
+沒裝腳本會擋）。`tests/test_constraints.py` 從 requirements-dev.txt 跟著 `-r` 走，守住每個 requirement 都有鎖、且鎖的版本在範圍內。
 鎖不到開發機沒裝的平台限定套件（Linux 的 SecretStorage、Windows 的 tzdata 等），清單見 constraints.txt 開頭。
 
 ⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：

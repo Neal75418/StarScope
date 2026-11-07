@@ -1,3 +1,6 @@
+# 執行期依賴：打包環境（.github/actions/setup-sidecar）只裝這份。測試、lint 等開發工具放 requirements-dev.txt，
+# 放在這裡會進打包環境，被別的套件間接 import 到時還會跟著 app 出貨
+
 # FastAPI and server
 # 0.137.2 起才有 fastapi.routing.iter_route_contexts（tests/test_api_timestamps_utc.py 用它走訪子 router 的路由）
 fastapi>=0.137.2,<1.0.0
@@ -21,23 +24,9 @@ certifi>=2026.10.23
 # 棄用了 Query.tuples()、URL 的 database 段改成先 percent-decode（見 db/database.py 的 sqlite_url）。
 # 下一個 minor 要另外做並送審，不該由 CI 全新安裝時悄悄帶進來
 sqlalchemy>=2.1.1,<2.2
-alembic>=1.18.4,<2.0.0
 
 # Background scheduler
 apscheduler>=3.10.0,<4.0.0
 
 # API rate limiting
 slowapi>=0.1.9,<1.0.0
-
-# Testing
-pytest>=8.3.3,<10.0.0
-pytest-asyncio>=0.24.0,<2.0.0
-pytest-cov>=6.0.0,<8.0.0
-pytest-timeout>=2.3.0,<3.0.0
-# starlette 1.x 的 TestClient 以 httpx2 為準：沒裝會退回 httpx 並發棄用警告，而且型別檢查看到的 TestClient 回應變成 Any。
-# 只有測試用得到（正式的 GitHub client 用 httpx，打包也不會收進 starlette.testclient）
-httpx2>=2.13.0,<3.0.0
-
-# Lint 與型別檢查（CI 與本機用同一個版本；minor 版本可能改規則行為，所以鎖在同一個 minor）
-ruff>=0.16.9,<0.17.0
-mypy>=2.3.1,<2.4.0
