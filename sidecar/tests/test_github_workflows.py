@@ -74,6 +74,25 @@ def test_the_packaging_environment_installs_only_hash_checked_wheels():
         assert required in install, install
 
 
+def _apt_packages(workflow: str) -> frozenset[str]:
+    """workflow 裡 `Install dependencies (Ubuntu)` 這一步用 apt-get install 裝的套件（續行接起來、選項不算）。"""
+    document = yaml.safe_load((REPO / ".github" / "workflows" / workflow).read_text(encoding="utf-8"))
+    steps = [s for s in _steps(document) if s.get("name") == "Install dependencies (Ubuntu)"]
+    assert len(steps) == 1, f"{workflow} 要剛好有一個 'Install dependencies (Ubuntu)' step，找到 {len(steps)} 個"
+    script = str(steps[0]["run"]).replace("\\\n", " ")
+    lines = [line for line in script.splitlines() if "apt-get install" in line and not line.strip().startswith("#")]
+    assert len(lines) == 1, f"{workflow} 的 'Install dependencies (Ubuntu)' 要剛好有一行 apt-get install，找到 {len(lines)} 行"
+    line = lines[0]
+    return frozenset(token for token in line.split("install", 1)[1].split() if not token.startswith("-"))
+
+
+def test_every_linux_build_installs_the_same_system_packages():
+    """release.yml 打包與 rust.yml 編譯需要同一組系統套件：一邊加了另一邊沒加，就變成只在其中一邊編得過。"""
+    release, rust = _apt_packages("release.yml"), _apt_packages("rust.yml")
+    assert "libwebkit2gtk-4.1-dev" in release
+    assert release == rust, f"只在 release.yml：{sorted(release - rust)}；只在 rust.yml：{sorted(rust - release)}"
+
+
 def _release_step(job: str, name: str) -> dict[str, Any]:
     release = yaml.safe_load((REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
     (step,) = [s for s in release["jobs"][job]["steps"] if s.get("name") == name]

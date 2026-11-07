@@ -772,10 +772,10 @@ fn handle_tray_menu_event(app: &AppHandle, event: tauri::menu::MenuEvent) {
     match event.id.as_ref() {
         "show" => show_main_window(app),
         "refresh" => {
-            if let Some(window) = app.get_webview_window("main") {
-                if let Err(e) = window.emit("refresh-all", ()) {
-                    warn!("發送 refresh-all 事件失敗: {e}");
-                }
+            if let Some(window) = app.get_webview_window("main")
+                && let Err(e) = window.emit("refresh-all", ())
+            {
+                warn!("發送 refresh-all 事件失敗: {e}");
             }
         }
         "quit" => app.exit(0),

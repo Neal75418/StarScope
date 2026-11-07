@@ -1,0 +1,71 @@
+name: Rust
+
+# test.yml 不編譯 Rust：src-tauri 有變動時在這裡跑 clippy（警告也算失敗）與 lib 測試，不用等到打 tag 前的預演才發現。
+# 只在 Linux 上跑；四個平台的編譯與測試仍在 release.yml 的預演
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/rust.yml'
+
+concurrency:
+  group: rust-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      # 跟 release.yml 的 Linux 依賴同一份清單（sidecar/tests/test_github_workflows.py 守住兩邊一致）
+      - name: Install dependencies (Ubuntu)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
+
+      # runner 映像內建 rustup，直接用它裝，不經第三方 action
+      - name: Install Rust stable
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy --no-self-update
+          rustup default stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri
+          # 只有 push 存快取：PR 不存（一份 Linux 的 Rust 快取在 1 GB 這個量級，repo 的快取額度是共用的）
+          save-if: ${{ github.event_name == 'push' }}
+
+      # tauri 編譯時會嵌入前端（tauri.conf.json 的 frontendDist），沒有 dist/ 編不過
+      - name: Build the frontend
+        run: |
+          npm ci
+          npm run build
+
+      # --locked：Cargo.lock 與依賴對不上就失敗
+      - name: Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+      - name: Rust tests
+        working-directory: src-tauri
+        run: cargo test --lib --locked

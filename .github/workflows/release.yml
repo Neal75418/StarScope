@@ -2,7 +2,8 @@ name: Release
 
 # 推 v* tag＝正式發版（建立 draft release）。
 # 在 branch 上手動觸發（Run workflow）＝發版預演：四個平台照發版的步驟編譯、打包，並核對整組安裝檔，但不建立
-# release——CI 平時不編譯 Rust，打 tag 前在這裡先確認每個平台都編得過、包得出來。手動觸發時選了 tag 就是正式發版。
+# release——平常的 CI 只有 rust.yml 在 Linux 編 Rust（src-tauri 有變動時）、不打包，打 tag 前在這裡先確認每個平台都編得過、包得出來。
+# 手動觸發時選了 tag 就是正式發版。
 #
 # 權限拆開：build 只有讀取權限，能改寫 release 的 token 只給 publish。build 會執行 npm 與 cargo 的建置腳本、
 # PyInstaller 和它們的所有依賴，其中任何一個被動了手腳，都不該拿得到能換掉公開 Release 安裝檔的 token。
@@ -71,9 +72,8 @@ jobs:
         run: |
           sudo apt-get update
           # libdbus-1-dev：tauri 自 2.11 起預設開 dbus feature，tao 在 Linux 直接連 libdbus-1（2.12／tao 0.37 仍是如此）。
-          # 在 noble 上它其實會被 libwebkit2gtk-4.1-dev 的依賴鏈間接裝到，但 test.yml 從不編譯
-          # Rust、第一次 Linux 編譯發生在打 tag 時，靠間接依賴等於把 release 押在別人的
-          # 套件清單上——明列它（供應鏈審查 RR-D）
+          # 在 noble 上它其實會被 libwebkit2gtk-4.1-dev 的依賴鏈間接裝到，但靠間接依賴等於把 release 押在別人的
+          # 套件清單上——明列它（供應鏈審查 RR-D）。rust.yml 裝同一份清單（sidecar/tests/test_github_workflows.py 守住）
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev
 
       - name: Install frontend dependencies

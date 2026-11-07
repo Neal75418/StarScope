@@ -50,6 +50,11 @@ paths:
 - `tauri.conf.json` 的 `bundle.macOS.signingIdentity: "-"`：沒有完整的 bundle 簽章時，下載的 app 在 Apple Silicon 上被判
   「已損毀」、沒有強制打開可按；CI 以 `codesign --verify --deep --strict` 把關。`lib.rs` 的測試鎖住 resources、簽章、
   沒有 `externalBin`、沒有設定檔的 `trayIcon`（會多一個沒選單的白色方塊）
+- `src-tauri/**` 有變動時，`rust.yml` 在 Linux 跑 `cargo clippy --all-targets --locked -- -D warnings` 與 `cargo test --lib --locked`
+  （警告也算失敗）；四個平台的編譯仍只在 `release.yml` 的預演。`tauri` 與 `@tauri-apps/api`、`tauri-plugin-X` 與
+  `@tauri-apps/plugin-X` 要在同一個 major.minor（`tauri build` 對不上會直接失敗），升級要兩邊一起；Cargo.toml 的 tauri
+  用 `~` 鎖在一個 minor（`sidecar/tests/test_tauri_versions.py` 守住）。rust.yml 裝的是沒釘版本的 stable：新版 clippy
+  多出來的 lint 可能讓無關的 src-tauri 改動突然紅，當下修掉 lint 即可（不要只在 rust.yml 釘版本，會跟 release 用的不同）
 - `release.yml` 的權限拆開：build（只能讀）在各平台產出安裝檔、上傳成 artifact；能改寫 release 的 token 只給 publish，
   它用 `scripts/release_assets.py verify` 逐個 artifact 核對過檔名才建 draft。外部 action 一律寫成
   `owner/repo@<40 字元 SHA> # vX.Y.Z`、checkout 一律 `persist-credentials: false`（`sidecar/tests/test_github_workflows.py` 守住）；

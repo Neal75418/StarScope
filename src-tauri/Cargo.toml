@@ -18,7 +18,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+# 鎖在跟 package.json 的 @tauri-apps/api 同一個 minor：tauri build 遇到 crate 與 npm 套件的 major.minor 不同會直接失敗，
+# 只寫 "2" 的話 cargo update 會悄悄升到下一個 minor（sidecar/tests/test_tauri_versions.py 守住兩邊一致）
+tauri = { version = "~2.12", features = ["tray-icon", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-shell = "2"

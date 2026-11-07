@@ -32,7 +32,7 @@ def test_every_ci_setup_node_reads_the_version_file():
     # 掃整個 .github：新加的 workflow 也不能寫死版本
     files = sorted((REPO / ".github").rglob("*.y*ml"))
     blocks = [b for p in files for b in _setup_node_blocks(p)]
-    assert len(blocks) == 3  # test.yml 的 frontend、e2e，加上 release.yml
+    assert len(blocks) == 4  # test.yml 的 frontend、e2e，加上 release.yml、rust.yml
     for block in blocks:
         assert re.search(r"^\s*node-version-file:\s*['\"]?\.nvmrc['\"]?\s*$", block, re.MULTILINE), block
         assert not re.search(r"^\s*node-version:", block, re.MULTILINE), block

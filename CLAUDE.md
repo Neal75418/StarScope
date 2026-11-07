@@ -84,7 +84,8 @@ cd sidecar
 
 venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt`
 
-Rust：`cd src-tauri && cargo test --lib`（`test.yml` 不編譯 Rust；Windows／Linux 只在 `release.yml` 編）。
+Rust：`cd src-tauri && cargo test --lib`，改了 src-tauri 推之前也跑 `cargo clippy --all-targets --locked -- -D warnings`
+（`rust.yml` 在 src-tauri 有變動時於 Linux 跑這兩項，警告也算失敗；Windows 只在 `release.yml` 的預演編）。
 
 ### 單元測試（Vitest）
 
