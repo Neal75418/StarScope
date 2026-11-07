@@ -1,21 +1,8 @@
 #!/bin/sh
 
-# 檢查是否有 GitHub Personal Access Token 洩露
+# GitHub token 直接擋、寫死的憑證只警告；規則與為什麼只看新增的行、不印內容，見腳本開頭
 echo "🔍 檢查敏感資料..."
-if git diff --cached --diff-filter=d | grep -E "(ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59})"; then
-  echo "❌ 錯誤：檢測到疑似 GitHub Token"
-  echo "   請勿提交真實的 GitHub Token"
-  echo "   排除的檔案：.env.example, src/i18n/translations.ts (這些檔案使用佔位符)"
-  exit 1
-fi
-
-# 檢查是否有其他常見的敏感資料
-if git diff --cached --diff-filter=d | grep -iE "(password\s*=\s*['\"][^'\"]+['\"]|api[_-]?key\s*=\s*['\"][^'\"]+['\"]|secret\s*=\s*['\"][^'\"]+['\"])"; then
-  echo "⚠️  警告：檢測到可能的敏感資料 (password/api_key/secret)"
-  echo "   請確認這不是真實的憑證"
-  # 這裡只是警告，不阻擋提交（因為可能有誤判）
-fi
-
+scripts/check-staged-secrets.sh || exit 1
 echo "✅ 敏感資料檢查通過"
 
 # 執行 lint-staged
