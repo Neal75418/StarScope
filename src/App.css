@@ -26,8 +26,8 @@
 }
 
 /* backwards 而不是 both：both 會讓終點的 transform: translateY(0) 永遠留著，
-   transform 不是 none 的元素會變成 position: fixed 子孫的定位基準——頁面裡的 toast 與
-   對話框就以頁面而不是視窗定位，頁面一長就跑到畫面外 */
+   transform 不是 none 的元素會變成 position: fixed 子孫的定位基準——頁面裡任何 position: fixed
+   的元素就以頁面而不是視窗定位，頁面一長就跑到畫面外 */
 .animated-page {
   animation: page-enter 0.2s ease-out backwards;
 }

@@ -1,8 +1,9 @@
 /**
- * Toast 通知元件，顯示暫時性的成功、錯誤或資訊訊息。
+ * Toast 通知：暫時性的成功、錯誤或資訊訊息，由 app 層唯一的 ToastProvider 顯示。
  */
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import type { ReactNode } from "react";
 import { useI18n } from "../i18n";
 import { generateId } from "../utils/id";
 
@@ -62,7 +63,7 @@ interface ToastContainerProps {
   onDismiss: (id: string) => void;
 }
 
-export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
+function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (
@@ -74,8 +75,23 @@ export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   );
 }
 
-// 管理 toast 的 hook
-export function useToast() {
+export interface ToastApi {
+  addToast: (type: ToastType, message: string) => string;
+  dismissToast: (id: string) => void;
+  success: (message: string) => string;
+  error: (message: string) => string;
+  info: (message: string) => string;
+  warning: (message: string) => string;
+}
+
+const ToastContext = createContext<ToastApi | null>(null);
+
+/**
+ * 整個 app 唯一的 toast 狀態與容器，掛在 App 層。
+ *
+ * context 只放方法、不放 toasts 陣列：呼叫端不會因為別處跳出 toast 而重新渲染。
+ */
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   const addToast = useCallback((type: ToastType, message: string) => {
@@ -88,25 +104,34 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const success = useCallback((message: string) => addToast("success", message), [addToast]);
-
-  const error = useCallback((message: string) => addToast("error", message), [addToast]);
-
-  const info = useCallback((message: string) => addToast("info", message), [addToast]);
-
-  const warning = useCallback((message: string) => addToast("warning", message), [addToast]);
-
-  // Memoize 回傳物件以避免消費端無限迴圈
-  return useMemo(
+  const api = useMemo<ToastApi>(
     () => ({
-      toasts,
       addToast,
       dismissToast,
-      success,
-      error,
-      info,
-      warning,
+      success: (message) => addToast("success", message),
+      error: (message) => addToast("error", message),
+      info: (message) => addToast("info", message),
+      warning: (message) => addToast("warning", message),
     }),
-    [toasts, addToast, dismissToast, success, error, info, warning]
+    [addToast, dismissToast]
   );
+
+  return (
+    <ToastContext.Provider value={api}>
+      {children}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </ToastContext.Provider>
+  );
+}
+
+/**
+ * 顯示 toast。必須在 ToastProvider 底下：沒有容器時訊息不會出現在任何地方，
+ * 所以直接拋錯，讓漏包 Provider 在開發與測試時就壞掉，而不是使用者看不到失敗。
+ */
+export function useToast(): ToastApi {
+  const api = useContext(ToastContext);
+  if (api === null) {
+    throw new Error("useToast 必須在 ToastProvider 底下使用");
+  }
+  return api;
 }

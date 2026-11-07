@@ -3,10 +3,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Discovery } from "../Discovery";
+import { ToastProvider } from "../../components/Toast";
+
+// 用真的 ToastProvider：mock 掉 useToast 只能驗「有呼叫」，看不出訊息有沒有出現在畫面上
+function renderDiscovery() {
+  return render(
+    <ToastProvider>
+      <Discovery />
+    </ToastProvider>
+  );
+}
 
 const mockAddRepo = vi.fn().mockResolvedValue({});
-const mockSuccess = vi.fn();
-const mockError = vi.fn();
 const mockHandleRefreshAll = vi.fn();
 const mockInvalidateRepos = vi.fn();
 const mockUnstarRepo = vi.fn();
@@ -30,13 +38,12 @@ vi.mock("../../contexts/WatchlistContext", () => ({
       removeConfirm: { isOpen: false, repoId: null, repoName: "" },
     },
     filters: { selectedCategoryId: null, searchQuery: "" },
-    toasts: [],
   }),
   useWatchlistActions: () => ({
     refreshAll: mockHandleRefreshAll,
     invalidateRepos: mockInvalidateRepos,
-    success: mockSuccess,
-    error: mockError,
+    success: vi.fn(),
+    error: vi.fn(),
     addRepo: mockAddRepo,
     removeRepo: vi.fn(),
     fetchRepo: vi.fn(),
@@ -50,7 +57,6 @@ vi.mock("../../contexts/WatchlistContext", () => ({
     setCategory: vi.fn(),
     setSearchQuery: vi.fn(),
     showToast: vi.fn(),
-    dismissToast: vi.fn(),
     info: vi.fn(),
     warning: vi.fn(),
     clearError: vi.fn(),
@@ -61,10 +67,6 @@ vi.mock("../../contexts/WatchlistContext", () => ({
 vi.mock("../../api/client", () => ({
   addRepo: (...args: unknown[]) => mockAddRepo(...args),
   unstarRepo: (...args: unknown[]) => mockUnstarRepo(...args),
-}));
-
-vi.mock("../../components/Toast", () => ({
-  useToast: () => ({ success: mockSuccess, error: mockError }),
 }));
 
 vi.mock("../../components/motion", () => ({
@@ -241,27 +243,27 @@ describe("Discovery", () => {
   });
 
   it("renders page title and search bar", () => {
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByText("Discover")).toBeInTheDocument();
     expect(screen.getByTestId("search-bar")).toBeInTheDocument();
   });
 
   it("renders all filter sections in search mode", () => {
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("trending-filters")).toBeInTheDocument();
     expect(screen.getByTestId("active-filters")).toBeInTheDocument();
     expect(screen.getByTestId("discovery-filters")).toBeInTheDocument();
   });
 
   it("hides active filters in feed mode (they do not apply to the feed)", () => {
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
     expect(screen.queryByTestId("active-filters")).not.toBeInTheDocument();
   });
 
   it("shows the For You feed by default when there is no search keyword", () => {
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
     expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
   });
@@ -271,7 +273,7 @@ describe("Discovery", () => {
     // useDiscovery 在此檔案是完整 mock（非 reactive）；先設好 period，模擬真實 hook 在
     // setPeriod("daily") 後、下次渲染會回傳的狀態。
     mockDiscoveryReturn.period = "daily";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("period-daily"));
@@ -284,7 +286,7 @@ describe("Discovery", () => {
   it("clearing all filters after browsing trending returns to the For You feed", async () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.period = "daily";
-    render(<Discovery />);
+    renderDiscovery();
 
     await user.click(screen.getByTestId("period-daily"));
     expect(screen.getByTestId("discovery-results")).toBeInTheDocument();
@@ -299,7 +301,7 @@ describe("Discovery", () => {
   it("removing the period chip individually (not Clear all) returns to the For You feed", async () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.period = "daily";
-    const { rerender } = render(<Discovery />);
+    const { rerender } = renderDiscovery();
 
     await user.click(screen.getByTestId("period-daily"));
     expect(screen.getByTestId("discovery-results")).toBeInTheDocument();
@@ -310,7 +312,11 @@ describe("Discovery", () => {
     // 同上：手動同步 removePeriod 後 period 應變成的值（真實 hook 的 setPeriod(undefined)），
     // 並重新渲染，驗證「未按 Clear all、只移除 period chip」也能回到 feed。
     mockDiscoveryReturn.period = null;
-    rerender(<Discovery />);
+    rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
 
     expect(screen.getByTestId("for-you-feed")).toBeInTheDocument();
     expect(screen.queryByTestId("discovery-results")).not.toBeInTheDocument();
@@ -319,7 +325,7 @@ describe("Discovery", () => {
   it("shows initial state before search", () => {
     // 有關鍵字才會渲染 DiscoveryResults；此處驗證 DiscoveryResults 自身尚未搜尋完成時的狀態
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByText("Start searching")).toBeInTheDocument();
   });
 
@@ -330,53 +336,53 @@ describe("Discovery", () => {
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
       { id: 2, full_name: "vuejs/vue", owner: "vuejs", name: "vue" },
     ];
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByText("2 results")).toBeInTheDocument();
   });
 
   it("passes getPeriodLabel result to ActiveFilters when period is set", () => {
     mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "daily";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("Today");
   });
 
   it("passes 'This Week' label for weekly period", () => {
     mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "weekly";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("This week");
   });
 
   it("passes 'This Month' label for monthly period", () => {
     mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "monthly";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("active-period-label")).toHaveTextContent("This month");
   });
 
   it("does not show period label when period is null", () => {
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.queryByTestId("active-period-label")).not.toBeInTheDocument();
   });
 
   it("passes keyword to ActiveFilters when keyword is set", () => {
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("active-keyword")).toHaveTextContent("react");
   });
 
   it("does not show keyword filter when keyword is empty", () => {
     mockDiscoveryReturn.keyword = "";
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.queryByTestId("active-keyword")).not.toBeInTheDocument();
   });
 
   it("calls discovery.reset when clear all is clicked", async () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("clear-all"));
     expect(mockDiscoveryReturn.reset).toHaveBeenCalled();
   });
@@ -388,10 +394,10 @@ describe("Discovery", () => {
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
     ];
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("add-btn-1"));
     expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
-    expect(mockSuccess).toHaveBeenCalledWith("Repository added to watchlist");
+    expect(await screen.findByText("Repository added to watchlist")).toBeInTheDocument();
   });
 
   it("shows error toast when add to watchlist fails", async () => {
@@ -402,9 +408,9 @@ describe("Discovery", () => {
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
     ];
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("add-btn-1"));
-    expect(mockError).toHaveBeenCalledWith("An error occurred");
+    expect(await screen.findByRole("alert")).toHaveTextContent("An error occurred");
   });
 
   it("shows in-watchlist state for repos already in watchlist", () => {
@@ -414,20 +420,20 @@ describe("Discovery", () => {
     mockDiscoveryReturn.repos = [
       { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
     ];
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
   });
 
   it("passes language filter to ActiveFilters", () => {
     mockDiscoveryReturn.filters = { language: "TypeScript" };
-    render(<Discovery />);
+    renderDiscovery();
     expect(screen.getByTestId("active-language")).toHaveTextContent("TypeScript");
   });
 
   it("calls removeKeyword when keyword remove button is clicked", async () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.keyword = "react";
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("remove-keyword"));
     expect(mockDiscoveryReturn.removeKeyword).toHaveBeenCalled();
   });
@@ -436,7 +442,7 @@ describe("Discovery", () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.keyword = "react";
     mockDiscoveryReturn.period = "daily";
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("remove-period"));
     expect(mockDiscoveryReturn.removePeriod).toHaveBeenCalled();
   });
@@ -444,14 +450,14 @@ describe("Discovery", () => {
   it("calls removeLanguage when language remove button is clicked", async () => {
     const user = userEvent.setup();
     mockDiscoveryReturn.filters = { language: "Python" };
-    render(<Discovery />);
+    renderDiscovery();
     await user.click(screen.getByTestId("remove-language"));
     expect(mockDiscoveryReturn.removeLanguage).toHaveBeenCalled();
   });
 
   describe("keyboard shortcut: /", () => {
     it("focuses search input when / key is pressed", () => {
-      render(<Discovery />);
+      renderDiscovery();
       const searchInput = screen.getByTestId("search-bar");
       expect(document.activeElement).not.toBe(searchInput);
 
@@ -463,10 +469,10 @@ describe("Discovery", () => {
       // guard 的意義：在別的輸入框打「/」（例如打路徑）不能被搶去搜尋框。
       // 必須用「另一個」input 測——按在搜尋框自己身上時 focus() 是 no-op，測不到 guard。
       render(
-        <>
+        <ToastProvider>
           <input data-testid="other-input" />
           <Discovery />
-        </>
+        </ToastProvider>
       );
       const otherInput = screen.getByTestId("other-input");
       const searchInput = screen.getByTestId("search-bar");
@@ -479,7 +485,7 @@ describe("Discovery", () => {
     });
 
     it("does not focus search when modifier key is held", () => {
-      render(<Discovery />);
+      renderDiscovery();
       const searchInput = screen.getByTestId("search-bar");
       expect(document.activeElement).not.toBe(searchInput);
 
@@ -500,7 +506,7 @@ describe("Discovery", () => {
       // 取消一個要等 95 次請求跑完畫面才變——實際遇到過，使用者以為沒反應。
       mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
       mockUnstarRepo.mockResolvedValue(undefined);
-      render(<Discovery />);
+      renderDiscovery();
 
       fireEvent.click(screen.getByTestId("stub-feed-unstar"));
 
@@ -512,7 +518,7 @@ describe("Discovery", () => {
     it("adding invalidates the list instead of refetching every repo", async () => {
       mockWatchlistRepos = [];
       mockAddRepo.mockResolvedValue({ id: 8 });
-      render(<Discovery />);
+      renderDiscovery();
 
       fireEvent.click(screen.getByTestId("stub-feed-add"));
 

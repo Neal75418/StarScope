@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
-import { Toast, ToastContainer, useToast, type ToastMessage } from "../Toast";
+import { Toast, ToastProvider, useToast, type ToastMessage } from "../Toast";
 
 describe("Toast", () => {
   const mockToast: ToastMessage = {
@@ -91,13 +91,11 @@ describe("Toast", () => {
   });
 });
 
-describe("ToastContainer", () => {
-  const mockToasts: ToastMessage[] = [
-    { id: "1", type: "success", message: "Success" },
-    { id: "2", type: "error", message: "Error" },
-  ];
-
-  const mockOnDismiss = vi.fn();
+describe("ToastProvider", () => {
+  function Trigger({ type, message }: { type: ToastMessage["type"]; message: string }) {
+    const toast = useToast();
+    return <button onClick={() => toast[type](message)}>{`raise ${message}`}</button>;
+  }
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -107,97 +105,89 @@ describe("ToastContainer", () => {
     vi.useRealTimers();
   });
 
-  it("renders nothing when toasts array is empty", () => {
-    const { container } = render(<ToastContainer toasts={[]} onDismiss={mockOnDismiss} />);
+  it("renders nothing until a toast is raised", () => {
+    render(
+      <ToastProvider>
+        <Trigger type="success" message="Saved" />
+      </ToastProvider>
+    );
 
-    expect(container.firstChild).toBeNull();
+    expect(document.querySelector(".toast-container")).toBeNull();
   });
 
-  it("renders multiple toasts", () => {
-    render(<ToastContainer toasts={mockToasts} onDismiss={mockOnDismiss} />);
+  it("shows a toast raised by a component anywhere under the provider", () => {
+    render(
+      <ToastProvider>
+        <section>
+          <Trigger type="error" message="Add failed" />
+        </section>
+      </ToastProvider>
+    );
 
-    expect(screen.getByText("Success")).toBeInTheDocument();
-    expect(screen.getByText("Error")).toBeInTheDocument();
-  });
-});
+    fireEvent.click(screen.getByText("raise Add failed"));
 
-describe("useToast", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
+    expect(screen.getByRole("alert")).toHaveTextContent("Add failed");
   });
 
-  it("adds success toast", () => {
-    const { result } = renderHook(() => useToast());
+  it("collects toasts from different components into one container", () => {
+    render(
+      <ToastProvider>
+        <Trigger type="success" message="From page" />
+        <Trigger type="warning" message="From toolbar" />
+      </ToastProvider>
+    );
 
+    fireEvent.click(screen.getByText("raise From page"));
+    fireEvent.click(screen.getByText("raise From toolbar"));
+
+    const containers = document.querySelectorAll(".toast-container");
+    expect(containers).toHaveLength(1);
+    expect(containers[0]).toHaveTextContent("From page");
+    expect(containers[0]).toHaveTextContent("From toolbar");
+  });
+
+  it("removes a toast when its dismiss button is clicked", () => {
+    render(
+      <ToastProvider>
+        <Trigger type="info" message="Heads up" />
+      </ToastProvider>
+    );
+    fireEvent.click(screen.getByText("raise Heads up"));
+
+    fireEvent.click(screen.getByRole("button", { name: /dismiss|關閉/i }));
+
+    expect(screen.queryByText("Heads up")).not.toBeInTheDocument();
+  });
+
+  it("a later toast does not restart the timer of an earlier one", () => {
+    // 容器常駐 App 層、每跳一個 toast 都重新渲染：關閉函式的引用一變，前面的 toast 就會重新計時
+    render(
+      <ToastProvider>
+        <Trigger type="info" message="First" />
+        <Trigger type="info" message="Second" />
+      </ToastProvider>
+    );
+
+    fireEvent.click(screen.getByText("raise First"));
     act(() => {
-      result.current.success("Success message");
+      vi.advanceTimersByTime(3000);
+    });
+    fireEvent.click(screen.getByText("raise Second"));
+    act(() => {
+      vi.advanceTimersByTime(1100);
     });
 
-    expect(result.current.toasts).toHaveLength(1);
-    expect(result.current.toasts[0].type).toBe("success");
-    expect(result.current.toasts[0].message).toBe("Success message");
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+    expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
-  it("adds error toast", () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.error("Error message");
-    });
-
-    expect(result.current.toasts).toHaveLength(1);
-    expect(result.current.toasts[0].type).toBe("error");
-  });
-
-  it("adds info toast", () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.info("Info message");
-    });
-
-    expect(result.current.toasts[0].type).toBe("info");
-  });
-
-  it("adds warning toast", () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.warning("Warning message");
-    });
-
-    expect(result.current.toasts[0].type).toBe("warning");
-  });
-
-  it("dismisses toast by id", () => {
-    const { result } = renderHook(() => useToast());
-
-    let toastId: string;
-    act(() => {
-      toastId = result.current.success("Test");
-    });
-
-    expect(result.current.toasts).toHaveLength(1);
-
-    act(() => {
-      result.current.dismissToast(toastId);
-    });
-
-    expect(result.current.toasts).toHaveLength(0);
-  });
-
-  it("generates unique IDs for toasts", () => {
-    const { result } = renderHook(() => useToast());
-
-    act(() => {
-      result.current.success("Message 1");
-      result.current.success("Message 2");
-    });
-
-    expect(result.current.toasts[0].id).not.toBe(result.current.toasts[1].id);
+  it("useToast outside a ToastProvider throws instead of dropping the message", () => {
+    // 沒有容器時 toast 不會出現在任何地方：拋錯讓漏包 Provider 在開發與測試時就壞掉
+    const silenceReactErrorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() => renderHook(() => useToast())).toThrow(/ToastProvider/);
+    } finally {
+      silenceReactErrorLog.mockRestore();
+    }
   });
 });

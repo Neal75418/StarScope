@@ -7,11 +7,12 @@
  */
 import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act, waitFor, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import { ApiError } from "../../api/types";
 import { WatchlistProvider, useWatchlistActions, useWatchlistState } from "../WatchlistContext";
+import { ToastProvider } from "../../components/Toast";
 
 const mockAddRepo = vi.fn();
 const mockUnstarRepo = vi.fn();
@@ -45,7 +46,9 @@ function wrapper({ children }: { children: ReactNode }) {
   const client = createTestQueryClient();
   return (
     <QueryClientProvider client={client}>
-      <WatchlistProvider>{children}</WatchlistProvider>
+      <ToastProvider>
+        <WatchlistProvider>{children}</WatchlistProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
@@ -107,11 +110,20 @@ describe("WatchlistContext actions", () => {
         await result.current.actions.refreshAll();
       });
 
-      // toast 內容包含失敗數；toast 狀態存在 context 的 toasts 裡
-      await waitFor(() => {
-        const text = JSON.stringify(result.current.state);
-        expect(text).toContain("94");
+      // 從哪一頁觸發都要當下看得到：toast 由 app 層的 ToastProvider 顯示，不存在 Watchlist 的狀態裡
+      expect(await screen.findByText(/94/)).toBeInTheDocument();
+    });
+
+    it("surfaces a refresh that fails outright as a toast, whatever page started it", async () => {
+      // 整次失敗也寫進 state.error，但那只在追蹤清單頁的 ErrorBanner 顯示：從儀表板或系統匣觸發時當下看不到
+      mockFetchAllRepos.mockRejectedValue(new ApiError(500, "Refresh failed"));
+      const { result } = renderCtx();
+
+      await act(async () => {
+        await result.current.actions.refreshAll();
       });
+
+      expect(await screen.findByText("Refresh failed")).toBeInTheDocument();
     });
 
     it("calls the endpoint exactly once per invocation", async () => {
@@ -171,7 +183,9 @@ describe("WatchlistContext actions", () => {
       const invalidate = vi.spyOn(client, "invalidateQueries");
       const Wrapper = ({ children }: { children: ReactNode }) => (
         <QueryClientProvider client={client}>
-          <WatchlistProvider>{children}</WatchlistProvider>
+          <ToastProvider>
+            <WatchlistProvider>{children}</WatchlistProvider>
+          </ToastProvider>
         </QueryClientProvider>
       );
       const hook = renderHook(() => useWatchlistActions(), { wrapper: Wrapper });

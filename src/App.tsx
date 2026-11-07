@@ -13,6 +13,7 @@ import { useAppTheme } from "./hooks/useAppTheme";
 import { useAppLanguage } from "./hooks/useAppLanguage";
 import { useStartupPage } from "./hooks/useStartupPage";
 import { WatchlistProvider } from "./contexts/WatchlistContext";
+import { ToastProvider } from "./components/Toast";
 import { NavigationProvider } from "./contexts/NavigationContext";
 import { AppStatusProvider } from "./contexts/AppStatusContext";
 import { StatusBanner } from "./components/StatusBanner";
@@ -155,38 +156,43 @@ export function App() {
       <ThemeContext.Provider value={themeContextValue}>
         <I18nContext.Provider value={i18nContextValue}>
           <AppStatusProvider>
-            <WatchlistProvider>
-              <NavigationProvider onPageChange={handlePageChange}>
-                <div className="app">
-                  <AppHeader
-                    currentPage={currentPage ?? savedPage}
-                    onPageChange={handlePageChange}
-                    theme={theme}
-                    onThemeToggle={toggleTheme}
-                    language={language}
-                    onLanguageToggle={toggleLanguage}
-                    t={t}
-                  />
+            {/* 要在 I18nContext 內：toast 的關閉鈕用 useI18n，而容器在 ErrorBoundary 外，放錯時第一個
+                toast 跳出就整個視窗白屏（src/__tests__/AppToast.test.tsx 守住）。WatchlistProvider 用
+                useToast，所以在它裡面 */}
+            <ToastProvider>
+              <WatchlistProvider>
+                <NavigationProvider onPageChange={handlePageChange}>
+                  <div className="app">
+                    <AppHeader
+                      currentPage={currentPage ?? savedPage}
+                      onPageChange={handlePageChange}
+                      theme={theme}
+                      onThemeToggle={toggleTheme}
+                      language={language}
+                      onLanguageToggle={toggleLanguage}
+                      t={t}
+                    />
 
-                  <StatusBanner />
-                  <main className="app-main" id="main-content">
-                    <ErrorBoundary>
-                      <Suspense fallback={<PageLoader text={t.common.loading} />}>
-                        {sidecarBlock !== null ? (
-                          <SidecarUnavailable block={sidecarBlock} />
-                        ) : !sidecarEverUp && sidecarPhase === "down" ? (
-                          <SidecarUnavailable block={null} />
-                        ) : currentPage && sidecarEverUp ? (
-                          <PageContent page={currentPage} />
-                        ) : (
-                          <PageLoader text={t.common.loading} />
-                        )}
-                      </Suspense>
-                    </ErrorBoundary>
-                  </main>
-                </div>
-              </NavigationProvider>
-            </WatchlistProvider>
+                    <StatusBanner />
+                    <main className="app-main" id="main-content">
+                      <ErrorBoundary>
+                        <Suspense fallback={<PageLoader text={t.common.loading} />}>
+                          {sidecarBlock !== null ? (
+                            <SidecarUnavailable block={sidecarBlock} />
+                          ) : !sidecarEverUp && sidecarPhase === "down" ? (
+                            <SidecarUnavailable block={null} />
+                          ) : currentPage && sidecarEverUp ? (
+                            <PageContent page={currentPage} />
+                          ) : (
+                            <PageLoader text={t.common.loading} />
+                          )}
+                        </Suspense>
+                      </ErrorBoundary>
+                    </main>
+                  </div>
+                </NavigationProvider>
+              </WatchlistProvider>
+            </ToastProvider>
           </AppStatusProvider>
         </I18nContext.Provider>
       </ThemeContext.Provider>

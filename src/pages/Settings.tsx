@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { ToastContainer, useToast } from "../components/Toast";
+import { useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
 import { AnimatedPage } from "../components/motion";
 import {
@@ -273,8 +273,6 @@ export function Settings() {
         onConfirm={alerts.confirmDelete}
         onCancel={alerts.closeDeleteConfirm}
       />
-
-      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
     </AnimatedPage>
   );
 }

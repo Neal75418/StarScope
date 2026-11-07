@@ -15,8 +15,7 @@ vi.mock("../../hooks/useAlertRules", () => ({
 }));
 
 vi.mock("../../components/Toast", () => ({
-  ToastContainer: () => null,
-  useToast: () => ({ toasts: [], dismissToast: vi.fn(), success: vi.fn(), error: vi.fn() }),
+  useToast: () => ({ success: vi.fn(), error: vi.fn() }),
 }));
 
 vi.mock("../../components/ConfirmDialog", () => ({

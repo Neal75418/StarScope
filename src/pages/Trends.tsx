@@ -18,7 +18,7 @@ import { TrendRow } from "./trends/TrendRow";
 import { TrendExpandedRow } from "./trends/TrendExpandedRow";
 import { TrendGrid } from "./trends/TrendGrid";
 import { TrendsExportDropdown } from "./trends/TrendsExportDropdown";
-import { ToastContainer, useToast } from "../components/Toast";
+import { useToast } from "../components/Toast";
 import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 
 const SORT_KEYS: SortOption[] = [
@@ -447,7 +447,6 @@ export function Trends() {
           </table>
         </div>
       )}
-      <ToastContainer toasts={toast.toasts} onDismiss={toast.dismissToast} />
     </AnimatedPage>
   );
 }

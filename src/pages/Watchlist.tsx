@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AddRepoDialog } from "../components/AddRepoDialog";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { ToastContainer } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { useI18n, interpolate } from "../i18n";
 import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistContext";
@@ -295,8 +294,6 @@ export function Watchlist() {
         onConfirm={actions.confirmRemove}
         onCancel={actions.cancelRemove}
       />
-
-      <ToastContainer toasts={state.toasts} onDismiss={actions.dismissToast} />
     </AnimatedPage>
   );
 }

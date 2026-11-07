@@ -255,36 +255,6 @@ describe("watchlistReducer", () => {
     });
   });
 
-  // ==================== Toast 操作 ====================
-
-  describe("toast operations", () => {
-    it("SHOW_TOAST appends toast", () => {
-      const toast = { id: "t1", type: "success" as const, message: "Done!" };
-      const next = watchlistReducer(initialState, {
-        type: "SHOW_TOAST",
-        payload: toast,
-      });
-      expect(next.toasts).toHaveLength(1);
-      expect(next.toasts[0]).toEqual(toast);
-    });
-
-    it("DISMISS_TOAST removes specific toast", () => {
-      const state = {
-        ...initialState,
-        toasts: [
-          { id: "t1", type: "success" as const, message: "A" },
-          { id: "t2", type: "error" as const, message: "B" },
-        ],
-      };
-      const next = watchlistReducer(state, {
-        type: "DISMISS_TOAST",
-        payload: { id: "t1" },
-      });
-      expect(next.toasts).toHaveLength(1);
-      expect(next.toasts[0].id).toBe("t2");
-    });
-  });
-
   // ==================== 錯誤處理 ====================
 
   describe("error handling", () => {
@@ -309,10 +279,10 @@ describe("watchlistReducer", () => {
       const result = reduce(
         initialState,
         { type: "SET_SEARCH_QUERY", payload: { query: "react" } },
-        { type: "SHOW_TOAST", payload: { id: "test", message: "test", type: "info" } }
+        { type: "SET_CATEGORY", payload: { categoryId: 3 } }
       );
       expect(result.filters.searchQuery).toBe("react");
-      expect(result.toasts).toHaveLength(1);
+      expect(result.filters.selectedCategoryId).toBe(3);
     });
 
     it("RESET_FILTERS clears filters and error to initial state", () => {

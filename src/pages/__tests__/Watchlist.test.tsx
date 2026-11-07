@@ -56,7 +56,6 @@ const mockOpenRemoveConfirm = vi.fn();
 const mockConfirmRemove = vi.fn();
 const mockCancelRemove = vi.fn();
 const mockFetchRepo = vi.fn();
-const mockDismissToast = vi.fn();
 const mockSuccess = vi.fn();
 const mockError = vi.fn();
 
@@ -202,11 +201,6 @@ vi.mock("../../components/ConfirmDialog", () => ({
   ConfirmDialog: () => null,
 }));
 
-vi.mock("../../components/Toast", () => ({
-  ToastContainer: () => null,
-  useToast: () => ({ toasts: [], dismissToast: vi.fn(), success: vi.fn(), error: vi.fn() }),
-}));
-
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../components/EmptyState", () => ({
   EmptyState: ({
@@ -259,7 +253,6 @@ describe("Watchlist", () => {
         selectedCategoryId: null,
         searchQuery: "",
       },
-      toasts: [],
     };
 
     mockActions = {
@@ -277,7 +270,6 @@ describe("Watchlist", () => {
       setCategory: mockSetCategory,
       setSearchQuery: mockSetSearchQuery,
       showToast: vi.fn(),
-      dismissToast: mockDismissToast,
       success: mockSuccess,
       error: mockError,
       info: vi.fn(),

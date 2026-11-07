@@ -2,7 +2,7 @@
  * Watchlist Context：集中化的狀態管理。
  *
  * 資料層由 React Query 管理（repos 快取、請求去重、自動重試），
- * Context + useReducer 只負責 UI 狀態（dialog、filters、toasts、loadingState）。
+ * Context + useReducer 只負責 UI 狀態（dialog、filters、loadingState）；toast 交給 app 層的 ToastProvider。
  */
 
 import {
@@ -30,11 +30,10 @@ import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
 import { invalidateTrackedRepos } from "../lib/react-query";
-import type { ToastMessage } from "../components/Toast";
+import { useToast, type ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
 import { useI18n, interpolate } from "../i18n";
-import { generateId } from "../utils/id";
 import { DATA_RESET_EVENT } from "../constants/events";
 import {
   watchlistReducer,
@@ -108,14 +107,15 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // 空 deps 的 useCallback：只依賴穩定的 dispatch，讓 toast 便利方法引用永遠穩定
-  const showToastFn = useCallback((type: ToastMessage["type"], message: string) => {
-    const id = generateId();
-    dispatch({
-      type: "SHOW_TOAST",
-      payload: { id, type, message },
-    });
-  }, []);
+  // toast 交給 app 層的 ToastProvider 顯示：存在這裡的話只有 Watchlist 頁看得到，
+  // 從 Dashboard 等頁觸發的失敗要等使用者切到 Watchlist 才冒出來。toast 的方法引用是穩定的
+  const toast = useToast();
+  const showToastFn = useCallback(
+    (type: ToastMessage["type"], message: string) => {
+      toast.addToast(type, message);
+    },
+    [toast]
+  );
 
   // invalidate repos cache 的便利函式：分類樹、訊號、警報規則也會一起重讀（見 invalidateTrackedRepos）
   const invalidateRepos = useCallback(() => {
@@ -212,6 +212,8 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
           }
           const error = getErrorMessage(err, t.common.error);
           dispatch({ type: "REFRESH_ALL_FAILURE", payload: { error } });
+          // state.error 只有追蹤清單頁的 ErrorBanner 會顯示：從儀表板或系統匣觸發時，當下的頁面要靠 toast 才看得到
+          showToastFn("error", error);
         }
       },
 
@@ -267,8 +269,6 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
 
       // Toast 操作
       showToast: showToastFn,
-
-      dismissToast: (id: string) => dispatch({ type: "DISMISS_TOAST", payload: { id } }),
 
       success: (message: string) => showToastFn("success", message),
       error: (message: string) => showToastFn("error", message),

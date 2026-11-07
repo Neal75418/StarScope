@@ -19,7 +19,13 @@ paths:
 - ⚠️ **新增會寫入共用資源的 E2E spec，要加進 `playwright.config.ts` 的 `DB_MUTATING_SPECS`**——那組 spec 只在 chromium 串行跑、
   用專屬 port 8009/1421 與獨立 DB，`reuseExistingServer: false` 是刻意的：否則會接管你正在跑的真實 sidecar，把當天 feed 提前
   消耗掉，而 `seen_repos` 是永久的（推薦過的 repo 不會再出現）
-- Context Provider 包裹順序：`WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部。重構 hooks 時需同步更新測試 mocks
+- Context Provider 包裹順序：`WatchlistProvider` 在 `I18nContext` 和 `ThemeContext` 內部，也在 `ToastProvider` 內部（它呼叫
+  `useToast()`，在 Provider 外會拋錯）。⚠️ `ToastProvider` 要在 `I18nContext` 內：toast 的關閉鈕用 `useI18n`，而容器掛在
+  ErrorBoundary 外——放錯時平常沒 toast 看不出來，第一個 toast 跳出就整個視窗白屏。單元測試用全域 i18n mock 抓不到，
+  由 `src/__tests__/AppToast.test.tsx` 用真的 App 跳一次 toast 守住
+- 測 toast 有沒有出現在畫面上：包真的 `ToastProvider`、看畫面上的文字，不要 mock `useToast`（mock 只驗得到「有呼叫」，
+  訊息沒有容器顯示時照樣綠）；包 `WatchlistProvider` 的 wrapper 一定要一起包 `ToastProvider`
+- 重構 hooks 時需同步更新測試 mocks
   （例：`useWatchlist` → `useWatchlistState` + `useWatchlistActions`）；測試單一檔案用 `npx vitest run path/to/file.test.tsx`
 - ⚠️ **React Query 以 setTimeout(0) 才通知元件**：`act()` 之後立刻斷言「沒出錯／沒變化」會空過，先在 act 裡等一拍
   （`await act(() => new Promise((r) => setTimeout(r, 20)))`）。`createTestQueryClient()` 的 gcTime 0、retry false、staleTime 0

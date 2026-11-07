@@ -9,14 +9,12 @@ import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../../lib/react-query";
 import { BatchAddBar } from "../BatchAddBar";
+import { ToastProvider } from "../../Toast";
 
 const mockBatchAddRepos = vi.fn();
 vi.mock("../../../api/client", () => ({
   batchAddRepos: (...args: unknown[]) => mockBatchAddRepos(...args),
 }));
-
-const toast = vi.hoisted(() => ({ success: vi.fn(), warning: vi.fn(), error: vi.fn() }));
-vi.mock("../../Toast", () => ({ useToast: () => toast }));
 
 const repos = [
   { owner: "a", name: "b" },
@@ -27,15 +25,24 @@ function renderBar(props: Partial<React.ComponentProps<typeof BatchAddBar>> = {}
   const ui: ReactElement = (
     <BatchAddBar selectedRepos={repos} selectedCount={repos.length} onDone={vi.fn()} {...props} />
   );
-  return render(<QueryClientProvider client={createTestQueryClient()}>{ui}</QueryClientProvider>);
+  // 用真的 ToastProvider：mock 掉 useToast 只能驗「有呼叫」，看不出訊息有沒有出現在畫面上
+  return render(
+    <QueryClientProvider client={createTestQueryClient()}>
+      <ToastProvider>{ui}</ToastProvider>
+    </QueryClientProvider>
+  );
+}
+
+/** 畫面上某一類 toast 的文字；沒有這類 toast 時是空陣列。 */
+function shownToasts(type: "success" | "warning" | "error"): string[] {
+  return [...document.querySelectorAll(`.toast-${type} .toast-message`)].map(
+    (el) => el.textContent ?? ""
+  );
 }
 
 describe("BatchAddBar", () => {
   beforeEach(() => {
     mockBatchAddRepos.mockReset();
-    toast.success.mockReset();
-    toast.warning.mockReset();
-    toast.error.mockReset();
   });
 
   it("renders nothing when nothing is selected", () => {
@@ -58,9 +65,9 @@ describe("BatchAddBar", () => {
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(mockBatchAddRepos).toHaveBeenCalledWith(repos);
-    expect(toast.success).toHaveBeenCalledWith("Added 2/2 repositories");
-    expect(toast.warning).not.toHaveBeenCalled();
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(shownToasts("success")).toEqual(["Added 2/2 repositories"]);
+    expect(shownToasts("warning")).toEqual([]);
+    expect(shownToasts("error")).toEqual([]);
   });
 
   it("some fail: warning toast with the count, stays in selection mode for retry", async () => {
@@ -70,9 +77,9 @@ describe("BatchAddBar", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(toast.warning).toHaveBeenCalledWith("Added 1/2 repositories"));
+    await waitFor(() => expect(shownToasts("warning")).toEqual(["Added 1/2 repositories"]));
     expect(onDone).not.toHaveBeenCalled();
-    expect(toast.success).not.toHaveBeenCalled();
+    expect(shownToasts("success")).toEqual([]);
   });
 
   it("all fail: error toast, stays in selection mode", async () => {
@@ -82,10 +89,10 @@ describe("BatchAddBar", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(shownToasts("error")).toHaveLength(1));
     expect(onDone).not.toHaveBeenCalled();
-    expect(toast.success).not.toHaveBeenCalled();
-    expect(toast.warning).not.toHaveBeenCalled();
+    expect(shownToasts("success")).toEqual([]);
+    expect(shownToasts("warning")).toEqual([]);
   });
 
   it("API throws: error toast, stays in selection mode, button re-enabled", async () => {
@@ -95,7 +102,7 @@ describe("BatchAddBar", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(shownToasts("error")).toHaveLength(1));
     expect(onDone).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Add 2 to Watchlist" })).toBeEnabled();
   });

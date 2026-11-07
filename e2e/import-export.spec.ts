@@ -34,8 +34,8 @@ test.describe("Import & Export", () => {
     const body = JSON.parse(await readFile(path, "utf-8"));
     expect(body).toHaveProperty("repos");
 
-    // 提示要看得到，不只是存在於 DOM：頁面外層若留著 transform，position: fixed 的 toast
-    // 會以頁面而不是視窗為基準，被放到內容最底下、畫面之外。jsdom 看不到 CSS，只能在這裡驗
+    // 提示要看得到，不只是存在於 DOM：toast 容器是 position: fixed，祖先元素留著 transform 時
+    // 會以那個元素而不是視窗為基準，被放到內容最底下、畫面之外。jsdom 看不到 CSS，只能在這裡驗
     await expect(page.locator(".toast-container")).toBeInViewport();
   });
 

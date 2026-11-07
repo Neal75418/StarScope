@@ -48,9 +48,6 @@ export interface WatchlistState {
     selectedCategoryId: number | null;
     searchQuery: string;
   };
-
-  // 通知狀態
-  toasts: ToastMessage[];
 }
 
 /**
@@ -89,10 +86,6 @@ export type WatchlistAction =
   | { type: "SET_CATEGORY"; payload: { categoryId: number | null } }
   | { type: "SET_SEARCH_QUERY"; payload: { query: string } }
 
-  // Toast 操作
-  | { type: "SHOW_TOAST"; payload: ToastMessage }
-  | { type: "DISMISS_TOAST"; payload: { id: string } }
-
   // 錯誤處理
   | { type: "CLEAR_ERROR" }
 
@@ -129,7 +122,6 @@ export interface WatchlistActions {
 
   // Toast 操作
   showToast: (type: ToastMessage["type"], message: string) => void;
-  dismissToast: (id: string) => void;
   success: (message: string) => void;
   error: (message: string) => void;
   info: (message: string) => void;
@@ -164,7 +156,6 @@ export const initialState: WatchlistState = {
     selectedCategoryId: null,
     searchQuery: "",
   },
-  toasts: [],
 };
 
 /**
@@ -377,19 +368,6 @@ export function watchlistReducer(state: WatchlistState, action: WatchlistAction)
           ...state.filters,
           searchQuery: action.payload.query,
         },
-      };
-
-    // Toast 操作
-    case "SHOW_TOAST":
-      return {
-        ...state,
-        toasts: [...state.toasts, action.payload],
-      };
-
-    case "DISMISS_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.payload.id),
       };
 
     // 錯誤處理
