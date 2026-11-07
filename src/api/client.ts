@@ -7,6 +7,7 @@ import {
   GITHUB_SEARCH_PAGE_SIZE,
   DEFAULT_TIMEOUT_MS,
   FETCH_ALL_TIMEOUT_MS,
+  BATCH_ADD_TIMEOUT_MS,
   MAX_RETRIES,
   RETRY_DELAY_MS,
   API_ERROR_MESSAGES,
@@ -169,10 +170,14 @@ async function doFetch<T>(
 }
 
 // API 呼叫輔助函式（含重試）
-/** 逾時與重試的每次呼叫覆寫；長時間執行且有副作用的端點需要它。 */
+/** 逾時與重試的每次呼叫覆寫：跑得久的寫入要 timeoutMs，用 POST 帶參數的唯讀查詢要 retries。 */
 interface ApiCallConfig {
   timeoutMs?: number;
-  /** 覆寫重試次數。有副作用又不冪等的端點應設 0，否則逾時重試會造成伺服器端並行執行。 */
+  /**
+   * 覆寫重試次數。預設 GET 重試 MAX_RETRIES 次、其他方法不重試：寫入逾時時伺服器可能還在做
+   * （client 斷線不會取消 handler），重送會讓同一件事並行；回 5xx 時可能已經做了一部分，重送會重做。
+   * 只是用 POST 帶參數的唯讀查詢要明確設 MAX_RETRIES。
+   */
   retries?: number;
 }
 
@@ -183,7 +188,8 @@ async function apiCall<T>(
 ): Promise<T> {
   const url = `${API_ENDPOINT}${endpoint}`;
   const callerSignal = options.signal ?? null;
-  const maxRetries = config.retries ?? MAX_RETRIES;
+  const isRead = (options.method ?? "GET").toUpperCase() === "GET";
+  const maxRetries = config.retries ?? (isRead ? MAX_RETRIES : 0);
   let lastError: ApiError | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -339,10 +345,14 @@ export async function fetchAllRepos(): Promise<RepoListResponse> {
  * 批次匯入多個 repo。
  */
 export async function batchAddRepos(repos: RepoCreate[]): Promise<BatchImportResult> {
-  return apiCall<BatchImportResult>("/repos/batch", {
-    method: "POST",
-    body: JSON.stringify({ repos }),
-  });
+  return apiCall<BatchImportResult>(
+    "/repos/batch",
+    {
+      method: "POST",
+      body: JSON.stringify({ repos }),
+    },
+    { timeoutMs: BATCH_ADD_TIMEOUT_MS }
+  );
 }
 
 // Context Signal API 函式
@@ -367,7 +377,8 @@ export async function getContextBadgesBatch(
       method: "POST",
       body: JSON.stringify({ repo_ids: repoIds }),
       signal,
-    }
+    },
+    { retries: MAX_RETRIES } // 唯讀查詢，用 POST 只是為了帶 id 清單
   );
   return res.results;
 }
@@ -584,7 +595,8 @@ export async function getRepoSignalsBatch(
       method: "POST",
       body: JSON.stringify({ repo_ids: repoIds }),
       signal,
-    }
+    },
+    { retries: MAX_RETRIES } // 唯讀查詢，用 POST 只是為了帶 id 清單
   );
   return res.results;
 }
@@ -930,14 +942,18 @@ export async function getComparisonChart(
   timeRange: ComparisonTimeRange = "30d",
   normalize: boolean = false
 ): Promise<ComparisonChartResponse> {
-  return apiCall<ComparisonChartResponse>(`/comparison/chart`, {
-    method: "POST",
-    body: JSON.stringify({
-      repo_ids: repoIds,
-      time_range: timeRange,
-      normalize,
-    }),
-  });
+  return apiCall<ComparisonChartResponse>(
+    `/comparison/chart`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        repo_ids: repoIds,
+        time_range: timeRange,
+        normalize,
+      }),
+    },
+    { retries: MAX_RETRIES } // 唯讀查詢，用 POST 只是為了帶 id 清單
+  );
 }
 
 // 個人化推薦 API 函式

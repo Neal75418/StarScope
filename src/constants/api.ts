@@ -24,14 +24,27 @@ export const CLIPBOARD_FEEDBACK_MS = 2000;
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
- * 全量抓取的逾時。94 個 repo 實測 43.3 秒，遠超過預設的 30 秒。
- * 拉長不是為了讓 UI 知道結果——結果一律讀 diagnostics 的 fetch_in_progress——
- * 而是避免客戶端 abort 把伺服器跑到一半的抓取砍掉。
+ * 全量抓取的逾時。逐一抓取的實作（2026-08）94 個 repo 實測 43.3 秒，遠超過預設的 30 秒。
+ * 前端逾時放棄並不會讓伺服器停下（uvicorn 不會因 client 斷線取消 handler）：太短的話抓取照樣跑完，
+ * 前端卻拿不到成功／失敗數（部分失敗的提示就靠它），使用者還以為失敗了。
  * 若哪天逼近這個值，正解是後端改成「收下工作立刻回 202」，不是再把數字調大。
  */
 export const FETCH_ALL_TIMEOUT_MS = 300_000;
 
-/** API 呼叫最大重試次數（不含首次請求）。 */
+/**
+ * 批次加入的逾時。最多 100 筆，有 token 時每筆先在 GitHub 加星再讀回 repo；加星遇到次級限流時依
+ * Retry-After 退避，每次最多一分鐘。批次加入是逐筆做的；逐一抓取的全量抓取每筆也是一兩次 GitHub 請求，
+ * 94 筆實測 43.3 秒，所以筆數多時 30 秒做不完。理由同 FETCH_ALL_TIMEOUT_MS：提早放棄只會讓前端顯示失敗，伺服器照樣把它做完。
+ */
+export const BATCH_ADD_TIMEOUT_MS = 300_000;
+
+/**
+ * 批次加入逾時後，每隔多久重抓一次追蹤清單；持續 BATCH_ADD_TIMEOUT_MS（給伺服器的時間和請求本身一樣長）。
+ * 逾時當下伺服器還在逐筆加入，而 repos 查詢 5 分鐘內視為新鮮、切頁也不會重抓，只抓一次會停在做到一半的名單。
+ */
+export const BATCH_ADD_FOLLOWUP_INTERVAL_MS = 30_000;
+
+/** GET 與唯讀查詢的最大重試次數（不含首次請求）；寫入預設不重試，見 client.ts 的 ApiCallConfig。 */
 export const MAX_RETRIES = 2;
 
 /** 重試間的基本延遲（毫秒），配合指數退避使用。 */

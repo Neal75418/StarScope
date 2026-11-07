@@ -56,8 +56,11 @@ import {
   getWeeklySummary,
   getPortfolioHistory,
   generateFeed,
+  batchAddRepos,
+  getComparisonChart,
 } from "../client";
 import { RATE_LIMITED_EVENT } from "../../constants/events";
+import { BATCH_ADD_TIMEOUT_MS } from "../../constants/api";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -1290,5 +1293,97 @@ describe("429 的兩種來源要能區分", () => {
     // getRepos 走預設重試設定；本機節流必須一次就丟出，不能吃兩輪退避
     await expect(getRepos()).rejects.toMatchObject({ status: 429, code: "LOCAL_RATE_LIMIT" });
     expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+// 寫入請求有副作用：逾時時伺服器可能還在做（client 斷線不會取消 handler），重送會讓同一件事並行；
+// 回 5xx 時可能已經做了一部分，重送會重做。讀取可以安全重來。
+describe("retry policy: writes are sent once, reads retry", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    mockFetch.mockReset();
+  });
+
+  /** fetch 一直不回應，直到 doFetch 的逾時把它 abort。 */
+  function hangUntilAborted() {
+    mockFetch.mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError"))
+          );
+        })
+    );
+  }
+
+  const serverError = () => ({ ok: false, status: 500, json: async () => ({ detail: "boom" }) });
+  const okEnvelope = (data: unknown) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ success: true, data, message: "", error: null }),
+  });
+
+  it.each([
+    ["batchAddRepos", () => batchAddRepos([{ owner: "a", name: "b" }])],
+    ["addRepo", () => addRepo({ owner: "a", name: "b" })],
+    ["createCategory", () => createCategory({ name: "x" })],
+    ["deleteCategory", () => deleteCategory(1)],
+  ])("%s that times out is sent only once", async (_name, call) => {
+    hangUntilAborted();
+    const outcome = call().then(
+      () => "resolved",
+      (e: unknown) => e
+    );
+
+    // 推進到足以讓最長的逾時連同重試都跑完：不夠長的話，重送的版本會卡在等 outcome，只看得到測試逾時
+    await vi.advanceTimersByTimeAsync(4 * BATCH_ADD_TIMEOUT_MS);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(await outcome).toMatchObject({ status: 0 });
+  });
+
+  it("a write that gets a 5xx is sent only once", async () => {
+    mockFetch.mockResolvedValue(serverError());
+    const outcome = addRepo({ owner: "a", name: "b" }).catch((e: unknown) => e);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(await outcome).toMatchObject({ status: 500 });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["getRepos", () => getRepos()],
+    // 下面三個用 POST 只是為了帶 id 清單，後端是唯讀查詢
+    ["getContextBadgesBatch", () => getContextBadgesBatch([1])],
+    ["getRepoSignalsBatch", () => getRepoSignalsBatch([1])],
+    ["getComparisonChart", () => getComparisonChart([1, 2])],
+  ])("%s retries a 5xx", async (_name, call) => {
+    mockFetch
+      .mockResolvedValueOnce(serverError())
+      .mockResolvedValueOnce(okEnvelope({ results: {}, repos: [], total: 0 }));
+    const outcome = call();
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    await expect(outcome).resolves.toBeDefined();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("batchAddRepos keeps waiting for the server past the default 30-second timeout", async () => {
+    // 最多 100 筆、每筆先在 GitHub 加星：30 秒內做不完是常態。提早放棄只會顯示失敗，伺服器照樣把它做完
+    hangUntilAborted();
+    const outcome = batchAddRepos([{ owner: "a", name: "b" }]).catch((e: unknown) => e);
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    const firstRequest = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(firstRequest.signal?.aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(4 * BATCH_ADD_TIMEOUT_MS);
+    await outcome;
   });
 });

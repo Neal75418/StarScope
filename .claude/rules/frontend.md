@@ -35,6 +35,9 @@ paths:
 
 - **QueryClient 設定**（`lib/react-query.ts`）— staleTime 5min、gcTime 30min、retry 1；**queryKeys 工廠**——型別安全的
   query key 生成器，避免魔術字串；**測試工具** `createTestQueryClient()` 提供零快取零重試的 QueryClient
+- ⚠️ **`apiCall` 的重試看 method**：GET 重試 `MAX_RETRIES` 次，其他方法預設不重試——寫入逾時時伺服器可能還在做
+  （client 斷線不會取消 handler），重送會讓同一件事並行；回 5xx 時可能已經做了一部分，重送會重做。新增「用 POST 帶參數的唯讀查詢」要明確傳
+  `{ retries: MAX_RETRIES }`，忘了的話讀取的容錯會無聲變差；跑得久的寫入另給 `timeoutMs`（見 `constants/api.ts`）
 - **寫入操作統一由 `WatchlistContext` actions 處理**（addRepo / removeRepo / fetchRepo / refreshAll / recalculateAll），
   成功後自動 invalidate cache——不要在元件裡直接呼叫 mutation
 - ⚠️ **追蹤名單可能變動的操作（加入、取消追蹤、復原、刪除封存、同步、匯入）之後用 `invalidateTrackedRepos(qc)` 重取**

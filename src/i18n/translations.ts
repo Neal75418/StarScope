@@ -231,6 +231,7 @@ export const translations = {
         addToWatchlist: "Add {count} to Watchlist",
         adding: "Adding...",
         success: "Added {count}/{total} repositories",
+        stillProcessing: "Still adding — your watchlist will update over the next few minutes",
       },
       viewMode: {
         list: "List view",
@@ -1267,6 +1268,7 @@ export const translations = {
         addToWatchlist: "加入 {count} 個到追蹤清單",
         adding: "新增中...",
         success: "已新增 {count}/{total} 個儲存庫",
+        stillProcessing: "仍在新增中，追蹤清單接下來幾分鐘會陸續更新",
       },
       viewMode: {
         list: "列表檢視",
