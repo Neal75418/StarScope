@@ -74,12 +74,13 @@ async def run_once() -> str:
         await fetch_releases_job()
 
         # ⑥ 備份兜底：超過 24 小時沒備份就補一次
-        _backup_if_stale()
+        backup_ok = _backup_if_stale()
 
         # 心跳不能對抓取失敗說「ok」：job 把可恢復錯誤吞掉是為了不讓排程中斷，
         # 但 launchd 這邊唯一的診斷面就是這一行——94/94 失敗還寫 ok 的話，
-        # 「心跳正常、資料黑洞」的盲區就回來了
-        return _describe_fetch(fetch_counts)
+        # 「心跳正常、資料黑洞」的盲區就回來了。補跑的備份失敗也一樣：同目錄的備份是本機資料唯一的保護
+        outcome = _describe_fetch(fetch_counts)
+        return _with_backup_failure(outcome) if backup_ok is False else outcome
     finally:
         await close_github_service()
         await close_hn_service()
@@ -105,7 +106,19 @@ def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
     return "ok"
 
 
-def _backup_if_stale() -> None:
+def _with_backup_failure(outcome: str) -> str:
+    """把「補跑的備份失敗」併進心跳字串，保留抓取本身的結果。"""
+    if outcome == "ok":
+        return "degraded (backup failed)"
+    if outcome.startswith("degraded (") and outcome.endswith(")"):
+        return f"{outcome[:-1]}; backup failed)"
+    # 「ok (fetch busy elsewhere)」：抓取由 App 負責不是失敗，備份失敗仍要標出來
+    detail = outcome[outcome.find("(") + 1:-1] if outcome.endswith(")") and "(" in outcome else outcome
+    return f"degraded (backup failed; {detail})"
+
+
+def _backup_if_stale() -> bool | None:
+    """超過 BACKUP_STALE_HOURS 沒有備份就補一次。回傳 None＝不需要補，True／False＝補跑成功／失敗。"""
     from db.database import DATABASE_PATH
     from services.backup import backup_database, find_latest_backup
 
@@ -113,9 +126,15 @@ def _backup_if_stale() -> None:
     if latest is not None:
         age = datetime.now(timezone.utc) - latest
         if age < timedelta(hours=BACKUP_STALE_HOURS):
-            return
+            return None
     print(f"[collector] 備份超過 {BACKUP_STALE_HOURS}h（上次: {latest}），補跑")
-    backup_database(str(DATABASE_PATH))
+    try:
+        return backup_database(str(DATABASE_PATH)) is not None
+    except OSError as e:
+        # 備份目錄建不起來（例如磁碟滿）時 backup_database 會在 create_backup 之外拋錯：
+        # 收在這裡，否則整輪 collector 會變成 FAILED，連已經成功的抓取結果都看不到
+        print(f"[collector] 備份補跑失敗: {e!r}")
+        return False
 
 
 def main() -> int:

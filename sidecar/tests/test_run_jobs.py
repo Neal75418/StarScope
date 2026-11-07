@@ -32,7 +32,7 @@ def _mocks(order: list) -> dict:
     }
 
 
-def _run(m, online=True, sync_result=None):
+def _run(m, online=True, sync_result=None, backup_result=None):
     if sync_result is None:  # "recorded" 之類的哨兵值表示呼叫端已自行設定 sync mock
         sync_result = MagicMock(skipped_reason=None)
         m["sync"].side_effect = None
@@ -48,7 +48,7 @@ def _run(m, online=True, sync_result=None):
          patch("services.scheduler.check_alerts_job", m["alerts"]), \
          patch("services.scheduler.fetch_context_signals_job", m["context"]), \
          patch("services.scheduler.fetch_releases_job", m["releases"]), \
-         patch.object(run_jobs, "_backup_if_stale"):
+         patch.object(run_jobs, "_backup_if_stale", return_value=backup_result):
         import asyncio
         return asyncio.run(run_jobs.run_once())
 
@@ -127,6 +127,25 @@ class TestHeartbeatHonesty:
         assert "degraded" in out
         assert "database is locked" in out
 
+    def test_failed_catch_up_backup_reads_degraded(self):
+        """補跑的備份失敗也要看得出來：同目錄的備份是本機資料唯一的保護。"""
+        order: list = []
+        m = _mocks(order)
+        assert _run(m, backup_result=False) == "degraded (backup failed)"
+
+    def test_failed_backup_keeps_the_fetch_result(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={"success": 90, "errors": 4, "skipped": 0})
+        assert _run(m, backup_result=False) == "degraded (4/94 fetch failed; backup failed)"
+
+    def test_failed_backup_while_the_app_was_fetching_reads_degraded(self):
+        """抓取由 App 負責不是失敗，但備份失敗仍要標出來。"""
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value=None)
+        assert _run(m, backup_result=False) == "degraded (backup failed; fetch busy elsewhere)"
+
     def test_rate_limited_round_says_so(self):
         """被限流時沒打的 repo 也算失敗：不說明是限流的話，94/94 看起來像 token 失效或斷網。"""
         order: list = []
@@ -144,10 +163,11 @@ class TestHeartbeatHonesty:
 
 class TestBackupCatchUp:
     @staticmethod
-    def _call(latest):
+    def _call(latest, backup_path="backups/starscope_20261107_000000.db"):
         with patch("services.backup.find_latest_backup", return_value=latest), \
-             patch("services.backup.backup_database") as bk:
-            run_jobs._backup_if_stale()
+             patch("services.backup.backup_database", return_value=backup_path) as bk:
+            result = run_jobs._backup_if_stale()
+            bk.result = result
             return bk
 
     def test_runs_when_no_backup_exists(self):
@@ -160,4 +180,19 @@ class TestBackupCatchUp:
     def test_skips_when_fresh(self):
         """cron 02:00 剛跑過的日子不要疊一份——兜底只補缺，不加量。"""
         fresh = datetime.now(timezone.utc) - timedelta(hours=2)
-        assert not self._call(fresh).called
+        bk = self._call(fresh)
+        assert not bk.called
+        assert bk.result is None
+
+    def test_reports_a_successful_catch_up(self):
+        assert self._call(None).result is True
+
+    def test_a_backup_that_raises_is_reported_as_failed(self):
+        """備份目錄建不起來（例如磁碟滿）時 backup_database 會直接拋錯：不能把整輪 collector 變成 FAILED。"""
+        with patch("services.backup.find_latest_backup", return_value=None), \
+             patch("services.backup.backup_database", side_effect=OSError(28, "No space left on device")):
+            assert run_jobs._backup_if_stale() is False
+
+    def test_reports_a_failed_catch_up(self):
+        """backup_database 失敗時回 None：要回報出去，心跳才會標成 degraded。"""
+        assert self._call(None, backup_path=None).result is False

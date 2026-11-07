@@ -2,10 +2,12 @@
 
 import sqlite3
 import time
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from services.backup import BackupService, backup_database
+from services.backup import BackupService, backup_database, find_latest_backup
 
 
 @pytest.fixture
@@ -32,6 +34,89 @@ def backup_dir(tmp_path):
 def service(temp_db, backup_dir):
     """建立 BackupService 實例。"""
     return BackupService(str(temp_db), str(backup_dir))
+
+
+# ── 失敗的備份 ─────────────────────────────────────────────
+
+
+class TestFailedBackupsLeaveNothingBehind:
+    """失敗的備份不能留下會被當成備份的檔案：find_latest_backup 只看檔名，留著的半成品會讓
+    collector 24 小時內不補跑、診斷頁也說有備份——而同目錄的備份是本機資料唯一的保護。"""
+
+    def test_a_backup_that_fails_midway_returns_none_and_leaves_no_file(self, service, temp_db, backup_dir):
+        """sqlite3.Error（磁碟滿、I/O 錯誤）不是 OSError：沒接住的話會往外拋，把整輪 collector 變成 FAILED。"""
+        real_connect = sqlite3.connect
+
+        class _FailsHalfway:
+            def backup(self, target):
+                target.execute("CREATE TABLE half_written (x)")
+                target.commit()
+                raise sqlite3.OperationalError("disk I/O error")
+
+            def close(self):
+                pass
+
+        def connect(path, *args, **kwargs):
+            if str(path) == str(temp_db):
+                return _FailsHalfway()
+            return real_connect(path, *args, **kwargs)
+
+        with patch("services.backup.sqlite3.connect", side_effect=connect):
+            result = service.create_backup()
+
+        assert result is None
+        assert list(Path(backup_dir).iterdir()) == []
+
+    def test_an_empty_backup_is_rejected_and_removed(self, service, temp_db, backup_dir):
+        """備份跑完卻是空檔（驗證失敗）：同樣不能留下會被找到的檔案。"""
+        real_connect = sqlite3.connect
+
+        class _WritesNothing:
+            def backup(self, target):
+                # 只留下一個 0 byte 的目標檔
+                Path(target.execute("PRAGMA database_list").fetchone()[2]).touch()
+
+            def close(self):
+                pass
+
+        def connect(path, *args, **kwargs):
+            if str(path) == str(temp_db):
+                return _WritesNothing()
+            return real_connect(path, *args, **kwargs)
+
+        with patch("services.backup.sqlite3.connect", side_effect=connect):
+            result = service.create_backup()
+
+        assert result is None
+        assert list(Path(backup_dir).iterdir()) == []
+
+    def test_a_backup_cut_off_before_it_finished_is_never_counted(self, service, temp_db, backup_dir):
+        """行程在備份寫完、還沒定案前被砍掉（關機、kill）：留下的檔案不能被認成最新備份。"""
+        with patch.object(Path, "replace", side_effect=KeyboardInterrupt), \
+             pytest.raises(KeyboardInterrupt):
+            service.create_backup()
+
+        assert find_latest_backup(str(temp_db), str(backup_dir)) is None
+
+    def test_leftovers_of_cut_off_backups_are_cleaned_up_like_old_backups(self, service, backup_dir):
+        """中途被砍留下的檔案不算備份，也就不會被當成過期備份清掉：不另外處理的話會一直累積。"""
+        import os
+
+        with patch.object(Path, "replace", side_effect=KeyboardInterrupt), \
+             pytest.raises(KeyboardInterrupt):
+            service.create_backup()
+        leftovers = list(Path(backup_dir).iterdir())
+        assert len(leftovers) == 1
+        # 寫入途中被砍時，SQLite 的 rollback journal 也會留在旁邊
+        journal = leftovers[0].with_name(leftovers[0].name + "-journal")
+        journal.write_bytes(b"\0" * 512)
+        month_ago = time.time() - 86400 * 30
+        for leftover in (leftovers[0], journal):
+            os.utime(leftover, (month_ago, month_ago))
+
+        service.cleanup_old_backups(retention_days=7)
+
+        assert list(Path(backup_dir).iterdir()) == []
 
 
 # ── BackupService.__init__ ────────────────────────────────
