@@ -9,6 +9,10 @@
 
 ## [Unreleased]
 
+---
+
+## [1.1.1] — 2026-11-07
+
 ### 修復
 
 - **取消追蹤的專案還出現在分類、警報與統計裡** — 分類裡有取消追蹤過的專案時，點進這個分類會載入失敗，清單卻默默列出全部專案，分類的數量也把它算進去；它有觸發過的警報時，Dashboard 整頁顯示錯誤；綁在它上面的警報規則被顯示成「全部儲存庫」；週報等統計數字也把它算進去。現在取消追蹤的專案在這些地方都不出現、不計入；資料仍保留，從「已封存」重新追蹤後，原本的分類與警報規則都會回來。分類真的載入失敗時，會提示並改回顯示全部
@@ -321,7 +325,8 @@
 
 ---
 
-[Unreleased]: https://github.com/Neal75418/StarScope/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Neal75418/StarScope/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/Neal75418/StarScope/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/Neal75418/StarScope/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Neal75418/StarScope/compare/v0.4.3...v1.0.0
 [0.4.3]: https://github.com/Neal75418/StarScope/compare/v0.4.2...v0.4.3
