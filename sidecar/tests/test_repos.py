@@ -6,6 +6,36 @@ import asyncio
 import json
 from unittest.mock import patch, AsyncMock
 
+import httpx
+import pytest
+
+from middleware.rate_limit import limiter
+from services.github import GitHubAPIError, GitHubNotFoundError, GitHubService
+from services import scheduler
+from services.scheduler import get_scheduler_health
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """/repos/fetch-all 限流 5/minute：整檔累積的呼叫超過就被擋成 429，測的就不是那條測試要測的事。"""
+    limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def _restore_scheduler_state():
+    """fetch-all 走排程的實作，會寫模組層的健康狀態與連續失敗計數：不還原的話，測試順序一換就互相污染。"""
+    with scheduler._health_lock:
+        health = dict(scheduler._scheduler_health)
+    with scheduler._failure_counts_lock:
+        failures = dict(scheduler._repo_failure_counts)
+    yield
+    with scheduler._health_lock:
+        scheduler._scheduler_health.clear()
+        scheduler._scheduler_health.update(health)
+    with scheduler._failure_counts_lock:
+        scheduler._repo_failure_counts.clear()
+        scheduler._repo_failure_counts.update(failures)
+
 
 MOCK_GITHUB_REPO_DATA = {
     "id": 10270250,
@@ -182,15 +212,8 @@ class TestReposEndpoints:
 
     def test_fetch_all_repos_success(self, client, mock_repo):
         """Test batch refresh of all repos."""
-        with patch("routers.repos.get_github_service") as mock_gh, \
-             patch("routers.repos.fetch_repo_with_retry", new_callable=AsyncMock) as mock_retry:
-            mock_service = AsyncMock()
-            mock_gh.return_value = mock_service
-            mock_retry.return_value = {
-                **MOCK_GITHUB_REPO_DATA,
-                "full_name": "testowner/testrepo",
-                "name": "testrepo",
-            }
+        with patch("services.scheduler.fetch_repo_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = _github_payload("testowner", "testrepo")
 
             response = client.post("/api/repos/fetch-all")
 
@@ -201,25 +224,13 @@ class TestReposEndpoints:
 
     def test_fetch_all_repos_partial_failure(self, client, mock_multiple_repos):
         """Test batch refresh with some repos failing (GitHubNotFoundError)."""
-        from services.github import GitHubNotFoundError
+        # 抓取是併發的，依名字決定哪個失敗，不依呼叫順序
+        async def mock_fetch(owner, name):
+            if name == "vue":
+                raise GitHubNotFoundError(f"{owner}/{name}", 404)
+            return _github_payload(owner, name)
 
-        call_count = 0
-
-        async def mock_fetch(_github, owner, name):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 2:
-                raise GitHubNotFoundError(f"{owner}/{name}")
-            return {
-                **MOCK_GITHUB_REPO_DATA,
-                "full_name": f"{owner}/{name}",
-                "name": name,
-            }
-
-        with patch("routers.repos.get_github_service") as mock_gh, \
-             patch("routers.repos.fetch_repo_with_retry", side_effect=mock_fetch):
-            mock_gh.return_value = AsyncMock()
-
+        with patch("services.scheduler.fetch_repo_data", side_effect=mock_fetch):
             response = client.post("/api/repos/fetch-all")
 
         assert response.status_code == 200
@@ -228,12 +239,8 @@ class TestReposEndpoints:
 
     def test_fetch_all_repos_api_error(self, client, mock_repo):
         """Test batch refresh with GitHubAPIError."""
-        from services.github import GitHubAPIError
-
-        with patch("routers.repos.get_github_service") as mock_gh, \
-             patch("routers.repos.fetch_repo_with_retry", new_callable=AsyncMock) as mock_retry:
-            mock_gh.return_value = AsyncMock()
-            mock_retry.side_effect = GitHubAPIError("Rate limit exceeded")
+        with patch("services.scheduler.fetch_repo_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.side_effect = GitHubAPIError("GitHub API forbidden (remaining: 12)", 403)
 
             response = client.post("/api/repos/fetch-all")
 
@@ -265,18 +272,114 @@ class TestReposEndpoints:
         from services.scheduler import fetch_all_lock
 
         assert not fetch_all_lock.locked()
-        with patch("routers.repos.get_github_service") as mock_gh, \
-             patch("routers.repos.fetch_repo_with_retry", new_callable=AsyncMock) as mock_retry:
-            mock_gh.return_value = AsyncMock()
-            mock_retry.return_value = {
-                **MOCK_GITHUB_REPO_DATA,
-                "full_name": "testowner/testrepo",
-                "name": "testrepo",
-            }
+        with patch("services.scheduler.fetch_repo_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = _github_payload("testowner", "testrepo")
             response = client.post("/api/repos/fetch-all")
 
         assert response.status_code == 200
         assert not fetch_all_lock.locked()
+
+
+def _github_payload(owner: str, name: str) -> dict:
+    return {**MOCK_GITHUB_REPO_DATA, "full_name": f"{owner}/{name}", "name": name}
+
+
+@pytest.fixture
+def github_answering():
+    """回應由 handler 決定的 GitHubService：請求照樣走過 _check_github_errors，只是不連網路。"""
+    made: list[GitHubService] = []
+
+    def make(handler) -> GitHubService:
+        service = GitHubService(token=None)
+        service._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        made.append(service)
+        return service
+
+    yield make
+    for service in made:
+        asyncio.run(service.aclose())
+
+
+class TestFetchAllSurvivesGitHubFailures:
+    """手動「全部重新整理」與排程走同一份實作：一個 repo 失敗只算它失敗，其他照常更新。"""
+
+    def test_a_github_5xx_counts_as_failed_and_the_rest_still_refresh(self, client, mock_multiple_repos):
+        async def fetch(owner, name):
+            if name == "vue":
+                raise GitHubAPIError("GitHub API error (HTTP 502)", 502)
+            return _github_payload(owner, name)
+
+        with patch("services.scheduler.fetch_repo_data", side_effect=fetch):
+            response = client.post("/api/repos/fetch-all")
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["success_count"], data["failed_count"]) == (2, 1)
+
+    def test_github_unreachable_counts_as_failed_instead_of_aborting(self, client, mock_multiple_repos):
+        async def fetch(owner, name):
+            if name == "vue":
+                raise httpx.ConnectError("connection refused")
+            return _github_payload(owner, name)
+
+        with patch("services.scheduler.fetch_repo_data", side_effect=fetch):
+            response = client.post("/api/repos/fetch-all")
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["success_count"], data["failed_count"]) == (2, 1)
+
+    def test_a_rejected_token_is_asked_once_per_repo(self, client, mock_multiple_repos):
+        """token 失效（401）不會自己好：重試只會讓每個 repo 多等一分鐘，期間抓取鎖被佔著、排程被跳過。"""
+        with patch("services.scheduler.fetch_repo_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.side_effect = GitHubAPIError("GitHub API authentication failed - check token", 401)
+            response = client.post("/api/repos/fetch-all")
+
+        assert response.status_code == 200
+        assert mock_fetch.await_count == 3
+        assert response.json()["data"]["failed_count"] == 3
+
+    def test_records_the_fetch_for_the_freshness_label(self, client, mock_repo):
+        """儀表板的抓取時間讀 last_fetch_success：手動重新整理成功後不能還停在上一輪排程的時間。"""
+        with scheduler._health_lock:
+            scheduler._scheduler_health["last_fetch_success"] = None
+        with patch("services.scheduler.fetch_repo_data", new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.return_value = _github_payload("testowner", "testrepo")
+            client.post("/api/repos/fetch-all")
+
+        assert get_scheduler_health()["last_fetch_success"] is not None
+
+    def test_a_failed_round_is_an_error_not_a_refresh(self, client, mock_repo):
+        """整輪層級的資料庫錯誤（不是個別 repo 的失敗）：回 200 的話畫面會謊稱已更新。"""
+        failed_round = {"success": 0, "errors": 0, "skipped": 0, "job_error": "database is locked"}
+        with patch("services.scheduler.fetch_all_repos_holding_lock", new_callable=AsyncMock) as run:
+            run.return_value = failed_round
+            response = client.post("/api/repos/fetch-all")
+
+        assert response.status_code == 500
+
+
+class TestSingleFetchReportsGitHubFailuresAsBadGateway:
+    """上游（GitHub）失敗要回 502，前端才分得出是 GitHub 的問題；沒有對應 handler 時一律變成籠統的 500。"""
+
+    def test_github_5xx_is_502(self, client, mock_repo, github_answering):
+        service = github_answering(lambda request: httpx.Response(502, request=request))
+        with patch("routers.repos.get_github_service", return_value=service):
+            response = client.post(f"/api/repos/{mock_repo.id}/fetch")
+
+        assert response.status_code == 502
+        # 這段文字會直接顯示在畫面上：handler 已經加了「GitHub API error:」，例外訊息不必再說一次
+        assert response.json()["detail"].count("GitHub API error") == 1
+
+    def test_github_unreachable_is_502(self, client, mock_repo, github_answering):
+        def refuse(request):
+            raise httpx.ConnectError("connection refused", request=request)
+
+        service = github_answering(refuse)
+        with patch("routers.repos.get_github_service", return_value=service):
+            response = client.post(f"/api/repos/{mock_repo.id}/fetch")
+
+        assert response.status_code == 502
 
 
 class TestStarsDelta1dOnTheWire:

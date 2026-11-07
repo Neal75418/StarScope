@@ -4,6 +4,8 @@ Tests for services/scheduler.py - Background scheduler service.
 
 from contextlib import contextmanager
 
+import httpx
+
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
@@ -298,6 +300,100 @@ class TestFetchAllReposJob:
         # 記的必須是原因本身，不能只記「失敗了」——診斷頁要靠它判斷該做什麼
         assert "database is locked" in str(health["last_fetch_error"])
         assert health["last_fetch_success"] is None
+
+
+class TestFetchRoundFailureHandling:
+    """一輪抓取裡的失敗：限流時停下來，其他失敗留下原因。"""
+
+    @pytest.mark.asyncio
+    async def test_stops_asking_github_after_a_rate_limit(self, test_db, mock_multiple_repos, clean_health):
+        """配額用完時剩下的 repo 只會拿到同一個錯誤：繼續打只是提前用掉重置後的配額，每筆再印一次 traceback。"""
+        from services.github import GitHubRateLimitError
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.FETCH_CONCURRENCY', 1), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch:
+            mock_fetch.side_effect = GitHubRateLimitError(
+                "GitHub API rate limit exceeded (remaining: 0)", 403, reset_at=4102444800,
+            )
+            counts = await fetch_all_repos_job(skip_recent_minutes=0)
+
+        assert mock_fetch.await_count == 1
+        assert counts is not None
+        assert (counts["success"], counts["errors"]) == (0, 3)
+        # 診斷頁顯示的原因要說是限流，不是籠統的「N repos 抓取失敗」
+        assert "速率限制" in str(get_scheduler_health()["last_fetch_error"])
+        # collector 的心跳只看得到 counts：要帶出「是限流」，否則 3/3 失敗看起來像 token 失效或斷網
+        assert counts.get("rate_limited")
+
+    @pytest.mark.asyncio
+    async def test_repos_not_tried_do_not_count_as_their_own_failures(
+        self, test_db, mock_multiple_repos, clean_health,
+    ):
+        """沒打的 repo 不能累計「連續失敗」：限流幾輪之後，每個 repo 都會被誤報成持續失敗。"""
+        from services.github import GitHubRateLimitError
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.FETCH_CONCURRENCY', 1), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             patch('services.scheduler._track_repo_failure') as track:
+            mock_fetch.side_effect = GitHubRateLimitError("GitHub API rate limit exceeded (remaining: 0)", 403)
+            await fetch_all_repos_job(skip_recent_minutes=0)
+
+        assert track.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_the_github_error_reaches_the_failure_tracker(self, test_db, mock_repo, clean_health):
+        """連續失敗的 WARNING 要說得出原因：被刪、被限流、token 失效、GitHub 出錯的處理方式都不同。"""
+        from services.github import GitHubService, reset_github_service
+
+        reset_github_service()
+        try:
+            with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+                 patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as get_repo, \
+                 patch('services.scheduler._track_repo_failure') as track:
+                get_repo.side_effect = GitHubAPIError("GitHub API error (HTTP 502)", 502)
+                await fetch_all_repos_job(skip_recent_minutes=0)
+        finally:
+            reset_github_service()
+
+        reason = track.call_args.args[2]
+        assert "502" in reason
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", [
+        GitHubAPIError("GitHub API error (HTTP 502)", 502),
+        httpx.ConnectError("connection refused"),
+        # httpx 的逾時 str() 是空字串：只印訊息的話這一行什麼都看不出來
+        httpx.ReadTimeout(""),
+    ], ids=["github_error", "network_error", "timeout_without_message"])
+    async def test_expected_github_failures_are_logged_without_a_traceback(
+        self, test_db, mock_repo, clean_health, caplog, failure,
+    ):
+        """GitHub 端或網路的失敗是預期中的狀況：每筆印一段 traceback 只會把真正的錯誤淹掉。"""
+        import logging
+
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             caplog.at_level(logging.WARNING, logger="services.scheduler"):
+            mock_fetch.side_effect = failure
+            await fetch_all_repos_job(skip_recent_minutes=0)
+
+        records = [r for r in caplog.records if mock_repo.full_name in r.getMessage()]
+        assert records, "抓取失敗要留下紀錄"
+        assert all(r.levelno == logging.WARNING and r.exc_info is None for r in records)
+        assert all(type(failure).__name__ in r.getMessage() for r in records)
+
+    @pytest.mark.asyncio
+    async def test_a_timeout_still_has_a_reason(self, test_db, mock_repo, clean_health):
+        """連續失敗的「最近原因」不能是空白：httpx 的逾時 str() 是空字串，要靠例外型別說明。"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.fetch_repo_data', new_callable=AsyncMock) as mock_fetch, \
+             patch('services.scheduler._track_repo_failure') as track:
+            mock_fetch.side_effect = httpx.ReadTimeout("")
+            await fetch_all_repos_job(skip_recent_minutes=0)
+
+        assert "ReadTimeout" in track.call_args.args[2]
 
 
 class TestCheckAlertsJob:
@@ -687,7 +783,7 @@ class TestEarlySignalDetectionRunsAfterFetch:
         monkeypatch.setattr(sched, "_build_need_fetch_query",
                             lambda db, m, log, jid: (_FakeQuery(), 0, None))
 
-        await sched._fetch_all_repos_inner(skip_recent_minutes=0)
+        await sched.fetch_all_repos_holding_lock(skip_recent_minutes=0)
 
         assert calls == ["ran"], "抓取完成後沒有觸發早期訊號偵測"
 
@@ -705,7 +801,7 @@ class TestEarlySignalDetectionRunsAfterFetch:
                             lambda db, m, log, jid: (_FakeQuery(), 0, None))
 
         # 不該拋出
-        await sched._fetch_all_repos_inner(skip_recent_minutes=0)
+        await sched.fetch_all_repos_holding_lock(skip_recent_minutes=0)
 
 
 class _FakeQuery:

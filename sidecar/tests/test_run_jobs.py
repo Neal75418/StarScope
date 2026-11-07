@@ -127,6 +127,13 @@ class TestHeartbeatHonesty:
         assert "degraded" in out
         assert "database is locked" in out
 
+    def test_rate_limited_round_says_so(self):
+        """被限流時沒打的 repo 也算失敗：不說明是限流的話，94/94 看起來像 token 失效或斷網。"""
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={"success": 3, "errors": 91, "skipped": 0, "rate_limited": 1})
+        assert _run(m) == "degraded (91/94 fetch failed; GitHub rate limited)"
+
     def test_lock_held_by_app_is_ok(self):
         """None＝App 行程正在抓，資料由它負責——這不是失敗。"""
         order: list = []

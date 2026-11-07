@@ -14,6 +14,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import timedelta
 
+import httpx
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -33,7 +34,7 @@ from db.models import Repo, RepoSnapshot
 from services.context_fetcher import fetch_all_context_signals
 from services.feed_generator import generate_feed
 from services.release_fetcher import fetch_all_releases, fetched_recently
-from services.github import fetch_repo_data, get_github_service, GitHubAPIError
+from services.github import fetch_repo_data, get_github_service, GitHubAPIError, GitHubRateLimitError
 from services.alerts import check_all_alerts
 from services.snapshot import update_repo_from_github
 from services.backup import backup_database
@@ -188,36 +189,6 @@ def _build_need_fetch_query(
     return need_fetch_query, total_count, 0
 
 
-async def _fetch_and_update_single_repo(
-    repo: Repo,
-    db: Session,
-    log: logging.LoggerAdapter,
-    job_id: str,
-) -> bool:
-    """從 GitHub 抓取單一 repo 資料並更新資料庫。
-
-    Returns:
-        ``True`` 表示成功，``False`` 表示失敗。
-    """
-    repo_id = int(repo.id)
-    try:
-        github_data = await fetch_repo_data(repo.owner, repo.name)
-
-        return _apply_fetched_repo_data(repo, github_data, db, log, job_id)
-
-    except (GitHubAPIError, SQLAlchemyError) as e:
-        db.rollback()
-        _track_repo_failure(repo_id, repo.full_name, str(e))
-        log.exception(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {e}")
-        return False
-    except Exception as e:
-        # 未預期的錯誤：記錄為 critical 但繼續處理其他 repos
-        db.rollback()
-        _track_repo_failure(repo_id, repo.full_name, str(e))
-        log.critical(f"[排程] [{job_id}] 抓取 {repo.full_name} 未預期錯誤: {e}", exc_info=True)
-        return False
-
-
 def _apply_fetched_repo_data(
     repo: Repo,
     github_data: dict | None,
@@ -284,11 +255,25 @@ async def fetch_all_repos_job(skip_recent_minutes: int = 30) -> dict[str, int | 
         return None
 
     async with fetch_all_lock:
-        return await _fetch_all_repos_inner(skip_recent_minutes)
+        return await fetch_all_repos_holding_lock(skip_recent_minutes)
 
 
-async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int | str]:
-    """fetch_all_repos_job 的內部實作（已在 fetch_all_lock 保護下執行）。"""
+class _SkippedAfterRateLimit(Exception):
+    """這一輪已經被 GitHub 限流，這個 repo 沒有打。"""
+
+
+def _describe_failure(exc: BaseException) -> str:
+    """例外的型別加訊息：httpx 的逾時 str() 是空字串，只留訊息的話失敗原因會是一片空白。"""
+    message = str(exc)
+    return f"{type(exc).__name__}: {message}" if message else type(exc).__name__
+
+
+async def fetch_all_repos_holding_lock(skip_recent_minutes: int = 30) -> dict[str, int | str]:
+    """全量抓取的實作。呼叫端必須已持有 fetch_all_lock。
+
+    排程走 fetch_all_repos_job（撞到進行中的就跳過）；手動「全部重新整理」由 router 先回 409、
+    再持鎖呼叫這裡——兩條路共用同一份實作，診斷頁的抓取時間、早期訊號偵測與失敗處理才會一致。
+    """
     job_id = uuid.uuid4().hex[:8]
     log = logging.LoggerAdapter(logger, {"job_id": job_id})
     log.info(f"[排程] [{job_id}] 開始排程抓取所有 repo...")
@@ -321,28 +306,49 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int
             # 所以用小的 Semaphore 而不是無限併發。
             # 寫入不能一起併發：Session 既非 thread-safe 也非 coroutine-safe。
             sem = asyncio.Semaphore(FETCH_CONCURRENCY)
+            # 一碰到限流就停：剩下的 repo 只會拿到同一個錯誤，而 GitHub 文件明講限流期間繼續送請求
+            # 可能讓這個整合被封鎖。沒打的 repo 留給下一輪
+            rate_limited = asyncio.Event()
 
             async def _fetch_one(r: Repo) -> tuple[Repo, dict | None, Exception | None]:
                 async with sem:
+                    if rate_limited.is_set():
+                        return r, None, _SkippedAfterRateLimit()
                     try:
                         return r, await fetch_repo_data(r.owner, r.name), None
+                    except GitHubRateLimitError as exc:
+                        rate_limited.set()
+                        return r, None, exc
                     except Exception as exc:  # 單一 repo 失敗不影響其他人
                         return r, None, exc
 
             fetched = await asyncio.gather(*(_fetch_one(r) for r in repos_to_fetch))
 
+            not_attempted = 0
             for repo, github_data, fetch_error in fetched:
-                if fetch_error is not None:
-                    _track_repo_failure(int(repo.id), repo.full_name, str(fetch_error))
-                    log.error(
-                        f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {fetch_error}",
-                        exc_info=fetch_error,
-                    )
+                if isinstance(fetch_error, _SkippedAfterRateLimit):
+                    # 沒打的 repo 不累計連續失敗：限流幾輪之後，每個 repo 都會被誤報成持續失敗
+                    not_attempted += 1
+                    error_count += 1
+                elif fetch_error is not None:
+                    reason = _describe_failure(fetch_error)
+                    _track_repo_failure(int(repo.id), repo.full_name, reason)
+                    if isinstance(fetch_error, (GitHubAPIError, httpx.HTTPError)):
+                        # GitHub 端或網路的失敗是預期中的狀況：留下原因就夠，不必每筆印 traceback
+                        log.warning(f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {reason}")
+                    else:
+                        log.error(
+                            f"[排程] [{job_id}] 抓取 {repo.full_name} 失敗: {reason}",
+                            exc_info=fetch_error,
+                        )
                     error_count += 1
                 elif _apply_fetched_repo_data(repo, github_data, db, log, job_id):
                     success_count += 1
                 else:
                     error_count += 1
+
+            if not_attempted:
+                log.warning(f"[排程] [{job_id}] GitHub 速率限制，這一輪還有 {not_attempted} 個 repo 沒有抓")
 
             # skipped_count 從結果反推，避免額外 COUNT 查詢
             skipped_count = total_count - success_count - error_count
@@ -353,11 +359,19 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int
             )
             if error_count == 0:
                 _update_health(last_fetch_success=_time.time(), last_fetch_error=None)
+            elif rate_limited.is_set():
+                _update_health(
+                    last_fetch_failure=_time.time(),
+                    last_fetch_error=f"GitHub 速率限制，{error_count} repos 未更新",
+                )
             else:
                 _update_health(last_fetch_failure=_time.time(), last_fetch_error=f"{error_count} repos 抓取失敗")
             counts: dict[str, int | str] = {
                 "success": success_count, "errors": error_count, "skipped": skipped_count,
             }
+            if rate_limited.is_set():
+                # collector 的心跳只看得到 counts：不標出來的話，限流造成的「全部失敗」看起來像 token 失效或斷網
+                counts["rate_limited"] = 1
 
             # 早期訊號偵測掛在這裡，而不是自己一個排程任務，理由有兩個：
             #
@@ -391,8 +405,10 @@ async def _fetch_all_repos_inner(skip_recent_minutes: int = 30) -> dict[str, int
 
             return counts
 
-        except (GitHubAPIError, SQLAlchemyError) as e:
-            log.exception(f"[排程] [{job_id}] 資料庫/API 錯誤: {e}")
+        except SQLAlchemyError as e:
+            # 整輪層級的資料庫錯誤：多半發生在讀追蹤清單時；迴圈中途重新載入 repo 時也會走到這裡，
+            # 那時前面的 repo 可能已經寫入。個別 repo 的 GitHub 錯誤都在上面接住了
+            log.exception(f"[排程] [{job_id}] 資料庫錯誤: {e}")
             _update_health(last_fetch_failure=_time.time(), last_fetch_error=str(e)[:200])
             # 可恢復的錯誤，不中斷排程；但呼叫端（無頭收集器的心跳）需要知道這輪沒成
             return {"success": 0, "errors": 0, "skipped": 0, "job_error": str(e)[:120]}

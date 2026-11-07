@@ -27,8 +27,6 @@ a = Analysis(
         # FastAPI / Pydantic
         'pydantic',
         'pydantic.deprecated.decorator',
-        # Tenacity
-        'tenacity',
         # httpx
         'httpx',
         'httpcore',

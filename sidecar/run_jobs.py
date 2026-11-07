@@ -99,7 +99,9 @@ def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
     errors = int(counts.get("errors", 0))
     if errors > 0:
         total = errors + int(counts.get("success", 0))
-        return f"degraded ({errors}/{total} fetch failed)"
+        # 限流時沒打的 repo 也算在 errors 裡：不說明的話看起來像 token 失效或斷網
+        cause = "; GitHub rate limited" if counts.get("rate_limited") else ""
+        return f"degraded ({errors}/{total} fetch failed{cause})"
     return "ok"
 
 

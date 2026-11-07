@@ -72,7 +72,7 @@ def _check_github_errors(
     Raises:
         GitHubNotFoundError: 404 且 raise_on_error=True 時
         GitHubRateLimitError: 403（配額 header 判定）或 429 且 raise_on_error=True 時
-        GitHubAPIError: 401 或其他錯誤且 raise_on_error=True 時
+        GitHubAPIError: 401、其他 403 或任何非 2xx 狀態且 raise_on_error=True 時（帶 status_code）
     """
     if response.status_code == 404:
         if raise_on_error:
@@ -111,8 +111,8 @@ def _check_github_errors(
     if response.status_code == 429:
         # GitHub 對 primary 與 secondary rate limit 都可能回 429（403 只是其中一種形式）。
         # 429 語意單一（Too Many Requests），不像 403 還要靠 header 區分「被封鎖/權限不足」，
-        # 所以無條件視為速率限制——漏掉這個分支會讓 429 落到 raise_for_status()，
-        # 呼叫端的 GitHubRateLimitError 守衛完全失效。
+        # 所以無條件視為速率限制——漏掉這個分支會讓 429 落到下方的通用非 2xx 分支、變成一般的
+        # GitHubAPIError，呼叫端的 GitHubRateLimitError 守衛完全失效。
         retry_after = response.headers.get("Retry-After")
         reset_at_raw = response.headers.get("X-RateLimit-Reset")
         reset_at = int(reset_at_raw) if reset_at_raw else None
@@ -138,7 +138,14 @@ def _check_github_errors(
         logger.error(f"[GitHub API] GitHub API 驗證失敗: {context}")
         return False
 
-    response.raise_for_status()
+    if not 200 <= response.status_code < 300:
+        # GitHub 的 5xx、451 等沒有專門分支的錯誤狀態也要是 GitHubAPIError：呼叫端與 main.py 的
+        # handler 只認這一族例外，httpx 的 HTTPStatusError 會一路變成籠統的 500
+        if raise_on_error:
+            # 訊息只寫狀態碼：main.py 的 handler 回給前端時已經加上「GitHub API error:」
+            raise GitHubAPIError(f"HTTP {response.status_code}", status_code=response.status_code)
+        logger.warning(f"[GitHub API] HTTP {response.status_code}: {context}")
+        return False
     return True
 
 
@@ -642,26 +649,11 @@ def reset_github_service() -> None:
         _default_service = None
 
 
-async def fetch_repo_data(owner: str, repo: str) -> dict | None:
+async def fetch_repo_data(owner: str, repo: str) -> dict:
     """
     從 GitHub 取得 repo 資料。
-    請求失敗時回傳 None。
+
+    失敗時原樣拋出（GitHubAPIError 一族或 httpx 的傳輸錯誤），不折成 None：排程要靠例外型別
+    記下失敗原因（被刪、被限流、token 失效、GitHub 出錯），並在限流時停下這一輪。
     """
-    try:
-        service = get_github_service()
-        return await service.get_repo(owner, repo)
-    except GitHubNotFoundError:
-        logger.warning(f"[GitHub API] 找不到 repo: {owner}/{repo}")
-        return None
-    except GitHubRateLimitError as e:
-        logger.exception(f"[GitHub API] GitHub 速率限制已超出: {e}")
-        return None
-    except GitHubAPIError as e:
-        logger.exception(f"[GitHub API] {owner}/{repo} API 錯誤: {e}")
-        return None
-    except httpx.TimeoutException:
-        logger.exception(f"[GitHub API] 抓取 {owner}/{repo} 逾時")
-        return None
-    except httpx.RequestError as e:
-        logger.exception(f"[GitHub API] 抓取 {owner}/{repo} 網路錯誤: {e}")
-        return None
+    return await get_github_service().get_repo(owner, repo)

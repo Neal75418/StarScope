@@ -42,7 +42,6 @@ from services.github import (
     get_github_service,
 )
 from services.queries import build_category_map, build_signal_map, build_snapshot_map
-from services.rate_limiter import fetch_repo_with_retry
 from services.settings import get_setting
 from services.star_sync import sync_starred_repos, sync_is_running
 from utils.time import utc_now
@@ -319,12 +318,14 @@ async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db
 async def fetch_all_repos(request: Request, db: Annotated[Session, Depends(get_db)]) -> dict:
     """
     抓取追蹤清單中所有 repo 的最新資料。
-    使用指數退避重試處理速率限制。
-    與 scheduler 共享 fetch_all_lock 防止並發全量抓取。
+
+    跟排程走同一份實作（services/scheduler.py 的 fetch_all_repos_holding_lock）：一個 repo 失敗只算它失敗、
+    遇到限流就停下這一輪、失敗的不重試（等下一輪排程再抓），並更新診斷頁的抓取時間與早期訊號。
+    與排程共享 fetch_all_lock，防止並發全量抓取。
     """
     _ = request  # 由 @limiter.limit decorator 隱式使用
 
-    from services.scheduler import fetch_all_lock
+    from services.scheduler import fetch_all_lock, fetch_all_repos_holding_lock
 
     # 409 而不是 200：一個「我沒做」的成功回應，跟「做完了」在呼叫端長得一模一樣
     # （前端的 apiCall 只取 data，message 會被丟掉），畫面因此會謊稱抓取已完成
@@ -332,34 +333,22 @@ async def fetch_all_repos(request: Request, db: Annotated[Session, Depends(get_d
         raise HTTPException(status_code=409, detail="Fetch already in progress")
 
     async with fetch_all_lock:
-        # noinspection PyTypeChecker
-        repos: list[Repo] = db.query(Repo).all()
-        github = get_github_service()
+        counts = await fetch_all_repos_holding_lock(skip_recent_minutes=0)
 
-        success_count = 0
-        failed_count = 0
+    if "job_error" in counts:
+        # 整輪層級的資料庫錯誤（個別 repo 的失敗都算在 errors 裡）：多半發生在讀追蹤清單時，迴圈中途也可能，
+        # 那時前面的 repo 可能已經寫入。回成功的話畫面會謊稱已更新
+        raise HTTPException(status_code=500, detail="Refresh failed")
 
-        for repo in repos:
-            try:
-                github_data = await fetch_repo_with_retry(github, repo.owner, repo.name)
-                update_repo_from_github(repo, github_data, db)
-                success_count += 1
-            except GitHubNotFoundError:
-                db.rollback()
-                logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上找不到，跳過")
-                failed_count += 1
-            except GitHubAPIError as e:
-                db.rollback()
-                logger.exception(f"[Repo] {repo.full_name} 重試後仍發生 GitHub API 錯誤: {e}")
-                failed_count += 1
-
-        repo_list = _build_repo_list_response(db)
-        repo_list.success_count = success_count
-        repo_list.failed_count = failed_count
-        return success_response(
-            data=repo_list,
-            message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
-        )
+    success_count = int(counts["success"])
+    failed_count = int(counts["errors"])
+    repo_list = _build_repo_list_response(db)
+    repo_list.success_count = success_count
+    repo_list.failed_count = failed_count
+    return success_response(
+        data=repo_list,
+        message=f"Refreshed {success_count} repositories" + (f", {failed_count} failed" if failed_count > 0 else "")
+    )
 
 
 @router.post("/repos/batch", response_model=ApiResponse[BatchImportResult])

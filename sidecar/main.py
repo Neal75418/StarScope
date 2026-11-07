@@ -11,6 +11,7 @@ import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import httpx
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -336,6 +337,15 @@ async def github_api_error_handler(request: Request, exc: GitHubAPIError):
     # exception handler 不在 except 語法內：把例外物件明確交給 exc_info，不靠 sys.exc_info()
     logger.error(f"[GitHub API] {request.method} {request.url.path} 上游失敗: {exc}", exc_info=exc)
     return JSONResponse(status_code=502, content={"detail": f"GitHub API error: {exc}"})
+
+
+@app.exception_handler(httpx.TransportError)
+async def upstream_unreachable_handler(request: Request, exc: httpx.TransportError):
+    # 連不上 GitHub（逾時、DNS、連線被拒）也是上游失敗：沒有這個 handler 會變成籠統的 500，
+    # 前端分不出是 sidecar 自己壞了還是 GitHub 連不上。會走到這裡的是 GitHub API 與 OAuth 登入；
+    # Hacker News 的抓取自己接住 httpx 錯誤
+    logger.error(f"[GitHub API] {request.method} {request.url.path} 連不上上游: {exc!r}")
+    return JSONResponse(status_code=502, content={"detail": "Upstream service unreachable"})
 
 
 # CORS 設定 — 允許 Tauri 前端呼叫此 API

@@ -97,7 +97,7 @@ class TestHandleGitHubResponse:
     def test_handles_429_as_rate_limit(self):
         """429（primary/secondary 皆可能）必須拋 GitHubRateLimitError。
 
-        漏掉這個分支時 429 會落到 raise_for_status() 變成 HTTPStatusError，
+        漏掉這個分支時 429 會落到通用的非 2xx 分支、變成一般的 GitHubAPIError，
         呼叫端所有「配額耗盡就停手」的守衛都會失效（feed fan-out 會繼續打完）。
         """
         resp = _make_response(429, headers={"X-RateLimit-Reset": "1700000000"})
@@ -168,16 +168,32 @@ class TestFetchRepoData:
         httpx.TimeoutException("Timeout"),
         httpx.RequestError("Network error"),
     ], ids=["not_found", "rate_limit", "api_error", "timeout", "network_error"])
-    async def test_fetch_repo_data_returns_none_on_error(self, exception):
-        """Test returns None when get_repo raises any handled exception."""
+    async def test_fetch_repo_data_keeps_the_failure(self, exception):
+        """失敗要原樣傳給排程：折成 None 的話，連續失敗的紀錄只剩「資料為空」，分不出被刪、被限流、
+        token 失效還是 GitHub 出錯，排程也無法在限流時停下這一輪。"""
         reset_github_service()
 
         with patch.object(GitHubService, 'get_repo', new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = exception
-            result = await fetch_repo_data("owner", "repo")
-            assert result is None
+            with pytest.raises(type(exception)):
+                await fetch_repo_data("owner", "repo")
 
         reset_github_service()
+
+
+class TestErrorStatusesWithoutTheirOwnBranch:
+    """404／403／429／401 以外的錯誤狀態（GitHub 的 5xx、451 等）也要以 GitHubAPIError 拋出並帶狀態碼：
+    呼叫端與 main.py 的 handler 只認這一族例外，httpx 的 HTTPStatusError 會一路變成籠統的 500。"""
+
+    @pytest.mark.parametrize("status", [500, 502, 503, 451])
+    def test_raises_github_api_error_with_the_status(self, status):
+        response = httpx.Response(status, request=httpx.Request("GET", "https://api.github.com/repos/o/r"))
+
+        with pytest.raises(GitHubAPIError) as exc_info:
+            handle_github_response(response, raise_on_error=True, context="o/r")
+
+        assert exc_info.value.status_code == status
+        assert type(exc_info.value) is GitHubAPIError
 
 
 class TestGitHubServiceGetRepo:
