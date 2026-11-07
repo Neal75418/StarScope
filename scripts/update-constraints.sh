@@ -1,9 +1,17 @@
 #!/bin/bash
 # 從開發機的 sidecar venv 重新產生 sidecar/constraints.txt，再依它產生打包環境的 sidecar/packaging.lock。
-# 升級流程：.venv/bin/pip install -U <套件> → 跑測試 → 執行這支腳本 → 看過 packaging.lock 的 diff 再 commit
+# 升級流程（先同步 venv、處理 Dependabot 的 PR 等）見 .claude/rules/sidecar.md；跑完看過 packaging.lock 的 diff 再 commit
 # constraints.txt 與 packaging.lock（改了 requirements 檔的範圍就連它一起）。
 
 set -euo pipefail
+
+# 預設不准新的 freeze 把版本改低或把套件弄丟（見 scripts/compare_constraints.py）；真的要降版或拿掉套件時加這個旗標
+allow_downgrade=false
+case "${1:-}" in
+  "") ;;
+  --allow-downgrade) allow_downgrade=true ;;
+  *) echo "用法：$0 [--allow-downgrade]" >&2; exit 2 ;;
+esac
 
 cd "$(dirname "$0")/../sidecar"
 # pyinstaller 不在 requirements 檔，packaging.lock 的版本取自 constraints；venv 沒裝的話 freeze 會把它的鎖弄丟
@@ -17,6 +25,18 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 FREEZE="$(.venv/bin/pip freeze --exclude-editable)"
+
+# 合併了 Dependabot 的 PR、venv 卻沒跟著裝的話，freeze 會把剛合進來的版本改回去：寫入前先比對
+if ! $allow_downgrade && [ -f constraints.txt ]; then
+  freeze_file="$(mktemp)"
+  trap 'rm -f "$freeze_file"' EXIT
+  printf '%s\n' "$FREEZE" > "$freeze_file"
+  if ! .venv/bin/python ../scripts/compare_constraints.py constraints.txt "$freeze_file"; then
+    echo "❌ 照 .claude/rules/sidecar.md 的升級流程處理上面列出的差異（多半是合併了 Dependabot 的 PR、venv 還沒裝）；" >&2
+    echo "   真的要降版或拿掉套件，再加 --allow-downgrade" >&2
+    exit 1
+  fi
+fi
 
 {
   cat <<'EOF'

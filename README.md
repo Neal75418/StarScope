@@ -179,7 +179,7 @@ npm install
 
 # Python 依賴（版本以根目錄的 .python-version 為準，uv／pyenv 會自動讀它；
 # 一定要用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
-cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt && cd ..
+cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt pyinstaller -c constraints.txt && cd ..
 
 # 環境設定（選用）：提升 GitHub API 配額用 app 內的「連結 GitHub」即可，不需要設定；
 # 要改用自己的 OAuth App 或 Personal Access Token 時才需要 sidecar/.env
@@ -255,7 +255,7 @@ StarScope/
 │   └── tests/                     #   pytest 後端測試
 │
 ├── e2e/                           # Playwright E2E 測試
-└── .github/workflows/             # CI/CD（test、release、打 tag 前手動跑的 sidecar 驗證）
+└── .github/                       # CI/CD：workflows（test、rust、release、打 tag 前手動跑的 sidecar 驗證）與 Dependabot 設定
 ```
 
 ## 🔌 API 端點

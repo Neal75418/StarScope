@@ -82,7 +82,7 @@ cd sidecar
 .venv/bin/ruff check --fix .                       # Python lint（CI 也跑；規則明確列在 ruff.toml，不吃 Ruff 預設值）
 ```
 
-venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt -c constraints.txt`
+venv 不存在時：`cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt pyinstaller -c constraints.txt`
 
 Rust：`cd src-tauri && cargo test --lib`，改了 src-tauri 推之前也跑 `cargo clippy --all-targets --locked -- -D warnings`
 （`rust.yml` 在 src-tauri 有變動時於 Linux 跑這兩項，警告也算失敗；Windows 只在 `release.yml` 的預演編）。
@@ -142,13 +142,13 @@ GitHub 配額降到 60/hr。
 
 ## 測試策略與發版
 
-| 類型       | 工具                       | 位置                                                                                          |
-|------------|----------------------------|-----------------------------------------------------------------------------------------------|
-| 單元測試   | Vitest                     | `src/**/__tests__/`                                                                           |
-| 後端測試   | pytest（非同步）           | `sidecar/tests/`                                                                              |
-| E2E 測試   | Playwright                 | `e2e/`                                                                                        |
-| CI         | GitHub Actions             | `.github/workflows/test.yml`                                                                  |
-| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包、核對整組安裝檔）、`verify-sidecar.yml`（只打包 sidecar） |
+| 類型       | 工具                       | 位置                                                                                           |
+|------------|----------------------------|------------------------------------------------------------------------------------------------|
+| 單元測試   | Vitest                     | `src/**/__tests__/`                                                                            |
+| 後端測試   | pytest（非同步）           | `sidecar/tests/`                                                                               |
+| E2E 測試   | Playwright                 | `e2e/`                                                                                         |
+| CI         | GitHub Actions             | `test.yml`（push 與 PR）、`rust.yml`（src-tauri 有變動時：clippy＋lib 測試）、`dependabot.yml` |
+| 發佈前驗證 | GitHub Actions（手動觸發） | `release.yml`（預演：完整編譯、打包、核對整組安裝檔）、`verify-sidecar.yml`（只打包 sidecar）  |
 
 ⚠️ **打 tag 前先在 main 上手動跑 `Release`（預演），所有 job（四個 build 加 verify）全綠再打。** 在 branch 上手動觸發才是
 預演（選了 tag 就是正式發版）：照發版的步驟編譯、打包、核對整組安裝檔的檔名，並多跑一次 `cargo test --lib --locked`，但不建立
@@ -157,7 +157,8 @@ sidecar 能不能跑、簽章）只有預演看得到（v1.0.0 以前每一版�
 Intel 版還包著 placeholder）。只改 sidecar 時可先跑 `verify-sidecar.yml`
 （約 2 分鐘）：它和 release 共用 `setup-sidecar` action——打包、smoke test、stage 進 `src-tauri/sidecar/`、確認是對應架構的
 完整 onedir。release（含預演）另外從安裝檔（.app、.deb 與 AppImage、.msi；NSIS 的 .exe 與 .rpm 沒驗）取出 sidecar 再跑一次
-smoke test，macOS 並驗證簽章。
+smoke test，macOS 並驗證簽章。打 tag 後 release 先建成 draft；repo 開了 immutable releases，draft 發佈之後就不能換安裝檔、
+tag 也不能移動，發佈前先確認安裝檔。
 
 打包版本機實測用 `scripts/run-packaged-app.sh`（只支援 macOS）：隔離資料、不讀 token、不動 repo 的 `src-tauri/sidecar/`；
 前端 localStorage 與已安裝的 StarScope 共用，隔離不了。⚠️ 從終端機啟動時視窗不會到前景：被蓋住的 WebView 整頁暫停

@@ -1,8 +1,14 @@
 name: Test
 
+# pull_request：Dependabot 開的 PR 也要跑。token 是唯讀的（permissions: contents: read）；Dependabot 與 fork 的 PR 拿不到
+# Actions secrets，Codecov 上傳可能失敗，fail_ci_if_error 是 false，不擋 CI
 on:
   push:
     branches: [main, dev]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
     paths-ignore:
       - '**.md'
       - 'LICENSE'

@@ -55,6 +55,15 @@ paths:
   `@tauri-apps/plugin-X` 要在同一個 major.minor（`tauri build` 對不上會直接失敗），升級要兩邊一起；Cargo.toml 的 tauri
   用 `~` 鎖在一個 minor（`sidecar/tests/test_tauri_versions.py` 守住）。rust.yml 裝的是沒釘版本的 stable：新版 clippy
   多出來的 lint 可能讓無關的 src-tauri 改動突然紅，當下修掉 lint 即可（不要只在 rust.yml 釘版本，會跟 release 用的不同）
+- Dependabot（`.github/dependabot.yml`）每週開 actions／npm／cargo、每月開 pip 的 PR，新版發佈 7 天後才提（cooldown）；
+  `sidecar/tests/test_dependabot.py` 守住涵蓋範圍。
+  - tauri 的 npm 與 cargo 是兩個 PR：minor 升級（含 plugin）時各自都會紅（`test_tauri_versions.py`），GitHub 上也沒辦法一起合。
+    把一邊的 commit cherry-pick 到另一邊的分支（兩邊改的檔案不重疊）、推上去，等 test.yml 與 rust.yml 綠燈再合；剩下那個 PR
+    Dependabot 下一輪看到版本已經更新通常會自己關，沒關就手動關。
+  - actions 的 PR 會改 `release.yml` 與 `setup-sidecar` 的 pin，它們只在手動觸發或打 tag 時跑。只動到 setup-python 或
+    checkout 時，合併後跑 `verify-sidecar.yml` 就夠；動到 `release.yml` 的其他 action（setup-node、rust-cache、upload／download-artifact）
+    要跑發版預演，verify-sidecar 不會用到它們。
+  - pip 的 PR 處理方式見 `.claude/rules/sidecar.md`。
 - `release.yml` 的權限拆開：build（只能讀）在各平台產出安裝檔、上傳成 artifact；能改寫 release 的 token 只給 publish，
   它用 `scripts/release_assets.py verify` 逐個 artifact 核對過檔名才建 draft。外部 action 一律寫成
   `owner/repo@<40 字元 SHA> # vX.Y.Z`、checkout 一律 `persist-credentials: false`（`sidecar/tests/test_github_workflows.py` 守住）；

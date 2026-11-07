@@ -1,0 +1,77 @@
+# Dependabot 的版本更新。每種依賴都要涵蓋（sidecar/tests/test_dependabot.py 從 repo 裡的依賴檔推出應有的項目）。
+#
+# - cooldown：新版發佈 7 天後才開 PR，被搶先發佈的惡意版本多半在這段時間內被撤下。cooldown 只管版本更新；
+#   security updates 是 repo 設定（Settings → Code security），開著時漏洞修補不等 cooldown
+# - tauri：npm 套件與 crate 各自成一組，但兩邊要在同一個 major.minor（tauri build 對不上會直接失敗）。
+#   minor 升級（含 plugin）時兩個 PR 各自都會紅（sidecar/tests/test_tauri_versions.py），處理方式見
+#   .claude/rules/sidecar-lifecycle.md
+# - pip：packaging.lock 要用 uv 重新產生，Dependabot 做不到；它的 PR 只改 constraints.txt（與必要時的範圍），
+#   處理方式見 .claude/rules/sidecar.md
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    # 預設只看 /.github/workflows 與根目錄的 action.yml；composite action 要另外列
+    directories:
+      - "/"
+      - "/.github/actions/*"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    ignore:
+      # 跟著 .nvmrc 的 Node 主版本走（sidecar/tests/test_node_version_single_source.py），換 Node 時一起升
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    # 文件寫的是「一個依賴只進第一個對上的 group」，實作看 pattern 的明確程度；tauri 排在 catch-all 前面，兩種規則下都進 tauri 組
+    groups:
+      tauri:
+        patterns: ["@tauri-apps/*"]
+      npm-minor-and-patch:
+        patterns: ["*"]
+        exclude-patterns: ["@tauri-apps/*"]
+        update-types: [minor, patch]
+      # 開了 security updates 時，漏洞修補盡量合成一個 PR
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+
+  - package-ecosystem: cargo
+    directory: "/src-tauri"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      tauri:
+        patterns: ["tauri", "tauri-*"]
+      cargo-minor-and-patch:
+        patterns: ["*"]
+        exclude-patterns: ["tauri", "tauri-*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: "/sidecar"
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    # 範圍容得下新版就不改 requirements 檔（檔裡有理由的下限不被拉高）；容不下時只把上限往上推，這些 PR 會單獨開，
+    # 而 sidecar/tests/test_dependabot.py 會紅，提醒把範圍改回鎖在新的 minor
+    versioning-strategy: increase-if-necessary
+    groups:
+      python:
+        patterns: ["*"]
+        # requirements 檔刻意鎖在同一個 minor 的（sqlalchemy 的下一個 minor 要另外送審；ruff、mypy 的 minor 會改規則），各開一個 PR
+        exclude-patterns: ["sqlalchemy", "ruff", "mypy"]
+        update-types: [minor, patch]

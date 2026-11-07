@@ -22,10 +22,34 @@ paths:
   （setup-sidecar）只用 `--require-hashes --only-binary :all:` 裝它，平台限定套件也鎖住。constraints 沒鎖的平台限定套件
   （cryptography、tzdata…）每次重產都取當下最新版，commit 前看一下鎖檔的 diff。
 
-兩份鎖都不要手改。升級流程：venv 裡 `pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit
-constraints.txt 與 packaging.lock，改了 requirements 檔的範圍就連它一起（venv 要裝 pyinstaller、本機要有 uv，缺了腳本會擋）。`tests/test_constraints.py` 從
-requirements-dev.txt 跟著 `-r` 走，守住每個 requirement 都有鎖且在範圍內；`tests/test_packaging_lock.py` 守住鎖檔的版本跟
-constraints 一致、每個套件都有雜湊、packaging.in 的每個套件都在裡面、只在鎖檔裡的套件都是開發機用不到的平台限定套件。
+兩份鎖都不要手改。venv 要跟 constraints.txt 一致（`cd sidecar && .venv/bin/pip install -r requirements-dev.txt pyinstaller -c constraints.txt`，
+以下稱「同步 venv」）。升級流程：同步 venv → `pip install -U <套件>` → 跑測試 → `scripts/update-constraints.sh` → commit
+constraints.txt 與 packaging.lock，改了 requirements 檔的範圍就連它一起（venv 要裝 pyinstaller、本機要有 uv，缺了腳本會擋）。
+packaging.lock 有變時，在該分支手動跑 `verify-sidecar.yml`：PR 上沒有任何 CI 會照 `--require-hashes --only-binary :all:` 裝它，
+某個平台缺 wheel 要等到發版預演才看得到。
+腳本寫入前會比對：venv 比 constraints 舊、少了套件或有比對不了的行時擋下並列出差異（`scripts/compare_constraints.py`），
+真的要降版或拿掉套件才加 `--allow-downgrade`。`tests/test_constraints.py` 從 requirements-dev.txt 跟著 `-r` 走，守住每個
+requirement 都有鎖且在範圍內；`tests/test_packaging_lock.py` 守住鎖檔的版本跟 constraints 一致、每個套件都有雜湊、
+packaging.in 的每個套件都在裡面、只在鎖檔裡的套件都是開發機用不到的平台限定套件。
+
+Dependabot 的 pip PR：每月一個 python group，加上 sqlalchemy、ruff、mypy 與各個 major 的獨立 PR。它們只改 constraints.txt
+（範圍容不下新版時才把上限往上推）。
+- 動到 packaging.lock 裡的套件時 CI 會紅（鎖檔沒跟上），照下面四步處理。
+- sqlalchemy、ruff、mypy 的 minor PR 會讓 `test_dependabot` 紅（範圍被推成跨兩個 minor）：把範圍改回鎖在新的 minor
+  （例如 `ruff>=0.17.0,<0.18.0`），sqlalchemy 另外送審，再照下面四步處理。
+- 只動開發工具 patch 的 PR（不在鎖檔）是綠的，可以直接合；**合併後 pull 最新的 main 再同步 venv**（不要 checkout PR 的分支，
+  它落後 main，在那裡裝會把別的套件降版）。
+
+一次只處理一個 PR，開始前先確認它已經 rebase 到最新的 main（可以留言 `@dependabot rebase`）。**不要**用 `pip install -U`
+（會裝到沒過 cooldown 的最新版，也跟 PR 內容不同）：
+1. `gh pr checkout <n>`，同步 venv（裝 PR 鎖的版本）。裝不起來時，照 pip 錯誤訊息的要求把衝突的那一行改成兩邊都滿足的版本：
+   Dependabot 對每個 pin 各自取最新版、不檢查彼此相容。寧可把較新的那一邊退回，也不要為了相容去裝還沒過 cooldown 的版本
+2. `.venv/bin/pip check`，跑測試
+3. `../scripts/update-constraints.sh`：以 venv 為準重寫 constraints 並重產 packaging.lock。第 1 步做完仍被擋、而且列出的套件已經
+   沒有人依賴（`pip show <套件>` 的 Required-by 是空的，多半是別的套件升級後不再需要它）：先 `pip uninstall` 它，再加
+   `--allow-downgrade`
+4. 看過 constraints 與鎖檔的 diff（照第 1 步改過 pin 時，constraints 跟 PR 不同是預期的），推到同一個 PR；鎖檔有變就在該分支
+   手動跑 `verify-sidecar.yml`（Dependabot 的分支在同一個 repo，可以直接觸發）
 
 ⚠️ conftest 有兩個 session autouse fixture，**別拿掉**（`client` 會跑 lifespan 的 star 同步，沒有它們本機測試會用真 token 打 GitHub）：
 - `isolate_github_credentials`：keyring 換成 null；`GITHUB_TOKEN` 設成**空字串佔位而不是刪掉**——`main.py` import 時的
