@@ -58,8 +58,23 @@ paths:
 - Dependabot（`.github/dependabot.yml`）每週開 actions／npm／cargo、每月開 pip 的 PR，新版發佈 7 天後才提（cooldown）；
   `sidecar/tests/test_dependabot.py` 守住涵蓋範圍。
   - tauri 的 npm 與 cargo 是兩個 PR：minor 升級（含 plugin）時各自都會紅（`test_tauri_versions.py`），GitHub 上也沒辦法一起合。
-    把一邊的 commit cherry-pick 到另一邊的分支（兩邊改的檔案不重疊）、推上去，等 test.yml 與 rust.yml 綠燈再合；剩下那個 PR
-    Dependabot 下一輪看到版本已經更新通常會自己關，沒關就手動關。
+    把一邊的 commit cherry-pick 到另一邊的分支（兩邊改的檔案不重疊），在本機跑
+    `cd sidecar && .venv/bin/python -m pytest tests/test_tauri_versions.py -q`。
+    - 還是紅、而且是 npm 的 plugin 升了但 crate 沒升：多半是 Dependabot 對那個 crate 判了「No update possible」（Dependabot
+      Updates 的 log 搜 crate 名可以確認），cargo 卻可能升得上去（2026-11 的 notification 2.5→2.8：新版要 tauri-plugin
+      `^2.7.1`，lock 裡是 2.7.0）。在 `src-tauri/` 跑 `cargo update -p <crate> --precise <npm 那邊的版本>`；失敗（例如新版要的
+      tauri minor 超出 `~2.12`）就把 npm 那邊的 plugin 退回同一個 minor，tauri 的 minor 改天兩邊一起升
+    - 成功之後拿補之前的 Cargo.lock 用 `git diff` 逐條比對：
+      - 版本有變、新增或移除的 package：要能從新版本的需求推出來，而且每個版本都要過 7 天 cooldown（`--precise` 連帶升的是
+        需求允許的最高版，不看發佈時間），沒過就等過了再做，或把 npm 那邊退回
+      - 版本沒變的 crate，依賴邊改指同名的另一個版本，而原本那個版本還在 lock 裡（找得到它的 `[[package]]`）：是順帶被改寫的，
+        改回原本的值。cargo 1.99 兩次都有，大多是無關 crate 的 `windows-sys` 改指舊版，tokio 那次還有一條 `syn`
+      - 不要動的：原本那個版本已經不在 lock 裡的（只寫名字的邊，例如 `tauri-utils`）；版本沒變的 crate 多了或少了一條邊
+        （feature 變了，例如 getrandom 多了 `rand_core`）；只是補上或拿掉版本號、指的還是同一個版本的（同名的版本數變了，
+        例如 `cpufeatures` 變成 `cpufeatures 0.2.17`）
+    - 改完跑 `cargo metadata --locked --format-version 1 >/dev/null`，它只證明 lock 合法、cargo 不會再改寫，不證明改回的是
+      原本的值，所以要再跟補之前的 lock diff 一次，確認只剩推得出來的變動，然後再跑一次 `test_tauri_versions.py`
+    - 推上去，等 test.yml 與 rust.yml 綠燈再合；剩下那個 PR Dependabot 下一輪看到版本已經更新通常會自己關，沒關就手動關。
   - actions 的 PR 會改 `release.yml` 與 `setup-sidecar` 的 pin，它們只在手動觸發或打 tag 時跑。只動到 setup-python 或
     checkout 時，合併後跑 `verify-sidecar.yml` 就夠；動到 `release.yml` 的其他 action（setup-node、rust-cache、upload／download-artifact）
     要跑發版預演，verify-sidecar 不會用到它們。
