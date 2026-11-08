@@ -27,7 +27,7 @@ tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-getrandom = "0.2"
+getrandom = "0.4"
 # sidecar 狀態以結構傳給前端（get_sidecar_status／sidecar-status 事件）
 serde = { version = "1", features = ["derive"] }
 # locate_sidecar：Windows 的 resource_dir 帶 \\?\ 前綴，交給 sidecar 前先簡化（其他平台是 no-op；tauri 本身就依賴它）
