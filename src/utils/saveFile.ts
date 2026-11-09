@@ -27,7 +27,10 @@ function extensionOf(filename: string): string {
   return dot === -1 ? "" : filename.slice(dot + 1).toLowerCase();
 }
 
-export async function saveFile(name: string, contents: string | Uint8Array): Promise<SaveResult> {
+export async function saveFile(
+  name: string,
+  contents: string | Uint8Array<ArrayBuffer>
+): Promise<SaveResult> {
   const bytes = typeof contents === "string" ? new TextEncoder().encode(contents) : contents;
 
   if (isTauri()) {
