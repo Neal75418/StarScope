@@ -23,7 +23,7 @@
 在 package.json 加回 `"generate:types": "openapi-typescript http://localhost:8008/api/openapi.json -o src/api/types.generated.ts"`，
 drift 就結構上不可能發生——**不要再寫一支更好的檢查腳本**。代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
 啟用時還要決定生成檔是提交進 repo、還是在 CI 先產生（`.gitignore` 現在排除它；sidecar 要在跑、而且正式版不開 `/api/openapi.json`）。
-沒在用時不裝著：它的 peer 是 typescript `^5.x`（2026-11），TS 升到 6 之後要等它支援才裝得起來。
+沒在用時不裝著：它的 peer 是 typescript `^5.x`（2026-11），現在的 TS 6 裝不起來，要等它支援。
 
 ⚠️ **「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後一定做兩件事，否則你守的是一個裝飾品：
 

@@ -5,6 +5,8 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    // TS 6 起不再把 @types/* 全部自動納入全域：測試用到 process、global
+    "types": ["node"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",
