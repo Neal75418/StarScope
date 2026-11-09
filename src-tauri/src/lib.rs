@@ -86,7 +86,7 @@ struct SessionSecretState {
 /// 使用 `getrandom` CSPRNG 確保密碼學安全性。
 fn generate_session_secret() -> String {
     let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes).expect("OS RNG unavailable");
+    getrandom::fill(&mut bytes).expect("OS RNG unavailable");
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -316,6 +316,18 @@ fn start_sidecar_with_retry(app: &AppHandle, session_secret: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_secret_is_64_lowercase_hex_and_differs_each_time() {
+        let a = generate_session_secret();
+        let b = generate_session_secret();
+        // 失敗訊息不印出 secret 本身
+        assert_eq!(a.len(), 64);
+        assert!(a.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)), "secret 不是小寫 hex");
+        // 全零代表 RNG 沒寫進任何東西；兩次 256 bits 剛好相同的機率可以忽略
+        assert!(a.bytes().any(|c| c != b'0'), "secret 全是 0");
+        assert!(a != b, "兩次產生的 secret 相同");
+    }
 
     #[test]
     fn save_file_name_keeps_ordinary_export_names() {
