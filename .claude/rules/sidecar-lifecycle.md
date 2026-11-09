@@ -75,10 +75,9 @@ paths:
     - 改完跑 `cargo metadata --locked --format-version 1 >/dev/null`，它只證明 lock 合法、cargo 不會再改寫，不證明改回的是
       原本的值，所以要再跟補之前的 lock diff 一次，確認只剩推得出來的變動，然後再跑一次 `test_tauri_versions.py`
     - 推上去，等 test.yml 與 rust.yml 綠燈再合；剩下那個 PR Dependabot 下一輪看到版本已經更新通常會自己關，沒關就手動關。
-  - npm 的 typescript：major 被 ignore（工具鏈還不支援，擋在哪、何時拿掉見 dependabot.yml 的註解），minor 不進
-    npm-minor-and-patch、單獨開 PR（minor 會改 lib.d.ts 的型別，在那個 PR 修型別錯誤）。處理 npm-minor-and-patch 的 PR 時，
-    順便用 `npm view typescript-eslint peerDependencies` 與 `npm view openapi-typescript peerDependencies` 看 typescript 的範圍，
-    納入新的 major 就照 dependabot.yml 的註解改 ignore
+  - npm 的 typescript：超出 typescript-eslint peer 上限的版本被 ignore（見 dependabot.yml 的註解），其餘不進
+    npm-minor-and-patch、單獨開 PR（minor 與 major 都會改 lib.d.ts 或預設值，在那個 PR 修型別錯誤）。處理 npm-minor-and-patch
+    的 PR 時，順便用 `npm view typescript-eslint peerDependencies` 看 typescript 的範圍，上限變了就照 dependabot.yml 的註解改 ignore
   - actions 的 PR 會改 `release.yml` 與 `setup-sidecar` 的 pin，它們只在手動觸發或打 tag 時跑。只動到 setup-python 或
     checkout 時，合併後跑 `verify-sidecar.yml` 就夠；動到 `release.yml` 的其他 action（setup-node、rust-cache、upload／download-artifact）
     要跑發版預演，verify-sidecar 不會用到它們。

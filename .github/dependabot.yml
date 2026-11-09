@@ -33,12 +33,11 @@ updates:
       # 跟著 .nvmrc 的 Node 主版本走（sidecar/tests/test_node_version_single_source.py），換 Node 時一起升
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
-      # 工具鏈還不支援新的 major（2026-11）：6 被 openapi-typescript 的 peer ^5.x 擋（openapi-typescript#2723）；
-      # 7 另外被 typescript-eslint 擋——peer 是 <6.1.0，7 也沒有它用的編譯器 API（typescript-eslint#10940、
-      # openapi-typescript#2841）。拿掉這條 Dependabot 會直接跳最新的 major：兩邊都支援最新的 major 才拿掉，
-      # 只支援到 6 時改成 versions: [">=7"]。何時查見 .claude/rules/sidecar-lifecycle.md 的 Dependabot 一節
+      # 超出 typescript-eslint peer 上限的不升（2026-11 上限是 <6.1.0；7 也沒有它用的編譯器 API，typescript-eslint#10940）。
+      # 上限卡在 minor：versions 跟著寫成它的上限（上限是 <7.2.0 就寫 [">=7.2"]），上限涵蓋 typescript 最新版才整條拿掉。
+      # 何時查見 .claude/rules/sidecar-lifecycle.md 的 Dependabot 一節
       - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
+        versions: [">=6.1"]
     # 文件寫的是「一個依賴只進第一個對上的 group」，實作看 pattern 的明確程度；tauri 排在 catch-all 前面，兩種規則下都進 tauri 組
     groups:
       tauri:

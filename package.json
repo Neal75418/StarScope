@@ -29,7 +29,6 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:chromium": "playwright test --project=chromium",
-    "generate:types": "openapi-typescript http://localhost:8008/api/openapi.json -o src/api/types.generated.ts",
     "check:bundle-size": "bash scripts/check-bundle-size.sh",
     "prepare": "husky"
   },
@@ -73,7 +72,6 @@
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.6.0",
-    "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.10",
     "rollup-plugin-visualizer": "^7.1.1",
     "typescript": "~5.9.3",

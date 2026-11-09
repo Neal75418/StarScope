@@ -19,8 +19,11 @@
 它們違反時會紅，散文不會。本檔與 rules 只記錄「機器守不住、且從 code 看不出來」的部分。
 
 ⚠️ **`src/api/types.ts` 是手寫的，沒有任何機制擋前後端型別漂移**（曾有的 `scripts/check-api-drift.sh` 守錯方向——只檢查
-「後端有、前端沒宣告」，對「前端宣告了後端根本不送的欄位」完全瞎——也沒有任何地方執行它，已刪）。真的被漂移咬到時，正解是啟用 `npm run generate:types`（`openapi-typescript`）讓型別從 OpenAPI
-schema 產生，drift 就結構上不可能發生——**不要再寫一支更好的檢查腳本**。代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
+「後端有、前端沒宣告」，對「前端宣告了後端根本不送的欄位」完全瞎——也沒有任何地方執行它，已刪）。真的被漂移咬到時，正解是讓型別從 OpenAPI schema 產生：`npm i -D openapi-typescript`，
+在 package.json 加回 `"generate:types": "openapi-typescript http://localhost:8008/api/openapi.json -o src/api/types.generated.ts"`，
+drift 就結構上不可能發生——**不要再寫一支更好的檢查腳本**。代價是現有型別的中文說明註解會被沖掉，所以在痛之前不必先做。
+啟用時還要決定生成檔是提交進 repo、還是在 CI 先產生（`.gitignore` 現在排除它；sidecar 要在跑、而且正式版不開 `/api/openapi.json`）。
+沒在用時不裝著：它的 peer 是 typescript `^5.x`（2026-11），TS 升到 6 之後要等它支援才裝得起來。
 
 ⚠️ **「有一個 config 在那裡」不等於「有人執行它」。** 加或改任何 gate 之後一定做兩件事，否則你守的是一個裝飾品：
 
@@ -109,6 +112,8 @@ npm run test:e2e:headed   # 顯示瀏覽器視窗
 「加入追蹤」會真的在 GitHub 上按 star。
 
 e2e 大量 Loading 逾時時先看 `/tmp/starscope-e2e/starscope.log` 的 `-->`／`<--` 數量：對不起來就是 sidecar 卡住，不是測試 flaky。
+CI 的 e2e 會打真的 GitHub API、不帶 token（理由見 test.yml）。e2e 紅時看 job 的「Dump sidecar log」：有
+`[GitHub API] POST /api/repos 上游失敗: HTTP 5xx` 就查 githubstatus.com，事故解除後重跑即可，不是程式壞了。
 
 ### 完整開發流程
 
