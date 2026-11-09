@@ -1,6 +1,8 @@
 {
   "compilerOptions": {
     "composite": true,
+    // TS 6 起 strict 預設開啟；設定檔不開：開了 eslint-plugin-jsx-a11y 沒有型別宣告會報 TS7016，不值得為設定檔多養一份 shim
+    "strict": false,
     "outDir": "./node_modules/.tmp/tsconfig-node",
     "skipLibCheck": true,
     "module": "ESNext",

@@ -5,6 +5,8 @@
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
+    // TS 6 起不再把 @types/* 全部自動納入全域：e2e 用到 node:fs/promises
+    "types": ["node"],
     "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true
