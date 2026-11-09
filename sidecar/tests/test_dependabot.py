@@ -9,6 +9,7 @@
   （rust.yml 不跑 pytest）
 """
 
+import json
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -132,6 +133,25 @@ def test_pip_keeps_the_declared_ranges():
                 f"pip 的 {name} group 要剛好排除鎖在同一個 minor 的套件：漏排 {sorted(locked - excluded)}，"
                 f"範圍已不再鎖在一個 minor {sorted(excluded - locked)}"
             )
+
+
+def test_npm_minor_locked_packages_stay_out_of_the_catch_all():
+    """package.json 用 `~` 鎖在 minor 的套件不能進 catch-all（tauri 的在 tauri 組，其餘單獨開 PR）：
+    typescript 的 minor 會改 lib.d.ts 的型別，一進去型別檢查紅了，同組的其他升級會一起卡住。
+    沒寫 patterns 的群組會收下所有依賴，也當成 catch-all。"""
+    package = json.loads((REPO / "package.json").read_text(encoding="utf-8"))
+    locked = {
+        name for section in ("dependencies", "devDependencies")
+        for name, spec in package.get(section, {}).items() if spec.startswith("~")
+    }
+    assert locked, "package.json 裡應該找得到用 ~ 鎖在 minor 的套件"
+    (npm,) = _updates("npm")
+    for name, group in (npm.get("groups") or {}).items():
+        patterns = group.get("patterns", [])
+        if (not patterns or "*" in patterns) and group.get("applies-to", "version-updates") == "version-updates":
+            excluded = group.get("exclude-patterns", [])
+            inside = sorted(p for p in locked if not any(fnmatch(p, pattern) for pattern in excluded))
+            assert not inside, f"npm 的 {name} group 要排除鎖在同一個 minor 的套件：{inside}"
 
 
 def test_pull_requests_run_the_tests():

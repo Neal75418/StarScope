@@ -33,13 +33,21 @@ updates:
       # 跟著 .nvmrc 的 Node 主版本走（sidecar/tests/test_node_version_single_source.py），換 Node 時一起升
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # 工具鏈還不支援新的 major（2026-11）：6 被 openapi-typescript 的 peer ^5.x 擋（openapi-typescript#2723）；
+      # 7 另外被 typescript-eslint 擋——peer 是 <6.1.0，7 也沒有它用的編譯器 API（typescript-eslint#10940、
+      # openapi-typescript#2841）。拿掉這條 Dependabot 會直接跳最新的 major：兩邊都支援最新的 major 才拿掉，
+      # 只支援到 6 時改成 versions: [">=7"]。何時查見 .claude/rules/sidecar-lifecycle.md 的 Dependabot 一節
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     # 文件寫的是「一個依賴只進第一個對上的 group」，實作看 pattern 的明確程度；tauri 排在 catch-all 前面，兩種規則下都進 tauri 組
     groups:
       tauri:
         patterns: ["@tauri-apps/*"]
       npm-minor-and-patch:
         patterns: ["*"]
-        exclude-patterns: ["@tauri-apps/*"]
+        # package.json 用 ~ 鎖在 minor 的不進這組（sidecar/tests/test_dependabot.py 守住；tauri 的在 tauri 組，其餘單獨開 PR）：
+        # typescript 的 minor 會改 lib.d.ts 的型別，型別檢查一紅，同組的其他升級會一起卡住
+        exclude-patterns: ["@tauri-apps/*", "typescript"]
         update-types: [minor, patch]
       # 開了 security updates 時，漏洞修補盡量合成一個 PR
       npm-security:
