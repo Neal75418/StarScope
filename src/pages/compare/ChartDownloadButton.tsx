@@ -8,7 +8,7 @@ import { useI18n } from "../../i18n";
 import { saveFile } from "../../utils/saveFile";
 
 // 用 FileReader 而不是 blob.arrayBuffer()：兩者在 WebView 裡都有，但測試用的 jsdom 只有前者
-function blobToBytes(blob: Blob): Promise<Uint8Array> {
+function blobToBytes(blob: Blob): Promise<Uint8Array<ArrayBuffer>> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
