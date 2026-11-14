@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/App.css"
+        ],
+        "createdAt": "2026-11-14T12:23:07.682Z",
+        "reason": "User confirmed (2026-11-14): 既有的側邊色框保留，不改"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "src/App.css"
+        ],
+        "createdAt": "2026-11-14T12:31:12.610Z",
+        "reason": "User confirmed (2026-11-14): 頁面標題的漸層文字保留，不改"
+      }
+    ]
+  }
+}
