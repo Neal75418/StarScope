@@ -131,6 +131,9 @@
   --z-toast: 2000;
   --z-skip-link: 9999;
 
+  /* 追蹤清單批次操作列排成一列時的高度：toast 要讓出這一段，兩邊用同一個值 */
+  --batch-action-bar-height: 57px;
+
   /* Header specific */
   --header-logo: #f0f6fc;
 
@@ -1532,12 +1535,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: var(--batch-action-bar-height);
   padding: 12px 16px;
   background-color: var(--bg-default);
   border-top: 1px solid var(--border-default);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  /* 比 --z-elevated 高一級：選單開著時 toast 會降到 --z-elevated（見 .toast-container） */
+  z-index: calc(var(--z-elevated) + 1);
 }
 
 .batch-count {
@@ -3194,6 +3199,21 @@ body {
   gap: 10px;
   z-index: var(--z-toast);
   max-width: 360px;
+  /* 下面的規則會跟著批次操作列的出現與消失改變 bottom：畫面上已有的 toast 用滑的，不用跳的 */
+  transition: bottom 0.2s ease;
+}
+
+/* 追蹤清單選取中：批次操作列黏在畫面底部、按鈕靠右，正好是 toast 的位置。toast 往上讓出操作列的高度，
+   不然訊息還在的那幾秒三顆按鈕都按不到（滑鼠移過去還會先碰到 toast、停住它的倒數） */
+body:has(.batch-action-bar) .toast-container {
+  bottom: calc(24px + var(--batch-action-bar-height));
+}
+
+/* 「加入分類」的選單從操作列往上展開，會伸進 toast 讓位之後的位置。選單開著時 toast 退到操作列那一層
+   的後面：選單蓋在 toast 上、每個選項都點得到，toast 的位置不動。
+   降到 --z-elevated 而不是更低：滑過的卡片也是這一級，toast 在 DOM 裡排在它們後面，同級時仍畫在上面 */
+body:has(.batch-category-picker) .toast-container {
+  z-index: var(--z-elevated);
 }
 
 .toast {
@@ -3204,6 +3224,10 @@ body {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   animation: toast-slide-in 0.3s ease;
+  /* 底色不透明：toast 浮在頁面內容上，--*-subtle 是半透明的，直接當底色的話後面的字會透上來。
+     各類型的淡色用 background-image 疊在這層底上；類型規則不可設 background-color 或 background 簡寫，
+     會把這層底蓋掉 */
+  background-color: var(--bg-canvas);
 }
 
 @keyframes toast-slide-in {
@@ -3218,25 +3242,25 @@ body {
 }
 
 .toast-success {
-  background-color: var(--success-subtle);
+  background-image: linear-gradient(var(--success-subtle), var(--success-subtle));
   border: 1px solid var(--success-muted);
   color: var(--success-fg);
 }
 
 .toast-error {
-  background-color: var(--danger-subtle);
+  background-image: linear-gradient(var(--danger-subtle), var(--danger-subtle));
   border: 1px solid var(--danger-muted);
   color: var(--danger-fg);
 }
 
 .toast-info {
-  background-color: var(--accent-subtle);
+  background-image: linear-gradient(var(--accent-subtle), var(--accent-subtle));
   border: 1px solid var(--accent-muted);
   color: var(--accent-fg);
 }
 
 .toast-warning {
-  background-color: var(--warning-subtle);
+  background-image: linear-gradient(var(--warning-subtle), var(--warning-subtle));
   border: 1px solid var(--warning-muted);
   color: var(--warning-fg);
 }

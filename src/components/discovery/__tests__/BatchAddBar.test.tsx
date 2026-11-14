@@ -55,8 +55,10 @@ describe("BatchAddBar", () => {
   });
 
   it("renders nothing when nothing is selected", () => {
-    const { container } = renderBar({ selectedRepos: [], selectedCount: 0 });
-    expect(container.firstChild).toBeNull();
+    renderBar({ selectedRepos: [], selectedCount: 0 });
+    // 外層的 ToastProvider 有常駐的空容器，所以看的是這條 bar 自己的內容
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("shows the count and the add button", () => {

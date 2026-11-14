@@ -36,7 +36,11 @@ test.describe("Import & Export", () => {
 
     // 提示要看得到，不只是存在於 DOM：toast 容器是 position: fixed，祖先元素留著 transform 時
     // 會以那個元素而不是視窗為基準，被放到內容最底下、畫面之外。jsdom 看不到 CSS，只能在這裡驗
-    await expect(page.locator(".toast-container")).toBeInViewport();
+    const toast = page.locator(".toast-success");
+    await expect(toast).toBeInViewport();
+    // 底色要不透明：toast 浮在頁面內容上，有透明度的話後面的字會透上來（不透明的顏色序列化成 rgb(...)，有透明度的是 rgba(...)）
+    const background = await toast.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(background).toMatch(/^rgb\(/);
   });
 
   test("import section is visible in settings", async ({ page }) => {
