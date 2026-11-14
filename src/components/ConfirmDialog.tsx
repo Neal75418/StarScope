@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useOverlayDismiss } from "../hooks/useOverlayDismiss";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ export function ConfirmDialog({
 
   // 按 ESC 關閉 dialog（processing 時停用）
   useEscapeKey(onCancel, isOpen && !isProcessing);
+  const overlayDismiss = useOverlayDismiss(onCancel, !isProcessing);
 
   if (!isOpen) return null;
 
@@ -55,12 +57,7 @@ export function ConfirmDialog({
   // 不再是一個視窗大小的固定層，而是整份文件那麼高，對話框被置中在文件正中央。
   // 使用者點的是第一列，畫面卻捲到清單中段。
   return createPortal(
-    <div
-      className="dialog-overlay"
-      onClick={isProcessing ? undefined : onCancel}
-      role="none"
-      tabIndex={-1}
-    >
+    <div className="dialog-overlay" {...overlayDismiss} role="none" tabIndex={-1}>
       <div
         ref={focusTrapRef}
         className="dialog confirm-dialog"

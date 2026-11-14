@@ -41,7 +41,7 @@ describe("CategoryEditModal", () => {
     const onClose = vi.fn();
     render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
-    await user.click(screen.getByText("×"));
+    await user.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -55,23 +55,100 @@ describe("CategoryEditModal", () => {
   });
 
   it("calls onClose when overlay is clicked", async () => {
+    const user = userEvent.setup();
     const onClose = vi.fn();
-    const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
-    const overlay = container.querySelector(".modal-overlay") as HTMLElement;
-    expect(overlay).not.toBeNull();
+    await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays open when a press that started inside the dialog ends on the overlay", () => {
+    // 拖曳選取名稱時滑出框外才放開：瀏覽器把 click 發給按下與放開兩處的共同祖先，也就是遮罩
+    const onClose = vi.fn();
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
+    const overlay = screen.getByRole("dialog").parentElement as HTMLElement;
+
+    fireEvent.mouseDown(screen.getByDisplayValue("Test Category"));
+    fireEvent.mouseUp(overlay);
     fireEvent.click(overlay);
-    expect(onClose).toHaveBeenCalled();
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("does not close on overlay click while submitting", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} isSubmitting={true} />);
+
+    await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("does not close on ESC key while submitting", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} isSubmitting={true} />);
+
+    await user.click(screen.getByDisplayValue("Test Category"));
+    await user.keyboard("{Escape}");
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("does not close when modal content is clicked", async () => {
     const onClose = vi.fn();
-    const { container } = render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
 
-    const modal = container.querySelector(".modal") as HTMLElement;
-    expect(modal).not.toBeNull();
-    fireEvent.click(modal);
+    fireEvent.click(screen.getByRole("dialog"));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("renders as an overlay dialog on document.body with the shared dialog styles", () => {
+    // jsdom 看不到 CSS：這裡只守「用的是有樣式規則的那組 class、而且掛在 body」。
+    // 真的蓋住頁面由 e2e/category-management.spec.ts 在瀏覽器裡量
+    render(<CategoryEditModal {...defaultProps} />);
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveClass("dialog");
+    expect(dialog.parentElement).toHaveClass("dialog-overlay");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
+  });
+
+  it("moves focus to the name field when opened", () => {
+    render(<CategoryEditModal {...defaultProps} />);
+
+    expect(screen.getByDisplayValue("Test Category")).toHaveFocus();
+  });
+
+  it("returns focus to the element that opened it when closed", () => {
+    const trigger = document.createElement("button");
+    document.body.appendChild(trigger);
+    trigger.focus();
+    try {
+      const { unmount } = render(<CategoryEditModal {...defaultProps} />);
+      expect(trigger).not.toHaveFocus();
+
+      unmount();
+
+      expect(trigger).toHaveFocus();
+    } finally {
+      trigger.remove();
+    }
+  });
+
+  it("keeps Tab inside the dialog when focus is on the last button", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Behind the dialog</button>
+        <CategoryEditModal {...defaultProps} />
+      </>
+    );
+    screen.getByText("Save").focus();
+
+    await user.tab();
+
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
   });
 
   it("submits form with updated data", async () => {

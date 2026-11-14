@@ -2346,6 +2346,39 @@ body {
   color: var(--danger-fg);
 }
 
+/* 編輯鈕一直顯示，不像刪除鈕只在滑過時出現：編輯對話框關閉後焦點要回到它，
+   display: none 的元素接不住焦點 */
+.category-edit-btn {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg-subtle);
+  flex-shrink: 0;
+}
+
+.category-edit-btn:hover {
+  color: var(--accent-fg);
+}
+
+/* 編輯分類對話框：圖示與顏色並排。.form-row 預設每欄至少 200px，在 400px 寬的對話框裡會疊成兩列 */
+.category-edit-dialog .form-row {
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 0;
+}
+
+.category-edit-dialog input[type="color"] {
+  height: 35px;
+  padding: 4px;
+  cursor: pointer;
+}
+
 .category-empty {
   padding: 16px;
   text-align: center;

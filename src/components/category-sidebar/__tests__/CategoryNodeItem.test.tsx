@@ -100,6 +100,32 @@ describe("CategoryNodeItem", () => {
     expect(defaultProps.onDelete).toHaveBeenCalledWith(1, expect.any(Object));
   });
 
+  // 整列也聽 Enter／Space（選取分類）。焦點在列內的按鈕上時不能把按鍵攔走，否則按鈕用鍵盤按不下去
+  it.each([
+    ["Edit category", "onEdit", "{Enter}"],
+    ["Edit category", "onEdit", " "],
+    ["Delete category", "onDelete", "{Enter}"],
+    ["Delete category", "onDelete", " "],
+  ] as const)("activates the %s button (%s) with key %j", async (title, handler, key) => {
+    const user = userEvent.setup();
+    render(<CategoryNodeItem {...defaultProps} />);
+    screen.getByTitle(title).focus();
+
+    await user.keyboard(key);
+
+    expect(defaultProps[handler]).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["{Enter}", " "])("activates the expand button with key %j", async (key) => {
+    const user = userEvent.setup();
+    render(<CategoryNodeItem {...defaultProps} hasChildren={true} />);
+    screen.getByLabelText("Expand").focus();
+
+    await user.keyboard(key);
+
+    expect(defaultProps.onToggleExpand).toHaveBeenCalledTimes(1);
+  });
+
   it("applies selected class when isSelected", () => {
     const { container } = render(<CategoryNodeItem {...defaultProps} isSelected={true} />);
     expect(container.querySelector(".category-item.selected")).toBeInTheDocument();

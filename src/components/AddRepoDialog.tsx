@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { useI18n } from "../i18n";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useOverlayDismiss } from "../hooks/useOverlayDismiss";
 
 interface AddRepoDialogProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
 
   // 按 ESC 關閉 dialog
   useEscapeKey(onClose, isOpen && !isLoading);
+  const overlayDismiss = useOverlayDismiss(onClose, !isLoading);
 
   if (!isOpen) return null;
 
@@ -46,11 +48,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
 
   // 同 ConfirmDialog：頁面容器帶著 transform，position:fixed 會相對於它而不是視窗
   return createPortal(
-    <div
-      className="dialog-overlay"
-      onClick={isLoading ? undefined : handleClose}
-      role="presentation"
-    >
+    <div className="dialog-overlay" {...overlayDismiss} role="presentation">
       <div
         ref={focusTrapRef}
         className="dialog"

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { ConfirmDialog } from "../ConfirmDialog";
 
@@ -241,6 +241,26 @@ describe("ConfirmDialog", () => {
     const overlay = baseElement.querySelector(".dialog-overlay") as HTMLElement;
     expect(overlay).not.toBeNull();
     await user.click(overlay);
+
+    expect(mockOnCancel).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel when a press that started inside the dialog ends on the overlay", () => {
+    // 瀏覽器把 click 發給按下與放開兩處的共同祖先，也就是遮罩；只看 click 會誤判成點了空白處
+    const { baseElement } = render(
+      <ConfirmDialog
+        isOpen={true}
+        title="Test"
+        message="Are you sure?"
+        onConfirm={mockOnConfirm}
+        onCancel={mockOnCancel}
+      />
+    );
+    const overlay = baseElement.querySelector(".dialog-overlay") as HTMLElement;
+
+    fireEvent.mouseDown(screen.getByText("Are you sure?"));
+    fireEvent.mouseUp(overlay);
+    fireEvent.click(overlay);
 
     expect(mockOnCancel).not.toHaveBeenCalled();
   });

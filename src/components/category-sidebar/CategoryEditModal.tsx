@@ -1,12 +1,15 @@
 /**
- * 編輯分類詳細資訊的 modal。
+ * 編輯分類的對話框（名稱、說明、圖示、顏色）。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
+import { createPortal } from "react-dom";
 import { CategoryTreeNode, CategoryUpdate } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 
 interface CategoryEditModalProps {
   category: CategoryTreeNode;
@@ -26,6 +29,14 @@ export function CategoryEditModal({
   const [description, setDescription] = useState(category.description ?? "");
   const [icon, setIcon] = useState(category.icon ?? "");
   const [color, setColor] = useState(category.color ?? "");
+  const focusTrapRef = useFocusTrap(true, false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // 焦點一開始放在名稱欄。不用 autoFocus 屬性：React 會搶在 useFocusTrap 記下「先前的焦點」之前聚焦，
+  // 關閉時焦點就回不到側欄的編輯鈕。這個 effect 要排在 useFocusTrap 之後
+  useEffect(() => {
+    nameInputRef.current?.focus();
+  }, []);
 
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
@@ -45,40 +56,45 @@ export function CategoryEditModal({
   };
 
   useEscapeKey(onClose, !isSubmitting);
+  const overlayDismiss = useOverlayDismiss(onClose, !isSubmitting);
 
-  return (
-    <div className="modal-overlay" onClick={isSubmitting ? undefined : onClose} role="presentation">
+  // 掛到 document.body（同 ConfirmDialog、AddRepoDialog）：遮罩是 position: fixed，祖先只要帶著 transform
+  // 就會改成相對那個祖先定位，而頁面容器在進場動畫期間有 transform
+  return createPortal(
+    <div className="dialog-overlay" {...overlayDismiss} role="presentation">
       <div
-        className="modal category-edit-modal"
+        ref={focusTrapRef}
+        className="dialog category-edit-dialog"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="category-edit-modal-title"
+        aria-labelledby="category-edit-dialog-title"
       >
-        <div className="modal-header">
-          <h3 id="category-edit-modal-title">{t.categories.editCategory}</h3>
+        <div className="dialog-header">
+          <h2 id="category-edit-dialog-title">{t.categories.editCategory}</h2>
           <button
-            className="modal-close"
+            type="button"
+            className="btn btn-sm"
             onClick={onClose}
             aria-label={t.common.close}
             disabled={isSubmitting}
           >
-            &times;
+            ✕
           </button>
         </div>
         <form onSubmit={handleSubmit}>
-          <div className="modal-content">
+          <div className="dialog-body">
             <div className="form-group">
               <label htmlFor="category-edit-name">{t.categories.form.name}</label>
               <input
+                ref={nameInputRef}
                 id="category-edit-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t.categories.namePlaceholder}
                 required
-                autoFocus
               />
             </div>
             <div className="form-group">
@@ -114,16 +130,17 @@ export function CategoryEditModal({
               </div>
             </div>
           </div>
-          <div className="modal-actions">
-            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-              {isSubmitting ? t.categories.saving : t.categories.save}
-            </button>
+          <div className="dialog-footer">
             <button type="button" className="btn" onClick={onClose} disabled={isSubmitting}>
               {t.common.cancel}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? t.categories.saving : t.categories.save}
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

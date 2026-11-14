@@ -159,6 +159,38 @@ describe("AddRepoDialog", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
   });
 
+  it("calls onClose when overlay clicked", async () => {
+    const user = userEvent.setup();
+    render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
+
+    await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not close on overlay click while loading", async () => {
+    const user = userEvent.setup();
+    render(
+      <AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} isLoading={true} />
+    );
+
+    await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
+
+    expect(mockOnClose).not.toHaveBeenCalled();
+  });
+
+  it("stays open when a press that started in the input ends on the overlay", () => {
+    // 拖曳選取輸入的文字時滑出框外才放開：瀏覽器把 click 發給共同祖先，也就是遮罩
+    render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
+    const overlay = screen.getByRole("dialog").parentElement as HTMLElement;
+
+    fireEvent.mouseDown(screen.getByPlaceholderText("owner/repo or GitHub URL"));
+    fireEvent.mouseUp(overlay);
+    fireEvent.click(overlay);
+
+    expect(mockOnClose).not.toHaveBeenCalled();
+  });
+
   it("calls onClose on ESC key while typing in the input", async () => {
     const user = userEvent.setup();
     render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);

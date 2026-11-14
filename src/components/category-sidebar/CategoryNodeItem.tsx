@@ -38,6 +38,9 @@ export const CategoryNodeItem = memo(function CategoryNodeItem({
       style={{ paddingLeft: `${depth * 16 + 8}px` }}
       onClick={() => onSelect(node.id)}
       onKeyDown={(e) => {
+        // 只處理整列自己收到的按鍵：焦點在列內的按鈕（展開、編輯、刪除）上時攔下 Enter／Space，
+        // 那顆按鈕用鍵盤就按不下去
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onSelect(node.id);
