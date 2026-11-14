@@ -32,6 +32,42 @@ test.describe("Watchlist Flow", () => {
     await expect(submitBtn).toBeEnabled();
   });
 
+  test("Escape closes the add repo dialog while typing in it", async ({ page }) => {
+    await page.locator('[data-testid="add-repo-btn"]').click();
+    const dialog = page.locator('div[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+
+    const input = page.locator("#add-repo-input");
+    await input.fill("facebook/react");
+    await input.press("Escape");
+
+    await expect(dialog).toBeHidden();
+  });
+
+  test("Tab stays inside the add repo dialog", async ({ page, browserName }) => {
+    // WebKit 預設不讓 Tab 停在按鈕與連結上（真 app 由 wry 打開），測試用 Option+Tab 模擬，同 skip-link.spec.ts
+    const tab = browserName === "webkit" ? "Alt+Tab" : "Tab";
+    await page.locator('[data-testid="add-repo-btn"]').click();
+    const dialog = page.locator('div[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    await page.locator("#add-repo-input").fill("facebook/react");
+
+    // 框內可停的是關閉、輸入框、取消、送出四個：按超過一輪，焦點每次都要還在框內，而且四個都停過
+    // （只驗「還在框內」的話，Tab 整個被吞掉、焦點卡在輸入框也會過）
+    const visited = new Set<string>();
+    for (let press = 0; press < 6; press++) {
+      await page.keyboard.press(tab);
+      const focused = dialog.locator(":focus");
+      await expect(focused).toHaveCount(1);
+      visited.add(
+        await focused.evaluate(
+          (el) => el.id || el.getAttribute("aria-label") || el.textContent || ""
+        )
+      );
+    }
+    expect(visited.size).toBe(4);
+  });
+
   test("refresh button is disabled when the watchlist is empty", async ({ page }) => {
     // 空清單沒有東西可刷新，設計上按鈕就是 disabled（Toolbar.tsx: totalCount === 0）。
     // 過去這條測試點擊成功，靠的是先前測試殘留的污染資料——那不是可依賴的前提。

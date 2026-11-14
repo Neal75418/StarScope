@@ -21,6 +21,18 @@ function pressTab(shiftKey = false) {
   document.dispatchEvent(event);
 }
 
+/** 從指定元素送出 Tab（真實按鍵的形狀：事件由焦點所在的元素往上傳），回傳事件供檢查 defaultPrevented */
+function pressTabOn(target: EventTarget, shiftKey = false): KeyboardEvent {
+  const event = new KeyboardEvent("keydown", {
+    key: "Tab",
+    shiftKey,
+    bubbles: true,
+    cancelable: true,
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
 function renderTrap(container: HTMLDivElement, isActive: boolean, autoFocus?: boolean) {
   return renderHook(() => {
     const ref = useFocusTrap(isActive, autoFocus);
@@ -121,19 +133,56 @@ describe("useFocusTrap", () => {
     spy.mockRestore();
   });
 
-  it("does nothing on Tab when no focusable elements exist", () => {
-    const container = document.createElement("div");
-    const span = document.createElement("span");
-    span.textContent = "not focusable";
-    container.appendChild(span);
-    document.body.appendChild(container);
+  it("blocks Tab when the container has nothing focusable", () => {
+    // 確認框處理中：兩顆按鈕都停用，焦點落在 body。Tab 不能走到框後面的頁面
+    const container = createContainer("button", "button");
+    container.querySelectorAll("button").forEach((button) => {
+      button.disabled = true;
+    });
 
     renderTrap(container, true, false);
 
-    // Should not throw
+    let event!: KeyboardEvent;
     act(() => {
-      pressTab();
+      event = pressTabOn(document.body);
     });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("pulls focus back to the first element on Tab when focus is outside the container", () => {
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    const container = createContainer("button", "button");
+    const buttons = container.querySelectorAll("button");
+
+    renderTrap(container, true, false);
+    act(() => {
+      outside.focus();
+    });
+
+    let event!: KeyboardEvent;
+    act(() => {
+      event = pressTabOn(outside);
+    });
+    expect(document.activeElement).toBe(buttons[0]);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("pulls focus back to the last element on Shift+Tab when focus is outside the container", () => {
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    const container = createContainer("button", "button");
+    const buttons = container.querySelectorAll("button");
+
+    renderTrap(container, true, false);
+    act(() => {
+      outside.focus();
+    });
+
+    act(() => {
+      pressTabOn(outside, true);
+    });
+    expect(document.activeElement).toBe(buttons[1]);
   });
 
   it("restores focus on cleanup", () => {
@@ -191,5 +240,80 @@ describe("useFocusTrap", () => {
 
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
     trigger.remove();
+  });
+
+  it("leaves Tab alone inside a dialog opened on top of another one", () => {
+    // 兩個對話框疊著時只有最上層的管 Tab：底下那個看到焦點「在自己框外」，不能把它搶回去
+    const lower = createContainer("button", "button");
+    const upper = createContainer("button", "button", "button");
+    const upperButtons = upper.querySelectorAll("button");
+
+    renderTrap(lower, true, false);
+    renderTrap(upper, true, false);
+    act(() => {
+      upperButtons[1].focus();
+    });
+
+    let event!: KeyboardEvent;
+    act(() => {
+      event = pressTabOn(upperButtons[1]);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(upperButtons[1]);
+  });
+
+  it("resumes trapping in the lower dialog once the upper one closes", () => {
+    const lower = createContainer("button", "button");
+    const lowerButtons = lower.querySelectorAll("button");
+    const upper = createContainer("button");
+
+    renderTrap(lower, true, false);
+    const { unmount } = renderTrap(upper, true, false);
+    unmount();
+    act(() => {
+      lowerButtons[1].focus();
+    });
+
+    act(() => {
+      pressTabOn(lowerButtons[1]);
+    });
+    expect(document.activeElement).toBe(lowerButtons[0]);
+  });
+
+  it("leaves Tab alone when its container is no longer in the document", () => {
+    // trap 還開著但容器已被移出 document（呼叫端另有條件控制渲染）：不能把整頁的 Tab 吞掉
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    const container = createContainer("button");
+
+    renderTrap(container, true, false);
+    container.remove();
+    act(() => {
+      outside.focus();
+    });
+
+    let event!: KeyboardEvent;
+    act(() => {
+      event = pressTabOn(outside);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it("wraps focus when the container stops keydown propagation", () => {
+    // 對話框擋掉框內 keydown 往上傳（不讓頁面快捷鍵收到），Tab 從框內的元素送出
+    const container = createContainer("button", "button");
+    container.addEventListener("keydown", (e) => e.stopPropagation());
+    const buttons = container.querySelectorAll("button");
+
+    renderTrap(container, true);
+    act(() => {
+      buttons[1].focus();
+    });
+
+    act(() => {
+      pressTabOn(buttons[1]);
+    });
+    expect(document.activeElement).toBe(buttons[0]);
   });
 });

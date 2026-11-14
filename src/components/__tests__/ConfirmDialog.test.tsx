@@ -244,4 +244,115 @@ describe("ConfirmDialog", () => {
 
     expect(mockOnCancel).not.toHaveBeenCalled();
   });
+
+  it("calls onCancel on ESC key while focus is inside the dialog", async () => {
+    const user = userEvent.setup();
+    render(
+      <ConfirmDialog
+        isOpen={true}
+        title="Test"
+        message="Test"
+        onConfirm={mockOnConfirm}
+        onCancel={mockOnCancel}
+      />
+    );
+    // 對話框一打開焦點就在框內的第一個按鈕上，Esc 由它送出
+    expect(screen.getByText("Cancel")).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+
+    expect(mockOnCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Tab inside the dialog when focus is on the last button", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Behind the dialog</button>
+        <ConfirmDialog
+          isOpen={true}
+          title="Test"
+          message="Test"
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      </>
+    );
+    screen.getByText("Confirm").focus();
+
+    await user.tab();
+
+    expect(screen.getByText("Cancel")).toHaveFocus();
+  });
+
+  it("brings Shift+Tab back into the dialog after the user clicks its text", async () => {
+    // 點框內不可聚焦的文字，焦點會落到外層的遮罩（tabIndex -1）；往回 Tab 要回到框內，不是框後面的頁面
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Behind the dialog</button>
+        <ConfirmDialog
+          isOpen={true}
+          title="Test"
+          message="Are you sure?"
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      </>
+    );
+    await user.click(screen.getByText("Are you sure?"));
+    expect(screen.getByRole("alertdialog")).not.toContainElement(
+      document.activeElement as HTMLElement
+    );
+
+    await user.tab({ shift: true });
+
+    expect(screen.getByText("Confirm")).toHaveFocus();
+  });
+
+  it("does not let Tab reach the page while processing", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Behind the dialog</button>
+        <ConfirmDialog
+          isOpen={true}
+          title="Test"
+          message="Test"
+          isProcessing={true}
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      </>
+    );
+
+    await user.tab();
+
+    expect(screen.getByText("Behind the dialog")).not.toHaveFocus();
+  });
+
+  it("keeps keydown inside the dialog away from page-level shortcuts", async () => {
+    // 探索頁在 document 上聽「/」聚焦搜尋框；確認框開著時在框內按鍵不能觸發它
+    const user = userEvent.setup();
+    const pageShortcut = vi.fn();
+    document.addEventListener("keydown", pageShortcut);
+    try {
+      render(
+        <ConfirmDialog
+          isOpen={true}
+          title="Test"
+          message="Test"
+          onConfirm={mockOnConfirm}
+          onCancel={mockOnCancel}
+        />
+      );
+      expect(screen.getByText("Cancel")).toHaveFocus();
+
+      await user.keyboard("/");
+
+      expect(pageShortcut).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener("keydown", pageShortcut);
+    }
+  });
 });

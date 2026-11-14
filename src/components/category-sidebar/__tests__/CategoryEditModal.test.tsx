@@ -154,4 +154,15 @@ describe("CategoryEditModal", () => {
       );
     });
   });
+
+  it("calls onClose on ESC key while focus is in the name field", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<CategoryEditModal {...defaultProps} onClose={onClose} />);
+
+    await user.click(screen.getByDisplayValue("Test Category"));
+    await user.keyboard("{Escape}");
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

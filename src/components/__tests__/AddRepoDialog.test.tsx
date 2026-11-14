@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { AddRepoDialog } from "../AddRepoDialog";
 
@@ -157,5 +157,46 @@ describe("AddRepoDialog", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+
+  it("calls onClose on ESC key while typing in the input", async () => {
+    const user = userEvent.setup();
+    render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
+
+    await user.type(screen.getByPlaceholderText("owner/repo or GitHub URL"), "facebook/react");
+    await user.keyboard("{Escape}");
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("brings Tab back into the dialog after the user clicks its text", async () => {
+    // 點框內不可聚焦的文字，焦點會落到 body；下一次 Tab 要回到框內，不是框後面的頁面
+    const user = userEvent.setup();
+    render(
+      <>
+        <button>Behind the dialog</button>
+        <AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />
+      </>
+    );
+    await user.click(
+      screen.getByText("Enter a repository in owner/repo format or paste a GitHub URL")
+    );
+    expect(document.body).toHaveFocus();
+
+    await user.tab();
+
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+  });
+
+  it("does not close on ESC while an input method is composing in the input", () => {
+    // 注音、日文等輸入法組字到一半按 Esc 是取消組字，對話框與已經打的字要留著
+    render(<AddRepoDialog isOpen={true} onClose={mockOnClose} onAdd={mockOnAdd} />);
+
+    fireEvent.keyDown(screen.getByPlaceholderText("owner/repo or GitHub URL"), {
+      key: "Escape",
+      isComposing: true,
+    });
+
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 });
