@@ -2,17 +2,18 @@
  * 熱門主題建議的行為測試。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { TrendingTopics } from "../TrendingTopics";
 import * as client from "../../../api/client";
+import { queryKeys } from "../../../lib/react-query";
 
 vi.mock("../../../api/client");
 
 function renderWith(ui: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+  return { ...render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>), qc };
 }
 
 const TOPIC = {
@@ -148,5 +149,51 @@ describe("TrendingTopics 進度回報", () => {
     const bar = await screen.findByRole("progressbar");
     // 還不知道進度時不能假裝 0%，那看起來像卡住
     expect(bar).not.toHaveAttribute("aria-valuenow");
+  });
+
+  it("says the saved results failed to load instead of claiming nothing was checked yet", async () => {
+    // 「尚未查詢過」與「讀不到上次的結果」是兩件事
+    vi.mocked(client.getTrendingTopics).mockRejectedValue(new Error("boom"));
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+
+    expect(await screen.findByTestId("trending-load-error")).toHaveTextContent(
+      "Couldn't load the previous results."
+    );
+    expect(screen.queryByText(/Not checked yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hit Refresh/)).not.toBeInTheDocument();
+  });
+
+  it("does not claim nothing was checked yet while the saved results are still loading", async () => {
+    vi.mocked(client.getTrendingTopics).mockReturnValue(new Promise(() => {}));
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    // 等一拍：React Query 以 setTimeout(0) 才通知元件，馬上斷言「沒出現」會空過
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+    expect(screen.queryByText(/Not checked yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hit Refresh/)).not.toBeInTheDocument();
+  });
+
+  it("shows the saved results once loading them is retried", async () => {
+    vi.mocked(client.getTrendingTopics).mockRejectedValueOnce(new Error("boom"));
+    renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    const error = await screen.findByTestId("trending-load-error");
+
+    fireEvent.click(within(error).getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("local-first")).toBeInTheDocument();
+    expect(screen.queryByTestId("trending-load-error")).not.toBeInTheDocument();
+  });
+
+  it("does not prompt to refresh when reloading an empty result fails", async () => {
+    // 上一次讀到的是「沒有結果」，不代表現在還是沒有
+    vi.mocked(client.getTrendingTopics).mockResolvedValue({ topics: [], computed_at: null });
+    const { qc } = renderWith(<TrendingTopics onAdd={vi.fn()} />);
+    expect(await screen.findByText(/Hit Refresh/)).toBeInTheDocument();
+
+    vi.mocked(client.getTrendingTopics).mockRejectedValue(new Error("boom"));
+    void qc.invalidateQueries({ queryKey: queryKeys.interests.trending() });
+
+    expect(await screen.findByTestId("trending-load-error")).toBeInTheDocument();
+    expect(screen.queryByText(/Hit Refresh/)).not.toBeInTheDocument();
   });
 });

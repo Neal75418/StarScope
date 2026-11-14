@@ -272,6 +272,7 @@ export const translations = {
       recalculateComplete: "Processed {repos} repos, found {similarities} similarities",
       showing: "Showing {count} of {total} repos",
       searchPlaceholder: "Search watchlist...",
+      loadError: "Couldn't load your watchlist.",
       empty: {
         noRepos: "No repositories in your watchlist yet.",
         addPrompt:
@@ -512,6 +513,7 @@ export const translations = {
       title: "Settings",
       subtitle: "Manage connections, export data, and configure notifications",
       loading: "Loading...",
+      loadError: "Couldn't load this setting.",
       appearance: {
         title: "Appearance",
         theme: "Theme",
@@ -538,6 +540,7 @@ export const translations = {
         title: "Alert Rules",
         create: "Create Alert",
         noAlerts: "No alert rules configured.",
+        loadError: "Couldn't load your alert settings.",
         form: {
           name: "Alert Name",
           namePlaceholder: "e.g., Star Spike Alert",
@@ -622,6 +625,7 @@ export const translations = {
         sync: "Sync now",
         syncing: "Syncing…",
         never: "Not synced yet",
+        statusLoadError: "Couldn't load the sync status.",
         lastSynced: "Last synced",
         resultAdded: "added",
         resultRestored: "restored",
@@ -783,6 +787,8 @@ export const translations = {
         add: "Add",
         remove: "Remove",
         empty: "No interests yet. Add 3–5 terms to activate your feed.",
+        loadError: "Couldn't load your interests.",
+        exclusionsLoadError: "Couldn't load the excluded terms.",
         exclusionsTitle: "Excluded terms",
         exclusionsSubtitle: "Repos matching these terms never appear in your feed",
         toast: { added: "Interest added", removed: "Interest removed", error: "Operation failed" },
@@ -796,6 +802,7 @@ export const translations = {
           phaseSampling: "Sampling new projects",
           phaseCounting: "Measuring how common each topic is",
           never: "Not checked yet",
+          loadError: "Couldn't load the previous results.",
           lastChecked: "Last checked",
           added: "Added",
           addThis: "Add to interests",
@@ -1311,6 +1318,7 @@ export const translations = {
       recalculateComplete: "已處理 {repos} 個儲存庫，找到 {similarities} 個相似項目",
       showing: "顯示 {count} / {total} 個儲存庫",
       searchPlaceholder: "搜尋追蹤清單...",
+      loadError: "追蹤清單載入失敗。",
       empty: {
         noRepos: "追蹤清單中還沒有儲存庫。",
         addPrompt:
@@ -1548,6 +1556,7 @@ export const translations = {
       title: "設定",
       subtitle: "管理連線、匯出資料和設定通知",
       loading: "載入中...",
+      loadError: "這項設定載入失敗。",
       appearance: {
         title: "外觀",
         theme: "主題",
@@ -1573,6 +1582,7 @@ export const translations = {
         title: "警報規則",
         create: "建立警報",
         noAlerts: "尚未設定警報規則。",
+        loadError: "警報設定載入失敗。",
         form: {
           name: "警報名稱",
           namePlaceholder: "例：星星飆升警報",
@@ -1655,6 +1665,7 @@ export const translations = {
         sync: "立即同步",
         syncing: "同步中…",
         never: "尚未同步",
+        statusLoadError: "同步狀態載入失敗。",
         lastSynced: "上次同步",
         resultAdded: "新增",
         resultRestored: "復原",
@@ -1813,6 +1824,8 @@ export const translations = {
         add: "新增",
         remove: "移除",
         empty: "尚無興趣項目。新增 3–5 個以啟用你的 feed。",
+        loadError: "興趣清單載入失敗。",
+        exclusionsLoadError: "黑名單載入失敗。",
         exclusionsTitle: "黑名單",
         exclusionsSubtitle: "命中這些關鍵字的 repo 永不出現在 feed",
         toast: { added: "已新增興趣", removed: "已移除興趣", error: "操作失敗" },
@@ -1826,6 +1839,7 @@ export const translations = {
           phaseSampling: "取樣新專案",
           phaseCounting: "比對各主題的全站用量",
           never: "尚未查詢過",
+          loadError: "上次的查詢結果載入失敗。",
           lastChecked: "上次查詢",
           added: "已加入",
           addThis: "加入興趣清單",

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Watchlist } from "../Watchlist";
 import type { RepoWithSignals } from "../../api/client";
@@ -238,6 +238,7 @@ describe("Watchlist", () => {
       loadingState: { type: "idle" },
       error: null,
       isConnected: true,
+      reposLoad: { ready: true, failed: false, inProgress: false, retry: vi.fn() },
       ui: {
         dialog: {
           isOpen: false,
@@ -452,5 +453,58 @@ describe("Watchlist", () => {
   it("shows page title with correct text", () => {
     render(<Watchlist />);
     expect(screen.getByTestId("page-title")).toHaveTextContent("Watchlist");
+  });
+
+  it("says the watchlist failed to load instead of claiming it is empty", () => {
+    // 讀不到時說「追蹤清單中還沒有儲存庫」再給一顆去探索的按鈕，使用者會以為追蹤的專案不見了
+    mockState.reposLoad = { ready: false, failed: true, inProgress: false, retry: vi.fn() };
+    render(<Watchlist />);
+
+    expect(screen.getByTestId("watchlist-load-error")).toHaveTextContent(
+      "Couldn't load your watchlist."
+    );
+    expect(screen.queryByText("No repositories in your watchlist yet.")).not.toBeInTheDocument();
+  });
+
+  it("loads the watchlist again when retry is pressed on the load error", async () => {
+    const user = userEvent.setup();
+    const retry = vi.fn();
+    mockState.reposLoad = { ready: false, failed: true, inProgress: false, retry };
+    render(<Watchlist />);
+
+    await user.click(
+      within(screen.getByTestId("watchlist-load-error")).getByRole("button", { name: "Retry" })
+    );
+
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the repos on screen and says so when a reload fails", () => {
+    const repos = [makeRepo({ id: 1 })];
+    mockState.repos = repos;
+    mockSelectors.displayedRepos = repos;
+    mockState.reposLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    render(<Watchlist />);
+
+    expect(screen.getByTestId("watchlist-load-error")).toBeInTheDocument();
+    expect(screen.getByTestId("repo-card-1")).toBeInTheDocument();
+  });
+
+  it("does not claim the watchlist is empty before it has been read", () => {
+    // 查詢暫停時頁面照常畫出來，但追蹤清單還沒讀到
+    mockState.reposLoad = { ready: false, failed: false, inProgress: false, retry: vi.fn() };
+    render(<Watchlist />);
+
+    expect(screen.queryByText("No repositories in your watchlist yet.")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("watchlist-load-error")).not.toBeInTheDocument();
+  });
+
+  it("does not claim the watchlist is empty when reloading an empty watchlist fails", () => {
+    // 上一次讀到的是空清單，不代表現在還是空的
+    mockState.reposLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    render(<Watchlist />);
+
+    expect(screen.getByTestId("watchlist-load-error")).toBeInTheDocument();
+    expect(screen.queryByText("No repositories in your watchlist yet.")).not.toBeInTheDocument();
   });
 });

@@ -29,6 +29,7 @@ import { STORAGE_KEYS } from "../constants/storage";
 import { LoadingState } from "./watchlist/LoadingState";
 import { ConnectionError } from "./watchlist/ConnectionError";
 import { ErrorBanner } from "./watchlist/ErrorBanner";
+import { LoadError } from "../components/LoadError";
 import { Toolbar } from "./watchlist/Toolbar";
 import { EmptyStateView } from "./watchlist/EmptyStateView";
 import { RepoList } from "./watchlist/RepoList";
@@ -209,6 +210,15 @@ export function Watchlist() {
 
           {state.error && <ErrorBanner error={state.error} onClear={actions.clearError} />}
 
+          {state.reposLoad.failed && (
+            <LoadError
+              testId="watchlist-load-error"
+              message={t.watchlist.loadError}
+              isRetrying={state.reposLoad.inProgress}
+              onRetry={state.reposLoad.retry}
+            />
+          )}
+
           {state.repos.length > 0 && (
             <SummaryPanel
               repos={state.repos}
@@ -218,13 +228,18 @@ export function Watchlist() {
 
           <div className="repo-list" data-testid="repo-list">
             {displayedRepos.length === 0 ? (
-              <div className="empty-state" data-testid="empty-state">
-                <EmptyStateView
-                  hasRepos={state.repos.length > 0}
-                  hasSearch={state.filters.searchQuery.trim().length > 0}
-                  onGoDiscover={() => navigateTo("discovery")}
-                />
-              </div>
+              // 讀到了追蹤清單才談空不空：還沒讀到（查詢暫停）或讀不到時說「還沒有儲存庫」，
+              // 使用者會以為追蹤的專案不見了
+              state.reposLoad.ready &&
+              !state.reposLoad.failed && (
+                <div className="empty-state" data-testid="empty-state">
+                  <EmptyStateView
+                    hasRepos={state.repos.length > 0}
+                    hasSearch={state.filters.searchQuery.trim().length > 0}
+                    onGoDiscover={() => navigateTo("discovery")}
+                  />
+                </div>
+              )
             ) : viewMode === "grid" ? (
               <RepoGrid
                 repos={displayedRepos}

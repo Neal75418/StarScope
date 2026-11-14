@@ -547,6 +547,17 @@ body {
   color: var(--fg-muted);
 }
 
+/* 讀不到資料時的說明與重試鈕（LoadError 元件）。通知下拉用自己的版面，見下一條 */
+.load-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--danger-fg);
+}
+
 /* 通知讀不到時的說明與重試鈕；清單裡還有上一次讀到的通知時，排在它們上面 */
 .notification-load-error {
   display: flex;

@@ -9,12 +9,18 @@ interface LoadErrorProps {
   onRetry: () => void;
   /** 重試（或輪詢）進行中：按鈕改顯示「重試中」，在有結果之前不再接受點擊 */
   isRetrying: boolean;
-  /** 版面由用它的地方決定（設定頁的一行字、通知下拉裡的一列） */
-  className: string;
+  /** 版面和一般的一行字不同時才給（例如通知下拉裡的一列） */
+  className?: string;
   testId?: string;
 }
 
-export function LoadError({ message, onRetry, isRetrying, className, testId }: LoadErrorProps) {
+export function LoadError({
+  message,
+  onRetry,
+  isRetrying,
+  className = "load-error",
+  testId,
+}: LoadErrorProps) {
   const { t } = useI18n();
 
   return (

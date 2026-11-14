@@ -3,25 +3,15 @@
  * 使用 3 個 useQuery 平行取得 rules、signalTypes、repos。
  */
 
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listAlertRules, listSignalTypes, getRepos } from "../api/client";
 import type { AlertRule, SignalTypeInfo, RepoWithSignals } from "../api/client";
-import { useI18n } from "../i18n";
-import { getErrorMessage } from "../utils/error";
-import type { Toast } from "./types";
-import { queryKeys } from "../lib/react-query";
+import { combineLoadStatus, loadStatus, queryKeys } from "../lib/react-query";
 
-export function useAlertRuleData(toast: Toast) {
-  const { t } = useI18n();
+export function useAlertRuleData() {
   const queryClient = useQueryClient();
-
-  // 用 ref 持有最新的 toast 和 t，讓 error effect 穩定
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
-  const tRef = useRef(t);
-  tRef.current = t;
 
   const rulesQuery = useQuery<AlertRule[], Error>({
     queryKey: queryKeys.alertRuleData.rules(),
@@ -41,15 +31,14 @@ export function useAlertRuleData(toast: Toast) {
     },
   });
 
-  // 透過 effect 顯示錯誤 toast，避免在 render 中觸發副作用
-  useEffect(() => {
-    const errors = [rulesQuery.error, signalTypesQuery.error, reposQuery.error];
-    for (const err of errors) {
-      if (err) {
-        toastRef.current.error(getErrorMessage(err, tRef.current.common.error));
-      }
-    }
-  }, [rulesQuery.error, signalTypesQuery.error, reposQuery.error]);
+  // 讀不到由畫面上的「讀不到＋重試」說（設定頁的警報區塊），不丟 toast：toast 只有後端的原始訊息，
+  // 看不出是哪一塊讀不到，幾秒後就消失
+  const rulesLoad = loadStatus(rulesQuery);
+  const dataLoad = combineLoadStatus([
+    rulesLoad,
+    loadStatus(signalTypesQuery),
+    loadStatus(reposQuery),
+  ]);
 
   const setRules: Dispatch<SetStateAction<AlertRule[]>> = useCallback(
     (updater) => {
@@ -74,6 +63,10 @@ export function useAlertRuleData(toast: Toast) {
     signalTypes: signalTypesQuery.data ?? [],
     repos: reposQuery.data ?? [],
     isLoading: rulesQuery.isLoading || signalTypesQuery.isLoading || reposQuery.isLoading,
+    /** 規則清單讀到了沒：清單與「尚未設定警報規則」看這個 */
+    rulesLoad,
+    /** 整個警報區塊用到的三份資料（規則、訊號類型、repo）合起來：「讀不到＋重試」看這個 */
+    dataLoad,
     loadRules,
   };
 }

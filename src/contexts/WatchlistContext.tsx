@@ -29,7 +29,7 @@ import { useBackgroundStarSync } from "../hooks/useBackgroundStarSync";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
-import { invalidateTrackedRepos } from "../lib/react-query";
+import { invalidateTrackedRepos, loadStatus, type LoadStatus } from "../lib/react-query";
 import { useToast, type ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
@@ -38,16 +38,20 @@ import { DATA_RESET_EVENT } from "../constants/events";
 import {
   watchlistReducer,
   initialState,
-  type WatchlistState,
+  type WatchlistReducerState,
   type WatchlistActions,
 } from "./watchlistReducer";
 
-export type {
-  LoadingState,
-  WatchlistState,
-  WatchlistAction,
-  WatchlistActions,
-} from "./watchlistReducer";
+export type { LoadingState, WatchlistAction, WatchlistActions } from "./watchlistReducer";
+
+/** Provider 給出去的狀態：reducer 管的 UI 狀態，加上從 React Query 併進來的追蹤清單與它的讀取狀態 */
+export interface WatchlistState extends WatchlistReducerState {
+  /**
+   * 追蹤清單讀到了沒：頁面依它顯示「讀不到＋重試」，以及能不能說「清單是空的」。
+   * 這裡的 inProgress 只代表讀不到之後的重讀；平常的背景重讀不算
+   */
+  reposLoad: LoadStatus;
+}
 
 // Context 定義
 
@@ -83,25 +87,47 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   useBackgroundStarSync(isConnected);
 
   // ── 合併 React Query 資料與 reducer UI 狀態 ──
-  // 保持 WatchlistState 介面不變，消費端無須修改
+  // 追蹤清單讀到了沒。讀不到由頁面原地的「讀不到＋重試」說，不放進 error：那是操作失敗用的橫幅，
+  // 只有後端的原始訊息。拆成三個布林值進 useMemo 的依賴——loadStatus 每次回新的物件，
+  // 整個放進去的話 state 每次 render 都換，所有讀 state 的元件跟著重畫
+  const {
+    ready: reposReady,
+    failed: reposFailed,
+    inProgress: reposInProgress,
+  } = loadStatus(reposQuery);
+  // 「讀取進行中」只在讀不到之後才有人看（重試鈕）。沒失敗時不讓它進 state：
+  // 否則每次背景重讀（同步、invalidate）一開始一結束，state 各換一次，所有讀 state 的元件白白重畫
+  const reposRetrying = reposFailed && reposInProgress;
+  const refetchRepos = reposQuery.refetch;
   const state: WatchlistState = useMemo(() => {
-    // 判斷載入狀態：sidecar 連線中或 repos 載入中
+    // 判斷載入狀態：sidecar 連線中或 repos 第一次載入中。失敗之後的重試不算——還沒有資料時重試一開始
+    // isLoading 又是 true，當成初始化中的話整頁換成載入畫面，頁面上的「讀不到＋重試」跟著消失
     const isInitializing =
-      (!isConnected || reposQuery.isLoading) && reducerState.loadingState.type === "idle";
-
-    // 合併錯誤來源
-    const queryError = reposQuery.error;
-    const mergedError =
-      reducerState.error ?? (queryError instanceof Error ? queryError.message : null);
+      (!isConnected || (reposQuery.isLoading && !reposFailed)) &&
+      reducerState.loadingState.type === "idle";
 
     return {
       ...reducerState,
       repos: reposQuery.data ?? reducerState.repos,
       isConnected,
       loadingState: isInitializing ? { type: "initializing" as const } : reducerState.loadingState,
-      error: mergedError,
+      reposLoad: {
+        ready: reposReady,
+        failed: reposFailed,
+        inProgress: reposRetrying,
+        retry: () => void refetchRepos(),
+      },
     };
-  }, [reducerState, reposQuery.data, reposQuery.isLoading, reposQuery.error, isConnected]);
+  }, [
+    reducerState,
+    reposQuery.data,
+    reposQuery.isLoading,
+    isConnected,
+    reposReady,
+    reposFailed,
+    reposRetrying,
+    refetchRepos,
+  ]);
 
   // 用 ref 持有最新 state，讓 actions 不依賴 state 變化
   const stateRef = useRef(state);

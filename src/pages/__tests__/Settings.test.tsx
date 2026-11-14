@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Settings } from "../Settings";
@@ -135,6 +135,8 @@ describe("Settings", () => {
       initialAlertRule: { name: "default" },
       signalTypes: [],
       repos: [],
+      rulesLoad: { ready: true, failed: false, inProgress: false, retry: vi.fn() },
+      dataLoad: { ready: true, failed: false, inProgress: false, retry: vi.fn() },
       deleteConfirm: { isOpen: false },
       handleCreate: vi.fn(),
       handleUpdate: vi.fn(),
@@ -148,10 +150,18 @@ describe("Settings", () => {
     };
   });
 
-  it("shows loading state", () => {
+  it("keeps every section on screen while the alert data is still loading", () => {
+    // 警報資料只是其中一個區塊：整頁換成「載入中」的話，其他區塊打到一半的字、捲動位置都會不見
     mockAlertsReturn.isLoading = true;
+    mockAlertsReturn.rulesLoad = { ready: false, failed: false, inProgress: true, retry: vi.fn() };
+    mockAlertsReturn.dataLoad = { ready: false, failed: false, inProgress: true, retry: vi.fn() };
     renderWithClient(<Settings />);
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    expect(screen.getByTestId("github-section")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("alerts-section")).getByText("Loading...")
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("alert-list")).not.toBeInTheDocument();
   });
 
   it("renders all sections when loaded", () => {
@@ -249,5 +259,89 @@ describe("Settings", () => {
     expect(mockAlertsReturn.openDeleteConfirm).toHaveBeenCalledWith(2);
     await user.click(screen.getByTestId("toggle-1"));
     expect(mockAlertsReturn.handleToggle).toHaveBeenCalledWith(1);
+  });
+
+  it("says the alert data failed to load instead of claiming no rules are configured", () => {
+    // 「尚未設定警報規則」與「讀不到」是兩件事：讀不到時說尚未設定，使用者會以為規則不見了
+    const failed = { ready: false, failed: true, inProgress: false, retry: vi.fn() };
+    mockAlertsReturn.rulesLoad = failed;
+    mockAlertsReturn.dataLoad = failed;
+    renderWithClient(<Settings />);
+
+    expect(screen.getByTestId("alerts-load-error")).toHaveTextContent(
+      "Couldn't load your alert settings."
+    );
+    expect(screen.queryByTestId("alert-list")).not.toBeInTheDocument();
+  });
+
+  it("reloads the alert data when retry is pressed on the load error", async () => {
+    const user = userEvent.setup();
+    const retry = vi.fn();
+    mockAlertsReturn.dataLoad = { ready: false, failed: true, inProgress: false, retry };
+    renderWithClient(<Settings />);
+
+    await user.click(
+      within(screen.getByTestId("alerts-load-error")).getByRole("button", { name: "Retry" })
+    );
+
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts the load error above the alert form, where the empty dropdowns are", async () => {
+    // 表單的下拉選單靠的就是這份資料：讀不到時說明要排在表單前面，不是被表單推到下面
+    const user = userEvent.setup();
+    mockAlertsReturn.dataLoad = { ready: false, failed: true, inProgress: false, retry: vi.fn() };
+    renderWithClient(<Settings />);
+    await user.click(screen.getByText("Create Alert"));
+
+    const loadError = screen.getByTestId("alerts-load-error");
+    const form = screen.getByTestId("alert-form");
+
+    expect(loadError.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it("keeps the rules already loaded on screen when a reload fails", () => {
+    mockAlertsReturn.rules = [{ id: 1 }];
+    mockAlertsReturn.rulesLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    mockAlertsReturn.dataLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    renderWithClient(<Settings />);
+
+    expect(screen.getByTestId("alerts-load-error")).toBeInTheDocument();
+    expect(screen.getByTestId("alert-list")).toBeInTheDocument();
+  });
+
+  it("does not claim no rules are configured before the rules are loaded", () => {
+    // 查詢暫停時 isLoading 是 false，頁面照常畫出來，但規則還沒讀到
+    mockAlertsReturn.rulesLoad = { ready: false, failed: false, inProgress: false, retry: vi.fn() };
+    renderWithClient(<Settings />);
+
+    expect(screen.queryByTestId("alert-list")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("alerts-load-error")).not.toBeInTheDocument();
+  });
+
+  it("keeps the page and the load error in place while a retry of the alert data runs", () => {
+    // 還沒有資料時重試一開始，isLoading 又變回 true：整頁換成「載入中」的話重試鈕跟著消失，
+    // 再失敗一次錯誤又掉回頁尾
+    mockAlertsReturn.isLoading = true;
+    const retrying = { ready: false, failed: true, inProgress: true, retry: vi.fn() };
+    mockAlertsReturn.rulesLoad = retrying;
+    mockAlertsReturn.dataLoad = retrying;
+    renderWithClient(<Settings />);
+
+    expect(screen.getByTestId("github-section")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("alerts-load-error")).getByRole("button", { name: "Retrying…" })
+    ).toBeInTheDocument();
+    expect(within(screen.getByTestId("alerts-section")).queryByText("Loading...")).toBeNull();
+  });
+
+  it("does not claim no rules are configured when reloading an empty rule list fails", () => {
+    // 上一次讀到的是空清單，不代表現在還是空的
+    mockAlertsReturn.rulesLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    mockAlertsReturn.dataLoad = { ready: true, failed: true, inProgress: false, retry: vi.fn() };
+    renderWithClient(<Settings />);
+
+    expect(screen.getByTestId("alerts-load-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("alert-list")).not.toBeInTheDocument();
   });
 });

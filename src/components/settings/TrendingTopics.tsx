@@ -13,6 +13,7 @@ import { useI18n } from "../../i18n";
 import { useTrendingTopics } from "../../hooks/useTrendingTopics";
 import { formatRelativeTime } from "../../utils/format";
 import { getErrorMessage } from "../../utils/error";
+import { LoadError } from "../LoadError";
 
 interface TrendingTopicsProps {
   /** 加入興趣清單；回傳是否成功 */
@@ -63,7 +64,8 @@ function TrendingProgressBar({ progress, copy }: ProgressBarProps) {
 
 export function TrendingTopics({ onAdd }: TrendingTopicsProps) {
   const { t } = useI18n();
-  const { topics, computedAt, isRefreshing, progress, refreshError, refresh } = useTrendingTopics();
+  const { topics, computedAt, load, isRefreshing, progress, refreshError, refresh } =
+    useTrendingTopics();
   const copy = t.settings.interests.trending;
 
   return (
@@ -85,8 +87,18 @@ export function TrendingTopics({ onAdd }: TrendingTopicsProps) {
         </div>
       </div>
 
-      {/* 重算期間不顯示這行：下方進度條已經說明狀態，重複只是雜訊 */}
-      {!isRefreshing && (
+      {load.failed && (
+        <LoadError
+          testId="trending-load-error"
+          message={copy.loadError}
+          isRetrying={load.inProgress}
+          onRetry={load.retry}
+        />
+      )}
+
+      {/* 重算期間不顯示這行：下方進度條已經說明狀態，重複只是雜訊。
+          還沒讀到上次的結果時也不顯示：那時說「尚未查詢過」是一句錯的話 */}
+      {!isRefreshing && load.ready && (
         <p className="interest-trending-stamp">
           {computedAt ? `${copy.lastChecked} ${formatRelativeTime(computedAt)}` : copy.never}
         </p>
@@ -104,7 +116,7 @@ export function TrendingTopics({ onAdd }: TrendingTopicsProps) {
         // 空狀態提示，只有按鈕在轉，使用者傳截圖來問有沒有按到。
         <TrendingProgressBar progress={progress} copy={copy} />
       ) : topics.length === 0 ? (
-        <p className="interest-empty">{copy.empty}</p>
+        load.ready && !load.failed && <p className="interest-empty">{copy.empty}</p>
       ) : (
         <ul className="interest-trending-list">
           {topics.map((item) => (

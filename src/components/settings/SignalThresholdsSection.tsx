@@ -8,7 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getSignalThresholds, updateSignalThresholds } from "../../api/client";
 import type { SignalThresholdsResponse } from "../../api/types";
-import { queryKeys } from "../../lib/react-query";
+import { loadStatus, queryKeys } from "../../lib/react-query";
+import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 
 const DEFAULTS: SignalThresholdsResponse = {
@@ -28,12 +29,14 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: queryKeys.settings.signalThresholds(),
     queryFn: ({ signal }) => getSignalThresholds(signal),
   });
+  const load = loadStatus(query);
 
-  const current = data ?? DEFAULTS;
+  // 還沒讀到時下面的表單不會畫出來，這裡的 DEFAULTS 只是讓型別成立，不會被當成目前的設定顯示
+  const current = query.data ?? DEFAULTS;
   const [draft, setDraft] = useState<Partial<Record<ThresholdKey, string>>>({});
 
   const mutation = useMutation({
@@ -111,12 +114,22 @@ export function SignalThresholdsSection({ onToast }: SignalThresholdsSectionProp
       <h2>{t.settings.signalThresholds.title}</h2>
       <p className="settings-description">{t.settings.signalThresholds.description}</p>
 
-      {isLoading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} width="100%" height={40} variant="rounded" />
-          ))}
-        </div>
+      {load.failed && (
+        <LoadError
+          message={t.settings.loadError}
+          isRetrying={load.inProgress}
+          onRetry={load.retry}
+        />
+      )}
+
+      {!load.ready ? (
+        !load.failed && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} width="100%" height={40} variant="rounded" />
+            ))}
+          </div>
+        )
       ) : (
         <>
           <div className="signal-thresholds-grid">

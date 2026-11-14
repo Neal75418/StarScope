@@ -11,14 +11,8 @@ vi.mock("../../api/client", () => ({
   getRepos: vi.fn(),
 }));
 
-vi.mock("../../utils/error", () => ({
-  getErrorMessage: (err: unknown, fallback: string) =>
-    err instanceof Error ? err.message : fallback,
-}));
-
 import { listAlertRules, listSignalTypes, getRepos } from "../../api/client";
 import { useAlertRuleData } from "../useAlertRuleData";
-import type { Toast } from "../types";
 
 const mockListAlertRules = vi.mocked(listAlertRules);
 const mockListSignalTypes = vi.mocked(listSignalTypes);
@@ -31,11 +25,8 @@ function createWrapper() {
 }
 
 describe("useAlertRuleData", () => {
-  let mockToast: Toast;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockToast = { success: vi.fn(), error: vi.fn() };
   });
 
   it("loads all three data sources on mount", async () => {
@@ -47,9 +38,7 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue(signalTypes as never);
     mockGetRepos.mockResolvedValue({ repos } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
     expect(result.current.isLoading).toBe(true);
 
@@ -62,52 +51,53 @@ describe("useAlertRuleData", () => {
     expect(result.current.repos).toEqual(repos);
   });
 
-  it("shows error toast when listAlertRules fails", async () => {
+  it("reports a failed rules load, for the rule list and for the section as a whole", async () => {
     mockListAlertRules.mockRejectedValue(new Error("Rules failed"));
     mockListSignalTypes.mockResolvedValue([]);
     mockGetRepos.mockResolvedValue({ repos: [] } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(mockToast.error).toHaveBeenCalledWith("Rules failed");
+    await waitFor(() => expect(result.current.rulesLoad.failed).toBe(true));
+    expect(result.current.rulesLoad.ready).toBe(false);
+    expect(result.current.dataLoad.failed).toBe(true);
   });
 
-  it("shows error toast when listSignalTypes fails", async () => {
+  it.each([
+    ["listSignalTypes", () => mockListSignalTypes.mockRejectedValue(new Error("Signals failed"))],
+    ["getRepos", () => mockGetRepos.mockRejectedValue(new Error("Repos failed"))],
+  ] as const)(
+    "reports the section as failed, but the rule list as loaded, when %s fails",
+    async (_name, failIt) => {
+      mockListAlertRules.mockResolvedValue([]);
+      mockListSignalTypes.mockResolvedValue([]);
+      mockGetRepos.mockResolvedValue({ repos: [] } as never);
+      failIt();
+
+      const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
+
+      await waitFor(() => expect(result.current.dataLoad.failed).toBe(true));
+      await waitFor(() => expect(result.current.rulesLoad.ready).toBe(true));
+      expect(result.current.rulesLoad.failed).toBe(false);
+    }
+  );
+
+  it("retrying the section reloads only what failed", async () => {
     mockListAlertRules.mockResolvedValue([]);
-    mockListSignalTypes.mockRejectedValue(new Error("Signals failed"));
-    mockGetRepos.mockResolvedValue({ repos: [] } as never);
-
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(mockToast.error).toHaveBeenCalledWith("Signals failed");
-  });
-
-  it("shows error toast when getRepos fails", async () => {
-    mockListAlertRules.mockResolvedValue([]);
+    mockListSignalTypes.mockRejectedValueOnce(new Error("Signals failed"));
     mockListSignalTypes.mockResolvedValue([]);
-    mockGetRepos.mockRejectedValue(new Error("Repos failed"));
+    mockGetRepos.mockResolvedValue({ repos: [] } as never);
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.dataLoad.failed).toBe(true));
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
+    act(() => {
+      result.current.dataLoad.retry();
     });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(mockToast.error).toHaveBeenCalledWith("Repos failed");
+    await waitFor(() => expect(result.current.dataLoad.failed).toBe(false));
+    expect(mockListSignalTypes).toHaveBeenCalledTimes(2);
+    expect(mockListAlertRules).toHaveBeenCalledTimes(1);
+    expect(mockGetRepos).toHaveBeenCalledTimes(1);
   });
 
   it("finishes loading even when all APIs fail", async () => {
@@ -115,16 +105,12 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockRejectedValue(new Error("fail"));
     mockGetRepos.mockRejectedValue(new Error("fail"));
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
-
-    // toast.error called 3 times (once for each failed API)
-    expect(mockToast.error).toHaveBeenCalledTimes(3);
+    expect(result.current.dataLoad.failed).toBe(true);
   });
 
   it("exposes loadRules for manual refresh", async () => {
@@ -132,9 +118,7 @@ describe("useAlertRuleData", () => {
     mockListSignalTypes.mockResolvedValue([]);
     mockGetRepos.mockResolvedValue({ repos: [] } as never);
 
-    const { result } = renderHook(() => useAlertRuleData(mockToast), {
-      wrapper: createWrapper(),
-    });
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);

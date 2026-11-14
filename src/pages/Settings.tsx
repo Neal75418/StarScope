@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useToast } from "../components/Toast";
 import { GitHubConnection } from "../components/GitHubConnection";
+import { LoadError } from "../components/LoadError";
 import { AnimatedPage } from "../components/motion";
 import {
   ImportSection,
@@ -89,14 +90,6 @@ export function Settings() {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.getElementById(id)?.scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
   }, []);
-
-  if (alerts.isLoading) {
-    return (
-      <div className="page">
-        <div className="loading">{t.settings.loading}</div>
-      </div>
-    );
-  }
 
   const navItems = [
     { id: "github", label: t.githubConnection.title },
@@ -233,6 +226,16 @@ export function Settings() {
               </div>
             </div>
 
+            {/* 排在表單前面：表單的下拉選單（訊號類型、追蹤清單）靠的就是這份資料，讀不到時選單是空的 */}
+            {alerts.dataLoad.failed && (
+              <LoadError
+                testId="alerts-load-error"
+                message={t.settings.alerts.loadError}
+                isRetrying={alerts.dataLoad.inProgress}
+                onRetry={alerts.dataLoad.retry}
+              />
+            )}
+
             {isAlertFormVisible && (
               <AlertRuleForm
                 initialData={alerts.editingRuleData ?? alerts.initialAlertRule}
@@ -245,12 +248,22 @@ export function Settings() {
               />
             )}
 
-            <AlertRuleList
-              rules={alerts.rules}
-              onToggle={alerts.handleToggle}
-              onEdit={alerts.handleEdit}
-              onDelete={alerts.openDeleteConfirm}
-            />
+            {/* 還沒讀到規則時只在這個區塊說「載入中」，不換掉整頁：警報資料只是其中一塊，整頁換掉的話
+                其他區塊打到一半的字與捲動位置都會不見，重試時連「讀不到＋重試」也跟著消失 */}
+            {!alerts.rulesLoad.ready && !alerts.rulesLoad.failed && (
+              <p className="settings-hint">{t.settings.loading}</p>
+            )}
+
+            {/* 清單是空的時候 AlertRuleList 會說「尚未設定警報規則」：只有讀到了、而且真的沒有才能這樣說。
+                重讀失敗時上一次讀到的規則照樣列出 */}
+            {(alerts.rules.length > 0 || (alerts.rulesLoad.ready && !alerts.rulesLoad.failed)) && (
+              <AlertRuleList
+                rules={alerts.rules}
+                onToggle={alerts.handleToggle}
+                onEdit={alerts.handleEdit}
+                onDelete={alerts.openDeleteConfirm}
+              />
+            )}
           </section>
 
           {/* 系統診斷 */}

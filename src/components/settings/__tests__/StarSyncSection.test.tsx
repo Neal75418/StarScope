@@ -6,8 +6,8 @@
  * 以為 GitHub 上真的沒有變動。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { StarSyncSection } from "../StarSyncSection";
 import * as client from "../../../api/client";
@@ -225,5 +225,41 @@ describe("StarSyncSection", () => {
     fireEvent.click(await screen.findByTestId("star-sync-btn"));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  it("says the sync status could not be read instead of claiming it never synced", async () => {
+    // 「尚未同步」與「讀不到」是兩件事：讀不到時說尚未同步，使用者會以為同步從沒跑過
+    vi.mocked(client.getSyncStatus).mockRejectedValue(new Error("boom"));
+    renderWithClient(<StarSyncSection />);
+
+    expect(await screen.findByTestId("star-sync-status-error")).toHaveTextContent(
+      "Couldn't load the sync status."
+    );
+    expect(screen.queryByTestId("star-sync-stamp")).not.toBeInTheDocument();
+  });
+
+  it("shows when it last synced once reading the status is retried", async () => {
+    vi.mocked(client.getSyncStatus).mockRejectedValueOnce(new Error("boom"));
+    renderWithClient(<StarSyncSection />);
+    const error = await screen.findByTestId("star-sync-status-error");
+
+    fireEvent.click(within(error).getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByTestId("star-sync-stamp")).toHaveTextContent("Last synced");
+    expect(screen.queryByTestId("star-sync-status-error")).not.toBeInTheDocument();
+  });
+
+  it("does not claim it never synced while the status query is paused", async () => {
+    onlineManager.setOnline(false);
+    try {
+      renderWithClient(<StarSyncSection />);
+      // 等一拍：React Query 以 setTimeout(0) 才通知元件，馬上斷言「沒出現」會空過
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+      expect(client.getSyncStatus).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("star-sync-stamp")).not.toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

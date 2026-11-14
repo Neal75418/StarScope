@@ -23,7 +23,7 @@ export type LoadingState =
 /**
  * Watchlist 主要狀態（2 層嵌套）
  */
-export interface WatchlistState {
+export interface WatchlistReducerState {
   // 主要資料
   repos: RepoWithSignals[];
   loadingState: LoadingState;
@@ -136,7 +136,7 @@ export interface WatchlistActions {
 
 // 初始狀態 & Reducer
 
-export const initialState: WatchlistState = {
+export const initialState: WatchlistReducerState = {
   repos: [],
   loadingState: { type: "idle" },
   error: null,
@@ -161,7 +161,10 @@ export const initialState: WatchlistState = {
 /**
  * Watchlist Reducer - 純函數，集中管理所有狀態變更
  */
-export function watchlistReducer(state: WatchlistState, action: WatchlistAction): WatchlistState {
+export function watchlistReducer(
+  state: WatchlistReducerState,
+  action: WatchlistAction
+): WatchlistReducerState {
   switch (action.type) {
     // 新增 Repo
     case "ADD_REPO_START":

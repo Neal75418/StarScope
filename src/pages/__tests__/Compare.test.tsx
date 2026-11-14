@@ -30,9 +30,22 @@ vi.mock("../../hooks/useComparison", () => ({
 }));
 
 let mockRepos: RepoWithSignals[];
+// 追蹤清單這支查詢的狀態：預設是讀到了 mockRepos；個別測試可以換成讀不到或還在讀
+let mockReposQueryState: Record<string, unknown> | null;
+const mockRefetchRepos = vi.fn();
 
 vi.mock("../../hooks/useReposQuery", () => ({
-  useReposQuery: () => ({ data: mockRepos, isLoading: false, error: null }),
+  useReposQuery: () => ({
+    data: mockRepos,
+    isLoading: false,
+    error: null,
+    isError: false,
+    isPending: false,
+    errorUpdateCount: 0,
+    fetchStatus: "idle",
+    refetch: mockRefetchRepos,
+    ...mockReposQueryState,
+  }),
 }));
 
 vi.mock("../../hooks/useTrendEarlySignals", () => ({
@@ -62,7 +75,8 @@ vi.mock("../../i18n", () => ({
     str.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? "")),
   useI18n: () => ({
     t: {
-      common: { goDiscover: "Go to Discover" },
+      common: { goDiscover: "Go to Discover", retry: "Retry", retrying: "Retrying…" },
+      watchlist: { loadError: "Couldn't load your watchlist." },
       compare: {
         needMoreRepos:
           "Comparing needs at least 2 tracked repositories (you have {count}). Head to Discover to start tracking.",
@@ -765,5 +779,51 @@ describe("Compare — 算不出百分比時說明原因", () => {
     // 預設是星數，那個 repo 的星數算得出來
 
     expect(screen.queryByText(/started at 0/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Compare when the watchlist cannot be read", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRepos = [];
+    mockReposQueryState = null;
+  });
+
+  it("says the watchlist failed to load instead of saying 0 repositories are tracked", () => {
+    // 讀不到時說「至少要追蹤 2 個，目前 0 個」再給一顆去探索的按鈕，等於叫使用者從頭來過
+    mockReposQueryState = { data: undefined, isError: true, errorUpdateCount: 1 };
+    render(<Compare />);
+
+    expect(screen.getByTestId("compare-repos-load-error")).toHaveTextContent(
+      "Couldn't load your watchlist."
+    );
+    expect(screen.queryByTestId("compare-need-repos")).not.toBeInTheDocument();
+    // 也不留著載入中的骨架：讀取已經有結果了（失敗），不是還在讀
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+  });
+
+  it("loads the watchlist again when retry is pressed", async () => {
+    const user = userEvent.setup();
+    mockReposQueryState = { data: undefined, isError: true, errorUpdateCount: 1 };
+    render(<Compare />);
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(mockRefetchRepos).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not say 0 repositories are tracked while the watchlist is still loading", () => {
+    mockReposQueryState = { data: undefined, isPending: true, fetchStatus: "fetching" };
+    render(<Compare />);
+
+    expect(screen.queryByTestId("compare-need-repos")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("compare-repos-load-error")).not.toBeInTheDocument();
+    expect(screen.getByTestId("skeleton")).toBeInTheDocument();
+  });
+
+  it("still says so when the watchlist was read and really has fewer than 2 repositories", () => {
+    render(<Compare />);
+
+    expect(screen.getByTestId("compare-need-repos")).toBeInTheDocument();
   });
 });

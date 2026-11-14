@@ -10,7 +10,6 @@ function renderLoadError(props: Partial<React.ComponentProps<typeof LoadError>> 
   const onRetry = vi.fn();
   const ui = (overrides: Partial<React.ComponentProps<typeof LoadError>> = {}) => (
     <LoadError
-      className="settings-error"
       message="Couldn't load the list."
       isRetrying={false}
       onRetry={onRetry}
@@ -34,6 +33,12 @@ describe("LoadError", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/^Couldn't load the list\.$/);
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses its own style unless the place it is used in gives a layout", () => {
+    renderLoadError({ testId: "probe" });
+
+    expect(screen.getByTestId("probe")).toHaveClass("load-error");
   });
 
   it("carries the class and test id of the place it is used in", () => {

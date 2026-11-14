@@ -23,6 +23,8 @@ import { useTrendEarlySignals } from "../hooks/useTrendEarlySignals";
 import type { ComparisonTimeRange, ChartDataPoint } from "../api/types";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
+import { LoadError } from "../components/LoadError";
+import { loadStatus } from "../lib/react-query";
 import { TIME_RANGES } from "../constants/chart";
 import { STORAGE_KEYS } from "../constants/storage";
 import { RepoSelector, MAX_COMPARE_REPOS, type RepoSelectorHandle } from "./compare/RepoSelector";
@@ -193,6 +195,7 @@ export function Compare() {
   }, [data, metric, normalize]);
 
   const repos = reposQuery.data ?? [];
+  const reposLoad = loadStatus(reposQuery);
   const showBrush = chartData.length > 14;
 
   return (
@@ -202,16 +205,31 @@ export function Compare() {
         <p className="subtitle">{t.compare.subtitle}</p>
       </header>
 
-      <FadeIn delay={0.1}>
-        <RepoSelector
-          ref={selectorRef}
-          repos={repos}
-          selectedIds={selectedIds}
-          onToggle={toggleRepo}
-          onGoDiscover={handleGoDiscover}
-          t={t}
+      {reposLoad.failed && (
+        <LoadError
+          testId="compare-repos-load-error"
+          message={t.watchlist.loadError}
+          isRetrying={reposLoad.inProgress}
+          onRetry={reposLoad.retry}
         />
-      </FadeIn>
+      )}
+
+      {/* 讀到追蹤清單才畫選擇器：清單少於 2 個時它會說「目前 N 個」並請使用者去探索，
+          還沒讀到或讀不到時那個 0 是假的 */}
+      {reposLoad.ready ? (
+        <FadeIn delay={0.1}>
+          <RepoSelector
+            ref={selectorRef}
+            repos={repos}
+            selectedIds={selectedIds}
+            onToggle={toggleRepo}
+            onGoDiscover={handleGoDiscover}
+            t={t}
+          />
+        </FadeIn>
+      ) : (
+        !reposLoad.failed && <Skeleton width="100%" height={120} />
+      )}
 
       {canCompare && (
         <FadeIn delay={0.15}>

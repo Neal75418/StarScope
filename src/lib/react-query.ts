@@ -243,6 +243,58 @@ export function loadInProgress(query: { fetchStatus: "fetching" | "paused" | "id
   return query.fetchStatus !== "idle";
 }
 
+/** 一個區塊的資料讀取狀態：畫面依它決定顯示骨架、「讀不到＋重試」、空狀態或內容 */
+export interface LoadStatus {
+  /** 已經讀到過資料。之後重讀失敗也還是 true（畫面上是上一次讀到的） */
+  ready: boolean;
+  /** 最近一次有結果的讀取失敗了（見 lastLoadFailed） */
+  failed: boolean;
+  /** 讀取進行中，或在等連線恢復（見 loadInProgress） */
+  inProgress: boolean;
+  retry: () => void;
+}
+
+/**
+ * 把一個查詢整理成 LoadStatus。要在 render 裡呼叫：React Query 只在 render 當下讀過的欄位改變時
+ * 才重新渲染，在事件處理或 effect 裡才讀的話，畫面不會跟著更新。
+ */
+export function loadStatus(query: {
+  data: unknown;
+  isError: boolean;
+  isPending: boolean;
+  errorUpdateCount: number;
+  fetchStatus: "fetching" | "paused" | "idle";
+  refetch: () => unknown;
+}): LoadStatus {
+  return {
+    ready: query.data !== undefined,
+    failed: lastLoadFailed(query),
+    inProgress: loadInProgress(query),
+    retry: () => void query.refetch(),
+  };
+}
+
+/**
+ * 一個區塊同時靠好幾個查詢時合起來看：都讀到才算 ready，有一個讀不到就算 failed；重試只重讀失敗的那幾個。
+ * 有讀不到的時候，inProgress 只看失敗的那幾個，而且要每一個都在重讀才算：重試鈕在 inProgress 時
+ * 顯示「重試中」並不吃點擊，只要還有一份讀不到的沒有人在重讀，按鈕就得能按。
+ * 沒失敗的查詢不算進來——它們常因為別的原因在背景重讀。
+ */
+export function combineLoadStatus(parts: LoadStatus[]): LoadStatus {
+  const failedParts = parts.filter((part) => part.failed);
+  return {
+    ready: parts.every((part) => part.ready),
+    failed: failedParts.length > 0,
+    inProgress:
+      failedParts.length > 0
+        ? failedParts.every((part) => part.inProgress)
+        : parts.some((part) => part.inProgress),
+    retry: () => {
+      for (const part of failedParts) part.retry();
+    },
+  };
+}
+
 /**
  * 建立測試用的 QueryClient（不重試、不快取）。
  */

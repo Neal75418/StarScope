@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getSnapshotRetention, updateSnapshotRetention } from "../../api/client";
-import { queryKeys } from "../../lib/react-query";
+import { loadStatus, queryKeys } from "../../lib/react-query";
+import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 
 interface SnapshotRetentionSectionProps {
@@ -18,12 +19,14 @@ export function SnapshotRetentionSection({ onToast }: SnapshotRetentionSectionPr
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: queryKeys.settings.snapshotRetention(),
     queryFn: ({ signal }) => getSnapshotRetention(signal),
   });
+  const load = loadStatus(query);
 
-  const currentDays = data?.retention_days ?? 90;
+  // 還沒讀到時下面的表單不會畫出來，這裡的 90 只是讓型別成立，不會被當成目前的設定顯示
+  const currentDays = query.data?.retention_days ?? 90;
   const [inputDays, setInputDays] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -53,8 +56,16 @@ export function SnapshotRetentionSection({ onToast }: SnapshotRetentionSectionPr
       <h2>{t.settings.snapshotRetention.title}</h2>
       <p className="settings-description">{t.settings.snapshotRetention.description}</p>
 
-      {isLoading ? (
-        <Skeleton width={200} height={40} variant="rounded" />
+      {load.failed && (
+        <LoadError
+          message={t.settings.loadError}
+          isRetrying={load.inProgress}
+          onRetry={load.retry}
+        />
+      )}
+
+      {!load.ready ? (
+        !load.failed && <Skeleton width={200} height={40} variant="rounded" />
       ) : (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="snapshot-retention-input">

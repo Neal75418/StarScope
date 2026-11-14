@@ -22,10 +22,10 @@ test.describe("Alert Rules", () => {
     const alertsSection = page.locator('[data-testid="alerts-section"]');
     await expect(alertsSection).toBeVisible({ timeout: 10000 });
 
-    // 應該有規則列表或空狀態
-    const hasRules = await alertsSection.locator(".alert-rule-card").count();
-    const hasEmpty = await alertsSection.locator(".alert-rule-empty").count();
-    expect(hasRules + hasEmpty).toBeGreaterThan(0);
+    // 區塊先出現、規則晚一點才讀到：等規則列表或空狀態其中之一出現
+    await expect(alertsSection.locator(".alert-rule-card, .alert-rule-empty").first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   // 建立按鈕的實際文案是 "Create Alert"／「建立警報」。舊版 selector 找

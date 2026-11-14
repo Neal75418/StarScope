@@ -9,11 +9,12 @@ import { useI18n } from "../../i18n";
 import { useStarSync } from "../../hooks/useStarSync";
 import { formatRelativeTime } from "../../utils/format";
 import { getErrorMessage } from "../../utils/error";
+import { LoadError } from "../LoadError";
 
 export function StarSyncSection() {
   const { t } = useI18n();
   const copy = t.settings.starSync;
-  const { status, isStatusLoading, sync, isSyncing, lastResult, error, resolve, isResolving } =
+  const { status, statusLoad, sync, isSyncing, lastResult, error, resolve, isResolving } =
     useStarSync();
 
   const skippedMessage =
@@ -40,9 +41,18 @@ export function StarSyncSection() {
         </div>
       </div>
 
-      {/* 狀態未到之前不顯示這行：「尚未同步」在載入中是一句錯的話，而使用者無從
-          分辨它是事實還是還沒載到 */}
-      {!isStatusLoading && (
+      {statusLoad.failed && (
+        <LoadError
+          testId="star-sync-status-error"
+          message={copy.statusLoadError}
+          isRetrying={statusLoad.inProgress}
+          onRetry={statusLoad.retry}
+        />
+      )}
+
+      {/* 讀到狀態才顯示這行：「尚未同步」在還沒讀到（載入中、查詢暫停、讀不到）時是一句錯的話，
+          而使用者無從分辨它是事實還是還沒讀到 */}
+      {status !== null && (
         <p className="settings-hint" data-testid="star-sync-stamp">
           {status?.last_sync_at
             ? `${copy.lastSynced} ${formatRelativeTime(status.last_sync_at)}`

@@ -12,7 +12,7 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTrendingProgress, getTrendingTopics, refreshTrendingTopics } from "../api/client";
-import { queryKeys } from "../lib/react-query";
+import { loadStatus, queryKeys } from "../lib/react-query";
 
 const PROGRESS_POLL_MS = 1500;
 
@@ -48,7 +48,8 @@ export function useTrendingTopics() {
   return {
     topics: query.data?.topics ?? [],
     computedAt: query.data?.computed_at ?? null,
-    isLoading: query.isLoading,
+    /** 上次存下來的結果讀到了沒（重算是另一回事，看 isRefreshing／refreshError） */
+    load: loadStatus(query),
     isRefreshing,
     /** 重算進行中的進度；沒在跑時為 null */
     progress: isRefreshing && progressQuery.data?.running ? progressQuery.data : null,

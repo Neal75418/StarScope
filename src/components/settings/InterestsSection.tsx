@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useI18n } from "../../i18n";
 import { useInterests } from "../../hooks/useInterests";
 import type { InterestKind } from "../../api/types";
+import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 import { getErrorMessage } from "../../utils/error";
 import { TrendingTopics } from "./TrendingTopics";
@@ -15,8 +16,18 @@ interface InterestsSectionProps {
 
 export function InterestsSection({ onToast }: InterestsSectionProps) {
   const { t } = useI18n();
-  const { interests, exclusions, isLoading, create, remove, addExclude, removeExclude } =
-    useInterests();
+  const {
+    interests,
+    exclusions,
+    interestsLoad,
+    exclusionsLoad,
+    create,
+    remove,
+    addExclude,
+    removeExclude,
+  } = useInterests();
+  // 兩份清單都有結果（讀到或讀不到）才換掉骨架：還不知道的時候不能畫出「尚無興趣項目」
+  const stillLoading = [interestsLoad, exclusionsLoad].some((load) => !load.ready && !load.failed);
   const [term, setTerm] = useState("");
   const [kind, setKind] = useState<InterestKind>("topic");
   const [weight, setWeight] = useState(2);
@@ -74,7 +85,7 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
       <h2>{t.settings.interests.title}</h2>
       <p className="settings-description">{t.settings.interests.subtitle}</p>
 
-      {isLoading ? (
+      {stillLoading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} width="100%" height={40} variant="rounded" />
@@ -124,8 +135,19 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
             {t.settings.interests.weightHint}
           </p>
 
+          {interestsLoad.failed && (
+            <LoadError
+              testId="interests-load-error"
+              message={t.settings.interests.loadError}
+              isRetrying={interestsLoad.inProgress}
+              onRetry={interestsLoad.retry}
+            />
+          )}
+
           {interests.length === 0 ? (
-            <p className="interest-empty">{t.settings.interests.empty}</p>
+            // 讀到了、而且是空的才請使用者新增：讀不到時說「尚無興趣項目」，他會以為清單不見了而重加一遍
+            interestsLoad.ready &&
+            !interestsLoad.failed && <p className="interest-empty">{t.settings.interests.empty}</p>
           ) : (
             <div className="interest-list">
               {interests.map((i) => (
@@ -183,6 +205,16 @@ export function InterestsSection({ onToast }: InterestsSectionProps) {
                 {t.settings.interests.add}
               </button>
             </div>
+
+            {/* 讀不到時整塊不見的話，看起來就是「沒有排除任何詞」 */}
+            {exclusionsLoad.failed && (
+              <LoadError
+                testId="exclusions-load-error"
+                message={t.settings.interests.exclusionsLoadError}
+                isRetrying={exclusionsLoad.inProgress}
+                onRetry={exclusionsLoad.retry}
+              />
+            )}
 
             {exclusions.length > 0 && (
               <div className="interest-list">

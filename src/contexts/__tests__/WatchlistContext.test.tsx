@@ -6,7 +6,7 @@
  * invalidate。reducer 的狀態轉移已經在 watchlistReducer.test.ts 驗過，不重複。
  */
 import type { ReactNode } from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor, screen } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient, queryKeys } from "../../lib/react-query";
@@ -34,9 +34,27 @@ vi.mock("../../api/client", async (importActual) => ({
   getSyncStatus: (...a: unknown[]) => mockGetSyncStatus(...a),
 }));
 
-vi.mock("../../hooks/useReposQuery", () => ({
-  useReposQuery: () => ({ data: [], isLoading: false, error: null }),
-}));
+// 追蹤清單這支查詢的狀態：預設是讀到了空清單；個別測試可以換成讀不到
+let mockReposQueryState: Record<string, unknown> | null = null;
+const mockRefetchRepos = vi.fn();
+
+vi.mock("../../hooks/useReposQuery", () => {
+  // 同一個陣列：每次回新的 [] 的話 Provider 的 state 每次 render 都會換，量不出別的東西有沒有讓它換
+  const noRepos: never[] = [];
+  return {
+    useReposQuery: () => ({
+      data: noRepos,
+      isLoading: false,
+      error: null,
+      isError: false,
+      isPending: false,
+      errorUpdateCount: 0,
+      fetchStatus: "idle",
+      refetch: mockRefetchRepos,
+      ...mockReposQueryState,
+    }),
+  };
+});
 
 vi.mock("../AppStatusContext", () => ({
   useAppStatus: () => ({ isSidecarUp: true, level: "online" }),
@@ -280,5 +298,92 @@ describe("WatchlistContext category filter", () => {
     act(() => result.current.actions.setCategory(5));
 
     expect(result.current.state.filters.selectedCategoryId).toBe(5);
+  });
+});
+
+describe("WatchlistContext 追蹤清單讀不到時", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSyncStatus.mockResolvedValue({ last_sync_at: null, running: false });
+  });
+
+  afterEach(() => {
+    mockReposQueryState = null;
+  });
+
+  it("reports the failed load through reposLoad, not through state.error", () => {
+    // 讀不到由追蹤清單頁原地的「讀不到＋重試」說；state.error 是給操作失敗用的橫幅，只有後端的原始訊息
+    mockReposQueryState = {
+      data: undefined,
+      isError: true,
+      errorUpdateCount: 1,
+      error: new Error("HTTP 500"),
+    };
+    const { result } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+
+    expect(result.current.state.reposLoad).toMatchObject({
+      ready: false,
+      failed: true,
+      inProgress: false,
+    });
+    expect(result.current.state.error).toBeNull();
+  });
+
+  it("retries by reading the watchlist again", () => {
+    mockReposQueryState = { data: undefined, isError: true, errorUpdateCount: 1 };
+    const { result } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+
+    act(() => result.current.state.reposLoad.retry());
+
+    expect(mockRefetchRepos).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the same state object when nothing about the load changed", () => {
+    // reposLoad 每次 render 都換一個新物件的話，所有讀 state 的元件會跟著 Provider 的每次 render 重畫
+    const { result, rerender } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+    const first = result.current.state;
+
+    rerender();
+
+    expect(result.current.state).toBe(first);
+  });
+
+  it("stays on the page while a retry of the failed watchlist load runs", () => {
+    // 還沒有資料時重試一開始，查詢的 isLoading 又變回 true：當成「初始化中」的話整頁換成載入畫面，
+    // 「讀不到＋重試」跟著消失
+    mockReposQueryState = {
+      data: undefined,
+      isLoading: true,
+      isPending: true,
+      errorUpdateCount: 1,
+      fetchStatus: "fetching",
+    };
+    const { result } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+
+    expect(result.current.state.loadingState.type).toBe("idle");
+    expect(result.current.state.reposLoad).toMatchObject({ failed: true, inProgress: true });
+  });
+
+  it("counts as initializing while the very first load is running", () => {
+    mockReposQueryState = {
+      data: undefined,
+      isLoading: true,
+      isPending: true,
+      fetchStatus: "fetching",
+    };
+    const { result } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+
+    expect(result.current.state.loadingState.type).toBe("initializing");
+  });
+
+  it("does not rebuild the state when a background reload starts and nothing has failed", () => {
+    // 每次背景重讀（同步、invalidate）都換一個 state 的話，四個頁面與所有 selector 會白白重畫
+    const { result, rerender } = renderHook(() => ({ state: useWatchlistState() }), { wrapper });
+    const first = result.current.state;
+
+    mockReposQueryState = { fetchStatus: "fetching" };
+    rerender();
+
+    expect(result.current.state).toBe(first);
   });
 });

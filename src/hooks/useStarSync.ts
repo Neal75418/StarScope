@@ -7,7 +7,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSyncStatus, resolveLocalOnly, syncStars } from "../api/client";
-import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos, loadStatus, queryKeys } from "../lib/react-query";
 
 const SYNC_KEY = ["starSync", "sync"] as const;
 const RESOLVE_KEY = ["starSync", "resolve"] as const;
@@ -52,7 +52,7 @@ export function useStarSync() {
 
   return {
     status: statusQuery.data ?? null,
-    isStatusLoading: statusQuery.isLoading,
+    statusLoad: loadStatus(statusQuery),
     resolve: (action: "star" | "archive", fullNames: string[]) =>
       resolve.mutateAsync({ action, fullNames }),
     isResolving: resolve.isPending,

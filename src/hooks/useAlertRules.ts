@@ -21,7 +21,8 @@ export function useAlertRules(toast: Toast) {
   const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
   const deleteConfirm = useDeleteConfirm();
 
-  const { rules, setRules, signalTypes, repos, isLoading, loadRules } = useAlertRuleData(toast);
+  const { rules, setRules, signalTypes, repos, isLoading, rulesLoad, dataLoad, loadRules } =
+    useAlertRuleData();
 
   const {
     isSubmitting,
@@ -85,6 +86,8 @@ export function useAlertRules(toast: Toast) {
     signalTypes,
     repos,
     isLoading,
+    rulesLoad,
+    dataLoad,
     isSubmitting,
     deleteConfirm: {
       isOpen: deleteConfirm.isOpen,

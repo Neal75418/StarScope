@@ -11,7 +11,7 @@ import {
   removeExclusion,
 } from "../api/client";
 import type { InterestCreate } from "../api/types";
-import { queryKeys } from "../lib/react-query";
+import { loadStatus, queryKeys } from "../lib/react-query";
 
 export function useInterests() {
   const queryClient = useQueryClient();
@@ -49,7 +49,8 @@ export function useInterests() {
   return {
     interests: interestsQuery.data?.interests ?? [],
     exclusions: exclusionsQuery.data?.exclusions ?? [],
-    isLoading: interestsQuery.isLoading || exclusionsQuery.isLoading,
+    interestsLoad: loadStatus(interestsQuery),
+    exclusionsLoad: loadStatus(exclusionsQuery),
     // create/remove 回傳 Promise（mutateAsync）：呼叫端可用 try/catch 依實際結果決定 toast，
     // 避免 fire-and-forget 導致失敗時仍顯示成功訊息。
     create: (input: InterestCreate) => createMutation.mutateAsync(input),

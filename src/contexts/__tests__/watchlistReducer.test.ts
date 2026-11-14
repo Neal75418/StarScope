@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   watchlistReducer,
   initialState,
-  type WatchlistState,
+  type WatchlistReducerState,
   type WatchlistAction,
 } from "../watchlistReducer";
 import type { RepoWithSignals } from "../../api/client";
@@ -32,7 +32,10 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
 }
 
 // 輔助：dispatch 多個 actions 取得最終狀態
-function reduce(state: WatchlistState, ...actions: WatchlistAction[]): WatchlistState {
+function reduce(
+  state: WatchlistReducerState,
+  ...actions: WatchlistAction[]
+): WatchlistReducerState {
   return actions.reduce((s, a) => watchlistReducer(s, a), state);
 }
 
@@ -286,7 +289,7 @@ describe("watchlistReducer", () => {
     });
 
     it("RESET_FILTERS clears filters and error to initial state", () => {
-      const stateWithFilters: WatchlistState = {
+      const stateWithFilters: WatchlistReducerState = {
         ...initialState,
         filters: {
           selectedCategoryId: 5,

@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { getFetchInterval, updateFetchInterval } from "../../api/client";
-import { queryKeys } from "../../lib/react-query";
+import { loadStatus, queryKeys } from "../../lib/react-query";
+import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 
 const ALLOWED_INTERVALS = [60, 360, 720, 1440] as const;
@@ -21,12 +22,14 @@ export function ScheduledRefreshSection({ onToast }: ScheduledRefreshSectionProp
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: queryKeys.settings.fetchInterval(),
     queryFn: ({ signal }) => getFetchInterval(signal),
   });
+  const load = loadStatus(query);
 
-  const currentInterval = (data?.interval_minutes ?? 60) as FetchInterval;
+  // 還沒讀到時下面的表單不會畫出來，這裡的 60 只是讓型別成立，不會被當成目前的設定顯示
+  const currentInterval = (query.data?.interval_minutes ?? 60) as FetchInterval;
   const [selected, setSelected] = useState<FetchInterval | null>(null);
   const effectiveInterval = selected ?? currentInterval;
 
@@ -60,8 +63,16 @@ export function ScheduledRefreshSection({ onToast }: ScheduledRefreshSectionProp
       <h2>{t.settings.scheduledRefresh.title}</h2>
       <p className="settings-description">{t.settings.scheduledRefresh.description}</p>
 
-      {isLoading ? (
-        <Skeleton width={300} height={40} variant="rounded" />
+      {load.failed && (
+        <LoadError
+          message={t.settings.loadError}
+          isRetrying={load.inProgress}
+          onRetry={load.retry}
+        />
+      )}
+
+      {!load.ready ? (
+        !load.failed && <Skeleton width={300} height={40} variant="rounded" />
       ) : (
         <div className="settings-field">
           <label className="settings-field-label" htmlFor="scheduled-refresh-interval">
