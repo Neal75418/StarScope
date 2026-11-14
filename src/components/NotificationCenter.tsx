@@ -23,6 +23,9 @@ export function NotificationCenter({ onNavigate }: NotificationCenterProps) {
     notifications,
     unreadCount,
     isLoading,
+    loadFailed,
+    loadInProgress,
+    refresh,
     isOpen,
     toggleOpen,
     close,
@@ -65,6 +68,9 @@ export function NotificationCenter({ onNavigate }: NotificationCenterProps) {
           notifications={notifications}
           unreadCount={unreadCount}
           isLoading={isLoading}
+          loadFailed={loadFailed}
+          isRetrying={loadInProgress}
+          onRetry={() => void refresh()}
           onMarkAllAsRead={handleMarkAllAsRead}
           onNavigate={handleNavigate}
           onClear={clearNotification}

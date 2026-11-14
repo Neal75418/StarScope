@@ -99,6 +99,36 @@ describe("useNotificationPolling", () => {
     });
   });
 
+  it("keeps reporting the failed load while a retry is in flight", async () => {
+    // 還沒讀到過任何通知時，重試一開始 React Query 就把 error 清掉；畫面上的「讀不到」不能跟著消失
+    vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValueOnce(new Error("Network error"));
+    const { result } = renderHook(
+      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      { wrapper: createWrapper() }
+    );
+    await waitFor(() => expect(result.current.loadFailed).toBe(true));
+    expect(result.current.loadInProgress).toBe(false);
+
+    let finishRetry: (alerts: never[]) => void = () => {};
+    vi.mocked(apiClient.listTriggeredAlerts).mockReturnValue(
+      new Promise((resolve) => {
+        finishRetry = resolve;
+      })
+    );
+    act(() => {
+      void result.current.refresh();
+    });
+
+    await waitFor(() => expect(result.current.loadInProgress).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(result.current.loadFailed).toBe(true);
+
+    await act(async () => {
+      finishRetry([]);
+    });
+    await waitFor(() => expect(result.current.loadFailed).toBe(false));
+  });
+
   it("refresh triggers a new fetch", async () => {
     const { result } = renderHook(
       () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
@@ -147,7 +177,7 @@ describe("useNotificationPolling", () => {
 
     await waitFor(() => {
       // Non-Error exceptions produce the i18n fallback message
-      expect(result.current.error).toBe("Failed to fetch notifications");
+      expect(result.current.error).toBe("Couldn't load notifications");
     });
   });
 });

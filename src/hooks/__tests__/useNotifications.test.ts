@@ -18,14 +18,19 @@ vi.mock("../useNotificationStorage", () => ({
   }),
 }));
 
+const idlePolling = {
+  isLoading: false,
+  error: null as string | null,
+  loadFailed: false,
+  loadInProgress: false,
+  refresh: vi.fn(),
+};
+let pollingResult = idlePolling;
+
 vi.mock("../useNotificationPolling", () => ({
   useNotificationPolling: (setNotifications: Dispatch<SetStateAction<Notification[]>>) => {
     capturedSetNotifications = setNotifications;
-    return {
-      isLoading: false,
-      error: null,
-      refresh: vi.fn(),
-    };
+    return pollingResult;
   },
 }));
 
@@ -51,6 +56,27 @@ import { useNotifications } from "../useNotifications";
 describe("useNotifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pollingResult = idlePolling;
+  });
+
+  it("passes the load state and the retry of the polling query through", () => {
+    // 通知中心的「讀不到＋重試」靠這幾個欄位；元件測試把這支 hook 整個 mock 掉，接線要在這裡守
+    const refresh = vi.fn();
+    pollingResult = {
+      isLoading: true,
+      error: "HTTP 500",
+      loadFailed: true,
+      loadInProgress: true,
+      refresh,
+    };
+
+    const { result } = renderHook(() => useNotifications());
+
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.error).toBe("HTTP 500");
+    expect(result.current.loadFailed).toBe(true);
+    expect(result.current.loadInProgress).toBe(true);
+    expect(result.current.refresh).toBe(refresh);
   });
 
   it("starts with isOpen false", () => {

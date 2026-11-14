@@ -16,6 +16,8 @@ let mockReturnValue: {
   unreadCount: number;
   isLoading: boolean;
   error: string | null;
+  loadFailed: boolean;
+  loadInProgress: boolean;
   isOpen: boolean;
   toggleOpen: () => void;
   close: () => void;
@@ -51,6 +53,8 @@ describe("NotificationCenter", () => {
       unreadCount: 0,
       isLoading: false,
       error: null,
+      loadFailed: false,
+      loadInProgress: false,
       isOpen: false,
       toggleOpen: mockToggleOpen,
       close: mockClose,
@@ -108,6 +112,53 @@ describe("NotificationCenter", () => {
     mockReturnValue.isOpen = true;
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
     expect(screen.getByText("No notifications")).toBeInTheDocument();
+  });
+
+  it("says notifications failed to load instead of showing the empty message", () => {
+    // 「沒有通知」與「讀不到」是兩件事：讀不到時說沒有，等於告訴使用者沒有警報被觸發
+    mockReturnValue.isOpen = true;
+    mockReturnValue.loadFailed = true;
+    mockReturnValue.error = "HTTP 500";
+    render(<NotificationCenter onNavigate={mockOnNavigate} />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load notifications");
+    expect(screen.queryByText("No notifications")).not.toBeInTheDocument();
+    // 畫面上是翻譯過的句子，不是後端的原始訊息
+    expect(screen.queryByText(/HTTP 500/)).not.toBeInTheDocument();
+  });
+
+  it("fetches again when retry is pressed on the load error", async () => {
+    const user = userEvent.setup();
+    mockReturnValue.isOpen = true;
+    mockReturnValue.loadFailed = true;
+    render(<NotificationCenter onNavigate={mockOnNavigate} />);
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the retry as running, without the loading text, while a fetch is in flight", () => {
+    // 從沒讀到過、又在重試或輪詢中：isLoading 也是 true，但畫面上已經有「讀不到」了
+    mockReturnValue.isOpen = true;
+    mockReturnValue.loadFailed = true;
+    mockReturnValue.loadInProgress = true;
+    mockReturnValue.isLoading = true;
+    render(<NotificationCenter onNavigate={mockOnNavigate} />);
+
+    expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument();
+    expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
+  });
+
+  it("keeps the notifications already loaded when a later fetch fails, with the error shown", () => {
+    mockReturnValue.isOpen = true;
+    mockReturnValue.loadFailed = true;
+    mockReturnValue.notifications = [makeNotification()];
+    mockReturnValue.unreadCount = 1;
+    render(<NotificationCenter onNavigate={mockOnNavigate} />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load notifications");
+    expect(screen.getByText("Star spike")).toBeInTheDocument();
   });
 
   it("shows mark all as read button when there are unread", () => {

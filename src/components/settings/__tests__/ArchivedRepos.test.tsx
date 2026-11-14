@@ -6,8 +6,8 @@
  * ——尤其是警示規則，那是使用者最不會預期被一併刪掉的東西。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, fireEvent, waitFor, within, act } from "@testing-library/react";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ArchivedRepos } from "../ArchivedRepos";
 import * as client from "../../../api/client";
@@ -200,5 +200,114 @@ describe("ArchivedRepos", () => {
     renderWithClient(<ArchivedRepos />);
 
     expect(await screen.findByTestId("archived-empty")).toBeInTheDocument();
+  });
+
+  it("says the list failed to load instead of claiming the archive is empty", async () => {
+    // 「沒有封存」與「讀不到」是兩件事：讀不到時說沒有，使用者會以為封存的專案不見了
+    vi.mocked(client.getArchivedRepos).mockRejectedValue(new Error("boom"));
+    renderWithClient(<ArchivedRepos />);
+
+    const section = screen.getByTestId("archived-repos");
+    expect(await screen.findByTestId("archived-load-error")).toHaveTextContent(
+      "Couldn't load the archived list."
+    );
+    expect(screen.queryByTestId("archived-empty")).not.toBeInTheDocument();
+    // 也不留著載入中的骨架：讀取已經有結果了（失敗），不是還在讀
+    expect(section.querySelector(".skeleton")).toBeNull();
+  });
+
+  it("loads the list again when retry is pressed after a failed load", async () => {
+    vi.mocked(client.getArchivedRepos).mockRejectedValueOnce(new Error("boom"));
+    renderWithClient(<ArchivedRepos />);
+    const error = await screen.findByTestId("archived-load-error");
+
+    fireEvent.click(within(error).getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("a/one")).toBeInTheDocument();
+    expect(screen.queryByTestId("archived-load-error")).not.toBeInTheDocument();
+  });
+
+  it("keeps the list on screen and says so when a later reload fails", async () => {
+    // 復原或刪除之後重讀失敗時，畫面上的清單是舊的（剛刪掉的那筆可能還在）
+    const { qc } = renderWithClient(<ArchivedRepos />);
+    expect(await screen.findByText("a/one")).toBeInTheDocument();
+
+    vi.mocked(client.getArchivedRepos).mockRejectedValue(new Error("boom"));
+    void qc.invalidateQueries({ queryKey: queryKeys.repos.archived() });
+
+    expect(await screen.findByTestId("archived-load-error")).toBeInTheDocument();
+    expect(screen.getByText("a/one")).toBeInTheDocument();
+  });
+
+  it("does not claim the archive is empty when the last read was empty and a reload fails", async () => {
+    // 上一次讀到的是空清單，不代表現在還是空的
+    vi.mocked(client.getArchivedRepos).mockResolvedValue({ repos: [], total: 0 });
+    const { qc } = renderWithClient(<ArchivedRepos />);
+    expect(await screen.findByTestId("archived-empty")).toBeInTheDocument();
+
+    vi.mocked(client.getArchivedRepos).mockRejectedValue(new Error("boom"));
+    void qc.invalidateQueries({ queryKey: queryKeys.repos.archived() });
+
+    expect(await screen.findByTestId("archived-load-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("archived-empty")).not.toBeInTheDocument();
+  });
+
+  it("does not claim the archive is empty while the query is paused", async () => {
+    // 連上過 sidecar 之後又斷線：查詢是暫停的（isLoading 為 false），還不知道有沒有封存
+    onlineManager.setOnline(false);
+    try {
+      renderWithClient(<ArchivedRepos />);
+      // 等一拍：React Query 以 setTimeout(0) 才通知元件，馬上斷言「沒出現」會空過
+      await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+      expect(client.getArchivedRepos).not.toHaveBeenCalled();
+      expect(screen.getByTestId("archived-repos").querySelector(".skeleton")).not.toBeNull();
+      expect(screen.queryByTestId("archived-empty")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("archived-load-error")).not.toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+    }
+  });
+
+  it("shows the retry as running when it is pressed while the connection is down", async () => {
+    // 斷線時按重試，讀取只能暫停、等連上才接著讀：按鈕看起來還能按的話，再按也不會有任何反應
+    vi.mocked(client.getArchivedRepos).mockRejectedValueOnce(new Error("boom"));
+    renderWithClient(<ArchivedRepos />);
+    const error = await screen.findByTestId("archived-load-error");
+    onlineManager.setOnline(false);
+    try {
+      fireEvent.click(within(error).getByRole("button", { name: "Retry" }));
+
+      expect(await within(error).findByRole("button", { name: "Retrying…" })).toBeInTheDocument();
+      expect(client.getArchivedRepos).toHaveBeenCalledTimes(1);
+    } finally {
+      onlineManager.setOnline(true);
+    }
+    // 連上之後自己接著讀
+    expect(await screen.findByText("a/one")).toBeInTheDocument();
+  });
+
+  it("keeps the error and its retry button in place while the retry is running", async () => {
+    // 重試一開始 React Query 就把 error 清掉：錯誤訊息跟著消失的話，焦點會離開重試鈕（掉到 body）
+    vi.mocked(client.getArchivedRepos).mockRejectedValueOnce(new Error("boom"));
+    renderWithClient(<ArchivedRepos />);
+    const error = await screen.findByTestId("archived-load-error");
+    const retry = within(error).getByRole("button", { name: "Retry" });
+    let finishRetry: (v: { repos: (typeof ROW)[]; total: number }) => void = () => {};
+    vi.mocked(client.getArchivedRepos).mockReturnValue(
+      new Promise((resolve) => {
+        finishRetry = resolve;
+      })
+    );
+    retry.focus();
+
+    fireEvent.click(retry);
+
+    expect(await within(error).findByRole("button", { name: "Retrying…" })).toBe(retry);
+    expect(retry).toHaveFocus();
+    expect(screen.queryByTestId("archived-empty")).not.toBeInTheDocument();
+
+    finishRetry({ repos: [ROW], total: 1 });
+    expect(await screen.findByText("a/one")).toBeInTheDocument();
   });
 });

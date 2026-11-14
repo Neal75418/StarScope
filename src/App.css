@@ -547,6 +547,23 @@ body {
   color: var(--fg-muted);
 }
 
+/* 通知讀不到時的說明與重試鈕；清單裡還有上一次讀到的通知時，排在它們上面 */
+.notification-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--danger-fg);
+  border-bottom: 1px solid var(--border-default);
+}
+
+/* 清單是空的時候它就是最後一列，底線會和下拉框自己的底框疊成兩條 */
+.notification-load-error:last-child {
+  border-bottom: none;
+}
+
 .notification-item {
   display: flex;
   align-items: flex-start;
@@ -827,19 +844,22 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
-.btn:hover:not(:disabled) {
+/* aria-disabled 的按鈕也不浮起。寫在 :where() 裡讓權重不變：
+   權重一變高，這條會蓋過後面 .btn-primary 等變體的滑過配色 */
+.btn:hover:not(:disabled):where(:not([aria-disabled="true"])) {
   background: linear-gradient(180deg, var(--bg-muted) 0%, var(--bg-emphasis) 100%);
   border-color: var(--fg-subtle);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
 
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled):where(:not([aria-disabled="true"])) {
   transform: translateY(0);
   box-shadow: var(--shadow-sm);
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled="true"] {
   opacity: 0.5;
   cursor: not-allowed;
 }

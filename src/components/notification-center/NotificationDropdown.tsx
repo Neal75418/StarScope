@@ -5,12 +5,18 @@ import { BellIcon, CheckIcon } from "../Icons";
 import { useI18n } from "../../i18n";
 import type { Notification } from "../../hooks/useNotifications";
 import { NotificationItem } from "./NotificationItem";
+import { LoadError } from "../LoadError";
 import type { Page } from "../../types/navigation";
 
 interface NotificationDropdownProps {
   notifications: Notification[];
   unreadCount: number;
   isLoading: boolean;
+  /** 最近一次有結果的讀取失敗了（清單可能是空的，也可能是上一次成功讀到的） */
+  loadFailed: boolean;
+  /** 重試或輪詢進行中 */
+  isRetrying: boolean;
+  onRetry: () => void;
   onMarkAllAsRead: () => void;
   onNavigate: (page: Page) => void;
   onClear: (id: string) => void;
@@ -22,6 +28,9 @@ export function NotificationDropdown({
   notifications,
   unreadCount,
   isLoading,
+  loadFailed,
+  isRetrying,
+  onRetry,
   onMarkAllAsRead,
   onNavigate,
   onClear,
@@ -29,8 +38,10 @@ export function NotificationDropdown({
   t,
 }: NotificationDropdownProps) {
   const isEmpty = notifications.length === 0;
-  const showLoading = isLoading && isEmpty;
-  const showEmpty = !isLoading && isEmpty;
+  // 已經在說「讀不到」時不再疊一句載入中：重試的進度由重試鈕自己顯示
+  const showLoading = isLoading && isEmpty && !loadFailed;
+  // 讀不到的時候不能顯示「沒有通知」：那等於告訴使用者沒有警報被觸發
+  const showEmpty = !isLoading && isEmpty && !loadFailed;
   const showFooter = !isEmpty;
 
   return (
@@ -51,6 +62,15 @@ export function NotificationDropdown({
 
       <div className="notification-list">
         {showLoading && <div className="notification-empty">{t.common.loading}</div>}
+
+        {loadFailed && (
+          <LoadError
+            className="notification-load-error"
+            message={t.notifications.fetchFailed}
+            isRetrying={isRetrying}
+            onRetry={onRetry}
+          />
+        )}
 
         {showEmpty && (
           <div className="notification-empty">

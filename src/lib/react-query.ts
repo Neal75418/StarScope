@@ -219,6 +219,31 @@ export function invalidateTrackedRepos(client: QueryClient): void {
 }
 
 /**
+ * 最近一次「有結果的」讀取是不是失敗了。畫面上的錯誤訊息與重試鈕看這個，不要只看 isError。
+ *
+ * 已經有資料時，isError 會一路留到下一次成功。還沒有資料時不會：重試或輪詢一開始 React Query 就把
+ * error 清掉、狀態改回 pending——只看 isError 的話，錯誤訊息與重試鈕在重試期間會消失（焦點跟著離開），
+ * 輪詢每失敗一次又重新掛上一次。所以「還沒有資料、而且失敗過」也算：errorUpdateCount 在開始讀取時
+ * 不會歸零。不拿 errorUpdatedAt／dataUpdatedAt 比大小：那是系統時間，往回調之後成功的讀取會比失敗的那次早。
+ */
+export function lastLoadFailed(query: {
+  isError: boolean;
+  isPending: boolean;
+  errorUpdateCount: number;
+}): boolean {
+  return query.isError || (query.isPending && query.errorUpdateCount > 0);
+}
+
+/**
+ * 讀取進行中，或在等連線恢復。重試鈕要不要顯示成「重試中」看這個，不要看 isFetching：
+ * sidecar 斷線時按重試，讀取是暫停的（isFetching 為 false），連上後會自己接著讀——
+ * 這段時間按鈕看起來還能按的話，再按也不會有任何反應。
+ */
+export function loadInProgress(query: { fetchStatus: "fetching" | "paused" | "idle" }): boolean {
+  return query.fetchStatus !== "idle";
+}
+
+/**
  * 建立測試用的 QueryClient（不重試、不快取）。
  */
 export function createTestQueryClient() {

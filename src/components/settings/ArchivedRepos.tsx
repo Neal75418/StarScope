@@ -9,8 +9,14 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { deleteArchivedRepo, getArchivedRepos, restarRepo } from "../../api/client";
-import { invalidateTrackedRepos, queryKeys } from "../../lib/react-query";
+import {
+  invalidateTrackedRepos,
+  lastLoadFailed,
+  loadInProgress,
+  queryKeys,
+} from "../../lib/react-query";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 import { interpolate } from "../../i18n";
 import { getErrorMessage } from "../../utils/error";
@@ -57,6 +63,7 @@ export function ArchivedRepos() {
   };
 
   const repos = query.data?.repos ?? [];
+  const loadFailed = lastLoadFailed(query);
 
   return (
     <div className="settings-section" data-testid="archived-repos">
@@ -73,14 +80,27 @@ export function ArchivedRepos() {
         </p>
       )}
 
-      {/* 載入中不能顯示「沒有封存」——那與「還不知道」是兩件事，
-          而使用者分辨不出畫面上那句是哪一種 */}
-      {query.isLoading ? (
-        <Skeleton width="40%" height={14} />
+      {/* 重讀失敗時清單還留在畫面上（上一次讀到的），所以錯誤另外說，不取代清單 */}
+      {loadFailed && (
+        <LoadError
+          className="settings-error"
+          testId="archived-load-error"
+          message={copy.loadError}
+          isRetrying={loadInProgress(query)}
+          onRetry={() => void query.refetch()}
+        />
+      )}
+
+      {/* 「沒有封存」只在讀到了、而且是空的時候才說。還沒讀到（載入中，或 sidecar 斷線時查詢暫停）
+          與讀不到都是「還不知道」，使用者分辨不出畫面上那句是哪一種 */}
+      {query.data === undefined ? (
+        !loadFailed && <Skeleton width="40%" height={14} />
       ) : repos.length === 0 ? (
-        <p className="settings-hint" data-testid="archived-empty">
-          {copy.empty}
-        </p>
+        !loadFailed && (
+          <p className="settings-hint" data-testid="archived-empty">
+            {copy.empty}
+          </p>
+        )
       ) : (
         <div className="archived-list">
           {repos.map((repo) => (

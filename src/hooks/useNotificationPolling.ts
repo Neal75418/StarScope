@@ -16,7 +16,7 @@ import {
 import type { Notification } from "./useNotifications";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
-import { queryKeys } from "../lib/react-query";
+import { lastLoadFailed, loadInProgress, queryKeys } from "../lib/react-query";
 import { useI18n } from "../i18n";
 import { useSmartInterval } from "./useSmartInterval";
 
@@ -110,7 +110,11 @@ export function useNotificationPolling(
     // isPending 而不是 isLoading：sidecar 還沒連上時查詢是暫停的，isLoading 為 false，
     // 鈴鐺會誤說「沒有通知」（這個查詢沒有 enabled 條件，isPending 只在還沒拿到結果時為 true）
     isLoading: query.isPending,
+    /** 最近一次失敗的原始訊息。畫面上要不要顯示「讀不到」看 loadFailed，不要看這個是不是 null */
     error: query.error ? query.error.message || t.notifications.fetchFailed : null,
+    /** 最近一次有結果的讀取失敗了；重試、輪詢進行中也維持 true（還沒有資料時 error 在那時會被清成 null） */
+    loadFailed: lastLoadFailed(query),
+    loadInProgress: loadInProgress(query),
     refresh,
   };
 }
