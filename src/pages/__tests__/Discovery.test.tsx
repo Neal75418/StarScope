@@ -1,9 +1,11 @@
 import type { ReactNode, RefObject } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { Discovery } from "../Discovery";
 import { ToastProvider } from "../../components/Toast";
+import { ApiError } from "../../api/types";
+import { BATCH_ADD_FOLLOWUP_INTERVAL_MS, BATCH_ADD_TIMEOUT_MS } from "../../constants/api";
 
 // 用真的 ToastProvider：mock 掉 useToast 只能驗「有呼叫」，看不出訊息有沒有出現在畫面上
 function renderDiscovery() {
@@ -410,7 +412,217 @@ describe("Discovery", () => {
     ];
     renderDiscovery();
     await user.click(screen.getByTestId("add-btn-1"));
-    expect(await screen.findByRole("alert")).toHaveTextContent("An error occurred");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Not added to your watchlist. Try again."
+    );
+  });
+
+  it.each([
+    [
+      "the repository is gone from GitHub",
+      new ApiError(404, "Resource not found: PUT star facebook/react", "GITHUB_NOT_FOUND"),
+      "Not added to your watchlist. GitHub can't find this repository — it may have been deleted, renamed or made private.",
+    ],
+    [
+      "GitHub's quota is used up",
+      new ApiError(429, "GitHub API rate limit exceeded.", "GITHUB_RATE_LIMIT"),
+      "Not added to your watchlist. GitHub's API quota is used up. Try again later.",
+    ],
+    [
+      "the saved GitHub sign-in is no longer accepted",
+      new ApiError(502, "GitHub API error: authentication failed", "GITHUB_AUTH_FAILED"),
+      "Not added to your watchlist. GitHub rejected the saved sign-in — it may have expired or been revoked. Reconnect GitHub in Settings.",
+    ],
+  ])("says why adding failed when %s", async (_label, error, message) => {
+    const user = userEvent.setup();
+    mockAddRepo.mockRejectedValueOnce(error);
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    renderDiscovery();
+    await user.click(screen.getByTestId("add-btn-1"));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  });
+
+  it("says the repository is already tracked instead of reporting a failure", async () => {
+    // 後端說「已經在追蹤清單」：結果就是使用者要的，不是失敗；卡片也要跟著變成已追蹤
+    const user = userEvent.setup();
+    mockAddRepo.mockRejectedValueOnce(
+      new ApiError(400, "Repository facebook/react is already in your watchlist", "ALREADY_TRACKED")
+    );
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    renderDiscovery();
+
+    await user.click(screen.getByTestId("add-btn-1"));
+
+    await waitFor(() =>
+      expect(document.querySelector(".toast-info")).toHaveTextContent("Already on your watchlist.")
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
+    expect(mockInvalidateRepos).toHaveBeenCalled();
+  });
+
+  it("rereads the watchlist after a failed add", async () => {
+    // 有些失敗其實代表清單已經變了（逾時後伺服器做完、別處加過）：不重讀的話畫面停在舊的
+    const user = userEvent.setup();
+    mockAddRepo.mockRejectedValueOnce(new ApiError(500, "Internal Server Error"));
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    renderDiscovery();
+
+    await user.click(screen.getByTestId("add-btn-1"));
+
+    await screen.findByRole("alert");
+    expect(mockInvalidateRepos).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps rereading the watchlist for a while after an add times out", async () => {
+    // 提示說清單會自己更新：伺服器可能晚一點才做完，只讀一次會停在做完之前的樣子
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockAddRepo.mockRejectedValueOnce(new ApiError(0, "Request timed out"));
+      mockDiscoveryReturn.keyword = "react";
+      mockDiscoveryReturn.hasSearched = true;
+      mockDiscoveryReturn.repos = [
+        { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+      ];
+      renderDiscovery();
+
+      await user.click(screen.getByTestId("add-btn-1"));
+      // 逾時的情境都在 fake timers 底下跑：後續的定期重讀是真的計時器的話，會留在 worker 裡干擾後面的測試
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "No response yet, so it's unclear whether it was added. Your watchlist will update on its own over the next few minutes."
+      );
+      const rightAfter = mockInvalidateRepos.mock.calls.length;
+
+      await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+      expect(mockInvalidateRepos.mock.calls.length).toBe(rightAfter + 1);
+
+      // 有期限：不會一直讀下去
+      await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+      const afterWindow = mockInvalidateRepos.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+      expect(mockInvalidateRepos.mock.calls.length).toBe(afterWindow);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not schedule more rereads after an ordinary failure", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockAddRepo.mockRejectedValueOnce(new ApiError(502, "Upstream service unreachable"));
+      mockDiscoveryReturn.keyword = "react";
+      mockDiscoveryReturn.hasSearched = true;
+      mockDiscoveryReturn.repos = [
+        { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+      ];
+      renderDiscovery();
+
+      await user.click(screen.getByTestId("add-btn-1"));
+      await screen.findByRole("alert");
+      const rightAfter = mockInvalidateRepos.mock.calls.length;
+
+      await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+      expect(mockInvalidateRepos.mock.calls.length).toBe(rightAfter);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("follows the watchlist again once it has caught up with a repo added here", async () => {
+    // 剛加入時清單還沒重讀到它，先用本地記下的名字撐著；清單讀到之後就以清單為準——
+    // 否則之後別處把它移出清單（同步、逾時後才做完的取消追蹤），這裡還一直顯示已追蹤
+    const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    const view = renderDiscovery();
+    await user.click(screen.getByTestId("add-btn-1"));
+    expect(await screen.findByTestId("in-watchlist-1")).toBeInTheDocument();
+
+    // 清單重讀了、但還沒包含它（請求是加入之前發的）：本地記下的名字要留著
+    mockWatchlistRepos = [{ id: 5, full_name: "other/repo" }];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+    expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
+
+    mockWatchlistRepos = [
+      { id: 5, full_name: "other/repo" },
+      { id: 9, full_name: "facebook/react" },
+    ];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+    expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
+
+    mockWatchlistRepos = [];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("add-btn-1")).toBeInTheDocument());
+  });
+
+  it("follows the watchlist even when it caught up before the add response arrived", async () => {
+    // 別處的重讀先讀到它、加入的回應才回來：之後的重讀資料相同，React Query 給的是同一個陣列，
+    // 只看清單有沒有換的話，這時才記下的名字不會被收掉
+    const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 1, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    let finishAdd: (value: unknown) => void = () => {};
+    mockAddRepo.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishAdd = resolve;
+        })
+    );
+    const view = renderDiscovery();
+    await user.click(screen.getByTestId("add-btn-1"));
+
+    mockWatchlistRepos = [{ id: 9, full_name: "facebook/react" }];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+    await act(async () => {
+      finishAdd({ id: 9 });
+    });
+    expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
+
+    mockWatchlistRepos = [];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("add-btn-1")).toBeInTheDocument());
   });
 
   it("shows in-watchlist state for repos already in watchlist", () => {
@@ -513,6 +725,113 @@ describe("Discovery", () => {
       await waitFor(() => expect(mockUnstarRepo).toHaveBeenCalledWith(7));
       expect(mockInvalidateRepos).toHaveBeenCalled();
       expect(mockHandleRefreshAll).not.toHaveBeenCalled();
+    });
+
+    it("says why adding from the feed failed", async () => {
+      mockWatchlistRepos = [];
+      mockAddRepo.mockRejectedValueOnce(new ApiError(502, "Upstream service unreachable"));
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-add"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Not added to your watchlist. GitHub returned an error or couldn't be reached. Try again later."
+      );
+    });
+
+    it("treats already-tracked as done when adding from the feed", async () => {
+      mockWatchlistRepos = [];
+      mockAddRepo.mockRejectedValueOnce(
+        new ApiError(400, "Repository a/one is already in your watchlist", "ALREADY_TRACKED")
+      );
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-add"));
+
+      await waitFor(() =>
+        expect(document.querySelector(".toast-info")).toHaveTextContent(
+          "Already on your watchlist."
+        )
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("says why unstarring from the feed failed", async () => {
+      mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
+      mockUnstarRepo.mockRejectedValueOnce(new ApiError(502, "Upstream service unreachable"));
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Not removed from your watchlist. GitHub returned an error or couldn't be reached. Try again later."
+      );
+      expect(mockInvalidateRepos).toHaveBeenCalled();
+    });
+
+    it("says it is already off the watchlist when the local row is gone", async () => {
+      // 不帶 GITHUB_NOT_FOUND 的 404＝本機已經沒有這一列（連按兩次、或背景同步先封存了）：
+      // 它已經不在追蹤清單，說「沒有取消追蹤、再試一次」剛好相反
+      mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
+      mockUnstarRepo.mockRejectedValueOnce(new ApiError(404, "Repository not found"));
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+
+      await waitFor(() =>
+        expect(document.querySelector(".toast-info")).toHaveTextContent(
+          "Already off your watchlist."
+        )
+      );
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(mockInvalidateRepos).toHaveBeenCalled();
+    });
+
+    it("says GitHub can't find the repository when GitHub is the one returning 404", async () => {
+      mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
+      mockUnstarRepo.mockRejectedValueOnce(
+        new ApiError(404, "Resource not found: DELETE star a/one", "GITHUB_NOT_FOUND")
+      );
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Not removed from your watchlist. GitHub can't find this repository — it may have been deleted, renamed or made private."
+      );
+    });
+
+    it("keeps rereading the watchlist for a while after an unstar times out", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mockWatchlistRepos = [{ id: 7, full_name: "a/one" }];
+        mockUnstarRepo.mockRejectedValueOnce(new ApiError(0, "Request timed out"));
+        renderDiscovery();
+
+        fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "No response yet, so it's unclear whether it was removed. Your watchlist will update on its own over the next few minutes."
+        );
+        const rightAfter = mockInvalidateRepos.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        expect(mockInvalidateRepos.mock.calls.length).toBe(rightAfter + 1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("asks to try again when the repo to unstar is not in the loaded watchlist yet", async () => {
+      // 剛加入、追蹤清單還沒重讀到它的那一小段時間：查不到本機 id，什麼都沒送出
+      mockWatchlistRepos = [];
+      renderDiscovery();
+
+      fireEvent.click(screen.getByTestId("stub-feed-unstar"));
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Not removed from your watchlist. Try again."
+      );
+      expect(mockUnstarRepo).not.toHaveBeenCalled();
     });
 
     it("adding invalidates the list instead of refetching every repo", async () => {

@@ -3,16 +3,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { CategorySidebar, CategoryTreeData } from "../CategorySidebar";
 import type { CategoryTreeNode } from "../../api/client";
 import * as apiClient from "../../api/client";
 
 // Mock API client (getCategory is still called internally for edit)
-// 拖曳失敗的 toast 走 WatchlistContext；這裡沒有 provider，只要 showToast 存在即可
+// 分類操作失敗的 toast 走 WatchlistContext；這裡沒有 provider
+const mockShowToast = vi.fn();
 vi.mock("../../contexts/WatchlistContext", () => ({
-  useWatchlistActions: () => ({ showToast: vi.fn() }),
+  useWatchlistActions: () => ({ showToast: mockShowToast }),
 }));
 
 vi.mock("../../api/client", async (importOriginal) => {
@@ -245,15 +246,53 @@ describe("CategorySidebar", () => {
     const deleteButtons = screen.getAllByTitle("Delete category");
     await user.click(deleteButtons[deleteButtons.length - 1]);
 
-    await waitFor(() => {
-      expect(screen.getByText("Confirm")).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByText("Confirm"));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete category" }));
 
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith(3);
     });
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
+  it("names the category and what happens to its repositories before deleting", async () => {
+    const user = userEvent.setup();
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
+
+    const deleteButtons = screen.getAllByTitle("Delete category");
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent(
+      "Delete \"Backend\"? Repositories in it stay on your watchlist — they just won't belong to this category. This can't be undone."
+    );
+    // 按鈕寫的是動作本身，不是「確認」
+    expect(within(dialog).queryByRole("button", { name: "Confirm" })).not.toBeInTheDocument();
+  });
+
+  it("names a nested category by its own name", async () => {
+    const user = userEvent.setup();
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
+    // 展開 Frontend 才看得到底下的 React
+    await user.click(screen.getByRole("button", { name: /expand/i }));
+
+    const reactRow = screen.getByText("React").closest<HTMLElement>(".category-item");
+    expect(reactRow).not.toBeNull();
+    await user.click(within(reactRow as HTMLElement).getByTitle("Delete category"));
+
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent('Delete "React"?');
   });
 
   it("selects All Repositories when clicked", async () => {
@@ -300,16 +339,88 @@ describe("CategorySidebar", () => {
     const deleteButtons = screen.getAllByTitle("Delete category");
     await user.click(deleteButtons[deleteButtons.length - 1]);
 
-    await waitFor(() => {
-      expect(screen.getByText("Confirm")).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByText("Confirm"));
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete category" }));
 
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith(3);
     });
-    expect(screen.getByText("Confirm")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
+
+  it("says the category was not deleted when deletion fails", async () => {
+    // 對話框留著讓人重試，但要說出這一下沒有成功：否則按鈕只是從停用變回可按
+    const user = userEvent.setup();
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({
+          handleDeleteCategory: vi.fn().mockResolvedValue(false),
+        })}
+      />
+    );
+
+    const deleteButtons = screen.getAllByTitle("Delete category");
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Delete category" }));
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith("error", '"Backend" was not deleted. Try again.')
+    );
+  });
+
+  it("says the changes were not saved when updating a category fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategory).mockRejectedValueOnce(new Error("use the cached node"));
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData({
+          handleUpdateCategory: vi.fn().mockResolvedValue(false),
+        })}
+      />
+    );
+
+    const editButtons = screen.getAllByTitle("Edit category");
+    await user.click(editButtons[editButtons.length - 1]);
+    const dialog = await screen.findByRole("dialog");
+    const nameInput = within(dialog).getByDisplayValue("Backend");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Servers");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    // 改名沒有成功，所以提示用的是它現在的名字，不是剛打進去的新名字
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        "error",
+        'Changes to "Backend" were not saved. Try again.'
+      )
+    );
+    // 對話框留著，打好的內容還在
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("stays quiet when updating a category succeeds", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getCategory).mockRejectedValueOnce(new Error("use the cached node"));
+    render(
+      <CategorySidebar
+        selectedCategoryId={null}
+        onSelectCategory={mockOnSelectCategory}
+        categoryTree={makeCategoryTreeData()}
+      />
+    );
+
+    const editButtons = screen.getAllByTitle("Edit category");
+    await user.click(editButtons[editButtons.length - 1]);
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(mockShowToast).not.toHaveBeenCalled();
   });
 
   it("discards stale edit response when another edit is clicked", async () => {

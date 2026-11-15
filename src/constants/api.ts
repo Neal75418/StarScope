@@ -39,8 +39,8 @@ export const FETCH_ALL_TIMEOUT_MS = 300_000;
 export const BATCH_ADD_TIMEOUT_MS = 300_000;
 
 /**
- * 批次加入逾時後，每隔多久重抓一次追蹤清單；持續 BATCH_ADD_TIMEOUT_MS（給伺服器的時間和請求本身一樣長）。
- * 逾時當下伺服器還在逐筆加入，而 repos 查詢 5 分鐘內視為新鮮、切頁也不會重抓，只抓一次會停在做到一半的名單。
+ * 寫入逾時後，每隔多久重抓一次追蹤清單；持續 BATCH_ADD_TIMEOUT_MS（給伺服器的時間和批次請求本身一樣長）。
+ * 用法與理由見 keepRefetchingAfterTimeout。
  */
 export const BATCH_ADD_FOLLOWUP_INTERVAL_MS = 30_000;
 
@@ -68,6 +68,8 @@ export const DISCOVERY_PERIOD_MIN_STARS = {
 export const API_ERROR_MESSAGES = {
   CANCELLED: "Request cancelled",
   TIMED_OUT: "Request timed out",
+  /** 請求沒送到 sidecar 時 detail 的開頭，後面接瀏覽器給的原因 */
+  NETWORK_ERROR: "Network error",
   UNKNOWN_ERROR: "Unknown error",
   REQUEST_FAILED: "API request failed",
   RETRIES_EXHAUSTED: "Request failed after retries",

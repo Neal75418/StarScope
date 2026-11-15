@@ -235,6 +235,19 @@ class TestCategoryDelete:
         response = client.get(f"/api/categories/{mock_category.id}")
         assert response.status_code == 404
 
+    def test_delete_category_keeps_its_repos_tracked(self, client, mock_category, mock_repo):
+        """刪除分類只拿掉成員關係，repo 仍在追蹤清單——刪除確認框就是這樣告訴使用者的。"""
+        assert client.post(
+            f"/api/categories/{mock_category.id}/repos/{mock_repo.id}"
+        ).status_code == 200
+        tracked = client.get("/api/repos").json()["data"]["repos"]
+        assert [r["category_ids"] for r in tracked if r["id"] == mock_repo.id] == [[mock_category.id]]
+
+        assert client.delete(f"/api/categories/{mock_category.id}").status_code == 200
+
+        tracked = client.get("/api/repos").json()["data"]["repos"]
+        assert [r["category_ids"] for r in tracked if r["id"] == mock_repo.id] == [[]]
+
 
 class TestCategoryRepoOperations:
     """Test cases for repo-category association operations."""

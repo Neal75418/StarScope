@@ -59,6 +59,17 @@ def test_unstar_leaves_local_untouched_when_github_fails(client, test_db, monkey
     assert include_archived(test_db.query(Repo)).one().unstarred_at is None
 
 
+def test_unstarring_twice_reports_a_local_not_found(client, test_db, fake_github):
+    """第二次時那一列已經封存：404 不帶 GITHUB_NOT_FOUND，前端據此說「已經不在追蹤清單」。"""
+    repo = _tracked(test_db)
+    assert client.post(f"/api/repos/{repo.id}/unstar").status_code == 200
+
+    resp = client.post(f"/api/repos/{repo.id}/unstar")
+
+    assert resp.status_code == 404
+    assert "code" not in resp.json()
+
+
 def test_archived_list_shows_it_and_restar_brings_it_back(client, test_db, fake_github):
     repo = _tracked(test_db)
     client.post(f"/api/repos/{repo.id}/unstar")

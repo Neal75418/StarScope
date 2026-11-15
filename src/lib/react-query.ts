@@ -5,6 +5,7 @@
  */
 
 import { QueryClient } from "@tanstack/react-query";
+import { BATCH_ADD_FOLLOWUP_INTERVAL_MS, BATCH_ADD_TIMEOUT_MS } from "../constants/api";
 
 /**
  * 建立 QueryClient 實例
@@ -293,6 +294,21 @@ export function combineLoadStatus(parts: LoadStatus[]): LoadStatus {
       for (const part of failedParts) part.retry();
     },
   };
+}
+
+/**
+ * 寫入請求逾時後，在伺服器做完之前定期重讀（間隔與期限見 BATCH_ADD_FOLLOWUP_INTERVAL_MS）。
+ * 逾時當下伺服器多半還在做，而追蹤清單頁與探索頁讀的是 App 層那份不會重新掛載的查詢、切頁不會重讀：
+ * 只讀一次會停在做完之前的樣子。
+ * 傳進來的 refetch 要在呼叫端卸載之後仍然有效（用 queryClient 或 app 層 context 的動作），計時器不會跟著停。
+ */
+export function keepRefetchingAfterTimeout(refetch: () => void): void {
+  let elapsed = 0;
+  const timer = setInterval(() => {
+    elapsed += BATCH_ADD_FOLLOWUP_INTERVAL_MS;
+    refetch();
+    if (elapsed >= BATCH_ADD_TIMEOUT_MS) clearInterval(timer);
+  }, BATCH_ADD_FOLLOWUP_INTERVAL_MS);
 }
 
 /**

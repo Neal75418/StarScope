@@ -230,8 +230,31 @@ export const translations = {
         selected: "{count} selected",
         addToWatchlist: "Add {count} to Watchlist",
         adding: "Adding...",
-        success: "Added {count}/{total} repositories",
+        added: "Added {count} to your watchlist",
+        addedSomeTracked: "Added {count}. Already on your watchlist: {skipped}.",
+        allTracked: "Everything you selected is already on your watchlist",
+        partial: "Added {count}; {failed} not added. Press the button again to retry.",
+        partialSomeTracked:
+          "Added: {count}. Already on your watchlist: {skipped}. Not added: {failed}. Press the button again to retry.",
+        allFailed: "Nothing was added ({count} selected). Try again later.",
+        interrupted: "The batch didn't complete, so it's unclear how many were added.",
         stillProcessing: "Still adding — your watchlist will update over the next few minutes",
+      },
+      addFailed: {
+        notDone: "Not added to your watchlist.",
+        goneFromGitHub:
+          "Not added to your watchlist. GitHub can't find this repository — it may have been deleted, renamed or made private.",
+        timedOut:
+          "No response yet, so it's unclear whether it was added. Your watchlist will update on its own over the next few minutes.",
+        alreadyTracked: "Already on your watchlist.",
+      },
+      unstarFailed: {
+        notDone: "Not removed from your watchlist.",
+        goneFromGitHub:
+          "Not removed from your watchlist. GitHub can't find this repository — it may have been deleted, renamed or made private.",
+        timedOut:
+          "No response yet, so it's unclear whether it was removed. Your watchlist will update on its own over the next few minutes.",
+        alreadyRemoved: "Already off your watchlist.",
       },
       viewMode: {
         list: "List view",
@@ -915,8 +938,21 @@ export const translations = {
       repoRemoved: "Repository removed from watchlist",
       refreshPartial: "Refreshed {ok}, {failed} failed — data for those repos is stale",
       refreshed: "Data refreshed",
-      error: "An error occurred",
       copied: "Copied to clipboard",
+    },
+    // 寫入失敗的原因與下一步，接在「沒有做成」那一句後面
+    failure: {
+      // 兩句怎麼接由各語言決定：中文句號後面不留空白
+      withCause: "{outcome} {cause}",
+      githubRateLimit: "GitHub's API quota is used up. Try again later.",
+      tooManyRequests: "Too many requests in a short time. Wait a moment and try again.",
+      githubAuth:
+        "GitHub rejected the saved sign-in — it may have expired or been revoked. Reconnect GitHub in Settings.",
+      githubForbidden:
+        "GitHub refused this action — it may be a permissions problem or too many requests in a short time. Try again in a minute; if it keeps happening, check the GitHub connection in Settings.",
+      githubUnavailable: "GitHub returned an error or couldn't be reached. Try again later.",
+      engineUnreachable: "The data engine can't be reached.",
+      retry: "Try again.",
     },
     // GitHub 連線
     githubConnection: {
@@ -970,8 +1006,11 @@ export const translations = {
       cancel: "Cancel",
       allRepos: "All Repositories",
       empty: "No categories yet. Click + to create one.",
-      deleteConfirm: "Are you sure you want to delete this category?",
+      deleteConfirm:
+        "Delete \"{name}\"? Repositories in it stay on your watchlist — they just won't belong to this category. This can't be undone.",
       deleteCategory: "Delete category",
+      updateFailed: 'Changes to "{name}" were not saved. Try again.',
+      deleteFailed: '"{name}" was not deleted. Try again.',
       addToCategory: "Add to category",
       addToCategoryTitle: "Add to Category",
       addToCategoryButton: "+ Category",
@@ -1276,8 +1315,28 @@ export const translations = {
         selected: "已選 {count} 個",
         addToWatchlist: "加入 {count} 個到追蹤清單",
         adding: "新增中...",
-        success: "已新增 {count}/{total} 個儲存庫",
+        added: "已加入 {count} 個儲存庫",
+        addedSomeTracked: "已加入 {count} 個，另外 {skipped} 個本來就在追蹤清單",
+        allTracked: "選取的儲存庫都已經在追蹤清單",
+        partial: "已加入 {count} 個，{failed} 個沒有加入。再按一次可以重試。",
+        partialSomeTracked:
+          "新加入 {count} 個，本來就在追蹤清單 {skipped} 個，沒有加入 {failed} 個。再按一次可以重試。",
+        allFailed: "選取的 {count} 個都沒有加入，稍後再試",
+        interrupted: "批次加入沒有完成，不確定加入了幾個。",
         stillProcessing: "仍在新增中，追蹤清單接下來幾分鐘會陸續更新",
+      },
+      addFailed: {
+        notDone: "沒有加入追蹤清單。",
+        goneFromGitHub:
+          "沒有加入追蹤清單。GitHub 上找不到這個儲存庫，可能已被刪除、改名或設為私人。",
+        timedOut: "還沒有回應，不確定有沒有加入。追蹤清單接下來幾分鐘會自己更新。",
+        alreadyTracked: "這個儲存庫已經在追蹤清單。",
+      },
+      unstarFailed: {
+        notDone: "沒有取消追蹤。",
+        goneFromGitHub: "沒有取消追蹤。GitHub 上找不到這個儲存庫，可能已被刪除、改名或設為私人。",
+        timedOut: "還沒有回應，不確定有沒有取消追蹤。追蹤清單接下來幾分鐘會自己更新。",
+        alreadyRemoved: "這個儲存庫已經不在追蹤清單。",
       },
       viewMode: {
         list: "列表檢視",
@@ -1949,8 +2008,18 @@ export const translations = {
       repoRemoved: "儲存庫已從追蹤清單移除",
       refreshPartial: "已更新 {ok} 個、{failed} 個失敗——失敗那些顯示的仍是舊資料",
       refreshed: "資料已重新整理",
-      error: "發生錯誤",
       copied: "已複製到剪貼簿",
+    },
+    failure: {
+      withCause: "{outcome}{cause}",
+      githubRateLimit: "GitHub API 配額用完了，稍後再試。",
+      tooManyRequests: "操作太頻繁，稍等一下再試。",
+      githubAuth: "GitHub 不接受目前的連結，授權可能已過期或被撤銷。到設定頁重新連結 GitHub。",
+      githubForbidden:
+        "GitHub 拒絕了這個操作，可能是權限不足，或短時間內操作太多次。過一分鐘再試；還是不行就到設定頁檢查 GitHub 連結。",
+      githubUnavailable: "GitHub 回了錯誤或連不上，稍後再試。",
+      engineUnreachable: "連不上資料引擎。",
+      retry: "請再試一次。",
     },
     // GitHub 連線
     githubConnection: {
@@ -2004,8 +2073,11 @@ export const translations = {
       cancel: "取消",
       allRepos: "全部儲存庫",
       empty: "尚無分類。點擊 + 建立一個。",
-      deleteConfirm: "確定要刪除此分類嗎？",
+      deleteConfirm:
+        "要刪除「{name}」嗎？分類裡的儲存庫會留在追蹤清單，只是不再屬於這個分類。刪除後無法復原。",
       deleteCategory: "刪除分類",
+      updateFailed: "「{name}」的變更沒有儲存，請再試一次。",
+      deleteFailed: "「{name}」沒有刪除，請再試一次。",
       addToCategory: "加入分類",
       addToCategoryTitle: "加入分類",
       addToCategoryButton: "+ 分類",

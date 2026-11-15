@@ -124,7 +124,7 @@ async function doFetch<T>(
     reportSidecarUnreachable();
     throw new ApiError(
       0,
-      `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
+      `${API_ERROR_MESSAGES.NETWORK_ERROR}: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
     );
   } finally {
     clearTimeout(timeoutId);
@@ -687,7 +687,7 @@ export async function fetchExportFile(url: string): Promise<ExportFile> {
     reportSidecarUnreachable();
     throw new ApiError(
       0,
-      `Network error: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
+      `${API_ERROR_MESSAGES.NETWORK_ERROR}: ${err instanceof Error ? err.message : API_ERROR_MESSAGES.UNKNOWN_ERROR}`
     );
   }
 }

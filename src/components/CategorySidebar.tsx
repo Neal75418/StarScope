@@ -32,6 +32,16 @@ export interface CategoryTreeData {
   handleDeleteCategory: (categoryId: number) => Promise<boolean>;
 }
 
+/** 樹裡某個分類的名稱（含子分類）；找不到回 null */
+function findCategoryName(nodes: CategoryTreeNode[], id: number): string | null {
+  for (const node of nodes) {
+    if (node.id === id) return node.name;
+    const inChildren = findCategoryName(node.children ?? [], id);
+    if (inChildren !== null) return inChildren;
+  }
+  return null;
+}
+
 interface CategorySidebarProps {
   selectedCategoryId: number | null;
   onSelectCategory: (categoryId: number | null) => void;
@@ -47,6 +57,7 @@ export const CategorySidebar = memo(function CategorySidebar({
   const [showAddForm, setShowAddForm] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryTreeNode | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const editRequestIdRef = useRef(0);
@@ -111,20 +122,28 @@ export const CategorySidebar = memo(function CategorySidebar({
     async (categoryId: number, data: Parameters<typeof handleUpdateCategory>[1]) => {
       setIsSubmitting(true);
       try {
-        return await handleUpdateCategory(categoryId, data);
+        const saved = await handleUpdateCategory(categoryId, data);
+        // 對話框留著讓人重試，但要說出這一下沒有成功：否則按鈕只是從「儲存中」變回「儲存」
+        if (!saved) {
+          const name = findCategoryName(tree, categoryId) ?? data.name ?? "";
+          showToast("error", interpolate(t.categories.updateFailed, { name }));
+        }
+        return saved;
       } finally {
         setIsSubmitting(false);
       }
     },
-    [handleUpdateCategory]
+    [handleUpdateCategory, tree, showToast, t]
   );
 
   const handleDelete = useCallback(
-    (_categoryId: number, e: MouseEvent) => {
+    (categoryId: number, e: MouseEvent) => {
       e.stopPropagation();
-      deleteConfirm.open(_categoryId);
+      // 名稱在打開確認框的當下記下來：之後樹重讀也不影響框裡與失敗提示寫的是哪一個
+      setDeleteTargetName(findCategoryName(tree, categoryId) ?? "");
+      deleteConfirm.open(categoryId);
     },
-    [deleteConfirm]
+    [deleteConfirm, tree]
   );
 
   const handleConfirmDelete = useCallback(async () => {
@@ -137,12 +156,22 @@ export const CategorySidebar = memo(function CategorySidebar({
           onSelectCategory(null);
         }
         deleteConfirm.close();
+      } else {
+        // 失敗時保留 dialog 開啟讓使用者可以重試，並說出這一下沒有成功
+        showToast("error", interpolate(t.categories.deleteFailed, { name: deleteTargetName }));
       }
-      // 失敗時保留 dialog 開啟，讓使用者可以重試
     } finally {
       setIsDeleting(false);
     }
-  }, [deleteConfirm, handleDeleteCategory, selectedCategoryId, onSelectCategory]);
+  }, [
+    deleteConfirm,
+    handleDeleteCategory,
+    selectedCategoryId,
+    onSelectCategory,
+    showToast,
+    t,
+    deleteTargetName,
+  ]);
 
   if (loading) {
     return <CategorySidebarLoading />;
@@ -210,7 +239,8 @@ export const CategorySidebar = memo(function CategorySidebar({
       <ConfirmDialog
         isOpen={deleteConfirm.isOpen}
         title={t.categories.deleteCategory}
-        message={t.categories.deleteConfirm}
+        message={interpolate(t.categories.deleteConfirm, { name: deleteTargetName })}
+        confirmText={t.categories.deleteCategory}
         variant="danger"
         isProcessing={isDeleting}
         onConfirm={handleConfirmDelete}

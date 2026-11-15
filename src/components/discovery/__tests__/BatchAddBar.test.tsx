@@ -1,6 +1,5 @@
 /**
- * 批次加入的三個失敗分支（部分成功、全部失敗、API 例外）先前只在 Trends 的
- * TrendsBatchAddBar 測過；那個殼拆掉後邏輯還活在這裡，測試跟著搬過來。
+ * BatchAddBar 的單元測試：批次加入的每一種結果各顯示什麼、留不留在選取模式。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -22,6 +21,16 @@ const repos = [
   { owner: "a", name: "b" },
   { owner: "c", name: "d" },
 ];
+
+/** 批次結果；沒寫到的欄位是 0，總數預設是選取的兩筆 */
+function batchResult(counts: {
+  success?: number;
+  skipped?: number;
+  failed?: number;
+  total?: number;
+}) {
+  return { total: repos.length, success: 0, skipped: 0, failed: 0, errors: [], ...counts };
+}
 
 function renderBar(
   props: Partial<React.ComponentProps<typeof BatchAddBar>> = {},
@@ -69,38 +78,101 @@ describe("BatchAddBar", () => {
 
   it("all succeed: success toast and leaves selection mode", async () => {
     const onDone = vi.fn();
-    mockBatchAddRepos.mockResolvedValue({ success: 2, failed: 0, total: 2 });
+    mockBatchAddRepos.mockResolvedValue(batchResult({ success: 2 }));
     renderBar({ onDone });
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(mockBatchAddRepos).toHaveBeenCalledWith(repos);
-    expect(shownToasts("success")).toEqual(["Added 2/2 repositories"]);
+    expect(shownToasts("success")).toEqual(["Added 2 to your watchlist"]);
     expect(shownToasts("warning")).toEqual([]);
+    expect(shownToasts("error")).toEqual([]);
+  });
+
+  it("some were already tracked and none failed: still a success, says how many were already there", async () => {
+    // 本來就在追蹤清單的不算失敗：後端把它們算在 skipped，不在 success 也不在 failed
+    const onDone = vi.fn();
+    mockBatchAddRepos.mockResolvedValue(batchResult({ success: 1, skipped: 1 }));
+    renderBar({ onDone });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(shownToasts("success")).toEqual(["Added 1. Already on your watchlist: 1."]);
+    expect(shownToasts("warning")).toEqual([]);
+    expect(shownToasts("error")).toEqual([]);
+  });
+
+  it("everything was already tracked: says so instead of reporting an error", async () => {
+    const onDone = vi.fn();
+    mockBatchAddRepos.mockResolvedValue(batchResult({ skipped: 2 }));
+    renderBar({ onDone });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(shownToasts("info")).toEqual(["Everything you selected is already on your watchlist"]);
     expect(shownToasts("error")).toEqual([]);
   });
 
   it("some fail: warning toast with the count, stays in selection mode for retry", async () => {
     const onDone = vi.fn();
-    mockBatchAddRepos.mockResolvedValue({ success: 1, failed: 1, total: 2 });
+    mockBatchAddRepos.mockResolvedValue(batchResult({ success: 1, failed: 1 }));
     renderBar({ onDone });
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(shownToasts("warning")).toEqual(["Added 1/2 repositories"]));
+    await waitFor(() =>
+      expect(shownToasts("warning")).toEqual([
+        "Added 1; 1 not added. Press the button again to retry.",
+      ])
+    );
     expect(onDone).not.toHaveBeenCalled();
     expect(shownToasts("success")).toEqual([]);
   });
 
-  it("all fail: error toast, stays in selection mode", async () => {
+  it("retrying after a partial failure: accounts for the ones already added instead of saying 0 were added", async () => {
+    // 部分沒加入之後照提示再按一次：上次加入的那個這次算在 skipped，沒加入的又失敗
     const onDone = vi.fn();
-    mockBatchAddRepos.mockResolvedValue({ success: 0, failed: 2, total: 2 });
+    mockBatchAddRepos.mockResolvedValue(batchResult({ skipped: 1, failed: 1 }));
     renderBar({ onDone });
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(shownToasts("error")).toHaveLength(1));
+    await waitFor(() =>
+      expect(shownToasts("warning")).toEqual([
+        "Added: 0. Already on your watchlist: 1. Not added: 1. Press the button again to retry.",
+      ])
+    );
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("some added, some already tracked, some failed: says all three counts", async () => {
+    mockBatchAddRepos.mockResolvedValue(
+      batchResult({ success: 1, skipped: 1, failed: 1, total: 3 })
+    );
+    renderBar();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() =>
+      expect(shownToasts("warning")).toEqual([
+        "Added: 1. Already on your watchlist: 1. Not added: 1. Press the button again to retry.",
+      ])
+    );
+  });
+
+  it("all fail: error toast, stays in selection mode", async () => {
+    const onDone = vi.fn();
+    mockBatchAddRepos.mockResolvedValue(batchResult({ failed: 2 }));
+    renderBar({ onDone });
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() =>
+      expect(shownToasts("error")).toEqual(["Nothing was added (2 selected). Try again later."])
+    );
     expect(onDone).not.toHaveBeenCalled();
     expect(shownToasts("success")).toEqual([]);
     expect(shownToasts("warning")).toEqual([]);
@@ -172,10 +244,57 @@ describe("BatchAddBar", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
 
-    await waitFor(() => expect(shownToasts("error")).toHaveLength(1));
+    await waitFor(() =>
+      expect(shownToasts("error")).toEqual([
+        "The batch didn't complete, so it's unclear how many were added. The data engine can't be reached.",
+      ])
+    );
     expect(shownToasts("info")).toEqual([]);
     expect(invalidate).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.repos.all })
+    );
+  });
+
+  it("server error part-way through: says it is unclear how many were added", async () => {
+    // 5xx 是伺服器開始處理之後才出錯，前面幾筆可能已經加入
+    mockBatchAddRepos.mockRejectedValue(new ApiError(500, "Internal Server Error"));
+    renderBar();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() =>
+      expect(shownToasts("error")).toEqual([
+        "The batch didn't complete, so it's unclear how many were added. Try again.",
+      ])
+    );
+  });
+
+  it("rejected as invalid before anything was processed: says nothing was added", async () => {
+    mockBatchAddRepos.mockRejectedValue(
+      new ApiError(422, "repos: List should have at most 100 items", "VALIDATION_ERROR")
+    );
+    renderBar();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() =>
+      expect(shownToasts("error")).toEqual(["Not added to your watchlist. Try again."])
+    );
+  });
+
+  it("rejected for going too fast: says nothing was added and to wait a moment", async () => {
+    // 被本機的節流擋下時伺服器一筆都沒處理，不能說「可能只加入了一部分」
+    mockBatchAddRepos.mockRejectedValue(
+      new ApiError(429, "Rate limit exceeded: 5 per 1 minute", "LOCAL_RATE_LIMIT")
+    );
+    renderBar();
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add 2 to Watchlist" }));
+
+    await waitFor(() =>
+      expect(shownToasts("error")).toEqual([
+        "Not added to your watchlist. Too many requests in a short time. Wait a moment and try again.",
+      ])
     );
   });
 

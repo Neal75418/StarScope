@@ -148,6 +148,8 @@ class TestReposEndpoints:
         })
         assert response.status_code == 400
         assert "already in your watchlist" in response.json()["detail"]
+        # 前端靠這個 code 說「已經在追蹤清單」，而不是「沒有加入」
+        assert response.json()["code"] == "ALREADY_TRACKED"
 
     def test_add_repo_invalid_format(self, client):
         """Test adding repo with invalid format (only name, no owner)."""
@@ -380,6 +382,47 @@ class TestSingleFetchReportsGitHubFailuresAsBadGateway:
             response = client.post(f"/api/repos/{mock_repo.id}/fetch")
 
         assert response.status_code == 502
+
+
+class TestGitHubFailuresSayWhatKind:
+    """畫面要依原因給不同的說法：授權失效等再久也不會好，不能和暫時性的失敗用同一句「稍後再試」。"""
+
+    @staticmethod
+    def _fetch(client, mock_repo, github_answering, answer):
+        service = github_answering(answer)
+        with patch("routers.repos.get_github_service", return_value=service):
+            return client.post(f"/api/repos/{mock_repo.id}/fetch")
+
+    def test_rejected_token_is_marked_as_an_auth_failure(self, client, mock_repo, github_answering):
+        response = self._fetch(
+            client, mock_repo, github_answering, lambda request: httpx.Response(401, request=request))
+
+        assert response.status_code == 502
+        assert response.json()["code"] == "GITHUB_AUTH_FAILED"
+
+    def test_forbidden_without_rate_limit_headers_is_marked_as_forbidden(
+            self, client, mock_repo, github_answering):
+        response = self._fetch(
+            client, mock_repo, github_answering, lambda request: httpx.Response(403, request=request))
+
+        assert response.status_code == 502
+        assert response.json()["code"] == "GITHUB_FORBIDDEN"
+
+    def test_a_github_outage_carries_no_code(self, client, mock_repo, github_answering):
+        response = self._fetch(
+            client, mock_repo, github_answering, lambda request: httpx.Response(503, request=request))
+
+        assert response.status_code == 502
+        assert "code" not in response.json()
+
+    def test_a_missing_repository_is_marked_as_gone_from_github(
+            self, client, mock_repo, github_answering):
+        """本機找不到（get_repo_or_404）也是 404，但不帶這個 code：前端靠它分辨是哪一邊找不到。"""
+        response = self._fetch(
+            client, mock_repo, github_answering, lambda request: httpx.Response(404, request=request))
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "GITHUB_NOT_FOUND"
 
 
 class TestStarsDelta1dOnTheWire:

@@ -312,7 +312,8 @@ async def validation_error_handler(_request: Request, exc: RequestValidationErro
 # 避免在各 router 中重複 try/except。
 @app.exception_handler(GitHubNotFoundError)
 async def github_not_found_handler(_request: Request, exc: GitHubNotFoundError):
-    return JSONResponse(status_code=404, content={"detail": str(exc)})
+    # code 讓前端分得出是 GitHub 上找不到，還是本機找不到那一列（get_repo_or_404 的 404 不帶 code）
+    return JSONResponse(status_code=404, content={"detail": str(exc), "code": "GITHUB_NOT_FOUND"})
 
 
 @app.exception_handler(GitHubRateLimitError)
@@ -329,6 +330,12 @@ async def github_rate_limit_handler(_request: Request, exc: GitHubRateLimitError
     )
 
 
+# GitHub 明確拒絕這次請求的兩種情況，前端要給不同於「稍後再試」的說法；其餘的上游失敗不帶 code。
+# 401 是授權失效，等再久也不會好。403 是 _check_github_errors 判定不是限流的那些：多半是權限不足或被封鎖，
+# 但不帶限流標頭的次級限流也會落在這裡，所以前端的說法兩種都要涵蓋
+_GITHUB_REJECTION_CODES = {401: "GITHUB_AUTH_FAILED", 403: "GITHUB_FORBIDDEN"}
+
+
 @app.exception_handler(GitHubAPIError)
 async def github_api_error_handler(request: Request, exc: GitHubAPIError):
     # 記下是哪個端點、上游說了什麼。先前只回 502 不留痕跡：CI 上 E2E 全紅時
@@ -336,7 +343,11 @@ async def github_api_error_handler(request: Request, exc: GitHubAPIError):
     # 光是判斷「token 能不能用」就燒掉三輪 CI
     # exception handler 不在 except 語法內：把例外物件明確交給 exc_info，不靠 sys.exc_info()
     logger.error(f"[GitHub API] {request.method} {request.url.path} 上游失敗: {exc}", exc_info=exc)
-    return JSONResponse(status_code=502, content={"detail": f"GitHub API error: {exc}"})
+    content = {"detail": f"GitHub API error: {exc}"}
+    code = _GITHUB_REJECTION_CODES.get(exc.status_code) if exc.status_code is not None else None
+    if code is not None:
+        content["code"] = code
+    return JSONResponse(status_code=502, content=content)
 
 
 @app.exception_handler(httpx.TransportError)

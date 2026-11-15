@@ -8,6 +8,7 @@ import re
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from typing import Annotated, Literal
 
 from pydantic import BaseModel
@@ -286,7 +287,9 @@ async def _add_or_restore_repo(
 
 
 @router.post("/repos", response_model=ApiResponse[RepoWithSignals], status_code=status.HTTP_201_CREATED)
-async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db)]) -> dict:
+async def add_repo(
+    repo_input: RepoCreate, db: Annotated[Session, Depends(get_db)]
+) -> dict | JSONResponse:
     """
     將新 repo 加入追蹤清單。
     可提供 owner+name 或 GitHub URL。
@@ -302,9 +305,13 @@ async def add_repo(repo_input: RepoCreate, db: Annotated[Session, Depends(get_db
     # GitHub 例外由 main.py 中的全域例外處理器處理
     repo, outcome = await _add_or_restore_repo(owner, name, get_github_service(), db)
     if outcome == "already_tracked":
-        raise HTTPException(
+        # 不用 HTTPException：它帶不了 code，而前端要靠 code 說「已經在追蹤清單」而不是「沒有加入」
+        return JSONResponse(
             status_code=400,
-            detail=f"Repository {repo.full_name} is already in your watchlist"
+            content={
+                "detail": f"Repository {repo.full_name} is already in your watchlist",
+                "code": "ALREADY_TRACKED",
+            },
         )
 
     return success_response(

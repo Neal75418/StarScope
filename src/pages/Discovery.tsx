@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { useI18n } from "../i18n";
+import { interpolate, useI18n } from "../i18n";
 import { useDiscovery } from "../hooks/useDiscovery";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useViewMode } from "../hooks/useViewMode";
@@ -11,7 +11,10 @@ import { useWatchlistState, useWatchlistActions } from "../contexts/WatchlistCon
 import { useToast } from "../components/Toast";
 import { AnimatedPage } from "../components/motion";
 import { normalizeRepoName } from "../utils/format";
+import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
+import { keepRefetchingAfterTimeout } from "../lib/react-query";
 import { addRepo, unstarRepo, DiscoveryRepo } from "../api/client";
+import { ApiError } from "../api/types";
 import type { PersonalizedRecommendation, FeedItem as FeedItemType } from "../api/types";
 import {
   DiscoverySearchBar,
@@ -67,6 +70,17 @@ export function Discovery() {
     () => new Set([...watchlist.map((r) => normalizeRepoName(r.full_name)), ...locallyAdded]),
     [watchlist, locallyAdded]
   );
+
+  // 本地記下的名字只撐到追蹤清單重讀到它為止，之後以清單為準：否則別處把它移出清單之後
+  // （背景同步、逾時後才做完的取消追蹤），這裡還一直顯示已追蹤，再按取消又查不到 id。
+  // 記下名字時也要比一次：清單可能在加入的回應回來之前就讀到它了，之後的重讀是同一個陣列
+  useEffect(() => {
+    const caughtUp = new Set(watchlist.map((r) => normalizeRepoName(r.full_name)));
+    setLocallyAdded((prev) => {
+      const stillAhead = [...prev].filter((name) => !caughtUp.has(name));
+      return stillAhead.length === prev.size ? prev : new Set(stillAhead);
+    });
+  }, [watchlist, locallyAdded]);
 
   // full_name -> 本機 repo id。取消追蹤要打本機 id，而 feed item 只有 full_name。
   // 剛加入但 watchlist 尚未重取時查不到 id，那時取消會被略過——下一次重取就有了。
@@ -126,6 +140,24 @@ export function Discovery() {
     resetDiscovery();
   }, [resetDiscovery]);
 
+  // 加入失敗的共同處理。回傳「結果是不是使用者要的」：後端說已經在追蹤清單時不算失敗
+  const reportAddFailure = useCallback(
+    (err: unknown, fullName: string): boolean => {
+      // 有些失敗代表清單其實已經變了（別處加過、逾時後伺服器做完了）：一律重讀
+      invalidateRepos();
+      if (err instanceof ApiError && err.code === "ALREADY_TRACKED") {
+        setLocallyAdded((prev) => new Set(prev).add(normalizeRepoName(fullName)));
+        toast.info(t.discovery.addFailed.alreadyTracked);
+        return true;
+      }
+      // 逾時的提示說清單會自己更新：伺服器可能晚一點才做完，接下來一陣子定期重讀
+      if (isRequestTimeout(err)) keepRefetchingAfterTimeout(invalidateRepos);
+      toast.error(describeWriteFailure(err, t, t.discovery.addFailed));
+      return false;
+    },
+    [invalidateRepos, toast, t]
+  );
+
   // 將 repo 加入 watchlist（共用邏輯）
   const doAddToWatchlist = useCallback(
     async (owner: string, name: string, fullName: string, id: number) => {
@@ -136,8 +168,8 @@ export function Discovery() {
         // 同 handleFeedAdd：只重讀本機清單，不重抓每一個 repo
         invalidateRepos();
         toast.success(t.toast.repoAdded);
-      } catch {
-        toast.error(t.toast.error);
+      } catch (err) {
+        reportAddFailure(err, fullName);
       } finally {
         setAddingRepoIds((prev) => {
           const next = new Set(prev);
@@ -146,7 +178,7 @@ export function Discovery() {
         });
       }
     },
-    [toast, t.toast.repoAdded, t.toast.error, invalidateRepos]
+    [toast, t.toast.repoAdded, invalidateRepos, reportAddFailure]
   );
 
   // 搜尋結果加入 watchlist
@@ -180,12 +212,11 @@ export function Discovery() {
         invalidateRepos();
         toast.success(t.toast.repoAdded);
         return true;
-      } catch {
-        toast.error(t.toast.error);
-        return false;
+      } catch (err) {
+        return reportAddFailure(err, item.full_name);
       }
     },
-    [toast, t.toast.repoAdded, t.toast.error, invalidateRepos]
+    [toast, t.toast.repoAdded, invalidateRepos, reportAddFailure]
   );
 
   const handleFeedUnstar = useCallback(
@@ -193,8 +224,13 @@ export function Discovery() {
       const key = normalizeRepoName(item.full_name);
       const repoId = watchlistIdByName.get(key);
       if (repoId === undefined) {
-        // 只可能發生在「剛加入、watchlist 還沒重取」的短暫空窗
-        toast.error(t.toast.error);
+        // 只可能發生在「剛加入、watchlist 還沒重取」的短暫空窗：請求沒有送出，重取之後再按就行
+        toast.error(
+          interpolate(t.failure.withCause, {
+            outcome: t.discovery.unstarFailed.notDone,
+            cause: t.failure.retry,
+          })
+        );
         return false;
       }
       try {
@@ -208,12 +244,20 @@ export function Discovery() {
         invalidateRepos();
         toast.success(t.toast.repoRemoved);
         return true;
-      } catch {
-        toast.error(t.toast.error);
+      } catch (err) {
+        invalidateRepos();
+        // 不帶 GITHUB_NOT_FOUND 的 404＝本機已經沒有這一列（連按兩次、或背景同步先封存了）：
+        // 它已經不在追蹤清單，結果就是使用者要的
+        if (err instanceof ApiError && err.status === 404 && err.code !== "GITHUB_NOT_FOUND") {
+          toast.info(t.discovery.unstarFailed.alreadyRemoved);
+          return true;
+        }
+        if (isRequestTimeout(err)) keepRefetchingAfterTimeout(invalidateRepos);
+        toast.error(describeWriteFailure(err, t, t.discovery.unstarFailed));
         return false;
       }
     },
-    [watchlistIdByName, toast, t.toast.repoRemoved, t.toast.error, invalidateRepos]
+    [watchlistIdByName, toast, t, invalidateRepos]
   );
 
   // 是否「仍在」瀏覽使用者主動點選的 trending：以 period 目前是否還有值作為衍生條件，
