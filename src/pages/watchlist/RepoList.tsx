@@ -126,7 +126,7 @@ export function RepoList({
   );
 
   // 以下三個物件都要 memo：它們進 rowProps 後被逐值淺比較，
-  // 每次 render 新建物件會讓 RepoCard 的 memo 全部 miss（CLAUDE.md 明列的 pitfall）
+  // 每次 render 新建物件會讓 RepoCard 的 memo 全部 miss（同類陷阱見 .claude/rules/frontend.md 的 React-Window 一節）
   const handlers = useMemo(() => ({ onFetch, onRemove }), [onFetch, onRemove]);
 
   const categoryContext = useMemo(

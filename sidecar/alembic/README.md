@@ -13,8 +13,8 @@ model（新欄位、既有欄位都算）。原則是能安全補的加法一律
 只有這些差異**偵測得到**、會拋 `SchemaNeedsMigration` 讓啟動當場失敗：新欄位 NOT NULL
 又沒有 server_default；新欄位帶外鍵、`unique=True`、唯一索引或被表級約束涵蓋。改型別、
 改名、刪欄位、既有欄位上的唯一約束或唯一索引、需要回填資料——這些**偵測不到**，會靜默
-留著差異，只能靠人判斷。碰到任何一種就是正式引入 alembic 的時機，判準寫在 CLAUDE.md
-的「schema 變更」一節。
+留著差異，只能靠人判斷。碰到任何一種就是正式引入 alembic 的時機，判準寫在
+`.claude/rules/sidecar.md` 的「schema 變更」一節。
 
 ## 為什麼 alembic 在 requirements-dev.txt
 

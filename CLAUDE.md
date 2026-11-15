@@ -11,7 +11,7 @@
 | `README.md`               | 對外                                              | 專案介紹、安裝、API 端點表                                                                                                 |
 | **本檔**                  | Claude Code，每個 session                         | 指令、跨層約定、跨層陷阱、**現行**設計取捨                                                                                                   |
 | `.claude/rules/*.md`      | Claude Code，讀到檔頭 `paths:` 符合的檔案時才載入 | 單一層的約定與陷阱：`sidecar.md`（Python）、`frontend.md`（React）、`sidecar-lifecycle.md`（Rust、啟停相關檔案、腳本、CI） |
-| `docs/superpowers/specs/` | 需要知道「當初為什麼這樣決定」時                  | 各功能定案當下的設計紀錄。**刻意不隨程式碼更新**，讀法見該目錄的 `README.md`                                               |
+| `docs/superpowers/`（specs、plans） | 需要知道「當初為什麼這樣決定」時        | 各功能定案當下的設計紀錄與實作計畫。**刻意不隨程式碼更新**，讀法見 `docs/superpowers/README.md`                              |
 
 ⚠️ **工程規約不寫成散文。** 每條約束都放在會失敗的地方：coverage 門檻在 `vitest.config.ts`、bundle 上限在
 `scripts/check-bundle-size.sh`、降級等級是 `DegradationLevel` 這個 union type、事件名與錯誤訊息是 `constants/` 裡的
@@ -180,8 +180,8 @@ tag 也不能移動，發佈前先確認安裝檔。
   任何會啟動打包版或 sidecar 的實驗都要設 `STARSCOPE_DATA_DIR`。Rust 不能用任何環境變數傳資料目錄給 sidecar，`STARSCOPE_DATA_DIR`
   也不行（它最優先）：以前傳過 `TAURI_APP_DATA_DIR`，安裝版就看不到 collector 寫的資料。Python 端忽略 `TAURI_APP_DATA_DIR` 由
   `tests/test_app_data_dir.py` 守住，Rust 端沒有測試守。除錯找資料庫時別在 `sidecar/` 底下找
-- 成功的回應是統一的 `ApiResponse[T]`：`{success, data, message}`；失敗回 HTTP 錯誤狀態，body 是 `{"detail"}`，部分 exception handler 另帶 `code`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data`
-  欄位**——新增端點時若忘了包 `success_response()`，前端會拿到 undefined
+- 成功的回應是統一的 `ApiResponse[T]`：`{success, data, message}`（檔案下載不包這一層）；失敗回 HTTP 錯誤狀態，body 是 `{"detail"}`，部分錯誤另帶 `code`（多數由 `main.py` 的 exception handler 加，`ALREADY_TRACKED` 由 route 直接回）。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data`
+  欄位**——新增端點時若忘了包 `success_response()`：有標 `response_model=ApiResponse[...]` 的話前端拿到 `null`；沒標的話原樣傳到前端、繞過信封
 - 桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴
 - ⚠️ Tauri 的 WebView 不處理 `<a download>`（wry 沒有 download handler 時直接取消），存檔一律用 `utils/saveFile`
 - ⚠️ 正式版 CSP 的 `img-src` 不含 `blob:`：單元測試與 Vite 下的 e2e 都沒有 CSP，這類錯誤只會在正式版出現
@@ -208,6 +208,8 @@ Commit 訊息用 [Conventional Commits](https://www.conventionalcommits.org/)（
 - 註解一律繁體中文，技術術語保留英文；用語統一「回應」不用「響應」
 - 只寫程式碼本身看不出來的約束或原因（why），不重述下一行在做什麼，不寫變更史（「原本」「新增」「取代」「簡化後」句式禁用——
   改寫成現在式的約束句）
+- 變更史與審查流程的常見句式由 `sidecar/tests/test_comment_conventions.py` 擋下（絆線：只收清單裡的固定寫法（「原本是」「先前只」這類），
+  同一類的別種說法、「新增」「簡化後」與不接「原本」的「取代」都抓不到；掃 `sidecar`、`src`、`src-tauri/src`，測試、alembic、`src/test` 不掃）
 - 檔案頭一律 `/** */`（TS）／`"""docstring"""`（Python）描述模組職責；公開函式配一行說明（與 Python docstring 全覆蓋的立場一致），
   行內註解只留 why
 - **豁免區**（維持原樣，勿翻譯或改寫）：`sidecar/alembic/`（模板產物）、Rust `SAFETY:` 區塊（生態慣例用英文）、`src/test/` 測試基建

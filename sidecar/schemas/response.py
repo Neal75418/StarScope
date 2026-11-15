@@ -12,7 +12,8 @@ class ApiResponse(BaseModel, Generic[T]):
     統一 API 回應封裝。
 
     JSON 端點成功時用這個格式（檔案下載不包這一層）。失敗不走這裡：回 HTTP 錯誤狀態，
-    body 是 {"detail"}，main.py 的部分 exception handler 另帶 "code"。
+    body 是 {"detail"}，部分錯誤另帶 "code"（多數由 main.py 的 exception handler 加，
+    ALREADY_TRACKED 由 add_repo 直接回）。
 
     範例：
         {

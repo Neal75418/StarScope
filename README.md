@@ -105,7 +105,8 @@ graph TB
     Ext["🌐 External APIs<br/>GitHub · Hacker News"]
 
     Components <-->|HTTP/JSON| API
-    Native -.->|IPC| API
+    UI <-.->|Tauri IPC| Native
+    Native -.->|啟動／結束行程| API
     Services --> Ext
 
     classDef frontend fill:#3b82f6,stroke:#1d4ed8,color:#fff,font-weight:bold

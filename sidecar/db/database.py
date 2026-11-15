@@ -178,7 +178,7 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
       - 新欄位帶 FOREIGN KEY、unique=True／唯一索引，或被任何表級約束涵蓋
     下列差異**偵測不到**，會靜默留著：改型別、改名、刪欄位、既有欄位上的唯一約束
     或唯一索引、文字型 CheckConstraint、需要回填的資料。這些只能靠人判斷——
-    CLAUDE.md「schema 變更」一節列了該引入 alembic 的條件。
+    `.claude/rules/sidecar.md` 的「schema 變更」一節列了該引入 alembic 的條件。
 
     NOT NULL + server_default 會補成 `DEFAULT <常數> NOT NULL`（SQLite 接受常數
     預設值；CURRENT_TIMESTAMP 這類非常數會被 SQLite 拒絕而大聲失敗）。

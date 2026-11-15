@@ -59,8 +59,34 @@ paths:
   `App.tsx` 不渲染頁面，否則頁面會畫出「還沒追蹤任何專案」之類的空狀態
 - ⚠️ 要 `reset()` 另一個 mutation 之前先問 `queryClient.isMutating({ mutationKey })`，不要看渲染當下的 `isPending`：
   React Query 以 setTimeout(0) 才通知畫面；對還在跑的 mutation 呼叫 `reset()`，會讓那次請求的結果（包括失敗）不再回到畫面
-- ⚠️ **`@tanstack/query-core` 5.95.2 的 `mutationFn` 會收到 `(variables, context)` 兩個參數**——直接把單參數的 client 函式當
+- ⚠️ **`@tanstack/query-core` 的 `mutationFn` 會收到 `(variables, context)` 兩個參數**（版本查 `package-lock.json`，別寫死在這裡）——直接把單參數的 client 函式當
   `mutationFn` 傳入會多收 context。務必包成箭頭函式：`(id) => deleteInterest(id)`
+- **讀取狀態一律用 `loadStatus(query)`**（`lib/react-query.ts`），回傳 `{ready, failed, inProgress, retry}`：讀到了（`ready`）
+  才談空不空、才顯示值；讀不到用 `<LoadError>`（說明＋重試鈕），已經讀到的內容留在畫面上；一個區塊靠好幾個查詢時用
+  `combineLoadStatus`。⚠️ 不要只看 `isError`：還沒有資料時一重試 React Query 就把 error 清掉，錯誤訊息會在重試期間消失
+  （`DigestPanel` 還是看 `useDigest` 的 `isError`、有這個問題：按重試後重試鈕消失，不要照抄）
+- ⚠️ 頁面層不要用 `isLoading` 當整頁的閘門：還沒有資料時按重試，`isLoading` 又是 true，整頁被換掉（草稿、焦點、錯誤列都不見）。
+  載入中由區塊自己顯示。Dashboard 還是整頁閘門（`if (isLoading)` 提早 return），新頁面不要照抄
+- 包在 hook／Context 裡的查詢要把 `LoadStatus` 往外傳（`useAlertRuleData` 的 `rulesLoad`／`dataLoad`、
+  `WatchlistState.reposLoad`）；追蹤清單的查詢錯誤不進 `state.error`（那個橫幅只給操作失敗用）
+
+## 對話框、提示與失敗訊息
+
+- 新對話框：`createPortal` 到 `document.body`、沿用 `.dialog-overlay`／`.dialog`，掛 `useFocusTrap`＋`useEscapeKey`＋
+  `useOverlayDismiss`；初始焦點用 effect 設（排在 `useFocusTrap` 之後，見 `CategoryEditModal`），不用 `autoFocus` 屬性
+  （它比 trap 記下先前的焦點早，關閉後焦點回不去——`AddRepoDialog` 還在用 `autoFocus`、有這個問題，那一行不要照抄）。
+  自己設焦點時 trap 要寫 `useFocusTrap(isOpen, false)`（不給 `false` 它會先聚焦框內第一個可聚焦的元素）；`.dialog` 上掛
+  `onKeyDown={(e) => e.stopPropagation()}`（頁面的快捷鍵才收不到框內的按鍵；Esc 與 Tab 的處理掛在 capture 階段就是以此為前提）；
+  `role="dialog"`、`aria-modal`、`aria-labelledby` 照 `CategoryEditModal`
+- 寫入失敗的 toast 用 `describeWriteFailure(err, t, copy)`（`utils/writeFailure.ts`）：依後端的狀態碼與 `code` 給原因；
+  逾時要說「不確定有沒有完成」；後端的原始 `detail` 不上畫面（別處的 `getErrorMessage` 仍直接顯示 `detail`，
+  新的寫入失敗訊息不要照那個寫法；分類側欄（`CategorySidebar`）的編輯與刪除失敗提示還不分原因、失敗後也不重讀，
+  也不要照抄）。⚠️ 它只會說「沒做成」：結果其實是使用者要的錯誤（例如加入時的 `ALREADY_TRACKED`、
+  取消追蹤時不帶 `GITHUB_NOT_FOUND` 的 404）要由呼叫端先攔下、改用 info toast，見 `Discovery.tsx` 的 `reportAddFailure`／
+  `handleFeedUnstar`——不攔的話「已經在追蹤清單」會被說成「沒有加入追蹤清單。請再試一次。」。其他寫入（重複建立的 409、
+  刪除已經不在的 404）要逐個端點看後端的意思：同一個 404 也可能是「當成不存在」（綁在封存 repo 上的警報規則），
+  那不是使用者要的結果
+- toast：錯誤與警告 10 秒、其餘 4 秒；滑鼠或焦點停在上面、視窗看不到時不倒數；同類型同一句只留最新一則
 
 ## 輪詢與計時器（兩個 hook，別選錯）
 
