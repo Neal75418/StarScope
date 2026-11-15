@@ -58,12 +58,6 @@ export interface BatchImportResult {
   errors: string[];
 }
 
-export interface HealthResponse {
-  status: string;
-  service: string;
-  timestamp: string;
-}
-
 // Context Signal 型別
 
 export interface ContextBadge {
@@ -160,8 +154,7 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public detail: string,
-    public code: string | null = null,
-    public details: unknown = null
+    public code: string | null = null
   ) {
     super(detail);
     this.name = "ApiError";
@@ -245,18 +238,6 @@ export interface CategoryUpdate {
   color?: string;
   parent_id?: number | null;
   sort_order?: number;
-}
-
-export interface RepoCategoriesResponse {
-  repo_id: number;
-  categories: {
-    id: number;
-    name: string;
-    icon: string | null;
-    color: string | null;
-    added_at: string | null;
-  }[];
-  total: number;
 }
 
 // 早期信號型別

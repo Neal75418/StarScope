@@ -141,24 +141,6 @@ class RepoListResponse(BaseModel):
     failed_count: int | None = None
 
 
-class StarredRepo(BaseModel):
-    """GitHub starred repo 的精簡資訊。"""
-    owner: str
-    name: str
-    full_name: str
-    description: str | None = None
-    language: str | None = None
-    stars: int
-    url: str
-    topics: list[str] = []
-
-
-class StarredReposResponse(BaseModel):
-    """取得 starred repos 的回應。"""
-    repos: list[StarredRepo]
-    total: int
-
-
 class BatchRepoCreate(BaseModel):
     """批次匯入 repo 的請求（上限 100 筆）。"""
     repos: list[RepoCreate] = Field(..., max_length=100)

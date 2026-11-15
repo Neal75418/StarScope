@@ -41,7 +41,7 @@ beforeEach(() => {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ success: true, data, message: "", error: null }),
+        json: async () => ({ success: true, data, message: "" }),
       } as Response;
     })
   );

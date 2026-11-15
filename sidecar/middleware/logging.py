@@ -3,7 +3,6 @@
 import time
 import logging
 import uuid
-from typing import Any
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -17,7 +16,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     記錄 request 與 response 細節的 middleware。
 
     記錄內容：
-    - Request：method、path、client IP、request ID
+    - Request：method、path、request ID
     - Response：status code、回應時間
     - Error：例外詳情與 stack trace
     """
@@ -26,7 +25,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         self,
         app: ASGIApp,
         exclude_paths: list[str] | None = None,
-        log_headers: bool = False,
         slow_request_threshold_ms: float = 1000.0,
     ):
         """
@@ -35,12 +33,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         Args:
             app: ASGI 應用程式
             exclude_paths: 排除日誌記錄的路徑列表（例如 health check）
-            log_headers: 是否記錄 request headers（預設關閉以保障安全）
             slow_request_threshold_ms: 慢請求警告門檻（毫秒，預設 1000ms）
         """
         super().__init__(app)
         self.exclude_paths = exclude_paths or ["/api/health", "/"]
-        self.log_headers = log_headers
         self.slow_request_threshold_ms = slow_request_threshold_ms
 
     def _should_exclude(self, path: str) -> bool:
@@ -63,9 +59,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         request_id = str(uuid.uuid4())[:8]
 
-        client_ip = self._get_client_ip(request)
-
-        self._log_request(request, request_id, client_ip)
+        self._log_request(request, request_id)
 
         start_time = time.perf_counter()
 
@@ -86,53 +80,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
     @staticmethod
-    def _get_client_ip(request: Request) -> str:
-        """從 request 提取 client IP（本機 sidecar 直接使用 client.host）。"""
-        client = request.client  # 存成區域變數：property 的 None 收窄不會延續到下一行
-        if client:
-            return client.host
-        return "unknown"
-
-    def _log_request(
-        self, request: Request, request_id: str, client_ip: str
-    ) -> None:
-        """記錄收到的 request 詳情。"""
-        log_data: dict[str, Any] = {
-            "request_id": request_id,
-            "method": request.method,
-            "path": request.url.path,
-            "client_ip": client_ip,
-        }
-
-        # 如有 query 參數則加入
-        if request.url.query:
-            log_data["query"] = request.url.query
-
-        # 選擇性記錄 headers（遮蔽敏感資料）
-        if self.log_headers:
-            headers = dict(request.headers)
-            # 遮蔽敏感 headers
-            sensitive_headers = [
-                "authorization",
-                "cookie",
-                "x-api-key",
-                "x-github-token",
-                "x-token",
-                "x-auth-token",
-                "x-session-secret",
-                "api-key",
-                "apikey",
-                "bearer",
-            ]
-            for key in sensitive_headers:
-                if key in headers:
-                    headers[key] = "***"
-            log_data["headers"] = headers
-
-        logger.info(
-            f"[{request_id}] --> {request.method} {request.url.path}",
-            extra=log_data,
-        )
+    def _log_request(request: Request, request_id: str) -> None:
+        """記錄收到的 request。只記方法與路徑：query 與 headers 可能帶祕密，不進 log。"""
+        logger.info(f"[{request_id}] --> {request.method} {request.url.path}")
 
     def _log_response(
         self,
@@ -162,18 +112,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             f"{status} ({duration_ms:.2f}ms){slow_indicator}"
         )
 
-        logger.log(
-            log_level,
-            log_message,
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": status,
-                "duration_ms": round(duration_ms, 2),
-                "is_slow": is_slow,
-            },
-        )
+        logger.log(log_level, log_message)
 
     @staticmethod
     def _log_error(
@@ -187,13 +126,5 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         logger.error(
             f"[{request_id}] <-- {request.method} {request.url.path} "
             f"錯誤 ({duration_ms:.2f}ms): {e}",
-            extra={
-                "request_id": request_id,
-                "method": request.method,
-                "path": request.url.path,
-                "duration_ms": round(duration_ms, 2),
-                "error": str(e),
-                "error_type": type(e).__name__,
-            },
             exc_info=e,
         )

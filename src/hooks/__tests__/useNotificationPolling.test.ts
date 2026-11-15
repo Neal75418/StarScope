@@ -86,7 +86,7 @@ describe("useNotificationPolling", () => {
     });
   });
 
-  it("sets error on API failure", async () => {
+  it("reports the failed load on API failure", async () => {
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(
@@ -95,7 +95,7 @@ describe("useNotificationPolling", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.error).toBe("Network error");
+      expect(result.current.loadFailed).toBe(true);
     });
   });
 
@@ -120,7 +120,6 @@ describe("useNotificationPolling", () => {
     });
 
     await waitFor(() => expect(result.current.loadInProgress).toBe(true));
-    expect(result.current.error).toBeNull();
     expect(result.current.loadFailed).toBe(true);
 
     await act(async () => {
@@ -176,8 +175,7 @@ describe("useNotificationPolling", () => {
     );
 
     await waitFor(() => {
-      // Non-Error exceptions produce the i18n fallback message
-      expect(result.current.error).toBe("Couldn't load notifications");
+      expect(result.current.loadFailed).toBe(true);
     });
   });
 });

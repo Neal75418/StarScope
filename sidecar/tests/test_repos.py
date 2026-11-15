@@ -75,7 +75,6 @@ class TestReposEndpoints:
         assert data["success"] is True
         assert data["data"]["repos"] == []
         assert data["data"]["total"] == 0
-        assert data["error"] is None
 
     def test_list_repos_with_data(self, client, mock_repo):
         """Test listing repos returns existing repos."""

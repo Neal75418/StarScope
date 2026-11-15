@@ -21,7 +21,6 @@ import type {
   RepoWithSignals,
   RepoListResponse,
   RepoCreate,
-  HealthResponse,
   ContextBadgesResponse,
   ContextSignalsResponse,
   BackfillStatus,
@@ -33,7 +32,6 @@ import type {
   CategoryTreeResponse,
   CategoryCreate,
   CategoryUpdate,
-  RepoCategoriesResponse,
   EarlySignalListResponse,
   SignalSummary,
   TrendsResponse,
@@ -147,21 +145,12 @@ async function doFetch<T>(
   // 不帶時區的日期時間當 UTC 讀（雙保險；sidecar 本身已帶時區，見 timestamps.ts）
   const json = normalizeApiTimestamps(await response.json());
 
-  // 自動解包統一 API 回應格式 (ApiResponse[T])
-  // 已遷移的端點回傳 {success, data, message, error} 結構
+  // 自動解包統一 API 回應格式 (ApiResponse[T])：{success, data, message}
   if (json && typeof json === "object" && "success" in json && "data" in json) {
+    // 後端的失敗一律走 HTTP 錯誤狀態（上面的 !response.ok），沒有端點會回 success 為 false 的 200。
+    // 真的收到時當成錯誤丟出去：照常解包的話，呼叫端會把 data 的 null 當成成功的結果
     if (!json.success) {
-      const errorObj = json.error;
-      const isStructured = typeof errorObj === "object" && errorObj !== null;
-      const code = isStructured && errorObj.code ? String(errorObj.code) : null;
-      const details = isStructured && errorObj.details != null ? errorObj.details : null;
-      // 訊息優先順序：json.message > errorObj.code > 字串型 errorObj > fallback
-      const message =
-        json.message ||
-        (isStructured ? errorObj.code : null) ||
-        (typeof errorObj === "string" ? errorObj : null) ||
-        API_ERROR_MESSAGES.REQUEST_FAILED;
-      throw new ApiError(response.status, message, code, details);
+      throw new ApiError(response.status, json.message || API_ERROR_MESSAGES.REQUEST_FAILED);
     }
     return json.data as T;
   }
@@ -241,13 +230,6 @@ async function apiCall<T>(
 }
 
 // API 函式
-
-/**
- * 檢查 sidecar 是否運行中。
- */
-export async function checkHealth(): Promise<HealthResponse> {
-  return apiCall<HealthResponse>("/health");
-}
 
 /**
  * 取得追蹤清單中所有儲存庫。
@@ -526,13 +508,6 @@ export async function removeRepoFromCategory(
   return apiCall(`/categories/${categoryId}/repos/${repoId}`, {
     method: "DELETE",
   });
-}
-
-/**
- * 取得儲存庫所屬的分類。
- */
-export async function getRepoCategories(repoId: number): Promise<RepoCategoriesResponse> {
-  return apiCall<RepoCategoriesResponse>(`/categories/repo/${repoId}/categories`);
 }
 
 // 早期信號 API 函式

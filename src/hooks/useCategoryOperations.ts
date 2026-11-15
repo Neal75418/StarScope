@@ -1,18 +1,15 @@
 /**
- * 分類與 Repo 的關聯操作。
+ * 把 repo 移出分類。
  */
 
-import { useCallback, useState } from "react";
-import { addRepoToCategory, removeRepoFromCategory, getRepoCategories } from "../api/client";
+import { useCallback } from "react";
+import { removeRepoFromCategory } from "../api/client";
 import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
 import { useI18n } from "../i18n";
 
 interface CategoryOperationsResult {
-  isLoading: boolean;
-  addToCategory: (categoryId: number, repoId: number) => Promise<boolean>;
   removeFromCategory: (categoryId: number, repoId: number) => Promise<boolean>;
-  getCategories: (repoId: number) => Promise<{ id: number; name: string }[]>;
 }
 
 export function useCategoryOperations(
@@ -20,69 +17,21 @@ export function useCategoryOperations(
   onError?: (msg: string) => void
 ): CategoryOperationsResult {
   const { t } = useI18n();
-  const [isLoading, setIsLoading] = useState(false);
-
-  // 工廠函數：統一處理分類操作的錯誤處理與載入狀態
-  const createCategoryOperation = useCallback(
-    (
-      operation: (categoryId: number, repoId: number) => Promise<unknown>,
-      errorLogPrefix: string,
-      errorMessage: string
-    ) =>
-      async (categoryId: number, repoId: number): Promise<boolean> => {
-        setIsLoading(true);
-        try {
-          await operation(categoryId, repoId);
-          onSuccess?.();
-          return true;
-        } catch (err) {
-          logger.error(errorLogPrefix, err);
-          onError?.(getErrorMessage(err, errorMessage));
-          return false;
-        } finally {
-          setIsLoading(false);
-        }
-      },
-    [onSuccess, onError]
-  );
-
-  const addToCategory = useCallback(
-    (categoryId: number, repoId: number) =>
-      createCategoryOperation(
-        addRepoToCategory,
-        "[CategoryOps] Repo 加入分類失敗:",
-        t.categories.addFailed
-      )(categoryId, repoId),
-    [createCategoryOperation, t]
-  );
 
   const removeFromCategory = useCallback(
-    (categoryId: number, repoId: number) =>
-      createCategoryOperation(
-        removeRepoFromCategory,
-        "[CategoryOps] Repo 移出分類失敗:",
-        t.categories.removeFailed
-      )(categoryId, repoId),
-    [createCategoryOperation, t]
-  );
-
-  const getCategories = useCallback(
-    async (repoId: number): Promise<{ id: number; name: string }[]> => {
+    async (categoryId: number, repoId: number): Promise<boolean> => {
       try {
-        const response = await getRepoCategories(repoId);
-        return response.categories;
+        await removeRepoFromCategory(categoryId, repoId);
+        onSuccess?.();
+        return true;
       } catch (err) {
-        logger.error("[CategoryOps] 取得 Repo 分類失敗:", err);
-        return [];
+        logger.error("[CategoryOps] Repo 移出分類失敗:", err);
+        onError?.(getErrorMessage(err, t.categories.removeFailed));
+        return false;
       }
     },
-    []
+    [onSuccess, onError, t]
   );
 
-  return {
-    isLoading,
-    addToCategory,
-    removeFromCategory,
-    getCategories,
-  };
+  return { removeFromCategory };
 }

@@ -124,7 +124,7 @@ export function Watchlist() {
     if (categoryReloadFailed) actions.error(t.categories.loadError);
   }, [categoryReloadFailed, actions, t.categories.loadError]);
 
-  // 分類操作：新增 / 移除 repo 至分類，成功後刷新資料
+  // 把 repo 移出分類，成功後刷新資料
   const categoryOps = useCategoryOperations(actions.invalidateRepos, actions.error);
 
   // Memoize handlers 以避免不必要的 re-render

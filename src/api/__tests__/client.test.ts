@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  checkHealth,
   getRepos,
   addRepo,
   unstarRepo,
@@ -19,7 +18,6 @@ import {
   createCategory,
   deleteCategory,
   addRepoToCategory,
-  getRepoCategories,
   listEarlySignals,
   getSignalSummary,
   ApiError,
@@ -86,37 +84,6 @@ describe("API Client", () => {
     it("extends Error", () => {
       const error = new ApiError(500, "Server error");
       expect(error).toBeInstanceOf(Error);
-    });
-  });
-
-  describe("checkHealth", () => {
-    it("returns health status on success", async () => {
-      const mockResponse = {
-        status: "ok",
-        service: "starscope",
-        timestamp: "2024-01-15T10:00:00Z",
-      };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await checkHealth();
-      expect(result).toEqual(mockResponse);
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining("/health"),
-        expect.any(Object)
-      );
-    });
-
-    it("throws ApiError on failure", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        json: async () => ({ detail: "Service unavailable" }),
-      });
-
-      await expect(checkHealth()).rejects.toThrow(ApiError);
     });
   });
 
@@ -318,7 +285,7 @@ describe("API Client", () => {
       });
 
       try {
-        await checkHealth();
+        await getRepos();
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);
         expect((e as ApiError).detail).toBe("Validation failed");
@@ -334,18 +301,17 @@ describe("API Client", () => {
       });
 
       try {
-        await checkHealth();
+        await getRepos();
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);
         expect((e as ApiError).detail).toContain("HTTP 418");
       }
     });
 
-    // {success: false} envelope 是所有已遷移端點的錯誤出口——
-    // 四層 message 優先序（json.message > error.code > 字串 error > fallback）
-    // 改壞會讓全站錯誤訊息靜默劣化，逐層釘住。
-    describe("{success: false} envelope unwrapping", () => {
-      function mockEnvelopeError(payload: Record<string, unknown>) {
+    // 後端的失敗都走 HTTP 錯誤狀態，沒有端點會回 success 為 false 的 200；
+    // 真的收到時要當成錯誤，不能把 data 的 null 當成成功的結果交給呼叫端
+    describe("an envelope that says success: false", () => {
+      function mockFailedEnvelope(payload: Record<string, unknown>) {
         mockFetch.mockResolvedValueOnce({
           ok: true,
           status: 200,
@@ -353,40 +319,17 @@ describe("API Client", () => {
         });
       }
 
-      it("json.message wins; code and details ride along", async () => {
-        mockEnvelopeError({
-          message: "Friendly message",
-          error: { code: "ERR_X", details: { field: "term" } },
-        });
+      it("is thrown as an error carrying the envelope's message", async () => {
+        mockFailedEnvelope({ message: "Friendly message" });
 
         await expect(getRepos()).rejects.toMatchObject({
           status: 200,
           detail: "Friendly message",
-          code: "ERR_X",
-          details: { field: "term" },
         });
       });
 
-      it("falls back to error.code when message is absent", async () => {
-        mockEnvelopeError({ error: { code: "ERR_CODE_ONLY" } });
-
-        await expect(getRepos()).rejects.toMatchObject({
-          detail: "ERR_CODE_ONLY",
-          code: "ERR_CODE_ONLY",
-        });
-      });
-
-      it("uses string-typed error as the message", async () => {
-        mockEnvelopeError({ error: "plain string error" });
-
-        await expect(getRepos()).rejects.toMatchObject({
-          detail: "plain string error",
-          code: null,
-        });
-      });
-
-      it("falls back to generic message when envelope carries nothing", async () => {
-        mockEnvelopeError({});
+      it("falls back to a generic message when the envelope has none", async () => {
+        mockFailedEnvelope({});
 
         await expect(getRepos()).rejects.toMatchObject({
           detail: "API request failed",
@@ -442,7 +385,7 @@ describe("API Client", () => {
       mockFetch.mockRejectedValue("string error");
 
       try {
-        await checkHealth();
+        await getRepos();
       } catch (e) {
         expect(e).toBeInstanceOf(ApiError);
         expect((e as ApiError).detail).toContain("Network error");
@@ -538,19 +481,6 @@ describe("API Client", () => {
 
       const result = await addRepoToCategory(1, 5);
       expect(result.status).toBe("success");
-    });
-  });
-
-  describe("getRepoCategories", () => {
-    it("returns categories for repo", async () => {
-      const mockResponse = { repo_id: 1, categories: [], total: 0 };
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await getRepoCategories(1);
-      expect(result.repo_id).toBe(1);
     });
   });
 
@@ -1324,7 +1254,7 @@ describe("retry policy: writes are sent once, reads retry", () => {
   const okEnvelope = (data: unknown) => ({
     ok: true,
     status: 200,
-    json: async () => ({ success: true, data, message: "", error: null }),
+    json: async () => ({ success: true, data, message: "" }),
   });
 
   it.each([

@@ -260,7 +260,7 @@ StarScope/
 
 ## 🔌 API 端點
 
-所有端點使用統一 `ApiResponse[T]` 格式回傳 `{success, data, message, error}`：
+JSON 端點成功時使用統一的 `ApiResponse[T]` 格式 `{success, data, message}`（檔案下載不包這一層）；失敗回 HTTP 錯誤狀態，body 是 `{"detail"}`（部分錯誤另帶 `code`）：
 
 | 路由模組              | 前綴                     | 說明                                    |
 |-------------------|------------------------|---------------------------------------|

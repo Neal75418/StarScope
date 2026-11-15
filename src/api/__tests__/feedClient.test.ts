@@ -23,7 +23,7 @@ global.fetch = mockFetch;
 function mockEnvelopeOnce(data: unknown) {
   mockFetch.mockResolvedValueOnce({
     ok: true,
-    json: async () => ({ success: true, data, message: null, error: null }),
+    json: async () => ({ success: true, data, message: null }),
   });
 }
 

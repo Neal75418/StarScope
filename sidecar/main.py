@@ -405,7 +405,6 @@ app.add_middleware(UnhandledErrorMiddleware)
 app.add_middleware(
     LoggingMiddleware,
     exclude_paths=["/api/health", "/"],
-    log_headers=DEBUG,  # 僅在 debug 模式記錄 headers
 )
 
 # noinspection PyTypeChecker

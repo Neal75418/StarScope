@@ -53,7 +53,6 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => 
       success: true,
       data: { status: "ok", service: "starscope-engine", timestamp: "2026-09-26T00:00:00+00:00" },
       message: "Service is healthy",
-      error: null,
     });
   }
   if (url === `${API_ENDPOINT}/repos`) return jsonResponse({ repos: [], total: reposTotal });

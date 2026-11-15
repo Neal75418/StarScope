@@ -49,7 +49,6 @@ test.describe("Discovery Flow", () => {
             has_more: false,
           },
           message: null,
-          error: null,
         }),
       });
     });
@@ -61,7 +60,9 @@ test.describe("Discovery Flow", () => {
   });
 
   test("discovery page loads with search bar", async ({ page }) => {
-    await expect(page.locator('[data-testid="discovery-search-input"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[data-testid="discovery-search-input"]')).toBeVisible({
+      timeout: 5000,
+    });
     await expect(page.locator('[data-testid="discovery-search-submit"]')).toBeVisible();
   });
 
@@ -76,7 +77,9 @@ test.describe("Discovery Flow", () => {
     await searchInput.fill("react");
     await page.locator('[data-testid="discovery-search-submit"]').click();
 
-    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test("filter controls are visible", async ({ page }) => {
@@ -91,7 +94,9 @@ test.describe("Discovery Flow", () => {
     await dailyBtn.click();
 
     await expect(
-      page.locator('[data-testid="discovery-results"]').or(page.locator('[data-testid^="discovery-result-"]').first())
+      page
+        .locator('[data-testid="discovery-results"]')
+        .or(page.locator('[data-testid^="discovery-result-"]').first())
     ).toBeVisible({ timeout: 30000 });
   });
 
@@ -100,13 +105,17 @@ test.describe("Discovery Flow", () => {
     await searchInput.fill("vue");
     await page.locator('[data-testid="discovery-search-submit"]').click();
 
-    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
 
     await searchInput.clear();
     await searchInput.fill("svelte");
     await page.locator('[data-testid="discovery-search-submit"]').click();
 
-    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test("filter-only search (language, no keyword) shows results", async ({ page }) => {
@@ -121,9 +130,8 @@ test.describe("Discovery Flow", () => {
     await langSelect.selectOption("Python");
 
     // 等待搜尋結果出現
-    await expect(
-      page.locator('[data-testid^="discovery-result-"]').first()
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid^="discovery-result-"]').first()).toBeVisible({
+      timeout: 15000,
+    });
   });
-
 });

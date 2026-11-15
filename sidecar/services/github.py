@@ -284,13 +284,6 @@ class GitHubService:
             context=f"{owner}/{repo} releases/latest",
         )
 
-    async def get_repo_stargazers_count(self, owner: str, repo: str) -> int:
-        """
-        取得 repo 目前的 star 數。
-        """
-        data = await self.get_repo(owner, repo)
-        return int(data.get("stargazers_count", 0))
-
     async def search_repos(
         self,
         query: str,
@@ -434,46 +427,6 @@ class GitHubService:
 
         logger.info(f"[GitHub API] 已抓取 {owner}/{repo} 的 {len(all_stargazers)} 個 stargazers")
         return all_stargazers
-
-    async def get_user_starred(self, per_page: int = 100, max_pages: int = 50) -> list[dict]:
-        """
-        取得當前認證使用者的 starred repos。
-
-        使用 GET /user/starred API，需要有效的 OAuth token。
-        分頁取得所有結果，上限 per_page * max_pages 筆。
-
-        Returns:
-            Starred repo 列表，每項包含 full_name、owner、name 等欄位。
-        """
-        all_starred: list[dict] = []
-
-        for page in range(1, max_pages + 1):
-            response = await self.client.get(
-                f"{GITHUB_API_BASE}/user/starred",
-                headers=self.headers,
-                params={
-                    "per_page": per_page,
-                    "page": page,
-                    "sort": "created",
-                    "direction": "desc",
-                },
-            )
-
-            data = handle_github_list_response(
-                response, raise_on_error=True, context=f"user/starred?page={page}"
-            )
-
-            if not data:
-                break
-
-            all_starred.extend(data)
-
-            if len(data) < per_page:
-                break
-
-        logger.info(f"[GitHub API] 已取得使用者的 {len(all_starred)} 個 starred repos")
-        return all_starred
-
 
     async def get_user_starred_with_dates(self, per_page: int = 100,
                                           max_pages: int = 50) -> "StarredFetch":

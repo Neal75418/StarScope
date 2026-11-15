@@ -23,50 +23,36 @@ def _build_app(**middleware_kwargs) -> TestClient:
     def health() -> dict:
         return {"ok": True}
 
-    return TestClient(app)
+    @app.get("/api/boom")
+    def boom() -> dict:
+        raise RuntimeError("handler failed")
+
+    return TestClient(app, raise_server_exceptions=False)
 
 
-class TestSensitiveHeaderRedaction:
-    """驗證 log_headers=True 時敏感 header 會被遮蔽、一般 header 保留。"""
+class TestRequestSecretsStayOutOfTheLog:
+    """middleware 的 log 記方法、路徑、狀態與耗時，錯誤 log 另帶例外訊息與 traceback；
+    headers 與 query 可能帶祕密，不放進訊息，也不掛在 LogRecord 上。"""
 
-    @staticmethod
-    def _request_log_record(caplog: pytest.LogCaptureFixture) -> logging.LogRecord:
-        records = [r for r in caplog.records if "-->" in r.getMessage()]
-        assert records, "middleware 應記錄 request log"
-        return records[0]
-
-    def test_sensitive_headers_redacted_in_log_record(self, caplog: pytest.LogCaptureFixture) -> None:
-        client = _build_app(log_headers=True)
-        with caplog.at_level(logging.INFO, logger="starscope.middleware"):
+    @pytest.mark.parametrize("path", ["/api/echo", "/api/boom"])
+    def test_headers_and_query_never_reach_the_log(self, caplog: pytest.LogCaptureFixture, path: str) -> None:
+        """正常回應與 handler 丟例外兩條路徑都看（後者走 middleware 的錯誤 log）。"""
+        client = _build_app()
+        with caplog.at_level(logging.DEBUG):
             client.get(
-                "/api/echo",
-                headers={
-                    "Authorization": "Bearer token123",
-                    "X-Session-Secret": "secret-value",
-                    "X-GitHub-Token": "ghp_xxx",
-                    "Content-Type": "application/json",
-                },
+                f"{path}?token=query-secret",
+                headers={"Authorization": "Bearer header-secret", "X-Session-Secret": "session-secret"},
             )
 
-        # extra={...} 塞進 LogRecord 的欄位是動態屬性，用 getattr 讓型別檢查通過
-        headers: dict[str, str] = getattr(self._request_log_record(caplog), "headers")
-        assert headers["authorization"] == "***"
-        assert headers["x-session-secret"] == "***"
-        assert headers["x-github-token"] == "***"
-        # 一般 header 不遮蔽
-        assert headers["content-type"] == "application/json"
-        # 原始值絕不可出現在整包 log 資料中
-        assert "secret-value" not in str(headers)
-
-    def test_headers_absent_when_log_headers_disabled(self, caplog: pytest.LogCaptureFixture) -> None:
-        """預設 log_headers=False：headers 完全不進 log（比遮蔽更強的保證）。"""
-        client = _build_app(log_headers=False)
-        with caplog.at_level(logging.INFO, logger="starscope.middleware"):
-            client.get("/api/echo", headers={"X-Session-Secret": "secret-value"})
-
-        record = self._request_log_record(caplog)
-        assert not hasattr(record, "headers")
-        assert "secret-value" not in caplog.text
+        # TestClient 底下的 HTTP 用戶端會把它送出的網址記下來：那是測試這一端的 log，不是伺服器的
+        server_records = [r for r in caplog.records if r.name.split(".")[0] not in {"httpx", "httpx2", "httpcore"}]
+        assert [r for r in server_records if "-->" in r.getMessage()], "middleware 應記錄 request log"
+        assert [r for r in server_records if "<--" in r.getMessage()], "middleware 應記錄 response 或錯誤 log"
+        for record in server_records:
+            # 訊息之外，extra 掛上去的動態屬性也會被結構化的 handler 送出去：整個 __dict__ 一起看
+            everything = record.getMessage() + repr(vars(record))
+            for secret in ("query-secret", "header-secret", "session-secret"):
+                assert secret not in everything
 
 
 class TestExcludePaths:

@@ -7,15 +7,11 @@ from .repo import (
     RepoResponse,
     RepoWithSignals,
     RepoListResponse,
-    StarredRepo,
-    StarredReposResponse,
     BatchRepoCreate,
     BatchImportResult,
 )
 from .response import (
     ApiResponse,
-    PaginationInfo,
-    ErrorDetail,
     StatusResponse,
     success_response,
 )
@@ -30,14 +26,10 @@ __all__ = [
     "RepoResponse",
     "RepoWithSignals",
     "RepoListResponse",
-    "StarredRepo",
-    "StarredReposResponse",
     "BatchRepoCreate",
     "BatchImportResult",
     # 回應 schemas
     "ApiResponse",
-    "PaginationInfo",
-    "ErrorDetail",
     "StatusResponse",
     "success_response",
     # 探索 schemas

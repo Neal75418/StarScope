@@ -210,18 +210,6 @@ class TestGitHubServiceGetRepo:
             assert result == {"stargazers_count": 1000}
             mock_client.get.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_get_repo_stargazers_count(self):
-        """Test get_repo_stargazers_count convenience method."""
-        service = GitHubService()
-
-        with patch.object(service, 'get_repo', new_callable=AsyncMock) as mock_get:
-            mock_get.return_value = {"stargazers_count": 5000}
-
-            result = await service.get_repo_stargazers_count("owner", "repo")
-
-            assert result == 5000
-
 
 class TestGitHubServiceTokenPriority:
     """Tests for GitHub service token priority."""

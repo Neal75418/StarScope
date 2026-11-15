@@ -15,7 +15,6 @@ let mockReturnValue: {
   notifications: Notification[];
   unreadCount: number;
   isLoading: boolean;
-  error: string | null;
   loadFailed: boolean;
   loadInProgress: boolean;
   isOpen: boolean;
@@ -52,7 +51,6 @@ describe("NotificationCenter", () => {
       notifications: [],
       unreadCount: 0,
       isLoading: false,
-      error: null,
       loadFailed: false,
       loadInProgress: false,
       isOpen: false,
@@ -118,13 +116,10 @@ describe("NotificationCenter", () => {
     // 「沒有通知」與「讀不到」是兩件事：讀不到時說沒有，等於告訴使用者沒有警報被觸發
     mockReturnValue.isOpen = true;
     mockReturnValue.loadFailed = true;
-    mockReturnValue.error = "HTTP 500";
     render(<NotificationCenter onNavigate={mockOnNavigate} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent("Couldn't load notifications");
     expect(screen.queryByText("No notifications")).not.toBeInTheDocument();
-    // 畫面上是翻譯過的句子，不是後端的原始訊息
-    expect(screen.queryByText(/HTTP 500/)).not.toBeInTheDocument();
   });
 
   it("fetches again when retry is pressed on the load error", async () => {

@@ -27,24 +27,8 @@ _query_stats = {
 }
 
 
-def setup_query_logging(engine: Engine, enable: bool = True) -> None:
-    """
-    設定資料庫查詢日誌監聽器。
-
-    Args:
-        engine: SQLAlchemy Engine 實例
-        enable: 是否啟用查詢日誌（預設 True）
-
-    Example::
-
-        from db.database import engine
-        from db.query_logger import setup_query_logging
-        setup_query_logging(engine)
-    """
-    if not enable:
-        logger.info("[查詢日誌] 查詢日誌已停用")
-        return
-
+def setup_query_logging(engine: Engine) -> None:
+    """在 engine 上掛查詢日誌的監聽器。要不要掛由呼叫端決定（見 database.py 的 init_db）。"""
     @event.listens_for(engine, "before_cursor_execute")
     def before_cursor_execute(conn, _cursor, statement, _parameters, _context, _executemany):
         """查詢執行前的事件處理器"""

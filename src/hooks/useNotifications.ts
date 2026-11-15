@@ -48,7 +48,7 @@ export function useNotifications() {
   const osNotification = useOSNotification();
 
   // 輪詢邏輯（整合 OS 通知）
-  const { isLoading, error, loadFailed, loadInProgress, refresh } = useNotificationPolling(
+  const { isLoading, loadFailed, loadInProgress, refresh } = useNotificationPolling(
     setNotifications,
     readIdsRef,
     osNotification
@@ -67,7 +67,6 @@ export function useNotifications() {
     notifications,
     unreadCount,
     isLoading,
-    error,
     loadFailed,
     loadInProgress,
     isOpen,

@@ -37,7 +37,6 @@ class TestContextEndpoints:
         # 驗證統一的 API 響應格式
         assert data["success"] is True
         assert "data" in data
-        assert data["error"] is None
         badges_response = data["data"]
         assert badges_response["repo_id"] == mock_repo.id
         assert badges_response["badges"] == []
@@ -50,7 +49,6 @@ class TestContextEndpoints:
         # 驗證統一的 API 響應格式
         assert data["success"] is True
         assert "data" in data
-        assert data["error"] is None
         signals_response = data["data"]
         assert signals_response["repo_id"] == mock_repo.id
         assert signals_response["total"] == 0

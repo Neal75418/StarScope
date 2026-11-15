@@ -57,7 +57,6 @@ class TestDiscoverySearch:
         # 驗證統一的 API 響應格式
         assert response_data["success"] is True
         assert "data" in response_data
-        assert response_data["error"] is None
 
         data = response_data["data"]
         assert data["total_count"] == 2

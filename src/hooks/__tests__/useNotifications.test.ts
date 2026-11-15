@@ -20,7 +20,6 @@ vi.mock("../useNotificationStorage", () => ({
 
 const idlePolling = {
   isLoading: false,
-  error: null as string | null,
   loadFailed: false,
   loadInProgress: false,
   refresh: vi.fn(),
@@ -64,7 +63,6 @@ describe("useNotifications", () => {
     const refresh = vi.fn();
     pollingResult = {
       isLoading: true,
-      error: "HTTP 500",
       loadFailed: true,
       loadInProgress: true,
       refresh,
@@ -73,7 +71,6 @@ describe("useNotifications", () => {
     const { result } = renderHook(() => useNotifications());
 
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.error).toBe("HTTP 500");
     expect(result.current.loadFailed).toBe(true);
     expect(result.current.loadInProgress).toBe(true);
     expect(result.current.refresh).toBe(refresh);

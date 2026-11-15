@@ -40,10 +40,10 @@ describe("useAlertRuleData", () => {
 
     const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.dataLoad.ready).toBe(false);
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.dataLoad.ready).toBe(true);
     });
 
     expect(result.current.rules).toEqual(rules);
@@ -108,9 +108,8 @@ describe("useAlertRuleData", () => {
     const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.dataLoad.failed).toBe(true);
     });
-    expect(result.current.dataLoad.failed).toBe(true);
   });
 
   it("exposes loadRules for manual refresh", async () => {
@@ -121,7 +120,7 @@ describe("useAlertRuleData", () => {
     const { result } = renderHook(() => useAlertRuleData(), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.dataLoad.ready).toBe(true);
     });
 
     const newRules = [{ id: 2, name: "New Rule" }];

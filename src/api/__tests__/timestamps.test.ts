@@ -76,7 +76,6 @@ describe("API responses", () => {
         success: true,
         data: { signals: [{ id: 1, detected_at: oneHourAgoNaiveUtc }], total: 1 },
         message: null,
-        error: null,
       }),
     });
 

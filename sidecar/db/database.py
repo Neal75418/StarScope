@@ -10,6 +10,8 @@ from sqlalchemy.schema import ColumnCollectionConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
+from .query_logger import setup_query_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -294,8 +296,4 @@ def init_db():
     # 在開發環境或設定 DEBUG=true 時啟用
     enable_query_logging = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
     if enable_query_logging or os.getenv("ENABLE_QUERY_LOGGING", "false").lower() in ("true", "1", "yes"):
-        try:
-            from .query_logger import setup_query_logging
-            setup_query_logging(engine, enable=True)
-        except ImportError:
-            logger.warning("[查詢日誌] 模組不可用，跳過查詢日誌設定")
+        setup_query_logging(engine)

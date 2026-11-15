@@ -37,8 +37,7 @@ async def health_check() -> dict:
                 "service": "starscope-engine",
                 "timestamp": "2024-02-21T10:30:00.123Z"
             },
-            "message": "Service is healthy",
-            "error": null
+            "message": "Service is healthy"
         }
     """
     health_data = HealthStatus(

@@ -128,7 +128,6 @@ describe("Settings", () => {
     vi.clearAllMocks();
     mockAlertsReturn = {
       rules: [],
-      isLoading: false,
       isSubmitting: false,
       editingRule: null,
       editingRuleData: null,
@@ -152,7 +151,6 @@ describe("Settings", () => {
 
   it("keeps every section on screen while the alert data is still loading", () => {
     // 警報資料只是其中一個區塊：整頁換成「載入中」的話，其他區塊打到一半的字、捲動位置都會不見
-    mockAlertsReturn.isLoading = true;
     mockAlertsReturn.rulesLoad = { ready: false, failed: false, inProgress: true, retry: vi.fn() };
     mockAlertsReturn.dataLoad = { ready: false, failed: false, inProgress: true, retry: vi.fn() };
     renderWithClient(<Settings />);
@@ -311,7 +309,7 @@ describe("Settings", () => {
   });
 
   it("does not claim no rules are configured before the rules are loaded", () => {
-    // 查詢暫停時 isLoading 是 false，頁面照常畫出來，但規則還沒讀到
+    // 查詢暫停時沒有東西在讀，但規則還沒讀到
     mockAlertsReturn.rulesLoad = { ready: false, failed: false, inProgress: false, retry: vi.fn() };
     renderWithClient(<Settings />);
 
@@ -320,9 +318,8 @@ describe("Settings", () => {
   });
 
   it("keeps the page and the load error in place while a retry of the alert data runs", () => {
-    // 還沒有資料時重試一開始，isLoading 又變回 true：整頁換成「載入中」的話重試鈕跟著消失，
+    // 重試進行中，頁面與錯誤列都要留在原位：整頁換成「載入中」的話重試鈕跟著消失，
     // 再失敗一次錯誤又掉回頁尾
-    mockAlertsReturn.isLoading = true;
     const retrying = { ready: false, failed: true, inProgress: true, retry: vi.fn() };
     mockAlertsReturn.rulesLoad = retrying;
     mockAlertsReturn.dataLoad = retrying;

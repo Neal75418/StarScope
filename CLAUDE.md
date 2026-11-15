@@ -180,7 +180,7 @@ tag 也不能移動，發佈前先確認安裝檔。
   任何會啟動打包版或 sidecar 的實驗都要設 `STARSCOPE_DATA_DIR`。Rust 不能用任何環境變數傳資料目錄給 sidecar，`STARSCOPE_DATA_DIR`
   也不行（它最優先）：以前傳過 `TAURI_APP_DATA_DIR`，安裝版就看不到 collector 寫的資料。Python 端忽略 `TAURI_APP_DATA_DIR` 由
   `tests/test_app_data_dir.py` 守住，Rust 端沒有測試守。除錯找資料庫時別在 `sidecar/` 底下找
-- 所有端點回傳統一的 `ApiResponse[T]`：`{success, data, message, error}`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data`
+- 成功的回應是統一的 `ApiResponse[T]`：`{success, data, message}`；失敗回 HTTP 錯誤狀態，body 是 `{"detail"}`，部分 exception handler 另帶 `code`。前端 `client.ts` 的 `doFetch` **會自動 unwrap `data`
   欄位**——新增端點時若忘了包 `success_response()`，前端會拿到 undefined
 - 桌面應用的前端與後端一起打包發佈（同一個 Tauri binary），版本始終一致，因此 API 不需要 `/api/v1/` 版本前綴
 - ⚠️ Tauri 的 WebView 不處理 `<a download>`（wry 沒有 download handler 時直接取消），存檔一律用 `utils/saveFile`

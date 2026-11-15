@@ -16,7 +16,7 @@ test.describe("Degradation", () => {
       route.fulfill({
         status: 503,
         contentType: "application/json",
-        body: JSON.stringify({ success: false, data: null, error: "Service unavailable" }),
+        body: JSON.stringify({ detail: "Service unavailable" }),
       })
     );
   });

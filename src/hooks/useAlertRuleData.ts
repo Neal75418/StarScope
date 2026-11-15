@@ -62,7 +62,6 @@ export function useAlertRuleData() {
     setRules,
     signalTypes: signalTypesQuery.data ?? [],
     repos: reposQuery.data ?? [],
-    isLoading: rulesQuery.isLoading || signalTypesQuery.isLoading || reposQuery.isLoading,
     /** 規則清單讀到了沒：清單與「尚未設定警報規則」看這個 */
     rulesLoad,
     /** 整個警報區塊用到的三份資料（規則、訊號類型、repo）合起來：「讀不到＋重試」看這個 */
