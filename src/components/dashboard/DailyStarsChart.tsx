@@ -1,9 +1,9 @@
 /**
  * 每日新增星數長條圖。
  *
- * 取代原本的「組合星數歷史」折線。那張折線畫的是總星數，8.42M 的基數上
- * 一週漲 1.28%——實測折線垂直跨度 1.3px、繪圖區 126px，永遠是一條水平線。
- * 換成增量之後 Y 軸從 0 起算才有意義，同樣的資料就回到看得見的尺度。
+ * 畫增量而不是總星數：總星數的折線在 8.42M 的基數上一週只漲 1.28%——
+ * 實測折線垂直跨度 1.3px、繪圖區 126px，永遠是一條水平線。
+ * 增量的 Y 軸從 0 起算才有意義，同樣的資料就回到看得見的尺度。
  *
  * 換算規則（缺口攤平、今天未過完）在 utils/dailyStars.ts；清單成員變動在後端的
  * stars_gained 就排除了。
@@ -173,12 +173,11 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
                 radius={[3, 3, 0, 0]}
                 maxBarSize={48}
                 isAnimationActive={false}
-                // shape 取代 Cell（Cell 在 Recharts 4 會被移除）。
+                // 用 shape 而不是 Cell（Cell 在 Recharts 4 會被移除）。
                 // 用 Recharts 附在這根長條上的 payload 回查，不能用 props.index 去索引
                 // result.bars：資料縮短的那一次 render，Recharts 的 store 要到 effect 才
                 // 更新，Bar 仍拿舊資料的 rectangle 呼叫 shape，index 會超過新陣列長度——
-                // 第三方審查以 30→7 天切換重現過整頁被 ErrorBoundary 換掉。舊的 Cell
-                // 路徑有 cells[index] && 守著，遷移時漏了。payload 跟正在畫的那根永遠一致。
+                // 從 30 天切到 7 天時整頁會被 ErrorBoundary 換掉。payload 跟正在畫的那根永遠一致。
                 shape={(props: BarShapeProps) => {
                   const bar = props.payload as DailyStarBar | undefined;
                   return (

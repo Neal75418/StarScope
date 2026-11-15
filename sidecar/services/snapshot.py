@@ -31,14 +31,12 @@ def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> Non
     必須是 INSERT ... ON CONFLICT 而不是先查後寫：App 與 launchd 無頭收集器是
     兩個行程，登入時（App 自啟 + RunAtLoad）會在同一分鐘內各自抓同一批 repo，
     check-then-act 會讓後 commit 的一方撞 uq_snapshot_repo_date，該 repo 整輪
-    更新被 rollback 沖銷。隔壁 analyzer.calculate_signals 的同款 race 已用
-    upsert 修過，這裡是漏掉的 sibling（第三方審查發現）。
+    更新被 rollback 沖銷。analyzer.calculate_signals 有同款 race，也是用 upsert。
 
-    附帶的刻意行為：SessionLocal 是 autoflush=False，舊的 ORM add() 寫法讓
+    附帶的刻意行為：SessionLocal 是 autoflush=False，用 ORM 的 add() 寫的話，
     「當天首次抓取」的快照在同一 transaction 內的 calculate_signals 看不到
-    （尚未 flush），每天第一輪的 stars_delta_1d 都被吞成 None。core upsert
-    立即落 DB，同 transaction 的 SELECT 查得到。若改回 ORM 寫法會靜默退化，
-    有測試釘住。
+    （尚未 flush），每天第一輪的 stars_delta_1d 都會被吞成 None。core upsert
+    立即落 DB，同 transaction 的 SELECT 查得到；有測試釘住這件事。
     """
     stmt = sqlite_insert(RepoSnapshot).values(
         repo_id=repo.id,

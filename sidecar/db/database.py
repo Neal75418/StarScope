@@ -24,8 +24,9 @@ def get_app_data_dir() -> Path:
     1. STARSCOPE_DATA_DIR — 明確覆蓋（測試、smoke test、打包版實測的隔離）
     2. ~/.starscope
 
-    不讀 TAURI_APP_DATA_DIR：安裝版以前由 Rust 傳入 Application Support 底下的路徑，
-    結果看不到 collector 寫的資料。
+    環境裡就算有 TAURI_APP_DATA_DIR 也不採用（有測試釘住）：Tauri 的 app data 目錄
+    在 macOS 是 Application Support 底下，用它的話安裝版看不到 collector 寫的資料。
+    Rust 端啟動 sidecar 時也不傳資料目錄（見 src-tauri/src/lib.rs）。
     """
     if env_path := os.environ.get("STARSCOPE_DATA_DIR"):
         return Path(env_path)
@@ -165,7 +166,7 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
 
     來源是 model 本身，不是手工維護的清單：清單漏登記時，開發者的空資料庫由
     create_all() 建好、一切正常，只有既有使用者會在查詢時炸「no such column」，
-    而那是本機重現不出來的。改成從 metadata 推導後，這個失敗模式不存在。
+    而那是本機重現不出來的。從 metadata 推導就沒有這個失敗模式。
 
     create_all() 只建新表、對已存在的表完全不動，所以這一步不可省。
 
@@ -235,7 +236,7 @@ def ensure_columns(target_engine: Engine | None = None, metadata: MetaData | Non
     # 資料庫側同時記名字與欄位組合，三種情況分開處理：
     #   - 同欄位組合已有非唯一、非 partial 的索引（不論名字）→ 已對齊，不動
     #   - 同名但欄位組合不同、或是 partial index → 非唯一索引可以安全重建（DROP + CREATE）。
-    #     只靠 IF NOT EXISTS 會因為同名而無聲跳過，還記一條假的「已補上」（重審抓到的）
+    #     只靠 IF NOT EXISTS 會因為同名而無聲跳過，還記一條假的「已補上」
     #   - 同名但資料庫側是唯一索引 → 拒絕：拿掉唯一約束是 migration 的決定，不該在啟動時默默做
     # 比對不到 partial index 的 WHERE 條件與 expression index（PRAGMA index_info 對運算式回 None），
     # model 裡沒有這兩種；若出現，前者會被當成不對齊而重建、後者會被當成缺少而建立。
@@ -292,8 +293,7 @@ def init_db():
     install_archive_filter()
     logger.info(f"[資料庫] 初始化完成: {DATABASE_PATH}")
 
-    # 啟用查詢效能監控（慢查詢日誌）
-    # 在開發環境或設定 DEBUG=true 時啟用
+    # 查詢效能監控（慢查詢日誌）：DEBUG 或 ENABLE_QUERY_LOGGING 設成 true／1／yes 才掛上
     enable_query_logging = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
     if enable_query_logging or os.getenv("ENABLE_QUERY_LOGGING", "false").lower() in ("true", "1", "yes"):
         setup_query_logging(engine)

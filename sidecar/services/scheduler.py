@@ -382,15 +382,14 @@ async def fetch_all_repos_holding_lock(skip_recent_minutes: int = 30) -> dict[st
             #    trigger_fetch_now() 在啟動時叫過，掛在這裡等於同時拿到
             #    「啟動」與「定期」兩條路徑。
             #
-            # 在此之前 run_detection 沒有任何呼叫端——early_signals 表從產品上線
-            # 到 2026-08-23 都是 0 筆，儀表板的訊號區塊因此永遠不出現。
-            # 成本：94 個 repo 實測 22 ms。
+            # 這裡是 run_detection 唯一的呼叫端：拿掉的話不會再有新的訊號，既有的過期（3 或 7 天）後
+            # 儀表板一直顯示「已檢查 N 個、目前沒有訊號」，看不出偵測根本沒跑。成本：94 個 repo 實測 22 ms。
             try:
                 from services.anomaly_detector import run_detection
                 detection = run_detection(db)
                 if detection.get("save_failed"):
-                    # 「偵測到但存不進去」不能報成「寫入 0 個」——early_signals 曾經
-                    # 空了幾個月沒人發現，這條路徑會讓同樣的黑洞換個入口重演
+                    # 「偵測到但存不進去」不能報成「寫入 0 個」：early_signals 是空的時候
+                    # 畫面上看不出任何異常，報成 0 個的話它會在沒人發現的情況下一直空著
                     log.error(
                         f"[排程] [{job_id}] 早期訊號偵測: 偵測到訊號但儲存失敗 {detection['by_type']}"
                     )

@@ -348,10 +348,8 @@ export function Dashboard() {
         <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
 
-      {/* 段一：自上次以來。取代原本的四張統計卡與健康分數卡——那些合計 293px，
-          只為了說「沒事」。同時取代 DataFreshnessBar：更新時間與手動重整
-          都在這裡，沒有別的入口了，所以不放進 FadeIn 的延遲佇列——這是
-          使用者最先要看到的東西 */}
+      {/* 段一：自上次以來。更新時間與手動重整都在這裡，沒有別的入口，
+          所以不放進 FadeIn 的延遲佇列——這是使用者最先要看到的東西 */}
       <DigestPanel
         digest={digest.digest}
         isLoading={digest.isLoading}

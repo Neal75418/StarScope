@@ -124,8 +124,8 @@ def _snapshot_pair(
     past_date = today - timedelta(days=days)
 
     if snap_by_date is not None:
-        # 與窗口成比例，但保留原本的絕對上限：只寫 days // 2 會把三十日窗的回溯
-        # 放寬到十五天，修好短窗卻弄壞長窗
+        # 與窗口成比例，但有 7 天的絕對上限：只寫 days // 2 的話，三十日窗的過去端
+        # 可以回溯十五天，差值最多跨 45 天卻仍算作三十日的差值
         backtrack = min(days // 2, 7)
         current_snapshot = _find_snapshot(snap_by_date, today, 0)
         past_snapshot = _find_snapshot(snap_by_date, past_date, backtrack)
@@ -206,8 +206,8 @@ def calculate_acceleration(
     last_week_velocity = (week_ago_snapshot.stars - two_week_ago_snapshot.stars) / last_span
 
     # 以百分比變化計算 acceleration。上週實質為零時比例沒有定義：
-    # 先前回 ±1.0 當暗號，前端顯示成 ±100%，跟「每天 5 顆變 10 顆」的真實 +100% 撞在
-    # 同一個值上，永遠分不出來（實測 3/94 個 repo 中招）。回 None 讓消費端顯示「—」；
+    # 回 ±1.0 當暗號的話，前端顯示成 ±100%，跟「每天 5 顆變 10 顆」的真實 +100% 撞在
+    # 同一個值上，永遠分不出來（實測 3/94 個 repo 會遇到）。回 None 讓消費端顯示「—」；
     # calculate_trend 對 None 本來就是「沒有加速度資訊」，零活動的 repo 會判穩定而不是
     # 靠暗號判成強烈衰退。兩週都沒動則是真的「沒變」，0 是誠實的
     if abs(last_week_velocity) < 0.001:  # 實質為零
@@ -266,7 +266,7 @@ def calculate_signals(repo_id: int, db: Session) -> dict:
 
     # 預載此 repo 的快照（一次查詢）。下界由**回溯規則導出**而不是憑記憶寫死：
     # 最長的窗口是 30 天，而 _snapshot_pair 允許回溯 min(30 // 2, 7) = 7 天，
-    # 所以最遠可能需要 today-37。先前寫 31 天，等於把 30 日窗的回溯悄悄壓成 1 天——
+    # 所以最遠可能需要 today-37。只取 31 天等於把 30 日窗的回溯悄悄壓成 1 天——
     # today-30 與 today-31 同時缺快照（24 天內發生過兩次）就會讓三個 30d 訊號算不出來
     today = utc_today()
     earliest_needed = MAX_SIGNAL_WINDOW_DAYS + min(MAX_SIGNAL_WINDOW_DAYS // 2, 7)

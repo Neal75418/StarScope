@@ -1,7 +1,7 @@
 """量測 GitHub 對 star 寫入的次級速率限制門檻。
 
 ⚠️ 這支腳本會對你的真實 GitHub 帳號連續發出寫入請求。它不是執行同步功能的必要
-條件——`GitHubService._write_star` 已經改成讀取回應中的 `Retry-After` 來退避，
+條件——`GitHubService._write_star` 會讀取回應中的 `Retry-After` 來退避，
 不依賴任何預先量好的常數。
 
 那為什麼還留著它：`Retry-After` 只在真的被限流時才會出現。如果想知道「幾次之後

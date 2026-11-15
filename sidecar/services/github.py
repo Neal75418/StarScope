@@ -473,8 +473,7 @@ class GitHubService:
         else:
             # 跑滿 max_pages 沒有 break＝清單被截斷（使用者 starred 超過上限）。
             # 截斷造成的「沒看到」與「已取消 star」在 diff 裡無法區分——放行的話，
-            # 較舊的 star 會被非首次同步靜默批次封存。stargazers 的同款迴圈
-            # （上方 :407）有這個警告，這裡先前漏了。
+            # 較舊的 star 會被非首次同步靜默批次封存。
             logger.warning(
                 f"[GitHub API] starred 清單已達分頁上限（{per_page * max_pages} 筆），"
                 "回傳標記為截斷"

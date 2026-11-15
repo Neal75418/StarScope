@@ -12,9 +12,8 @@ export type WidgetId =
   | "statsGrid"
   | "signalSpotlight"
   | "weeklySummary"
-  // 這個區塊在 2026-08-22 從「組合星數歷史」折線改成「每日新增星數」長條圖。
-  // id 沒跟著改名：它是 localStorage 的識別字，改了會讓已存的顯示偏好對不上，
-  // 使用者原本打開的區塊會無聲消失
+  // 這個區塊畫的是「每日新增星數」長條圖，id 卻叫 portfolioHistory：它是 localStorage 的識別字，
+  // 改名會讓已存的顯示偏好對不上，使用者打開著的區塊會無聲消失
   | "portfolioHistory"
   | "velocityChart"
   | "languageDistribution"
@@ -23,15 +22,14 @@ export type WidgetId =
 
 export type WidgetVisibility = Record<WidgetId, boolean>;
 
-// 版面的 widget 組成在 2026-08-16 的重設計中改變了，舊偏好對不上新版面。
-// loadWidgetVisibility 用 {...DEFAULT, ...parsed}，已存的鍵會蓋過新預設值，
-// 所以只改 DEFAULT_VISIBILITY 對「曾經打開過這個選單的人」完全沒有作用——
-// 換一把新 key 才能讓新的預設值真的生效，重置是正確結果而不是損失。
+// key 帶版本號（v2）：loadWidgetVisibility 用 {...DEFAULT, ...parsed}，已存的鍵會蓋過預設值，
+// 所以只改 DEFAULT_VISIBILITY 對「曾經打開過這個選單的人」完全沒有作用——widget 的組成大改時
+// 要換一把新 key，新的預設值才會生效；這時的重置是正確結果而不是損失。
 const STORAGE_KEY = "starscope-dashboard-widgets-v2";
 
 const DEFAULT_VISIBILITY: WidgetVisibility = {
   // 四張卡的數字已經各有去處（DigestPanel 的狀態列、MoversPanel 的標題），
-  // 這一排改為預設關閉，但程式碼與開關都保留——留不留是使用者的判斷
+  // 所以這一排預設關閉；程式碼與開關都保留——留不留是使用者的判斷
   statsGrid: false,
   signalSpotlight: true,
   weeklySummary: true,

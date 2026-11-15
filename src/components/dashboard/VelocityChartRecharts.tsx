@@ -115,7 +115,7 @@ export const VelocityChartRecharts = memo(function VelocityChartRecharts({
               radius={[0, 4, 4, 0]}
               maxBarSize={20}
               isAnimationActive={false}
-              // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              // 用 shape 而不是 Cell（Cell 在 Recharts 4 會被移除）
               // 回查用 payload 不用 props.index：資料縮短的那次 render，store 還是舊的，
               // index 會越界（見 DailyStarsChart 同處說明）
               shape={(props: BarShapeProps) => {

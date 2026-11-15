@@ -45,7 +45,7 @@ export const RepoCardStats = memo(function RepoCardStats({ repo }: RepoCardStats
         value={formatDelta(repo.stars_delta_7d)}
         className={deltaClass(repo.stars_delta_7d)}
       />
-      {/* 相對變化取代了原本的「趨勢」箭頭。趨勢是 velocity 過 ±0.5/day 門檻的
+      {/* 這一欄放相對變化而不是「趨勢」箭頭。趨勢是 velocity 過 ±0.5/day 門檻的
           分桶，而那個門檻低到篩不掉東西：實測 94 個 repo 裡 82 個都是 ↑。
           （別從 stars_delta_7d 反推 velocity——delta 是兩個快照之間的計數，而
           velocity 除的是實際間隔，缺快照的日子兩者除不回去。）相對變化才是

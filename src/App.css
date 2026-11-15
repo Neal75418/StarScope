@@ -33,7 +33,7 @@
 }
 
 /* 品牌色：刻意不隨主題變動。
-   logo 先前用的是語意化的 --warning-fg（深色 #d29922 亮金、淺色 #9a6700 深赭），
+   logo 用語意化的 --warning-fg（深色 #d29922 亮金、淺色 #9a6700 深赭）的話，
    換模式時標誌會變色相、亮度掉一半——語意色是給「警告」用的，不該決定品牌長相。 */
 :root {
   --brand-star: #d29922;
@@ -218,9 +218,9 @@
   --shadow-xl: 0 12px 28px rgba(140, 149, 159, 0.3);
 
   /* Glassmorphism：頁首跟隨主題。
-     曾刻意保留深色頁首（致敬舊版 GitHub），但在白底頁面上量到 14.65:1 的
-     硬邊界——深色模式同一處只有 1.09:1。單一使用者把它讀成「主題只套用一半」，
-     致敬沒有傳達到，就不值得付這個代價。分隔改由邊框負責，不靠色塊落差。 */
+     淺色主題配深色頁首（致敬舊版 GitHub）的話，白底頁面上會有 14.65:1 的
+     硬邊界——深色模式同一處只有 1.09:1，讀起來像「主題只套用一半」。
+     分隔由邊框負責，不靠色塊落差。 */
   --glass-bg: rgba(246, 248, 250, 0.85);
   --glass-border: rgba(208, 215, 222, 0.8);
   --glass-blur: 12px;
@@ -1230,8 +1230,8 @@ body {
   min-width: 70px;
 }
 
-/* 增量的顏色由值決定（deltaClass）。原本是無條件的 .delta 一律塗成成功色，
-   於是「-58」和「沒有資料的 —」都是綠的。
+/* 增量的顏色由值決定（deltaClass）：不看正負一律塗成成功色的話，
+   「-58」和「沒有資料的 —」都會是綠的。
    null 與 0 不帶方向，deltaClass 回空字串、沿用預設字色——與趨勢頁一致 */
 .stat-value.positive {
   color: var(--success-fg);
@@ -1347,7 +1347,7 @@ body {
   color: var(--fg-default);
 }
 
-/* 停用的排序頁籤原本跟可用的計算樣式完全一樣——同一個顏色、同樣的
+/* 沒有這條規則的話，停用的排序頁籤跟可用的計算樣式完全一樣——同一個顏色、同樣的
    cursor: pointer。測試斷言 toBeDisabled() 會過，但 jsdom 不處理 CSS，
    看不出「這個狀態沒有任何外觀」。沿用 .btn:disabled 的表現方式 */
 .sort-tab:disabled {
@@ -2776,8 +2776,7 @@ body {
 
 /* 這個 textarea 明確設了 color 與 background-color，蓋掉了瀏覽器對 :disabled
    的預設灰化——匯入進行中時它看起來跟可以打字的時候一模一樣（實測前景、背景、
-   邊框三者計算值完全相同）。同一批檢查裡的 .input／.modal-close／file input
-   沒有這個問題：它們沒覆寫顏色，預設仍然生效 */
+   邊框三者計算值完全相同） */
 .import-textarea:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -3805,10 +3804,8 @@ a:focus-visible {
 
 .dashboard-page {
   /* 流式佈局：填滿視窗寬度 */
-  /* 卡片間距由容器統一負責。先前是每個 widget 自己掛 margin-bottom，
-     結果只有 stats-grid 與 weekly-summary 有，健康分數甚至被明確設成 0，
-     於是「健康分數 / 近 7 天摘要」與「星數歷史 / 速度分佈 / 最近活動」整組貼在一起。
-     放在這裡之後，日後新增的 widget 不必記得補 margin。 */
+  /* 卡片間距由容器統一負責：讓每個 widget 自己掛 margin-bottom 的話，
+     漏掉的那幾個會整組貼在一起；放在這裡，新增的 widget 不必記得補 margin。 */
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2vw, 24px);
@@ -3819,7 +3816,7 @@ a:focus-visible {
   margin-bottom: clamp(4px, 1vw, 16px);
 }
 
-/* 會依資料決定要不要出現的 widget（例如沒有訊號時的 SignalSpotlight）回傳 null，
+/* 會依資料決定要不要出現的 widget（例如摘要還沒讀到的 SignalSpotlight）回傳 null，
    但外層的動畫包裹仍然存在。高度是 0 卻仍是 flex item，兩側各吃一份 gap，
    在畫面上就是某兩張卡之間憑空多出一倍的距離。 */
 .dashboard-page > .fade-in:empty {
@@ -3907,7 +3904,7 @@ button.stat-card {
 }
 
 /* 值是說明文字（例如「尚未設定規則」）時縮小字級。必須排在 .stat-value 之後：
-   同特異度靠順序決勝，放在前面等於沒寫（第三方審查在 Chromium/WebKit 實測過會以
+   同特異度靠順序決勝，放在前面等於沒寫（Chromium／WebKit 實測會以
    25px/600 全尺寸渲染）。.trend-* 是兩個 class 的選擇器、特異度更高，顏色仍由它決定；
    muted 卡片不帶 trend，所以不衝突。 */
 .stat-value--muted {
@@ -4028,8 +4025,8 @@ button.stat-card {
 /* Early Signal 活動項目顏色 */
 
 /* Dashboard Page Header */
-/* 其他五頁的 .page-header 都是 text-align: center。儀表板因為要在右上角放
-   自訂區塊的齒輪，原本改用 flex + space-between，標題就被推到左邊，只有這一頁
+/* 其他五頁的 .page-header 都是 text-align: center。儀表板要在右上角放
+   自訂區塊的齒輪：用 flex + space-between 的話標題會被推到左邊，只有這一頁
    跟別人不一樣；而且載入中的骨架屏用的是沒有這個 class 的 .page-header，
    資料到位時標題會從置中跳到左邊。
 

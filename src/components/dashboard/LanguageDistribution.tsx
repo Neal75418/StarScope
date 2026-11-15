@@ -1,8 +1,8 @@
 /**
  * 語言分佈橫向長條圖。
  *
- * 原本是甜甜圈。實測那個版本要讀出一個數字得做四件事：在圖例找到語言、記住顏色、
- * 回圓環上找回那個顏色、再把滑鼠停上去——因為
+ * 用長條圖而不是甜甜圈：實測甜甜圈要讀出一個數字得做四件事——在圖例找到語言、記住顏色、
+ * 回圓環上找回那個顏色、再把滑鼠停上去，因為
  *   1. Recharts 把圖例照字母重排，而資料是照數量排的，兩份清單順序不一致
  *   2. 整個面板沒有任何數字，數值只存在於 tooltip
  *   3. 最大的兩塊 TypeScript(#3178c6) 與 Python(#3572A5) 加權色距只有 56.8，
@@ -88,14 +88,14 @@ export const LanguageDistribution = memo(function LanguageDistribution({ data }:
               tickLine={false}
             />
             {/* isAnimationActive={false}：Recharts 會等長條動畫跑完才畫 LabelList，
-                數字要慢一拍才出現——而數字正是這次改版的重點。靜態的分佈本來也
+                數字要慢一拍才出現——而這張圖要讓人讀的就是數字。靜態的分佈本來也
                 不需要長出來的動畫 */}
             <Bar
               dataKey="count"
               radius={[0, 4, 4, 0]}
               maxBarSize={16}
               isAnimationActive={false}
-              // shape 取代 Cell（Cell 在 Recharts 4 會被移除）
+              // 用 shape 而不是 Cell（Cell 在 Recharts 4 會被移除）
               // 回查用 payload 不用 props.index：資料縮短的那次 render，store 還是舊的，
               // index 會越界（見 DailyStarsChart 同處說明）。index 只拿來輪替 fallback 色。
               shape={(props: BarShapeProps) => {

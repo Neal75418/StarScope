@@ -43,7 +43,7 @@ export function ForYouFeed({ onAddToWatchlist, onUnstar, watchlistFullNames }: F
   if (items.length === 0) {
     return (
       <div className={styles.emptyState} data-testid="feed-empty-state">
-        {/* 區分「載入失敗」與「真的沒有內容」：兩者原本都顯示「請去設定新增興趣」，會把 API 錯誤誤報成沒設定 */}
+        {/* 區分「載入失敗」與「真的沒有內容」：兩者都顯示「請去設定新增興趣」的話，會把 API 錯誤誤報成沒設定 */}
         <p>{isError ? t.discovery.forYou.loadError : t.discovery.forYou.empty}</p>
       </div>
     );

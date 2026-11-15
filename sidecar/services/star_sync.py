@@ -228,7 +228,7 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
 def sync_is_running(db: Session) -> bool:
     """同步是否進行中——含 10 分鐘過期判斷。
 
-    sync/status 端點先前用 bool(非空字串) 判斷，行程被殺後鎖殘留會讓它
+    只用 bool(非空字串) 判斷的話，行程被殺後殘留的鎖會讓 sync/status 端點
     永遠回報「同步中」；這裡把 _lock_is_held 的同一套規則開放給查詢端。
     """
     return _lock_is_held(get_setting(AppSettingKey.STAR_SYNC_RUNNING, db))

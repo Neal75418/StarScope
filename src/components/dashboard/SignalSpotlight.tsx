@@ -45,9 +45,9 @@ export const SignalSpotlight = memo(function SignalSpotlight({
     return null;
   }
 
-  // 沒有訊號時仍然渲染，而且要講清楚兩件事：檢查跑過了、涵蓋了多少東西。
-  // 原本這裡直接 return null，於是「偵測器從未被呼叫」（2026-08-23 之前的真實狀況）
-  // 與「跑過但沒東西」在畫面上完全一樣——使用者唯一合理的推論是功能壞了。
+  // 沒有訊號時仍然渲染，並說明涵蓋了多少 repo：直接 return null 的話，
+  // 使用者分不出是沒有訊號，還是這個區塊壞了、不見了。
+  // 注意 summary 沒有「偵測跑過了沒」的欄位：這句「已檢查」在偵測根本沒跑時也會出現。
   //
   // snapshot_days_covered 是第二句話的依據：breakout 需要 stars_delta_30d，
   // 而那需要 30 天前的快照。少了這句，使用者無法分辨「這個功能對我沒用」

@@ -104,7 +104,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 檢查 GitHub token（從 DB 的 OAuth 或環境變數）。必須在 init_db() 之後：
     # 全新安裝時 app_settings 表還不存在，放前面每次首次啟動都會記一條
-    # 「no such table」的 WARNING（重審抓到的，我把等級升上來時沒注意順序）
+    # 「no such table」的 WARNING
     github_token = os.getenv(GITHUB_TOKEN_ENV_VAR)
     has_oauth_token = False
     try:
@@ -338,9 +338,8 @@ _GITHUB_REJECTION_CODES = {401: "GITHUB_AUTH_FAILED", 403: "GITHUB_FORBIDDEN"}
 
 @app.exception_handler(GitHubAPIError)
 async def github_api_error_handler(request: Request, exc: GitHubAPIError):
-    # 記下是哪個端點、上游說了什麼。先前只回 502 不留痕跡：CI 上 E2E 全紅時
-    # 日誌只有「POST /api/repos 502」，看不出是限流、權限不足還是別的，
-    # 光是判斷「token 能不能用」就燒掉三輪 CI
+    # 記下是哪個端點、上游說了什麼。只回 502 不留痕跡的話，日誌只有「POST /api/repos 502」，
+    # 看不出是限流、權限不足還是別的——CI 上 E2E 全紅時，連「token 能不能用」都判斷不了
     # exception handler 不在 except 語法內：把例外物件明確交給 exc_info，不靠 sys.exc_info()
     logger.error(f"[GitHub API] {request.method} {request.url.path} 上游失敗: {exc}", exc_info=exc)
     content = {"detail": f"GitHub API error: {exc}"}

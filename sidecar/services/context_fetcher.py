@@ -115,9 +115,9 @@ def _store_and_commit(repo_id: int, stories: list[HNStory] | None, db: Session) 
 class ContextFetchError(Exception):
     """單一 repo 的情境抓取失敗——手動端點要據此回錯誤而非「成功，0 個」。
 
-    「HN 抓不到」「抓到存不進去」與「這個 repo 真的沒有 HN 討論」先前在
-    API 契約上不可區分：三者都是 200 + hn_count=0。斷網期間反覆按
-    「重新整理 context」永遠得到看似正常的 0（第三方審查發現）。
+    沒有這個例外的話，「HN 抓不到」「抓到存不進去」與「這個 repo 真的沒有 HN 討論」
+    在 API 契約上不可區分：三者都是 200 + hn_count=0，斷網期間反覆按
+    「重新整理 context」永遠得到看似正常的 0。
     整批掃描路徑不用這個例外——批次的單 repo 容錯屬於排程自己的語意。
     """
 

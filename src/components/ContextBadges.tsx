@@ -146,9 +146,9 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
     } catch (err) {
       logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
       if (seq !== fetchSeqRef.current) return;
-      // fetched 保持 false：收起再展開會自動重試。先前這裡設 fetched: true
-      // 且清空 signals——徽章明明寫著 528 pts，點開卻說「暫無討論」，
-      // 而且此生不再重打（第三方審查發現）。錯誤與「真的沒有」是兩個狀態。
+      // fetched 保持 false：收起再展開會自動重試。設成 fetched: true 並清空 signals 的話，
+      // 徽章明明寫著分數（例如 528 pts），點開卻說「暫無討論」，而且之後不會再打一次。
+      // 錯誤與「真的沒有」是兩個狀態。
       setPanelState((prev) => ({ ...prev, loading: false, error: true }));
     }
   }, [repoId]);

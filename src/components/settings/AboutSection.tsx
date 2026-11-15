@@ -7,8 +7,8 @@ import type { MouseEvent, ReactNode } from "react";
 import { useI18n } from "../../i18n";
 import { safeOpenUrl } from "../../utils/url";
 
-// 版本唯一來源是 package.json：1.0.0 發版時四個版本來源都升了、唯獨這裡的
-// 硬編碼被漏掉（顯示 0.4.3）。改為匯入後，這類漂移由構造保證不可能發生。
+// 版本唯一來源是 package.json：寫死在這裡的話發版時會漏升（發生過：1.0.0 顯示成 0.4.3）；
+// 從 package.json 匯入的話，兩邊不會不一致。
 import { version as APP_VERSION } from "../../../package.json";
 const GITHUB_URL = "https://github.com/Neal75418/StarScope";
 const LICENSE_URL = "https://opensource.org/licenses/MIT";

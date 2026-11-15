@@ -52,10 +52,9 @@ def query_trending_repos(
     sort_signal = aliased(Signal)
 
     # INNER JOIN 而非 OUTER：沒有這個指標的 repo 不該出現在「依這個指標排序」的
-    # 榜單上。原本是 OUTER JOIN 配 coalesce(value, 0)，把「沒資料」當成「零成長」，
-    # 於是 2026-08-22 的 30 天榜第 5 名是七天只漲 62 顆星的專案，而漲了 2,033 的
-    # 不在前六——因為 signals 表裡根本沒有半筆 stars_delta_30d，全部並列 0，
-    # 順序由資料庫決定，看起來卻像一份真的排行。
+    # 榜單上。OUTER JOIN 配 coalesce(value, 0) 會把「沒資料」當成「零成長」：
+    # signals 表裡沒有半筆 stars_delta_30d 時全部並列 0、順序由資料庫決定，看起來卻像一份真的排行
+    # （2026-08-22 實測：30 天榜第 5 名是七天只漲 62 顆星的專案，而漲了 2,033 的不在前六）。
     query = (
         db.query(Repo)
         .join(

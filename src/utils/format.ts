@@ -159,7 +159,7 @@ export function formatVelocity(num: number | null): string {
  * 沒有任何線索指向這件事——實際造成過誤判——所以顯示時一律帶 % 與正負號。
  *
  * 注意：上週速度趨近 0 時「週對週比例」沒有定義，後端回 null，這裡顯示「—」。
- * 先前後端回 ±1 當哨兵值、這裡顯示成 ±100%，跟真實的 +100%（每天 5 顆變 10 顆）
+ * 後端回 ±1 當哨兵值、這裡顯示成 ±100% 的話，跟真實的 +100%（每天 5 顆變 10 顆）
  * 撞在同一個值上，永遠分不出來。兩週都沒動仍是 0%，那是誠實的「沒變」。
  */
 export function formatAcceleration(num: number | null): string {

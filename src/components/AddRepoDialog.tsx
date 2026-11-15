@@ -46,7 +46,7 @@ export function AddRepoDialog({ isOpen, onClose, onAdd, isLoading, error }: AddR
     onClose();
   };
 
-  // 同 ConfirmDialog：頁面容器帶著 transform，position:fixed 會相對於它而不是視窗
+  // 同 ConfirmDialog：祖先帶著 transform 時，position:fixed 會相對於它而不是視窗
   return createPortal(
     <div className="dialog-overlay" {...overlayDismiss} role="presentation">
       <div

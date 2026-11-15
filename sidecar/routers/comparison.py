@@ -63,7 +63,7 @@ class ChartDataPoint(BaseModel):
     # 正規化時基期為 0 的欄位算不出百分比，回 None 而不是 0——
     # 0 讀起來是「完全沒變」，那是另一件事。實測 2026-08-15 有兩個 repo
     # 的 open_issues 是 0（deepseek-harness、advanced-java），
-    # 舊寫法會在 Issue 視圖上畫出一條假的 0 線
+    # 回 0 的話會在 Issue 視圖上畫出一條假的 0 線
     stars: int | float | None
     forks: int | float | None
     open_issues: int | float | None

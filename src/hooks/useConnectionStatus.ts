@@ -4,7 +4,7 @@
  *
  * 注意：queryFn 必須是純函式（只做資料擷取），不可在其中呼叫 setState。
  * React Query 的 queryFn closure 可能捕獲到過期的 setState reference，
- * 導致狀態更新遺失。改用 useEffect 同步 React Query 狀態至手動 state。
+ * 導致狀態更新遺失。React Query 的狀態由 useEffect 同步到手動 state。
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";

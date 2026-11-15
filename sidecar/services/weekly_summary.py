@@ -37,7 +37,7 @@ def _fetch_snapshot_deltas(
     """
     # 「最新」端要求精確落在 period_end（今天），與 analyzer.calculate_delta 的
     # current_snapshot 一致（backtrack=0，見 _find_snapshot(snap_by_date, today, 0)）。
-    # 原本用不設下限的 func.max 取「這個 repo 有史以來最新一筆」，抓取斷了好幾天
+    # 用不設下限的 func.max 取「這個 repo 有史以來最新一筆」的話，抓取斷了好幾天
     # 的 repo 會拿過期快照冒充「最新」，跟更早的基準配對出一個涵蓋範圍遠超過
     # 宣稱窗口的 delta（例如「7 天」實際跨了 12 天），而且畫面上看不出任何異常。
     # join Repo 讓 soft_delete 的封存條件排除封存 repo：否則它的星數算進總數、還以 "unknown" 出現在漲跌榜
@@ -302,8 +302,8 @@ def get_weekly_summary(db: Session, days: int = 7) -> dict[str, Any]:
     today = utc_today()
     period_end = today
     # 顯示窗口＝含今天的 N 個日曆天；星數基準＝窗口前一天的快照
-    # （窗口內成長 = 最新快照 − 窗口起點前一日快照）。先前 period_start 直接
-    # 用基準日且事件窗口用 now−N×24h，標籤 (start – end) 讀起來是 N+1 天
+    # （窗口內成長 = 最新快照 − 窗口起點前一日快照）。period_start 直接用基準日、
+    # 事件窗口用 now−N×24h 的話，標籤 (start – end) 讀起來是 N+1 天
     period_start = today - timedelta(days=days - 1)
     baseline_date = today - timedelta(days=days)
     week_ago = datetime.combine(period_start, datetime.min.time())

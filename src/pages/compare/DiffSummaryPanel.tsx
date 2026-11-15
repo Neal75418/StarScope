@@ -77,9 +77,8 @@ export const DiffSummaryPanel = memo(function DiffSummaryPanel({ repos }: DiffSu
 
       // 追趕/拉開 — 領先者與追趕者的速度差。
       // 主詞會換人：「追趕中」講的是第二名（他在逼近），「拉開中」講的是領先者
-      // （他在甩開）。原本兩種情況都寫死用第二名，於是被甩開的那個被標成
-      // 「拉開中」——2026-08-22 實測 Python 26.4/天、metasploit 3.9/天，
-      // 卡片卻寫「拉開中 metasploit 22.6/天」，跟事實相反
+      // （他在甩開）。兩種情況都用第二名的話，被甩開的那個會被標成「拉開中」——
+      // 2026-08-22 實測：Python 26.4/天、metasploit 3.9/天，卡片寫成「拉開中 metasploit 22.6/天」，跟事實相反
       const leaderVel = sortedByStars[0].velocity ?? 0;
       const runnerVel = sortedByStars[1].velocity ?? 0;
       const isClosing = runnerVel > leaderVel;

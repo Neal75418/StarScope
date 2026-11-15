@@ -125,9 +125,9 @@ export function FeedItemCard({
         {item.reason.age_days !== null && (
           <span className={styles.stat} data-testid={`feed-age-${item.id}`}>
             {/* 與左邊的「最近更新 4h」對齊：標籤在前、值用同一套縮寫。
-                原本是 `7 天前建立`——跟鄰居比不只單位語言不同（中文 vs 英文縮寫），
-                連語序都相反（值+標籤 vs 標籤+值）。全站 14 個相對時間呼叫端都用
-                縮寫，同一頁的搜尋結果卡也是，離群的是這一個字串 */}
+                寫成 `7 天前建立` 的話，跟鄰居比不只單位語言不同（中文 vs 英文縮寫），
+                連語序都相反（值+標籤 vs 標籤+值）。共用的相對時間格式
+                （formatRelativeTime、formatDayCount）都用縮寫，同一頁的搜尋結果卡也是 */}
             {item.reason.age_days === 0
               ? reason.createdToday
               : `${reason.createdLabel} ${formatDayCount(item.reason.age_days)}`}
