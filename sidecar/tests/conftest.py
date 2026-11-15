@@ -121,6 +121,10 @@ def test_engine():
     Base.metadata.create_all(bind=engine)
     yield engine
     Base.metadata.drop_all(bind=engine)
+    # StaticPool 的那條連線沒有人會關：不 dispose 的話要等 engine 被回收，sqlite3 在那時才發 ResourceWarning。
+    # 請求有經過 get_db 的 client 測試看不出差別：FastAPI 以模組層級的 lru_cache 記住解析過的依賴函式，
+    # 留住 override_get_db，連帶留住這個測試的 session 與 engine，快取沒滿就不會被回收，連線要到行程結束才釋放
+    engine.dispose()
 
 
 @pytest.fixture

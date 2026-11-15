@@ -13,6 +13,24 @@ from db.database import SchemaNeedsMigration, ensure_columns, sqlite_url
 from db.models import Base
 
 
+_opened: list[sa.Engine] = []
+
+
+def _open(path) -> sa.Engine:
+    """開一個檔案型 SQLite 的 engine。連線池跟正式環境一樣用預設的（會留著連線重用），所以要有人關：見 _close_engines。"""
+    engine = sa.create_engine(sqlite_url(path))
+    _opened.append(engine)
+    return engine
+
+
+@pytest.fixture(autouse=True)
+def _close_engines():
+    """這個檔的測試都自己開 engine；測試結束時把連線池關掉，不留連線等回收。"""
+    yield
+    while _opened:
+        _opened.pop().dispose()
+
+
 def _columns(engine: sa.Engine, table: str) -> set[str]:
     with engine.connect() as conn:
         return {row[1] for row in conn.execute(sa.text(f"PRAGMA table_info({table})"))}
@@ -25,7 +43,7 @@ def _old_db(path, omit: dict[str, list[str]]) -> sa.Engine:
     隨 model 演進而腐爛。手寫骨架漏掉某個 NOT NULL 欄位時，測到的就不再是
     「使用者的舊資料庫」，而是一個現實中不存在的形狀。
     """
-    engine = sa.create_engine(sqlite_url(path))
+    engine = _open(path)
     Base.metadata.create_all(engine)
     with engine.begin() as conn:
         for table, cols in omit.items():
@@ -101,7 +119,7 @@ def test_running_twice_is_a_no_op(tmp_path):
 
 def test_absent_table_is_skipped(tmp_path):
     """全新資料庫在 create_all 之前沒有任何表，這裡不該試圖 ALTER 不存在的表。"""
-    engine = sa.create_engine(sqlite_url(tmp_path / "fresh.db"))
+    engine = _open(tmp_path / "fresh.db")
 
     ensure_columns(engine)  # 不該拋 no such table
 
@@ -196,7 +214,7 @@ def test_column_added_by_another_process_meanwhile_is_tolerated(tmp_path):
     path = tmp_path / "race.db"
     # 兩個缺欄位：第一個被搶先，第二個必須仍補得上——釘住容忍錯誤之後連線池沒有壞掉
     engine = _old_db(path, {"repos": ["starred_at", "unstarred_at"]})
-    other_process = sa.create_engine(sqlite_url(path))
+    other_process = _open(path)
     raced: list[str] = []
 
     @event.listens_for(engine, "before_cursor_execute")

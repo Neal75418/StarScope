@@ -61,6 +61,9 @@ Dependabot 的 pip PR：每月一個 python group，加上 sqlalchemy、ruff、m
 conftest 沒拿到 `STARSCOPE_DATA_DIR` 時會自己指到暫存目錄（`tests/test_suite_isolation.py` 守住）：預設的 `~/.starscope`
 是真實資料，而 APScheduler 的 jobstore 用的是真的 `DATABASE_URL`，跑 lifespan 的測試會把排程寫進去。
 
+測試自己 `create_engine` 的要在收尾時 `dispose()`：`pytest.ini` 把沒關的連線當成錯誤，紅的是回收剛好發生的那條測試、
+不一定是漏的那條；查法見 `pytest.ini` 的註解。
+
 ## schema 變更：不走 alembic
 
 `sidecar/alembic/` 存在，但**不在啟動路徑上**——那個目錄只有一份 2026-01 的初始 schema，沒有任何程式碼引用它。實際機制是

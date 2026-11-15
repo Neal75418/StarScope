@@ -188,13 +188,13 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
     """
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
+    engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
+    session_local = sessionmaker(
+        autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
+    # session 與 engine 都要關：dispose 不會關借出中的連線，測試中途失敗時 db 那條會留到整次執行結束
+    db = session_local()
     try:
-        engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
-        session_local = sessionmaker(
-            autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
-
-        db = session_local()
         db.add(Interest(term="tauri", kind=InterestKind.TOPIC, weight=3))
         db.commit()
 
@@ -237,8 +237,9 @@ async def test_concurrent_generate_returns_existing_count_instead_of_500():
         assert count == 1
         assert db.query(FeedItem).count() == 1
         assert db.query(FeedCandidate).count() == 1
-        db.close()
     finally:
+        db.close()
+        engine.dispose()
         os.remove(db_path)
 
 
@@ -253,12 +254,13 @@ async def test_concurrent_generate_race_with_multiple_candidates():
     """
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
+    engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
+    session_local = sessionmaker(
+        autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
+    # session 與 engine 都要關：dispose 不會關借出中的連線，測試中途失敗時 db 那條會留到整次執行結束
+    db = session_local()
     try:
-        engine = create_engine(sqlite_url(Path(db_path)), connect_args={"check_same_thread": False})
         Base.metadata.create_all(bind=engine)
-        session_local = sessionmaker(
-            autocommit=False, autoflush=False, expire_on_commit=False, bind=engine)
-        db = session_local()
         db.add(Interest(term="tauri", kind=InterestKind.TOPIC, weight=3))
         db.commit()
         race_state = {"done": False}
@@ -287,8 +289,9 @@ async def test_concurrent_generate_race_with_multiple_candidates():
 
         count = await generate_feed(db, RaceGitHub(), TODAY, now=NOW)
         assert count == 1
-        db.close()
     finally:
+        db.close()
+        engine.dispose()
         os.remove(db_path)
 
 
