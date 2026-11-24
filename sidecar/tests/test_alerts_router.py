@@ -223,6 +223,16 @@ class TestAlertRules:
         assert response.json()["detail"] == "Repo not found: 99999"
         assert response.json().get("code") is None
 
+    def test_create_rule_with_missing_repo_has_no_code(self, client):
+        """建立時指定的 repo 不在回不帶 code 的 404：前端靠「404 且沒有 code」說選的儲存庫已不在追蹤清單。"""
+        payload = {"name": "x", "signal_type": "velocity", "operator": ">", "threshold": 1.0, "repo_id": 99999}
+
+        response = client.post("/api/alerts/rules", json=payload)
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Repo not found: 99999"
+        assert response.json().get("code") is None
+
     def test_update_rule_whose_repo_was_deleted_reports_the_rule_gone(self, client, test_db, mock_repo):
         """永久刪除 repo 會連帶刪掉綁在上面的規則。編輯框存檔整包送出、帶著那個 repo：要先查規則，
         回規則不在的 code，不能回 repo 不在（那樣前端會當成規則還在、存檔失敗）。"""

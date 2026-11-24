@@ -14,7 +14,9 @@ import {
 import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from "../api/client";
 import { ApiError } from "../api/types";
 import { useI18n } from "../i18n";
-import { getErrorMessage } from "../utils/error";
+import type { TranslationKeys } from "../i18n/translations";
+import { keepRefetchingAfterTimeout } from "../lib/react-query";
+import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
 import { useAsyncOperation } from "./useAsyncOperation";
 import { logger } from "../utils/logger";
 import type { Toast } from "./types";
@@ -26,6 +28,27 @@ import type { Toast } from "./types";
  */
 function isAlertRuleGone(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404 && error.code === "ALERT_RULE_NOT_FOUND";
+}
+
+interface RuleWriteFailureCopy {
+  notDone: string;
+  timedOut: string;
+  /** 建立、存檔時表單選的儲存庫不在：重試沒有用，要改選 */
+  repoGone?: string;
+}
+
+/**
+ * 寫入失敗時的一句話。建立、存檔遇到不帶 code 的 404 只會是選的儲存庫不在（規則不在另有 code），
+ * 其餘交給 describeWriteFailure：依原因說明，後端的英文原字不上畫面
+ */
+function describeRuleWriteFailure(
+  error: unknown,
+  t: TranslationKeys,
+  copy: RuleWriteFailureCopy
+): string {
+  const repoGone = error instanceof ApiError && error.status === 404 && error.code === null;
+  if (repoGone && copy.repoGone !== undefined) return copy.repoGone;
+  return describeWriteFailure(error, t, copy);
 }
 
 interface UseAlertRuleOperationsProps {
@@ -44,49 +67,91 @@ export function useAlertRuleOperations({
   const { t } = useI18n();
   const { isSubmitting, execute } = useAsyncOperation(toast);
 
-  /** 寫入成功、或發現規則已經不在之後背景 reload（reload 失敗不影響寫入的結果） */
-  const reloadAfterMutation = useCallback(() => {
+  /** 寫入之後背景重讀，成功、失敗、規則已經不在都要（重讀失敗不影響寫入的結果） */
+  const reloadRules = useCallback(() => {
     loadRules().catch((err) => {
       logger.warn("[AlertRules] 寫入後 reload 失敗:", err);
     });
   }, [loadRules]);
 
-  const handleCreate = useCallback(
-    async (rule: AlertRuleCreate) => {
-      return execute(async () => {
-        await createAlertRule(rule);
-        reloadAfterMutation();
-      }, t.settings.alerts.toast.created);
+  /**
+   * 失敗後重讀：失敗也可能是伺服器其實做完了。逾時的話伺服器可能還在做，接下來一陣子定期重讀，
+   * 清單才會跟上做完的結果（loadRules 走 queryClient：設定頁卸載後只把清單標成過期，回到設定頁時會重抓）
+   */
+  const reloadAfterFailure = useCallback(
+    (error: unknown) => {
+      reloadRules();
+      if (isRequestTimeout(error)) keepRefetchingAfterTimeout(reloadRules);
     },
-    [execute, reloadAfterMutation, t]
+    [reloadRules]
+  );
+
+  /** 逾時只是不確定有沒有做成，用警告；其餘是這一次沒做成，用錯誤 */
+  const reportFailure = useCallback(
+    (error: unknown, copy: RuleWriteFailureCopy) => {
+      const message = describeRuleWriteFailure(error, t, copy);
+      if (isRequestTimeout(error)) {
+        toast.warning(message);
+      } else {
+        toast.error(message);
+      }
+    },
+    [toast, t]
   );
 
   /**
-   * 改、刪一條規則。規則已經不在清單上時結束這次操作（回 true：編輯框、確認框跟著關），由 reportGone 說明，這裡負責重讀，
-   * 不顯示後端的英文原字，也不留著一個怎麼按都失敗的框
+   * 建立、改、刪一條規則。失敗時說明（逾時說不確定有沒有做成，其餘說沒做成與原因）並回 false（表單、確認框留著讓人重試）；
+   * 改、刪遇到規則已經不在清單上時結束這次操作（回 true：編輯框、確認框跟著關），由 reportGone 說明。
+   * 錯誤都在這裡接住，execute 只用來管送出中的狀態（它自己的失敗提示會顯示後端原字）
    */
   const writeRule = useCallback(
-    async (write: () => Promise<unknown>, successMessage: string, reportGone: () => void) => {
+    async (
+      write: () => Promise<unknown>,
+      successMessage: string,
+      failure: RuleWriteFailureCopy,
+      reportGone?: () => void
+    ) => {
       let gone = false;
-      const ok = await execute(async () => {
+      let failed = false;
+      let failureError: unknown;
+      await execute(async () => {
         try {
           await write();
+          reloadRules();
         } catch (err) {
-          if (!isAlertRuleGone(err)) throw err;
-          gone = true;
+          if (reportGone !== undefined && isAlertRuleGone(err)) {
+            gone = true;
+            reloadRules();
+          } else {
+            failed = true;
+            failureError = err;
+            reloadAfterFailure(err);
+          }
         }
-        reloadAfterMutation();
       });
-      if (ok) {
-        if (gone) {
-          reportGone();
-        } else {
-          toast.success(successMessage);
-        }
+      if (failed) {
+        reportFailure(failureError, failure);
+        return false;
       }
-      return ok;
+      if (gone) {
+        reportGone?.();
+      } else {
+        toast.success(successMessage);
+      }
+      return true;
     },
-    [execute, reloadAfterMutation, toast]
+    [execute, reloadRules, reloadAfterFailure, reportFailure, toast]
+  );
+
+  const handleCreate = useCallback(
+    async (rule: AlertRuleCreate) => {
+      return writeRule(
+        () => createAlertRule(rule),
+        t.settings.alerts.toast.created,
+        t.settings.alerts.failed.create
+      );
+    },
+    [writeRule, t]
   );
 
   const handleUpdate = useCallback(
@@ -106,6 +171,7 @@ export function useAlertRuleOperations({
       return writeRule(
         () => updateAlertRule(id, update),
         t.settings.alerts.toast.updated,
+        t.settings.alerts.failed.update,
         () => toast.warning(t.settings.alerts.toast.goneNotSaved)
       );
     },
@@ -118,6 +184,7 @@ export function useAlertRuleOperations({
       return writeRule(
         () => deleteAlertRule(id),
         t.settings.alerts.toast.deleted,
+        t.settings.alerts.failed.delete,
         () => toast.info(t.settings.alerts.toast.goneOnDelete)
       );
     },
@@ -145,19 +212,20 @@ export function useAlertRuleOperations({
       try {
         await updateAlertRule(id, { enabled: newEnabled });
       } catch (err) {
-        // 失敗時還原
+        // 失敗時先還原，再重讀以伺服器為準（逾時時伺服器可能其實已經切換了）
         setRules((prev) => prev.map((r) => (r.id === id ? { ...r, enabled: !newEnabled } : r)));
         if (isAlertRuleGone(err)) {
           toast.warning(t.settings.alerts.toast.goneNotSwitched);
-          reloadAfterMutation();
+          reloadRules();
         } else {
-          toast.error(getErrorMessage(err, t.common.error));
+          reportFailure(err, t.settings.alerts.failed.toggle);
+          reloadAfterFailure(err);
         }
       } finally {
         togglingRef.current.delete(id);
       }
     },
-    [setRules, toast, t, reloadAfterMutation]
+    [setRules, toast, t, reloadRules, reloadAfterFailure, reportFailure]
   );
 
   const handleCheckNow = useCallback(async () => {

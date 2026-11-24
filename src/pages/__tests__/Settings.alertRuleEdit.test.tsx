@@ -359,4 +359,19 @@ describe("Settings alert rule edit form", () => {
     );
     expect(mockToast.error).not.toHaveBeenCalled();
   });
+
+  it("keeps the delete prompt open when deleting fails, so it can be tried again", async () => {
+    const user = userEvent.setup();
+    vi.mocked(deleteAlertRule).mockRejectedValue(new ApiError(500, "boom internal"));
+    renderSettings();
+
+    await user.click(await screen.findByRole("button", { name: "Delete Rule B" }));
+    const prompt = await screen.findByRole("alertdialog");
+    await user.click(within(prompt).getByRole("button", { name: /^(Delete|刪除)$/ }));
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+  });
 });

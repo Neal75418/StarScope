@@ -607,6 +607,33 @@ export const translations = {
           goneOnDelete:
             "This alert rule is no longer in the list. It may have been deleted, or the repository it watches was unstarred (use Track again under Archived and the rule comes back as it was).",
         },
+        // 失敗的原因由 describeWriteFailure 接在 notDone 後面
+        failed: {
+          create: {
+            notDone: "The alert rule was not created.",
+            timedOut:
+              "No response yet, so it's unclear whether the alert rule was created. The rule list will update on its own over the next few minutes.",
+            repoGone:
+              "The alert rule was not created: the repository you picked is no longer tracked. Pick another one.",
+          },
+          update: {
+            notDone: "Changes to the alert rule were not saved.",
+            timedOut:
+              "No response yet, so it's unclear whether the changes to the alert rule were saved. The rule list will update on its own over the next few minutes.",
+            repoGone:
+              "Changes to the alert rule were not saved: the repository you picked is no longer tracked. Pick another one.",
+          },
+          delete: {
+            notDone: "The alert rule was not deleted.",
+            timedOut:
+              "No response yet, so it's unclear whether the alert rule was deleted. The rule list will update on its own over the next few minutes.",
+          },
+          toggle: {
+            notDone: "The alert rule was not switched on or off.",
+            timedOut:
+              "No response yet, so it's unclear whether the alert rule was switched on or off. The rule list will update on its own over the next few minutes.",
+          },
+        },
         validation: {
           nameRequired: "Name is required",
           signalTypeRequired: "Signal type is required",
@@ -1704,6 +1731,29 @@ export const translations = {
             "沒有切換：這條警報規則已經不在清單上，可能已被刪除，或它看的儲存庫已取消追蹤（到「已封存」按「重新追蹤」，規則會照原樣回來）。",
           goneOnDelete:
             "這條警報規則已經不在清單上：可能已被刪除，或它看的儲存庫已取消追蹤（到「已封存」按「重新追蹤」，規則會照原樣回來）。",
+        },
+        // 失敗的原因由 describeWriteFailure 接在 notDone 後面
+        failed: {
+          create: {
+            notDone: "警報規則沒有建立。",
+            timedOut: "還沒有回應，不確定警報規則有沒有建立。規則清單接下來幾分鐘會自己更新。",
+            repoGone: "警報規則沒有建立：選的儲存庫已不在追蹤清單，請改選其他儲存庫。",
+          },
+          update: {
+            notDone: "警報規則的變更沒有儲存。",
+            timedOut:
+              "還沒有回應，不確定警報規則的變更有沒有儲存。規則清單接下來幾分鐘會自己更新。",
+            repoGone: "警報規則的變更沒有儲存：選的儲存庫已不在追蹤清單，請改選其他儲存庫。",
+          },
+          delete: {
+            notDone: "警報規則沒有刪除。",
+            timedOut: "還沒有回應，不確定警報規則有沒有刪除。規則清單接下來幾分鐘會自己更新。",
+          },
+          toggle: {
+            notDone: "警報規則的啟用狀態沒有變更。",
+            timedOut:
+              "還沒有回應，不確定警報規則的啟用狀態有沒有變更。規則清單接下來幾分鐘會自己更新。",
+          },
         },
         validation: {
           nameRequired: "名稱必填",

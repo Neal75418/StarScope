@@ -27,6 +27,11 @@ import type { Toast } from "../types";
 import type { AlertRule } from "../../api/types";
 import { ApiError } from "../../api/types";
 import { translations } from "../../i18n/translations";
+import {
+  API_ERROR_MESSAGES,
+  BATCH_ADD_FOLLOWUP_INTERVAL_MS,
+  BATCH_ADD_TIMEOUT_MS,
+} from "../../constants/api";
 
 const mockCreateAlertRule = vi.mocked(createAlertRule);
 const mockUpdateAlertRule = vi.mocked(updateAlertRule);
@@ -95,7 +100,7 @@ describe("useAlertRuleOperations", () => {
     expect(success).toBe(true);
     expect(mockCreateAlertRule).toHaveBeenCalled();
     expect(mockLoadRules).toHaveBeenCalled();
-    expect(mockToast.success).toHaveBeenCalled();
+    expect(mockToast.success).toHaveBeenCalledWith(translations.en.settings.alerts.toast.created);
   });
 
   it("handleUpdate calls updateAlertRule and reloads", async () => {
@@ -166,6 +171,186 @@ describe("useAlertRuleOperations", () => {
         1,
         expect.objectContaining({ repo_id: 3, description: "watch it" })
       );
+    });
+  });
+
+  describe("a write that fails", () => {
+    // frontend.md 的寫入失敗規則：依原因說明、逾時用警告（伺服器可能已經做完）、任何失敗後都重讀、
+    // 逾時後定期重讀一陣子，後端的英文原字不上畫面
+    const en = translations.en;
+    const failed = en.settings.alerts.failed;
+    const withCause = (outcome: string, cause: string) =>
+      en.failure.withCause.replace("{outcome}", outcome).replace("{cause}", cause);
+    const serverError = () => new ApiError(500, "boom internal");
+    const timedOut = () => new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
+    const base = { name: "Rule", signal_type: "stars", operator: ">" as const, threshold: 200 };
+    type Ops = ReturnType<typeof renderOps>["result"]["current"];
+    const writes = [
+      [
+        "create",
+        (ops: Ops) => ops.handleCreate({ ...base }),
+        () => mockCreateAlertRule,
+        failed.create,
+      ],
+      [
+        "update",
+        (ops: Ops) => ops.handleUpdate(1, { ...base }),
+        () => mockUpdateAlertRule,
+        failed.update,
+      ],
+      ["delete", (ops: Ops) => ops.handleDelete(1), () => mockDeleteAlertRule, failed.delete],
+    ] as const;
+
+    it.each(writes)(
+      "%s says it was not done and why, and reloads once",
+      async (_, run, mock, copy) => {
+        mock().mockRejectedValue(serverError());
+        const { result } = renderOps();
+
+        let success: boolean | undefined;
+        await act(async () => {
+          success = await run(result.current);
+        });
+
+        expect(success).toBe(false);
+        expect(mockToast.error).toHaveBeenCalledWith(withCause(copy.notDone, en.failure.retry));
+        // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+        expect(mockToast.error).toHaveBeenCalledTimes(1);
+        expect(mockToast.success).not.toHaveBeenCalled();
+        expect(mockToast.warning).not.toHaveBeenCalled();
+        expect(mockLoadRules).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it.each(writes)(
+      "%s says it is unclear and keeps reloading for a while after a timeout",
+      async (_, run, mock, copy) => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        try {
+          mock().mockRejectedValue(timedOut());
+          const { result } = renderOps();
+
+          let success: boolean | undefined;
+          await act(async () => {
+            success = await run(result.current);
+          });
+
+          expect(success).toBe(false);
+          expect(mockToast.warning).toHaveBeenCalledWith(copy.timedOut);
+          expect(mockToast.error).not.toHaveBeenCalled();
+          expect(mockToast.success).not.toHaveBeenCalled();
+          expect(mockLoadRules).toHaveBeenCalledTimes(1);
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+          });
+          expect(mockLoadRules).toHaveBeenCalledTimes(2);
+          // 有期限：不會一直讀下去
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+          });
+          const afterWindow = vi.mocked(mockLoadRules).mock.calls.length;
+          await act(async () => {
+            await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+          });
+          expect(mockLoadRules).toHaveBeenCalledTimes(afterWindow);
+        } finally {
+          vi.useRealTimers();
+        }
+      }
+    );
+
+    it.each([writes[0], writes[1]])(
+      "%s says the repository picked is no longer tracked",
+      async (_, run, mock, copy) => {
+        // 不帶 code 的 404 只會是選的儲存庫不在（規則不在另有 code）：重試沒有用，要改選
+        mock().mockRejectedValue(new ApiError(404, "Repo not found: 9"));
+        const { result } = renderOps();
+
+        await act(async () => {
+          await run(result.current);
+        });
+
+        expect(mockToast.error).toHaveBeenCalledWith(copy.repoGone);
+        // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+        expect(mockToast.error).toHaveBeenCalledTimes(1);
+        expect(mockToast.success).not.toHaveBeenCalled();
+        expect(mockLoadRules).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it("names the cause it knows, such as the data engine being unreachable", async () => {
+      mockCreateAlertRule.mockRejectedValue(
+        new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: connection refused`)
+      );
+      const { result } = renderOps();
+
+      await act(async () => {
+        await result.current.handleCreate({ ...base });
+      });
+
+      expect(mockToast.error).toHaveBeenCalledWith(
+        withCause(failed.create.notDone, en.failure.engineUnreachable)
+      );
+      // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
+    it("says switching was not done and why, puts the switch back, and reloads", async () => {
+      mockUpdateAlertRule.mockRejectedValue(serverError());
+      const { result } = renderOps();
+
+      await act(async () => {
+        await result.current.handleToggle(1);
+      });
+
+      expect(rules.find((r) => r.id === 1)?.enabled).toBe(true);
+      expect(mockToast.error).toHaveBeenCalledWith(
+        withCause(failed.toggle.notDone, en.failure.retry)
+      );
+      // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+      expect(mockToast.success).not.toHaveBeenCalled();
+      expect(mockLoadRules).toHaveBeenCalledTimes(1);
+    });
+
+    it("says switching is unclear and keeps reloading for a while after a timeout", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mockUpdateAlertRule.mockRejectedValue(timedOut());
+        const { result } = renderOps();
+
+        await act(async () => {
+          await result.current.handleToggle(1);
+        });
+
+        expect(mockToast.warning).toHaveBeenCalledWith(failed.toggle.timedOut);
+        expect(mockToast.error).not.toHaveBeenCalled();
+        expect(mockToast.success).not.toHaveBeenCalled();
+        expect(mockLoadRules).toHaveBeenCalledTimes(1);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        });
+        expect(mockLoadRules).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it.each(["en", "zh-TW"] as const)("%s copy says what happened", (lang) => {
+      // 測試的全域 i18n 一律是英文：中文文案要直接讀翻譯表才守得到
+      const copy = translations[lang].settings.alerts.failed;
+      const [unclear, listUpdates, notTracked] =
+        lang === "en"
+          ? ["unclear", "will update on its own", "no longer tracked"]
+          : ["不確定", "會自己更新", "已不在追蹤清單"];
+      for (const op of [copy.create, copy.update, copy.delete, copy.toggle]) {
+        expect(op.timedOut).toContain(unclear);
+        expect(op.timedOut).toContain(listUpdates);
+        expect(op.notDone).not.toContain(unclear);
+      }
+      expect(copy.create.repoGone).toContain(notTracked);
+      expect(copy.update.repoGone).toContain(notTracked);
     });
   });
 
