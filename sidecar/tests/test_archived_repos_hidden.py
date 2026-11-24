@@ -259,9 +259,20 @@ def test_alerts_hide_the_archived_repo_and_get_it_back_on_restore(client, test_d
     assert rule_ids() == [world["global_rule"]]
     rule_url = f"/api/alerts/rules/{world['gone_rule']}"
     assert _get(client, test_db, rule_url).status_code == 404
-    # 改、刪也當它不存在，而且回 404 的請求不能留下任何寫入
-    assert client.patch(rule_url, json={"enabled": False}).status_code == 404
-    assert client.delete(rule_url).status_code == 404
+    # 改、刪也當它不存在，而且回 404 的請求不能留下任何寫入。code 和真的刪掉一樣（封存視同刪除），
+    # 所以前端遇到這個 code 不能說成已經刪除，只能說這次沒有生效
+    patched = client.patch(rule_url, json={"enabled": False})
+    assert patched.status_code == 404
+    assert patched.json()["code"] == "ALERT_RULE_NOT_FOUND"
+    # 編輯框存檔是整包送出、帶著它綁的 repo：repo 一樣看不到，要先查規則才回得出規則的 code
+    full = {"name": "renamed", "description": None, "repo_id": world["gone"], "signal_type": "velocity",
+            "operator": ">", "threshold": 1.0, "enabled": False}
+    saved = client.patch(rule_url, json=full)
+    assert saved.status_code == 404
+    assert saved.json()["code"] == "ALERT_RULE_NOT_FOUND"
+    deleted = client.delete(rule_url)
+    assert deleted.status_code == 404
+    assert deleted.json()["code"] == "ALERT_RULE_NOT_FOUND"
 
     assert client.post(f"/api/repos/{world['gone']}/restar").status_code == 200
 
@@ -270,3 +281,4 @@ def test_alerts_hide_the_archived_repo_and_get_it_back_on_restore(client, test_d
     rule = _get(client, test_db, rule_url)
     assert rule.status_code == 200
     assert rule.json()["data"]["enabled"] is True
+    assert rule.json()["data"]["name"] == "gone repo fast"

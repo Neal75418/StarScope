@@ -316,6 +316,14 @@ async def github_not_found_handler(_request: Request, exc: GitHubNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc), "code": "GITHUB_NOT_FOUND"})
 
 
+@app.exception_handler(alerts.AlertRuleNotFoundError)
+async def alert_rule_not_found_handler(_request: Request, _exc: alerts.AlertRuleNotFoundError):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": alerts.ERROR_RULE_NOT_FOUND, "code": "ALERT_RULE_NOT_FOUND"},
+    )
+
+
 @app.exception_handler(GitHubRateLimitError)
 async def github_rate_limit_handler(_request: Request, exc: GitHubRateLimitError):
     headers = {}

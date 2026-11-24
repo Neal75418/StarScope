@@ -44,6 +44,14 @@ assert set(_SIGNAL_TYPE_DISPLAY) == set(get_args(ValidSignalType))
 ERROR_RULE_NOT_FOUND = "Rule not found"
 ERROR_ALERT_NOT_FOUND = "Alert not found"
 
+
+class AlertRuleNotFoundError(Exception):
+    """用 id 找不到規則：刪了，或綁的 repo 已封存而看不到。main.py 轉成帶 code 的 404（HTTPException 帶不了 code）。
+
+    兩種情況回一樣的內容：封存的 repo 在一般畫面上視同刪除（見 _visible_rules）。更新規則時指定的 repo 不在
+    也回 404，但不帶 code：前端靠 code 分辨規則本身在不在。
+    """
+
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
@@ -149,7 +157,7 @@ def _visible_rules(db: Session) -> OrmQuery[AlertRule]:
 def _get_rule_or_404(rule_id: int, db: Session) -> AlertRule:
     rule: AlertRule | None = _visible_rules(db).filter(AlertRule.id == rule_id).first()
     if not rule:
-        raise HTTPException(status_code=404, detail=ERROR_RULE_NOT_FOUND)
+        raise AlertRuleNotFoundError()
     return rule
 
 
@@ -274,6 +282,9 @@ def update_rule(rule_id: int, update: AlertRuleUpdate, db: Annotated[Session, De
     # description 與 repo_id 用 model_fields_set 區分「沒傳」（不動）與「傳 null」（清掉說明／改成所有儲存庫）
     if "description" in update.model_fields_set:
         rule.description = update.description
+    # 先查規則（函式開頭的 _get_rule_or_404）、再查這裡的 repo，順序不能對調：編輯框存檔整包送出、帶著規則綁的 repo，
+    # 而規則不見時 repo 多半也一起看不到（封存、永久刪除）。先查 repo 的話會回不帶 code 的「repo 不在」，前端就當成
+    # 規則還在、只是存檔失敗
     if "repo_id" in update.model_fields_set:
         if update.repo_id is not None:
             # 驗證 repo 是否存在

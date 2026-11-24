@@ -157,6 +157,7 @@ class TestAlertRules:
         """Test getting a nonexistent rule returns 404."""
         response = client.get("/api/alerts/rules/99999")
         assert response.status_code == 404
+        assert response.json()["code"] == "ALERT_RULE_NOT_FOUND"
 
     def test_update_rule(self, client, test_db, mock_repo):
         """Test updating an existing rule."""
@@ -210,6 +211,34 @@ class TestAlertRules:
         """Test updating a nonexistent rule returns 404."""
         response = client.patch("/api/alerts/rules/99999", json={"name": "X"})
         assert response.status_code == 404
+        assert response.json()["code"] == "ALERT_RULE_NOT_FOUND"
+
+    def test_update_rule_with_missing_repo_is_not_reported_as_missing_rule(self, client, test_db, mock_repo):
+        """更新時指定的 repo 不在，也是 404：不能帶規則不在的 code，前端靠它分辨要不要當成規則已經不在。"""
+        rule = _create_rule(test_db, mock_repo)
+
+        response = client.patch(f"/api/alerts/rules/{rule.id}", json={"repo_id": 99999})
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Repo not found: 99999"
+        assert response.json().get("code") is None
+
+    def test_update_rule_whose_repo_was_deleted_reports_the_rule_gone(self, client, test_db, mock_repo):
+        """永久刪除 repo 會連帶刪掉綁在上面的規則。編輯框存檔整包送出、帶著那個 repo：要先查規則，
+        回規則不在的 code，不能回 repo 不在（那樣前端會當成規則還在、存檔失敗）。"""
+        rule = _create_rule(test_db, mock_repo)
+        rule_id, repo_id = rule.id, mock_repo.id
+        # 永久刪除只接受已封存的 repo：先取消追蹤
+        assert client.post(f"/api/repos/{repo_id}/unstar").status_code == 200
+        assert client.delete(f"/api/repos/{repo_id}").status_code == 204
+        test_db.expire_all()
+
+        full = {"name": "renamed", "description": None, "repo_id": repo_id, "signal_type": "velocity",
+                "operator": ">", "threshold": 5.0, "enabled": True}
+        response = client.patch(f"/api/alerts/rules/{rule_id}", json=full)
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "ALERT_RULE_NOT_FOUND"
 
     def test_delete_rule(self, client, test_db, mock_repo):
         """Test deleting a rule."""
@@ -230,6 +259,7 @@ class TestAlertRules:
         """Test deleting a nonexistent rule returns 404."""
         response = client.delete("/api/alerts/rules/99999")
         assert response.status_code == 404
+        assert response.json()["code"] == "ALERT_RULE_NOT_FOUND"
 
 
 class TestTriggeredAlerts:

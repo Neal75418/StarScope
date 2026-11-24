@@ -13,6 +13,7 @@ import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../lib/react-query";
 import type { AlertRule, RepoWithSignals } from "../../api/client";
+import { ApiError } from "../../api/types";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -22,6 +23,7 @@ vi.mock("../../api/client", async (importOriginal) => {
     listSignalTypes: vi.fn(),
     getRepos: vi.fn(),
     updateAlertRule: vi.fn(),
+    deleteAlertRule: vi.fn(),
   };
 });
 
@@ -76,7 +78,13 @@ vi.mock("../../components/settings/DiagnosticsSection", () => ({
   DiagnosticsSection: () => null,
 }));
 
-import { listAlertRules, listSignalTypes, getRepos, updateAlertRule } from "../../api/client";
+import {
+  listAlertRules,
+  listSignalTypes,
+  getRepos,
+  updateAlertRule,
+  deleteAlertRule,
+} from "../../api/client";
 import { Settings } from "../Settings";
 
 function makeRule(overrides: Partial<AlertRule>): AlertRule {
@@ -306,5 +314,49 @@ describe("Settings alert rule edit form", () => {
     expect(screen.getByRole("button", { name: "Disable Rule A" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Disable Rule B" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Delete Rule B" })).toBeDisabled();
+  });
+
+  it("closes the edit form and says the changes were not saved when the rule is no longer there", async () => {
+    // 編輯中被別的操作弄不見（重設資料、永久刪除儲存庫、它看的儲存庫被封存）：不要留著一個存不進去的框
+    const user = userEvent.setup();
+    vi.mocked(updateAlertRule).mockRejectedValue(
+      new ApiError(404, "Rule not found", "ALERT_RULE_NOT_FOUND")
+    );
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    const loadsBeforeSave = vi.mocked(listAlertRules).mock.calls.length;
+    await user.click(screen.getByRole("button", { name: /^(Save|儲存)$/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText(/Alert Name|警報名稱/)).toBeNull();
+    });
+    expect(mockToast.warning).toHaveBeenCalledWith(expect.stringMatching(/^Not saved/));
+    expect(mockToast.error).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(vi.mocked(listAlertRules).mock.calls.length).toBeGreaterThan(loadsBeforeSave);
+    });
+  });
+
+  it("closes the delete prompt when the rule is no longer there", async () => {
+    // 刪除的確認框也不要留著一個怎麼按都失敗的確認鈕
+    const user = userEvent.setup();
+    vi.mocked(deleteAlertRule).mockRejectedValue(
+      new ApiError(404, "Rule not found", "ALERT_RULE_NOT_FOUND")
+    );
+    renderSettings();
+
+    await user.click(await screen.findByRole("button", { name: "Delete Rule B" }));
+    const prompt = await screen.findByRole("alertdialog");
+    await user.click(within(prompt).getByRole("button", { name: /^(Delete|刪除)$/ }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+    expect(deleteAlertRule).toHaveBeenCalledWith(2);
+    expect(mockToast.info).toHaveBeenCalledWith(
+      expect.stringMatching(/^This alert rule is no longer in the list/)
+    );
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

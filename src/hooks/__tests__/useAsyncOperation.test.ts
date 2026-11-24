@@ -10,6 +10,8 @@ describe("useAsyncOperation", () => {
     mockToast = {
       success: vi.fn(),
       error: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
     };
   });
 
