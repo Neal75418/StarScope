@@ -1009,8 +1009,19 @@ export const translations = {
       deleteConfirm:
         "Delete \"{name}\"? Repositories in it stay on your watchlist — they just won't belong to this category. This can't be undone.",
       deleteCategory: "Delete category",
-      updateFailed: 'Changes to "{name}" were not saved. Try again.',
-      deleteFailed: '"{name}" was not deleted. Try again.',
+      // 失敗的原因由 describeWriteFailure 接在 notDone 後面
+      updateFailed: {
+        notDone: 'Changes to "{name}" were not saved.',
+        timedOut:
+          'No response yet, so it\'s unclear whether the changes to "{name}" were saved. The category list will update on its own over the next few minutes.',
+        gone: '"{name}" no longer exists, so the changes were not saved.',
+      },
+      deleteFailed: {
+        notDone: '"{name}" was not deleted.',
+        timedOut:
+          'No response yet, so it\'s unclear whether "{name}" was deleted. The category list will update on its own over the next few minutes.',
+      },
+      alreadyGone: '"{name}" was already deleted.',
       addToCategory: "Add to category",
       addToCategoryTitle: "Add to Category",
       addToCategoryButton: "+ Category",
@@ -2075,8 +2086,16 @@ export const translations = {
       deleteConfirm:
         "要刪除「{name}」嗎？分類裡的儲存庫會留在追蹤清單，只是不再屬於這個分類。刪除後無法復原。",
       deleteCategory: "刪除分類",
-      updateFailed: "「{name}」的變更沒有儲存，請再試一次。",
-      deleteFailed: "「{name}」沒有刪除，請再試一次。",
+      updateFailed: {
+        notDone: "「{name}」的變更沒有儲存。",
+        timedOut: "還沒有回應，不確定「{name}」的變更有沒有儲存。分類清單接下來幾分鐘會自己更新。",
+        gone: "「{name}」已經不在了，變更沒有儲存。",
+      },
+      deleteFailed: {
+        notDone: "「{name}」沒有刪除。",
+        timedOut: "還沒有回應，不確定「{name}」有沒有刪除。分類清單接下來幾分鐘會自己更新。",
+      },
+      alreadyGone: "「{name}」已經不在了。",
       addToCategory: "加入分類",
       addToCategoryTitle: "加入分類",
       addToCategoryButton: "+ 分類",

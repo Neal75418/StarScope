@@ -240,6 +240,9 @@ export interface CategoryUpdate {
   sort_order?: number;
 }
 
+/** 編輯框能改的欄位。不含 parent_id：帶了不存在的父分類時後端也回 404，就分不出是不是分類本身不在 */
+export type CategoryEditFields = Pick<CategoryUpdate, "name" | "description" | "icon" | "color">;
+
 // 早期信號型別
 
 export type EarlySignalType = "rising_star" | "sudden_spike" | "breakout" | "viral_hn";

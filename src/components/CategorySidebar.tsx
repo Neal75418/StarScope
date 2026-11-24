@@ -2,9 +2,9 @@
  * 分類側邊欄元件，以樹狀結構組織 repo 並支援新增 / 編輯。
  */
 
-import { useState, useCallback, useRef, memo } from "react";
+import { useState, useCallback, useEffect, useRef, memo } from "react";
 import type { MouseEvent } from "react";
-import { CategoryTreeNode, CategoryUpdate, getCategory } from "../api/client";
+import { CategoryTreeNode, CategoryEditFields, CategoryUpdate, getCategory } from "../api/client";
 import { interpolate, useI18n } from "../i18n";
 import { useCategoryExpand } from "../hooks/useCategoryExpand";
 import { useDeleteConfirm } from "../hooks/useDeleteConfirm";
@@ -21,6 +21,9 @@ import { useCategoryReorder } from "../hooks/useCategoryReorder";
 import { useWatchlistActions } from "../contexts/WatchlistContext";
 import { getErrorMessage } from "../utils/error";
 import { logger } from "../utils/logger";
+import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
+import { ApiError } from "../api/types";
+import type { CategoryWriteResult } from "../hooks/useCategoryTree";
 
 export interface CategoryTreeData {
   tree: CategoryTreeNode[];
@@ -28,8 +31,8 @@ export interface CategoryTreeData {
   error: string | null;
   fetchCategories: () => Promise<void>;
   handleCreateCategory: (name: string) => Promise<boolean>;
-  handleUpdateCategory: (categoryId: number, data: CategoryUpdate) => Promise<boolean>;
-  handleDeleteCategory: (categoryId: number) => Promise<boolean>;
+  handleUpdateCategory: (categoryId: number, data: CategoryUpdate) => Promise<CategoryWriteResult>;
+  handleDeleteCategory: (categoryId: number) => Promise<CategoryWriteResult>;
 }
 
 /** 樹裡某個分類的名稱（含子分類）；找不到回 null */
@@ -40,6 +43,21 @@ function findCategoryName(nodes: CategoryTreeNode[], id: number): string | null 
     if (inChildren !== null) return inChildren;
   }
   return null;
+}
+
+/**
+ * 分類已經不在：被別處刪了，或上一次刪除逾時、其實已經做完。編輯框只送 CategoryEditFields（沒有 parent_id），
+ * 所以讀取、更新、刪除回 404 都只會是分類本身不在（不會是父分類不在）
+ */
+function isCategoryGone(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
+}
+
+/**
+ * 逾時只是不確定有沒有做成，用警告；其餘是這一次沒做成，用錯誤（5xx 也可能做了一部分，所以失敗後一律重讀）
+ */
+function failureToastType(error: unknown): "warning" | "error" {
+  return isRequestTimeout(error) ? "warning" : "error";
 }
 
 interface CategorySidebarProps {
@@ -74,7 +92,14 @@ export const CategorySidebar = memo(function CategorySidebar({
 
   const { isExpanded, toggleExpanded } = useCategoryExpand();
   const deleteConfirm = useDeleteConfirm();
-  const { showToast } = useWatchlistActions();
+  const { showToast, invalidateRepos } = useWatchlistActions();
+
+  // 選取跟著樹走：分類在別處被刪了、或刪除逾時其實已經做完，樹重讀之後選取還指著它的話，側欄沒有任何一項
+  // 是選取的、主畫面也是空的。樹還沒讀到（載入中、讀取失敗）時樹是空的，不能拿來判斷
+  useEffect(() => {
+    if (loading || error !== null || selectedCategoryId === null) return;
+    if (findCategoryName(tree, selectedCategoryId) === null) onSelectCategory(null);
+  }, [tree, loading, error, selectedCategoryId, onSelectCategory]);
   const handleReorderError = useCallback(
     (err: unknown) =>
       showToast(
@@ -97,38 +122,58 @@ export const CategorySidebar = memo(function CategorySidebar({
     [handleCreateCategory]
   );
 
-  const handleEdit = useCallback(async (node: CategoryTreeNode, e: MouseEvent) => {
-    e.stopPropagation();
-    // 用遞增 ID 防止連點時慢回應覆蓋快回應（stale-response race）
-    const requestId = ++editRequestIdRef.current;
-    try {
-      const freshCategory = await getCategory(node.id);
-      if (requestId !== editRequestIdRef.current) return; // 已被更新的請求取代
-      setEditingCategory({
-        ...node,
-        name: freshCategory.name,
-        description: freshCategory.description,
-        icon: freshCategory.icon,
-        color: freshCategory.color,
-      });
-    } catch (err) {
-      if (requestId !== editRequestIdRef.current) return;
-      logger.error("[CategorySidebar] 分類載入失敗，使用快取資料:", err);
-      setEditingCategory(node);
-    }
-  }, []);
+  const handleEdit = useCallback(
+    async (node: CategoryTreeNode, e: MouseEvent) => {
+      e.stopPropagation();
+      // 用遞增 ID 防止連點時慢回應覆蓋快回應（stale-response race）
+      const requestId = ++editRequestIdRef.current;
+      try {
+        const freshCategory = await getCategory(node.id);
+        if (requestId !== editRequestIdRef.current) return; // 已被更新的請求取代
+        setEditingCategory({
+          ...node,
+          name: freshCategory.name,
+          description: freshCategory.description,
+          icon: freshCategory.icon,
+          color: freshCategory.color,
+        });
+      } catch (err) {
+        if (requestId !== editRequestIdRef.current) return;
+        if (isCategoryGone(err)) {
+          // 打開框讓人填完才說存不進去，打的字會白費；重讀後它會從樹上消失，選取也會跟著放掉
+          showToast("info", interpolate(t.categories.alreadyGone, { name: node.name }));
+          invalidateRepos();
+          return;
+        }
+        logger.error("[CategorySidebar] 分類載入失敗，使用快取資料:", err);
+        setEditingCategory(node);
+      }
+    },
+    [showToast, invalidateRepos, t]
+  );
 
   const handleEditSubmit = useCallback(
-    async (categoryId: number, data: Parameters<typeof handleUpdateCategory>[1]) => {
+    async (categoryId: number, data: CategoryEditFields) => {
       setIsSubmitting(true);
       try {
-        const saved = await handleUpdateCategory(categoryId, data);
-        // 對話框留著讓人重試，但要說出這一下沒有成功：否則按鈕只是從「儲存中」變回「儲存」
-        if (!saved) {
-          const name = findCategoryName(tree, categoryId) ?? data.name ?? "";
-          showToast("error", interpolate(t.categories.updateFailed, { name }));
+        const result = await handleUpdateCategory(categoryId, data);
+        if (result.ok) return true;
+        // 改名沒有成功，所以提示用它現在的名字，不是剛打進去的新名字
+        const name = findCategoryName(tree, categoryId) ?? data.name ?? "";
+        if (isCategoryGone(result.error)) {
+          // 留著框也存不進去：回 true 讓編輯框關掉。用警告：打好的變更沒有存到，但不是重試能解決的錯誤
+          showToast("warning", interpolate(t.categories.updateFailed.gone, { name }));
+          return true;
         }
-        return saved;
+        // 對話框留著讓人重試，但要說出這一下沒有成功與原因：否則按鈕只是從「儲存中」變回「儲存」
+        showToast(
+          failureToastType(result.error),
+          describeWriteFailure(result.error, t, {
+            notDone: interpolate(t.categories.updateFailed.notDone, { name }),
+            timedOut: interpolate(t.categories.updateFailed.timedOut, { name }),
+          })
+        );
+        return false;
       } finally {
         setIsSubmitting(false);
       }
@@ -150,15 +195,26 @@ export const CategorySidebar = memo(function CategorySidebar({
     if (deleteConfirm.itemId === null) return;
     setIsDeleting(true);
     try {
-      const success = await handleDeleteCategory(deleteConfirm.itemId);
-      if (success) {
+      const result = await handleDeleteCategory(deleteConfirm.itemId);
+      // 已經不在＝使用者要的結果已經達成（例如上一次逾時、其實刪掉了），照刪除成功處理
+      const alreadyGone = !result.ok && isCategoryGone(result.error);
+      if (result.ok || alreadyGone) {
         if (selectedCategoryId === deleteConfirm.itemId) {
           onSelectCategory(null);
         }
         deleteConfirm.close();
+        if (alreadyGone) {
+          showToast("info", interpolate(t.categories.alreadyGone, { name: deleteTargetName }));
+        }
       } else {
-        // 失敗時保留 dialog 開啟讓使用者可以重試，並說出這一下沒有成功
-        showToast("error", interpolate(t.categories.deleteFailed, { name: deleteTargetName }));
+        // 失敗時保留 dialog 開啟讓使用者可以重試，並說出這一下沒有成功與原因
+        showToast(
+          failureToastType(result.error),
+          describeWriteFailure(result.error, t, {
+            notDone: interpolate(t.categories.deleteFailed.notDone, { name: deleteTargetName }),
+            timedOut: interpolate(t.categories.deleteFailed.timedOut, { name: deleteTargetName }),
+          })
+        );
       }
     } finally {
       setIsDeleting(false);

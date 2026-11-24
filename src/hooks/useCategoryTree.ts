@@ -9,10 +9,14 @@ import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CategoryTreeNode, CategoryUpdate } from "../api/client";
 import { createCategory, updateCategory, deleteCategory } from "../api/client";
-import { invalidateTrackedRepos, queryKeys } from "../lib/react-query";
+import { invalidateTrackedRepos, keepRefetchingAfterTimeout, queryKeys } from "../lib/react-query";
 import { useCategoryTreeQuery } from "./useCategoryQueries";
 import { useI18n } from "../i18n";
 import { logger } from "../utils/logger";
+import { isRequestTimeout } from "../utils/writeFailure";
+
+/** 寫入的結果。失敗時帶著原本的錯誤：要怎麼說（原因、逾時、分類已經不在）由畫面決定 */
+export type CategoryWriteResult = { ok: true } | { ok: false; error: unknown };
 
 interface UseCategoryTreeResult {
   tree: CategoryTreeNode[];
@@ -22,8 +26,17 @@ interface UseCategoryTreeResult {
   reloadFailed: boolean;
   fetchCategories: () => Promise<void>;
   handleCreateCategory: (name: string) => Promise<boolean>;
-  handleUpdateCategory: (categoryId: number, data: CategoryUpdate) => Promise<boolean>;
-  handleDeleteCategory: (categoryId: number) => Promise<boolean>;
+  handleUpdateCategory: (categoryId: number, data: CategoryUpdate) => Promise<CategoryWriteResult>;
+  handleDeleteCategory: (categoryId: number) => Promise<CategoryWriteResult>;
+}
+
+/**
+ * 寫入失敗後重讀：失敗也可能是分類已經不在，或伺服器其實做完了。逾時的話伺服器可能還在做，
+ * 接下來一陣子定期重讀，畫面才會跟上做完的結果
+ */
+function reloadAfterFailure(error: unknown, reload: () => void): void {
+  reload();
+  if (isRequestTimeout(error)) keepRefetchingAfterTimeout(reload);
 }
 
 const EMPTY_TREE: CategoryTreeNode[] = [];
@@ -62,30 +75,34 @@ export function useCategoryTree(): UseCategoryTreeResult {
   );
 
   const handleUpdateCategory = useCallback(
-    async (categoryId: number, update: CategoryUpdate): Promise<boolean> => {
+    async (categoryId: number, update: CategoryUpdate): Promise<CategoryWriteResult> => {
       try {
         await updateCategory(categoryId, update);
         reloadTree();
-        return true;
+        return { ok: true };
       } catch (err) {
         logger.error("[CategoryTree] 分類更新失敗:", err);
-        return false;
+        // 不知道發生了什麼，連追蹤清單一起重讀：分類可能已經不在，各 repo 的 category_ids 也跟著過期
+        reloadAfterFailure(err, () => invalidateTrackedRepos(qc));
+        return { ok: false, error: err };
       }
     },
-    [reloadTree]
+    [reloadTree, qc]
   );
 
   const handleDeleteCategory = useCallback(
-    async (categoryId: number): Promise<boolean> => {
+    async (categoryId: number): Promise<CategoryWriteResult> => {
+      // 刪掉的分類的成員關係跟著消失，各 repo 的 category_ids 要重讀：categories 沒有 AUTOINCREMENT，
+      // 新分類可能重用這個 id，留著舊的 category_ids 會讓那些 repo 出現在新分類裡
+      const reloadTracked = () => invalidateTrackedRepos(qc);
       try {
         await deleteCategory(categoryId);
-        // 刪掉的分類的成員關係跟著消失，各 repo 的 category_ids 要重讀：categories 沒有 AUTOINCREMENT，
-        // 新分類可能重用這個 id，留著舊的 category_ids 會讓那些 repo 出現在新分類裡
-        invalidateTrackedRepos(qc);
-        return true;
+        reloadTracked();
+        return { ok: true };
       } catch (err) {
         logger.error("[CategoryTree] 分類刪除失敗:", err);
-        return false;
+        reloadAfterFailure(err, reloadTracked);
+        return { ok: false, error: err };
       }
     },
     [qc]

@@ -79,9 +79,10 @@ paths:
   `onKeyDown={(e) => e.stopPropagation()}`（頁面的快捷鍵才收不到框內的按鍵；Esc 與 Tab 的處理掛在 capture 階段就是以此為前提）；
   `role="dialog"`、`aria-modal`、`aria-labelledby` 照 `CategoryEditModal`
 - 寫入失敗的 toast 用 `describeWriteFailure(err, t, copy)`（`utils/writeFailure.ts`）：依後端的狀態碼與 `code` 給原因；
-  逾時要說「不確定有沒有完成」；後端的原始 `detail` 不上畫面（別處的 `getErrorMessage` 仍直接顯示 `detail`，
-  新的寫入失敗訊息不要照那個寫法；分類側欄（`CategorySidebar`）的編輯與刪除失敗提示還不分原因、失敗後也不重讀，
-  也不要照抄）。⚠️ 它只會說「沒做成」：結果其實是使用者要的錯誤（例如加入時的 `ALREADY_TRACKED`、
+  逾時要說「不確定有沒有完成」，這時用 warning 不用 error（探索頁的逾時仍用 error，不要照抄那裡）；任何失敗後都重讀
+  受影響的資料，逾時再用 `keepRefetchingAfterTimeout` 定期重讀一陣子，範例見 `CategorySidebar` 與 `useCategoryTree`；
+  後端的原始 `detail` 不上畫面（別處的 `getErrorMessage` 仍直接顯示 `detail`，新的寫入失敗訊息不要照那個寫法）。
+  ⚠️ 它只會說「沒做成」：結果其實是使用者要的錯誤（例如加入時的 `ALREADY_TRACKED`、
   取消追蹤時不帶 `GITHUB_NOT_FOUND` 的 404）要由呼叫端先攔下、改用 info toast，見 `Discovery.tsx` 的 `reportAddFailure`／
   `handleFeedUnstar`——不攔的話「已經在追蹤清單」會被說成「沒有加入追蹤清單。請再試一次。」。其他寫入（重複建立的 409、
   刪除已經不在的 404）要逐個端點看後端的意思：同一個 404 也可能是「當成不存在」（綁在封存 repo 上的警報規則），

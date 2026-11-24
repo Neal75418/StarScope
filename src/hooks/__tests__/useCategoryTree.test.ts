@@ -10,6 +10,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useCategoryTree } from "../useCategoryTree";
 import * as apiClient from "../../api/client";
 import { invalidateTrackedRepos, queryKeys } from "../../lib/react-query";
+import { ApiError } from "../../api/types";
+import {
+  API_ERROR_MESSAGES,
+  BATCH_ADD_FOLLOWUP_INTERVAL_MS,
+  BATCH_ADD_TIMEOUT_MS,
+} from "../../constants/api";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -157,12 +163,12 @@ describe("useCategoryTree", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     client.setQueryData(queryKeys.repos.lists(), []);
 
-    let success = false;
+    let outcome: unknown;
     await act(async () => {
-      success = await result.current.handleUpdateCategory(1, { name: "Updated" });
+      outcome = await result.current.handleUpdateCategory(1, { name: "Updated" });
     });
 
-    expect(success).toBe(true);
+    expect(outcome).toEqual({ ok: true });
     expect(apiClient.updateCategory).toHaveBeenCalledWith(1, { name: "Updated" });
     await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
     // 改名不改任何 repo 屬於哪些分類，不必連整份追蹤清單一起重抓
@@ -188,19 +194,24 @@ describe("useCategoryTree", () => {
     expect(result.current.tree).toEqual(mockTree);
   });
 
-  it("handles update category error", async () => {
+  it("gives back the error and reloads the tracked repos when updating a category fails", async () => {
+    // 原因由側欄說；要重讀：失敗也可能是分類已經不在（各 repo 的 category_ids 也跟著過期），或伺服器其實做完了
+    const error = new Error("Update failed");
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
-    vi.mocked(apiClient.updateCategory).mockRejectedValue(new Error("Update failed"));
+    vi.mocked(apiClient.updateCategory).mockRejectedValue(error);
 
-    const { result } = renderTree();
+    const { client, result } = renderTree();
     await waitFor(() => expect(result.current.loading).toBe(false));
+    client.setQueryData(queryKeys.repos.lists(), []);
 
-    let success = true;
+    let outcome: unknown;
     await act(async () => {
-      success = await result.current.handleUpdateCategory(1, { name: "Updated" });
+      outcome = await result.current.handleUpdateCategory(1, { name: "Updated" });
     });
 
-    expect(success).toBe(false);
+    expect(outcome).toEqual({ ok: false, error });
+    await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+    expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
   });
 
   it("deletes a category and reloads the tracked repos along with the tree", async () => {
@@ -213,30 +224,110 @@ describe("useCategoryTree", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     client.setQueryData(queryKeys.repos.lists(), []);
 
-    let success = false;
+    let outcome: unknown;
     await act(async () => {
-      success = await result.current.handleDeleteCategory(1);
+      outcome = await result.current.handleDeleteCategory(1);
     });
 
-    expect(success).toBe(true);
+    expect(outcome).toEqual({ ok: true });
     expect(apiClient.deleteCategory).toHaveBeenCalledWith(1);
     await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
     expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
   });
 
-  it("handles delete category error", async () => {
+  it("gives back the error and reloads the tracked repos when deleting a category fails", async () => {
+    const error = new Error("Delete failed");
     vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
-    vi.mocked(apiClient.deleteCategory).mockRejectedValue(new Error("Delete failed"));
+    vi.mocked(apiClient.deleteCategory).mockRejectedValue(error);
 
-    const { result } = renderTree();
+    const { client, result } = renderTree();
     await waitFor(() => expect(result.current.loading).toBe(false));
+    client.setQueryData(queryKeys.repos.lists(), []);
 
-    let success = true;
+    let outcome: unknown;
     await act(async () => {
-      success = await result.current.handleDeleteCategory(1);
+      outcome = await result.current.handleDeleteCategory(1);
     });
 
-    expect(success).toBe(false);
+    expect(outcome).toEqual({ ok: false, error });
+    await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+    expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
+  });
+
+  describe("after a write times out", () => {
+    // 逾時時伺服器可能還在做：只讀一次會停在做完之前的樣子。都在 fake timers 底下跑，
+    // 定期重讀是真的計時器的話，會留在 worker 裡干擾後面的測試
+    const timedOut = () => new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
+
+    it("keeps reloading the tree for a while after an update times out", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
+        vi.mocked(apiClient.updateCategory).mockRejectedValue(timedOut());
+        const { client, result } = renderTree();
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+          await result.current.handleUpdateCategory(1, { name: "Updated" });
+        });
+        await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+
+        // 定期重讀的也是整份追蹤清單，不只樹：分類可能已經不在，各 repo 的 category_ids 也跟著過期
+        client.setQueryData(queryKeys.repos.lists(), []);
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(3));
+        expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
+
+        // 有期限：不會一直讀下去
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+        const afterWindow = vi.mocked(apiClient.getCategoryTree).mock.calls.length;
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+        expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(afterWindow);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps reloading the tracked repos for a while after a delete times out", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
+        vi.mocked(apiClient.deleteCategory).mockRejectedValue(timedOut());
+        const { client, result } = renderTree();
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+          await result.current.handleDeleteCategory(1);
+        });
+        await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+
+        client.setQueryData(queryKeys.repos.lists(), []);
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        expect(client.getQueryState(queryKeys.repos.lists())?.isInvalidated).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reloads only once after a failure that is not a timeout", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        vi.mocked(apiClient.getCategoryTree).mockResolvedValue({ tree: mockTree, total: 1 });
+        vi.mocked(apiClient.updateCategory).mockRejectedValue(new ApiError(500, "boom"));
+        const { result } = renderTree();
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        await act(async () => {
+          await result.current.handleUpdateCategory(1, { name: "Updated" });
+        });
+        await waitFor(() => expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2));
+
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        expect(apiClient.getCategoryTree).toHaveBeenCalledTimes(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   it("create returns true even when post-mutation reload fails", async () => {

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { createPortal } from "react-dom";
-import { CategoryTreeNode, CategoryUpdate } from "../../api/client";
+import { CategoryTreeNode, CategoryEditFields } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
@@ -14,7 +14,7 @@ import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 interface CategoryEditModalProps {
   category: CategoryTreeNode;
   isSubmitting: boolean;
-  onSubmit: (categoryId: number, data: CategoryUpdate) => Promise<boolean>;
+  onSubmit: (categoryId: number, data: CategoryEditFields) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -42,7 +42,7 @@ export function CategoryEditModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    const data: CategoryUpdate = {
+    const data: CategoryEditFields = {
       name: name.trim(),
       description: description.trim() || undefined,
       icon: icon.trim() || undefined,

@@ -8,12 +8,15 @@ import { userEvent } from "@testing-library/user-event";
 import { CategorySidebar, CategoryTreeData } from "../CategorySidebar";
 import type { CategoryTreeNode } from "../../api/client";
 import * as apiClient from "../../api/client";
+import { ApiError } from "../../api/types";
+import { API_ERROR_MESSAGES } from "../../constants/api";
 
 // Mock API client (getCategory is still called internally for edit)
 // 分類操作失敗的 toast 走 WatchlistContext；這裡沒有 provider
 const mockShowToast = vi.fn();
+const mockInvalidateRepos = vi.fn();
 vi.mock("../../contexts/WatchlistContext", () => ({
-  useWatchlistActions: () => ({ showToast: mockShowToast }),
+  useWatchlistActions: () => ({ showToast: mockShowToast, invalidateRepos: mockInvalidateRepos }),
 }));
 
 vi.mock("../../api/client", async (importOriginal) => {
@@ -65,8 +68,8 @@ function makeCategoryTreeData(overrides: Partial<CategoryTreeData> = {}): Catego
     error: null,
     fetchCategories: vi.fn().mockResolvedValue(undefined),
     handleCreateCategory: vi.fn().mockResolvedValue(true),
-    handleUpdateCategory: vi.fn().mockResolvedValue(true),
-    handleDeleteCategory: vi.fn().mockResolvedValue(true),
+    handleUpdateCategory: vi.fn().mockResolvedValue({ ok: true }),
+    handleDeleteCategory: vi.fn().mockResolvedValue({ ok: true }),
     ...overrides,
   };
 }
@@ -233,7 +236,7 @@ describe("CategorySidebar", () => {
 
   it("deletes a category after confirmation", async () => {
     const user = userEvent.setup();
-    const mockDelete = vi.fn().mockResolvedValue(true);
+    const mockDelete = vi.fn().mockResolvedValue({ ok: true });
 
     render(
       <CategorySidebar
@@ -326,7 +329,7 @@ describe("CategorySidebar", () => {
 
   it("keeps delete dialog open when deletion fails", async () => {
     const user = userEvent.setup();
-    const mockDelete = vi.fn().mockResolvedValue(false);
+    const mockDelete = vi.fn().mockResolvedValue({ ok: false, error: new Error("boom") });
 
     render(
       <CategorySidebar
@@ -356,7 +359,7 @@ describe("CategorySidebar", () => {
         selectedCategoryId={null}
         onSelectCategory={mockOnSelectCategory}
         categoryTree={makeCategoryTreeData({
-          handleDeleteCategory: vi.fn().mockResolvedValue(false),
+          handleDeleteCategory: vi.fn().mockResolvedValue({ ok: false, error: new Error("boom") }),
         })}
       />
     );
@@ -379,7 +382,7 @@ describe("CategorySidebar", () => {
         selectedCategoryId={null}
         onSelectCategory={mockOnSelectCategory}
         categoryTree={makeCategoryTreeData({
-          handleUpdateCategory: vi.fn().mockResolvedValue(false),
+          handleUpdateCategory: vi.fn().mockResolvedValue({ ok: false, error: new Error("boom") }),
         })}
       />
     );
@@ -401,6 +404,240 @@ describe("CategorySidebar", () => {
     );
     // 對話框留著，打好的內容還在
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  describe("says why a write did not go through", () => {
+    const unreachable = () => new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: fetch failed`);
+    const timedOut = () => new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
+    const gone = () => new ApiError(404, "Category not found");
+
+    async function confirmDeletingBackend(
+      error: unknown,
+      selectedCategoryId: number | null = null
+    ) {
+      const user = userEvent.setup();
+      render(
+        <CategorySidebar
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData({
+            handleDeleteCategory: vi.fn().mockResolvedValue({ ok: false, error }),
+          })}
+        />
+      );
+      const deleteButtons = screen.getAllByTitle("Delete category");
+      await user.click(deleteButtons[deleteButtons.length - 1]);
+      const dialog = await screen.findByRole("alertdialog");
+      await user.click(within(dialog).getByRole("button", { name: "Delete category" }));
+    }
+
+    async function savingBackend(error: unknown) {
+      const user = userEvent.setup();
+      vi.mocked(apiClient.getCategory).mockRejectedValueOnce(new Error("use the cached node"));
+      render(
+        <CategorySidebar
+          selectedCategoryId={null}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData({
+            handleUpdateCategory: vi.fn().mockResolvedValue({ ok: false, error }),
+          })}
+        />
+      );
+      const editButtons = screen.getAllByTitle("Edit category");
+      await user.click(editButtons[editButtons.length - 1]);
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    }
+
+    it("names the cause when a delete fails because the data engine can't be reached", async () => {
+      await confirmDeletingBackend(unreachable());
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          "error",
+          '"Backend" was not deleted. The data engine can\'t be reached.'
+        )
+      );
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    });
+
+    it("treats a category that is already gone as deleted", async () => {
+      // 再按一次刪除得到 404（例如上一次逾時、其實已經刪了）：使用者要的結果已經達成，關掉確認框
+      await confirmDeletingBackend(gone(), 3);
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      expect(mockShowToast).toHaveBeenCalledWith("info", '"Backend" was already deleted.');
+      expect(mockOnSelectCategory).toHaveBeenCalledWith(null);
+    });
+
+    it("says it is not sure whether a delete went through when it times out", async () => {
+      await confirmDeletingBackend(timedOut());
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          "warning",
+          'No response yet, so it\'s unclear whether "Backend" was deleted. The category list will update on its own over the next few minutes.'
+        )
+      );
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    });
+
+    it("keeps the dialog and the selection when a delete is refused for another reason", async () => {
+      // 只有 404 代表分類已經不在；其他 4xx／5xx 是這一次沒做成
+      await confirmDeletingBackend(new ApiError(403, "Forbidden"), 3);
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith("error", '"Backend" was not deleted. Try again.')
+      );
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+    });
+
+    it("leaves another selected category alone when the deleted one is already gone", async () => {
+      await confirmDeletingBackend(gone(), 1);
+
+      await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+    });
+
+    it("does not open the edit dialog for a category that is already gone", async () => {
+      // 讀分類就 404：打開框讓人填完才說存不進去，打的字會白費
+      const user = userEvent.setup();
+      vi.mocked(apiClient.getCategory).mockRejectedValueOnce(gone());
+      render(
+        <CategorySidebar
+          selectedCategoryId={null}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData()}
+        />
+      );
+
+      const editButtons = screen.getAllByTitle("Edit category");
+      await user.click(editButtons[editButtons.length - 1]);
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith("info", '"Backend" was already deleted.')
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(mockInvalidateRepos).toHaveBeenCalled();
+    });
+
+    it("still opens the edit dialog from the cached node when reading the category fails for another reason", async () => {
+      // 只有 404 代表分類已經不在；斷線或逾時時樹上的節點本來就帶著要編輯的欄位
+      const user = userEvent.setup();
+      vi.mocked(apiClient.getCategory).mockRejectedValueOnce(unreachable());
+      render(
+        <CategorySidebar
+          selectedCategoryId={null}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData()}
+        />
+      );
+
+      const editButtons = screen.getAllByTitle("Edit category");
+      await user.click(editButtons[editButtons.length - 1]);
+
+      expect(await screen.findByRole("dialog")).toBeInTheDocument();
+      expect(mockShowToast).not.toHaveBeenCalled();
+      expect(mockInvalidateRepos).not.toHaveBeenCalled();
+    });
+
+    it("names the cause when saving fails because the data engine can't be reached", async () => {
+      await savingBackend(unreachable());
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          "error",
+          'Changes to "Backend" were not saved. The data engine can\'t be reached.'
+        )
+      );
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("closes the edit dialog when the category no longer exists", async () => {
+      // 分類已經被刪了：留著框也存不進去
+      await savingBackend(gone());
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(mockShowToast).toHaveBeenCalledWith(
+        "warning",
+        '"Backend" no longer exists, so the changes were not saved.'
+      );
+    });
+
+    it("says it is not sure whether the changes were saved when saving times out", async () => {
+      await savingBackend(timedOut());
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          "warning",
+          'No response yet, so it\'s unclear whether the changes to "Backend" were saved. The category list will update on its own over the next few minutes.'
+        )
+      );
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+  });
+
+  describe("keeps the selection in step with the tree", () => {
+    const withoutBackend = mockTree.filter((node) => node.id !== 3);
+
+    it("lets go of the selected category once the tree no longer has it", async () => {
+      // 分類在別處被刪了、或刪除逾時其實已經做完：樹重讀之後選取還指著它，側欄就沒有任何一項是選取的
+      const view = render(
+        <CategorySidebar
+          selectedCategoryId={3}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData()}
+        />
+      );
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+
+      view.rerender(
+        <CategorySidebar
+          selectedCategoryId={3}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData({ tree: withoutBackend })}
+        />
+      );
+
+      await waitFor(() => expect(mockOnSelectCategory).toHaveBeenCalledWith(null));
+    });
+
+    it("finds a selected subcategory inside its parent", () => {
+      render(
+        <CategorySidebar
+          selectedCategoryId={2}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData()}
+        />
+      );
+
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+    });
+
+    it("keeps the selection while the tree is still loading", () => {
+      render(
+        <CategorySidebar
+          selectedCategoryId={3}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData({ tree: [], loading: true })}
+        />
+      );
+
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+    });
+
+    it("keeps the selection when the tree could not be loaded", () => {
+      render(
+        <CategorySidebar
+          selectedCategoryId={3}
+          onSelectCategory={mockOnSelectCategory}
+          categoryTree={makeCategoryTreeData({ tree: [], error: "Failed to load categories" })}
+        />
+      );
+
+      expect(mockOnSelectCategory).not.toHaveBeenCalled();
+    });
   });
 
   it("stays quiet when updating a category succeeds", async () => {
