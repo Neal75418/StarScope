@@ -39,6 +39,8 @@ MAX_ALERTS_PER_QUERY = 500
 # GitHub 設定
 GITHUB_API_TIMEOUT_SECONDS = 30.0
 GITHUB_TOKEN_ENV_VAR = "GITHUB_TOKEN"  # GitHub token 的環境變數名稱
+# GitHub REST 改連的網址（只給 e2e 連本機的假 GitHub 用），見 services/github.resolve_github_api_base
+GITHUB_API_BASE_ENV_VAR = "STARSCOPE_GITHUB_API_BASE"
 
 # 驗證
 GITHUB_USERNAME_PATTERN = r"^[a-zA-Z0-9](?:[a-zA-Z0-9]|-(?=[a-zA-Z0-9])){0,38}$"

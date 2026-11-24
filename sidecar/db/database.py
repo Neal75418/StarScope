@@ -15,6 +15,11 @@ from .query_logger import setup_query_logging
 logger = logging.getLogger(__name__)
 
 
+def default_app_data_dir() -> Path:
+    """沒有 STARSCOPE_DATA_DIR 時的資料目錄：真實資料所在（安裝版、開發模式、collector 共用）。"""
+    return Path.home() / ".starscope"
+
+
 def get_app_data_dir() -> Path:
     """
     取得資料目錄。開發模式、安裝版、launchd 的 collector 都用同一個位置，
@@ -31,7 +36,7 @@ def get_app_data_dir() -> Path:
     if env_path := os.environ.get("STARSCOPE_DATA_DIR"):
         return Path(env_path)
 
-    return Path.home() / ".starscope"
+    return default_app_data_dir()
 
 
 # 資料庫檔案位置

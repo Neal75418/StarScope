@@ -168,6 +168,22 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      - name: Start fake GitHub
+        # e2e 的 sidecar 只連這個本機的假 GitHub（e2e/fake_github/server.py），不打真的 GitHub：
+        # 未認證的匿名配額是 runner 共用 IP 的，常在我們用之前就被別人用光（11-24 兩次 429）。
+        # port 必須與 playwright.config.ts 的 E2E_FAKE_GITHUB_PORT 一致
+        run: python e2e/fake_github/server.py --port 8010 > /tmp/fake-github-e2e.log 2>&1 &
+
+      - name: Wait for fake GitHub
+        run: |
+          for i in $(seq 1 15); do
+            curl -sf http://127.0.0.1:8010/__fake_github/health > /dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          echo "::error::假 GitHub 在 15 秒內沒有回應 :8010"
+          cat /tmp/fake-github-e2e.log || true
+          exit 1
+
       - name: Start sidecar
         # port/資料目錄必須與 playwright.config.ts 的 E2E_* 一致。
         # 日誌導向檔案：先前 sidecar 的輸出無處可去，E2E 失敗時看不到後端
@@ -177,15 +193,14 @@ jobs:
           ENV: test
           PORT: "8009"
           STARSCOPE_DATA_DIR: /tmp/starscope-e2e
-          # 刻意不給 GITHUB_TOKEN。這裡試過、實測失敗（20f4f99、919706a 連兩次
-          # 紅燈，POST /api/repos 一律 502）：
+          # 只連本機的假 GitHub；改連時 sidecar 也不帶 token（services/github.py）
+          STARSCOPE_GITHUB_API_BASE: http://127.0.0.1:8010
+          # 刻意不給 GITHUB_TOKEN（20f4f99、919706a 試過，POST /api/repos 一律 502）：
           #   1. routers/repos.py 的 add_repo 以 github.can_write（＝有沒有 token）
           #      決定要不要順便在 GitHub 上 star，而 star 走 PUT /user/starred/…
           #   2. Actions 內建的 GITHUB_TOKEN 是 installation token，沒有使用者身分，
           #      /user/* 端點一律被拒 → GitHubAPIError → 502
           #   3. 換成個人 PAT 更糟：那會讓 CI 真的在帳號上 star 測試用的 repo
-          # 未認證的 60 次/小時足夠單次 E2E；同一小時內連推多個 commit 才會撞到，
-          # 那時重跑該 job 即可（配額按小時重置）
 
       - name: Wait for sidecar
         # 起不來就直接失敗並附上日誌：先前迴圈跑完仍會往下走，
@@ -219,6 +234,28 @@ jobs:
         # db-mutating 也要跑：先前只指定 chromium，那三支 spec 在 CI 從未執行過
         run: npx playwright test --project=chromium --project=db-mutating
 
+      - name: Check fake GitHub got only expected requests
+        # 假 GitHub 對沒有的端點回 501。呼叫端把錯誤吞掉的路徑（例如抓 release）spec 不會紅：這裡看 log 判紅。
+        # 要支援就在 e2e/fake_github/server.py 補上，資料錄真實回應；重跑不會好。
+        # 也確認它跑完 e2e 還活著：中途掛掉時，被吞掉的路徑只拿到連線錯誤、log 裡也沒有記號。
+        # e2e 紅了也要跑（!cancelled()），不能加 continue-on-error（sidecar/tests/test_e2e_fake_github.py 守著）
+        if: ${{ !cancelled() }}
+        run: |
+          if [ ! -f /tmp/fake-github-e2e.log ]; then
+            echo "假 GitHub 沒有啟動（前面的步驟就失敗了），跳過檢查"
+            exit 0
+          fi
+          status=0
+          if grep -n "fake-github: unexpected request" /tmp/fake-github-e2e.log; then
+            echo "::error::e2e 打到假 GitHub 沒有的端點，要在 e2e/fake_github/server.py 補上（資料錄真實回應）"
+            status=1
+          fi
+          if ! curl -sf http://127.0.0.1:8010/__fake_github/health > /dev/null; then
+            echo "::error::假 GitHub 在 e2e 跑完時已經沒有回應"
+            status=1
+          fi
+          exit "$status"
+
       - name: Dump sidecar log
         # E2E 的失敗多半是後端造成的（GitHub 限流、token 沒讀到、寫入失敗），
         # 但錯誤訊息只看得到前端症狀（dialog 關不掉）。失敗時直接把後端日誌印出來
@@ -235,6 +272,10 @@ jobs:
           echo "::group::vite 最後 100 行"
           tail -n 100 /tmp/vite-e2e.log || true
           echo "::endgroup::"
+          # 「unexpected request」＝e2e 打到假 GitHub 沒有的端點：要在 e2e/fake_github/server.py 補上
+          echo "::group::假 GitHub 的請求"
+          cat /tmp/fake-github-e2e.log || true
+          echo "::endgroup::"
 
       - name: Upload Playwright report
         if: failure()
@@ -245,5 +286,6 @@ jobs:
             playwright-report/
             /tmp/sidecar-e2e.log
             /tmp/vite-e2e.log
+            /tmp/fake-github-e2e.log
           retention-days: 7
 

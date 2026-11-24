@@ -108,12 +108,13 @@ npm run test:e2e:ui       # 互動式 UI 模式
 npm run test:e2e:headed   # 顯示瀏覽器視窗
 ```
 
-⚠️ 本機一律 `E2E_NO_TOKEN=1 npm run test:e2e:chromium`：不加的話 e2e 的 sidecar 讀得到 Keychain token，
-「加入追蹤」會真的在 GitHub 上按 star。
+e2e 的 sidecar 只連本機的假 GitHub（`e2e/fake_github/server.py`，port 8010，由 `STARSCOPE_GITHUB_API_BASE` 改連），
+一律不帶 token：本機直接跑 `npm run test:e2e:chromium` 就好，碰不到 Keychain token、不會在 GitHub 上按 star。
+新增 e2e 用的 fixture repo 前，先把它的 `GET /repos/{owner}/{repo}` 真實回應錄進 `e2e/fake_github/repos/{owner}__{repo}.json`。
 
 e2e 大量 Loading 逾時時先看 `/tmp/starscope-e2e/starscope.log` 的 `-->`／`<--` 數量：對不起來就是 sidecar 卡住，不是測試 flaky。
-CI 的 e2e 會打真的 GitHub API、不帶 token（理由見 test.yml）。e2e 紅時看 job 的「Dump sidecar log」：有
-`[GitHub API] POST /api/repos 上游失敗: HTTP 5xx` 就查 githubstatus.com，事故解除後重跑即可，不是程式壞了。
+CI 的 e2e 也只連假 GitHub（理由見 test.yml）。sidecar log 有 `上游失敗: HTTP 501`、或「Check fake GitHub got only expected requests」
+紅，代表 e2e 打到假 GitHub 沒有的端點：去 `e2e/fake_github/server.py` 補（資料錄真實回應），重跑不會好。
 
 ### 完整開發流程
 

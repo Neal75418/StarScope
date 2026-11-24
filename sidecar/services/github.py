@@ -6,16 +6,19 @@ GitHub API 服務。
 import asyncio
 import logging
 import os
+import sys
 import threading
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal, overload
+from urllib.parse import urlsplit
 
 import httpx
 from sqlalchemy.exc import SQLAlchemyError
 from keyring.errors import KeyringError
 
-from constants import GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
+from constants import GITHUB_API_BASE_ENV_VAR, GITHUB_API_TIMEOUT_SECONDS, GITHUB_TOKEN_ENV_VAR
+from db.database import APP_DATA_DIR, default_app_data_dir
 from db.models import AppSettingKey
 
 if TYPE_CHECKING:
@@ -23,7 +26,79 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-GITHUB_API_BASE = "https://api.github.com"
+DEFAULT_GITHUB_API_BASE = "https://api.github.com"
+
+
+# 覆蓋時只收這個位址。localhost 交給系統解析，可能先連 ::1：假 GitHub 只綁 127.0.0.1，
+# ::1 的同一個 port 上要是有別的服務就連錯
+_LOOPBACK_HOST = "127.0.0.1"
+
+
+def resolve_github_api_base(value: str | None, *, frozen: bool, isolated_data_dir: bool) -> str | None:
+    """STARSCOPE_GITHUB_API_BASE 的值 → 改連的網址（標準形式）；沒有覆蓋時回 None。
+
+    只給 e2e 連本機的假 GitHub 用。預設網址是 token 會送去的地方，所以：
+    - 打包版（frozen）一律忽略、連檢查都不做：Tauri 啟動 sidecar 時不清環境，使用者層級的環境變數
+      （包括別的程式用 launchctl setenv 設的）都會傳進來，不能讓它把請求導到本機某個收 token 的 port，
+      也不讓一個奇怪的值把 app 弄到起不來
+    - 沒有獨立的資料目錄（用的是 ~/.starscope）時丟 ValueError：那是真實資料（開發模式的 sidecar、launchd 的
+      collector），連假 GitHub 會讓本機資料和 GitHub 對不上（加入追蹤只改本機、不按 star）；e2e 的設定漏了
+      STARSCOPE_DATA_DIR 時也走到這裡，寧可起不來，不要默默改連真的 GitHub
+    - 只收 http://127.0.0.1（可帶 port），不帶帳密、query、fragment，path 只能空的或 /；其他值丟 ValueError，
+      寧可 sidecar 起不來，也不要默默連真的 GitHub（測試以為連的是假的）
+    - 回傳用解析出的 host／port 重組的網址，不直接用原始字串：不同解析器對 @ 與反斜線的理解可能不同
+    覆蓋時 GitHubService 也不帶 token、不走 proxy（見 GitHubService）。
+    """
+    if not value or frozen:
+        return None
+    if not isolated_data_dir:
+        raise ValueError(
+            f"{GITHUB_API_BASE_ENV_VAR} 只能搭配獨立的資料目錄（STARSCOPE_DATA_DIR 指到 ~/.starscope 以外）："
+            "用的是真實資料時不能改連"
+        )
+    try:
+        parts = urlsplit(value)
+        port = parts.port
+    except ValueError:
+        valid = False
+    else:
+        valid = (
+            parts.scheme == "http"
+            and parts.hostname == _LOOPBACK_HOST
+            and parts.username is None
+            and parts.password is None
+            and not parts.query
+            and not parts.fragment
+            and parts.path in ("", "/")
+        )
+    if not valid:
+        raise ValueError(
+            f"{GITHUB_API_BASE_ENV_VAR} 只接受 http://127.0.0.1（可帶 port，例如 http://127.0.0.1:8010），收到：{value!r}"
+        )
+    return f"http://{_LOOPBACK_HOST}" + (f":{port}" if port is not None else "")
+
+
+def _uses_real_data_dir() -> bool:
+    """db.database 實際用的資料目錄是不是真實資料所在的預設目錄。
+
+    不另外讀 STARSCOPE_DATA_DIR：空字串、明確指到預設位置都還是真實資料。用 samefile 比（inode），
+    繞路（..）、symlink、不分大小寫的檔案系統上的大小寫變形都認得出來；APP_DATA_DIR 在 import 時就建好了
+    """
+    default = default_app_data_dir()
+    return default.exists() and os.path.samefile(APP_DATA_DIR, default)
+
+
+_API_BASE_ENV_VALUE = os.environ.get(GITHUB_API_BASE_ENV_VAR)
+_FROZEN = getattr(sys, "frozen", False)
+GITHUB_API_BASE = (
+    resolve_github_api_base(
+        _API_BASE_ENV_VALUE,
+        frozen=_FROZEN,
+        # 只在真的要覆蓋時才看資料目錄：沒設或打包版時 resolve 本來就不看它，也不必去解析家目錄
+        isolated_data_dir=bool(_API_BASE_ENV_VALUE) and not _FROZEN and not _uses_real_data_dir(),
+    )
+    or DEFAULT_GITHUB_API_BASE
+)
 
 
 # 例外類別
@@ -224,6 +299,10 @@ def _parse_star_datetime(value: str | None) -> "datetime | None":
 
 class GitHubService:
     def __init__(self, token: str | None = None, timeout: float = GITHUB_API_TIMEOUT_SECONDS) -> None:
+        # 改連別的網址（e2e 的假 GitHub）時不帶 token：Authorization 只送給真的 GitHub。
+        # can_write 也跟著變 False，加入追蹤時不會去打需要認證的 star
+        if GITHUB_API_BASE != DEFAULT_GITHUB_API_BASE:
+            token = None
         self.token = token
         self.timeout = timeout
         self.headers = build_github_headers(token)
@@ -237,7 +316,12 @@ class GitHubService:
             # follow_redirects：GitHub 對改名或轉移過的 repo 回 301，httpx 預設不跟隨，
             # 那個 repo 的抓取就會失敗——而且是無聲的，排程記一筆錯誤跳過，
             # 它從此不再更新（實測 facebook/react → /repositories/10270250）
-            client = self._client = httpx.AsyncClient(timeout=self.timeout, follow_redirects=True)
+            # 改連假 GitHub 時不讀 HTTP_PROXY 等環境變數：httpx 連 127.0.0.1 也會走 proxy，e2e 就連不到假 GitHub
+            client = self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                follow_redirects=True,
+                trust_env=GITHUB_API_BASE == DEFAULT_GITHUB_API_BASE,
+            )
         return client
 
     async def aclose(self) -> None:
@@ -576,6 +660,11 @@ def get_github_service() -> GitHubService:
         with _service_lock:
             service = _default_service
             if service is None:
+                if GITHUB_API_BASE != DEFAULT_GITHUB_API_BASE:
+                    logger.warning("[GitHub] API 改連 %s（測試用，不帶 token）", GITHUB_API_BASE)
+                elif _API_BASE_ENV_VALUE:
+                    # 打包版不讀這個變數：留一行，免得以為連的是假 GitHub
+                    logger.warning("[GitHub] 忽略 %s：打包版不讀這個變數，照常連 GitHub", GITHUB_API_BASE_ENV_VAR)
                 service = _default_service = GitHubService(token=resolve_github_token())
     return service
 

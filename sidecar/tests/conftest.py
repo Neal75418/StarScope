@@ -12,6 +12,10 @@ import tempfile
 # 固定資料庫路徑，預設是真實資料所在的 ~/.starscope（安裝版、開發模式、collector 共用）。
 # APScheduler 的 jobstore 用的是真的 DATABASE_URL，跑 lifespan 的測試會把排程寫進去
 #（tests/test_suite_isolation.py 守住）
+# 開發者 shell 裡要是 export 了改連假 GitHub 的網址，整個 session 的 GitHubService 都會被改連（還會丟掉 token）：
+# 同樣要在 import services.github 之前清掉
+os.environ.pop("STARSCOPE_GITHUB_API_BASE", None)
+
 if "STARSCOPE_DATA_DIR" not in os.environ:
     _data_dir = tempfile.mkdtemp(prefix="starscope-tests-")
     os.environ["STARSCOPE_DATA_DIR"] = _data_dir

@@ -9,6 +9,8 @@ import { defineConfig, devices } from "@playwright/test";
  * server 與真實資料庫。CI 手動起 server 時必須用同一組（見 .github/workflows/test.yml）。
  */
 const E2E_SIDECAR_PORT = 8009;
+/** e2e 的假 GitHub（e2e/fake_github/server.py）；CI 的 test.yml 寫死同一個值 */
+const E2E_FAKE_GITHUB_PORT = 8010;
 const E2E_WEB_PORT = 1421;
 
 /** 會寫入共用狀態（DB / 伺服器端設定）的 spec —— 見下方 projects 的說明。 */
@@ -79,13 +81,22 @@ export default defineConfig({
   // 那是真實資料庫——測試進到探索頁就會用使用者的真實興趣清單觸發當日 feed 產生，
   // 把當天的 feed 提前用掉（seen_repos 是永久的），配額吃緊時甚至會把縮水的 feed
   // 鎖成當天結果。改成專屬 port 後，開著 app 也能安全跑 e2e。
-  // 殘留風險：GitHub 配額仍是同一顆 token 共用，隔離 DB 擋不住。
+  // sidecar 只連本機的假 GitHub（STARSCOPE_GITHUB_API_BASE），而且一律不帶 token：不打真的 GitHub
+  // （CI 的匿名配額是 runner 共用 IP 的，常被別人用光），也不會用到開發者的 token、在 GitHub 上真的按 star
   webServer: process.env.CI
     ? undefined // Skip webServer in CI - servers are started manually or tests are skipped
     : [
         {
+          command: `sidecar/.venv/bin/python e2e/fake_github/server.py --port ${E2E_FAKE_GITHUB_PORT}`,
+          url: `http://127.0.0.1:${E2E_FAKE_GITHUB_PORT}/__fake_github/health`,
+          reuseExistingServer: false,
+          timeout: 15000,
+        },
+        {
           command:
-            `cd sidecar && PORT=${E2E_SIDECAR_PORT} STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false ${process.env.E2E_NO_TOKEN ? "PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring GITHUB_TOKEN= " : ""} .venv/bin/python main.py`,
+            `cd sidecar && PORT=${E2E_SIDECAR_PORT} STARSCOPE_DATA_DIR=/tmp/starscope-e2e DEBUG=false ` +
+            `PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring GITHUB_TOKEN= ` +
+            `STARSCOPE_GITHUB_API_BASE=http://127.0.0.1:${E2E_FAKE_GITHUB_PORT} .venv/bin/python main.py`,
           url: `http://127.0.0.1:${E2E_SIDECAR_PORT}/api/health`,
           reuseExistingServer: false,
           timeout: 60000,
