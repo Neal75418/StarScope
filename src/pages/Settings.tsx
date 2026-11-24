@@ -236,8 +236,11 @@ export function Settings() {
               />
             )}
 
+            {/* key：換編輯另一條規則（或從新增改成編輯）時整個重新掛上、換成那條的內容。表單不跟著
+                initialData 重設，設定頁重新渲染（存檔失敗、開關別條規則、捲動換區段）時改到一半的內容才不會被蓋回去 */}
             {isAlertFormVisible && (
               <AlertRuleForm
+                key={alerts.editingRule?.id ?? "new"}
                 initialData={alerts.editingRuleData ?? alerts.initialAlertRule}
                 signalTypes={alerts.signalTypes}
                 repos={alerts.repos}

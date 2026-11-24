@@ -2,7 +2,7 @@
  * 警示規則建立 / 編輯表單元件。
  */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { SyntheticEvent } from "react";
 import type {
   AlertOperator,
@@ -15,6 +15,7 @@ import { useAlertRuleFormValidation } from "../../hooks/useAlertRuleFormValidati
 import { getSignalTypeLabel as getSignalTypeLabelUtil } from "../../utils/signalTypeHelpers";
 
 interface AlertRuleFormProps {
+  /** 只在掛上時讀一次。要換成別條規則的內容，父元件換 key 重新掛上 */
   initialData: AlertRuleCreate;
   signalTypes: SignalTypeInfo[];
   repos: RepoWithSignals[];
@@ -50,14 +51,6 @@ export function AlertRuleForm({
   const { validate } = useAlertRuleFormValidation(rule, applyToAll);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // initialData 變更時重設表單（編輯模式用）
-  useEffect(() => {
-    setRule(initialData);
-    setThresholdInput(String(initialData.threshold));
-    setApplyToAll(initialData.repo_id === undefined);
-    setValidationError(null);
-  }, [initialData]);
-
   const handleSubmit = async (e: SyntheticEvent) => {
     e.preventDefault();
 
@@ -83,8 +76,7 @@ export function AlertRuleForm({
 
     const success = await onSubmit(ruleData);
     if (success) {
-      // 父元件負責關閉表單與重設狀態
-      // 重新開啟時會收到新的 initialData
+      // 父元件負責關閉表單；重新開啟時表單重新掛上，讀新的 initialData
       onCancel();
     }
   };
