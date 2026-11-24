@@ -2,6 +2,7 @@
  * 設定頁的警報規則編輯框：警報相關的 useAlertRules、AlertRuleForm、AlertRuleList 用真的，
  * API、toast、系統通知與其他設定區塊換成假的。
  * 框裡改到一半的內容要撐過設定頁重新渲染（存檔失敗、開關別條規則、捲動換區段）；換編輯別條規則時才換成那條的內容。
+ * 正在編輯的那一條，清單上的開關與刪除鎖住，取消或換編輯別條時解開。
  */
 
 import { createElement } from "react";
@@ -227,5 +228,83 @@ describe("Settings alert rule edit form", () => {
 
     expect(screen.getByLabelText(/Alert Name|警報名稱/)).toHaveValue("Rule A");
     expect(screen.getByLabelText(/Description|描述/)).toHaveValue("old desc");
+  });
+
+  it("keeps the rule being edited from being switched off in the list, so saving keeps what the form shows", async () => {
+    // 編輯框整包送出、啟用送的是框裡勾選框的值：清單上還能停用同一條的話，存檔會把它改回啟用
+    const user = userEvent.setup();
+    vi.mocked(updateAlertRule).mockResolvedValue(ruleA);
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    const disableA = screen.getByRole("button", { name: "Disable Rule A" });
+    expect(disableA).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Rule A" })).toBeDisabled();
+    await user.click(disableA);
+    await user.click(screen.getByRole("button", { name: /^(Save|儲存)$/ }));
+
+    await waitFor(() => {
+      expect(updateAlertRule).toHaveBeenCalledTimes(1);
+    });
+    // 點鎖住的鈕不會送出停用：只送了存檔那一次，啟用照框裡勾選框的值（打開時是勾著的）
+    expect(updateAlertRule).not.toHaveBeenCalledWith(1, { enabled: false });
+    expect(updateAlertRule).toHaveBeenCalledWith(1, expect.objectContaining({ enabled: true }));
+  });
+
+  it("saves the rule switched off once Enabled is unticked in the form", async () => {
+    // 編輯中啟用與否只由框裡的勾選框決定：取消勾選後存檔要送出停用
+    const user = userEvent.setup();
+    vi.mocked(updateAlertRule).mockResolvedValue(ruleA);
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    await user.click(screen.getByRole("checkbox", { name: /^(Enabled|啟用)$/ }));
+    await user.click(screen.getByRole("button", { name: /^(Save|儲存)$/ }));
+
+    await waitFor(() => {
+      expect(updateAlertRule).toHaveBeenCalledWith(1, expect.objectContaining({ enabled: false }));
+    });
+    // 只認存檔那一次：清單上的開關送的 (1, { enabled: false }) 也符合上面的比對
+    expect(updateAlertRule).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves a switched-off rule still switched off when nothing is changed", async () => {
+    // 打開時勾選框要是規則真正的狀態：寫死成勾著的話，什麼都不動就存檔會把已停用的規則重新啟用
+    const user = userEvent.setup();
+    vi.mocked(listAlertRules).mockResolvedValue([{ ...ruleA, enabled: false }, ruleB]);
+    vi.mocked(updateAlertRule).mockResolvedValue(ruleA);
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    expect(screen.getByRole("checkbox", { name: /^(Enabled|啟用)$/ })).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: /^(Save|儲存)$/ }));
+
+    await waitFor(() => {
+      expect(updateAlertRule).toHaveBeenCalledTimes(1);
+    });
+    expect(updateAlertRule).toHaveBeenCalledWith(1, expect.objectContaining({ enabled: false }));
+  });
+
+  it("unlocks the rule once editing is cancelled", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    await user.click(screen.getByRole("button", { name: /^(Cancel|取消)$/ }));
+
+    expect(screen.getByRole("button", { name: "Disable Rule A" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Delete Rule A" })).toBeEnabled();
+  });
+
+  it("moves the lock to the rule that is opened for editing next", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+
+    await openEditFor(user, "Rule A");
+    await user.click(screen.getByRole("button", { name: "Edit Rule B" }));
+
+    expect(screen.getByRole("button", { name: "Disable Rule A" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Disable Rule B" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete Rule B" })).toBeDisabled();
   });
 });

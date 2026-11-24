@@ -262,6 +262,7 @@ export function Settings() {
             {(alerts.rules.length > 0 || (alerts.rulesLoad.ready && !alerts.rulesLoad.failed)) && (
               <AlertRuleList
                 rules={alerts.rules}
+                editingRuleId={alerts.editingRule?.id ?? null}
                 onToggle={alerts.handleToggle}
                 onEdit={alerts.handleEdit}
                 onDelete={alerts.openDeleteConfirm}

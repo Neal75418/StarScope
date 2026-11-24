@@ -588,6 +588,7 @@ export const translations = {
         status: {
           enabled: "Enabled",
           disabled: "Disabled",
+          editing: "Editing",
         },
         actions: {
           enable: "Enable",
@@ -1679,6 +1680,7 @@ export const translations = {
         status: {
           enabled: "已啟用",
           disabled: "已停用",
+          editing: "編輯中",
         },
         actions: {
           enable: "啟用",

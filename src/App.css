@@ -3183,6 +3183,11 @@ body {
   color: var(--fg-muted);
 }
 
+.alert-rule-status.editing {
+  background-color: var(--accent-subtle);
+  color: var(--accent-fg);
+}
+
 .alert-rule-condition {
   font-size: 13px;
   color: var(--fg-default);
