@@ -92,4 +92,23 @@ describe("AlertRuleForm", () => {
     });
     expect(mockOnCancel).not.toHaveBeenCalled();
   });
+
+  it("hands no repo to the save once All Repositories is picked for a rule that watched one", async () => {
+    // 沒有 repo_id＝套用到所有儲存庫；更新時由 useAlertRuleOperations 轉成 null 送出
+    const user = userEvent.setup();
+    mockOnSubmit.mockResolvedValue(true);
+    renderForm({
+      initialData: { ...defaultRule, repo_id: 3 },
+      repos: [{ id: 3, full_name: "facebook/react" } as RepoWithSignals],
+      isEditMode: true,
+    });
+
+    await user.click(screen.getByRole("radio", { name: /All Repositories|全部儲存庫/ }));
+    await user.click(screen.getByRole("button", { name: /^(Save|儲存)$/ }));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    });
+    expect(mockOnSubmit.mock.calls[0][0].repo_id).toBeUndefined();
+  });
 });

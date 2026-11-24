@@ -119,6 +119,53 @@ describe("useAlertRuleOperations", () => {
     expect(mockLoadRules).toHaveBeenCalled();
   });
 
+  describe("handleUpdate sends the fields the form emptied as null", () => {
+    // 送 undefined 的話 JSON 裡沒有這個欄位，後端當成沒改：規則還是只看原本那個儲存庫、舊的說明還在
+    const base = { name: "Rule", signal_type: "stars", operator: ">" as const, threshold: 200 };
+
+    it("sends repo_id null for a rule that now applies to all repos", async () => {
+      mockUpdateAlertRule.mockResolvedValue(undefined as never);
+      const { result } = renderOps();
+
+      await act(async () => {
+        await result.current.handleUpdate(1, { ...base });
+      });
+
+      expect(mockUpdateAlertRule).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ repo_id: null })
+      );
+    });
+
+    it("sends description null for a description that was cleared", async () => {
+      mockUpdateAlertRule.mockResolvedValue(undefined as never);
+      const { result } = renderOps();
+
+      await act(async () => {
+        await result.current.handleUpdate(1, { ...base });
+      });
+
+      expect(mockUpdateAlertRule).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ description: null })
+      );
+    });
+
+    it("keeps the repo and the description that are set", async () => {
+      mockUpdateAlertRule.mockResolvedValue(undefined as never);
+      const { result } = renderOps();
+
+      await act(async () => {
+        await result.current.handleUpdate(1, { ...base, repo_id: 3, description: "watch it" });
+      });
+
+      expect(mockUpdateAlertRule).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ repo_id: 3, description: "watch it" })
+      );
+    });
+  });
+
   it("handleDelete calls deleteAlertRule and reloads", async () => {
     mockDeleteAlertRule.mockResolvedValue(undefined as never);
 

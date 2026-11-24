@@ -271,9 +271,9 @@ def update_rule(rule_id: int, update: AlertRuleUpdate, db: Annotated[Session, De
 
     if update.name is not None:
         rule.name = update.name
-    if update.description is not None:
+    # description 與 repo_id 用 model_fields_set 區分「沒傳」（不動）與「傳 null」（清掉說明／改成所有儲存庫）
+    if "description" in update.model_fields_set:
         rule.description = update.description
-    # 使用 model_fields_set 判斷 repo_id 是否被明確設定（區分「未傳入」與「設為 null」）
     if "repo_id" in update.model_fields_set:
         if update.repo_id is not None:
             # 驗證 repo 是否存在

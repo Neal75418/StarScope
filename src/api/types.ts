@@ -389,8 +389,10 @@ export interface AlertRuleCreate {
 
 export interface AlertRuleUpdate {
   name?: string;
-  description?: string;
-  repo_id?: number;
+  /** 沒傳＝不動；null＝清掉說明 */
+  description?: string | null;
+  /** 沒傳＝不動；null＝改成套用到所有儲存庫 */
+  repo_id?: number | null;
   signal_type?: string;
   operator?: AlertOperator;
   threshold?: number;

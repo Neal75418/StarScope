@@ -54,10 +54,12 @@ export function useAlertRuleOperations({
   const handleUpdate = useCallback(
     async (id: number, rule: AlertRuleCreate) => {
       return execute(async () => {
+        // 表單沒有的說明與儲存庫送 null：送 undefined 的話 JSON 裡沒有這個欄位，後端當成沒改，
+        // 舊的說明會留著、規則還是只看原本那個儲存庫
         const update: AlertRuleUpdate = {
           name: rule.name,
-          description: rule.description,
-          repo_id: rule.repo_id,
+          description: rule.description ?? null,
+          repo_id: rule.repo_id ?? null,
           signal_type: rule.signal_type,
           operator: rule.operator,
           threshold: rule.threshold,

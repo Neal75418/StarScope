@@ -178,6 +178,34 @@ class TestAlertRules:
         assert data["signal_type"] == rule.signal_type
         assert data["operator"] == rule.operator
 
+    def test_update_rule_applies_to_all_repos_when_repo_id_is_null(self, client, test_db, mock_repo):
+        """編輯表單把「指定儲存庫」改成「所有儲存庫」時送 repo_id: null。"""
+        rule = _create_rule(test_db, mock_repo)
+
+        response = client.patch(f"/api/alerts/rules/{rule.id}", json={"repo_id": None})
+
+        assert response.status_code == 200
+        assert response.json()["data"]["repo_id"] is None
+
+    def test_update_rule_clears_description_sent_as_null(self, client, test_db, mock_repo):
+        """編輯表單清空描述時送 description: null，要真的清掉。"""
+        rule = _create_rule(test_db, mock_repo)
+
+        response = client.patch(f"/api/alerts/rules/{rule.id}", json={"description": None})
+
+        assert response.status_code == 200
+        assert response.json()["data"]["description"] is None
+
+    def test_update_rule_leaves_fields_it_was_not_sent(self, client, test_db, mock_repo):
+        """開關規則只送 enabled：沒送的描述與套用範圍都不動。"""
+        rule = _create_rule(test_db, mock_repo)
+
+        response = client.patch(f"/api/alerts/rules/{rule.id}", json={"enabled": False})
+
+        data = response.json()["data"]
+        assert data["description"] == "A test alert rule"
+        assert data["repo_id"] == mock_repo.id
+
     def test_update_rule_not_found(self, client):
         """Test updating a nonexistent rule returns 404."""
         response = client.patch("/api/alerts/rules/99999", json={"name": "X"})
