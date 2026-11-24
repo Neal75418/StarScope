@@ -173,6 +173,69 @@ describe("CategoryEditModal", () => {
     });
   });
 
+  it("sends null for the fields it clears so the saved values are removed", async () => {
+    // 送 undefined 的話 JSON 裡沒有這個欄位，後端當成沒改：清空後按儲存，舊的說明還在。
+    // 顏色是 type="color"，介面上清不掉，這裡不動它
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+
+    await user.clear(screen.getByDisplayValue("Test description"));
+    await user.clear(screen.getByDisplayValue("📁"));
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(1, {
+        description: null,
+        icon: null,
+      })
+    );
+  });
+
+  it("leaves out the fields it did not touch, the name included", async () => {
+    // 讀分類失敗時框裡是樹上的快取，可能比伺服器舊：沒動的欄位送出去，會把伺服器上較新的值蓋掉或清掉。
+    // 名稱也一樣：別處剛改好的名字會被改回快取裡的舊名
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, {}));
+  });
+
+  it("sends the fields it changed, trimmed", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+
+    const description = screen.getByDisplayValue("Test description");
+    await user.clear(description);
+    await user.type(description, "  New description  ");
+    const icon = screen.getByDisplayValue("📁");
+    await user.clear(icon);
+    await user.type(icon, " ⭐");
+    await user.click(screen.getByText("Save"));
+
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(1, {
+        description: "New description",
+        icon: "⭐",
+      })
+    );
+  });
+
+  it("sends a color it changed", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+    // 取色器沒有可以打字的地方：直接觸發 input，等同使用者選了新顏色
+    fireEvent.input(screen.getByDisplayValue("#ff0000"), { target: { value: "#00ff00" } });
+
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, { color: "#00ff00" }));
+  });
+
   it("calls onClose after successful submit", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(true);
@@ -222,13 +285,9 @@ describe("CategoryEditModal", () => {
 
     await user.click(screen.getByText("Save"));
 
+    // 沒有顏色的分類，顏色欄畫成 #000000；沒動的話不送，不會被存成黑色
     await waitFor(() => {
-      expect(onSubmit).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining({
-          name: "Test Category",
-        })
-      );
+      expect(onSubmit).toHaveBeenCalledWith(1, {});
     });
   });
 

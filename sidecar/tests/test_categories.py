@@ -170,6 +170,34 @@ class TestCategoryUpdate:
         # Name should remain unchanged
         assert data["name"] == "Frontend Frameworks"
 
+    def test_update_category_leaves_unsent_fields_and_clears_fields_sent_as_null(self, client, mock_category):
+        """沒送的欄位不動、送 null 的清掉：拖曳排序只送 sort_order，編輯框只送改過的欄位、清空的送 null。"""
+        url = f"/api/categories/{mock_category.id}"
+        filled = client.put(url, json={"description": "UI", "icon": "star", "color": "#00ff00"})
+        assert filled.status_code == 200
+
+        reordered = client.put(url, json={"sort_order": 5}).json()["data"]
+        assert (reordered["description"], reordered["icon"], reordered["color"]) == ("UI", "star", "#00ff00")
+
+        response = client.put(url, json={"description": None, "icon": None, "color": None})
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["description"], data["icon"], data["color"]) == (None, None, None)
+        assert data["name"] == "Frontend Frameworks"
+
+    def test_update_category_with_nothing_to_change_is_a_no_op(self, client, mock_category):
+        """編輯框什麼都沒改時送空的 body：要回 200、不動任何欄位。"""
+        url = f"/api/categories/{mock_category.id}"
+        before = client.put(url, json={"icon": "star", "color": "#00ff00"}).json()["data"]
+
+        response = client.put(url, json={})
+
+        assert response.status_code == 200
+        after = response.json()["data"]
+        for field in ("name", "description", "icon", "color", "parent_id", "sort_order"):
+            assert after[field] == before[field], field
+
     def test_update_category_parent(self, client):
         """Test updating a category's parent_id."""
         # Create two categories

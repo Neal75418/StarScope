@@ -231,11 +231,12 @@ export interface CategoryCreate {
   parent_id?: number;
 }
 
+/** 沒送的欄位後端不動；要清掉說明、圖示或顏色得明確送 null */
 export interface CategoryUpdate {
   name?: string;
-  description?: string;
-  icon?: string;
-  color?: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
   parent_id?: number | null;
   sort_order?: number;
 }

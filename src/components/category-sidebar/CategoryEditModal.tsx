@@ -42,12 +42,14 @@ export function CategoryEditModal({
     e.preventDefault();
     if (!name.trim()) return;
 
-    const data: CategoryEditFields = {
-      name: name.trim(),
-      description: description.trim() || undefined,
-      icon: icon.trim() || undefined,
-      color: color.trim() || undefined,
-    };
+    // 只送改過的欄位（名稱也是）：讀分類失敗時框裡是樹上的快取，可能比伺服器舊，沒動的欄位送出去會把
+    // 較新的值蓋掉或清掉。什麼都沒改就送空的，後端不動任何欄位。
+    // 清空的送 null：送 undefined 的話 JSON 裡沒有這個欄位，後端當成沒改，舊的值會留著
+    const data: CategoryEditFields = {};
+    if (name.trim() !== category.name) data.name = name.trim();
+    if (description !== (category.description ?? "")) data.description = description.trim() || null;
+    if (icon !== (category.icon ?? "")) data.icon = icon.trim() || null;
+    if (color !== (category.color ?? "")) data.color = color.trim() || null;
 
     const success = await onSubmit(category.id, data);
     if (success) {
