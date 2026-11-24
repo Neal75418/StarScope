@@ -31,6 +31,7 @@ export function CategoryEditModal({
   const [color, setColor] = useState(category.color ?? "");
   const focusTrapRef = useFocusTrap(true, false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   // 焦點一開始放在名稱欄。不用 autoFocus 屬性：React 會搶在 useFocusTrap 記下「先前的焦點」之前聚焦，
   // 關閉時焦點就回不到側欄的編輯鈕。這個 effect 要排在 useFocusTrap 之後
@@ -122,13 +123,42 @@ export function CategoryEditModal({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="category-edit-color">{t.categories.form.color}</label>
-                <input
-                  id="category-edit-color"
-                  type="color"
-                  value={color || "#000000"}
-                  onChange={(e) => setColor(e.target.value)}
-                />
+                <label id="category-edit-color-label" htmlFor="category-edit-color">
+                  {t.categories.form.color}
+                </label>
+                {/* 取色器沒有「空的」狀態（值一定是某個顏色）：沒有顏色時把色塊畫成空的、旁邊寫明未設定，
+                    並把「未設定」併進名稱，報讀軟體才不會先唸出 #000000 */}
+                <div className="category-color-field">
+                  <input
+                    ref={colorInputRef}
+                    id="category-edit-color"
+                    type="color"
+                    className={color ? undefined : "category-color-unset"}
+                    value={color || "#000000"}
+                    onChange={(e) => setColor(e.target.value)}
+                    aria-labelledby={
+                      color ? undefined : "category-edit-color-label category-edit-color-status"
+                    }
+                  />
+                  {color ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      aria-label={t.categories.form.clearColorLabel}
+                      onClick={() => {
+                        setColor("");
+                        // 清除鈕會跟著消失：焦點不移過去的話，鍵盤使用者會掉到 body
+                        colorInputRef.current?.focus();
+                      }}
+                    >
+                      {t.categories.form.clearColor}
+                    </button>
+                  ) : (
+                    <span id="category-edit-color-status" className="category-color-status">
+                      {t.categories.form.colorNotSet}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>

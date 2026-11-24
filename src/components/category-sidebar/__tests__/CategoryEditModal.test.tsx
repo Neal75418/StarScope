@@ -236,6 +236,72 @@ describe("CategoryEditModal", () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, { color: "#00ff00" }));
   });
 
+  describe("clearing the color", () => {
+    const withoutColor: CategoryTreeNode = { ...mockCategory, color: null };
+
+    it("offers to clear a color that is set", () => {
+      render(<CategoryEditModal {...defaultProps} />);
+
+      expect(screen.getByRole("button", { name: "Clear color" })).toBeInTheDocument();
+      expect(screen.queryByText("Not set")).not.toBeInTheDocument();
+    });
+
+    it("says a category without a color has none, instead of showing it as black", () => {
+      render(<CategoryEditModal {...defaultProps} category={withoutColor} />);
+
+      expect(screen.queryByRole("button", { name: "Clear color" })).not.toBeInTheDocument();
+      // 名稱就帶著「未設定」：報讀軟體先唸名稱，不會先聽到取色器的值 #000000
+      expect(screen.getByLabelText("Color")).toHaveAccessibleName("Color Not set");
+      // 色塊畫成空的靠這個 class（jsdom 看不到 CSS，只守得到 class 這一層）
+      expect(screen.getByLabelText("Color")).toHaveClass("category-color-unset");
+    });
+
+    it("clears the color, keeps focus on the picker, and saves it as removed", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(true);
+      render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+
+      await user.click(screen.getByRole("button", { name: "Clear color" }));
+
+      // 清除鈕會消失：焦點不移的話，鍵盤使用者會掉到 body
+      expect(screen.getByLabelText("Color")).toHaveFocus();
+      expect(screen.getByLabelText("Color")).toHaveAccessibleName("Color Not set");
+      expect(screen.getByLabelText("Color")).toHaveClass("category-color-unset");
+      expect(screen.queryByRole("button", { name: "Clear color" })).not.toBeInTheDocument();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      await user.click(screen.getByText("Save"));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, { color: null }));
+    });
+
+    it("sets the color again when one is picked after clearing", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(true);
+      render(<CategoryEditModal {...defaultProps} onSubmit={onSubmit} />);
+
+      await user.click(screen.getByRole("button", { name: "Clear color" }));
+      fireEvent.input(screen.getByLabelText("Color"), { target: { value: "#00ff00" } });
+
+      expect(screen.getByRole("button", { name: "Clear color" })).toBeInTheDocument();
+      expect(screen.getByLabelText("Color")).toHaveAccessibleName("Color");
+      expect(screen.getByLabelText("Color")).not.toHaveClass("category-color-unset");
+      await user.click(screen.getByText("Save"));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, { color: "#00ff00" }));
+    });
+
+    it("sends nothing when a color is set and cleared again on a category without one", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockResolvedValue(true);
+      render(<CategoryEditModal {...defaultProps} category={withoutColor} onSubmit={onSubmit} />);
+
+      fireEvent.input(screen.getByLabelText("Color"), { target: { value: "#00ff00" } });
+      await user.click(screen.getByRole("button", { name: "Clear color" }));
+      await user.click(screen.getByText("Save"));
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(1, {}));
+    });
+  });
+
   it("calls onClose after successful submit", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn().mockResolvedValue(true);

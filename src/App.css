@@ -2415,6 +2415,33 @@ body {
   cursor: pointer;
 }
 
+/* 取色器與旁邊的「清除」或「未設定」同一列；下方間距由這一列負責，取色器本身不再留 */
+.category-color-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.category-edit-dialog .category-color-field input[type="color"] {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* 沒有顏色：取色器仍然可以點（會打開取色面板，選了顏色就是設定），只把色塊畫成空的虛線框，旁邊的文字說明它是空的。
+   不調淡整個取色器：焦點外框會跟著變淡。Chromium（WebView2）把色塊顏色寫在色塊元素的 inline style 上，
+   要 !important 才蓋得過 */
+.category-edit-dialog input.category-color-unset::-webkit-color-swatch {
+  background: transparent !important;
+  border: 1px dashed var(--border-default);
+}
+
+.category-color-status {
+  font-size: 13px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
 .category-empty {
   padding: 16px;
   text-align: center;
