@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { StarSyncSection } from "../StarSyncSection";
 import * as client from "../../../api/client";
 import { queryKeys } from "../../../lib/react-query";
+import { DATA_RESET_EVENT } from "../../../constants/events";
 
 vi.mock("../../../api/client");
 
@@ -208,6 +209,88 @@ describe("StarSyncSection", () => {
     failSync(new Error("sidecar down"));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  describe("after all data is reset", () => {
+    // 重設會刪掉所有 repo：上一次同步的結果講的是已經不在的 repo，按「全部加到 GitHub」後端也找不到它們
+    const resetAllData = () =>
+      act(() => {
+        window.dispatchEvent(new Event(DATA_RESET_EVENT));
+      });
+
+    it("drops the last sync's counts and pending list", async () => {
+      vi.mocked(client.syncStars).mockResolvedValue({
+        ...NOTHING,
+        added: 5,
+        pending_local_only: ["a/one"],
+      });
+      renderWithClient(<StarSyncSection />);
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+      await screen.findByTestId("star-sync-pending");
+      expect(screen.getByTestId("star-sync-result")).toHaveTextContent("5");
+
+      resetAllData();
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("star-sync-pending")).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("star-sync-result")).not.toBeInTheDocument();
+    });
+
+    it("drops a failed pending-list action's message", async () => {
+      vi.mocked(client.syncStars).mockResolvedValue({ ...NOTHING, pending_local_only: ["a/one"] });
+      vi.mocked(client.resolveLocalOnly).mockRejectedValue(new Error("sidecar down"));
+      renderWithClient(<StarSyncSection />);
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+      fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
+      await screen.findByRole("alert");
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("still shows a sync that was running when the data was reset", async () => {
+      // 還在跑的不能 reset：之後它的結果（或失敗）就不會回到畫面
+      let finishSync: () => void = () => {};
+      vi.mocked(client.syncStars).mockReturnValue(
+        new Promise((resolve) => {
+          finishSync = () => resolve({ ...NOTHING, added: 3 });
+        })
+      );
+      renderWithClient(<StarSyncSection />);
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+      await waitFor(() => expect(client.syncStars).toHaveBeenCalledTimes(1));
+
+      resetAllData();
+      finishSync();
+
+      expect(await screen.findByTestId("star-sync-result")).toHaveTextContent("3");
+    });
+
+    it("still reports a pending-list action that was running, while dropping the sync's pending list", async () => {
+      vi.mocked(client.syncStars).mockResolvedValue({ ...NOTHING, pending_local_only: ["a/one"] });
+      let failResolve: (reason: Error) => void = () => {};
+      vi.mocked(client.resolveLocalOnly).mockReturnValue(
+        new Promise((_, reject) => {
+          failResolve = reject;
+        })
+      );
+      renderWithClient(<StarSyncSection />);
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+      fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
+      await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledTimes(1));
+
+      resetAllData();
+      // 清單動作還在跑不影響同步結果：兩個各看各的
+      await waitFor(() => {
+        expect(screen.queryByTestId("star-sync-pending")).not.toBeInTheDocument();
+      });
+      failResolve(new Error("sidecar down"));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByTestId("star-sync-pending")).not.toBeInTheDocument();
+    });
   });
 
   it("does not claim it has never synced before the status arrives", async () => {
