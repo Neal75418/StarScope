@@ -4,13 +4,7 @@
 
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import {
-  createAlertRule,
-  updateAlertRule,
-  deleteAlertRule,
-  checkAlerts,
-  acknowledgeAllTriggeredAlerts,
-} from "../api/client";
+import { createAlertRule, updateAlertRule, deleteAlertRule, checkAlerts } from "../api/client";
 import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from "../api/client";
 import { ApiError } from "../api/types";
 import { useI18n } from "../i18n";
@@ -234,12 +228,6 @@ export function useAlertRuleOperations({
     }, t.settings.alerts.toast.checkComplete);
   }, [execute, t]);
 
-  const handleAcknowledgeAll = useCallback(async () => {
-    return execute(async () => {
-      return acknowledgeAllTriggeredAlerts();
-    }, t.settings.alerts.toast.acknowledgedAll);
-  }, [execute, t]);
-
   return {
     isSubmitting,
     handleCreate,
@@ -247,6 +235,5 @@ export function useAlertRuleOperations({
     handleToggle,
     handleDelete,
     handleCheckNow,
-    handleAcknowledgeAll,
   };
 }

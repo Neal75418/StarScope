@@ -599,7 +599,6 @@ export const translations = {
           updated: "Alert rule updated",
           deleted: "Alert rule deleted",
           checkComplete: "Alert check complete",
-          acknowledgedAll: "All alerts acknowledged",
           goneNotSaved:
             "Not saved: this alert rule is no longer in the list. It may have been deleted, or the repository it watches was unstarred (use Track again under Archived and the rule comes back as it was).",
           goneNotSwitched:
@@ -1741,7 +1740,6 @@ export const translations = {
           updated: "警報規則已更新",
           deleted: "警報規則已刪除",
           checkComplete: "警報檢查完成",
-          acknowledgedAll: "所有警報已確認",
           goneNotSaved:
             "沒有儲存：這條警報規則已經不在清單上，可能已被刪除，或它看的儲存庫已取消追蹤（到「已封存」按「重新追蹤」，規則會照原樣回來）。",
           goneNotSwitched:

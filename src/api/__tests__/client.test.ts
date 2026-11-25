@@ -41,7 +41,6 @@ import {
   deleteAlertRule,
   acknowledgeTriggeredAlert,
   dismissTriggeredAlert,
-  acknowledgeAllTriggeredAlerts,
   checkAlerts,
   listSignalTypes,
   getFetchInterval,
@@ -1021,16 +1020,6 @@ describe("API Client", () => {
       await acknowledgeTriggeredAlert(1);
 
       expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/alerts\/triggered\/1\/acknowledge$/);
-    });
-
-    it("acknowledgeAllTriggeredAlerts acknowledges all", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ status: "success", count: 5 }),
-      });
-
-      const result = await acknowledgeAllTriggeredAlerts();
-      expect(result.count).toBe(5);
     });
 
     it("checkAlerts triggers check", async () => {

@@ -24,20 +24,13 @@ export function useAlertRules(toast: Toast) {
   const { rules, setRules, signalTypes, repos, rulesLoad, dataLoad, loadRules } =
     useAlertRuleData();
 
-  const {
-    isSubmitting,
-    handleCreate,
-    handleUpdate,
-    handleToggle,
-    handleDelete,
-    handleCheckNow,
-    handleAcknowledgeAll,
-  } = useAlertRuleOperations({
-    rules,
-    setRules,
-    loadRules,
-    toast,
-  });
+  const { isSubmitting, handleCreate, handleUpdate, handleToggle, handleDelete, handleCheckNow } =
+    useAlertRuleOperations({
+      rules,
+      setRules,
+      loadRules,
+      toast,
+    });
 
   const onUpdate = useCallback(
     async (rule: AlertRuleCreate) => {
@@ -101,7 +94,6 @@ export function useAlertRules(toast: Toast) {
     handleEdit,
     handleCancelEdit,
     handleCheckNow,
-    handleAcknowledgeAll,
     openDeleteConfirm: deleteConfirm.open,
     closeDeleteConfirm: deleteConfirm.close,
     confirmDelete,

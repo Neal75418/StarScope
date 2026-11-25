@@ -845,15 +845,6 @@ export async function dismissTriggeredAlert(
 }
 
 /**
- * 確認所有未確認的警報。
- */
-export async function acknowledgeAllTriggeredAlerts(): Promise<{ status: string; count: number }> {
-  return apiCall(`/alerts/triggered/acknowledge-all`, {
-    method: "POST",
-  });
-}
-
-/**
  * 手動觸發警報檢查。
  */
 export async function checkAlerts(): Promise<{

@@ -7,7 +7,6 @@ vi.mock("../../api/client", () => ({
   updateAlertRule: vi.fn(),
   deleteAlertRule: vi.fn(),
   checkAlerts: vi.fn(),
-  acknowledgeAllTriggeredAlerts: vi.fn(),
 }));
 
 vi.mock("../../utils/error", () => ({
@@ -15,13 +14,7 @@ vi.mock("../../utils/error", () => ({
     err instanceof Error ? err.message : fallback,
 }));
 
-import {
-  createAlertRule,
-  updateAlertRule,
-  deleteAlertRule,
-  checkAlerts,
-  acknowledgeAllTriggeredAlerts,
-} from "../../api/client";
+import { createAlertRule, updateAlertRule, deleteAlertRule, checkAlerts } from "../../api/client";
 import { useAlertRuleOperations } from "../useAlertRuleOperations";
 import type { Toast } from "../types";
 import type { AlertRule } from "../../api/types";
@@ -37,7 +30,6 @@ const mockCreateAlertRule = vi.mocked(createAlertRule);
 const mockUpdateAlertRule = vi.mocked(updateAlertRule);
 const mockDeleteAlertRule = vi.mocked(deleteAlertRule);
 const mockCheckAlerts = vi.mocked(checkAlerts);
-const mockAcknowledgeAll = vi.mocked(acknowledgeAllTriggeredAlerts);
 
 function makeRule(overrides: Partial<AlertRule> = {}): AlertRule {
   return {
@@ -521,19 +513,6 @@ describe("useAlertRuleOperations", () => {
     });
 
     expect(mockCheckAlerts).toHaveBeenCalled();
-    expect(mockToast.success).toHaveBeenCalled();
-  });
-
-  it("handleAcknowledgeAll calls acknowledgeAllTriggeredAlerts", async () => {
-    mockAcknowledgeAll.mockResolvedValue(undefined as never);
-
-    const { result } = renderOps();
-
-    await act(async () => {
-      await result.current.handleAcknowledgeAll();
-    });
-
-    expect(mockAcknowledgeAll).toHaveBeenCalled();
     expect(mockToast.success).toHaveBeenCalled();
   });
 });
