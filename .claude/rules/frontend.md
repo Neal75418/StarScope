@@ -84,7 +84,7 @@ paths:
   後端的原始 `detail` 不上畫面（別處的 `getErrorMessage` 仍直接顯示 `detail`，新的寫入失敗訊息不要照那個寫法）。
   ⚠️ 它只會說「沒做成」：結果其實是使用者要的錯誤（例如加入時的 `ALREADY_TRACKED`、
   取消追蹤時不帶 `GITHUB_NOT_FOUND` 的 404）要由呼叫端先攔下、改用 info toast，見 `Discovery.tsx` 的 `reportAddFailure`／
-  `handleFeedUnstar`——不攔的話「已經在追蹤清單」會被說成「沒有加入追蹤清單。請再試一次。」。其他寫入（重複建立的 409、
+  `handleFeedUnstar`——不攔的話「已經在追蹤清單」會被說成「沒有加入追蹤清單。請再試一次。」。成功時本來就不提示的動作（通知的標已讀、清除）攔下後也不提示，見 `useNotificationActions` 的 `isAlertGone`。其他寫入（重複建立的 409、
   刪除已經不在的 404）要逐個端點看後端的意思：同一個 404 也可能是「當成不存在」（綁在封存 repo 上的警報規則），
   那不是使用者要的結果
 - toast：錯誤與警告 10 秒、其餘 4 秒；滑鼠或焦點停在上面、視窗看不到時不倒數；同類型同一句只留最新一則

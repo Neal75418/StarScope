@@ -884,6 +884,23 @@ export const translations = {
       minutesAgo: "{n} min ago",
       hoursAgo: "{n} hr ago",
       daysAgo: "{n} days ago",
+      failed: {
+        markRead: {
+          notDone: "The notification was not marked as read.",
+          timedOut:
+            "No response yet, so it's unclear whether the notification was marked as read. The notification list will update on its own over the next few minutes.",
+        },
+        markAllRead: {
+          notDone: "Notifications not marked as read: {count}.",
+          timedOut:
+            "No response yet, so it's unclear whether the notifications were marked as read ({count}). The notification list will update on its own over the next few minutes.",
+        },
+        clear: {
+          notDone: "The notification was not cleared.",
+          timedOut:
+            "No response yet, so it's unclear whether the notification was cleared. The notification list will update on its own over the next few minutes.",
+        },
+      },
     },
     // 降級狀態
     status: {
@@ -1999,6 +2016,21 @@ export const translations = {
       minutesAgo: "{n} 分鐘前",
       hoursAgo: "{n} 小時前",
       daysAgo: "{n} 天前",
+      failed: {
+        markRead: {
+          notDone: "這則通知沒有標成已讀。",
+          timedOut: "還沒有回應，不確定這則通知有沒有標成已讀。通知清單接下來幾分鐘會自己更新。",
+        },
+        markAllRead: {
+          notDone: "有 {count} 則通知沒有標成已讀。",
+          timedOut:
+            "還沒有回應，不確定 {count} 則通知有沒有標成已讀。通知清單接下來幾分鐘會自己更新。",
+        },
+        clear: {
+          notDone: "這則通知沒有清除。",
+          timedOut: "還沒有回應，不確定這則通知有沒有清除。通知清單接下來幾分鐘會自己更新。",
+        },
+      },
     },
     // 降級狀態
     status: {

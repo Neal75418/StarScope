@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { ToastProvider } from "../../components/Toast";
 import { DATA_RESET_EVENT } from "../../constants/events";
 import type { Dispatch, SetStateAction } from "react";
 import type { Notification } from "../useNotifications";
@@ -68,7 +69,7 @@ describe("useNotifications", () => {
       refresh,
     };
 
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
 
     expect(result.current.isLoading).toBe(true);
     expect(result.current.loadFailed).toBe(true);
@@ -77,12 +78,12 @@ describe("useNotifications", () => {
   });
 
   it("starts with isOpen false", () => {
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
     expect(result.current.isOpen).toBe(false);
   });
 
   it("toggleOpen toggles isOpen state", () => {
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
     act(() => {
       result.current.toggleOpen();
     });
@@ -94,7 +95,7 @@ describe("useNotifications", () => {
   });
 
   it("close sets isOpen to false", () => {
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
     act(() => {
       result.current.toggleOpen();
     });
@@ -106,13 +107,13 @@ describe("useNotifications", () => {
   });
 
   it("starts with empty notifications and zero unread count", () => {
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
     expect(result.current.notifications).toEqual([]);
     expect(result.current.unreadCount).toBe(0);
   });
 
   it("clears notifications on data-reset event", () => {
-    const { result } = renderHook(() => useNotifications());
+    const { result } = renderHook(() => useNotifications(), { wrapper: ToastProvider });
 
     // Inject notifications via captured setter
     act(() => {

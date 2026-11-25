@@ -324,6 +324,14 @@ async def alert_rule_not_found_handler(_request: Request, _exc: alerts.AlertRule
     )
 
 
+@app.exception_handler(alerts.TriggeredAlertNotFoundError)
+async def triggered_alert_not_found_handler(_request: Request, _exc: alerts.TriggeredAlertNotFoundError):
+    return JSONResponse(
+        status_code=404,
+        content={"detail": alerts.ERROR_ALERT_NOT_FOUND, "code": "TRIGGERED_ALERT_NOT_FOUND"},
+    )
+
+
 @app.exception_handler(GitHubRateLimitError)
 async def github_rate_limit_handler(_request: Request, exc: GitHubRateLimitError):
     headers = {}

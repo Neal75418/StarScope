@@ -318,6 +318,20 @@ class TestTriggeredAlerts:
         """Test acknowledging a nonexistent alert returns 404."""
         response = client.post("/api/alerts/triggered/99999/acknowledge")
         assert response.status_code == 404
+        assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
+
+    def test_acknowledge_alert_of_a_deleted_rule_says_it_is_gone(self, client, test_db, mock_repo):
+        """規則刪掉時觸發紀錄跟著刪：之後確認它（通知中心還留著那則）回帶 code 的 404，前端才能當成已經不在。"""
+        rule = _create_rule(test_db, mock_repo)
+        alert = _create_triggered_alert(test_db, rule, mock_repo)
+        alert_id = alert.id
+        assert client.delete(f"/api/alerts/rules/{rule.id}").status_code == 200
+        test_db.expire_all()
+
+        response = client.post(f"/api/alerts/triggered/{alert_id}/acknowledge")
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
 
     def test_acknowledge_all_alerts(self, client, test_db, mock_repo):
         """Test acknowledging all unacknowledged alerts."""

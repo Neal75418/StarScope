@@ -52,6 +52,13 @@ class AlertRuleNotFoundError(Exception):
     也回 404，但不帶 code：前端靠 code 分辨規則本身在不在。
     """
 
+class TriggeredAlertNotFoundError(Exception):
+    """用 id 找不到觸發紀錄：它的規則或 repo 刪了（CASCADE），或資料重設過。main.py 轉成帶 code 的 404。
+
+    確認不看 repo 封存，所以這個 404 只代表那一列真的不在：前端據此把通知當成已經處理完，不當成失敗。
+    """
+
+
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
 
@@ -350,7 +357,7 @@ def acknowledge_single_alert(alert_id: int, db: Annotated[Session, Depends(get_d
     """確認已觸發的警報。"""
     if acknowledge_alert(db, alert_id):
         return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
-    raise HTTPException(status_code=404, detail=ERROR_ALERT_NOT_FOUND)
+    raise TriggeredAlertNotFoundError
 
 
 @router.post("/triggered/acknowledge-all", response_model=ApiResponse[StatusResponse])

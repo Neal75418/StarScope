@@ -7,6 +7,7 @@ import { useNotificationStorage } from "./useNotificationStorage";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
 import { useOSNotification } from "./useOSNotification";
+import { useToast } from "../components/Toast";
 import { DATA_RESET_EVENT } from "../constants/events";
 import type { Page } from "../types/navigation";
 
@@ -33,6 +34,7 @@ export interface Notification {
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const toast = useToast();
 
   // data-reset 事件：清空通知列表（已讀 ref 由 useNotificationStorage 自行清除）
   useEffect(() => {
@@ -58,7 +60,8 @@ export function useNotifications() {
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
     notifications,
     setNotifications,
-    { markIdAsRead, markIdsAsRead, removeIdFromRead }
+    { markIdAsRead, markIdsAsRead, removeIdFromRead },
+    { toast, refresh }
   );
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
