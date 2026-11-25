@@ -40,6 +40,7 @@ import {
   updateAlertRule,
   deleteAlertRule,
   acknowledgeTriggeredAlert,
+  dismissTriggeredAlert,
   acknowledgeAllTriggeredAlerts,
   checkAlerts,
   listSignalTypes,
@@ -827,6 +828,16 @@ describe("API Client", () => {
   });
 
   describe("listTriggeredAlerts", () => {
+    it("asks to leave out dismissed alerts only when told to", async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
+
+      await listTriggeredAlerts(false, 50, undefined, { excludeDismissed: true });
+      await listTriggeredAlerts(false, 50);
+
+      expect(String(mockFetch.mock.calls[0][0])).toContain("exclude_dismissed=true");
+      expect(String(mockFetch.mock.calls[1][0])).not.toContain("exclude_dismissed");
+    });
+
     it("includes limit parameter", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -983,6 +994,22 @@ describe("API Client", () => {
         "2026-11-25T00:00:00.123456+00:00"
       );
       expect(url).not.toContain("+00:00");
+    });
+
+    it("dismissTriggeredAlert posts to the dismiss endpoint with the trigger time, encoded", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "dismissed", id: 1 }),
+      });
+
+      await dismissTriggeredAlert(1, "2026-11-25T00:00:00.123456+00:00");
+
+      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/alerts/triggered/1/dismiss?");
+      expect(new URL(url).searchParams.get("triggered_at")).toBe(
+        "2026-11-25T00:00:00.123456+00:00"
+      );
+      expect(init.method).toBe("POST");
     });
 
     it("acknowledgeTriggeredAlert without a trigger time sends no query", async () => {

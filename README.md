@@ -266,7 +266,7 @@ JSON 端點成功時使用統一的 `ApiResponse[T]` 格式 `{success, data, mes
 | 路由模組              | 前綴                     | 說明                                    |
 |-------------------|------------------------|---------------------------------------|
 | `repos`           | `/api`                 | Repo CRUD、手動 fetch、批次刷新               |
-| `alerts`          | `/api/alerts`          | 警報規則 CRUD、觸發記錄、確認                     |
+| `alerts`          | `/api/alerts`          | 警報規則 CRUD、觸發記錄、確認與清除               |
 | `trends`          | `/api/trends`          | 趨勢排行（velocity / delta / acceleration） |
 | `categories`      | `/api/categories`      | 分類管理、tree 結構、repo 歸類                  |
 | `early_signals`   | `/api/early-signals`   | 早期信號、異常偵測、批次確認                        |

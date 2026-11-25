@@ -37,6 +37,10 @@ function makeNotification(overrides: Partial<Notification> = {}): Notification {
   };
 }
 
+function marks({ reads = [], dismissals = [] }: { reads?: string[]; dismissals?: string[] }) {
+  return { reads: new Set(reads), dismissals: new Set(dismissals) };
+}
+
 describe("notificationHelpers", () => {
   describe("alertsToNotifications", () => {
     it("converts alerts to notifications", () => {
@@ -104,20 +108,28 @@ describe("notificationHelpers", () => {
         makeNotification({ id: "n2", read: false }),
       ];
 
-      const merged = mergeNotifications(fromServer, new Set(["n1"]));
+      const merged = mergeNotifications(fromServer, marks({ reads: ["n1"] }));
 
       expect(merged.map((n) => n.read)).toEqual([true, false]);
     });
 
     it("keeps server-side read state", () => {
-      const merged = mergeNotifications([makeNotification({ id: "n1", read: true })], new Set());
+      const merged = mergeNotifications([makeNotification({ id: "n1", read: true })], marks({}));
 
       expect(merged[0].read).toBe(true);
     });
 
+    it("leaves out what was cleared in this session", () => {
+      const fromServer = [makeNotification({ id: "n1" }), makeNotification({ id: "n2" })];
+
+      const merged = mergeNotifications(fromServer, marks({ dismissals: ["n1"] }));
+
+      expect(merged.map((n) => n.id)).toEqual(["n2"]);
+    });
+
     it("shows what the server says for what was not marked read in this session", () => {
-      // 不沿用畫面上原本的已讀：標已讀失敗（已從 markedReads 拿掉）後讀回來的未讀要照實顯示
-      const merged = mergeNotifications([makeNotification({ id: "n1", read: false })], new Set());
+      // 不沿用畫面上原本的已讀：標已讀失敗（已從 localMarks 拿掉）後讀回來的未讀要照實顯示
+      const merged = mergeNotifications([makeNotification({ id: "n1", read: false })], marks({}));
 
       expect(merged[0].read).toBe(false);
     });

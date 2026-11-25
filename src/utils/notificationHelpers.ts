@@ -2,8 +2,8 @@
  * 通知轉換與合併輔助函式。
  * 將已觸發警報轉為通知格式，並管理已讀狀態合併。
  *
- * 警報的已讀以後端的 acknowledged_at 為準（後端本身就持久）。本機只在記憶體記這次開 app 標成已讀的通知（MarkedReads），
- * 撐過確認回來之前的那段時間。
+ * 警報的已讀與清除以後端為準（acknowledged_at、dismissed_at，後端本身就持久）。本機只在記憶體記這次開 app
+ * 標成已讀、清除過的通知（LocalMarks），撐過確認回來之前的那段時間。
  */
 
 import type { TriggeredAlert } from "../api/client";
@@ -11,10 +11,15 @@ import type { Notification } from "../hooks/useNotifications";
 import { getSignalDisplayName } from "./signalTypeHelpers";
 
 /**
- * 這次開 app 標成已讀、確認沒有失敗的通知（確認還在路上，或已經成功）。確認失敗或對象已經不在時拿掉。
- * 成功的留著：輪詢可能讀回確認之前送出的請求；後端確認過的不會再變回未讀，留著也不會讓畫面錯。
+ * 這次開 app 做過、沒有失敗的標記（請求還在路上，或已經成功）。失敗或對象已經不在時拿掉。
+ * 成功的留著：輪詢可能讀回請求之前送出的結果；後端確認、清除過的不會再變回來，留著也不會讓畫面錯。
  */
-export type MarkedReads = Set<string>;
+export interface LocalMarks {
+  /** 標成已讀的 */
+  reads: Set<string>;
+  /** 清除的：鈴鐺不再顯示 */
+  dismissals: Set<string>;
+}
 
 /**
  * 將已觸發的警報轉換為通知。通知的識別帶觸發時間：觸發紀錄的 id 會重用，只看 id 會把拿到同一個 id 的新警報
@@ -60,14 +65,14 @@ export function sortNotifications(notifications: Notification[]): Notification[]
 }
 
 /**
- * 以後端讀回的通知為準，再套上這次開 app 標成已讀的。不沿用畫面上原本的已讀：標已讀失敗後讀回來的未讀要照實顯示
+ * 以後端讀回的通知為準，再套上這次開 app 的標記：清除過的不顯示、標成已讀的顯示已讀。
+ * 不沿用畫面上原本的樣子：標已讀失敗後讀回來的未讀要照實顯示
  */
-export function mergeNotifications(
-  fromServer: Notification[],
-  markedReads: ReadonlySet<string>
-): Notification[] {
-  return fromServer.map((notification) => ({
-    ...notification,
-    read: notification.read || markedReads.has(notification.id),
-  }));
+export function mergeNotifications(fromServer: Notification[], marks: LocalMarks): Notification[] {
+  return fromServer
+    .filter((notification) => !marks.dismissals.has(notification.id))
+    .map((notification) => ({
+      ...notification,
+      read: notification.read || marks.reads.has(notification.id),
+    }));
 }

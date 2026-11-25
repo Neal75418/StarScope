@@ -190,6 +190,8 @@ class TriggeredAlert(Base):
     # 使用者是否已檢視/確認此警報
     acknowledged: Mapped[bool] = mapped_column(Integer, default=False)
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # 使用者在通知中心清除了它：鈴鐺不再列出，儀表板的近期活動照列
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # 關聯
     rule: Mapped["AlertRule"] = relationship("AlertRule", back_populates="triggered_alerts")

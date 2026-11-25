@@ -801,11 +801,16 @@ export async function deleteAlertRule(ruleId: number): Promise<{ status: string;
 export async function listTriggeredAlerts(
   unacknowledgedOnly: boolean = false,
   limit: number = 50,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options: {
+    /** 不列在通知中心清除過的（鈴鐺用；儀表板的近期活動照列） */
+    excludeDismissed?: boolean;
+  } = {}
 ): Promise<TriggeredAlert[]> {
   const params = new URLSearchParams();
   if (unacknowledgedOnly) params.append("unacknowledged_only", "true");
   params.append("limit", String(limit));
+  if (options.excludeDismissed) params.append("exclude_dismissed", "true");
   return apiCall<TriggeredAlert[]>(`/alerts/triggered?${params}`, { signal });
 }
 
@@ -820,6 +825,21 @@ export async function acknowledgeTriggeredAlert(
   const query =
     triggeredAt === undefined ? "" : `?${new URLSearchParams({ triggered_at: triggeredAt })}`;
   return apiCall(`/alerts/triggered/${alertId}/acknowledge${query}`, {
+    method: "POST",
+  });
+}
+
+/**
+ * 在通知中心清除一個已觸發的警報：一併確認，之後鈴鐺的清單（excludeDismissed）不再列出。
+ * triggeredAt 的意思同 acknowledgeTriggeredAlert。
+ */
+export async function dismissTriggeredAlert(
+  alertId: number,
+  triggeredAt?: string
+): Promise<{ status: string; id: number }> {
+  const query =
+    triggeredAt === undefined ? "" : `?${new URLSearchParams({ triggered_at: triggeredAt })}`;
+  return apiCall(`/alerts/triggered/${alertId}/dismiss${query}`, {
     method: "POST",
   });
 }

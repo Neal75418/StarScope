@@ -9,7 +9,7 @@ import { useOSNotification } from "./useOSNotification";
 import { useToast } from "../components/Toast";
 import { DATA_RESET_EVENT } from "../constants/events";
 import type { Page } from "../types/navigation";
-import type { MarkedReads } from "../utils/notificationHelpers";
+import type { LocalMarks } from "../utils/notificationHelpers";
 
 type NotificationType = "alert" | "signal" | "system";
 
@@ -37,8 +37,8 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const toast = useToast();
-  // 這次開 app 標成已讀的通知（見 notificationHelpers）：輪詢合併與操作共用
-  const markedReadsRef = useRef<MarkedReads>(new Set());
+  // 這次開 app 標成已讀、清除過的通知（見 notificationHelpers）：輪詢合併與操作共用
+  const localMarksRef = useRef<LocalMarks>({ reads: new Set(), dismissals: new Set() });
 
   // data-reset 事件：清空通知列表
   useEffect(() => {
@@ -53,7 +53,7 @@ export function useNotifications() {
   // 輪詢邏輯（整合 OS 通知）
   const { isLoading, loadFailed, loadInProgress, refresh } = useNotificationPolling(
     setNotifications,
-    markedReadsRef,
+    localMarksRef,
     osNotification
   );
 
@@ -61,7 +61,7 @@ export function useNotifications() {
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
     notifications,
     setNotifications,
-    markedReadsRef,
+    localMarksRef,
     { toast, refresh }
   );
 

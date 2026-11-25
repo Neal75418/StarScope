@@ -21,6 +21,7 @@ vi.mock("../../api/client", async (importOriginal) => {
     ...actual,
     listTriggeredAlerts: vi.fn(),
     acknowledgeTriggeredAlert: vi.fn(),
+    dismissTriggeredAlert: vi.fn(),
   };
 });
 
@@ -35,7 +36,11 @@ const { mockOSNotification } = vi.hoisted(() => ({
 
 vi.mock("../../hooks/useOSNotification", () => ({ useOSNotification: () => mockOSNotification }));
 
-import { listTriggeredAlerts, acknowledgeTriggeredAlert } from "../../api/client";
+import {
+  listTriggeredAlerts,
+  acknowledgeTriggeredAlert,
+  dismissTriggeredAlert,
+} from "../../api/client";
 
 const alert: TriggeredAlert = {
   id: 42,
@@ -140,12 +145,12 @@ describe("NotificationCenter when acknowledging does not go through", () => {
   it("shows it unread again when marking it read and then clearing it both fail", async () => {
     // 兩個確認都還在路上；清除失敗時加回的是按清除當下的樣子（已讀），重讀後要照後端改回未讀
     const answers: ((reason: Error) => void)[] = [];
-    vi.mocked(acknowledgeTriggeredAlert).mockImplementation(
-      () =>
-        new Promise((_resolve, reject) => {
-          answers.push(reject);
-        })
-    );
+    const waitForAnswer = () =>
+      new Promise<never>((_resolve, reject) => {
+        answers.push(reject);
+      });
+    vi.mocked(acknowledgeTriggeredAlert).mockImplementation(waitForAnswer);
+    vi.mocked(dismissTriggeredAlert).mockImplementation(waitForAnswer);
     const user = userEvent.setup();
     renderCenter();
     const dropdown = await openWithOneUnread(user);

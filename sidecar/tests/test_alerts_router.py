@@ -390,6 +390,79 @@ class TestTriggeredAlerts:
         test_db.refresh(alert)
         assert alert.acknowledged
 
+    def test_dismiss_acknowledges_it_and_takes_it_out_of_the_bell_list(self, client, test_db, mock_repo):
+        """通知中心按清除：確認並記下清除時間；鈴鐺的清單（exclude_dismissed）不再列出，儀表板用的預設清單照列。"""
+        rule = _create_rule(test_db, mock_repo)
+        kept = _create_triggered_alert(test_db, rule, mock_repo)
+        alert = _create_triggered_alert(test_db, rule, mock_repo)
+        listed = {a["id"]: a["triggered_at"] for a in client.get("/api/alerts/triggered").json()["data"]}
+
+        response = client.post(
+            f"/api/alerts/triggered/{alert.id}/dismiss", params={"triggered_at": listed[alert.id]}
+        )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["status"], data["id"]) == ("dismissed", alert.id)
+        test_db.refresh(alert)
+        assert alert.acknowledged
+        assert alert.acknowledged_at is not None
+        assert alert.dismissed_at is not None
+        # 只排除清除過的那則，沒清除的照列
+        bell = client.get("/api/alerts/triggered", params={"exclude_dismissed": "true"}).json()["data"]
+        assert [a["id"] for a in bell] == [kept.id]
+        everything = client.get("/api/alerts/triggered").json()["data"]
+        assert sorted(a["id"] for a in everything) == sorted([kept.id, alert.id])
+
+    def test_bell_list_leaves_out_dismissed_ones_before_taking_the_newest(self, client, test_db, mock_repo):
+        """先排除清除過的再取前 limit 則：最新的那則清除後，鈴鐺補上下一則，不會少一格。"""
+        rule = _create_rule(test_db, mock_repo)
+        older = _create_triggered_alert(test_db, rule, mock_repo)
+        newest = _create_triggered_alert(test_db, rule, mock_repo)
+        assert client.post(f"/api/alerts/triggered/{newest.id}/dismiss").status_code == 200
+
+        bell = client.get(
+            "/api/alerts/triggered", params={"exclude_dismissed": "true", "limit": 1}
+        ).json()["data"]
+
+        assert [a["id"] for a in bell] == [older.id]
+
+    def test_dismiss_keeps_the_time_it_was_first_acknowledged(self, client, test_db, mock_repo):
+        rule = _create_rule(test_db, mock_repo)
+        alert = _create_triggered_alert(test_db, rule, mock_repo)
+        assert client.post(f"/api/alerts/triggered/{alert.id}/acknowledge").status_code == 200
+        test_db.refresh(alert)
+        first_acknowledged_at = alert.acknowledged_at
+
+        assert client.post(f"/api/alerts/triggered/{alert.id}/dismiss").status_code == 200
+
+        test_db.refresh(alert)
+        assert alert.acknowledged_at == first_acknowledged_at
+
+    def test_dismiss_a_reused_id_says_the_listed_one_is_gone(self, client, test_db, mock_repo):
+        """和確認一樣：拿舊的觸發時間清除，回「不在」，拿到同一個 id 的新警報不被清除。"""
+        rule_a = _create_rule(test_db, mock_repo, name="A")
+        old = _create_triggered_alert(test_db, rule_a, mock_repo)
+        old_id = old.id
+        listed_at = client.get("/api/alerts/triggered").json()["data"][0]["triggered_at"]
+        assert client.delete(f"/api/alerts/rules/{rule_a.id}").status_code == 200
+        test_db.expire_all()
+        new = _create_triggered_alert(test_db, _create_rule(test_db, mock_repo, name="B"), mock_repo)
+        assert new.id == old_id  # 前提：id 真的被重用
+
+        response = client.post(f"/api/alerts/triggered/{old_id}/dismiss", params={"triggered_at": listed_at})
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
+        test_db.refresh(new)
+        assert new.dismissed_at is None
+        assert not new.acknowledged
+
+    def test_dismiss_alert_not_found(self, client):
+        response = client.post("/api/alerts/triggered/99999/dismiss")
+        assert response.status_code == 404
+        assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
+
     def test_acknowledge_all_alerts(self, client, test_db, mock_repo):
         """Test acknowledging all unacknowledged alerts."""
         rule = _create_rule(test_db, mock_repo)

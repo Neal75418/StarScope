@@ -5,7 +5,7 @@ import type { ReactNode, SetStateAction } from "react";
 import { QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { useNotificationPolling } from "../useNotificationPolling";
 import type { Notification } from "../useNotifications";
-import type { MarkedReads } from "../../utils/notificationHelpers";
+import type { LocalMarks } from "../../utils/notificationHelpers";
 import * as apiClient from "../../api/client";
 import { createTestQueryClient } from "../../lib/react-query";
 
@@ -37,12 +37,12 @@ describe("useNotificationPolling", () => {
   let mockSetNotifications: ReturnType<
     typeof vi.fn<(value: SetStateAction<Notification[]>) => void>
   >;
-  let mockMarkedReadsRef: { current: MarkedReads };
+  let mockLocalMarksRef: { current: LocalMarks };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSetNotifications = vi.fn<(value: SetStateAction<Notification[]>) => void>();
-    mockMarkedReadsRef = { current: new Set() };
+    mockLocalMarksRef = { current: { reads: new Set(), dismissals: new Set() } };
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([]);
   });
 
@@ -56,7 +56,7 @@ describe("useNotificationPolling", () => {
     onlineManager.setOnline(false);
     try {
       const { result } = renderHook(
-        () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+        () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
         { wrapper: createWrapper() }
       );
       expect(result.current.isLoading).toBe(true);
@@ -66,18 +66,21 @@ describe("useNotificationPolling", () => {
   });
 
   it("fetches notifications on mount", async () => {
-    renderHook(() => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef), {
+    renderHook(() => useNotificationPolling(mockSetNotifications, mockLocalMarksRef), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => {
-      expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50);
+      // 鈴鐺不列清除過的（儀表板的近期活動另外讀，照列）
+      expect(apiClient.listTriggeredAlerts).toHaveBeenCalledWith(false, 50, undefined, {
+        excludeDismissed: true,
+      });
     });
   });
 
   it("starts in loading state and becomes false after fetch", async () => {
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
 
@@ -91,7 +94,7 @@ describe("useNotificationPolling", () => {
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
 
@@ -104,7 +107,7 @@ describe("useNotificationPolling", () => {
     // 還沒讀到過任何通知時，重試一開始 React Query 就把 error 清掉；畫面上的「讀不到」不能跟著消失
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValueOnce(new Error("Network error"));
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
     await waitFor(() => expect(result.current.loadFailed).toBe(true));
@@ -131,7 +134,7 @@ describe("useNotificationPolling", () => {
 
   it("refresh triggers a new fetch", async () => {
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
 
@@ -150,7 +153,7 @@ describe("useNotificationPolling", () => {
 
   it("cleans up on unmount", async () => {
     const { unmount } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
 
@@ -171,7 +174,7 @@ describe("useNotificationPolling", () => {
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue("string error");
 
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
       { wrapper: createWrapper() }
     );
 

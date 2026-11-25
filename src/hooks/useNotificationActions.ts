@@ -1,21 +1,22 @@
 /**
  * 通知的已讀、全部已讀與清除操作。
  *
- * 警報的已讀以後端的 acknowledged_at 為準，本機不持久化（見 notificationHelpers）：
- * - UI 立即切成已讀（快速回饋），同時記進 markedReads，輪詢讀回來時才不會被蓋回未讀
- * - ack 失敗時從 markedReads 拿掉、還原 UI、說明沒做成與原因並重讀
+ * 警報的已讀與清除以後端為準，本機不持久化（見 notificationHelpers）：
+ * - UI 立即切成已讀或拿掉（快速回饋），同時記進 localMarks，輪詢讀回來時才不會被蓋回去
+ * - 清除＝dismiss：一併確認，之後鈴鐺不再列出（儀表板照列）
+ * - 請求失敗時從 localMarks 拿掉、還原 UI、說明沒做成與原因並重讀
  * - 觸發紀錄已經不在時當成已經處理完（見 isAlertGone）
  * - 確認時帶上看到的觸發時間：後端那個 id 已經是別的警報時回「不在」，不會確認到它
  */
 
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { acknowledgeTriggeredAlert } from "../api/client";
+import { acknowledgeTriggeredAlert, dismissTriggeredAlert } from "../api/client";
 import { ApiError } from "../api/types";
 import { interpolate, useI18n } from "../i18n";
 import { keepRefetchingAfterTimeout } from "../lib/react-query";
 import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
-import type { MarkedReads } from "../utils/notificationHelpers";
+import type { LocalMarks } from "../utils/notificationHelpers";
 import type { Notification } from "./useNotifications";
 import type { Toast } from "./types";
 import { logger } from "../utils/logger";
@@ -47,7 +48,7 @@ function alertTarget(notification: Notification | undefined) {
 export function useNotificationActions(
   notifications: Notification[],
   setNotifications: Dispatch<SetStateAction<Notification[]>>,
-  markedReadsRef: { current: MarkedReads },
+  localMarksRef: { current: LocalMarks },
   feedback: ActionFeedback
 ) {
   const { toast, refresh } = feedback;
@@ -60,16 +61,16 @@ export function useNotificationActions(
   /** 確認送出前記下：輪詢在確認回來之前讀回未讀，也照樣顯示已讀 */
   const claimRead = useCallback(
     (notificationId: string) => {
-      markedReadsRef.current.add(notificationId);
+      localMarksRef.current.reads.add(notificationId);
     },
-    [markedReadsRef]
+    [localMarksRef]
   );
 
   const dropClaim = useCallback(
     (notificationId: string) => {
-      markedReadsRef.current.delete(notificationId);
+      localMarksRef.current.reads.delete(notificationId);
     },
-    [markedReadsRef]
+    [localMarksRef]
   );
 
   const reload = useCallback(() => {
@@ -201,24 +202,22 @@ export function useNotificationActions(
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
       if (target === null) return;
 
-      // 警報類型：嘗試 server ack。失敗時還原通知到列表中
-      claimRead(notificationId);
+      // 警報類型：請後端清除（一併確認）。送出前先記下：輪詢在清除回來之前讀回它，也照樣不顯示
+      const dismissals = localMarksRef.current.dismissals;
+      dismissals.add(notificationId);
       try {
-        await acknowledgeTriggeredAlert(target.alertId, target.triggeredAt);
+        await dismissTriggeredAlert(target.alertId, target.triggeredAt);
       } catch (err) {
-        dropClaim(notificationId);
+        dismissals.delete(notificationId);
         if (isAlertGone(err)) {
           reload();
           return;
         }
-        logger.warn(
-          `[NotificationActions] 清除通知時警報確認失敗 (alertId: ${target.alertId}):`,
-          err
-        );
+        logger.warn(`[NotificationActions] 清除通知失敗 (alertId: ${target.alertId}):`, err);
         // 還原：照清除前的樣子加回列表，接著的重讀會換成後端的狀態
         if (notification) {
           setNotifications((prev) => {
-            // 避免重複（輪詢可能已加回）
+            // 避免重複：清單裡已經有它就不再加
             if (prev.some((n) => n.id === notificationId)) return prev;
             return [...prev, notification];
           });
@@ -227,7 +226,7 @@ export function useNotificationActions(
         reloadAfterFailure(isRequestTimeout(err));
       }
     },
-    [setNotifications, claimRead, dropClaim, reload, reportFailure, reloadAfterFailure, t]
+    [setNotifications, localMarksRef, reload, reportFailure, reloadAfterFailure, t]
   );
 
   return {

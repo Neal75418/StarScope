@@ -266,15 +266,43 @@ def acknowledge_alert(db: Session, alert_id: int, listed_triggered_at: datetime 
     Returns:
         成功時回傳 True；找不到，或觸發時間對不上時回傳 False
     """
-    alert = db.query(TriggeredAlert).filter(TriggeredAlert.id == alert_id).first()
+    alert = _find_listed_alert(db, alert_id, listed_triggered_at)
     if alert is None:
-        return False
-    if listed_triggered_at is not None and alert.triggered_at != _as_naive_utc(listed_triggered_at):
         return False
     alert.acknowledged = True
     alert.acknowledged_at = utc_now()
     db.commit()
     return True
+
+
+def dismiss_alert(db: Session, alert_id: int, listed_triggered_at: datetime | None = None) -> bool:
+    """
+    在通知中心清除警報：還沒確認的一併確認（已確認的保留原本的確認時間），並記下清除時間。
+
+    找不到或觸發時間對不上時回傳 False，規則同 acknowledge_alert。
+    """
+    alert = _find_listed_alert(db, alert_id, listed_triggered_at)
+    if alert is None:
+        return False
+    now = utc_now()
+    if not alert.acknowledged:
+        alert.acknowledged = True
+        alert.acknowledged_at = now
+    alert.dismissed_at = now
+    db.commit()
+    return True
+
+
+def _find_listed_alert(
+    db: Session, alert_id: int, listed_triggered_at: datetime | None
+) -> TriggeredAlert | None:
+    """用 id 找呼叫端看到的那則；帶了觸發時間而對不上（id 已被新警報重用）就當成不在。"""
+    alert = db.query(TriggeredAlert).filter(TriggeredAlert.id == alert_id).first()
+    if alert is None:
+        return None
+    if listed_triggered_at is not None and alert.triggered_at != _as_naive_utc(listed_triggered_at):
+        return None
+    return alert
 
 
 def _as_naive_utc(value: datetime) -> datetime:

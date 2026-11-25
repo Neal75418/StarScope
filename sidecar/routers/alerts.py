@@ -19,6 +19,7 @@ from services.alerts import (
     acknowledge_alert,
     acknowledge_all_alerts,
     check_all_alerts,
+    dismiss_alert,
 )
 
 # 從 model 常數衍生的 Literal 型別 — Pydantic 自動驗證。
@@ -330,8 +331,9 @@ def list_triggered_alerts(
     db: Annotated[Session, Depends(get_db)],
     unacknowledged_only: bool = False,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    exclude_dismissed: bool = False,
 ) -> dict:
-    """列出已觸發的警報。"""
+    """列出已觸發的警報。exclude_dismissed：不列在通知中心清除過的（鈴鐺用；儀表板的近期活動照列）。"""
     # 使用 joinedload 避免存取 alert.rule 與 alert.repo 時的 N+1 查詢。
     # inner join 讓 soft_delete 的封存條件排除封存 repo 的警報；只靠 joinedload，
     # 警報照樣撈出來、alert.repo 卻是 None，整個清單 500
@@ -347,6 +349,8 @@ def list_triggered_alerts(
 
     if unacknowledged_only:
         query = query.filter(TriggeredAlert.acknowledged.is_(False))
+    if exclude_dismissed:
+        query = query.filter(TriggeredAlert.dismissed_at.is_(None))
 
     # noinspection PyTypeChecker
     alerts: list[TriggeredAlert] = query.limit(limit).all()
@@ -363,6 +367,18 @@ def acknowledge_single_alert(
     """確認已觸發的警報。triggered_at 是清單上看到的觸發時間，對不上（id 已被新警報重用）時回 404。"""
     if acknowledge_alert(db, alert_id, triggered_at):
         return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
+    raise TriggeredAlertNotFoundError
+
+
+@router.post("/triggered/{alert_id}/dismiss", response_model=ApiResponse[StatusResponse])
+def dismiss_single_alert(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    triggered_at: Annotated[datetime | None, Query()] = None,
+) -> dict:
+    """在通知中心清除已觸發的警報：一併確認，之後鈴鐺不再列出。triggered_at 的意思同確認。"""
+    if dismiss_alert(db, alert_id, triggered_at):
+        return success_response(data=StatusResponse(status="dismissed", id=alert_id))
     raise TriggeredAlertNotFoundError
 
 

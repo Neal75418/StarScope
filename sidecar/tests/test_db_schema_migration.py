@@ -62,6 +62,7 @@ def test_missing_columns_are_restored_without_touching_rows(tmp_path):
         "repos": ["starred_at", "unstarred_at"],
         "context_signals": ["tags"],
         "early_signals": ["baseline_value", "context_title"],
+        "triggered_alerts": ["dismissed_at"],
     }
     engine = _old_db(tmp_path / "old.db", omit)
     with engine.begin() as conn:

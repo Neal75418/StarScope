@@ -3,7 +3,7 @@ import { renderHook, act } from "@testing-library/react";
 import { useState } from "react";
 import { useNotificationActions } from "../useNotificationActions";
 import type { Notification } from "../useNotifications";
-import type { MarkedReads } from "../../utils/notificationHelpers";
+import type { LocalMarks } from "../../utils/notificationHelpers";
 import * as apiClient from "../../api/client";
 import { ApiError } from "../../api/types";
 import {
@@ -19,6 +19,7 @@ vi.mock("../../api/client", async (importOriginal) => {
   return {
     ...actual,
     acknowledgeTriggeredAlert: vi.fn(),
+    dismissTriggeredAlert: vi.fn(),
   };
 });
 
@@ -50,14 +51,16 @@ const timedOut = () => new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
 const withCause = (outcome: string, cause: string) =>
   interpolate(translations.en.failure.withCause, { outcome, cause });
 
-let markedReads: { current: MarkedReads };
+let localMarks: { current: LocalMarks };
+/** 還留著的標記數（已讀＋清除） */
+const marksLeft = () => localMarks.current.reads.size + localMarks.current.dismissals.size;
 let feedback: ReturnType<typeof makeFeedback>;
 
-/** 清單用真的 state；markedReads 用真的 Set，toast 與重讀換成假的 */
+/** 清單用真的 state；localMarks 用真的 Set，toast 與重讀換成假的 */
 function renderWithList(initial: Notification[]) {
   return renderHook(() => {
     const [notifications, setNotifications] = useState(initial);
-    const actions = useNotificationActions(notifications, setNotifications, markedReads, feedback);
+    const actions = useNotificationActions(notifications, setNotifications, localMarks, feedback);
     return { notifications, setNotifications, ...actions };
   });
 }
@@ -78,12 +81,23 @@ const systemNote = makeNotification({ id: "system-1", type: "system", metadata: 
 
 beforeEach(() => {
   vi.clearAllMocks();
-  markedReads = { current: new Set() };
+  localMarks = { current: { reads: new Set(), dismissals: new Set() } };
   feedback = makeFeedback();
   vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation((id) =>
     Promise.resolve({ status: "acknowledged", id })
   );
+  vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation((id) =>
+    Promise.resolve({ status: "dismissed", id })
+  );
 });
+
+/** 標已讀走 acknowledge、清除走 dismiss：情境表要三種動作通用時，兩個都設成同樣的結果 */
+function everyRequest() {
+  return [
+    vi.mocked(apiClient.acknowledgeTriggeredAlert),
+    vi.mocked(apiClient.dismissTriggeredAlert),
+  ];
+}
 
 describe("useNotificationActions", () => {
   it("marks one as read, acknowledges it with the trigger time it was listed with, and keeps it marked for this session", async () => {
@@ -98,8 +112,8 @@ describe("useNotificationActions", () => {
       42,
       "2026-11-25T00:00:42+00:00"
     );
-    // 確認成功後留著：輪詢可能讀回確認之前送出的請求（見 MarkedReads）
-    expect(markedReads.current.has("alert-42")).toBe(true);
+    // 確認成功後留著：輪詢可能讀回確認之前送出的請求（見 LocalMarks）
+    expect(localMarks.current.reads.has("alert-42")).toBe(true);
   });
 
   it("claims the read while the acknowledgement is on its way", async () => {
@@ -116,13 +130,13 @@ describe("useNotificationActions", () => {
     act(() => {
       pending = result.current.markAsRead("alert-42");
     });
-    expect(markedReads.current.has("alert-42")).toBe(true);
+    expect(localMarks.current.reads.has("alert-42")).toBe(true);
 
     await act(async () => {
       answer();
       await pending;
     });
-    expect(markedReads.current.has("alert-42")).toBe(true);
+    expect(localMarks.current.reads.has("alert-42")).toBe(true);
   });
 
   it("does not call the server or claim anything for a notification that is not an alert", async () => {
@@ -134,7 +148,7 @@ describe("useNotificationActions", () => {
 
     expect(result.current.notifications).toEqual([{ ...systemNote, read: true }]);
     expect(apiClient.acknowledgeTriggeredAlert).not.toHaveBeenCalled();
-    expect(markedReads.current.size).toBe(0);
+    expect(marksLeft()).toBe(0);
   });
 
   it("marks all as read and acknowledges every unread alert with its trigger time", async () => {
@@ -154,10 +168,10 @@ describe("useNotificationActions", () => {
       44,
       "2026-11-25T00:00:44+00:00"
     );
-    expect([...markedReads.current]).toEqual(["alert-42", "alert-44"]);
+    expect([...localMarks.current.reads]).toEqual(["alert-42", "alert-44"]);
   });
 
-  it("clears one: takes it out of the list and acknowledges it with its trigger time", async () => {
+  it("clears one: takes it out of the list and asks the server to dismiss it with its trigger time", async () => {
     const { result } = renderWithList([alertA, alertB]);
 
     await act(async () => {
@@ -165,11 +179,34 @@ describe("useNotificationActions", () => {
     });
 
     expect(result.current.notifications).toEqual([alertB]);
-    expect(apiClient.acknowledgeTriggeredAlert).toHaveBeenCalledWith(
-      42,
-      "2026-11-25T00:00:42+00:00"
+    expect(apiClient.dismissTriggeredAlert).toHaveBeenCalledWith(42, "2026-11-25T00:00:42+00:00");
+    expect(apiClient.acknowledgeTriggeredAlert).not.toHaveBeenCalled();
+    // 成功的留著：輪詢可能讀回清除之前送出的請求（見 LocalMarks）
+    expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
+    expect(localMarks.current.reads.size).toBe(0);
+  });
+
+  it("marks it dismissed while the request is on its way", async () => {
+    let answer: () => void = () => {};
+    vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(
+      (id) =>
+        new Promise((resolve) => {
+          answer = () => resolve({ status: "dismissed", id });
+        })
     );
-    expect(markedReads.current.has("alert-42")).toBe(true);
+    const { result } = renderWithList([alertA]);
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.clearNotification("alert-42");
+    });
+    expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
+
+    await act(async () => {
+      answer();
+      await pending;
+    });
+    expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
   });
 
   it("clears a notification that is not an alert without calling the server", async () => {
@@ -186,7 +223,7 @@ describe("useNotificationActions", () => {
 
 /**
  * 確認失敗時畫面上看到的結果。觸發紀錄已經不在（規則或儲存庫刪了、id 被重用）當成已經處理完；
- * 其他失敗照寫入失敗的慣例說明並重讀。兩種都要從 markedReads 拿掉，否則輪詢讀回來時會一直顯示成已讀。
+ * 其他失敗照寫入失敗的慣例說明並重讀。兩種都要從 localMarks 拿掉，否則輪詢讀回來時會一直顯示成已讀（標已讀）或一直不顯示（清除）。
  */
 describe("useNotificationActions when acknowledging does not go through", () => {
   function expectNoToast() {
@@ -206,7 +243,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       });
 
       expect(result.current.notifications).toEqual([{ ...alertA, read: true }]);
-      expect(markedReads.current.size).toBe(0);
+      expect(marksLeft()).toBe(0);
       expect(feedback.refresh).toHaveBeenCalledTimes(1);
       expectNoToast();
     });
@@ -222,13 +259,13 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       });
 
       expect(result.current.notifications.map((n) => n.read)).toEqual([true, true]);
-      expect([...markedReads.current]).toEqual(["alert-42"]);
+      expect([...localMarks.current.reads]).toEqual(["alert-42"]);
       expect(feedback.refresh).toHaveBeenCalledTimes(1);
       expectNoToast();
     });
 
     it("keeps a cleared notification out of the list and drops the claim", async () => {
-      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(gone());
+      vi.mocked(apiClient.dismissTriggeredAlert).mockRejectedValue(gone());
       const { result } = renderWithList([alertA, alertB]);
 
       await act(async () => {
@@ -236,7 +273,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       });
 
       expect(result.current.notifications).toEqual([alertB]);
-      expect(markedReads.current.size).toBe(0);
+      expect(marksLeft()).toBe(0);
       expect(feedback.refresh).toHaveBeenCalledTimes(1);
       expectNoToast();
     });
@@ -269,7 +306,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       });
 
       expect(result.current.notifications).toEqual([alertA]);
-      expect(markedReads.current.size).toBe(0);
+      expect(marksLeft()).toBe(0);
       expect(feedback.toast.error).toHaveBeenCalledTimes(1);
       expect(feedback.toast.error).toHaveBeenCalledWith(
         withCause(copy.markRead.notDone, translations.en.failure.engineUnreachable)
@@ -289,7 +326,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       });
 
       expect(result.current.notifications.map((n) => n.read)).toEqual([true, false, false]);
-      expect([...markedReads.current]).toEqual(["alert-42"]);
+      expect([...localMarks.current.reads]).toEqual(["alert-42"]);
       expect(feedback.toast.error).toHaveBeenCalledTimes(1);
       expect(feedback.toast.error).toHaveBeenCalledWith(
         withCause(
@@ -372,7 +409,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
               : interpolate(copy.markAllRead.timedOut, { count: 1 })
           );
           expect(other).not.toHaveBeenCalled();
-          expect(markedReads.current.size).toBe(0);
+          expect(marksLeft()).toBe(0);
           expect(feedback.refresh).toHaveBeenCalledTimes(1);
         } finally {
           vi.useRealTimers();
@@ -381,7 +418,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
     );
 
     it("puts a cleared notification back, says why and reloads", async () => {
-      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(unreachable());
+      vi.mocked(apiClient.dismissTriggeredAlert).mockRejectedValue(unreachable());
       const { result } = renderWithList([alertA, alertB]);
 
       await act(async () => {
@@ -390,7 +427,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
 
       expect(result.current.notifications).toHaveLength(2);
       expect(result.current.notifications).toEqual(expect.arrayContaining([alertA, alertB]));
-      expect(markedReads.current.size).toBe(0);
+      expect(marksLeft()).toBe(0);
       expect(feedback.toast.error).toHaveBeenCalledTimes(1);
       expect(feedback.toast.error).toHaveBeenCalledWith(
         withCause(copy.clear.notDone, translations.en.failure.engineUnreachable)
@@ -400,7 +437,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
 
     it("does not put a cleared notification back twice when the list already brought it back", async () => {
       let answer: (reason: Error) => void = () => {};
-      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(
         () =>
           new Promise((_resolve, reject) => {
             answer = reject;
@@ -412,7 +449,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       act(() => {
         pending = result.current.clearNotification("alert-42");
       });
-      // 確認還在路上時，輪詢讀回的清單又帶著它
+      // 清除還在路上時清單裡又有它（正式流程中清除中的會在合併時排除，這裡守的是去重這道防線）
       act(() => {
         result.current.setNotifications((prev) => [...prev, alertA]);
       });
@@ -425,7 +462,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
     });
 
     it("puts back a cleared notification that was already read as read", async () => {
-      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(unreachable());
+      vi.mocked(apiClient.dismissTriggeredAlert).mockRejectedValue(unreachable());
       const alreadyRead = { ...alertA, read: true };
       const { result } = renderWithList([alreadyRead]);
 
@@ -437,7 +474,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
     });
 
     type Run = (actions: ReturnType<typeof useNotificationActions>) => Promise<void>;
-    // 逾時也先還原、從 markedReads 拿掉：重讀回來之前（或重讀也失敗時）畫面照實顯示沒確認
+    // 逾時也先還原、從 localMarks 拿掉：重讀回來之前（或重讀也失敗時）畫面照實顯示沒確認
     const timeoutCases: [string, Run, () => string, Notification[]][] = [
       [
         "marking one as read",
@@ -464,7 +501,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
       async (_, run, message, listAfter) => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         try {
-          vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(timedOut());
+          for (const request of everyRequest()) request.mockRejectedValue(timedOut());
           const { result } = renderWithList([alertA, alertB]);
 
           await act(async () => {
@@ -473,7 +510,7 @@ describe("useNotificationActions when acknowledging does not go through", () => 
 
           expect(result.current.notifications).toHaveLength(listAfter.length);
           expect(result.current.notifications).toEqual(expect.arrayContaining(listAfter));
-          expect(markedReads.current.size).toBe(0);
+          expect(marksLeft()).toBe(0);
           expect(feedback.toast.warning).toHaveBeenCalledTimes(1);
           expect(feedback.toast.warning).toHaveBeenCalledWith(message());
           expect(feedback.toast.error).not.toHaveBeenCalled();
@@ -515,12 +552,14 @@ describe("useNotificationActions when acknowledging does not go through", () => 
         vi.useFakeTimers({ shouldAdvanceTime: true });
         try {
           let answer: (reason: Error) => void = () => {};
-          vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(
-            () =>
-              new Promise((_resolve, reject) => {
-                answer = reject;
-              })
-          );
+          for (const request of everyRequest()) {
+            request.mockImplementation(
+              () =>
+                new Promise((_resolve, reject) => {
+                  answer = reject;
+                })
+            );
+          }
           const { result } = renderWithList([alertA]);
 
           let pending: Promise<void> = Promise.resolve();
