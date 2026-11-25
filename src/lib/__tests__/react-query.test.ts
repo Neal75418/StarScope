@@ -5,6 +5,7 @@ import {
   queryClient,
   createTestQueryClient,
   invalidateTrackedRepos,
+  invalidateTriggeredAlerts,
 } from "../react-query";
 
 describe("queryKeys", () => {
@@ -208,6 +209,9 @@ describe("invalidateTrackedRepos", () => {
       queryKeys.signals.summary(),
       queryKeys.alertRuleData.rules(),
       queryKeys.alerts.rules(),
+      // 封存 repo 的警報不列、永久刪除連帶刪掉：鈴鐺與儀表板的已觸發警報也要跟著變
+      queryKeys.notifications.polling(),
+      queryKeys.alerts.triggered(),
       queryKeys.digest.session(),
     ];
     for (const key of keys) client.setQueryData(key, []);
@@ -216,6 +220,8 @@ describe("invalidateTrackedRepos", () => {
 
     // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
     expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
+      true,
       true,
       true,
       true,
@@ -264,5 +270,62 @@ describe("invalidateTrackedRepos", () => {
     invalidateTrackedRepos(client);
 
     await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("invalidateTriggeredAlerts", () => {
+  it("reads both caches of the triggered alerts again: the bell and the dashboard", async () => {
+    const client = new QueryClient();
+    const keys = [
+      queryKeys.notifications.polling(),
+      queryKeys.alerts.triggered(),
+      queryKeys.alerts.rules(),
+    ];
+    for (const key of keys) client.setQueryData(key, []);
+
+    await invalidateTriggeredAlerts(client);
+
+    expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  it("resolves only after both reads are back", async () => {
+    // 回傳的 Promise 代表重讀結束（通知中心的 refresh 就是它）：只等其中一份的話，另一份還在讀就 resolve
+    const client = new QueryClient();
+    const finish: Record<string, () => void> = {};
+    for (const [name, key] of [
+      ["bell", queryKeys.notifications.polling()],
+      ["dashboard", queryKeys.alerts.triggered()],
+    ] as const) {
+      let calls = 0;
+      const observer = new QueryObserver(client, {
+        queryKey: key,
+        queryFn: () =>
+          calls++ === 0
+            ? Promise.resolve([])
+            : new Promise<never[]>((resolve) => {
+                finish[name] = () => resolve([]);
+              }),
+      });
+      observer.subscribe(() => {});
+      await vi.waitFor(() => expect(observer.getCurrentResult().isSuccess).toBe(true));
+    }
+
+    let done = false;
+    const pending = invalidateTriggeredAlerts(client).then(() => {
+      done = true;
+    });
+    await vi.waitFor(() => expect(Object.keys(finish)).toHaveLength(2));
+    finish.bell();
+    // 等一個 macrotask：只等鈴鐺的話，resolve 要跳好幾個 microtask 才傳到 done
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(done).toBe(false);
+    finish.dashboard();
+    await pending;
+    expect(done).toBe(true);
+    client.clear();
   });
 });

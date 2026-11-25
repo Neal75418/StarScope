@@ -4,12 +4,13 @@
 
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createAlertRule, updateAlertRule, deleteAlertRule, checkAlerts } from "../api/client";
 import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from "../api/client";
 import { ApiError } from "../api/types";
 import { useI18n } from "../i18n";
 import type { TranslationKeys } from "../i18n/translations";
-import { keepRefetchingAfterTimeout } from "../lib/react-query";
+import { invalidateTriggeredAlerts, keepRefetchingAfterTimeout } from "../lib/react-query";
 import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
 import { useAsyncOperation } from "./useAsyncOperation";
 import { logger } from "../utils/logger";
@@ -59,14 +60,19 @@ export function useAlertRuleOperations({
   toast,
 }: UseAlertRuleOperationsProps) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const { isSubmitting, execute } = useAsyncOperation(toast);
 
-  /** 寫入之後背景重讀，成功、失敗、規則已經不在都要（重讀失敗不影響寫入的結果） */
+  /**
+   * 寫入之後背景重讀，成功、失敗、規則已經不在都要（重讀失敗不影響寫入的結果）。已觸發警報也一起：
+   * 刪規則時觸發紀錄跟著刪，鈴鐺與 Dashboard 列的標題是規則名
+   */
   const reloadRules = useCallback(() => {
     loadRules().catch((err) => {
       logger.warn("[AlertRules] 寫入後 reload 失敗:", err);
     });
-  }, [loadRules]);
+    void invalidateTriggeredAlerts(queryClient);
+  }, [loadRules, queryClient]);
 
   /**
    * 失敗後重讀：失敗也可能是伺服器其實做完了。逾時的話伺服器可能還在做，接下來一陣子定期重讀，
@@ -223,10 +229,22 @@ export function useAlertRuleOperations({
   );
 
   const handleCheckNow = useCallback(async () => {
-    return execute(async () => {
-      return checkAlerts();
+    let timedOut = false;
+    const checked = await execute(async () => {
+      try {
+        return await checkAlerts();
+      } catch (err) {
+        timedOut = isRequestTimeout(err);
+        throw err;
+      }
     }, t.settings.alerts.toast.checkComplete);
-  }, [execute, t]);
+    // 檢查會新增觸發紀錄，鈴鐺與 Dashboard 不等輪詢就列出來。失敗也重讀（可能其實做完了）；
+    // 逾時的話伺服器可能還在檢查，接下來一陣子定期重讀
+    const reloadTriggered = () => void invalidateTriggeredAlerts(queryClient);
+    reloadTriggered();
+    if (timedOut) keepRefetchingAfterTimeout(reloadTriggered);
+    return checked;
+  }, [execute, t, queryClient]);
 
   return {
     isSubmitting,

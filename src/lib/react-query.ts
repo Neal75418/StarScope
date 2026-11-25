@@ -205,7 +205,7 @@ export const queryKeys = {
  * 兩份規則快取都要重取（設定頁的規則清單、Dashboard 判斷有沒有規則用的那份）。
  * 分類樹在 repos 前綴底下會一起重讀（分類成員就是各 repo 的 category_ids）；沒有畫面顯示的分類樹也先在背景重讀，
  * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。早期訊號同理不算封存的 repo，
- * 取消追蹤或復原之後「有訊號」要跟著變。
+ * 取消追蹤或復原之後「有訊號」要跟著變。已觸發警報也是（封存的不列、永久刪除連帶刪掉），見 invalidateTriggeredAlerts。
  */
 export function invalidateTrackedRepos(client: QueryClient): void {
   // 還在第一次載入的分類查詢，請求是寫入前讀的：沒有資料時 React Query 不中止它，invalidate 只會
@@ -217,6 +217,20 @@ export function invalidateTrackedRepos(client: QueryClient): void {
   void client.invalidateQueries({ queryKey: queryKeys.signals.all });
   void client.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });
   void client.invalidateQueries({ queryKey: queryKeys.alerts.rules() });
+  void invalidateTriggeredAlerts(client);
+}
+
+/**
+ * 重讀已觸發警報。有兩份快取：鈴鐺（一分鐘輪詢一次）與 Dashboard（啟用中的警報數、近期活動；不輪詢，掛著時不會自己重讀，
+ * 離開再回來也要過了 5 分鐘才重讀）。改到它的寫入之後兩份都要重讀：刪改規則（觸發紀錄跟著刪、標題是規則名）、立即檢查、
+ * 封存或刪掉 repo（見 invalidateTrackedRepos）、通知中心的確認與清除。畫面上有的重讀結束（成功或失敗）才 resolve，
+ * 不會 reject；沒有的只標成過期，下次掛上時重讀；呼叫當下已經暫停的（sidecar 連不上）不等
+ */
+export async function invalidateTriggeredAlerts(client: QueryClient): Promise<void> {
+  await Promise.all([
+    client.invalidateQueries({ queryKey: queryKeys.notifications.polling() }),
+    client.invalidateQueries({ queryKey: queryKeys.alerts.triggered() }),
+  ]);
 }
 
 /**

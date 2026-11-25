@@ -3,7 +3,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createTestQueryClient } from "../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 
 vi.mock("../../api/client", () => ({
   listAlertRules: vi.fn(),
@@ -133,5 +133,30 @@ describe("useAlertRuleData", () => {
     await waitFor(() => {
       expect(result.current.rules).toEqual(newRules);
     });
+  });
+
+  it("loadRules also reads the dashboard's copy of the rule list again", async () => {
+    // 儀表板用它判斷有沒有規則（「未設定規則」卡片）：從那張卡片到設定頁建第一條規則，回去時要換成警報數
+    mockListAlertRules.mockResolvedValue([]);
+    mockListSignalTypes.mockResolvedValue([]);
+    mockGetRepos.mockResolvedValue({ repos: [] } as never);
+    // 不回收沒人看的查詢：先放進去的那份要留到斷言的時候
+    const client = createTestQueryClient();
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    client.setQueryData(queryKeys.alerts.rules(), []);
+    const { result } = renderHook(() => useAlertRuleData(), { wrapper });
+    await waitFor(() => {
+      expect(result.current.dataLoad.ready).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.loadRules();
+    });
+
+    expect(client.getQueryState(queryKeys.alerts.rules())?.isInvalidated).toBe(true);
   });
 });

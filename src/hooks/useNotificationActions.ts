@@ -23,7 +23,7 @@ import { logger } from "../utils/logger";
 
 interface ActionFeedback {
   toast: Toast;
-  /** 重讀通知清單（輪詢的那份查詢；呼叫端卸載後仍有效） */
+  /** 重讀已觸發警報：通知清單（輪詢的那份查詢）與 Dashboard 的那份（呼叫端卸載後仍有效） */
   refresh: () => Promise<void>;
 }
 
@@ -130,7 +130,10 @@ export function useNotificationActions(
         );
         reportFailure(err, t.notifications.failed.markRead);
         reloadAfterFailure(isRequestTimeout(err));
+        return;
       }
+      // 成功也重讀：Dashboard 的警報數要跟著變
+      reload();
     },
     [setNotifications, claimRead, dropClaim, reload, reportFailure, reloadAfterFailure, t]
   );
@@ -156,17 +159,12 @@ export function useNotificationActions(
     );
 
     const failures: { notifId: string; error: unknown }[] = [];
-    let anyGone = false;
 
     results.forEach((r, i) => {
       const { notifId } = unreadAlerts[i];
       if (r.status === "fulfilled") return;
       dropClaim(notifId);
-      if (isAlertGone(r.reason)) {
-        anyGone = true;
-      } else {
-        failures.push({ notifId, error: r.reason });
-      }
+      if (!isAlertGone(r.reason)) failures.push({ notifId, error: r.reason });
     });
 
     // 還原失敗的警報 UI。確定沒做成的與逾時的分開說：逾時的可能其實做完了，只能說不確定
@@ -188,7 +186,8 @@ export function useNotificationActions(
         });
       }
       reloadAfterFailure(timedOut.length > 0);
-    } else if (anyGone) {
+    } else {
+      // 都成功或已經不在：不在的要從清單消失，Dashboard 的警報數要跟著變
       reload();
     }
   }, [setNotifications, claimRead, dropClaim, reload, reportFailure, reloadAfterFailure, t]);
@@ -224,7 +223,10 @@ export function useNotificationActions(
         }
         reportFailure(err, t.notifications.failed.clear);
         reloadAfterFailure(isRequestTimeout(err));
+        return;
       }
+      // 清除也一併確認：Dashboard 的警報數要跟著變
+      reload();
     },
     [setNotifications, localMarksRef, reload, reportFailure, reloadAfterFailure, t]
   );

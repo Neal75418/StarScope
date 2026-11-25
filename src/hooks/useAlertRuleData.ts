@@ -53,8 +53,12 @@ export function useAlertRuleData() {
     [queryClient]
   );
 
+  // 兩份規則快取一起：Dashboard 用另一份判斷有沒有規則（「未設定規則」卡片），離開再回來要過了 5 分鐘才會自己重讀
   const loadRules = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.alerts.rules() }),
+    ]);
   }, [queryClient]);
 
   return {

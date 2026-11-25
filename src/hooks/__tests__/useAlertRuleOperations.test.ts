@@ -1,6 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { createElement } from "react";
+import type { ReactNode } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 
 vi.mock("../../api/client", () => ({
   createAlertRule: vi.fn(),
@@ -20,6 +24,7 @@ import type { Toast } from "../types";
 import type { AlertRule } from "../../api/types";
 import { ApiError } from "../../api/types";
 import { translations } from "../../i18n/translations";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import {
   API_ERROR_MESSAGES,
   BATCH_ADD_FOLLOWUP_INTERVAL_MS,
@@ -63,14 +68,43 @@ describe("useAlertRuleOperations", () => {
     });
   });
 
+  let client: QueryClient;
+
+  /** 鈴鐺與儀表板的已觸發警報（見 invalidateTriggeredAlerts）：寫入之後是不是標成要重讀 */
+  const triggeredReadAgain = () =>
+    [queryKeys.notifications.polling(), queryKeys.alerts.triggered()].map(
+      (key) => client.getQueryState(key)?.isInvalidated
+    );
+
+  /** 已觸發警報重讀了幾次（看 Dashboard 那份；兩份一起重讀，見 invalidateTriggeredAlerts） */
+  function countTriggeredReads() {
+    const spy = vi.spyOn(client, "invalidateQueries");
+    return () =>
+      spy.mock.calls.filter(
+        ([filters]) =>
+          JSON.stringify(filters?.queryKey) === JSON.stringify(queryKeys.alerts.triggered())
+      ).length;
+  }
+
   function renderOps() {
-    return renderHook(() =>
-      useAlertRuleOperations({
-        rules,
-        setRules,
-        loadRules: mockLoadRules,
-        toast: mockToast,
-      })
+    // 不回收沒人看的查詢：下面先放進去的兩份已觸發警報要留到斷言的時候
+    client = createTestQueryClient();
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+    });
+    client.setQueryData(queryKeys.notifications.polling(), []);
+    client.setQueryData(queryKeys.alerts.triggered(), []);
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    return renderHook(
+      () =>
+        useAlertRuleOperations({
+          rules,
+          setRules,
+          loadRules: mockLoadRules,
+          toast: mockToast,
+        }),
+      { wrapper }
     );
   }
 
@@ -460,6 +494,54 @@ describe("useAlertRuleOperations", () => {
     expect(mockDeleteAlertRule).toHaveBeenCalledWith(1);
     expect(mockLoadRules).toHaveBeenCalled();
     expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/^Alert rule deleted$/));
+    // 觸發紀錄跟著規則刪掉：鈴鐺與儀表板不等輪詢就要拿掉
+    expect(triggeredReadAgain()).toEqual([true, true]);
+  });
+
+  it("reads the triggered alerts again after a rename: the bell and the dashboard show the rule's name", async () => {
+    mockUpdateAlertRule.mockResolvedValue(undefined as never);
+    const { result } = renderOps();
+
+    await act(async () => {
+      await result.current.handleUpdate(1, { ...makeRule(), name: "Renamed" } as never);
+    });
+
+    expect(triggeredReadAgain()).toEqual([true, true]);
+  });
+
+  it("reads the triggered alerts again when deleting timed out: the server may have deleted it", async () => {
+    mockDeleteAlertRule.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+    const { result } = renderOps();
+
+    await act(async () => {
+      await result.current.handleDelete(1);
+    });
+
+    expect(mockToast.warning).toHaveBeenCalled();
+    expect(triggeredReadAgain()).toEqual([true, true]);
+  });
+
+  it("does not read the triggered alerts again before the write is back", async () => {
+    let answer: () => void = () => {};
+    mockDeleteAlertRule.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = () => resolve({ status: "deleted", id: 1 });
+        })
+    );
+    const { result } = renderOps();
+
+    let pending: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      pending = result.current.handleDelete(1);
+    });
+    expect(triggeredReadAgain()).toEqual([false, false]);
+
+    await act(async () => {
+      answer();
+      await pending;
+    });
+    expect(triggeredReadAgain()).toEqual([true, true]);
   });
 
   it("handleToggle optimistically updates then calls API", async () => {
@@ -514,5 +596,119 @@ describe("useAlertRuleOperations", () => {
 
     expect(mockCheckAlerts).toHaveBeenCalled();
     expect(mockToast.success).toHaveBeenCalled();
+    // 檢查會新增觸發紀錄：鈴鐺與儀表板不等輪詢就要列出來
+    expect(triggeredReadAgain()).toEqual([true, true]);
+  });
+
+  it("reads the triggered alerts again when checking fails: a timed out check may still have triggered some", async () => {
+    mockCheckAlerts.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+    const { result } = renderOps();
+
+    await act(async () => {
+      await result.current.handleCheckNow();
+    });
+
+    expect(triggeredReadAgain()).toEqual([true, true]);
+  });
+
+  it("reads the triggered alerts again only once after a check that went through", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
+      const { result } = renderOps();
+      const reads = countTriggeredReads();
+
+      let checked: boolean | undefined;
+      await act(async () => {
+        checked = await result.current.handleCheckNow();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+      });
+
+      expect(checked).toBe(true);
+      expect(reads()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe("after a check that did not go through", () => {
+    it("still says the check failed", async () => {
+      // 記下是不是逾時之後要把錯誤丟回 execute：吞掉的話會說「檢查完成」
+      mockCheckAlerts.mockRejectedValue(new ApiError(500, "Internal error"));
+      const { result } = renderOps();
+
+      let checked: boolean | undefined;
+      await act(async () => {
+        checked = await result.current.handleCheckNow();
+      });
+
+      expect(checked).toBe(false);
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
+    it("keeps reading the triggered alerts again for a while after a timeout: the server may still be checking", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mockCheckAlerts.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+        const { result } = renderOps();
+        const reads = countTriggeredReads();
+
+        await act(async () => {
+          await result.current.handleCheckNow();
+        });
+        expect(reads()).toBe(1);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        });
+        expect(reads()).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("reads them again only once when the check failed for another reason", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        mockCheckAlerts.mockRejectedValue(new ApiError(500, "Internal error"));
+        const { result } = renderOps();
+        const reads = countTriggeredReads();
+
+        await act(async () => {
+          await result.current.handleCheckNow();
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(BATCH_ADD_TIMEOUT_MS);
+        });
+        expect(reads()).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it("does not read the triggered alerts again before the check is back", async () => {
+    let answer: () => void = () => {};
+    mockCheckAlerts.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = () => resolve({ status: "checked", triggered_count: 0, triggered: [] });
+        })
+    );
+    const { result } = renderOps();
+
+    let pending: Promise<boolean> = Promise.resolve(true);
+    act(() => {
+      pending = result.current.handleCheckNow();
+    });
+    expect(triggeredReadAgain()).toEqual([false, false]);
+
+    await act(async () => {
+      answer();
+      await pending;
+    });
+    expect(triggeredReadAgain()).toEqual([true, true]);
   });
 });

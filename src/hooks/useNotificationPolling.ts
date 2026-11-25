@@ -17,7 +17,12 @@ import type { Notification } from "./useNotifications";
 import type { LocalMarks } from "../utils/notificationHelpers";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
-import { lastLoadFailed, loadInProgress, queryKeys } from "../lib/react-query";
+import {
+  invalidateTriggeredAlerts,
+  lastLoadFailed,
+  loadInProgress,
+  queryKeys,
+} from "../lib/react-query";
 import { useI18n } from "../i18n";
 import { useSmartInterval } from "./useSmartInterval";
 
@@ -116,9 +121,8 @@ export function useNotificationPolling(
     setNotificationsRef.current(mergeNotifications(newNotifications, localMarksRef.current));
   }, [query.data, localMarksRef]);
 
-  const refresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.polling() });
-  }, [queryClient]);
+  // Dashboard 也一起：通知中心在確認、清除之後用它重讀，Dashboard 的警報數是同一份資料
+  const refresh = useCallback(() => invalidateTriggeredAlerts(queryClient), [queryClient]);
 
   return {
     // isPending 而不是 isLoading：sidecar 還沒連上時查詢是暫停的，isLoading 為 false，

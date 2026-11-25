@@ -114,6 +114,8 @@ describe("useNotificationActions", () => {
     );
     // 確認成功後留著：輪詢可能讀回確認之前送出的請求（見 LocalMarks）
     expect(localMarks.current.reads.has("alert-42")).toBe(true);
+    // 儀表板的警報數要跟著變（見 invalidateTriggeredAlerts）
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("claims the read while the acknowledgement is on its way", async () => {
@@ -131,12 +133,15 @@ describe("useNotificationActions", () => {
       pending = result.current.markAsRead("alert-42");
     });
     expect(localMarks.current.reads.has("alert-42")).toBe(true);
+    // 重讀要在確認回來之後：之前讀的還是未讀
+    expect(feedback.refresh).not.toHaveBeenCalled();
 
     await act(async () => {
       answer();
       await pending;
     });
     expect(localMarks.current.reads.has("alert-42")).toBe(true);
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("does not call the server or claim anything for a notification that is not an alert", async () => {
@@ -149,6 +154,7 @@ describe("useNotificationActions", () => {
     expect(result.current.notifications).toEqual([{ ...systemNote, read: true }]);
     expect(apiClient.acknowledgeTriggeredAlert).not.toHaveBeenCalled();
     expect(marksLeft()).toBe(0);
+    expect(feedback.refresh).not.toHaveBeenCalled();
   });
 
   it("marks all as read and acknowledges every unread alert with its trigger time", async () => {
@@ -169,6 +175,46 @@ describe("useNotificationActions", () => {
       "2026-11-25T00:00:44+00:00"
     );
     expect([...localMarks.current.reads]).toEqual(["alert-42", "alert-44"]);
+    // 全部回來之後重讀一次
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the list again once, after every acknowledgement of marking all as read is back", async () => {
+    const answers: (() => void)[] = [];
+    vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(
+      (id) =>
+        new Promise((resolve) => {
+          answers.push(() => resolve({ status: "acknowledged", id }));
+        })
+    );
+    const { result } = renderWithList([alertA, alertB]);
+
+    let pending: Promise<void> = Promise.resolve();
+    act(() => {
+      pending = result.current.markAllAsRead();
+    });
+    await act(async () => {
+      answers[0]();
+      await Promise.resolve();
+    });
+    expect(feedback.refresh).not.toHaveBeenCalled();
+
+    await act(async () => {
+      answers[1]();
+      await pending;
+    });
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not read the list again when marking all as read has nothing to acknowledge", async () => {
+    const { result } = renderWithList([{ ...alertA, read: true }, systemNote]);
+
+    await act(async () => {
+      await result.current.markAllAsRead();
+    });
+
+    expect(apiClient.acknowledgeTriggeredAlert).not.toHaveBeenCalled();
+    expect(feedback.refresh).not.toHaveBeenCalled();
   });
 
   it("clears one: takes it out of the list and asks the server to dismiss it with its trigger time", async () => {
@@ -184,6 +230,8 @@ describe("useNotificationActions", () => {
     // 成功的留著：輪詢可能讀回清除之前送出的請求（見 LocalMarks）
     expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
     expect(localMarks.current.reads.size).toBe(0);
+    // 清除也一併確認：儀表板的警報數要跟著變
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("marks it dismissed while the request is on its way", async () => {
@@ -201,12 +249,14 @@ describe("useNotificationActions", () => {
       pending = result.current.clearNotification("alert-42");
     });
     expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
+    expect(feedback.refresh).not.toHaveBeenCalled();
 
     await act(async () => {
       answer();
       await pending;
     });
     expect(localMarks.current.dismissals.has("alert-42")).toBe(true);
+    expect(feedback.refresh).toHaveBeenCalledTimes(1);
   });
 
   it("clears a notification that is not an alert without calling the server", async () => {
@@ -218,6 +268,7 @@ describe("useNotificationActions", () => {
 
     expect(result.current.notifications).toEqual([]);
     expect(apiClient.acknowledgeTriggeredAlert).not.toHaveBeenCalled();
+    expect(feedback.refresh).not.toHaveBeenCalled();
   });
 });
 

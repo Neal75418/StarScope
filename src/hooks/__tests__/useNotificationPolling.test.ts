@@ -7,7 +7,7 @@ import { useNotificationPolling } from "../useNotificationPolling";
 import type { Notification } from "../useNotifications";
 import type { LocalMarks } from "../../utils/notificationHelpers";
 import * as apiClient from "../../api/client";
-import { createTestQueryClient } from "../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -149,6 +149,28 @@ describe("useNotificationPolling", () => {
     await waitFor(() => {
       expect(apiClient.listTriggeredAlerts).toHaveBeenCalledTimes(2);
     });
+  });
+
+  it("refresh also reads the dashboard's triggered alerts again", async () => {
+    // 通知中心用它在確認、清除之後重讀：儀表板的「啟用中的警報」是同一份資料，不輪詢
+    // 不回收沒人看的查詢：先放進去的那份要留到斷言的時候
+    const client = createTestQueryClient();
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client }, children);
+    client.setQueryData(queryKeys.alerts.triggered(), []);
+    const { result } = renderHook(
+      () => useNotificationPolling(mockSetNotifications, mockLocalMarksRef),
+      { wrapper }
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(client.getQueryState(queryKeys.alerts.triggered())?.isInvalidated).toBe(true);
   });
 
   it("cleans up on unmount", async () => {
