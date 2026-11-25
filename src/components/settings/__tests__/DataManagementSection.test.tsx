@@ -225,7 +225,7 @@ describe("DataManagementSection", () => {
   });
 
   it("keeps counting a write that is still in progress", async () => {
-    // useStarSync 用 isMutating 判斷同步還在不在跑：重設時清掉 mutation 快取的話，進行中的同步會被當成沒在跑而 reset
+    // useStarSync、ArchivedRepos 用 isMutating 判斷寫入還在不在跑：重設時清掉 mutation 快取的話，進行中的會被當成沒在跑而 reset
     const user = userEvent.setup();
     vi.mocked(apiClient.resetAllData).mockResolvedValue({ status: "reset", deleted_repos: 1 });
     const client = createAppLikeQueryClient();

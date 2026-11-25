@@ -5,16 +5,20 @@
  * 警示規則一起 cascade 掉。所以只有後者要二次確認，而且文案必須點名警示規則：
  * 快照與訊號使用者猜得到會一起消失，自己設定的警示規則猜不到。
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { deleteArchivedRepo, getArchivedRepos, restarRepo } from "../../api/client";
+import { DATA_RESET_EVENT } from "../../constants/events";
 import { invalidateTrackedRepos, loadStatus, queryKeys } from "../../lib/react-query";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
 import { interpolate } from "../../i18n";
 import { getErrorMessage } from "../../utils/error";
+
+const RESTAR_KEY = ["archivedRepos", "restar"] as const;
+const PURGE_KEY = ["archivedRepos", "purge"] as const;
 
 export function ArchivedRepos() {
   const { t } = useI18n();
@@ -36,10 +40,12 @@ export function ArchivedRepos() {
   // 會把 context 物件當第二個參數餵給 API 函式——現在無害，但那些函式的第二個
   // 參數位置遲早會被用掉（getArchivedRepos 的 signal 就是這種形狀）
   const restar = useMutation({
+    mutationKey: RESTAR_KEY,
     mutationFn: (repoId: number) => restarRepo(repoId),
     onSuccess: invalidate,
   });
   const purge = useMutation({
+    mutationKey: PURGE_KEY,
     mutationFn: (repoId: number) => deleteArchivedRepo(repoId),
     onSuccess: () => {
       setPendingDelete(null);
@@ -56,6 +62,20 @@ export function ArchivedRepos() {
   const clearStale = (other: { isPending: boolean; reset: () => void }) => {
     if (!other.isPending) other.reset();
   };
+
+  // 重設資料之後清單重讀成空，上一次操作的錯誤講的是已經刪掉的 repo：一併清掉。錯誤存在 mutation 裡，
+  // 重設時清快取碰不到。還在跑的不動（理由同 clearStale）；要問 mutation cache：handler 是 effect 掛上時建的，
+  // 裡面讀得到的 isPending 是那時候的值
+  const resetRestar = restar.reset;
+  const resetPurge = purge.reset;
+  useEffect(() => {
+    const handler = () => {
+      if (queryClient.isMutating({ mutationKey: [...RESTAR_KEY] }) === 0) resetRestar();
+      if (queryClient.isMutating({ mutationKey: [...PURGE_KEY] }) === 0) resetPurge();
+    };
+    window.addEventListener(DATA_RESET_EVENT, handler);
+    return () => window.removeEventListener(DATA_RESET_EVENT, handler);
+  }, [queryClient, resetRestar, resetPurge]);
 
   const repos = query.data?.repos ?? [];
   const load = loadStatus(query);

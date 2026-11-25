@@ -58,7 +58,8 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       // 啟用中的接著重讀；沒人看的直接移除。
       // 不用 clear()：畫面上的元件仍掛在被移除的查詢上，之後的 invalidate 找不到它們，
       // 元件重新渲染（有輪詢的到下一輪）之前都顯示舊資料。它連帶清掉的 mutation 快取也不動：
-      // 畫面上的 mutation 結果不會因此消失，進行中的星標同步反而不再算進 isMutating，被 useStarSync 當成沒在跑而 reset。
+      // 畫面上的 mutation 結果不會因此消失，進行中的寫入反而不再算進 isMutating，被當成沒在跑而 reset
+      // （useStarSync、ArchivedRepos 收到重設事件時都靠它判斷）。
       // 沒人看的不重設：重設會退回建立時的 initialData（repo 卡片的預載值），而 repo id 會重用。
       // 不等重讀：結果由各區塊自己顯示，有的要經 GitHub，對話框與提示不必等全部讀完
       queryClient.removeQueries({ predicate: (query) => query.getObserversCount() === 0 });

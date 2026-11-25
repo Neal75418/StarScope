@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { ArchivedRepos } from "../ArchivedRepos";
 import * as client from "../../../api/client";
 import { queryKeys } from "../../../lib/react-query";
+import { DATA_RESET_EVENT } from "../../../constants/events";
 
 vi.mock("../../../api/client");
 
@@ -168,6 +169,114 @@ describe("ArchivedRepos", () => {
     expect(screen.getByTestId("archived-restar-7")).toBeDisabled(); // 復原還在跑
     failRestore(new Error("Network error: Load failed"));
     expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
+  describe("after all data is reset", () => {
+    // 重設會刪掉所有 repo、封存清單重讀成空：上一次操作的錯誤講的是已經不在的 repo
+    const resetAllData = () =>
+      act(() => {
+        window.dispatchEvent(new Event(DATA_RESET_EVENT));
+      });
+    const confirmDelete = async () => {
+      const dialog = await screen.findByRole("alertdialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+    };
+
+    it("drops a restore failure", async () => {
+      vi.mocked(client.restarRepo).mockRejectedValue(new Error("Network error: Load failed"));
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      await screen.findByRole("alert");
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("drops a delete failure", async () => {
+      vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+        new Error("Network error: Load failed")
+      );
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-delete-7"));
+      await confirmDelete();
+      await screen.findByRole("alert");
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    /** app 別處還有寫入在跑（例如同一頁的星標同步，最長 120 秒）：只看這兩個動作自己的 key，不能因此留著錯誤 */
+    const startAnotherWrite = (qc: QueryClient) => {
+      void qc
+        .getMutationCache()
+        .build(qc, { mutationKey: ["starSync", "sync"], mutationFn: () => new Promise(() => {}) })
+        .execute(undefined);
+    };
+
+    it("drops a restore failure while another part of the app is still writing", async () => {
+      vi.mocked(client.restarRepo).mockRejectedValue(new Error("Network error: Load failed"));
+      const { qc } = renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      await screen.findByRole("alert");
+      startAnotherWrite(qc);
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("drops a delete failure while another part of the app is still writing", async () => {
+      vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+        new Error("Network error: Load failed")
+      );
+      const { qc } = renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-delete-7"));
+      await confirmDelete();
+      await screen.findByRole("alert");
+      startAnotherWrite(qc);
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("still reports a restore that was running when the data was reset", async () => {
+      // 還在跑的不能 reset：之後它失敗了也不會說
+      let failRestore: (reason: Error) => void = () => {};
+      vi.mocked(client.restarRepo).mockReturnValue(
+        new Promise((_, reject) => {
+          failRestore = reject;
+        })
+      );
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      await waitFor(() => expect(client.restarRepo).toHaveBeenCalledTimes(1));
+
+      resetAllData();
+      failRestore(new Error("Network error: Load failed"));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+    });
+
+    it("still reports a delete that was running when the data was reset", async () => {
+      let failDelete: (reason: Error) => void = () => {};
+      vi.mocked(client.deleteArchivedRepo).mockReturnValue(
+        new Promise((_, reject) => {
+          failDelete = reject;
+        })
+      );
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-delete-7"));
+      await confirmDelete();
+      await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledTimes(1));
+
+      resetAllData();
+      failDelete(new Error("Network error: Load failed"));
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+    });
   });
 
   it("names alert rules in the confirmation", async () => {
