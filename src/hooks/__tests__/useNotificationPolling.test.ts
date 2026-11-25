@@ -5,6 +5,7 @@ import type { ReactNode, SetStateAction } from "react";
 import { QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { useNotificationPolling } from "../useNotificationPolling";
 import type { Notification } from "../useNotifications";
+import type { MarkedReads } from "../../utils/notificationHelpers";
 import * as apiClient from "../../api/client";
 import { createTestQueryClient } from "../../lib/react-query";
 
@@ -36,12 +37,12 @@ describe("useNotificationPolling", () => {
   let mockSetNotifications: ReturnType<
     typeof vi.fn<(value: SetStateAction<Notification[]>) => void>
   >;
-  let mockReadIdsRef: { current: Set<string> };
+  let mockMarkedReadsRef: { current: MarkedReads };
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSetNotifications = vi.fn<(value: SetStateAction<Notification[]>) => void>();
-    mockReadIdsRef = { current: new Set<string>() };
+    mockMarkedReadsRef = { current: new Set() };
     vi.mocked(apiClient.listTriggeredAlerts).mockResolvedValue([]);
   });
 
@@ -55,7 +56,7 @@ describe("useNotificationPolling", () => {
     onlineManager.setOnline(false);
     try {
       const { result } = renderHook(
-        () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+        () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
         { wrapper: createWrapper() }
       );
       expect(result.current.isLoading).toBe(true);
@@ -65,7 +66,7 @@ describe("useNotificationPolling", () => {
   });
 
   it("fetches notifications on mount", async () => {
-    renderHook(() => useNotificationPolling(mockSetNotifications, mockReadIdsRef), {
+    renderHook(() => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef), {
       wrapper: createWrapper(),
     });
 
@@ -76,7 +77,7 @@ describe("useNotificationPolling", () => {
 
   it("starts in loading state and becomes false after fetch", async () => {
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
 
@@ -90,7 +91,7 @@ describe("useNotificationPolling", () => {
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
 
@@ -103,7 +104,7 @@ describe("useNotificationPolling", () => {
     // 還沒讀到過任何通知時，重試一開始 React Query 就把 error 清掉；畫面上的「讀不到」不能跟著消失
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValueOnce(new Error("Network error"));
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
     await waitFor(() => expect(result.current.loadFailed).toBe(true));
@@ -130,7 +131,7 @@ describe("useNotificationPolling", () => {
 
   it("refresh triggers a new fetch", async () => {
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
 
@@ -149,7 +150,7 @@ describe("useNotificationPolling", () => {
 
   it("cleans up on unmount", async () => {
     const { unmount } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
 
@@ -170,7 +171,7 @@ describe("useNotificationPolling", () => {
     vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue("string error");
 
     const { result } = renderHook(
-      () => useNotificationPolling(mockSetNotifications, mockReadIdsRef),
+      () => useNotificationPolling(mockSetNotifications, mockMarkedReadsRef),
       { wrapper: createWrapper() }
     );
 

@@ -41,47 +41,41 @@ describe("notificationHelpers", () => {
   describe("alertsToNotifications", () => {
     it("converts alerts to notifications", () => {
       const alerts = [makeAlert({ id: 1 }), makeAlert({ id: 2 })];
-      const readIds = new Set<string>();
 
-      const result = alertsToNotifications(alerts, readIds);
+      const result = alertsToNotifications(alerts);
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe("alert-1");
+      expect(result[0].id).toBe("alert-1-2024-01-20T00:00:00Z");
       expect(result[0].type).toBe("alert");
       expect(result[0].title).toBe("Star spike");
       expect(result[0].metadata?.alertId).toBe(1);
+      expect(result[0].metadata?.triggeredAt).toBe("2024-01-20T00:00:00Z");
     });
 
-    it("marks notifications as read when in readIds set", () => {
-      const alerts = [makeAlert({ id: 1 })];
-      const readIds = new Set(["alert-1"]);
+    it("tells apart two alerts that share an id but were triggered at different times", () => {
+      // 觸發紀錄的 id 會重用：舊的那則刪掉後，新警報拿到同一個 id
+      const old = alertsToNotifications([
+        makeAlert({ id: 1, triggered_at: "2024-01-20T00:00:00Z" }),
+      ]);
+      const reused = alertsToNotifications([
+        makeAlert({ id: 1, triggered_at: "2024-01-21T00:00:00Z" }),
+      ]);
 
-      const result = alertsToNotifications(alerts, readIds);
-
-      expect(result[0].read).toBe(true);
+      expect(reused[0].id).not.toBe(old[0].id);
     });
 
-    it("marks notifications as read when acknowledged", () => {
-      const alerts = [makeAlert({ id: 1, acknowledged_at: "2024-01-21T00:00:00Z" })];
-      const readIds = new Set<string>();
+    it("marks notifications as read only when the server acknowledged them", () => {
+      const result = alertsToNotifications([
+        makeAlert({ id: 1, acknowledged: true, acknowledged_at: "2024-01-20T01:00:00Z" }),
+        makeAlert({ id: 2 }),
+      ]);
 
-      const result = alertsToNotifications(alerts, readIds);
-
-      expect(result[0].read).toBe(true);
-    });
-
-    it("marks notifications as unread when not in readIds and not acknowledged", () => {
-      const alerts = [makeAlert({ id: 1, acknowledged_at: null })];
-      const readIds = new Set<string>();
-
-      const result = alertsToNotifications(alerts, readIds);
-
-      expect(result[0].read).toBe(false);
+      expect(result.map((n) => n.read)).toEqual([true, false]);
     });
 
     it("includes correct link and metadata", () => {
       const alerts = [makeAlert({ id: 5, repo_name: "vuejs/vue", signal_type: "velocity" })];
-      const result = alertsToNotifications(alerts, new Set());
+      const result = alertsToNotifications(alerts);
 
       expect(result[0].link).toEqual({ page: "watchlist", params: { repo: "vuejs/vue" } });
       expect(result[0].metadata?.repoName).toBe("vuejs/vue");
@@ -104,33 +98,28 @@ describe("notificationHelpers", () => {
   });
 
   describe("mergeNotifications", () => {
-    it("preserves local read state from existing notifications", () => {
-      const newNotifications = [
+    it("shows read what was marked read in this session", () => {
+      const fromServer = [
         makeNotification({ id: "n1", read: false }),
         makeNotification({ id: "n2", read: false }),
       ];
-      const existingNotifications = [
-        makeNotification({ id: "n1", read: true }), // locally marked as read
-        makeNotification({ id: "n2", read: false }),
-      ];
 
-      const merged = mergeNotifications(newNotifications, existingNotifications);
+      const merged = mergeNotifications(fromServer, new Set(["n1"]));
 
-      expect(merged[0].read).toBe(true); // preserved from existing
-      expect(merged[1].read).toBe(false);
+      expect(merged.map((n) => n.read)).toEqual([true, false]);
     });
 
     it("keeps server-side read state", () => {
-      const newNotifications = [
-        makeNotification({ id: "n1", read: true }), // server says read
-      ];
-      const existingNotifications = [
-        makeNotification({ id: "n1", read: false }), // locally not read
-      ];
+      const merged = mergeNotifications([makeNotification({ id: "n1", read: true })], new Set());
 
-      const merged = mergeNotifications(newNotifications, existingNotifications);
+      expect(merged[0].read).toBe(true);
+    });
 
-      expect(merged[0].read).toBe(true); // server says true
+    it("shows what the server says for what was not marked read in this session", () => {
+      // 不沿用畫面上原本的已讀：標已讀失敗（已從 markedReads 拿掉）後讀回來的未讀要照實顯示
+      const merged = mergeNotifications([makeNotification({ id: "n1", read: false })], new Set());
+
+      expect(merged[0].read).toBe(false);
     });
   });
 });

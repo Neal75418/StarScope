@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
@@ -101,6 +101,76 @@ describe("NotificationCenter when acknowledging does not go through", () => {
     expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
     // 一則提示都沒有（toast 容器在畫面上，裡面是空的）
     expect(document.querySelector(".toast-container")?.children).toHaveLength(0);
+  });
+
+  it("keeps it read when the list is read again before the acknowledgement comes back", async () => {
+    let answer: () => void = () => {};
+    vi.mocked(acknowledgeTriggeredAlert).mockImplementation(
+      (id) =>
+        new Promise((resolve) => {
+          answer = () => resolve({ status: "acknowledged", id });
+        })
+    );
+    const user = userEvent.setup();
+    renderCenter();
+    const dropdown = await openWithOneUnread(user);
+    await user.click(within(dropdown).getByRole("button", { name: "Mark all as read" }));
+
+    // 後端還沒確認完時讀回的清單仍說它未讀，同時多了一則新警報：只有新的那則算未讀
+    vi.mocked(listTriggeredAlerts).mockResolvedValue([
+      alert,
+      { ...alert, id: 43, rule_name: "Another rule", triggered_at: "2026-11-25T02:00:00Z" },
+    ]);
+    await act(async () => {
+      await client.invalidateQueries();
+    });
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.getByRole("button", { name: "Notifications (1 unread)" })).toBeInTheDocument();
+
+    await act(async () => {
+      answer();
+    });
+  });
+
+  it("shows it unread again when marking it read and then clearing it both fail", async () => {
+    // 兩個確認都還在路上；清除失敗時加回的是按清除當下的樣子（已讀），重讀後要照後端改回未讀
+    const answers: ((reason: Error) => void)[] = [];
+    vi.mocked(acknowledgeTriggeredAlert).mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          answers.push(reject);
+        })
+    );
+    const user = userEvent.setup();
+    renderCenter();
+    const dropdown = await openWithOneUnread(user);
+    await user.click(within(dropdown).getByRole("button", { name: /Star spike/ }));
+    await user.click(await screen.findByRole("button", { name: "Notifications" }));
+    await user.click(
+      within(screen.getByRole("region", { name: "Notifications" })).getByRole("button", {
+        name: "Clear",
+      })
+    );
+    expect(answers).toHaveLength(2);
+
+    const unreachable = () =>
+      new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: connection refused`);
+    await act(async () => {
+      answers[0](unreachable());
+      answers[1](unreachable());
+    });
+
+    await waitFor(() => {
+      expect(listTriggeredAlerts).toHaveBeenCalledTimes(3);
+    });
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
   });
 
   it("says on screen that it was not marked as read and why, and reloads the list", async () => {

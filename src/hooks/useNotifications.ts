@@ -1,15 +1,15 @@
 /**
- * 通知中心：整合儲存、輪詢與操作邏輯。
+ * 通知中心：整合輪詢與操作邏輯。
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useNotificationStorage } from "./useNotificationStorage";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useNotificationPolling } from "./useNotificationPolling";
 import { useNotificationActions } from "./useNotificationActions";
 import { useOSNotification } from "./useOSNotification";
 import { useToast } from "../components/Toast";
 import { DATA_RESET_EVENT } from "../constants/events";
 import type { Page } from "../types/navigation";
+import type { MarkedReads } from "../utils/notificationHelpers";
 
 type NotificationType = "alert" | "signal" | "system";
 
@@ -28,6 +28,8 @@ export interface Notification {
     repoName?: string;
     signalType?: string;
     alertId?: number;
+    /** 觸發時間的原字串，確認時送回後端比對（id 會重用） */
+    triggeredAt?: string;
   };
 }
 
@@ -35,16 +37,15 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const toast = useToast();
+  // 這次開 app 標成已讀的通知（見 notificationHelpers）：輪詢合併與操作共用
+  const markedReadsRef = useRef<MarkedReads>(new Set());
 
-  // data-reset 事件：清空通知列表（已讀 ref 由 useNotificationStorage 自行清除）
+  // data-reset 事件：清空通知列表
   useEffect(() => {
     const handler = () => setNotifications([]);
     window.addEventListener(DATA_RESET_EVENT, handler);
     return () => window.removeEventListener(DATA_RESET_EVENT, handler);
   }, []);
-
-  // 已讀狀態儲存
-  const { readIdsRef, markIdAsRead, markIdsAsRead, removeIdFromRead } = useNotificationStorage();
 
   // OS 通知功能
   const osNotification = useOSNotification();
@@ -52,7 +53,7 @@ export function useNotifications() {
   // 輪詢邏輯（整合 OS 通知）
   const { isLoading, loadFailed, loadInProgress, refresh } = useNotificationPolling(
     setNotifications,
-    readIdsRef,
+    markedReadsRef,
     osNotification
   );
 
@@ -60,7 +61,7 @@ export function useNotifications() {
   const { markAsRead, markAllAsRead, clearNotification } = useNotificationActions(
     notifications,
     setNotifications,
-    { markIdAsRead, markIdsAsRead, removeIdFromRead },
+    markedReadsRef,
     { toast, refresh }
   );
 

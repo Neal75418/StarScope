@@ -2,6 +2,7 @@
 警報 API 端點，管理警報規則與檢視已觸發的警報。
 """
 
+from datetime import datetime
 from typing import Annotated, get_args, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -53,9 +54,10 @@ class AlertRuleNotFoundError(Exception):
     """
 
 class TriggeredAlertNotFoundError(Exception):
-    """用 id 找不到觸發紀錄：它的規則或 repo 刪了（CASCADE），或資料重設過。main.py 轉成帶 code 的 404。
+    """呼叫端看到的那則觸發紀錄已經不在：它的規則或 repo 刪了（CASCADE）、資料重設過，或 id 已被新警報重用
+    （觸發時間對不上）。main.py 轉成帶 code 的 404。
 
-    確認不看 repo 封存，所以這個 404 只代表那一列真的不在：前端據此把通知當成已經處理完，不當成失敗。
+    確認不看 repo 封存，所以這個 404 只代表看到的那則真的不在：前端據此把通知當成已經處理完，不當成失敗。
     """
 
 
@@ -353,9 +355,13 @@ def list_triggered_alerts(
 
 
 @router.post("/triggered/{alert_id}/acknowledge", response_model=ApiResponse[StatusResponse])
-def acknowledge_single_alert(alert_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
-    """確認已觸發的警報。"""
-    if acknowledge_alert(db, alert_id):
+def acknowledge_single_alert(
+    alert_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    triggered_at: Annotated[datetime | None, Query()] = None,
+) -> dict:
+    """確認已觸發的警報。triggered_at 是清單上看到的觸發時間，對不上（id 已被新警報重用）時回 404。"""
+    if acknowledge_alert(db, alert_id, triggered_at):
         return success_response(data=StatusResponse(status="acknowledged", id=alert_id))
     raise TriggeredAlertNotFoundError
 

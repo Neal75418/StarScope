@@ -67,7 +67,7 @@ export function DataManagementSection({ onToast }: DataManagementSectionProps) {
       for (const key of DATA_DERIVED_KEYS) {
         localStorage.removeItem(key);
       }
-      // 通知 app-wide 的 in-memory 狀態（notification ref、watchlist filters）同步清除
+      // 通知 app-wide 的 in-memory 狀態（通知清單、watchlist filters）同步清除
       window.dispatchEvent(new Event(DATA_RESET_EVENT));
       setShowResetConfirm(false);
       onToast(t.settings.data.toast.dataReset, "success");

@@ -14,6 +14,7 @@ import {
   mergeNotifications,
 } from "../utils/notificationHelpers";
 import type { Notification } from "./useNotifications";
+import type { MarkedReads } from "../utils/notificationHelpers";
 import { NOTIFICATION_POLL_INTERVAL_MS, MAX_OS_NOTIFICATIONS_PER_POLL } from "../constants/polling";
 import { logger } from "../utils/logger";
 import { lastLoadFailed, loadInProgress, queryKeys } from "../lib/react-query";
@@ -27,7 +28,7 @@ interface OSNotificationSender {
 
 export function useNotificationPolling(
   setNotifications: Dispatch<SetStateAction<Notification[]>>,
-  readIdsRef: { current: Set<string> },
+  markedReadsRef: { current: MarkedReads },
   osNotificationSender?: OSNotificationSender
 ) {
   const { t } = useI18n();
@@ -49,9 +50,7 @@ export function useNotificationPolling(
     queryKey: queryKeys.notifications.polling(),
     queryFn: async () => {
       const alerts = await listTriggeredAlerts(false, ALERT_FETCH_LIMIT);
-      return sortNotifications(
-        alertsToNotifications(alerts, readIdsRef.current, tRef.current.dashboard.signals.types)
-      );
+      return sortNotifications(alertsToNotifications(alerts, tRef.current.dashboard.signals.types));
     },
     // 智慧輪詢：visibility + online aware
     refetchInterval: smartInterval,
@@ -61,6 +60,9 @@ export function useNotificationPolling(
     retry: false,
     // 不使用 refetchOnWindowFocus（改用 smartInterval 管理）
     refetchOnWindowFocus: false,
+    // 每次讀回都給新物件，下面的 effect 才會每次重套「後端狀態＋本機標記」：讀回的和上一輪一樣時共用同一個物件，
+    // effect 不跑，畫面就停在本機改過的樣子（例如標已讀與清除都失敗後加回的那則，直到清單有別的變化前都顯示已讀）
+    structuralSharing: false,
   });
 
   // 當 query 資料更新時，處理合併與 OS 通知（useEffect 避免 render 階段副作用）
@@ -94,13 +96,11 @@ export function useNotificationPolling(
       }
     }
 
-    // 合併通知並更新 parent state
-    setNotificationsRef.current((prev) => {
-      const updated = mergeNotifications(newNotifications, prev);
-      notificationsRef.current = updated;
-      return updated;
-    });
-  }, [query.data]);
+    // 合併通知並更新 parent state：以讀回的為準，再套上這次開 app 標成已讀的
+    const updated = mergeNotifications(newNotifications, markedReadsRef.current);
+    notificationsRef.current = updated;
+    setNotificationsRef.current(updated);
+  }, [query.data, markedReadsRef]);
 
   const refresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.polling() });

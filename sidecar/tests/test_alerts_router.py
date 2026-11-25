@@ -2,6 +2,8 @@
 Tests for alerts endpoints.
 """
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from constants import SignalType
@@ -332,6 +334,61 @@ class TestTriggeredAlerts:
 
         assert response.status_code == 404
         assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
+
+    def test_acknowledge_with_the_trigger_time_it_was_listed_with(self, client, test_db, mock_repo):
+        """前端把清單上看到的 triggered_at 原樣送回：對得上就確認。"""
+        rule = _create_rule(test_db, mock_repo)
+        alert = _create_triggered_alert(test_db, rule, mock_repo)
+        listed = client.get("/api/alerts/triggered").json()["data"][0]
+
+        response = client.post(
+            f"/api/alerts/triggered/{alert.id}/acknowledge", params={"triggered_at": listed["triggered_at"]}
+        )
+
+        assert response.status_code == 200
+        test_db.refresh(alert)
+        assert alert.acknowledged
+
+    def test_acknowledge_a_reused_id_says_the_listed_one_is_gone(self, client, test_db, mock_repo):
+        """id 會重用：舊的那則刪掉後新警報拿到同一個 id。拿舊的觸發時間確認時回「不在」，新警報不被確認。"""
+        rule_a = _create_rule(test_db, mock_repo, name="A")
+        old = _create_triggered_alert(test_db, rule_a, mock_repo)
+        old_id = old.id
+        listed_at = client.get("/api/alerts/triggered").json()["data"][0]["triggered_at"]
+        assert client.delete(f"/api/alerts/rules/{rule_a.id}").status_code == 200
+        test_db.expire_all()
+        rule_b = _create_rule(test_db, mock_repo, name="B")
+        new = _create_triggered_alert(test_db, rule_b, mock_repo)
+        assert new.id == old_id  # 前提：id 真的被重用
+
+        response = client.post(
+            f"/api/alerts/triggered/{old_id}/acknowledge", params={"triggered_at": listed_at}
+        )
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "TRIGGERED_ALERT_NOT_FOUND"
+        test_db.refresh(new)
+        assert not new.acknowledged
+
+    @pytest.mark.parametrize("rewrite", [
+        lambda listed: listed.replace("+00:00", "Z"),
+        # 同一個時間點換成台灣時間寫（+08:00）
+        lambda listed: datetime.fromisoformat(listed).astimezone(timezone(timedelta(hours=8))).isoformat(),
+    ], ids=["z", "plus_eight"])
+    def test_acknowledge_accepts_the_same_moment_written_another_way(self, client, test_db, mock_repo, rewrite):
+        """同一個時間點用 Z 或別的時區寫都算對得上：比的是時間點，不是字串。"""
+        rule = _create_rule(test_db, mock_repo)
+        alert = _create_triggered_alert(test_db, rule, mock_repo)
+        listed = client.get("/api/alerts/triggered").json()["data"][0]["triggered_at"]
+        assert listed.endswith("+00:00")
+
+        response = client.post(
+            f"/api/alerts/triggered/{alert.id}/acknowledge", params={"triggered_at": rewrite(listed)}
+        )
+
+        assert response.status_code == 200
+        test_db.refresh(alert)
+        assert alert.acknowledged
 
     def test_acknowledge_all_alerts(self, client, test_db, mock_repo):
         """Test acknowledging all unacknowledged alerts."""

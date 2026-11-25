@@ -968,6 +968,34 @@ describe("API Client", () => {
       expect(result.status).toBe("success");
     });
 
+    it("acknowledgeTriggeredAlert sends the trigger time it was listed with, encoded", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "acknowledged", id: 1 }),
+      });
+
+      await acknowledgeTriggeredAlert(1, "2026-11-25T00:00:00.123456+00:00");
+
+      // + 不編碼的話，後端會把它讀成空白，時間就對不上
+      const url = String(mockFetch.mock.calls[0][0]);
+      expect(url).toContain("/alerts/triggered/1/acknowledge?");
+      expect(new URL(url).searchParams.get("triggered_at")).toBe(
+        "2026-11-25T00:00:00.123456+00:00"
+      );
+      expect(url).not.toContain("+00:00");
+    });
+
+    it("acknowledgeTriggeredAlert without a trigger time sends no query", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: "acknowledged", id: 1 }),
+      });
+
+      await acknowledgeTriggeredAlert(1);
+
+      expect(String(mockFetch.mock.calls[0][0])).toMatch(/\/alerts\/triggered\/1\/acknowledge$/);
+    });
+
     it("acknowledgeAllTriggeredAlerts acknowledges all", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

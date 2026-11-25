@@ -8,6 +8,8 @@ export const STORAGE_KEYS = {
   COMPARE_REPOS: "starscope-compare-repos",
   DISMISSED_RECS: "starscope_dismissed_recs",
   LANGUAGE: "starscope-language",
+  // 舊版記在本機的通知已讀 id：現在警報的已讀只看後端、不再讀寫它。重設資料時一併清掉殘留；
+  // 不在啟動時刪：共用 localStorage 的舊版安裝檔還在用
   NOTIFICATIONS_READ: "starscope_notifications_read",
   PAGE: "starscope-page",
   SAVED_FILTERS: "starscope_saved_filters",

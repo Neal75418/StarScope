@@ -810,12 +810,16 @@ export async function listTriggeredAlerts(
 }
 
 /**
- * 確認一個已觸發的警報。
+ * 確認一個已觸發的警報。triggeredAt 是清單上看到的觸發時間（原字串）：id 會重用，後端對不上時回
+ * TRIGGERED_ALERT_NOT_FOUND，不會確認到拿到同一個 id 的新警報。
  */
 export async function acknowledgeTriggeredAlert(
-  alertId: number
+  alertId: number,
+  triggeredAt?: string
 ): Promise<{ status: string; id: number }> {
-  return apiCall(`/alerts/triggered/${alertId}/acknowledge`, {
+  const query =
+    triggeredAt === undefined ? "" : `?${new URLSearchParams({ triggered_at: triggeredAt })}`;
+  return apiCall(`/alerts/triggered/${alertId}/acknowledge${query}`, {
     method: "POST",
   });
 }

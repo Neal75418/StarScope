@@ -9,16 +9,6 @@ import type { Notification } from "../useNotifications";
 let capturedSetNotifications: Dispatch<SetStateAction<Notification[]>> | null = null;
 
 // Mock all sub-hooks
-vi.mock("../useNotificationStorage", () => ({
-  useNotificationStorage: () => ({
-    readIdsRef: { current: new Set<string>() },
-    markIdAsRead: vi.fn(),
-    markIdsAsRead: vi.fn(),
-    removeIdFromRead: vi.fn(),
-    clearAll: vi.fn(),
-  }),
-}));
-
 const idlePolling = {
   isLoading: false,
   loadFailed: false,
