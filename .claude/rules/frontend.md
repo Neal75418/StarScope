@@ -58,7 +58,9 @@ paths:
 - ⚠️ 查詢暫停時 `isLoading` 是 false（`isPending` 才是 true）：所以這次開 app 還沒連上過 sidecar 之前，
   `App.tsx` 不渲染頁面，否則頁面會畫出「還沒追蹤任何專案」之類的空狀態
 - ⚠️ 要 `reset()` 另一個 mutation 之前先問 `queryClient.isMutating({ mutationKey })`，不要看渲染當下的 `isPending`：
-  React Query 以 setTimeout(0) 才通知畫面；對還在跑的 mutation 呼叫 `reset()`，會讓那次請求的結果（包括失敗）不再回到畫面
+  React Query 以 setTimeout(0) 才通知畫面；對還在跑的 mutation 呼叫 `reset()`，會讓那次請求的結果（包括失敗）不再回到畫面。
+  用 `lib/react-query.ts` 的 `resetUnlessRunning`，mutationKey 用 `useInstanceMutationKey` 產生（帶這個元件實例的 useId）：
+  離開頁面再回來時，舊實例的請求還在 cache 裡跑，只看共用的 key 會把它算進去，新實例自己的舊結果就清不掉
 - ⚠️ **`@tanstack/query-core` 的 `mutationFn` 會收到 `(variables, context)` 兩個參數**（版本查 `package-lock.json`，別寫死在這裡）——直接把單參數的 client 函式當
   `mutationFn` 傳入會多收 context。務必包成箭頭函式：`(id) => deleteInterest(id)`
 - **讀取狀態一律用 `loadStatus(query)`**（`lib/react-query.ts`），回傳 `{ready, failed, inProgress, retry}`：讀到了（`ready`）

@@ -10,7 +10,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n";
 import { deleteArchivedRepo, getArchivedRepos, restarRepo } from "../../api/client";
 import { DATA_RESET_EVENT } from "../../constants/events";
-import { invalidateTrackedRepos, loadStatus, queryKeys } from "../../lib/react-query";
+import {
+  invalidateTrackedRepos,
+  loadStatus,
+  queryKeys,
+  resetUnlessRunning,
+} from "../../lib/react-query";
+import { useInstanceMutationKey } from "../../hooks/useInstanceMutationKey";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { LoadError } from "../LoadError";
 import { Skeleton } from "../Skeleton";
@@ -25,6 +31,8 @@ export function ArchivedRepos() {
   const copy = t.settings.archived;
   const queryClient = useQueryClient();
   const [pendingDelete, setPendingDelete] = useState<{ id: number; name: string } | null>(null);
+  const restarKey = useInstanceMutationKey(RESTAR_KEY);
+  const purgeKey = useInstanceMutationKey(PURGE_KEY);
 
   const query = useQuery({
     queryKey: queryKeys.repos.archived(),
@@ -40,12 +48,12 @@ export function ArchivedRepos() {
   // 會把 context 物件當第二個參數餵給 API 函式——現在無害，但那些函式的第二個
   // 參數位置遲早會被用掉（getArchivedRepos 的 signal 就是這種形狀）
   const restar = useMutation({
-    mutationKey: RESTAR_KEY,
+    mutationKey: restarKey,
     mutationFn: (repoId: number) => restarRepo(repoId),
     onSuccess: invalidate,
   });
   const purge = useMutation({
-    mutationKey: PURGE_KEY,
+    mutationKey: purgeKey,
     mutationFn: (repoId: number) => deleteArchivedRepo(repoId),
     onSuccess: () => {
       setPendingDelete(null);
@@ -57,25 +65,18 @@ export function ArchivedRepos() {
   // 寫入在 sidecar 連不上時會立刻失敗（lib/react-query.ts 的 mutations.networkMode）：
   // 一定要說出來，否則使用者只看到按鈕轉一下又恢復。只顯示最近一次操作的錯誤
   const actionError = restar.error ?? purge.error;
-  // 開始另一個操作時清掉對方的舊錯誤；對方的請求還在跑就不動它——reset() 會把 hook 從那次
-  // 請求上拆下來，按鈕馬上又能按、之後失敗也不會顯示
-  const clearStale = (other: { isPending: boolean; reset: () => void }) => {
-    if (!other.isPending) other.reset();
-  };
-
   // 重設資料之後清單重讀成空，上一次操作的錯誤講的是已經刪掉的 repo：一併清掉。錯誤存在 mutation 裡，
-  // 重設時清快取碰不到。還在跑的不動（理由同 clearStale）；要問 mutation cache：handler 是 effect 掛上時建的，
-  // 裡面讀得到的 isPending 是那時候的值
+  // 重設時清快取碰不到；還在跑的不動（見 resetUnlessRunning）
   const resetRestar = restar.reset;
   const resetPurge = purge.reset;
   useEffect(() => {
     const handler = () => {
-      if (queryClient.isMutating({ mutationKey: [...RESTAR_KEY] }) === 0) resetRestar();
-      if (queryClient.isMutating({ mutationKey: [...PURGE_KEY] }) === 0) resetPurge();
+      resetUnlessRunning(queryClient, restarKey, resetRestar);
+      resetUnlessRunning(queryClient, purgeKey, resetPurge);
     };
     window.addEventListener(DATA_RESET_EVENT, handler);
     return () => window.removeEventListener(DATA_RESET_EVENT, handler);
-  }, [queryClient, resetRestar, resetPurge]);
+  }, [queryClient, restarKey, purgeKey, resetRestar, resetPurge]);
 
   const repos = query.data?.repos ?? [];
   const load = loadStatus(query);
@@ -126,7 +127,8 @@ export function ArchivedRepos() {
                   data-testid={`archived-restar-${repo.id}`}
                   disabled={restar.isPending}
                   onClick={() => {
-                    clearStale(purge);
+                    // 開始另一個操作時清掉對方的舊錯誤；對方還在跑就不動
+                    resetUnlessRunning(queryClient, purgeKey, purge.reset);
                     void restar.mutateAsync(repo.id).catch(() => undefined);
                   }}
                 >
@@ -154,7 +156,8 @@ export function ArchivedRepos() {
         isProcessing={purge.isPending}
         onConfirm={() => {
           if (!pendingDelete) return;
-          clearStale(restar);
+          // 開始另一個操作時清掉對方的舊錯誤；對方還在跑就不動
+          resetUnlessRunning(queryClient, restarKey, restar.reset);
           void purge.mutateAsync(pendingDelete.id).catch(() => undefined);
         }}
         onCancel={() => setPendingDelete(null)}

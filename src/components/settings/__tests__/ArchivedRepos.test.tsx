@@ -171,6 +171,160 @@ describe("ArchivedRepos", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
 
+  describe("when the other action has just finished but the screen has not caught up", () => {
+    // React Query 以 setTimeout(0) 才通知畫面：這時渲染出來的 isPending 還是 true，要看 mutation cache 才知道它已經結束。
+    // cache 在 dispatch 時同步通知 listener：await 回來時畫面還沒收到通知
+    const failedInCache = (qc: QueryClient, action: "restar" | "purge") =>
+      new Promise<void>((resolve) => {
+        const unsubscribe = qc.getMutationCache().subscribe((event) => {
+          const [area, name] = event.mutation?.options.mutationKey ?? [];
+          if (
+            event.type === "updated" &&
+            event.action.type === "error" &&
+            area === "archivedRepos" &&
+            name === action
+          ) {
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+    it("drops a restore failure when a delete is confirmed", async () => {
+      let failRestore: (reason: Error) => void = () => {};
+      vi.mocked(client.restarRepo).mockReturnValue(
+        new Promise((_, reject) => {
+          failRestore = reject;
+        })
+      );
+      const { qc } = renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      await waitFor(() => expect(client.restarRepo).toHaveBeenCalledTimes(1));
+      fireEvent.click(screen.getByTestId("archived-delete-7"));
+      const dialog = await screen.findByRole("alertdialog");
+      const confirm = within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i });
+
+      const failed = failedInCache(qc, "restar");
+      failRestore(new Error("Network error: Load failed"));
+      await failed;
+      // 前提：復原已經結束（快取不算它在跑），畫面還沒收到通知
+      expect(qc.isMutating({ mutationKey: ["archivedRepos", "restar"] })).toBe(0);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      fireEvent.click(confirm);
+      await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledWith(7));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("drops a delete failure when a restore starts", async () => {
+      let failDelete: (reason: Error) => void = () => {};
+      vi.mocked(client.deleteArchivedRepo).mockReturnValue(
+        new Promise((_, reject) => {
+          failDelete = reject;
+        })
+      );
+      const { qc } = renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-delete-7"));
+      const dialog = await screen.findByRole("alertdialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+      await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledTimes(1));
+
+      // 刪除失敗時 onError 會關確認框（setState 不在 act 裡，會印一次警告）：包進 act 的話畫面先更新，前提就不成立了
+      const failed = failedInCache(qc, "purge");
+      failDelete(new Error("Network error: Load failed"));
+      await failed;
+      expect(qc.isMutating({ mutationKey: ["archivedRepos", "purge"] })).toBe(0);
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("archived-restar-7"));
+      await waitFor(() => expect(client.restarRepo).toHaveBeenCalledWith(7));
+      await act(() => new Promise((r) => setTimeout(r, 50)));
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("after leaving the page while an earlier restore is still running", () => {
+    // 離開設定頁時元件卸載，舊實例的請求還在 mutation cache 裡跑；回來的新實例只能看自己的請求
+    const OTHER = {
+      ...ROW,
+      id: 8,
+      name: "two",
+      full_name: "a/two",
+      url: "https://github.com/a/two",
+    };
+    const settle = () => act(() => new Promise((r) => setTimeout(r, 50)));
+
+    async function comeBackWhileRestoreRuns() {
+      vi.mocked(client.getArchivedRepos).mockResolvedValue({ repos: [ROW, OTHER], total: 2 });
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      vi.mocked(client.restarRepo).mockReturnValueOnce(new Promise(() => {}));
+      const first = render(
+        <QueryClientProvider client={qc}>
+          <ArchivedRepos />
+        </QueryClientProvider>
+      );
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      await waitFor(() => expect(client.restarRepo).toHaveBeenCalledTimes(1));
+      first.unmount();
+      expect(qc.isMutating({ mutationKey: ["archivedRepos", "restar"] })).toBe(1);
+      render(
+        <QueryClientProvider client={qc}>
+          <ArchivedRepos />
+        </QueryClientProvider>
+      );
+      return qc;
+    }
+
+    it("drops this page's restore failure when a delete is confirmed", async () => {
+      await comeBackWhileRestoreRuns();
+      vi.mocked(client.restarRepo).mockRejectedValueOnce(new Error("Network error: Load failed"));
+      fireEvent.click(await screen.findByTestId("archived-restar-8"));
+      await screen.findByRole("alert");
+
+      fireEvent.click(screen.getByTestId("archived-delete-8"));
+      const dialog = await screen.findByRole("alertdialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+      await waitFor(() => expect(client.deleteArchivedRepo).toHaveBeenCalledWith(8));
+      await settle();
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("drops this page's delete failure when a restore starts", async () => {
+      await comeBackWhileRestoreRuns();
+      vi.mocked(client.deleteArchivedRepo).mockRejectedValueOnce(
+        new Error("Network error: Load failed")
+      );
+      fireEvent.click(await screen.findByTestId("archived-delete-8"));
+      const dialog = await screen.findByRole("alertdialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+      await screen.findByRole("alert");
+
+      fireEvent.click(screen.getByTestId("archived-restar-8"));
+      await waitFor(() => expect(client.restarRepo).toHaveBeenCalledTimes(2));
+      await settle();
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("drops this page's restore failure when all data is reset", async () => {
+      await comeBackWhileRestoreRuns();
+      vi.mocked(client.restarRepo).mockRejectedValueOnce(new Error("Network error: Load failed"));
+      fireEvent.click(await screen.findByTestId("archived-restar-8"));
+      await screen.findByRole("alert");
+
+      act(() => {
+        window.dispatchEvent(new Event(DATA_RESET_EVENT));
+      });
+      await settle();
+
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
   describe("after all data is reset", () => {
     // 重設會刪掉所有 repo、封存清單重讀成空：上一次操作的錯誤講的是已經不在的 repo
     const resetAllData = () =>

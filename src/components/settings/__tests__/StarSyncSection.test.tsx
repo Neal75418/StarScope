@@ -115,6 +115,19 @@ describe("StarSyncSection", () => {
     await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledWith("star", ["a/one"]));
   });
 
+  it("drops the pending list once a pending-list action is done", async () => {
+    // 動作做完，同步結果裡的待決清單就過期了
+    vi.mocked(client.syncStars).mockResolvedValue({ ...NOTHING, pending_local_only: ["a/one"] });
+    vi.mocked(client.resolveLocalOnly).mockResolvedValue({ handled: 1 });
+    renderWithClient(<StarSyncSection />);
+    fireEvent.click(await screen.findByTestId("star-sync-btn"));
+
+    fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
+
+    await waitFor(() => expect(client.resolveLocalOnly).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByTestId("star-sync-pending")).not.toBeInTheDocument());
+  });
+
   it("refreshes the alert rule list after a sync and after a pending-list action", async () => {
     // 同步會封存或復原 repo，待決清單的「封存」會封存 repo：綁在上面的規則跟著消失或回來，
     // 而規則清單就在同一頁下方
@@ -243,6 +256,32 @@ describe("StarSyncSection", () => {
       renderWithClient(<StarSyncSection />);
       fireEvent.click(await screen.findByTestId("star-sync-btn"));
       fireEvent.click(await screen.findByTestId("star-sync-pending-star"));
+      await screen.findByRole("alert");
+
+      resetAllData();
+
+      await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    });
+
+    it("drops this page's sync failure even while a sync started before leaving the page is still running", async () => {
+      // 離開設定頁時元件卸載，舊實例的同步還在 mutation cache 裡跑；回來的新實例只能看自己的請求
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      vi.mocked(client.syncStars).mockReturnValueOnce(new Promise(() => {}));
+      const first = render(
+        <QueryClientProvider client={qc}>
+          <StarSyncSection />
+        </QueryClientProvider>
+      );
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
+      await waitFor(() => expect(client.syncStars).toHaveBeenCalledTimes(1));
+      first.unmount();
+      render(
+        <QueryClientProvider client={qc}>
+          <StarSyncSection />
+        </QueryClientProvider>
+      );
+      vi.mocked(client.syncStars).mockRejectedValueOnce(new Error("sidecar down"));
+      fireEvent.click(await screen.findByTestId("star-sync-btn"));
       await screen.findByRole("alert");
 
       resetAllData();

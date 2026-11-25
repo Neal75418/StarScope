@@ -296,6 +296,28 @@ export function combineLoadStatus(parts: LoadStatus[]): LoadStatus {
   };
 }
 
+declare const instanceMutationKey: unique symbol;
+
+/**
+ * 帶元件實例 useId 的 mutationKey，只能由 useInstanceMutationKey 產生：resetUnlessRunning 只收它，
+ * 傳共用的 key 常數就是型別錯誤（理由見 resetUnlessRunning）
+ */
+export type InstanceMutationKey = readonly string[] & { readonly [instanceMutationKey]: true };
+
+/**
+ * 清掉某個 mutation 的結果（資料與錯誤），但它還在跑就不動：reset() 會把 hook 從那次請求上拆下來，按鈕提早恢復、
+ * 之後失敗也不會顯示。要問 mutation cache，不看渲染當下的 isPending：React Query 以 setTimeout(0) 才通知畫面，
+ * 剛結束時渲染出來的值還是 true（或剛開始時還是 false）。mutationKey 要用 useInstanceMutationKey：
+ * 元件卸載再掛上時，舊實例的請求還在 cache 裡，只看共用的 key 會把它算進去
+ */
+export function resetUnlessRunning(
+  queryClient: QueryClient,
+  mutationKey: InstanceMutationKey,
+  reset: () => void
+): void {
+  if (queryClient.isMutating({ mutationKey: [...mutationKey] }) === 0) reset();
+}
+
 /**
  * 寫入請求逾時後，在伺服器做完之前定期重讀（間隔與期限見 BATCH_ADD_FOLLOWUP_INTERVAL_MS）。
  * 逾時當下伺服器多半還在做，而追蹤清單頁與探索頁讀的是 App 層那份不會重新掛載的查詢、切頁不會重讀：
