@@ -141,7 +141,7 @@ DIGEST_PRE_TRACKING_GRACE_DAYS = 3
 
 
 class TimeRange(StrEnum):
-    """圖表的時間範圍選項（charts 與 comparison 共用）。"""
+    """comparison 的時間範圍選項。charts 不收 all，另有自己的 ChartTimeRange（見 routers/charts.py）。"""
     WEEK = "7d"
     MONTH = "30d"
     QUARTER = "90d"

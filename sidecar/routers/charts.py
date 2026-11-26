@@ -4,19 +4,25 @@
 """
 
 from datetime import date, timedelta
-from typing import Annotated
+from typing import Annotated, Literal, get_args
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from constants import TimeRange
 from db.database import get_db
 from db.models import Repo, RepoSnapshot
 from schemas.response import ApiResponse, success_response
 from utils.time import utc_today
 
 router = APIRouter(prefix="/api/charts", tags=["charts"])
+
+# 這支只收有天數的範圍：「全部」由 star-history 端點提供（同一張 RepoSnapshot 表、不限日期；回填過的 repo
+# 含 GitHub 上的歷史），這裡不再重複一個。型別只收這三個，OpenAPI 才不會把 all 列成合法值，送了也和其他
+# 不合法的值一樣回 422。用字串 Literal 不用 TimeRange 的成員：後者的 422 訊息會列出 <TimeRange.WEEK: '7d'>
+ChartTimeRange = Literal["7d", "30d", "90d"]
+_DAYS: dict[ChartTimeRange, int] = {"7d": 7, "30d": 30, "90d": 90}
+assert set(_DAYS) == set(get_args(ChartTimeRange))
 
 
 class ChartDataPoint(BaseModel):
@@ -40,7 +46,7 @@ class StarsChartResponse(BaseModel):
 def get_stars_chart(
     repo_id: int,
     db: Annotated[Session, Depends(get_db)],
-    time_range: Annotated[TimeRange, Query(description="Time range for chart data")] = TimeRange.MONTH,
+    time_range: Annotated[ChartTimeRange, Query(description="Time range for chart data")] = "30d",
 ) -> dict:
     """
     取得圖表用的歷史 star 數資料。
@@ -50,16 +56,7 @@ def get_stars_chart(
     if not repo:
         raise HTTPException(status_code=404, detail="Repository not found")
 
-    # 計算日期範圍
-    days_map = {
-        TimeRange.WEEK: 7,
-        TimeRange.MONTH: 30,
-        TimeRange.QUARTER: 90,
-    }
-    if time_range not in days_map:
-        raise HTTPException(status_code=400, detail=f"Unsupported time_range: {time_range}")
-    days = days_map[time_range]
-    start_date = utc_today() - timedelta(days=days)
+    start_date = utc_today() - timedelta(days=_DAYS[time_range])
 
     # 抓取日期範圍內的快照
     snapshots = (
@@ -95,7 +92,7 @@ def get_stars_chart(
     chart_data = StarsChartResponse(
         repo_id=repo_id,
         repo_name=repo.full_name,
-        time_range=time_range.value,
+        time_range=time_range,
         data_points=data_points,
         min_stars=min_stars,
         max_stars=max_stars,
