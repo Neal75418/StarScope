@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from sqlalchemy import exists, insert, literal, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -49,16 +50,39 @@ def _create_triggered_alert(
     rule: "AlertRule",
     repo: "Repo",
     signal_value: float
-) -> "TriggeredAlert":
-    """建立並持久化已觸發的警報。"""
-    triggered = TriggeredAlert(
-        rule_id=rule.id,
-        repo_id=repo.id,
-        signal_value=signal_value,
-        triggered_at=utc_now(),
+) -> "TriggeredAlert | None":
+    """建立已觸發的警報；冷卻期內已經有同一組（同時跑的另一輪檢查剛觸發）時不建立、回 None。
+
+    冷卻檢查與寫入是同一條 INSERT … SELECT … WHERE NOT EXISTS：SQLite 一次只有一個寫入者，這條拿到寫入鎖
+    之後才判斷，所以同時跑的檢查（排程、啟動時那一輪、立即檢查、背景收集器那個行程）不會各觸發一則。
+    前提是這條 INSERT 是它那個交易的第一條 statement（pysqlite 只在 DML 前隱式 BEGIN，之前的 SELECT 不開交易）：
+    交易裡先有讀快照的話，另一輪 commit 之後這條會直接 database is locked、不等鎖，同時跑的檢查變成規則失敗。
+    呼叫端要結束交易：沒寫入時交易也已經開始、拿著寫入鎖。
+    """
+    now = utc_now()
+    columns = TriggeredAlert.__table__.c
+    triggered_recently = exists().where(
+        TriggeredAlert.rule_id == rule.id,
+        TriggeredAlert.repo_id == repo.id,
+        TriggeredAlert.triggered_at >= now - timedelta(seconds=ALERT_COOLDOWN_SECONDS),
     )
-    db.add(triggered)
-    db.flush()
+    # 欄位的 Python 端預設值（triggered_at、acknowledged）在 INSERT … SELECT 不會套用，這裡自己給
+    row = select(
+        literal(rule.id, columns.rule_id.type),
+        literal(repo.id, columns.repo_id.type),
+        literal(signal_value, columns.signal_value.type),
+        literal(now, columns.triggered_at.type),
+        literal(False, columns.acknowledged.type),
+    ).where(~triggered_recently)
+    new_id = db.execute(
+        insert(TriggeredAlert)
+        .from_select(["rule_id", "repo_id", "signal_value", "triggered_at", "acknowledged"], row)
+        .returning(TriggeredAlert.id)
+    ).scalar_one_or_none()
+    if new_id is None:
+        logger.debug(f"[警報] {repo.full_name} 同時跑的另一輪檢查剛觸發過 {rule.name}")
+        return None
+    triggered = db.get(TriggeredAlert, new_id)
 
     logger.info(
         f"[警報] 已觸發: {rule.name} (repo: {repo.full_name}, "
@@ -194,13 +218,14 @@ def check_all_alerts(db: Session) -> AlertCheckResult:
         try:
             repos = _get_repos_for_rule_from_map(rule, repo_map, all_repos)
             for repo in repos:
-                triggered = _check_rule_batch(
-                    db, rule, repo, signal_lookup, in_cooldown
-                )
-                if triggered:
-                    db.commit()  # 立即 commit，避免後續 rollback 連鎖失效
+                check = _check_rule_batch(db, rule, repo, signal_lookup, in_cooldown)
+                if check.attempted_write:
+                    # 寫進去或沒寫進去（同時跑的另一輪剛觸發過）都立即 commit：避免後續 rollback 連鎖失效，
+                    # 沒寫進去時也要放掉寫入鎖
+                    db.commit()
                     in_cooldown.add((rule.id, repo.id))  # 同步更新冷卻狀態
-                    triggered_alerts.append(triggered)
+                if check.triggered is not None:
+                    triggered_alerts.append(check.triggered)
         except SQLAlchemyError as e:
             db.rollback()
             failed_rule_ids.append(rule_id)
@@ -221,29 +246,42 @@ def _get_repos_for_rule_from_map(
     return all_repos
 
 
+@dataclass(frozen=True)
+class _PairCheck:
+    """一組規則-repo 的檢查結果。attempted_write：試過寫入（不論同時跑的另一輪有沒有先觸發），呼叫端要結束交易"""
+    attempted_write: bool
+    triggered: "TriggeredAlert | None" = None
+
+
+_NOT_TRIGGERED = _PairCheck(attempted_write=False)
+
+
 def _check_rule_batch(
     db: Session,
     rule: "AlertRule",
     repo: "Repo",
     signal_lookup: dict[tuple[int, str], "Signal"],
     in_cooldown: set[tuple[int, int]],
-) -> "TriggeredAlert | None":
-    """使用預載資料檢查單一規則-repo 組合（無額外 DB 查詢）。"""
+) -> _PairCheck:
+    """使用預載資料檢查單一規則-repo 組合，要觸發時寫入。
+
+    in_cooldown 是這一輪開頭讀的：同時跑的另一輪之後才觸發的，由 _create_triggered_alert 寫入時擋下。
+    """
     signal = signal_lookup.get((repo.id, rule.signal_type))
     if signal is None:
-        return None
+        return _NOT_TRIGGERED
 
     signal_value = float(signal.value)
     threshold = float(rule.threshold)
 
     if not evaluate_condition(signal_value, rule.operator, threshold):
-        return None
+        return _NOT_TRIGGERED
 
     if (rule.id, repo.id) in in_cooldown:
         logger.debug(f"[警報] {repo.full_name} 近期已觸發過警報")
-        return None
+        return _NOT_TRIGGERED
 
-    return _create_triggered_alert(db, rule, repo, signal_value)
+    return _PairCheck(attempted_write=True, triggered=_create_triggered_alert(db, rule, repo, signal_value))
 
 
 def get_unacknowledged_alerts(db: Session, limit: int = MAX_ALERTS_PER_QUERY) -> list[TriggeredAlert]:

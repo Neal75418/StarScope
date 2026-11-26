@@ -475,6 +475,24 @@ class TestCheckAllAlerts:
         assert result.failed_rule_ids == [failing_id, deleted_id]
         assert [a.rule_id for a in result.triggered] == [working_id]
 
+    def test_triggers_again_once_the_cooldown_has_passed(self, test_db, mock_repo):
+        """冷卻過了就能再觸發：開頭的冷卻預載與寫入時的冷卻判斷都要有時間條件，
+        少了的話同一組一輩子只觸發一次、之後靜默"""
+        from datetime import timedelta
+        from constants import ALERT_COOLDOWN_SECONDS
+
+        rule = self._add_rule_and_signal(test_db, mock_repo)
+        test_db.add(TriggeredAlert(
+            rule_id=rule.id, repo_id=mock_repo.id, signal_value=10.0,
+            triggered_at=utc_now() - timedelta(seconds=ALERT_COOLDOWN_SECONDS + 60),
+        ))
+        test_db.commit()
+
+        result = check_all_alerts(test_db)
+
+        assert len(result.triggered) == 1
+        assert test_db.query(TriggeredAlert).count() == 2
+
     def test_reports_no_failed_rule_when_all_were_checked(self, test_db, mock_repo):
         self._add_rule_and_signal(test_db, mock_repo)
 
@@ -546,3 +564,149 @@ class TestAcknowledgeAllAlerts:
         # Verify all acknowledged
         unack = get_unacknowledged_alerts(test_db)
         assert len(unack) == 0
+
+
+class TestConcurrentChecksTriggerOnce:
+    """排程、啟動時那一輪、立即檢查、背景收集器（另一個行程）都會跑 check_all_alerts，彼此沒有互斥：
+    冷卻在每輪開頭一次讀好的話，兩輪重疊時同一組規則＋repo 會各觸發一則。
+    用跟正式一樣的 engine（檔案、NullPool、各自一條連線），StaticPool 的記憶體資料庫測不到"""
+
+    @pytest.fixture
+    def db_file(self, tmp_path):
+        from sqlalchemy.orm import sessionmaker
+        from db.database import create_app_engine, sqlite_url
+        from db.models import Base
+
+        path = tmp_path / "alerts.db"
+        engine = create_app_engine(sqlite_url(path))
+        Base.metadata.create_all(engine)
+        yield path, sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        engine.dispose()
+
+    @staticmethod
+    def _seed(factory, n_repos: int, n_rules: int) -> None:
+        db = factory()
+        repos = [
+            Repo(owner=f"o{i}", name=f"r{i}", full_name=f"o{i}/r{i}", url=f"https://github.com/o{i}/r{i}")
+            for i in range(n_repos)
+        ]
+        db.add_all(repos)
+        db.commit()
+        db.add_all([Signal(repo_id=r.id, signal_type="stars_delta_7d", value=100.0) for r in repos])
+        db.add_all([
+            AlertRule(name=f"rule{k}", signal_type="stars_delta_7d", operator=">", threshold=0.0, enabled=True)
+            for k in range(n_rules)
+        ])
+        db.commit()
+        db.close()
+
+    def test_two_rounds_at_the_same_time_trigger_each_pair_once(self, db_file):
+        import threading
+        from collections import Counter
+
+        _, factory = db_file
+        self._seed(factory, n_repos=30, n_rules=3)
+        barrier = threading.Barrier(2)
+        errors: list[BaseException] = []
+        failed: list[list[int]] = []
+
+        def one_round():
+            db = factory()
+            try:
+                barrier.wait()  # 只對齊起點，不安排兩輪內部的先後
+                failed.append(check_all_alerts(db).failed_rule_ids)
+            except BaseException as e:  # noqa: BLE001 — 例外要帶回主執行緒斷言
+                errors.append(e)
+            finally:
+                db.close()
+
+        rounds = [threading.Thread(target=one_round) for _ in range(2)]
+        for t in rounds:
+            t.start()
+        for t in rounds:
+            t.join()
+
+        assert errors == []
+        # 等不到寫入鎖會被收進 failed_rule_ids、不會丟出來：一輪全失敗時另一輪照樣寫完 90 組
+        assert failed == [[], []]
+        db = factory()
+        counts = Counter((a.rule_id, a.repo_id) for a in db.query(TriggeredAlert).all())
+        db.close()
+        assert len(counts) == 90
+        assert max(counts.values()) == 1
+
+    def test_a_pair_another_round_just_triggered_is_not_triggered_again(self, db_file):
+        """這一輪讀完冷卻之後，另一輪才觸發同一組：不再觸發、不算進這一輪的結果；
+        而且不能一直拿著寫入鎖（立即檢查的 session 要等回應送出才關，其他寫入會卡住）"""
+        import sqlite3
+        from unittest.mock import patch
+
+        path, factory = db_file
+        self._seed(factory, n_repos=1, n_rules=1)
+        other = factory()
+        rule_id = other.query(AlertRule).one().id
+        repo_id = other.query(Repo).one().id
+        real = alerts_module._get_repos_for_rule_from_map
+
+        def another_round_triggers_first(*args, **kwargs):
+            other.add(TriggeredAlert(rule_id=rule_id, repo_id=repo_id, signal_value=100.0, triggered_at=utc_now()))
+            other.commit()
+            return real(*args, **kwargs)
+
+        db = factory()
+        with patch.object(alerts_module, "_get_repos_for_rule_from_map", side_effect=another_round_triggers_first):
+            result = check_all_alerts(db)
+
+        assert result.triggered == []
+        assert result.failed_rule_ids == []
+        assert other.query(TriggeredAlert).count() == 1
+        probe = sqlite3.connect(path, timeout=0.2)
+        try:
+            probe.execute("BEGIN IMMEDIATE")  # 寫入鎖還被這一輪拿著的話：database is locked
+            probe.rollback()
+        finally:
+            probe.close()
+            db.close()
+            other.close()
+
+    def test_waits_for_another_round_holding_the_write_lock_then_skips_the_pair(self, db_file):
+        """另一輪正拿著寫入鎖、寫了同一組但還沒 commit：這一輪要等到鎖、看到那筆再跳過，
+        不能當成失敗，也不能再寫一筆"""
+        import sqlite3
+        import threading
+        import time
+
+        path, factory = db_file
+        self._seed(factory, n_repos=1, n_rules=1)
+        holding = threading.Event()
+
+        def another_round():
+            conn = sqlite3.connect(path, timeout=5)
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+                conn.execute(
+                    "INSERT INTO triggered_alerts (rule_id, repo_id, signal_value, triggered_at, acknowledged) "
+                    "VALUES (1, 1, 100.0, ?, 0)",
+                    (utc_now().isoformat(sep=" ", timespec="microseconds"),),
+                )
+                holding.set()
+                time.sleep(0.3)
+                conn.commit()
+            finally:
+                conn.close()
+
+        holder = threading.Thread(target=another_round)
+        holder.start()
+        assert holding.wait(5)
+        db = factory()
+        try:
+            result = check_all_alerts(db)
+        finally:
+            db.close()
+            holder.join()
+
+        assert result.triggered == []
+        assert result.failed_rule_ids == []
+        db = factory()
+        assert db.query(TriggeredAlert).count() == 1
+        db.close()
