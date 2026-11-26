@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { useDashboard } from "../useDashboard";
 import * as apiClient from "../../api/client";
 import { createTestQueryClient } from "../../lib/react-query";
@@ -253,6 +253,31 @@ describe("useDashboard", () => {
     expect(result.current.load.ready).toBe(true);
     // 引導卡看的只有追蹤清單那份
     expect(result.current.reposLoad.failed).toBe(name === "the watchlist");
+  });
+
+  it("still says the first read failed while it is retried with the data engine unreachable", async () => {
+    // 頁面的閘門靠這個：這時 React Query 已經清掉 error、isLoading 也是 false（查詢暫停）
+    vi.mocked(apiClient.getRepos).mockRejectedValueOnce(new Error("HTTP 500"));
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(result.current.load.failed).toBe(true);
+    });
+
+    onlineManager.setOnline(false);
+    try {
+      act(() => {
+        result.current.refresh();
+      });
+      await waitFor(() => {
+        expect(result.current.load.inProgress).toBe(true);
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.load).toMatchObject({ ready: false, failed: true });
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("stays loaded and says a read failed when reading again fails after everything was loaded", async () => {
@@ -554,8 +579,8 @@ describe("useDashboard", () => {
       expect(some.result.current.hasAlertRules).toBe(true);
     });
 
-    it("isLoading 會等 alertRulesQuery 一起完成才放行，不會提早在規則資料到之前開門", async () => {
-      // hasAlertRules 沒有自己專屬的「已檢查」旗標，所以它的真實性完全靠 isLoading 確實等到規則資料回來才放行頁面。
+    it("load 會等 alertRulesQuery 一起讀到才算 ready，不會提早在規則資料到之前開門", async () => {
+      // hasAlertRules 沒有自己專屬的「已檢查」旗標，所以它的真實性完全靠 load（頁面的閘門）確實等到規則資料回來才放行頁面。
       // 用手動控制的 promise 卡住 listAlertRules，其餘 4 個 query 照常秒 resolve——
       // 這樣才能製造出「只剩規則還沒回來」的時刻，而不是靠 mock 秒解的巧合時序。
       let resolveRules: (rules: apiClient.AlertRule[]) => void = () => {};
@@ -568,21 +593,21 @@ describe("useDashboard", () => {
       const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
 
       // 等其餘 4 個 query 都確實解完（各自對應一個能觀察到的欄位），
-      // 此時如果 isLoading 沒有把 alertRulesQuery 併進去，就會提早變成 false。
+      // 此時如果 load 沒有把 alertRulesQuery 併進去，就會提早變成 ready。
       await waitFor(() => {
         expect(result.current.stats.totalRepos).toBe(1);
         expect(result.current.stats.activeAlerts).toBe(1);
         expect(result.current.earlySignals).toHaveLength(1);
         expect(result.current.signalSummary).not.toBeNull();
       });
-      expect(result.current.isLoading).toBe(true);
+      expect(result.current.load.ready).toBe(false);
 
       await act(async () => {
         resolveRules([]);
       });
 
       await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.load.ready).toBe(true);
       });
       expect(result.current.hasAlertRules).toBe(false);
     });

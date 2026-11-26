@@ -89,7 +89,7 @@ export function useDashboard() {
   const summaryQuery = useSignalSummary();
 
   // 供段一（DigestPanel）判斷 hasAlertRules。這裡沒有獨立的「已檢查」旗標可用，
-  // 所以規則是否載完必須併進整體 isLoading，
+  // 所以規則是否讀到必須併進 load（頁面的閘門看它），
   // 不然頁面會在規則資料還沒到的那一瞬間，把「還沒查」誤顯示成「沒有規則」。
   const alertRulesQuery = useQuery<AlertRule[], Error>({
     queryKey: queryKeys.alerts.rules(),

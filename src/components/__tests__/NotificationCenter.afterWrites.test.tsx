@@ -176,7 +176,8 @@ function setupBackend() {
 /** 儀表板「啟用中的警報」那張卡片顯示的值 */
 function DashboardPage() {
   const dashboard = useDashboard();
-  if (dashboard.isLoading) return <p data-testid="active-alerts">loading</p>;
+  // 跟頁面一樣看 load：還沒全部讀到過就不顯示數字
+  if (!dashboard.load.ready) return <p data-testid="active-alerts">loading</p>;
   return (
     <p data-testid="active-alerts">
       {dashboard.hasAlertRules ? String(dashboard.stats.activeAlerts) : "no rules yet"}

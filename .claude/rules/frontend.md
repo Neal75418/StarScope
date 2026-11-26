@@ -68,7 +68,8 @@ paths:
   `combineLoadStatus`。⚠️ 不要只看 `isError`：還沒有資料時一重試 React Query 就把 error 清掉，錯誤訊息會在重試期間消失
   （`DigestPanel` 還是看 `useDigest` 的 `isError`、有這個問題：按重試後重試鈕消失，不要照抄）
 - ⚠️ 頁面層不要用 `isLoading` 當整頁的閘門：還沒有資料時按重試，`isLoading` 又是 true，整頁被換掉（草稿、焦點、錯誤列都不見）。
-  載入中由區塊自己顯示。Dashboard 還是整頁閘門（`if (isLoading)` 提早 return），新頁面不要照抄
+  載入中由區塊自己顯示。Dashboard 的整頁閘門看 `load`（`combineLoadStatus`）：還沒全部讀到、也沒失敗過才顯示骨架，失敗過就整頁說讀不到
+  （重試中、斷線暫停時都留著）；只看 `isLoading` 或 error 的話，斷線時重試會掉成空頁面或引導卡。新頁面仍由區塊各自顯示，不要照抄整頁閘門
 - 包在 hook／Context 裡的查詢要把 `LoadStatus` 往外傳（`useAlertRuleData` 的 `rulesLoad`／`dataLoad`、
   `WatchlistState.reposLoad`）；追蹤清單的查詢錯誤不進 `state.error`（那個橫幅只給操作失敗用）
 

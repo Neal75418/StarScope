@@ -192,17 +192,19 @@ export function Dashboard() {
     movers,
     hasAlertRules,
     acknowledgeSignal,
-    isLoading,
     lastFetchAt,
     isFetchInProgress,
     fetchStatusUnavailable,
-    error,
     load,
     reposLoad,
     refresh,
   } = useDashboard();
-  // 整頁錯誤只在還沒全部讀到過時：讀到過、之後重讀失敗的話，上一次讀到的照常顯示，上方另外說沒有更新成功
-  const showErrorPage = error !== null && !load.ready;
+  // 整頁的閘門看 load，不看 isLoading 與 error：還沒有資料時一重試 React Query 就把 error 清掉，
+  // sidecar 斷線時查詢暫停、isLoading 也是 false，只看這兩個的話會往下掉成空頁面或引導卡。
+  // 還沒全部讀到過：失敗過就整頁說讀不到（重試中、暫停時也一樣），沒失敗過就是還在讀（骨架）。
+  // 讀到過、之後重讀失敗的話，上一次讀到的照常顯示，上方另外說沒有更新成功
+  const showErrorPage = !load.ready && load.failed;
+  const showSkeleton = !load.ready && !load.failed;
 
   // 寫入操作一律走 WatchlistContext action，不在元件裡直接呼叫 mutation
   const { refreshAll } = useWatchlistActions();
@@ -213,7 +215,7 @@ export function Dashboard() {
   // 面板只在下面三個提早 return 都沒發生時才渲染；沒顯示就不能標成看過
   const digest = useDigest({
     isFetchInProgress,
-    canMarkSeen: !isLoading && !showErrorPage && stats.totalRepos > 0,
+    canMarkSeen: load.ready && stats.totalRepos > 0,
   });
   const { appendNew } = digest;
 
@@ -249,7 +251,7 @@ export function Dashboard() {
       />
     );
 
-  if (isLoading) {
+  if (showSkeleton) {
     return (
       <AnimatedPage className="page dashboard-page">
         <header className="page-header">
@@ -300,19 +302,26 @@ export function Dashboard() {
   }
 
   if (showErrorPage) {
+    // 後端的原字（例如「HTTP 500; Network error」）不上畫面
     const message =
       level === "sidecar-down"
         ? t.status.sidecarDown
         : level === "offline"
           ? t.status.offline
-          : error;
+          : t.dashboard.loadFailed;
     return (
       <AnimatedPage className="page">
         <div className="error-container">
           <h2>{t.common.error}</h2>
           <p>{message}</p>
-          <button onClick={refresh} className="btn btn-primary">
-            {t.common.retry}
+          {/* 重讀中（斷線時是暫停）不再接受點擊：aria-disabled 而不是 disabled，焦點留在按鈕上 */}
+          <button
+            type="button"
+            onClick={load.inProgress ? undefined : refresh}
+            aria-disabled={load.inProgress}
+            className="btn btn-primary"
+          >
+            {load.inProgress ? t.common.retrying : t.common.retry}
           </button>
         </div>
       </AnimatedPage>

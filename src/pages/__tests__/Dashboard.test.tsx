@@ -139,6 +139,13 @@ const neverLoaded: LoadStatus = {
   inProgress: false,
   retry: mockRetryFailed,
 };
+/** 還沒讀到、也還沒失敗（第一次讀取中，或 sidecar 斷線時暫停） */
+const loading: LoadStatus = {
+  ready: false,
+  failed: false,
+  inProgress: true,
+  retry: mockRetryFailed,
+};
 /** 讀到過，之後重讀失敗 */
 const reloadFailed: LoadStatus = {
   ready: true,
@@ -151,10 +158,11 @@ vi.mock("../../hooks/useDashboard", () => ({
   useDashboard: () => mockDashboard,
 }));
 
+let mockLevel: "online" | "offline" | "sidecar-down" = "online";
 vi.mock("../../contexts/AppStatusContext", () => ({
   useAppStatus: () => ({
     isOnline: true,
-    level: "online",
+    level: mockLevel,
     showBanner: false,
     bannerMessage: null,
     isSidecarUp: true,
@@ -251,6 +259,7 @@ describe("Dashboard", () => {
     vi.clearAllMocks();
     localStorage.clear();
     saveWidgetVisibility(ALL_WIDGETS_VISIBLE);
+    mockLevel = "online";
     mockDashboard = {
       stats: { totalRepos: 10, totalStars: 50000, weeklyStars: 1200, activeAlerts: 2 },
       recentActivity: [],
@@ -325,6 +334,7 @@ describe("Dashboard", () => {
 
   it("shows loading skeletons when loading", () => {
     mockDashboard.isLoading = true;
+    mockDashboard.load = loading;
     render(<Dashboard />);
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
     expect(screen.getAllByTestId("skeleton").length).toBeGreaterThanOrEqual(4);
@@ -332,12 +342,50 @@ describe("Dashboard", () => {
 
   it("shows error state with retry button when nothing could be loaded", async () => {
     const user = userEvent.setup();
-    mockDashboard.error = "Network error";
+    mockDashboard.error = "HTTP 500; Network error";
     mockDashboard.load = neverLoaded;
     render(<Dashboard />);
-    expect(screen.getByText("Network error")).toBeInTheDocument();
+    // 後端的原字不上畫面
+    expect(screen.getByText("Couldn't load the dashboard.")).toBeInTheDocument();
+    expect(screen.queryByText(/HTTP 500/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toHaveAttribute("aria-disabled", "false");
     await user.click(screen.getByText("Retry"));
     expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it("keeps the error page while a load that never went through is retried, even with the data engine unreachable", async () => {
+    const user = userEvent.setup();
+    // 還沒有資料時一重試，React Query 就把 error 清掉；斷線時查詢暫停，isLoading 也是 false。只看這兩個的話會往下掉到引導卡
+    mockLevel = "sidecar-down";
+    mockDashboard.error = null;
+    mockDashboard.isLoading = false;
+    mockDashboard.load = { ...neverLoaded, inProgress: true };
+    mockDashboard.stats = { ...mockDashboard.stats, totalRepos: 0 };
+    render(<Dashboard />);
+
+    expect(
+      screen.getByText("The data engine is not responding. Retrying automatically…")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retrying…" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.queryByTestId("dashboard-onboard")).not.toBeInTheDocument();
+    // 重讀還在進行（或暫停）：再按也不另外重讀
+    await user.click(screen.getByRole("button", { name: "Retrying…" }));
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it("shows loading skeletons, not an empty page, while the first load is paused", () => {
+    // sidecar 斷線時查詢暫停：isLoading 是 false，還沒讀到的資料不能畫成「沒有」
+    mockDashboard.isLoading = false;
+    mockDashboard.load = loading;
+    mockDashboard.stats = { ...mockDashboard.stats, totalRepos: 0 };
+    render(<Dashboard />);
+
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThanOrEqual(4);
+    expect(screen.queryByTestId("dashboard-onboard")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("digest-panel")).not.toBeInTheDocument();
   });
 
   it("keeps what was loaded on screen when reading it again fails, and says it did not update", async () => {
@@ -439,13 +487,21 @@ describe("Dashboard", () => {
     expect(lastCanMarkSeen()).toBe(true);
     shown.unmount();
 
-    for (const override of [
-      { isLoading: true },
-      { error: "boom", load: neverLoaded },
-      { stats: { ...mockDashboard.stats, totalRepos: 0 } },
-    ]) {
-      Object.assign(mockDashboard, override);
+    // 每一輪都從同一個基準開始（設定不能累積到下一輪），並確認畫面真的落在那個分支
+    const base = { ...mockDashboard };
+    const isSkeleton = () => screen.getAllByTestId("skeleton").length >= 4;
+    const isErrorPage = () => screen.queryByText("Couldn't load the dashboard.") !== null;
+    const isOnboarding = () => screen.queryByTestId("dashboard-onboard") !== null;
+    for (const [override, landedOn] of [
+      [{ isLoading: true, load: loading }, isSkeleton],
+      [{ isLoading: false, load: loading }, isSkeleton],
+      [{ error: "boom", load: neverLoaded }, isErrorPage],
+      [{ error: null, load: { ...neverLoaded, inProgress: true } }, isErrorPage],
+      [{ stats: { ...base.stats, totalRepos: 0 }, load: loaded, reposLoad: loaded }, isOnboarding],
+    ] as const) {
+      mockDashboard = { ...base, ...override };
       const { unmount } = render(<Dashboard />);
+      expect(landedOn()).toBe(true);
       expect(screen.queryByTestId("digest-panel")).not.toBeInTheDocument();
       expect(lastCanMarkSeen()).toBe(false);
       unmount();
