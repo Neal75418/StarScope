@@ -42,7 +42,8 @@ export function useStarsChart(repoId: number) {
   return {
     data: query.data ?? [],
     loading: query.isLoading,
-    error: query.error ? query.error.message || t.chart.loadFailed : null,
+    // 錯誤的原字（「Internal server error」「Network error: …」）不上畫面：ApiError 的 message 一定有值，不能拿來當優先的說明
+    error: query.error ? t.chart.loadFailed : null,
     timeRange,
     setTimeRange,
     refetch: query.refetch,

@@ -80,7 +80,8 @@ describe("useStarsChart", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.error).toBe("Network error");
+    // 後端的原字不上畫面
+    expect(result.current.error).toBe("Chart loading failed");
     expect(result.current.data).toEqual([]);
   });
 

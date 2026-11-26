@@ -101,8 +101,10 @@ describe("StarsChart", () => {
     renderWithClient(<StarsChart repoId={1} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Network error", { exact: false })).toBeInTheDocument();
+      expect(screen.getByText("Chart loading failed", { exact: false })).toBeInTheDocument();
     });
+    // 後端的原字不上畫面
+    expect(screen.queryByText("Network error", { exact: false })).not.toBeInTheDocument();
 
     // 驗證 retry 按鈕存在
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
