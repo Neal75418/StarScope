@@ -1,7 +1,8 @@
 /**
  * 改到已觸發警報的寫入之後，鈴鐺與儀表板都要馬上跟上，不等鈴鐺下一輪輪詢（一分鐘）、不等儀表板的快取過期（5 分鐘）。
  * 通知中心、儀表板的 hook、設定頁的警報規則與「已封存」區塊用真的，API 換成記得狀態的假後端；快取用正式版的設定。
- * 頁面照 app 的樣子換：鈴鐺一直在，儀表板與設定頁一次只有一個掛著
+ * 頁面照 app 的樣子換：鈴鐺一直在，儀表板與設定頁一次只有一個掛著。
+ * 背景排程觸發的新警報沒有 app 裡的寫入：由鈴鐺的輪詢帶著儀表板重讀（最後一組）
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -12,7 +13,11 @@ import type { ReactNode } from "react";
 import { ToastProvider } from "../Toast";
 import { NotificationCenter } from "../NotificationCenter";
 import { ArchivedRepos } from "../settings/ArchivedRepos";
-import { queryClient as appQueryClient } from "../../lib/react-query";
+import {
+  invalidateTriggeredAlerts,
+  queryClient as appQueryClient,
+  queryKeys,
+} from "../../lib/react-query";
 import { useDashboard } from "../../hooks/useDashboard";
 import { useAlertRules } from "../../hooks/useAlertRules";
 import type {
@@ -331,5 +336,216 @@ describe("NotificationCenter and the dashboard after writes that change triggere
     await user.click(within(dropdown).getByRole("button", { name: "Mark all as read" }));
 
     await dashboardShows("0");
+  });
+});
+
+/** 儀表板讀已觸發警報的次數（鈴鐺那份帶 excludeDismissed，儀表板的不帶） */
+const dashboardReads = () =>
+  vi.mocked(api.listTriggeredAlerts).mock.calls.filter(([, , , options]) => !options).length;
+
+/** 鈴鐺的一輪輪詢：只重讀鈴鐺那份 */
+async function bellPolls() {
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: queryKeys.notifications.polling() });
+  });
+}
+
+describe("the dashboard after the bell finds alerts triggered in the background", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    rulesPage = null;
+    const defaults = appQueryClient.getDefaultOptions();
+    client = new QueryClient({
+      defaultOptions: { ...defaults, queries: { ...defaults.queries, retry: false } },
+    });
+    backend = { rules: [{ ...rule }], alerts: [makeAlert(41, 3)], archived: new Set() };
+    setupBackend();
+  });
+
+  afterEach(() => {
+    client.clear();
+  });
+
+  it("counts an alert the bell finds on its own poll while the dashboard is open", async () => {
+    // 排程或背景收集器觸發的：app 裡沒有任何寫入，只有鈴鐺的輪詢讀得到
+    render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+
+    backend.alerts.push(makeAlert(42, 3));
+    await bellPolls();
+
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+    await dashboardShows("2");
+  });
+
+  it("counts an alert that arrives while the dashboard's first read is still on its way", async () => {
+    // 那次讀取是新警報寫進資料庫之前送的：併進它的話，讀回的還是舊的
+    let answerFirstRead: () => void = () => {};
+    const listFromBackend = vi.mocked(api.listTriggeredAlerts).getMockImplementation();
+    vi.mocked(api.listTriggeredAlerts).mockImplementation((...args) => {
+      const isDashboard = !args[3];
+      if (isDashboard && dashboardReads() === 1) {
+        const snapshot = listedAlerts();
+        return new Promise((resolve) => {
+          answerFirstRead = () => resolve(snapshot);
+        });
+      }
+      return listFromBackend ? listFromBackend(...args) : Promise.resolve([]);
+    });
+    render(shell(<DashboardPage />));
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+
+    backend.alerts.push(makeAlert(42, 3));
+    await bellPolls();
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+    await act(async () => {
+      answerFirstRead();
+    });
+
+    await dashboardShows("2");
+  });
+
+  /** 之後儀表板的每次讀取都先停住（讀的是送出當下的資料），回傳逐一放行的函式 */
+  function holdDashboardReads() {
+    const answers: (() => void)[] = [];
+    const listFromBackend = vi.mocked(api.listTriggeredAlerts).getMockImplementation();
+    vi.mocked(api.listTriggeredAlerts).mockImplementation((...args) => {
+      if (!args[3]) {
+        const snapshot = listedAlerts();
+        return new Promise((resolve) => {
+          answers.push(() => resolve(snapshot));
+        });
+      }
+      return listFromBackend ? listFromBackend(...args) : Promise.resolve([]);
+    });
+    return answers;
+  }
+
+  it("still lets a re-read of both copies wait for the dashboard's new read", async () => {
+    // app 裡的寫入兩份一起重讀、讀完才 resolve（invalidateTriggeredAlerts）。儀表板那次讀取還在路上時鈴鐺讀到新警報：
+    // 要換成新的讀取，而且那次重讀要等到新的讀完，不能拿警報之前的那次結束
+    render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+    const answers = holdDashboardReads();
+
+    let done = false;
+    let rereading: Promise<void> = Promise.resolve();
+    await act(async () => {
+      rereading = invalidateTriggeredAlerts(client).then(() => {
+        done = true;
+      });
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(answers).toHaveLength(1);
+    backend.alerts.push(makeAlert(42, 3));
+    await bellPolls();
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+    expect(answers).toHaveLength(2);
+
+    await act(async () => {
+      answers[0]();
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(done).toBe(false);
+    await act(async () => {
+      answers[1]();
+      await rereading;
+    });
+    await dashboardShows("2");
+  });
+
+  it("counts an alert that arrives while a read of the dashboard was still on its way when it was left", async () => {
+    // 離開儀表板時那次讀取還在路上：沒掛著時 invalidate 不重讀，那次讀取回來會把「要重讀」清掉
+    const { rerender } = render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+    const answers = holdDashboardReads();
+    await act(async () => {
+      void client.invalidateQueries({ queryKey: queryKeys.alerts.triggered() });
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    expect(answers).toHaveLength(1);
+    await openSettings(rerender);
+
+    backend.alerts.push(makeAlert(42, 3));
+    await bellPolls();
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+    await act(async () => {
+      answers[0]();
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    rerender(shell(<DashboardPage />));
+    await waitFor(() => {
+      expect(answers.length).toBeGreaterThan(1);
+    });
+    await act(async () => {
+      for (const answer of answers.slice(1)) answer();
+    });
+    await dashboardShows("2");
+  });
+
+  it("counts it when the dashboard opens again within five minutes", async () => {
+    const { rerender } = render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    await openSettings(rerender);
+
+    backend.alerts.push(makeAlert(42, 3));
+    await bellPolls();
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+
+    rerender(shell(<DashboardPage />));
+    await dashboardShows("2");
+  });
+
+  it("does not read the dashboard again because of the bell's first read", async () => {
+    // 第一次讀回只當基準：儀表板自己會讀
+    render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(dashboardReads()).toBe(1);
+  });
+
+  it("does not read the dashboard again when the poll finds nothing new", async () => {
+    render(shell(<DashboardPage />));
+    await dashboardShows("1");
+    expect(
+      await screen.findByRole("button", { name: "Notifications (1 unread)" })
+    ).toBeInTheDocument();
+    const before = dashboardReads();
+
+    await bellPolls();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(dashboardReads()).toBe(before);
   });
 });

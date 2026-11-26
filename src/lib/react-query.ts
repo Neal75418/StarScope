@@ -224,7 +224,9 @@ export function invalidateTrackedRepos(client: QueryClient): void {
  * 重讀已觸發警報。有兩份快取：鈴鐺（一分鐘輪詢一次）與 Dashboard（啟用中的警報數、近期活動；不輪詢，掛著時不會自己重讀，
  * 離開再回來也要過了 5 分鐘才重讀）。改到它的寫入之後兩份都要重讀：刪改規則（觸發紀錄跟著刪、標題是規則名）、立即檢查、
  * 封存或刪掉 repo（見 invalidateTrackedRepos）、通知中心的確認與清除。畫面上有的重讀結束（成功或失敗）才 resolve，
- * 不會 reject；沒有的只標成過期，下次掛上時重讀；呼叫當下已經暫停的（sidecar 連不上）不等
+ * 不會 reject；沒有的只標成過期，下次掛上時重讀；呼叫當下已經暫停的（sidecar 連不上）不等。例外：Dashboard 那份還沒有
+ * 資料、或已經不在畫面上時，鈴鐺讀到新警報會取消它還在路上的讀取（在畫面上就重來，不在就等下次掛上；見
+ * useNotificationPolling），這裡會在重讀結束前就 resolve
  */
 export async function invalidateTriggeredAlerts(client: QueryClient): Promise<void> {
   await Promise.all([

@@ -107,6 +107,20 @@ export function useNotificationPolling(
         : newNotifications.filter(
             (n, i) => !n.read && !seen.ids.has(n.id) && triggeredAt[i] >= seen.newest
           );
+    // 讀到這次開 app 沒讀回過的：儀表板那份不輪詢（掛著時不會自己重讀），跟著鈴鐺重讀。背景排程與收集器觸發的新警報，
+    // 會定時讀到的只有這裡；app 裡的寫入另外會兩份一起重讀（見 invalidateTriggeredAlerts），讀回沒看過的時這裡會再讀一次。
+    // 有讀取還在路上時，它可能是新警報之前送的（分不出來就一律重讀）。畫面上掛著、而且已經有資料時，invalidate 自己會換成
+    // 新的讀取，等著的人（invalidateTriggeredAlerts）照樣等到新的讀完，所以不取消。其餘先取消再重讀：還沒有資料時
+    // invalidate 會併進那個請求；沒掛著時 invalidate 不重讀，那次讀取回來會把「要重讀」清掉，5 分鐘內再掛上都是舊的。
+    // 鈴鐺第一次讀回只當基準：第一次讀取失敗、下一輪才讀到的話，中間觸發的不會帶動儀表板
+    if (seen !== null && newNotifications.some((n) => !seen.ids.has(n.id))) {
+      const dashboardAlerts = { queryKey: queryKeys.alerts.triggered() };
+      const dashboardQuery = queryClient.getQueryCache().find({ ...dashboardAlerts, exact: true });
+      if (dashboardQuery?.state.data === undefined || !dashboardQuery.isActive()) {
+        void queryClient.cancelQueries(dashboardAlerts);
+      }
+      void queryClient.invalidateQueries(dashboardAlerts);
+    }
     const seenIds = seen?.ids ?? new Set<string>();
     for (const n of newNotifications) seenIds.add(n.id);
     seenRef.current = {
@@ -136,7 +150,7 @@ export function useNotificationPolling(
 
     // 合併通知並更新 parent state：以讀回的為準，再套上這次開 app 的標記
     setNotificationsRef.current(mergeNotifications(newNotifications, localMarksRef.current));
-  }, [query.data, localMarksRef]);
+  }, [query.data, localMarksRef, queryClient]);
 
   // Dashboard 也一起：通知中心在確認、清除之後用它重讀，Dashboard 的警報數是同一份資料
   const refresh = useCallback(() => invalidateTriggeredAlerts(queryClient), [queryClient]);
