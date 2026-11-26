@@ -1,6 +1,6 @@
 """
 Star 歷史回填 API 端點。
-提供 < 5000 stars 的 repo 歷史 star 資料回填。
+提供 ≤ 5000 stars 的 repo 歷史 star 資料回填。
 """
 
 from collections import defaultdict
@@ -291,7 +291,7 @@ async def backfill_star_history(
     """
     回填 repo 的 star 歷史。
 
-    僅適用於 < 5000 stars 的 repo。
+    僅適用於 ≤ 5000 stars 的 repo。
     抓取所有含時間戳記的 stargazer 並建立歷史快照。
     """
     repo = get_repo_or_404(repo_id, db)

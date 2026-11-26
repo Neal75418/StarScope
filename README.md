@@ -261,28 +261,29 @@ StarScope/
 
 ## 🔌 API 端點
 
-JSON 端點成功時使用統一的 `ApiResponse[T]` 格式 `{success, data, message}`（檔案下載不包這一層）；失敗回 HTTP 錯誤狀態，body 是 `{"detail"}`（部分錯誤另帶 `code`）：
+JSON 端點成功時使用統一的 `ApiResponse[T]` 格式 `{success, data, message}`（檔案下載與 204 回應不包這一層）；失敗多半回 HTTP 錯誤狀態，body 是 `{"detail"}`（部分錯誤另帶 `code`），少數業務上的失敗回 200、在 `data` 裡說明（例如超過回填上限）：
 
-| 路由模組              | 前綴                     | 說明                                    |
-|-------------------|------------------------|---------------------------------------|
-| `repos`           | `/api`                 | Repo CRUD、手動 fetch、批次刷新               |
-| `alerts`          | `/api/alerts`          | 警報規則 CRUD、觸發記錄、確認與清除               |
-| `trends`          | `/api/trends`          | 趨勢排行（velocity / delta / acceleration） |
-| `categories`      | `/api/categories`      | 分類管理、tree 結構、repo 歸類                  |
-| `early_signals`   | `/api/early-signals`   | 早期信號、異常偵測、批次確認                        |
-| `context`         | `/api/context`         | HN 情境信號與徽章                            |
-| `charts`          | `/api/charts`          | Star 歷史圖表資料（7d/30d/90d）               |
-| `recommendations` | `/api/recommendations` | 相似 repo 推薦、相似度計算                      |
-| `discovery`       | `/api/discovery`       | GitHub 搜尋（限速 30/min）                  |
-| `feed`            | `/api/feed`            | For You 每日個人化推薦、產生、回饋                   |
-| `interests`       | `/api/interests`       | Feed 興趣清單與排除清單 CRUD                    |
-| `star_history`    | `/api/star-history`    | Star 歷史回填（< 5000 stars）               |
-| `comparison`      | `/api/comparison`      | 多專案對比圖表資料                             |
-| `weekly_summary`  | `/api/summary`         | 每週摘要報告                                |
-| `export`          | `/api/export`          | Watchlist JSON / CSV 匯出               |
-| `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態                |
-| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定管理                   |
-| `health`          | `/api`                 | 健康檢查                                  |
+| 路由模組              | 前綴                     | 說明 |
+|-------------------|------------------------|------|
+| `repos`           | `/api`                 | 追蹤清單、加入（含批次）、取消追蹤（封存）與封存清單、重新追蹤、永久刪除（限已封存）、手動抓取（單一／全部）、星標同步 |
+| `alerts`          | `/api/alerts`          | 警報規則 CRUD、觸發紀錄、確認與清除、立即檢查 |
+| `trends`          | `/api/trends`          | 趨勢排行（velocity、7／30 天星數變化、acceleration、7 天 fork／issue 變化） |
+| `categories`      | `/api/categories`      | 分類管理、tree 結構、repo 歸類 |
+| `early_signals`   | `/api/early-signals`   | 早期訊號清單、單一 repo 的訊號、摘要、確認（單筆）、批次查詢多個 repo 的訊號 |
+| `context`         | `/api/context`         | HN 情境訊號與徽章、手動抓取 |
+| `charts`          | `/api/charts`          | Star 歷史圖表資料（7d／30d／90d） |
+| `recommendations` | `/api/recommendations` | 相似度計算（單一 repo／全部重算）、依追蹤清單的個人化推薦 |
+| `discovery`       | `/api/discovery`       | GitHub 搜尋（限速 30/min） |
+| `feed`            | `/api/feed`            | For You 每日個人化推薦：產生、回饋、開啟紀錄、統計 |
+| `interests`       | `/api/interests`       | Feed 興趣清單 CRUD、排除清單（列出、新增、刪除）、熱門主題（含重新整理與進度） |
+| `star_history`    | `/api/star-history`    | 單一 repo 的星數歷史、回填（≤ 5000 stars）與回填狀態、追蹤清單的總星數歷史 |
+| `comparison`      | `/api/comparison`      | 多專案對比圖表資料（2–5 個 repo，7d／30d／90d／全部，可正規化） |
+| `weekly_summary`  | `/api/summary`         | 每週摘要報告 |
+| `digest`          | `/api/digest`          | 「自上次造訪」摘要、標記看過 |
+| `export`          | `/api/export`          | 追蹤清單與趨勢的 JSON／CSV 匯出 |
+| `github_auth`     | `/api/github-auth`     | OAuth Device Flow、連線狀態、中斷連線 |
+| `app_settings`    | `/api/settings`        | 排程間隔、快照保留、偵測門檻等設定；清除快取（後端目前不做事，前端讓快取失效並重新讀取）、重設資料、診斷資訊、最近日誌 |
+| `health`          | `/api`                 | 健康檢查 |
 
 > 📖 完整 API 文件可在開發模式下存取：`http://localhost:8008/api/docs`（Swagger）/ `http://localhost:8008/api/redoc`（ReDoc）
 

@@ -451,7 +451,7 @@ class GitHubService:
         取得 repo 的 stargazer（含時間戳記）。
 
         使用特殊 Accept header 的 GitHub stargazers API 以取得時間戳記。
-        限制 star 數 < max_stars 的 repo，避免耗盡速率限制。
+        限制 star 數 ≤ max_stars 的 repo，避免耗盡速率限制。
 
         Args:
             owner: repo 擁有者

@@ -1,6 +1,6 @@
 """
 推薦 API 端點。
-基於 topics 與語言提供相似 repo 推薦。
+計算 repo 之間的相似度（topics、語言與 star 量級），並依追蹤清單提供個人化推薦。
 """
 
 from typing import Annotated
