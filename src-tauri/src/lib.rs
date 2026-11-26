@@ -1025,6 +1025,9 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
         show_main_window(app);
     }));
+    // debug build 不註冊，但 Cargo.toml 無法依 debug_assertions 拿掉依賴：標成有用到，cargo 的 unused_dependencies 才不會在 debug build 警告
+    #[cfg(all(desktop, debug_assertions))]
+    use tauri_plugin_single_instance as _;
     builder
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
