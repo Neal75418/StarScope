@@ -9,6 +9,7 @@ import os
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Literal, overload
 from urllib.parse import urlsplit
@@ -99,6 +100,16 @@ GITHUB_API_BASE = (
     )
     or DEFAULT_GITHUB_API_BASE
 )
+
+
+@dataclass(frozen=True)
+class StargazersFetch:
+    """get_stargazers_with_dates 的回傳：清單本體＋是不是因為 GitHub 上的星數超過上限而沒有去抓。
+
+    兩種空清單要分開：超過上限的 repo 不能說成沒有人 star。本機快照的星數可能還沒跟上，不能拿來猜是哪一種
+    """
+    stargazers: list[dict]
+    over_limit: bool = False
 
 
 # 例外類別
@@ -446,7 +457,7 @@ class GitHubService:
         repo: str,
         max_stars: int = 5000,
         per_page: int = 100,
-    ) -> list[dict]:
+    ) -> StargazersFetch:
         """
         取得 repo 的 stargazer（含時間戳記）。
 
@@ -460,8 +471,8 @@ class GitHubService:
             per_page: 每頁筆數（最大 100）
 
         Returns:
-            Stargazer 列表：[{"starred_at": "2024-01-15T...", "user": {...}}, ...]
-            超過 max_stars 限制時回傳空列表。
+            StargazersFetch：stargazers 是 [{"starred_at": "2024-01-15T...", "user": {...}}, ...]；
+            GitHub 上的星數超過 max_stars 時不去抓，回空清單與 over_limit=True
 
         Raises:
             GitHubNotFoundError: 找不到 repo
@@ -477,7 +488,7 @@ class GitHubService:
                 f"[GitHub API] {owner}/{repo} 有 {star_count} 顆星，"
                 f"超過上限 {max_stars}，跳過 stargazers 抓取"
             )
-            return []
+            return StargazersFetch(stargazers=[], over_limit=True)
 
         # 特殊 header 以取得 starred_at 時間戳記
         headers = {
@@ -510,7 +521,7 @@ class GitHubService:
             logger.warning(f"[GitHub API] {owner}/{repo} stargazers 已達分頁上限")
 
         logger.info(f"[GitHub API] 已抓取 {owner}/{repo} 的 {len(all_stargazers)} 個 stargazers")
-        return all_stargazers
+        return StargazersFetch(stargazers=all_stargazers)
 
     async def get_user_starred_with_dates(self, per_page: int = 100,
                                           max_pages: int = 50) -> "StarredFetch":

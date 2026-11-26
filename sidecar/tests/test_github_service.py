@@ -427,15 +427,18 @@ class TestGitHubServiceStargazers:
 
     @pytest.mark.asyncio
     async def test_stargazers_exceeds_max_stars(self):
-        """Test returns empty list when stars exceed max_stars."""
+        """星數超過 max_stars 時不去抓，回空清單並標明 over_limit（跟真的沒有人 star 分開）"""
         service = GitHubService(token="test-token")
 
         with patch.object(service, 'get_repo', new_callable=AsyncMock) as mock_get:
             mock_get.return_value = {"stargazers_count": 100000}
 
-            result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000)
+            with _mock_http_client(_make_response(200, [])) as http:
+                result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000)
 
-        assert result == []
+        assert result.stargazers == []
+        assert result.over_limit is True
+        http.get.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_stargazers_single_page(self):
@@ -452,8 +455,9 @@ class TestGitHubServiceStargazers:
             with _mock_http_client(_make_response(200, stargazer_data)):
                 result = await service.get_stargazers_with_dates("owner", "repo", max_stars=5000, per_page=100)
 
-        assert len(result) == 2
-        assert result[0]["user"]["login"] == "user1"
+        assert len(result.stargazers) == 2
+        assert result.stargazers[0]["user"]["login"] == "user1"
+        assert result.over_limit is False
 
 
 class TestStarWrites:

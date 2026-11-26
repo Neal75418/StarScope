@@ -90,8 +90,10 @@ class TestStarHistoryBackfill:
             {"starred_at": "2025-01-02T14:00:00Z", "user": {"login": "user3"}},
         ]
 
+        from services.github import StargazersFetch
+
         mock_service = AsyncMock()
-        mock_service.get_stargazers_with_dates = AsyncMock(return_value=mock_stargazers)
+        mock_service.get_stargazers_with_dates = AsyncMock(return_value=StargazersFetch(stargazers=mock_stargazers))
 
         with patch("routers.star_history.get_github_service", return_value=mock_service):
             response = client.post(f"/api/star-history/{mock_repo.id}/backfill")
@@ -112,23 +114,14 @@ class TestStarHistoryBackfill:
         response = client.post("/api/star-history/99999/backfill")
         assert response.status_code == 404
 
-    def test_backfill_too_many_stars(self, client, test_db, mock_repo):
-        """Test backfill returns failure when repo has too many stars and no stargazers returned."""
-        # Create snapshot with >5000 stars
-        snapshot = RepoSnapshot(
-            repo_id=mock_repo.id,
-            stars=6000,
-            forks=500,
-            watchers=200,
-            open_issues=50,
-            snapshot_date=utc_now().date(),
-            fetched_at=utc_now(),
-        )
-        test_db.add(snapshot)
-        test_db.commit()
+    def test_backfill_too_many_stars(self, client, mock_repo):
+        """service 回 over_limit 時：回填說明超過上限、算失敗"""
+        from services.github import StargazersFetch
 
         mock_service = AsyncMock()
-        mock_service.get_stargazers_with_dates = AsyncMock(return_value=[])
+        mock_service.get_stargazers_with_dates = AsyncMock(
+            return_value=StargazersFetch(stargazers=[], over_limit=True)
+        )
 
         with patch("routers.star_history.get_github_service", return_value=mock_service):
             response = client.post(f"/api/star-history/{mock_repo.id}/backfill")
@@ -139,6 +132,50 @@ class TestStarHistoryBackfill:
         data = resp["data"]
         assert data["success"] is False  # Backfill operation failed
         assert "too many stars" in data["message"].lower()
+
+    def test_says_over_limit_when_github_count_passed_it_after_last_snapshot(self, client, test_db, mock_repo):
+        """拒不拒絕看 GitHub 的即時星數，說明也要跟著它：上次快照之後才超過上限的 repo，不能說成沒有人 star"""
+        from routers.star_history import ERROR_TOO_MANY_STARS
+        from services.github import GitHubService
+
+        test_db.add(RepoSnapshot(
+            repo_id=mock_repo.id, stars=4990, forks=0, watchers=0, open_issues=0,
+            snapshot_date=utc_now().date(), fetched_at=utc_now(),
+        ))
+        test_db.commit()
+        service = GitHubService(token="test-token")
+
+        with patch.object(service, "get_repo", new_callable=AsyncMock, return_value={"stargazers_count": 5200}), \
+                patch("routers.star_history.get_github_service", return_value=service):
+            data = client.post(f"/api/star-history/{mock_repo.id}/backfill").json()["data"]
+
+        assert data["success"] is False
+        assert data["message"] == ERROR_TOO_MANY_STARS
+        assert data["snapshots_created"] == 0
+
+    def test_says_no_stargazers_by_what_github_returned_not_the_last_snapshot(self, client, test_db, mock_repo):
+        """說明只看 GitHub 這次的結果：本機快照說超過上限、GitHub 上其實沒有 stargazer 時，說沒有 stargazer"""
+        from unittest.mock import MagicMock
+        from services.github import GitHubService
+
+        test_db.add(RepoSnapshot(
+            repo_id=mock_repo.id, stars=6000, forks=0, watchers=0, open_issues=0,
+            snapshot_date=utc_now().date(), fetched_at=utc_now(),
+        ))
+        test_db.commit()
+        service = GitHubService(token="test-token")
+        empty_page = MagicMock(status_code=200)
+        empty_page.json.return_value = []
+
+        with patch.object(service, "get_repo", new_callable=AsyncMock, return_value={"stargazers_count": 0}), \
+                patch("httpx.AsyncClient") as client_cls, \
+                patch("routers.star_history.get_github_service", return_value=service):
+            client_cls.return_value = AsyncMock(get=AsyncMock(return_value=empty_page), is_closed=False)
+            data = client.post(f"/api/star-history/{mock_repo.id}/backfill").json()["data"]
+
+        assert data["success"] is True
+        assert data["message"] == "No stargazers found."
+        assert data["snapshots_created"] == 0
 
 
 class TestStarHistoryGet:

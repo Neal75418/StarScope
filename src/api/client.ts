@@ -410,7 +410,7 @@ export async function getBackfillStatus(repoId: number): Promise<BackfillStatus>
 }
 
 /**
- * 回填儲存庫的星數歷史（僅限 < 5000 星的儲存庫）。
+ * 回填儲存庫的星數歷史（僅限 ≤ 5000 星的儲存庫）。
  */
 export async function backfillStarHistory(repoId: number): Promise<BackfillResult> {
   return apiCall<BackfillResult>(`/star-history/${repoId}/backfill`, {

@@ -299,41 +299,36 @@ async def backfill_star_history(
     # GitHub 例外由 main.py 中的全域例外處理器處理。
     service = get_github_service()
 
-    # 抓取含日期的 stargazer（包含 star 數檢查）
-    stargazers = await service.get_stargazers_with_dates(
+    # 抓取含日期的 stargazer（包含 star 數檢查）。超過上限與沒有人 star 都是空清單，
+    # 用 over_limit 分，不看本機快照：上次快照之後才超過上限的 repo，快照的星數還在上限以下
+    fetch = await service.get_stargazers_with_dates(
         repo.owner, repo.name, max_stars=MAX_STARS_FOR_BACKFILL
     )
+    stargazers = fetch.stargazers
+
+    if fetch.over_limit:
+        return success_response(data=BackfillResult(
+            repo_id=repo.id,
+            repo_name=repo.full_name,
+            success=False,
+            total_stargazers=0,
+            snapshots_created=0,
+            earliest_date=None,
+            latest_date=None,
+            message=ERROR_TOO_MANY_STARS,
+        ))
 
     if not stargazers:
-        # 無 star 或超過限制
-        latest = db.query(RepoSnapshot).filter(
-            RepoSnapshot.repo_id == repo_id
-        ).order_by(RepoSnapshot.snapshot_date.desc()).first()
-
-        current_stars = latest.stars if latest else 0
-
-        if current_stars > MAX_STARS_FOR_BACKFILL:
-            return success_response(data=BackfillResult(
-                repo_id=repo.id,
-                repo_name=repo.full_name,
-                success=False,
-                total_stargazers=0,
-                snapshots_created=0,
-                earliest_date=None,
-                latest_date=None,
-                message=ERROR_TOO_MANY_STARS,
-            ))
-        else:
-            return success_response(data=BackfillResult(
-                repo_id=repo.id,
-                repo_name=repo.full_name,
-                success=True,
-                total_stargazers=0,
-                snapshots_created=0,
-                earliest_date=None,
-                latest_date=None,
-                message="No stargazers found.",
-            ))
+        return success_response(data=BackfillResult(
+            repo_id=repo.id,
+            repo_name=repo.full_name,
+            success=True,
+            total_stargazers=0,
+            snapshots_created=0,
+            earliest_date=None,
+            latest_date=None,
+            message="No stargazers found.",
+        ))
 
     # 依日期彙總
     star_history = _aggregate_stargazers_by_date(stargazers)
