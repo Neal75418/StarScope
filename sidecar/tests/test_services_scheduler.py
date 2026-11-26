@@ -10,6 +10,7 @@ import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 
 from services.github import GitHubAPIError
+from services.alerts import AlertCheckResult
 # noinspection PyProtectedMember
 from services.scheduler import (
     get_scheduler,
@@ -404,7 +405,7 @@ class TestCheckAlertsJob:
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.check_all_alerts') as mock_check:
 
-            mock_check.return_value = []
+            mock_check.return_value = AlertCheckResult(triggered=[], failed_rule_ids=[])
             check_alerts_job()
 
             mock_check.assert_called_once()
@@ -417,7 +418,9 @@ class TestCheckAlertsJob:
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.check_all_alerts') as mock_check:
 
-            mock_check.return_value = [MagicMock(), MagicMock()]
+            mock_check.return_value = AlertCheckResult(
+                triggered=[MagicMock(), MagicMock()], failed_rule_ids=[]
+            )
             # Should complete without raising even with triggered alerts
             check_alerts_job()
 
@@ -425,6 +428,31 @@ class TestCheckAlertsJob:
             # Verify the session arg was passed
             call_args = mock_check.call_args
             assert call_args[0][0] is test_db
+
+    def test_records_the_check_when_every_rule_was_checked(self, test_db, clean_health):
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.check_all_alerts') as mock_check:
+            mock_check.return_value = AlertCheckResult(triggered=[], failed_rule_ids=[])
+            problem = check_alerts_job()
+
+        assert get_scheduler_health()["last_alert_check"] is not None
+        assert problem is None
+
+    def test_does_not_record_the_check_when_a_rule_was_not_checked(self, test_db, clean_health, caplog):
+        """有規則沒檢查完時不留下「已檢查過」：診斷頁會說警報剛檢查過。要記一則 error 總結。"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.check_all_alerts') as mock_check:
+            mock_check.return_value = AlertCheckResult(triggered=[MagicMock()], failed_rule_ids=[7, 9])
+            problem = check_alerts_job()
+
+        assert get_scheduler_health()["last_alert_check"] is None
+        # 背景收集器把它併進心跳：每輪唯一的結果摘要
+        assert problem == "alert rules not checked: 2"
+        summary = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+        assert summary
+        # 說出幾條、哪幾條：查 log 時才找得到是哪條規則
+        assert "2 條規則沒有檢查完" in summary[-1]
+        assert "[7, 9]" in summary[-1]
 
     def test_handles_exception(self, test_db, clean_health, caplog):
         """檢查失敗時不得留下「已檢查過」的紀錄，而且要以 critical 記錄。
@@ -435,9 +463,10 @@ class TestCheckAlertsJob:
              patch('services.scheduler.check_all_alerts') as mock_check:
 
             mock_check.side_effect = Exception("DB Error")
-            check_alerts_job()  # 可恢復，不該讓排程中斷
+            problem = check_alerts_job()  # 可恢復，不該讓排程中斷
 
         assert get_scheduler_health()["last_alert_check"] is None
+        assert problem == "alert check failed"
         # 未預期的例外用 critical，與下方 SQLAlchemyError 的 error 刻意分級
         assert any(r.levelname == "CRITICAL" for r in caplog.records)
 
@@ -668,9 +697,10 @@ class TestCheckAlertsJobErrors:
              patch('services.scheduler.check_all_alerts') as mock_check:
             mock_check.side_effect = SQLAlchemyError("Connection lost")
 
-            check_alerts_job()  # 可恢復，不該讓排程中斷
+            problem = check_alerts_job()  # 可恢復，不該讓排程中斷
 
         assert get_scheduler_health()["last_alert_check"] is None
+        assert problem == "alert check failed"
         # DB 錯誤是預期得到的，用 error 不用 critical
         assert any(r.levelname == "ERROR" for r in caplog.records)
         assert not any(r.levelname == "CRITICAL" for r in caplog.records)

@@ -582,7 +582,12 @@ describe("useAlertRuleOperations", () => {
   });
 
   it("handleCheckNow calls checkAlerts", async () => {
-    mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
+    mockCheckAlerts.mockResolvedValue({
+      status: "checked",
+      triggered_count: 0,
+      triggered: [],
+      failed_rule_count: 0,
+    });
 
     const { result } = renderOps();
 
@@ -610,7 +615,12 @@ describe("useAlertRuleOperations", () => {
   it("reads the triggered alerts again only once after a check that went through", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
+      mockCheckAlerts.mockResolvedValue({
+        status: "checked",
+        triggered_count: 0,
+        triggered: [],
+        failed_rule_count: 0,
+      });
       const { result } = renderOps();
       const reads = countTriggeredReads();
 
@@ -649,6 +659,7 @@ describe("useAlertRuleOperations", () => {
         status: "checked",
         triggered_count: 1,
         triggered: [{ id: 41, rule_id: 1, repo_id: 3, signal_value: 31 }],
+        failed_rule_count: 0,
       });
 
       expect(await check()).toBe(true);
@@ -664,8 +675,67 @@ describe("useAlertRuleOperations", () => {
       expect(translations["zh-TW"].settings.alerts.toast.checkTriggered).toContain("{count}");
     });
 
+    it("says it did not finish every rule, how many it did not, and what it triggered", async () => {
+      // 某條規則讀寫失敗時後端照樣回 200：不說的話，畫面會說成檢查完成
+      mockCheckAlerts.mockResolvedValue({
+        status: "checked",
+        triggered_count: 2,
+        triggered: [
+          { id: 41, rule_id: 1, repo_id: 3, signal_value: 31 },
+          { id: 42, rule_id: 1, repo_id: 4, signal_value: 40 },
+        ],
+        failed_rule_count: 1,
+      });
+
+      const { result } = renderOps();
+      const reads = countTriggeredReads();
+      let checked: boolean | undefined;
+      await act(async () => {
+        checked = await result.current.handleCheckNow();
+      });
+
+      expect(checked).toBe(false);
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+      expect(mockToast.error).toHaveBeenCalledWith(
+        "The alert check did not finish every rule. Rules not fully checked: 1. Newly triggered: 2 (see Notifications). Please try again."
+      );
+      expect(mockToast.success).not.toHaveBeenCalled();
+      expect(mockToast.warning).not.toHaveBeenCalled();
+      // 觸發了的照樣要出現在鈴鐺與儀表板
+      expect(reads()).toBe(1);
+    });
+
+    it("does not send people to Notifications when a check that did not finish every rule triggered nothing", async () => {
+      mockCheckAlerts.mockResolvedValue({
+        status: "checked",
+        triggered_count: 0,
+        triggered: [],
+        failed_rule_count: 1,
+      });
+
+      expect(await check()).toBe(false);
+
+      expect(mockToast.error).toHaveBeenCalledWith(
+        "The alert check did not finish every rule. Rules not fully checked: 1. Nothing new was triggered. Please try again."
+      );
+    });
+
+    it("puts both counts in the Chinese sentence for a check that did not finish every rule", () => {
+      const partial = translations["zh-TW"].settings.alerts.failed.check.partial;
+      expect(partial).toContain("{failed}");
+      expect(partial).toContain("{count}");
+      expect(translations["zh-TW"].settings.alerts.failed.check.partialNothingNew).toContain(
+        "{failed}"
+      );
+    });
+
     it("says nothing new was triggered", async () => {
-      mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
+      mockCheckAlerts.mockResolvedValue({
+        status: "checked",
+        triggered_count: 0,
+        triggered: [],
+        failed_rule_count: 0,
+      });
 
       expect(await check()).toBe(true);
 
@@ -768,7 +838,8 @@ describe("useAlertRuleOperations", () => {
     mockCheckAlerts.mockImplementation(
       () =>
         new Promise((resolve) => {
-          answer = () => resolve({ status: "checked", triggered_count: 0, triggered: [] });
+          answer = () =>
+            resolve({ status: "checked", triggered_count: 0, triggered: [], failed_rule_count: 0 });
         })
     );
     const { result } = renderOps();

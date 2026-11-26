@@ -481,6 +481,25 @@ class TestTriggeredAlerts:
 class TestAlertCheck:
     """Test cases for POST /api/alerts/check."""
 
+    def test_check_alerts_reports_rules_it_could_not_check(self, client, test_db, mock_repo, monkeypatch):
+        """某條規則讀寫失敗時照樣回 200，但要帶出沒檢查完的規則數：畫面才不會說成檢查完成。"""
+        from sqlalchemy.exc import SQLAlchemyError
+        import services.alerts as alerts_service
+
+        _create_rule(test_db, mock_repo)
+
+        def locked(*_args, **_kwargs):
+            raise SQLAlchemyError("database is locked")
+
+        monkeypatch.setattr(alerts_service, "_check_rule_batch", locked)
+
+        response = client.post("/api/alerts/check")
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["triggered_count"] == 0
+        assert data["failed_rule_count"] == 1
+
     def test_check_alerts_no_rules(self, client):
         """Test manual alert check with no rules returns empty."""
         response = client.post("/api/alerts/check")
@@ -491,6 +510,7 @@ class TestAlertCheck:
         assert data["status"] == "checked"
         assert data["triggered_count"] == 0
         assert data["triggered"] == []
+        assert data["failed_rule_count"] == 0
 
     def test_check_alerts_with_matching_rule(self, client, test_db, mock_repo):
         """Test manual alert check that triggers matching rules."""
@@ -514,6 +534,7 @@ class TestAlertCheck:
         data = resp["data"]
         assert data["status"] == "checked"
         assert data["triggered_count"] == 1
+        assert data["failed_rule_count"] == 0
         triggered = data["triggered"][0]
         assert "id" in triggered
         assert "rule_id" in triggered

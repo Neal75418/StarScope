@@ -2,6 +2,7 @@
 
 import logging
 import operator as op
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
@@ -132,18 +133,28 @@ def check_rule_for_repo(
     return _create_triggered_alert(db, rule, repo, signal_value)
 
 
-def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
+@dataclass
+class AlertCheckResult:
+    """一輪檢查的結果。failed_rule_ids：讀寫失敗、沒檢查完的規則（那條規則先檢查的 repo 可能已經觸發，算在 triggered 裡）"""
+
+    triggered: list["TriggeredAlert"]
+    failed_rule_ids: list[int]
+
+
+def check_all_alerts(db: Session) -> AlertCheckResult:
     """
     檢查所有啟用的警報規則並觸發匹配者。
-    使用批次預載避免 N+1 查詢。
+    使用批次預載避免 N+1 查詢。一條規則讀寫失敗時照樣檢查其他規則，並記在 failed_rule_ids：
+    呼叫端要說出「沒有全部完成」
 
     Args:
         db: 資料庫 session
 
     Returns:
-        已觸發警報的列表
+        觸發的警報與沒檢查完的規則
     """
     triggered_alerts: list["TriggeredAlert"] = []
+    failed_rule_ids: list[int] = []
 
     # 取得所有啟用的規則
     # noinspection PyTypeChecker
@@ -151,7 +162,10 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
 
     if not rules:
         logger.debug("[警報] 無啟用的警報規則")
-        return triggered_alerts
+        return AlertCheckResult(triggered=triggered_alerts, failed_rule_ids=failed_rule_ids)
+    # 先記下 id 與名稱：rollback 之後（正式環境每次 commit 之後也是）物件的屬性全部過期、再讀會重新查詢；
+    # 規則在檢查途中被別處刪掉的話，失敗處理裡讀它會丟 ObjectDeletedError，整輪檢查跟著中斷
+    labelled_rules = [(r, r.id, r.name) for r in rules]
 
     # 批次預載所有 repo（全域規則需要）
     # noinspection PyTypeChecker
@@ -176,7 +190,7 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
     ).filter(TriggeredAlert.triggered_at >= cutoff).all()
     in_cooldown: set[tuple[int, int]] = {(r.rule_id, r.repo_id) for r in recent_triggers}
 
-    for rule in rules:
+    for rule, rule_id, rule_name in labelled_rules:
         try:
             repos = _get_repos_for_rule_from_map(rule, repo_map, all_repos)
             for repo in repos:
@@ -189,9 +203,10 @@ def check_all_alerts(db: Session) -> list["TriggeredAlert"]:
                     triggered_alerts.append(triggered)
         except SQLAlchemyError as e:
             db.rollback()
-            logger.exception(f"[警報] 檢查規則 {rule.name} 失敗: {e}")
+            failed_rule_ids.append(rule_id)
+            logger.exception(f"[警報] 檢查規則 {rule_name} 失敗: {e}")
 
-    return triggered_alerts
+    return AlertCheckResult(triggered=triggered_alerts, failed_rule_ids=failed_rule_ids)
 
 
 def _get_repos_for_rule_from_map(

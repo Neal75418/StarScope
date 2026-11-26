@@ -3,6 +3,7 @@ Tests for services/alerts.py - Alert checking service.
 """
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 from constants import AlertOperator
 from db.models import AlertRule, TriggeredAlert, Signal, Repo
 from services.alerts import (
@@ -302,7 +303,7 @@ class TestCheckAllAlerts:
     def test_no_enabled_rules(self, test_db):
         """Test returns empty list when no enabled rules."""
         result = check_all_alerts(test_db)
-        assert result == []
+        assert result.triggered == []
 
     def test_checks_all_rules(self, test_db, mock_repo):
         """Test checks all enabled rules."""
@@ -333,7 +334,7 @@ class TestCheckAllAlerts:
 
         result = check_all_alerts(test_db)
         # Both rules should trigger (10 > 5 and 10 < 100)
-        assert len(result) == 2
+        assert len(result.triggered) == 2
 
     @staticmethod
     def _add_rule_and_signal(test_db, mock_repo, *, enabled=True):
@@ -359,10 +360,10 @@ class TestCheckAllAlerts:
         self._add_rule_and_signal(test_db, mock_repo)
 
         first = check_all_alerts(test_db)
-        assert len(first) == 1
+        assert len(first.triggered) == 1
 
         second = check_all_alerts(test_db)
-        assert second == []
+        assert second.triggered == []
         assert test_db.query(TriggeredAlert).count() == 1
 
     def test_disabled_rule_not_checked(self, test_db, mock_repo):
@@ -370,8 +371,117 @@ class TestCheckAllAlerts:
         self._add_rule_and_signal(test_db, mock_repo, enabled=False)
 
         result = check_all_alerts(test_db)
-        assert result == []
+        assert result.triggered == []
         assert test_db.query(TriggeredAlert).count() == 0
+
+    def test_reports_a_rule_it_could_not_check(self, test_db, mock_repo, monkeypatch):
+        """某條規則讀寫失敗時照樣檢查其他規則，並回報沒檢查完的規則：呼叫端才說得出「沒有全部完成」。"""
+        broken = self._add_rule_and_signal(test_db, mock_repo)
+        working = AlertRule(
+            name="Working rule",
+            signal_type="velocity",
+            operator=AlertOperator.GT,
+            threshold=5.0,
+            enabled=True,
+        )
+        test_db.add(working)
+        test_db.commit()
+        real_check = alerts_module._check_rule_batch
+
+        def locked_for_broken(db, rule, repo, *args):
+            if rule.id == broken.id:
+                raise SQLAlchemyError("database is locked")
+            return real_check(db, rule, repo, *args)
+
+        monkeypatch.setattr(alerts_module, "_check_rule_batch", locked_for_broken)
+
+        result = check_all_alerts(test_db)
+
+        assert [a.rule_id for a in result.triggered] == [working.id]
+        assert result.failed_rule_ids == [broken.id]
+
+    def test_keeps_checking_when_a_rule_is_deleted_just_before_it_triggers(self, test_db, mock_repo, monkeypatch):
+        """檢查途中規則被別處刪掉、它又剛好要觸發：寫觸發紀錄時外鍵失敗、rollback 讓物件過期，
+        失敗處理裡再讀它會丟 ObjectDeletedError、整輪中斷。
+
+        要用另一個 session 刪：同一個 session 刪的話物件跟著同步，重現不了。
+        """
+        from sqlalchemy.orm import Session
+
+        deleted = self._add_rule_and_signal(test_db, mock_repo)
+        deleted_id = deleted.id
+        working = AlertRule(
+            name="Working rule",
+            signal_type="velocity",
+            operator=AlertOperator.GT,
+            threshold=5.0,
+            enabled=True,
+        )
+        test_db.add(working)
+        test_db.commit()
+        real_check = alerts_module._check_rule_batch
+
+        def deleted_elsewhere(db, rule, repo, *args):
+            if rule.id == deleted_id:
+                other = Session(bind=db.get_bind())
+                other.query(AlertRule).filter(AlertRule.id == deleted_id).delete()
+                other.commit()
+                other.close()
+            # 照常檢查：被刪的那條寫觸發紀錄時真的會外鍵失敗
+            return real_check(db, rule, repo, *args)
+
+        monkeypatch.setattr(alerts_module, "_check_rule_batch", deleted_elsewhere)
+
+        result = check_all_alerts(test_db)
+
+        assert result.failed_rule_ids == [deleted_id]
+        assert [a.rule_id for a in result.triggered] == [working.id]
+
+    def test_keeps_checking_when_a_rule_is_deleted_after_an_earlier_rule_failed(self, test_db, mock_repo, monkeypatch):
+        """前一條規則失敗、rollback 讓所有物件過期，下一條已經被別處刪掉：輪到它之前就讀它的話（不是事先記下的 id），
+        會在 try 外面丟 ObjectDeletedError、整輪中斷。正式環境前一條觸發後的 commit 也會讓物件過期，是同一條路
+        """
+        from sqlalchemy.orm import Session
+
+        failing = self._add_rule_and_signal(test_db, mock_repo)
+        deleted = AlertRule(
+            name="Deleted rule", signal_type="velocity", operator=AlertOperator.GT,
+            threshold=100.0, enabled=True,
+        )
+        working = AlertRule(
+            name="Working rule", signal_type="velocity", operator=AlertOperator.GT,
+            threshold=5.0, enabled=True,
+        )
+        test_db.add(deleted)
+        test_db.commit()
+        test_db.add(working)
+        test_db.commit()
+        failing_id, deleted_id, working_id = failing.id, deleted.id, working.id
+        real_check = alerts_module._check_rule_batch
+
+        def fail_and_delete_the_next(db, rule, repo, *args):
+            if rule.id == failing_id:
+                other = Session(bind=db.get_bind())
+                other.query(AlertRule).filter(AlertRule.id == deleted_id).delete()
+                other.commit()
+                other.close()
+                raise SQLAlchemyError("database is locked")
+            return real_check(db, rule, repo, *args)
+
+        monkeypatch.setattr(alerts_module, "_check_rule_batch", fail_and_delete_the_next)
+
+        result = check_all_alerts(test_db)
+
+        assert result.failed_rule_ids == [failing_id, deleted_id]
+        assert [a.rule_id for a in result.triggered] == [working_id]
+
+    def test_reports_no_failed_rule_when_all_were_checked(self, test_db, mock_repo):
+        self._add_rule_and_signal(test_db, mock_repo)
+
+        result = check_all_alerts(test_db)
+
+        assert len(result.triggered) == 1
+        assert result.failed_rule_ids == []
 
     # 註：「同 repo 多筆同型 Signal 取最新」不需要測——schema 的
     # UNIQUE(repo_id, signal_type) 約束使該狀態不可能存在，

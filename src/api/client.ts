@@ -851,6 +851,8 @@ export async function checkAlerts(): Promise<{
   status: string;
   triggered_count: number;
   triggered: { id: number; rule_id: number; repo_id: number; signal_value: number }[];
+  /** 讀寫失敗、沒檢查完的規則數：> 0 時這次沒有全部完成 */
+  failed_rule_count: number;
 }> {
   return apiCall(`/alerts/check`, {
     method: "POST",

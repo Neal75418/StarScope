@@ -69,7 +69,7 @@ async def run_once() -> str:
 
         # ② 抓取（內含早期訊號偵測與 health 更新）→ ③ 警報 → ④ HN → ⑤ 版本
         fetch_counts = await fetch_all_repos_job()
-        check_alerts_job()
+        alert_problem = check_alerts_job()
         await fetch_context_signals_job()
         await fetch_releases_job()
 
@@ -77,10 +77,13 @@ async def run_once() -> str:
         backup_ok = _backup_if_stale()
 
         # 心跳不能對抓取失敗說「ok」：job 把可恢復錯誤吞掉是為了不讓排程中斷，
-        # 但 launchd 這邊唯一的診斷面就是這一行——94/94 失敗還寫 ok 的話，
-        # 「心跳正常、資料黑洞」的盲區就回來了。補跑的備份失敗也一樣：同目錄的備份是本機資料唯一的保護
+        # 但 launchd 這邊每輪的結果摘要只有這一行——94/94 失敗還寫 ok 的話，
+        # 「心跳正常、資料黑洞」的盲區就回來了。警報有規則沒檢查完、補跑的備份失敗也一樣：
+        # 同目錄的備份是本機資料唯一的保護
         outcome = _describe_fetch(fetch_counts)
-        return _with_backup_failure(outcome) if backup_ok is False else outcome
+        if alert_problem is not None:
+            outcome = _with_problem(outcome, alert_problem)
+        return _with_problem(outcome, "backup failed") if backup_ok is False else outcome
     finally:
         await close_github_service()
         await close_hn_service()
@@ -106,15 +109,15 @@ def _describe_fetch(counts: "dict[str, int | str] | None") -> str:
     return "ok"
 
 
-def _with_backup_failure(outcome: str) -> str:
-    """把「補跑的備份失敗」併進心跳字串，保留抓取本身的結果。"""
+def _with_problem(outcome: str, problem: str) -> str:
+    """把一項沒做成的事（警報沒檢查完、補跑的備份失敗）併進心跳字串，保留前面的結果。"""
     if outcome == "ok":
-        return "degraded (backup failed)"
+        return f"degraded ({problem})"
     if outcome.startswith("degraded (") and outcome.endswith(")"):
-        return f"{outcome[:-1]}; backup failed)"
-    # 「ok (fetch busy elsewhere)」：抓取由 App 負責不是失敗，備份失敗仍要標出來
+        return f"{outcome[:-1]}; {problem})"
+    # 「ok (fetch busy elsewhere)」：抓取由 App 負責不是失敗，後面沒做成的仍要標出來
     detail = outcome[outcome.find("(") + 1:-1] if outcome.endswith(")") and "(" in outcome else outcome
-    return f"degraded (backup failed; {detail})"
+    return f"degraded ({problem}; {detail})"
 
 
 def _backup_if_stale() -> bool | None:

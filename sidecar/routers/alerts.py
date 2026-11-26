@@ -140,10 +140,11 @@ class TriggeredAlertBrief(BaseModel):
 
 
 class CheckAlertsResponse(BaseModel):
-    """警報檢查結果。"""
+    """警報檢查結果。failed_rule_count：讀寫失敗、沒檢查完的規則數（> 0 時這次沒有全部完成）"""
     status: str
     triggered_count: int
     triggered: list[TriggeredAlertBrief]
+    failed_rule_count: int
 
 
 # --- 輔助函式 ---
@@ -392,10 +393,12 @@ def acknowledge_all(db: Annotated[Session, Depends(get_db)]) -> dict:
 @router.post("/check", response_model=ApiResponse[CheckAlertsResponse])
 def check_alerts_now(db: Annotated[Session, Depends(get_db)]) -> dict:
     """手動觸發警報檢查。"""
-    triggered = check_all_alerts(db)
+    result = check_all_alerts(db)
+    triggered = result.triggered
     check_result = CheckAlertsResponse(
         status="checked",
         triggered_count=len(triggered),
+        failed_rule_count=len(result.failed_rule_ids),
         triggered=[
             TriggeredAlertBrief(
                 id=alert.id,

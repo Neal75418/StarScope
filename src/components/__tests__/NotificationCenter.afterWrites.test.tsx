@@ -148,6 +148,7 @@ function setupBackend() {
       status: "checked",
       triggered_count: 1,
       triggered: [{ id: triggered.id, rule_id: rule.id, repo_id: 3, signal_value: 31 }],
+      failed_rule_count: 0,
     });
   });
   vi.mocked(api.getRepos).mockResolvedValue({ repos: [], total: 0 });

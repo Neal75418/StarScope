@@ -638,6 +638,10 @@ export const translations = {
             notDone: "The alert check did not finish.",
             timedOut:
               "No response yet, so it's unclear whether the alert check finished. Alerts it triggered will show up in Notifications over the next few minutes.",
+            partial:
+              "The alert check did not finish every rule. Rules not fully checked: {failed}. Newly triggered: {count} (see Notifications). Please try again.",
+            partialNothingNew:
+              "The alert check did not finish every rule. Rules not fully checked: {failed}. Nothing new was triggered. Please try again.",
           },
         },
         validation: {
@@ -1781,6 +1785,10 @@ export const translations = {
             notDone: "警報檢查沒有完成。",
             timedOut:
               "還沒有回應，不確定警報檢查有沒有完成。檢查觸發的警報接下來幾分鐘會出現在通知裡。",
+            partial:
+              "警報檢查沒有全部完成：有 {failed} 條規則沒有檢查完，新觸發 {count} 則（見通知）。請再試一次。",
+            partialNothingNew:
+              "警報檢查沒有全部完成：有 {failed} 條規則沒有檢查完，沒有新觸發的警報。請再試一次。",
           },
         },
         validation: {

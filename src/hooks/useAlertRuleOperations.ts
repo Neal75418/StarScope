@@ -25,6 +25,8 @@ function isAlertRuleGone(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404 && error.code === "ALERT_RULE_NOT_FOUND";
 }
 
+type CheckResult = Awaited<ReturnType<typeof checkAlerts>>;
+
 interface RuleWriteFailureCopy {
   notDone: string;
   timedOut: string;
@@ -228,30 +230,40 @@ export function useAlertRuleOperations({
     [setRules, toast, t, reloadRules, reloadAfterFailure, reportFailure]
   );
 
-  /** 立即檢查：說新觸發了幾則；失敗時照寫入失敗的慣例說明 */
+  /** 立即檢查：說新觸發了幾則；沒有全部完成或失敗時說明（失敗照寫入失敗的慣例） */
   const handleCheckNow = useCallback(async () => {
-    // 用斷言宣告：在 closure 裡賦值，TS 看不到，照一般宣告會在 null 檢查之後推成 never、後面的程式不受型別檢查
-    let triggeredCount = null as number | null;
-    let failureError: unknown;
-    await execute(async () => {
-      try {
-        triggeredCount = (await checkAlerts()).triggered_count;
-      } catch (err) {
-        failureError = err;
+    const outcome = await execute(
+      async (): Promise<{ checked: CheckResult } | { error: unknown }> => {
+        try {
+          return { checked: await checkAlerts() };
+        } catch (error) {
+          return { error };
+        }
       }
-    });
+    );
     // 檢查會新增觸發紀錄，鈴鐺與 Dashboard 不等輪詢就列出來。失敗也重讀（可能其實做完了）；
     // 逾時的話伺服器可能還在檢查，接下來一陣子定期重讀
     const reloadTriggered = () => void invalidateTriggeredAlerts(queryClient);
     reloadTriggered();
-    if (triggeredCount === null) {
-      reportFailure(failureError, t.settings.alerts.failed.check);
-      if (isRequestTimeout(failureError)) keepRefetchingAfterTimeout(reloadTriggered);
+    if ("error" in outcome) {
+      reportFailure(outcome.error, t.settings.alerts.failed.check);
+      if (isRequestTimeout(outcome.error)) keepRefetchingAfterTimeout(reloadTriggered);
+      return false;
+    }
+    const { triggered_count: triggered, failed_rule_count: failedRules } = outcome.checked;
+    // 某條規則讀寫失敗時後端照樣回 200，其他規則照樣檢查完
+    if (failedRules > 0) {
+      const copy = t.settings.alerts.failed.check;
+      toast.error(
+        triggered > 0
+          ? interpolate(copy.partial, { failed: failedRules, count: triggered })
+          : interpolate(copy.partialNothingNew, { failed: failedRules })
+      );
       return false;
     }
     toast.success(
-      triggeredCount > 0
-        ? interpolate(t.settings.alerts.toast.checkTriggered, { count: triggeredCount })
+      triggered > 0
+        ? interpolate(t.settings.alerts.toast.checkTriggered, { count: triggered })
         : t.settings.alerts.toast.checkNothingNew
     );
     return true;

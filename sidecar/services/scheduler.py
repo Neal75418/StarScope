@@ -420,26 +420,39 @@ async def fetch_all_repos_holding_lock(skip_recent_minutes: int = 30) -> dict[st
             raise
 
 
-def check_alerts_job() -> None:
+def check_alerts_job() -> str | None:
     """
     背景工作：檢查警報規則並觸發通知。
-    在資料抓取後執行。
+    在資料抓取後執行。回傳沒有全部完成時的一句說明（背景收集器併進心跳；排程不看回傳值），全部檢查完回 None
     """
     with _job_context("檢查警報規則") as log:
         with get_db_session() as db:
             try:
-                triggered = check_all_alerts(db)
+                result = check_all_alerts(db)
+                triggered = result.triggered
 
-                _update_health(last_alert_check=_time.time())
+                problem: str | None = None
+                if result.failed_rule_ids:
+                    # 不記為已檢查：診斷頁的「最近警報檢查」會說剛檢查過
+                    log.error(
+                        f"[排程] {len(result.failed_rule_ids)} 條規則沒有檢查完"
+                        f"（rule id: {result.failed_rule_ids}），這輪不記為已檢查"
+                    )
+                    problem = f"alert rules not checked: {len(result.failed_rule_ids)}"
+                else:
+                    _update_health(last_alert_check=_time.time())
                 if triggered:
                     log.info(f"[排程] 已觸發 {len(triggered)} 個警報")
                 else:
                     log.debug("[排程] 無警報觸發")
+                return problem
 
             except SQLAlchemyError as e:
                 log.exception(f"[排程] 檢查警報資料庫錯誤: {e}")
+                return "alert check failed"
             except Exception as e:
                 log.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
+                return "alert check failed"
 
 
 async def fetch_context_signals_job() -> None:

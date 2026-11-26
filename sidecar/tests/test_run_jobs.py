@@ -146,6 +146,27 @@ class TestHeartbeatHonesty:
         m["fetch"] = AsyncMock(return_value=None)
         assert _run(m, backup_result=False) == "degraded (backup failed; fetch busy elsewhere)"
 
+    def test_alert_rules_not_checked_read_degraded(self):
+        """警報有規則沒檢查完（或整輪失敗）也要看得出來：job 把錯誤吞掉，心跳是每輪唯一的結果摘要。"""
+        order: list = []
+        m = _mocks(order)
+        m["alerts"] = MagicMock(return_value="alert rules not checked: 2")
+        assert _run(m) == "degraded (alert rules not checked: 2)"
+
+    def test_alert_problem_keeps_the_fetch_and_backup_results(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value={"success": 90, "errors": 4, "skipped": 0})
+        m["alerts"] = MagicMock(return_value="alert check failed")
+        assert _run(m, backup_result=False) == "degraded (4/94 fetch failed; alert check failed; backup failed)"
+
+    def test_alert_problem_while_the_app_was_fetching_reads_degraded(self):
+        order: list = []
+        m = _mocks(order)
+        m["fetch"] = AsyncMock(return_value=None)
+        m["alerts"] = MagicMock(return_value="alert rules not checked: 1")
+        assert _run(m) == "degraded (alert rules not checked: 1; fetch busy elsewhere)"
+
     def test_rate_limited_round_says_so(self):
         """被限流時沒打的 repo 也算失敗：不說明是限流的話，94/94 看起來像 token 失效或斷網。"""
         order: list = []
