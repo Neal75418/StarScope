@@ -2,6 +2,7 @@
  * 觸發紀錄的 id 會重用（資料庫沒有 AUTOINCREMENT）：舊的那則刪掉後，新警報可能拿到同一個 id。
  * 通知中心、useNotifications、輪詢查詢與 toast 用真的，API 與系統通知換成假的。
  * 假後端記得目前這個 id 屬於哪一則（看觸發時間），確認時對不上就回「已經不在」，和正式後端一樣。
+ * 本機時鐘固定在兩則警報之前：新警報是開 app 之後才觸發的（之前就有的不跳系統通知）
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -95,6 +96,11 @@ async function readTheListAgain() {
 describe("NotificationCenter when an alert id is reused", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-24T23:00:00Z"),
+      shouldAdvanceTime: true,
+    });
     localStorage.clear();
     mockOSNotification.isGranted = false;
     server = [makeAlert({})];
@@ -113,6 +119,7 @@ describe("NotificationCenter when an alert id is reused", () => {
 
   afterEach(() => {
     client.clear();
+    vi.useRealTimers();
   });
 
   it("shows the new alert as unread even though the old one with that id was read", async () => {

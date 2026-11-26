@@ -2,6 +2,7 @@
  * 通知中心的「清除」＝從鈴鐺移除、之後不再出現（儀表板的近期活動照列，那是後端預設清單的事）。
  * 通知中心、useNotifications、輪詢查詢與 toast 用真的，API 與系統通知換成假的。
  * 假後端記得哪些清除過：鈴鐺的清單（excludeDismissed）不列它們，清除的回應送出時才算清除完成。
+ * 本機時鐘固定在兩則警報之前：「不跳系統通知」要靠讀回過的 id 擋，不能是因為觸發時間比開 app 早
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -107,6 +108,11 @@ async function readTheListAgain() {
 describe("NotificationCenter clearing a notification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-11-23T00:00:00Z"),
+      shouldAdvanceTime: true,
+    });
     dismissed = new Set();
     vi.mocked(listTriggeredAlerts).mockImplementation((_unread, _limit, _signal, options) =>
       Promise.resolve(
@@ -124,6 +130,7 @@ describe("NotificationCenter clearing a notification", () => {
 
   afterEach(() => {
     client.clear();
+    vi.useRealTimers();
   });
 
   it("keeps it out of the bell after the list is read again", async () => {

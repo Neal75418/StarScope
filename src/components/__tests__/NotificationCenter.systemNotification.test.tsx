@@ -1,6 +1,7 @@
 /**
  * 什麼時候為新通知跳系統通知：通知中心、useNotifications、輪詢查詢與 toast 用真的，API 與系統通知換成假的。
  * 假後端照正式後端的樣子回清單：依觸發時間由新到舊、先排除清除過的再取前 limit 則（鈴鐺是 50 則）。
+ * 本機時鐘固定從 APP_OPENED_AT 起走：第 n 則（alertNo）是開 app 之後才觸發的，前一天的是開 app 之前就有的。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -37,7 +38,10 @@ vi.mock("../../hooks/useOSNotification", () => ({ useOSNotification: () => mockO
 
 import { listTriggeredAlerts, dismissTriggeredAlert } from "../../api/client";
 
-/** 第 n 則：n 越大越新 */
+/** 開 app 的時間（本機時鐘；sidecar 與它同一台機器，觸發時間用的是同一個時鐘） */
+const APP_OPENED_AT = new Date("2026-11-25T00:00:00Z");
+
+/** 第 n 則：n 越大越新，都在開 app 之後 */
 function alertNo(n: number, overrides: Partial<TriggeredAlert> = {}): TriggeredAlert {
   const minute = String(n % 60).padStart(2, "0");
   const hour = String(Math.floor(n / 60)).padStart(2, "0");
@@ -97,6 +101,16 @@ async function clear(user: ReturnType<typeof userEvent.setup>, ruleName: string)
   });
 }
 
+/** 假後端回的清單：依觸發時間由新到舊、先排除清除過的再取前 limit 則 */
+function listFromServer(...[, limit, , options]: Parameters<typeof listTriggeredAlerts>) {
+  return Promise.resolve(
+    [...server]
+      .sort((a, b) => b.triggered_at.localeCompare(a.triggered_at))
+      .filter((a) => !(options?.excludeDismissed && dismissed.has(a.id)))
+      .slice(0, limit)
+  );
+}
+
 const sentBodies = () =>
   mockOSNotification.sendOSNotification.mock.calls.map(
     (call) => (call as unknown as [{ body: string }])[0].body
@@ -105,16 +119,10 @@ const sentBodies = () =>
 describe("NotificationCenter system notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers({ toFake: ["Date"], now: APP_OPENED_AT, shouldAdvanceTime: true });
     server = [];
     dismissed = new Set();
-    vi.mocked(listTriggeredAlerts).mockImplementation((_unread, limit, _signal, options) =>
-      Promise.resolve(
-        [...server]
-          .sort((a, b) => b.triggered_at.localeCompare(a.triggered_at))
-          .filter((a) => !(options?.excludeDismissed && dismissed.has(a.id)))
-          .slice(0, limit)
-      )
-    );
+    vi.mocked(listTriggeredAlerts).mockImplementation(listFromServer);
     vi.mocked(dismissTriggeredAlert).mockImplementation((id) => {
       dismissed.add(id);
       return Promise.resolve({ status: "dismissed", id });
@@ -123,6 +131,7 @@ describe("NotificationCenter system notifications", () => {
 
   afterEach(() => {
     client.clear();
+    vi.useRealTimers();
   });
 
   it("does not notify about what is already there when the app opens", async () => {
@@ -230,5 +239,104 @@ describe("NotificationCenter system notifications", () => {
     await readTheListAgain();
 
     expect(mockOSNotification.sendOSNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not notify about an alert from before the app opened that comes back, after an empty first read", async () => {
+    // 例如重新追蹤一個封存的 repo：封存期間不列的舊警報回到清單
+    const user = userEvent.setup();
+    renderCenter();
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await screen.findByText("No notifications");
+
+    server = [alertNo(1, { triggered_at: "2026-11-24T23:00:00+00:00" })];
+    await readTheListAgain();
+
+    expect(await screen.findByText("Rule 1")).toBeInTheDocument();
+    expect(mockOSNotification.sendOSNotification).not.toHaveBeenCalled();
+  });
+
+  it("does not notify about an alert from before the app opened that comes back, newer than what it first read", async () => {
+    server = [alertNo(1, { triggered_at: "2026-11-24T22:00:00+00:00" })];
+    renderCenter();
+    await screen.findByRole("button", { name: "Notifications (1 unread)" });
+
+    server = [...server, alertNo(2, { triggered_at: "2026-11-24T23:00:00+00:00" })];
+    await readTheListAgain();
+
+    expect(
+      await screen.findByRole("button", { name: "Notifications (2 unread)" })
+    ).toBeInTheDocument();
+    expect(mockOSNotification.sendOSNotification).not.toHaveBeenCalled();
+  });
+
+  it("notifies about an alert triggered after the first read was sent, even when that read did not have it", async () => {
+    // 第一次讀取送出之後、讀回之前才觸發：不在那次的清單裡，下一次讀回時是新的
+    vi.mocked(listTriggeredAlerts).mockImplementationOnce(async (...args) => {
+      const sentAt = Date.now();
+      const snapshot = await listFromServer(...args);
+      server = [alertNo(1, { triggered_at: new Date(sentAt + 1).toISOString() })];
+      // 讀回比觸發晚：用讀回的時間當基準的話，這則會被當成舊的
+      await new Promise((r) => setTimeout(r, 50));
+      return snapshot;
+    });
+    const user = userEvent.setup();
+    renderCenter();
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await screen.findByText("No notifications");
+
+    await readTheListAgain();
+
+    expect(sentBodies()).toHaveLength(1);
+  });
+
+  it("notifies about an alert whose trigger time was taken just before a later read was sent", async () => {
+    // 觸發時間先取、寫進資料庫在後：那次讀取還讀不到它，下一次讀到時要算新的。只有第一次讀取墊高基準
+    const user = userEvent.setup();
+    renderCenter();
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
+    await screen.findByText("No notifications");
+    // 讓時鐘走過第一次讀取的時間
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    vi.mocked(listTriggeredAlerts).mockImplementationOnce(async (...args) => {
+      const snapshot = await listFromServer(...args);
+      server = [alertNo(1, { triggered_at: new Date(Date.now() - 1).toISOString() })];
+      return snapshot;
+    });
+    await readTheListAgain();
+    expect(screen.getByText("No notifications")).toBeInTheDocument();
+
+    await readTheListAgain();
+
+    expect(sentBodies()).toHaveLength(1);
+  });
+
+  it("judges the first read by the time it was sent, even when the next read starts before the first is handled", async () => {
+    // 送出的時間跟著資料一起回的理由：放 ref 的話，下一次讀取在處理第一次的結果之前就開始，會把它蓋掉
+    let sentAt = 0;
+    vi.mocked(listTriggeredAlerts)
+      .mockImplementationOnce(async (...args) => {
+        sentAt = Date.now();
+        const snapshot = await listFromServer(...args);
+        await new Promise((r) => setTimeout(r, 50));
+        // 讀回之前就排好下一次讀取：它在處理這次的結果之前開始
+        setTimeout(() => void client.invalidateQueries(), 0);
+        return snapshot;
+      })
+      .mockImplementationOnce(async (...args) => {
+        await new Promise((r) => setTimeout(r, 50));
+        // 第一次讀取送出之後才觸發、那次沒讀到
+        server = [alertNo(1, { triggered_at: new Date(sentAt + 1).toISOString() })];
+        return listFromServer(...args);
+      });
+    renderCenter();
+
+    await waitFor(() => {
+      expect(listTriggeredAlerts).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(sentBodies()).toHaveLength(1);
+    });
   });
 });

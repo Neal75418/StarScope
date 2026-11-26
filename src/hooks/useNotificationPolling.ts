@@ -26,6 +26,12 @@ import {
 import { useI18n } from "../i18n";
 import { useSmartInterval } from "./useSmartInterval";
 
+/** 一次讀回的通知與送出這次讀取的時間（本機時鐘；sidecar 在同一台機器，觸發時間用的是同一個時鐘） */
+interface PolledNotifications {
+  notifications: Notification[];
+  requestedAt: number;
+}
+
 interface OSNotificationSender {
   sendOSNotification: (options: { title: string; body: string }) => Promise<void>;
   isGranted: boolean;
@@ -42,7 +48,11 @@ export function useNotificationPolling(
   // 判斷新通知的基準（null＝還沒讀回過，第一次讀回只當基準）：這次開 app 讀回過的通知，與看過的最新觸發時間。
   // 新通知＝沒讀回過、觸發時間不比看過的最新還舊的未讀。只看「讀回過沒有」的話，清除後滑進 50 則窗口、或重新追蹤的
   // repo 帶回的舊警報都會被當成新的；看「清單空不空」的話，清空之後的新警報會被當成第一次載入。
-  // 前提是新警報的觸發時間不比之前的舊：伺服器時鐘往回調、兩個程序同時寫入時可能漏發系統通知（警報照樣列在鈴鐺裡）
+  // 看過的最新至少是第一次讀取送出的時間：只看讀回的內容的話，第一次讀回是空的、或封存前觸發（封存期間不列）的警報比
+  // 讀回的都新時，重新追蹤帶回的舊警報仍會被當成新的。用送出的時間而不是讀回的時間：送出之後才觸發、那次沒讀到的要算新的。
+  // 前提是新警報的觸發時間不比之前的舊：伺服器時鐘往回調、兩個程序同時寫入時可能漏發系統通知（警報照樣列在鈴鐺裡）；
+  // 第一次讀取送出時已經取了觸發時間、還沒寫進資料庫的那一筆也會漏發：通常是毫秒，其他寫入正在進行時要等它寫完
+  // （鎖等待最多 30 秒）。之後的讀取不拿送出的時間墊高：每一輪都會有這個空檔
   const seenRef = useRef<{ ids: Set<string>; newest: number } | null>(null);
   // 穩定的 ref 追蹤最新的 setter 和 sender
   const setNotificationsRef = useRef(setNotifications);
@@ -54,13 +64,20 @@ export function useNotificationPolling(
 
   const smartInterval = useSmartInterval(NOTIFICATION_POLL_INTERVAL_MS);
 
-  const query = useQuery<Notification[], Error>({
+  const query = useQuery<PolledNotifications, Error>({
     queryKey: queryKeys.notifications.polling(),
     queryFn: async () => {
+      // 跟著資料一起回：放 ref 的話，下一次讀取可能在 effect 處理這次的結果之前就開始、把它蓋掉
+      const requestedAt = Date.now();
       const alerts = await listTriggeredAlerts(false, ALERT_FETCH_LIMIT, undefined, {
         excludeDismissed: true,
       });
-      return sortNotifications(alertsToNotifications(alerts, tRef.current.dashboard.signals.types));
+      return {
+        notifications: sortNotifications(
+          alertsToNotifications(alerts, tRef.current.dashboard.signals.types)
+        ),
+        requestedAt,
+      };
     },
     // 智慧輪詢：visibility + online aware
     refetchInterval: smartInterval,
@@ -78,7 +95,7 @@ export function useNotificationPolling(
   // 當 query 資料更新時，處理合併與 OS 通知（useEffect 避免 render 階段副作用）
   useEffect(() => {
     if (!query.data) return;
-    const newNotifications = query.data;
+    const { notifications: newNotifications, requestedAt } = query.data;
 
     // 發送 OS 通知（對比新增的）
     const sender = osNotificationSenderRef.current;
@@ -94,7 +111,7 @@ export function useNotificationPolling(
     for (const n of newNotifications) seenIds.add(n.id);
     seenRef.current = {
       ids: seenIds,
-      newest: Math.max(seen?.newest ?? -Infinity, ...triggeredAt.filter(Number.isFinite)),
+      newest: Math.max(seen?.newest ?? requestedAt, ...triggeredAt.filter(Number.isFinite)),
     };
     if (sender?.isGranted) {
       const notificationsToSend = unreadNewNotifications.slice(0, MAX_OS_NOTIFICATIONS_PER_POLL);
