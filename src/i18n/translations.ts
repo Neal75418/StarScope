@@ -916,7 +916,8 @@ export const translations = {
     },
     // 降級狀態
     status: {
-      offline: "You are offline. Showing cached data.",
+      // 資料引擎在本機，離線時照樣讀得到；停的是從 GitHub 更新。不說「顯示快取資料」：錯誤畫面與空狀態上沒有任何資料
+      offline: "You're offline. Data from GitHub won't update until you reconnect.",
       sidecarStarting: "Starting the data engine…",
       sidecarDown: "The data engine is not responding. Retrying automatically…",
       sidecarPortInUse: "Port 8008 is in use, so the data engine can't start.",
@@ -2057,7 +2058,7 @@ export const translations = {
     },
     // 降級狀態
     status: {
-      offline: "目前離線，顯示快取資料。",
+      offline: "目前離線，連上網路前不會從 GitHub 更新資料。",
       sidecarStarting: "資料引擎啟動中…",
       sidecarDown: "資料引擎沒有回應，正在自動重試…",
       sidecarPortInUse: "連接埠 8008 被佔用，資料引擎無法啟動。",

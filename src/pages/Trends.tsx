@@ -229,12 +229,8 @@ export function Trends() {
   }
 
   if (error) {
-    const message =
-      level === "sidecar-down"
-        ? t.status.sidecarDown
-        : level === "offline"
-          ? t.status.offline
-          : error;
+    // 後端的原字不上畫面；離線不是讀不到的原因（資料引擎在本機，斷網時照樣給得出資料）
+    const message = level === "sidecar-down" ? t.status.sidecarDown : t.failure.retry;
     return (
       <AnimatedPage className="page">
         <div className="error-container">

@@ -353,6 +353,17 @@ describe("Dashboard", () => {
     expect(mockRefresh).toHaveBeenCalled();
   });
 
+  it("does not say it is showing cached data when nothing could be loaded while offline", () => {
+    // 離線＝外網斷了、本機的資料引擎還在：讀不到的原因不是斷網，畫面上也沒有任何快取資料
+    mockLevel = "offline";
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = neverLoaded;
+    render(<Dashboard />);
+
+    expect(screen.getByText("Couldn't load the dashboard.")).toBeInTheDocument();
+    expect(screen.queryByText(/Showing cached data/)).not.toBeInTheDocument();
+  });
+
   it("keeps the error page while a load that never went through is retried, even with the data engine unreachable", async () => {
     const user = userEvent.setup();
     // 還沒有資料時一重試，React Query 就把 error 清掉；斷線時查詢暫停，isLoading 也是 false。只看這兩個的話會往下掉到引導卡

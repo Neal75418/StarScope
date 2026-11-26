@@ -43,10 +43,11 @@ vi.mock("../../hooks/useTrends", () => ({
   },
 }));
 
+let mockLevel: "online" | "offline" | "sidecar-down" = "online";
 vi.mock("../../contexts/AppStatusContext", () => ({
   useAppStatus: () => ({
     isOnline: true,
-    level: "online",
+    level: mockLevel,
     showBanner: false,
     bannerMessage: null,
     isSidecarUp: true,
@@ -156,6 +157,7 @@ function renderTrends() {
 
 describe("Trends", () => {
   beforeEach(() => {
+    mockLevel = "online";
     vi.clearAllMocks();
     mockViewMode = "list";
     mockWatchlistRepos = [];
@@ -189,13 +191,33 @@ describe("Trends", () => {
     expect(screen.getAllByTestId("skeleton").length).toBeGreaterThanOrEqual(4);
   });
 
-  it("shows error state with retry", async () => {
+  it("shows error state with retry, without the server's own words", async () => {
     const user = userEvent.setup();
     mockTrendsReturn.error = "Server error";
     renderTrends();
-    expect(screen.getByText("Server error")).toBeInTheDocument();
+    expect(screen.getByText("Error loading trends")).toBeInTheDocument();
+    expect(screen.getByText("Try again.")).toBeInTheDocument();
+    expect(screen.queryByText("Server error")).not.toBeInTheDocument();
     await user.click(screen.getByText("Retry"));
     expect(mockRetry).toHaveBeenCalled();
+  });
+
+  it("does not say it is showing cached data when trends could not be loaded while offline", () => {
+    // 離線＝外網斷了、本機的資料引擎還在：讀不到的原因不是斷網，畫面上也沒有任何快取資料
+    mockLevel = "offline";
+    mockTrendsReturn.error = "Server error";
+    renderTrends();
+    expect(screen.getByText("Try again.")).toBeInTheDocument();
+    expect(screen.queryByText(/Showing cached data/)).not.toBeInTheDocument();
+  });
+
+  it("says the data engine is not responding when trends could not be loaded because of it", () => {
+    mockLevel = "sidecar-down";
+    mockTrendsReturn.error = "Server error";
+    renderTrends();
+    expect(
+      screen.getByText("The data engine is not responding. Retrying automatically…")
+    ).toBeInTheDocument();
   });
 
   it("renders trends table with data", () => {

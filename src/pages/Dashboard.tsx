@@ -302,13 +302,9 @@ export function Dashboard() {
   }
 
   if (showErrorPage) {
-    // 後端的原字（例如「HTTP 500; Network error」）不上畫面
-    const message =
-      level === "sidecar-down"
-        ? t.status.sidecarDown
-        : level === "offline"
-          ? t.status.offline
-          : t.dashboard.loadFailed;
+    // 後端的原字（例如「HTTP 500; Network error」）不上畫面。離線（外網斷了）不是讀不到的原因：資料引擎在本機，
+    // 斷網時照樣給得出資料，「離線、顯示快取資料」在這裡也沒有快取資料可顯示
+    const message = level === "sidecar-down" ? t.status.sidecarDown : t.dashboard.loadFailed;
     return (
       <AnimatedPage className="page">
         <div className="error-container">

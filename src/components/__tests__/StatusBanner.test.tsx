@@ -3,6 +3,7 @@ import { act, render, screen } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { StatusBanner } from "../StatusBanner";
 import type { AppStatus } from "../../contexts/AppStatusContext";
+import { translations } from "../../i18n/translations";
 
 // 可訂閱的替身：StatusBanner 包了 memo，狀態變了要像真的 context 一樣觸發重新渲染
 const status: { current: AppStatus } = {
@@ -65,6 +66,23 @@ describe("StatusBanner", () => {
 
     expect(screen.getByTestId("status-banner")).toHaveAttribute("role", "alert");
     expect(screen.getByTestId("status-banner")).not.toBe(starting);
+  });
+
+  it("says what stops working while offline, without claiming cached data is shown", () => {
+    // 資料引擎在本機，離線時照樣讀得到；狀態列也蓋在讀不到的錯誤畫面與空狀態上面，那時沒有任何資料
+    status.current = {
+      level: "offline",
+      showBanner: true,
+      bannerMessage: "offline",
+      isSidecarUp: true,
+      isOnline: false,
+    };
+    render(<StatusBanner />);
+
+    expect(screen.getByTestId("status-banner")).toHaveTextContent(
+      "You're offline. Data from GitHub won't update until you reconnect."
+    );
+    expect(translations["zh-TW"].status.offline).not.toContain("快取");
   });
 
   it("keeps real problems as alerts", () => {

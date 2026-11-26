@@ -72,10 +72,11 @@ vi.mock("../../contexts/NavigationContext", () => ({
   }),
 }));
 
+let mockLevel: "online" | "offline" = "online";
 vi.mock("../../contexts/AppStatusContext", () => ({
   useAppStatus: () => ({
     isOnline: true,
-    level: "online",
+    level: mockLevel,
     showBanner: false,
     bannerMessage: null,
     isSidecarUp: true,
@@ -229,6 +230,7 @@ vi.mock("../../components/EmptyState", () => ({
 
 describe("Watchlist", () => {
   beforeEach(() => {
+    mockLevel = "online";
     signalSummary.value = { data: { repos_with_signals: 0 }, isError: false };
     categoryTreeState.reloadFailed = false;
     vi.clearAllMocks();
@@ -335,6 +337,16 @@ describe("Watchlist", () => {
     ).toBeInTheDocument();
     await user.click(screen.getByText("Retry Now"));
     expect(mockHandleRetry).toHaveBeenCalled();
+  });
+
+  it("says it is connecting to the engine, not that it shows cached data, while offline", () => {
+    // 這個畫面只在資料引擎沒連上時出現，那時連線狀態不會是 offline（sidecar 的狀態排在斷網前面）：
+    // 這條防的是有人再讓它依連線狀態換說法，不是重現一個走得到的情境
+    mockLevel = "offline";
+    mockState.isConnected = false;
+    render(<Watchlist />);
+    expect(screen.getByText("Connecting to StarScope engine. Please wait...")).toBeInTheDocument();
+    expect(screen.queryByText(/Showing cached data/)).not.toBeInTheDocument();
   });
 
   it("shows empty state when no repos, routing to Discover as the primary path", async () => {
