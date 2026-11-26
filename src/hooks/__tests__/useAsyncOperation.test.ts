@@ -1,103 +1,54 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useAsyncOperation } from "../useAsyncOperation";
-import type { Toast } from "../types";
 
 describe("useAsyncOperation", () => {
-  let mockToast: Toast;
-
-  beforeEach(() => {
-    mockToast = {
-      success: vi.fn(),
-      error: vi.fn(),
-      info: vi.fn(),
-      warning: vi.fn(),
-    };
-  });
-
   it("starts with isSubmitting false", () => {
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
+    const { result } = renderHook(() => useAsyncOperation());
     expect(result.current.isSubmitting).toBe(false);
   });
 
-  it("returns true and shows success toast on successful operation", async () => {
-    const operation = vi.fn().mockResolvedValue("done");
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
-
-    let success: boolean | undefined;
-    await act(async () => {
-      success = await result.current.execute(operation, "Operation completed");
-    });
-
-    expect(success).toBe(true);
-    expect(mockToast.success).toHaveBeenCalledWith("Operation completed");
-    expect(mockToast.error).not.toHaveBeenCalled();
-    expect(result.current.isSubmitting).toBe(false);
-  });
-
-  it("returns true without toast when no successMessage", async () => {
-    const operation = vi.fn().mockResolvedValue(undefined);
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
-
-    let success: boolean | undefined;
-    await act(async () => {
-      success = await result.current.execute(operation);
-    });
-
-    expect(success).toBe(true);
-    expect(mockToast.success).not.toHaveBeenCalled();
-  });
-
-  it("returns false and shows error toast on failed operation", async () => {
-    const operation = vi.fn().mockRejectedValue(new Error("Something broke"));
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
-
-    let success: boolean | undefined;
-    await act(async () => {
-      success = await result.current.execute(operation, "Success!");
-    });
-
-    expect(success).toBe(false);
-    expect(mockToast.error).toHaveBeenCalledWith("Something broke");
-    expect(mockToast.success).not.toHaveBeenCalled();
-    expect(result.current.isSubmitting).toBe(false);
-  });
-
-  it("uses fallback error message for non-Error exceptions", async () => {
-    const operation = vi.fn().mockRejectedValue("raw string");
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
-
-    await act(async () => {
-      await result.current.execute(operation);
-    });
-
-    // getErrorMessage returns fallback t.common.error ("Error") for non-Error values
-    expect(mockToast.error).toHaveBeenCalledWith("Error");
-  });
-
-  it("sets isSubmitting true during operation", async () => {
-    let resolveFn: () => void = () => {};
-    const operation = vi.fn().mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolveFn = resolve;
-      })
+  it("is submitting while the operation runs and gives back its result", async () => {
+    let resolveFn: (value: string) => void = () => {};
+    const operation = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveFn = resolve;
+        })
     );
+    const { result } = renderHook(() => useAsyncOperation());
 
-    const { result } = renderHook(() => useAsyncOperation(mockToast));
-
-    let executePromise: Promise<boolean>;
+    let executePromise: Promise<string> = Promise.resolve("");
     act(() => {
       executePromise = result.current.execute(operation);
     });
-
-    // During execution
     expect(result.current.isSubmitting).toBe(true);
 
+    let value: string | undefined;
     await act(async () => {
-      resolveFn();
-      await executePromise;
+      resolveFn("done");
+      value = await executePromise;
     });
 
+    expect(value).toBe("done");
+    expect(result.current.isSubmitting).toBe(false);
+  });
+
+  it("lets the error through to the caller and stops submitting", async () => {
+    // 失敗怎麼說由呼叫端決定（寫入失敗見 describeWriteFailure）：這裡接住的話，只能給一句不分操作的通用說法
+    const error = new Error("Something broke");
+    const { result } = renderHook(() => useAsyncOperation());
+
+    let caught: unknown;
+    await act(async () => {
+      await result.current
+        .execute(() => Promise.reject(error))
+        .catch((err: unknown) => {
+          caught = err;
+        });
+    });
+
+    expect(caught).toBe(error);
     expect(result.current.isSubmitting).toBe(false);
   });
 });

@@ -13,11 +13,6 @@ vi.mock("../../api/client", () => ({
   checkAlerts: vi.fn(),
 }));
 
-vi.mock("../../utils/error", () => ({
-  getErrorMessage: (err: unknown, fallback: string) =>
-    err instanceof Error ? err.message : fallback,
-}));
-
 import { createAlertRule, updateAlertRule, deleteAlertRule, checkAlerts } from "../../api/client";
 import { useAlertRuleOperations } from "../useAlertRuleOperations";
 import type { Toast } from "../types";
@@ -241,7 +236,7 @@ describe("useAlertRuleOperations", () => {
 
         expect(success).toBe(false);
         expect(mockToast.error).toHaveBeenCalledWith(withCause(copy.notDone, en.failure.retry));
-        // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+        // 只有這一則：失敗只說一次
         expect(mockToast.error).toHaveBeenCalledTimes(1);
         expect(mockToast.success).not.toHaveBeenCalled();
         expect(mockToast.warning).not.toHaveBeenCalled();
@@ -298,7 +293,7 @@ describe("useAlertRuleOperations", () => {
         });
 
         expect(mockToast.error).toHaveBeenCalledWith(copy.repoGone);
-        // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+        // 只有這一則：失敗只說一次
         expect(mockToast.error).toHaveBeenCalledTimes(1);
         expect(mockToast.success).not.toHaveBeenCalled();
         expect(mockLoadRules).toHaveBeenCalledTimes(1);
@@ -318,7 +313,7 @@ describe("useAlertRuleOperations", () => {
       expect(mockToast.error).toHaveBeenCalledWith(
         withCause(failed.create.notDone, en.failure.engineUnreachable)
       );
-      // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+      // 只有這一則：失敗只說一次
       expect(mockToast.error).toHaveBeenCalledTimes(1);
       expect(mockToast.success).not.toHaveBeenCalled();
     });
@@ -335,7 +330,7 @@ describe("useAlertRuleOperations", () => {
       expect(mockToast.error).toHaveBeenCalledWith(
         withCause(failed.toggle.notDone, en.failure.retry)
       );
-      // 只有這一則：錯誤要在 writeRule 裡接住，交給 execute 的話它會另外跳一則後端原字
+      // 只有這一則：失敗只說一次
       expect(mockToast.error).toHaveBeenCalledTimes(1);
       expect(mockToast.success).not.toHaveBeenCalled();
       expect(mockLoadRules).toHaveBeenCalledTimes(1);

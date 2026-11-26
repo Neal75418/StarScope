@@ -61,7 +61,7 @@ export function useAlertRuleOperations({
 }: UseAlertRuleOperationsProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const { isSubmitting, execute } = useAsyncOperation(toast);
+  const { isSubmitting, execute } = useAsyncOperation();
 
   /**
    * 寫入之後背景重讀，成功、失敗、規則已經不在都要（重讀失敗不影響寫入的結果）。已觸發警報也一起：
@@ -102,7 +102,7 @@ export function useAlertRuleOperations({
   /**
    * 建立、改、刪一條規則。失敗時說明（逾時說不確定有沒有做成，其餘說沒做成與原因）並回 false（表單、確認框留著讓人重試）；
    * 改、刪遇到規則已經不在清單上時結束這次操作（回 true：編輯框、確認框跟著關），由 reportGone 說明。
-   * 錯誤都在這裡接住，execute 只用來管送出中的狀態（它自己的失敗提示會顯示後端原字）
+   * 錯誤都在這裡接住，execute 只用來管送出中的狀態
    */
   const writeRule = useCallback(
     async (
@@ -228,7 +228,7 @@ export function useAlertRuleOperations({
     [setRules, toast, t, reloadRules, reloadAfterFailure, reportFailure]
   );
 
-  /** 立即檢查：說新觸發了幾則；失敗時照寫入失敗的慣例說明（錯誤在這裡接住，execute 的失敗提示會顯示後端原字） */
+  /** 立即檢查：說新觸發了幾則；失敗時照寫入失敗的慣例說明 */
   const handleCheckNow = useCallback(async () => {
     // 用斷言宣告：在 closure 裡賦值，TS 看不到，照一般宣告會在 null 檢查之後推成 never、後面的程式不受型別檢查
     let triggeredCount = null as number | null;
