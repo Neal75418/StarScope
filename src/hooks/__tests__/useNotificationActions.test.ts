@@ -284,6 +284,266 @@ describe("useNotificationActions when acknowledging does not go through", () => 
     expect(feedback.toast.success).not.toHaveBeenCalled();
   }
 
+  describe("cleared while the acknowledgement was on its way", () => {
+    // 清除會一併確認：清除成功的話，標已讀沒做成也已經是使用者要的結果
+    function deferred<T>() {
+      let resolve: (value: T) => void = () => {};
+      let reject: (reason: unknown) => void = () => {};
+      const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it("says nothing when the acknowledgement fails after the clear went through", async () => {
+      const ack = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(() => ack.promise);
+      const { result } = renderWithList([alertA]);
+
+      let reading: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAsRead("alert-42");
+      });
+      await act(async () => {
+        await result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        ack.reject(unreachable());
+        await reading;
+      });
+
+      expectNoToast();
+      expect(result.current.notifications).toEqual([]);
+      // 只有清除成功那一次重讀：沒做成的標已讀不另外重讀
+      expect(feedback.refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("waits for the clear when the acknowledgement fails first, and says nothing once it goes through", async () => {
+      const ack = deferred<{ status: string; id: number }>();
+      const dismiss = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(() => ack.promise);
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(() => dismiss.promise);
+      const { result } = renderWithList([alertA]);
+
+      let reading: Promise<void> = Promise.resolve();
+      let clearing: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAsRead("alert-42");
+      });
+      act(() => {
+        clearing = result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        ack.reject(timedOut());
+        await Promise.resolve();
+      });
+      expectNoToast();
+
+      await act(async () => {
+        dismiss.resolve({ status: "dismissed", id: 42 });
+        await Promise.all([reading, clearing]);
+      });
+
+      expectNoToast();
+      expect(result.current.notifications).toEqual([]);
+      expect(feedback.refresh).toHaveBeenCalledTimes(1);
+    });
+
+    it("still says it was not marked as read when the clear fails too, and shows it unread", async () => {
+      const ack = deferred<{ status: string; id: number }>();
+      const dismiss = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(() => ack.promise);
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(() => dismiss.promise);
+      const { result } = renderWithList([alertA]);
+
+      let reading: Promise<void> = Promise.resolve();
+      let clearing: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAsRead("alert-42");
+      });
+      act(() => {
+        clearing = result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        ack.reject(unreachable());
+        dismiss.reject(unreachable());
+        await Promise.all([reading, clearing]);
+      });
+
+      expect(feedback.toast.error).toHaveBeenCalledTimes(2);
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(copy.markRead.notDone, translations.en.failure.engineUnreachable)
+      );
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(copy.clear.notDone, translations.en.failure.engineUnreachable)
+      );
+      expect(result.current.notifications).toEqual([{ ...alertA, read: false }]);
+    });
+
+    it("says nothing when the clear finds the alert already gone", async () => {
+      // 警報已經不在：標已讀與清除都沒有對象了，也要放行等著的標已讀，不然它一直等下去
+      const ack = deferred<{ status: string; id: number }>();
+      const dismiss = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(() => ack.promise);
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(() => dismiss.promise);
+      const { result } = renderWithList([alertA]);
+
+      let reading: Promise<void> = Promise.resolve();
+      let clearing: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAsRead("alert-42");
+      });
+      act(() => {
+        clearing = result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        ack.reject(unreachable());
+        dismiss.reject(gone());
+        await Promise.all([reading, clearing]);
+      });
+
+      expectNoToast();
+    });
+
+    it("leaves the one that was cleared out of what marking all as read did not do", async () => {
+      const ackA = deferred<{ status: string; id: number }>();
+      const ackB = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation((id) =>
+        id === 42 ? ackA.promise : ackB.promise
+      );
+      const { result } = renderWithList([alertA, alertB]);
+
+      let reading: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAllAsRead();
+      });
+      await act(async () => {
+        await result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        ackA.reject(unreachable());
+        ackB.reject(unreachable());
+        await reading;
+      });
+
+      expect(feedback.toast.error).toHaveBeenCalledTimes(1);
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(
+          interpolate(copy.markAllRead.notDone, { count: 1 }),
+          translations.en.failure.engineUnreachable
+        )
+      );
+      expect(result.current.notifications).toEqual([{ ...alertB, read: false }]);
+    });
+
+    it("waits for a clear still on its way when marking all as read fails, and leaves it out once it goes through", async () => {
+      const acks = {
+        42: deferred<{ status: string; id: number }>(),
+        43: deferred<{ status: string; id: number }>(),
+      };
+      const dismiss = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(
+        (id) => acks[id as 42 | 43].promise
+      );
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(() => dismiss.promise);
+      const { result } = renderWithList([alertA, alertB]);
+
+      let reading: Promise<void> = Promise.resolve();
+      let clearing: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAllAsRead();
+      });
+      act(() => {
+        clearing = result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        acks[42].reject(unreachable());
+        acks[43].reject(unreachable());
+        await Promise.resolve();
+      });
+      await act(async () => {
+        dismiss.resolve({ status: "dismissed", id: 42 });
+        await Promise.all([reading, clearing]);
+      });
+
+      expect(feedback.toast.error).toHaveBeenCalledTimes(1);
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(
+          interpolate(copy.markAllRead.notDone, { count: 1 }),
+          translations.en.failure.engineUnreachable
+        )
+      );
+      expect(result.current.notifications).toEqual([{ ...alertB, read: false }]);
+    });
+
+    it("counts the one being cleared when marking all as read and the clear both fail", async () => {
+      const acks = {
+        42: deferred<{ status: string; id: number }>(),
+        43: deferred<{ status: string; id: number }>(),
+      };
+      const dismiss = deferred<{ status: string; id: number }>();
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockImplementation(
+        (id) => acks[id as 42 | 43].promise
+      );
+      vi.mocked(apiClient.dismissTriggeredAlert).mockImplementation(() => dismiss.promise);
+      const { result } = renderWithList([alertA, alertB]);
+
+      let reading: Promise<void> = Promise.resolve();
+      let clearing: Promise<void> = Promise.resolve();
+      act(() => {
+        reading = result.current.markAllAsRead();
+      });
+      act(() => {
+        clearing = result.current.clearNotification("alert-42");
+      });
+      await act(async () => {
+        acks[42].reject(unreachable());
+        acks[43].reject(unreachable());
+        await Promise.resolve();
+      });
+      // 清除晚一拍才失敗：全部已讀先等它，再照常把兩則都算進沒做成
+      await act(async () => {
+        dismiss.reject(unreachable());
+        await Promise.all([reading, clearing]);
+      });
+
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(
+          interpolate(copy.markAllRead.notDone, { count: 2 }),
+          translations.en.failure.engineUnreachable
+        )
+      );
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(copy.clear.notDone, translations.en.failure.engineUnreachable)
+      );
+      expect(result.current.notifications).toEqual(
+        expect.arrayContaining([
+          { ...alertA, read: false },
+          { ...alertB, read: false },
+        ])
+      );
+      expect(result.current.notifications).toHaveLength(2);
+    });
+
+    it("still says it was not marked as read when the clear started only after the acknowledgement failed", async () => {
+      vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(unreachable());
+      const { result } = renderWithList([alertA]);
+
+      await act(async () => {
+        await result.current.markAsRead("alert-42");
+      });
+      await act(async () => {
+        await result.current.clearNotification("alert-42");
+      });
+
+      expect(feedback.toast.error).toHaveBeenCalledTimes(1);
+      expect(feedback.toast.error).toHaveBeenCalledWith(
+        withCause(copy.markRead.notDone, translations.en.failure.engineUnreachable)
+      );
+    });
+  });
+
   describe("the alert is already gone", () => {
     it("keeps a notification marked as read, drops the claim and reloads", async () => {
       vi.mocked(apiClient.acknowledgeTriggeredAlert).mockRejectedValue(gone());

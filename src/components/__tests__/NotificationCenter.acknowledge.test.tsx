@@ -178,6 +178,43 @@ describe("NotificationCenter when acknowledging does not go through", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not say it was not marked as read when clearing it went through", async () => {
+    // 清除會一併確認：標已讀的確認在清除之後才失敗，使用者要的已經達成
+    let failAcknowledgement: (reason: Error) => void = () => {};
+    vi.mocked(acknowledgeTriggeredAlert).mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          failAcknowledgement = reject;
+        })
+    );
+    vi.mocked(dismissTriggeredAlert).mockImplementation((id) => {
+      ruleDeleted = true;
+      return Promise.resolve({ status: "dismissed", id });
+    });
+    const user = userEvent.setup();
+    renderCenter();
+    const dropdown = await openWithOneUnread(user);
+    await user.click(within(dropdown).getByRole("button", { name: /Star spike/ }));
+    await user.click(await screen.findByRole("button", { name: "Notifications" }));
+    await user.click(
+      within(screen.getByRole("region", { name: "Notifications" })).getByRole("button", {
+        name: "Clear",
+      })
+    );
+    expect(await screen.findByText("No notifications")).toBeInTheDocument();
+
+    await act(async () => {
+      failAcknowledgement(
+        new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: connection refused`)
+      );
+      await new Promise((r) => setTimeout(r, 20));
+    });
+
+    expect(screen.getByText("No notifications")).toBeInTheDocument();
+    // 一則提示都沒有（toast 容器在畫面上，裡面是空的）
+    expect(document.querySelector(".toast-container")?.children).toHaveLength(0);
+  });
+
   it("says on screen that it was not marked as read and why, and reloads the list", async () => {
     vi.mocked(acknowledgeTriggeredAlert).mockRejectedValue(
       new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: connection refused`)

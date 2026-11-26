@@ -7,6 +7,7 @@
  * - 請求失敗時從 localMarks 拿掉、還原 UI、說明沒做成與原因並重讀
  * - 觸發紀錄已經不在時當成已經處理完（見 isAlertGone）
  * - 確認時帶上看到的觸發時間：後端那個 id 已經是別的警報時回「不在」，不會確認到它
+ * - 標已讀還在路上就清除了：清除成功的話標已讀沒做成也不提示（清除會一併確認，見 clearedMeanwhile）
  */
 
 import { useCallback, useRef } from "react";
@@ -73,6 +74,21 @@ export function useNotificationActions(
     [localMarksRef]
   );
 
+  /**
+   * 每則通知最近一次清除的結果：成功或已經不在＝true，沒做成或逾時＝false（還在清除時是還沒 resolve 的 Promise）。
+   * 逾時算 false 是取捨：那次清除其實做完的話，標已讀會多說一次沒做成，接著的定期重讀會把畫面改回後端的狀態
+   */
+  const clearsRef = useRef(new Map<string, Promise<boolean>>());
+
+  /**
+   * 標已讀沒做成時，這則是不是已經清除了（還在清除的話等它的結果）。清除會一併確認：清除了的話，使用者要的已經達成，
+   * 不還原、不提示（清除成功時本來就會重讀）
+   */
+  const clearedMeanwhile = useCallback(
+    (notificationId: string) => clearsRef.current.get(notificationId) ?? Promise.resolve(false),
+    []
+  );
+
   const reload = useCallback(() => {
     refresh().catch((err: unknown) => {
       logger.warn("[NotificationActions] 確認後重讀通知失敗:", err);
@@ -121,6 +137,7 @@ export function useNotificationActions(
           reload();
           return;
         }
+        if (await clearedMeanwhile(notificationId)) return;
         logger.warn(
           `[NotificationActions] 警報確認失敗，還原已讀狀態 (alertId: ${target.alertId}):`,
           err
@@ -135,7 +152,16 @@ export function useNotificationActions(
       // 成功也重讀：Dashboard 的警報數要跟著變
       reload();
     },
-    [setNotifications, claimRead, dropClaim, reload, reportFailure, reloadAfterFailure, t]
+    [
+      setNotifications,
+      claimRead,
+      dropClaim,
+      clearedMeanwhile,
+      reload,
+      reportFailure,
+      reloadAfterFailure,
+      t,
+    ]
   );
 
   const markAllAsRead = useCallback(async () => {
@@ -158,14 +184,17 @@ export function useNotificationActions(
       )
     );
 
-    const failures: { notifId: string; error: unknown }[] = [];
+    const notAcknowledged: { notifId: string; error: unknown }[] = [];
 
     results.forEach((r, i) => {
       const { notifId } = unreadAlerts[i];
       if (r.status === "fulfilled") return;
       dropClaim(notifId);
-      if (!isAlertGone(r.reason)) failures.push({ notifId, error: r.reason });
+      if (!isAlertGone(r.reason)) notAcknowledged.push({ notifId, error: r.reason });
     });
+    // 這段期間清除了的不算沒做成（清除會一併確認）。有一則還在清除時，其他則的說明也等它回來才一起說
+    const cleared = await Promise.all(notAcknowledged.map((f) => clearedMeanwhile(f.notifId)));
+    const failures = notAcknowledged.filter((_, i) => !cleared[i]);
 
     // 還原失敗的警報 UI。確定沒做成的與逾時的分開說：逾時的可能其實做完了，只能說不確定
     if (failures.length > 0) {
@@ -187,10 +216,19 @@ export function useNotificationActions(
       }
       reloadAfterFailure(timedOut.length > 0);
     } else {
-      // 都成功或已經不在：不在的要從清單消失，Dashboard 的警報數要跟著變
+      // 都成功、已經不在或清除了：不在的要從清單消失，Dashboard 的警報數要跟著變
       reload();
     }
-  }, [setNotifications, claimRead, dropClaim, reload, reportFailure, reloadAfterFailure, t]);
+  }, [
+    setNotifications,
+    claimRead,
+    dropClaim,
+    clearedMeanwhile,
+    reload,
+    reportFailure,
+    reloadAfterFailure,
+    t,
+  ]);
 
   const clearNotification = useCallback(
     async (notificationId: string) => {
@@ -204,11 +242,19 @@ export function useNotificationActions(
       // 警報類型：請後端清除（一併確認）。送出前先記下：輪詢在清除回來之前讀回它，也照樣不顯示
       const dismissals = localMarksRef.current.dismissals;
       dismissals.add(notificationId);
+      let settle: (cleared: boolean) => void = () => {};
+      clearsRef.current.set(
+        notificationId,
+        new Promise((resolve) => {
+          settle = resolve;
+        })
+      );
       try {
         await dismissTriggeredAlert(target.alertId, target.triggeredAt);
       } catch (err) {
         dismissals.delete(notificationId);
         if (isAlertGone(err)) {
+          settle(true);
           reload();
           return;
         }
@@ -221,10 +267,13 @@ export function useNotificationActions(
             return [...prev, notification];
           });
         }
+        // 放行等著的標已讀：它接著照常說明（沒做成或不確定），並把加回的這則改回未讀
+        settle(false);
         reportFailure(err, t.notifications.failed.clear);
         reloadAfterFailure(isRequestTimeout(err));
         return;
       }
+      settle(true);
       // 清除也一併確認：Dashboard 的警報數要跟著變
       reload();
     },
