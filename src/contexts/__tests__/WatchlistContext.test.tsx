@@ -18,7 +18,7 @@ const mockAddRepo = vi.fn();
 const mockUnstarRepo = vi.fn();
 const mockFetchAllRepos = vi.fn();
 const mockGetSyncStatus = vi.fn((..._args: unknown[]) =>
-  Promise.resolve({ last_sync_at: null, running: false })
+  Promise.resolve({ last_sync_at: null, running: false, last_snapshot_at: null })
 );
 
 // 只換掉會打網路的那幾支，其餘（尤其 ApiError——client 從 ./types 再匯出它，
@@ -304,7 +304,11 @@ describe("WatchlistContext category filter", () => {
 describe("WatchlistContext 追蹤清單讀不到時", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetSyncStatus.mockResolvedValue({ last_sync_at: null, running: false });
+    mockGetSyncStatus.mockResolvedValue({
+      last_sync_at: null,
+      running: false,
+      last_snapshot_at: null,
+    });
   });
 
   afterEach(() => {

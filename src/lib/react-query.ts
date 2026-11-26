@@ -4,7 +4,7 @@
  * 提供統一的查詢快取、重試邏輯和資料同步策略。
  */
 
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, matchQuery } from "@tanstack/react-query";
 import { BATCH_ADD_FOLLOWUP_INTERVAL_MS, BATCH_ADD_TIMEOUT_MS } from "../constants/api";
 
 /**
@@ -206,13 +206,25 @@ export const queryKeys = {
  * 分類樹在 repos 前綴底下會一起重讀（分類成員就是各 repo 的 category_ids）；沒有畫面顯示的分類樹也先在背景重讀，
  * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。早期訊號同理不算封存的 repo，
  * 取消追蹤或復原之後「有訊號」要跟著變。已觸發警報也是（封存的不列、永久刪除連帶刪掉），見 invalidateTriggeredAlerts。
+ * 同步狀態（repos.syncStatus）也在 repos 底下、預設一起重讀；exceptSyncStatus 給偵測背景變化的那支（useBackgroundStarSync）用：
+ * 它靠同步狀態發現變化，跟著重讀的話，抓取逐筆寫快照的那幾秒裡會讀到新的值、又觸發一次
  */
-export function invalidateTrackedRepos(client: QueryClient): void {
+export function invalidateTrackedRepos(
+  client: QueryClient,
+  options: { exceptSyncStatus?: boolean } = {}
+): void {
   // 還在第一次載入的分類查詢，請求是寫入前讀的：沒有資料時 React Query 不中止它，invalidate 只會
   // 併進去，帶回舊資料還把這次重讀的標記清掉。先中止（回復原狀態，不算失敗）再 invalidate，
   // 進行中的請求已經是 rejected，下一行才會發新的請求——順序不能對調
   void client.cancelQueries({ queryKey: [...queryKeys.repos.all, "categories"] });
-  void client.invalidateQueries({ queryKey: queryKeys.repos.all });
+  void client.invalidateQueries({
+    queryKey: queryKeys.repos.all,
+    // 用 matchQuery 比，不自己算 hash：它照每個查詢自己的 queryKeyHashFn 比對
+    ...(options.exceptSyncStatus && {
+      predicate: (query) =>
+        !matchQuery({ queryKey: queryKeys.repos.syncStatus(), exact: true }, query),
+    }),
+  });
   void client.refetchQueries({ queryKey: queryKeys.repos.categoryTree(), type: "inactive" });
   void client.invalidateQueries({ queryKey: queryKeys.signals.all });
   void client.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });

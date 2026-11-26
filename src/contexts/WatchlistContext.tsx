@@ -83,7 +83,7 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
   // ── React Query：repos 資料（連線成功後才啟用）──
   const reposQuery = useReposQuery({ enabled: isConnected });
 
-  // ── 背景星標同步（sidecar 啟動時、launchd 收集器）完成後重取追蹤名單：它們不會通知前端 ──
+  // ── 背景星標同步（sidecar 啟動時、launchd 收集器）與抓取（排程、收集器）完成後重取追蹤名單與儀表板：它們不會通知前端 ──
   useBackgroundStarSync(isConnected);
 
   // ── 合併 React Query 資料與 reducer UI 狀態 ──

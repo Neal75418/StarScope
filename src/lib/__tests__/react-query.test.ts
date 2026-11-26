@@ -231,6 +231,28 @@ describe("invalidateTrackedRepos", () => {
     ]);
   });
 
+  it("leaves the sync status alone when asked, and reads it again by default", () => {
+    // 偵測背景變化的那支靠同步狀態發現變化：跟著重讀會讀到收集器還在寫的新值、又觸發一次
+    const fresh = () => {
+      const client = new QueryClient();
+      client.setQueryData(queryKeys.repos.lists(), []);
+      client.setQueryData(queryKeys.repos.syncStatus(), {});
+      return client;
+    };
+    const invalidated = (client: QueryClient) =>
+      [queryKeys.repos.lists(), queryKeys.repos.syncStatus()].map(
+        (key) => client.getQueryState(key)?.isInvalidated
+      );
+
+    const byDefault = fresh();
+    invalidateTrackedRepos(byDefault);
+    expect(invalidated(byDefault)).toEqual([true, true]);
+
+    const exceptSync = fresh();
+    invalidateTrackedRepos(exceptSync, { exceptSyncStatus: true });
+    expect(invalidated(exceptSync)).toEqual([true, false]);
+  });
+
   it("restarts a category load that is still on its first request", async () => {
     // 那個請求是寫入前讀的：併進它的話，第一次載入會帶回舊資料，而且把這次重讀的標記一起清掉
     const client = new QueryClient();

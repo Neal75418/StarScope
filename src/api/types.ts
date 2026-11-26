@@ -720,6 +720,8 @@ export interface SyncResult {
 export interface SyncStatus {
   last_sync_at: string | null;
   running: boolean;
+  /** 最新快照的寫入時間：背景抓取（排程、launchd 收集器）不會通知前端，變了就重讀追蹤清單與儀表板 */
+  last_snapshot_at: string | null;
 }
 
 /** 「自上次以來」摘要看到哪：三張來源表各自的最大 id */

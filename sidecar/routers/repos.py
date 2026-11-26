@@ -48,7 +48,7 @@ from services.star_sync import sync_starred_repos, sync_is_running
 from utils.time import utc_now
 from db.models import AppSettingKey
 from services.digest import lower_cursor_to_existing
-from services.snapshot import create_or_update_snapshot, update_repo_from_github
+from services.snapshot import create_or_update_snapshot, latest_snapshot_written_at, update_repo_from_github
 
 logger = logging.getLogger(__name__)
 
@@ -545,6 +545,9 @@ class ResolvePayload(BaseModel):
 class SyncStatusOut(BaseModel):
     last_sync_at: str | None
     running: bool
+    # 最新快照的寫入時間（見 latest_snapshot_written_at）。背景抓取（排程、launchd 收集器）不會通知前端，
+    # 前端靠它變了沒重讀追蹤清單與儀表板
+    last_snapshot_at: str | None
 
 
 @router.post("/repos/sync", response_model=ApiResponse[SyncResultOut])
@@ -567,6 +570,7 @@ def sync_status(db: Annotated[Session, Depends(get_db)]) -> dict:
         # 不能用 bool(非空)：行程被殺時鎖會殘留，那樣會永遠顯示「同步中」。
         # 過期規則只在 star_sync 一處定義，這裡重用。
         running=sync_is_running(db),
+        last_snapshot_at=latest_snapshot_written_at(db),
     ))
 
 

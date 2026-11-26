@@ -7,10 +7,12 @@
 
 import logging
 
+from sqlalchemy import func
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from db.models import Repo, RepoSnapshot
+from schemas.time import to_utc_iso
 from services.analyzer import calculate_signals
 from utils.time import utc_now, utc_today
 
@@ -20,6 +22,24 @@ logger = logging.getLogger(__name__)
 # GitHub API 中真正的 watcher 欄位（訂閱通知的使用者）。
 # 注意：`watchers_count` 是等同於 `stargazers_count` 的舊欄位。
 _WATCHERS_FIELD = "subscribers_count"
+
+
+def latest_snapshot_written_at(db: Session) -> str | None:
+    """最新一筆快照的寫入時間（fetched_at 的最大值，帶時區的 ISO 字串）；還沒有快照時回 None。
+
+    診斷頁的「最近快照」與同步狀態共用（前端靠後者發現背景抓取寫了新資料）。從資料庫取，
+    背景收集器那個行程寫的也看得到。
+
+    取 fetched_at（實際寫入時間）而非 snapshot_date：後者是 Date 欄位，序列化成「2026-08-29」後前端
+    當午夜解析，顯示的其實是「距今天午夜多久」，整天增長、午夜歸零，當日停滯看不出來（實測過：畫面說
+    「14h」，實際最後一次寫入是 30 分鐘前）。快照是 upsert，同一天重抓也會更新 fetched_at；回填新建的
+    歷史日期快照帶的是「現在」的寫入時間，回填後算剛寫入——這裡回答的是「資料多久前寫入」，不是「最新快照是哪天」。
+
+    必須帶時區：fetched_at 是 naive UTC，不帶 tzinfo 的字串會被 JS 當本地時間解析，UTC+8 之下算出
+    負數年齡，formatRelativeTime 的 guard 讓它永遠顯示「剛剛」。
+    """
+    latest = db.query(func.max(RepoSnapshot.fetched_at)).scalar()
+    return to_utc_iso(latest) if latest else None
 
 
 def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> None:

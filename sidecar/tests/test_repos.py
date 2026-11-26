@@ -517,3 +517,32 @@ class TestSyncStatusRespectsLockExpiry:
 
         body = client.get("/api/repos/sync/status").json()["data"]
         assert body["running"] is True
+
+
+class TestSyncStatusLastSnapshotAt:
+    def test_reports_when_tracked_data_was_last_written(self, client, test_db, mock_repo):
+        """背景抓取（排程、launchd 收集器）不會通知前端：前端靠這個時間變了沒，重讀追蹤清單與儀表板。
+        從資料庫取，收集器那個行程的抓取也看得到。"""
+        from datetime import datetime, timedelta
+        from db.models import RepoSnapshot
+        from utils.time import utc_today
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        assert body["last_snapshot_at"] is None
+
+        # 今天那筆寫得較早，回填的舊日期那筆寫得最晚：要的是最晚寫入的時間，不是最新日期那筆、也不是最早寫入的
+        test_db.add_all([
+            RepoSnapshot(
+                repo_id=mock_repo.id, stars=10, forks=0, watchers=0, open_issues=0,
+                snapshot_date=utc_today(), fetched_at=datetime(2026, 11, 26, 1, 0, 0),
+            ),
+            RepoSnapshot(
+                repo_id=mock_repo.id, stars=5, forks=0, watchers=0, open_issues=0,
+                snapshot_date=utc_today() - timedelta(days=30), fetched_at=datetime(2026, 11, 26, 3, 4, 5),
+            ),
+        ])
+        test_db.commit()
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        # 帶時區：naive UTC 被 JS 當本地時間解析
+        assert body["last_snapshot_at"] == "2026-11-26T03:04:05+00:00"

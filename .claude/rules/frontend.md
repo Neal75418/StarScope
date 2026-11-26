@@ -48,8 +48,12 @@ paths:
   `invalidateTrackedRepos` 重讀——不要放回 Context 或 local state（以前那樣，設定頁、探索頁的入口碰不到，側欄數量就停在舊值）。
   `invalidateTrackedRepos` 先 cancel 分類查詢再 invalidate，順序不能換：還在第一次載入時 invalidate 只會併進寫入前的請求。
   刪除分類要 `invalidateTrackedRepos`（categories 沒有 AUTOINCREMENT，新分類會重用 id，留著舊的 `category_ids` 會串到新分類）
-- 背景星標同步（sidecar 啟動時、launchd 收集器）不會通知前端：`useBackgroundStarSync`（WatchlistProvider 掛著）每分鐘看一次
-  `last_sync_at`，變了才重取
+- 背景星標同步（sidecar 啟動時、launchd 收集器）與背景抓取（排程、收集器）都不會通知前端：`useBackgroundStarSync`
+  （WatchlistProvider 掛著）每分鐘讀一次同步狀態，`last_sync_at` 或 `last_snapshot_at`（最新快照的寫入時間）變了才重讀
+  追蹤名單、儀表板與 diagnostics。同步狀態的 key 也在 `repos.all` 底下，它呼叫 `invalidateTrackedRepos` 要帶
+  `exceptSyncStatus`：抓取（排程、收集器、全部重新整理）逐筆寫快照的那幾秒裡，重讀自己會讀到新的值、又觸發一次，
+  一路連到寫完。已知成本：app 自己寫快照或同步時間的操作（全部重新整理、單一 repo 重新整理、加入 repo、設定頁手動同步）
+  之後用預設的 `invalidateTrackedRepos` 會讀到自己剛寫的值，watcher 當成背景變化再重讀一輪——只多花請求、不影響正確性，不是 bug
 - **`onlineManager` 由 `api/sidecarConnection.ts` 獨佔**：預設的 `networkMode: 'online'` 在這裡代表「sidecar 連得上」，
   不是瀏覽器有網路。連不上時查詢暫停、連上後自動接著跑；別處不要 `onlineManager.setEventListener`、
   不要給查詢加 `networkMode: 'always'`。在 Tauri 裡探測還要過 Rust 狀態的閘門（`gateOpen`）：新增的探測入口一律走
