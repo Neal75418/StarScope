@@ -7,6 +7,8 @@ import { useI18n } from "../i18n";
 import { useDashboard, DashboardStats, RecentActivity } from "../hooks/useDashboard";
 import { AnimatedPage, FadeIn } from "../components/motion";
 import { Skeleton } from "../components/Skeleton";
+import { LoadError } from "../components/LoadError";
+import type { LoadStatus } from "../lib/react-query";
 import { useAppStatus } from "../contexts/AppStatusContext";
 import { useNavigation } from "../contexts/NavigationContext";
 import { useWatchlistActions, useWatchlistState } from "../contexts/WatchlistContext";
@@ -195,8 +197,12 @@ export function Dashboard() {
     isFetchInProgress,
     fetchStatusUnavailable,
     error,
+    load,
+    reposLoad,
     refresh,
   } = useDashboard();
+  // 整頁錯誤只在還沒全部讀到過時：讀到過、之後重讀失敗的話，上一次讀到的照常顯示，上方另外說沒有更新成功
+  const showErrorPage = error !== null && !load.ready;
 
   // 寫入操作一律走 WatchlistContext action，不在元件裡直接呼叫 mutation
   const { refreshAll } = useWatchlistActions();
@@ -207,7 +213,7 @@ export function Dashboard() {
   // 面板只在下面三個提早 return 都沒發生時才渲染；沒顯示就不能標成看過
   const digest = useDigest({
     isFetchInProgress,
-    canMarkSeen: !isLoading && !error && stats.totalRepos > 0,
+    canMarkSeen: !isLoading && !showErrorPage && stats.totalRepos > 0,
   });
   const { appendNew } = digest;
 
@@ -230,6 +236,18 @@ export function Dashboard() {
   const { navigateTo } = useNavigation();
   // 內聯箭頭每次 render 都是新函式，會讓 memo(StatsGrid) 失效
   const handleSetupRules = useCallback(() => navigateTo("settings"), [navigateTo]);
+
+  // 讀到過、之後重讀失敗：引導卡與主畫面都要說。引導卡只靠追蹤清單，只看清單那份（上次讀到的清單是空的、這次重讀失敗時
+  // 只顯示引導卡的話，看起來像真的沒追蹤任何專案；清單剛讀成功、是其他份失敗時，引導卡上說沒有更新成功反而是錯的）
+  const refreshErrorFor = (status: LoadStatus) =>
+    status.failed && (
+      <LoadError
+        testId="dashboard-refresh-error"
+        message={t.dashboard.refreshFailed}
+        isRetrying={status.inProgress}
+        onRetry={status.retry}
+      />
+    );
 
   if (isLoading) {
     return (
@@ -281,7 +299,7 @@ export function Dashboard() {
     );
   }
 
-  if (error) {
+  if (showErrorPage) {
     const message =
       level === "sidecar-down"
         ? t.status.sidecarDown
@@ -310,6 +328,7 @@ export function Dashboard() {
           <h1 data-testid="page-title">{t.dashboard.title}</h1>
           <p className="subtitle">{t.dashboard.subtitle}</p>
         </header>
+        {refreshErrorFor(reposLoad)}
         <div className="dashboard-onboard" data-testid="dashboard-onboard">
           <h2>{t.dashboard.onboard.title}</h2>
           <p>{t.dashboard.onboard.description}</p>
@@ -347,6 +366,8 @@ export function Dashboard() {
         </div>
         <WidgetCustomizer visibility={widgetVisibility} onChange={setWidgetVisibility} />
       </header>
+
+      {refreshErrorFor(load)}
 
       {/* 段一：自上次以來。更新時間與手動重整都在這裡，沒有別的入口，
           所以不放進 FadeIn 的延遲佇列——這是使用者最先要看到的東西 */}

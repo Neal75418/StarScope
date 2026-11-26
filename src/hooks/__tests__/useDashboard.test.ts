@@ -209,6 +209,72 @@ describe("useDashboard", () => {
     expect(result.current.error).toBe("Network error");
   });
 
+  it("is not loaded when the first read fails", async () => {
+    vi.mocked(apiClient.getRepos).mockRejectedValue(new Error("Network error"));
+
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.load.failed).toBe(true);
+    });
+    expect(result.current.load.ready).toBe(false);
+  });
+
+  it.each([
+    ["the watchlist", () => vi.mocked(apiClient.getRepos)],
+    ["the triggered alerts", () => vi.mocked(apiClient.listTriggeredAlerts)],
+    ["the early signals", () => vi.mocked(apiClient.listEarlySignals)],
+    ["the signal summary", () => vi.mocked(apiClient.getSignalSummary)],
+    ["the alert rules", () => vi.mocked(apiClient.listAlertRules)],
+  ] as const)("counts %s in what the page needs loaded", async (name, fetcher) => {
+    // 五份都要算進來：漏掉一份的話，它第一次就讀不到時既不整頁說讀不到、也沒有提示（例如規則讀不到卻說「未設定規則」）
+    fetcher().mockRejectedValueOnce(new Error("HTTP 500") as never);
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(result.current.load.failed).toBe(true);
+    });
+    expect(result.current.load.ready).toBe(false);
+
+    act(() => {
+      result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(result.current.load.ready).toBe(true);
+    });
+    expect(result.current.load.failed).toBe(false);
+
+    fetcher().mockRejectedValueOnce(new Error("HTTP 500") as never);
+    act(() => {
+      result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(result.current.load.failed).toBe(true);
+    });
+    expect(result.current.load.ready).toBe(true);
+    // 引導卡看的只有追蹤清單那份
+    expect(result.current.reposLoad.failed).toBe(name === "the watchlist");
+  });
+
+  it("stays loaded and says a read failed when reading again fails after everything was loaded", async () => {
+    // 重讀失敗時 React Query 留著上一次讀到的：畫面照常顯示，另外說沒有更新成功
+    const { result } = renderHook(() => useDashboard(), { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(result.current.load.ready).toBe(true);
+    });
+    expect(result.current.load.failed).toBe(false);
+
+    vi.mocked(apiClient.listTriggeredAlerts).mockRejectedValue(new Error("HTTP 500"));
+    act(() => {
+      result.current.refresh();
+    });
+
+    await waitFor(() => {
+      expect(result.current.load.failed).toBe(true);
+    });
+    expect(result.current.load.ready).toBe(true);
+    expect(result.current.stats.totalRepos).toBe(1);
+  });
+
   it("computes stats correctly", async () => {
     const repos = [
       makeRepo({ id: 1, stars: 100000, stars_delta_7d: 50 }),

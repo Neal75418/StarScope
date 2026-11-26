@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Dashboard } from "../Dashboard";
@@ -12,6 +12,7 @@ import {
   type WidgetVisibility,
 } from "../../components/dashboard/WidgetCustomizer";
 import { createTestQueryClient } from "../../lib/react-query";
+import type { LoadStatus } from "../../lib/react-query";
 
 const mockRefresh = vi.fn();
 const mockNavigateTo = vi.fn();
@@ -118,7 +119,32 @@ let mockDashboard: {
   isFetchInProgress: boolean;
   fetchStatusUnavailable: boolean;
   error: string | null;
+  load: LoadStatus;
+  reposLoad: LoadStatus;
   refresh: () => void;
+};
+
+const mockRetryFailed = vi.fn();
+/** 五個查詢都讀到過、沒有失敗 */
+const loaded: LoadStatus = {
+  ready: true,
+  failed: false,
+  inProgress: false,
+  retry: mockRetryFailed,
+};
+/** 還沒全部讀到過就失敗了（第一次讀取讀不到） */
+const neverLoaded: LoadStatus = {
+  ready: false,
+  failed: true,
+  inProgress: false,
+  retry: mockRetryFailed,
+};
+/** 讀到過，之後重讀失敗 */
+const reloadFailed: LoadStatus = {
+  ready: true,
+  failed: true,
+  inProgress: false,
+  retry: mockRetryFailed,
 };
 
 vi.mock("../../hooks/useDashboard", () => ({
@@ -245,6 +271,8 @@ describe("Dashboard", () => {
       isFetchInProgress: false,
       fetchStatusUnavailable: false,
       error: null,
+      load: loaded,
+      reposLoad: loaded,
       refresh: mockRefresh,
     };
   });
@@ -302,13 +330,91 @@ describe("Dashboard", () => {
     expect(screen.getAllByTestId("skeleton").length).toBeGreaterThanOrEqual(4);
   });
 
-  it("shows error state with retry button", async () => {
+  it("shows error state with retry button when nothing could be loaded", async () => {
     const user = userEvent.setup();
     mockDashboard.error = "Network error";
+    mockDashboard.load = neverLoaded;
     render(<Dashboard />);
     expect(screen.getByText("Network error")).toBeInTheDocument();
     await user.click(screen.getByText("Retry"));
     expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it("keeps what was loaded on screen when reading it again fails, and says it did not update", async () => {
+    // 重讀失敗時舊資料還在：整頁換成錯誤畫面的話，畫面上看得到的東西全部不見
+    const user = userEvent.setup();
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = reloadFailed;
+    render(<Dashboard />);
+
+    expect(screen.getByTestId("digest-panel")).toBeInTheDocument();
+    expect(document.querySelector(".stats-grid")).not.toBeNull();
+    expect(screen.getByTestId("dashboard-refresh-error")).toHaveTextContent(
+      "Couldn't update the dashboard. Showing what was loaded earlier."
+    );
+    expect(screen.queryByText("HTTP 500")).not.toBeInTheDocument();
+    // 面板在畫面上：可以標成看過
+    expect(mockUseDigestOptions.mock.lastCall?.[0].canMarkSeen).toBe(true);
+    await user.click(
+      within(screen.getByTestId("dashboard-refresh-error")).getByRole("button", { name: "Retry" })
+    );
+    // 只重讀失敗的那幾個（combineLoadStatus 的 retry）
+    expect(mockRetryFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("says it did not update above the digest panel", () => {
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = reloadFailed;
+    render(<Dashboard />);
+
+    const banner = screen.getByTestId("dashboard-refresh-error");
+    expect(
+      banner.compareDocumentPosition(screen.getByTestId("digest-panel")) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it("says it did not update on the onboarding card too, when the empty watchlist could not be read again", () => {
+    // 上次讀到的清單是空的、這次重讀失敗：只顯示引導卡的話，看起來像真的沒追蹤任何專案
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = reloadFailed;
+    mockDashboard.reposLoad = reloadFailed;
+    mockDashboard.stats = { ...mockDashboard.stats, totalRepos: 0 };
+    render(<Dashboard />);
+
+    expect(screen.getByTestId("dashboard-onboard")).toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-refresh-error")).toHaveTextContent(
+      "Couldn't update the dashboard. Showing what was loaded earlier."
+    );
+  });
+
+  it("does not say it did not update on the onboarding card when only something else failed", () => {
+    // 引導卡只靠追蹤清單：清單剛讀成功、是空的，警報或規則重讀失敗時，說沒有更新成功是錯的
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = reloadFailed;
+    mockDashboard.reposLoad = loaded;
+    mockDashboard.stats = { ...mockDashboard.stats, totalRepos: 0 };
+    render(<Dashboard />);
+
+    expect(screen.getByTestId("dashboard-onboard")).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-refresh-error")).not.toBeInTheDocument();
+  });
+
+  it("says it is retrying while the failed reads are read again", () => {
+    mockDashboard.error = "HTTP 500";
+    mockDashboard.load = { ...reloadFailed, inProgress: true };
+    render(<Dashboard />);
+
+    expect(
+      within(screen.getByTestId("dashboard-refresh-error")).getByRole("button", {
+        name: "Retrying…",
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("does not say it did not update when every read went through", () => {
+    render(<Dashboard />);
+    expect(screen.queryByTestId("dashboard-refresh-error")).not.toBeInTheDocument();
   });
 
   it("clicking the digest panel's refresh actually fetches from GitHub, then invalidates — invalidating alone re-reads the same local rows and changes nothing on screen", async () => {
@@ -335,7 +441,7 @@ describe("Dashboard", () => {
 
     for (const override of [
       { isLoading: true },
-      { error: "boom" },
+      { error: "boom", load: neverLoaded },
       { stats: { ...mockDashboard.stats, totalRepos: 0 } },
     ]) {
       Object.assign(mockDashboard, override);

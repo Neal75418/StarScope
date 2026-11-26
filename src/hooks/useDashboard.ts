@@ -22,7 +22,7 @@ import {
 } from "../api/client";
 import type { EarlySignal, DiagnosticsResponse } from "../api/types";
 import { ALERT_FETCH_LIMIT } from "../constants/api";
-import { queryKeys } from "../lib/react-query";
+import { combineLoadStatus, loadStatus, queryKeys } from "../lib/react-query";
 import { logger } from "../utils/logger";
 import { computeMovers, type MoversResult } from "../utils/movers";
 import type { LanguageSlice } from "../components/dashboard/LanguageDistribution";
@@ -107,6 +107,16 @@ export function useDashboard() {
     signalsQuery.isLoading ||
     summaryQuery.isLoading ||
     alertRulesQuery.isLoading;
+
+  // 頁面靠的五份資料合起來看：都讀到過才算 ready；之後重讀失敗時 React Query 留著上一次讀到的，ready 照樣是 true
+  const reposLoad = loadStatus(reposQuery);
+  const load = combineLoadStatus([
+    reposLoad,
+    loadStatus(alertsQuery),
+    loadStatus(signalsQuery),
+    loadStatus(summaryQuery),
+    loadStatus(alertRulesQuery),
+  ]);
 
   // 合併錯誤訊息
   const error = useMemo(() => {
@@ -303,6 +313,10 @@ export function useDashboard() {
     /** diagnostics 端點失敗：抓取狀態是「不知道」，跟「從未抓過」是兩回事，不能折成同一個 null */
     fetchStatusUnavailable: diagnosticsQuery.isError,
     error,
+    /** 五份資料的讀取狀態：還沒全部讀到過就失敗時整頁說讀不到，讀到過之後重讀失敗時畫面照常、另外說沒有更新成功 */
+    load,
+    /** 追蹤清單那份的讀取狀態：引導卡只靠它（清單是空的時候其他四份不顯示） */
+    reposLoad,
     refresh,
   };
 }

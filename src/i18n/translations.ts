@@ -23,6 +23,7 @@ export const translations = {
     dashboard: {
       title: "Dashboard",
       subtitle: "Overview of your tracked repositories",
+      refreshFailed: "Couldn't update the dashboard. Showing what was loaded earlier.",
       onboard: {
         title: "Start by tracking your first repository",
         description:
@@ -1183,6 +1184,7 @@ export const translations = {
     // 儀表板頁面
     dashboard: {
       title: "儀表板",
+      refreshFailed: "儀表板沒有更新成功，顯示的是之前讀到的內容。",
       onboard: {
         title: "先追蹤第一個專案",
         description:
