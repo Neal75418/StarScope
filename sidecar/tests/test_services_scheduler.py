@@ -25,6 +25,7 @@ from services.scheduler import (
     get_scheduler_health,
     _scheduler_health,
     _health_lock,
+    _update_health,
 )
 
 
@@ -454,11 +455,38 @@ class TestCheckAlertsJob:
         assert "2 條規則沒有檢查完" in summary[-1]
         assert "[7, 9]" in summary[-1]
 
+    def test_remembers_how_many_rules_the_last_round_missed(self, test_db, clean_health):
+        """診斷頁要分得出「排程沒跑」與「跑了、但有規則沒檢查完」：記下沒做完的時間與條數"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.check_all_alerts') as mock_check:
+            mock_check.return_value = AlertCheckResult(triggered=[], failed_rule_ids=[7, 9])
+            check_alerts_job()
+
+        health = get_scheduler_health()
+        assert health["last_alert_check_failure"] is not None
+        assert health["last_alert_check_failed_rules"] == 2
+
+    def test_a_complete_round_clears_the_last_problem(self, test_db, clean_health):
+        """之後有一輪全部檢查完，就不再說最近一次沒做完"""
+        with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
+             patch('services.scheduler.check_all_alerts') as mock_check:
+            mock_check.return_value = AlertCheckResult(triggered=[], failed_rule_ids=[7])
+            check_alerts_job()
+            mock_check.return_value = AlertCheckResult(triggered=[], failed_rule_ids=[])
+            check_alerts_job()
+
+        health = get_scheduler_health()
+        assert health["last_alert_check"] is not None
+        assert health["last_alert_check_failure"] is None
+        assert health["last_alert_check_failed_rules"] is None
+
     def test_handles_exception(self, test_db, clean_health, caplog):
         """檢查失敗時不得留下「已檢查過」的紀錄，而且要以 critical 記錄。
 
         診斷頁顯示 last_alert_check。失敗卻更新它，畫面會說警報剛檢查過。
         """
+        # 上一輪是部分失敗：這一輪整輪中斷時，條數要清掉，不能還說「2 條規則沒有檢查完」
+        _update_health(last_alert_check_failure=1.0, last_alert_check_failed_rules=2)
         with patch('services.scheduler.get_db_session', new=_mock_db_ctx(test_db)), \
              patch('services.scheduler.check_all_alerts') as mock_check:
 
@@ -467,6 +495,10 @@ class TestCheckAlertsJob:
 
         assert get_scheduler_health()["last_alert_check"] is None
         assert problem == "alert check failed"
+        failure = get_scheduler_health()["last_alert_check_failure"]
+        assert isinstance(failure, float)
+        assert failure > 1.0
+        assert get_scheduler_health()["last_alert_check_failed_rules"] is None
         # 未預期的例外用 critical，與下方 SQLAlchemyError 的 error 刻意分級
         assert any(r.levelname == "CRITICAL" for r in caplog.records)
 
@@ -697,10 +729,16 @@ class TestCheckAlertsJobErrors:
              patch('services.scheduler.check_all_alerts') as mock_check:
             mock_check.side_effect = SQLAlchemyError("Connection lost")
 
+            # 上一輪是部分失敗：這一輪整輪中斷時，條數要清掉
+            _update_health(last_alert_check_failure=1.0, last_alert_check_failed_rules=2)
             problem = check_alerts_job()  # 可恢復，不該讓排程中斷
 
         assert get_scheduler_health()["last_alert_check"] is None
         assert problem == "alert check failed"
+        failure = get_scheduler_health()["last_alert_check_failure"]
+        assert isinstance(failure, float)
+        assert failure > 1.0
+        assert get_scheduler_health()["last_alert_check_failed_rules"] is None
         # DB 錯誤是預期得到的，用 error 不用 critical
         assert any(r.levelname == "ERROR" for r in caplog.records)
         assert not any(r.levelname == "CRITICAL" for r in caplog.records)

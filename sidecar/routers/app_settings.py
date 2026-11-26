@@ -201,6 +201,14 @@ async def clear_cache() -> dict:
 
 # --- 診斷資訊 ---
 
+class AlertCheckProblem(BaseModel):
+    """最近一輪沒做完的定時警報檢查：sidecar 的排程與啟動時那一輪。設定頁的立即檢查不記（結果由它自己的回應說），
+    背景收集器是另一個行程，記在它自己的心跳。"""
+    at: str
+    # 沒檢查完的規則數；整輪中斷、數不出幾條時是 None（例如還沒逐條檢查就讀不到資料、規則失敗後連 rollback 也失敗、未預期的例外）
+    failed_rule_count: int | None
+
+
 class DiagnosticsResponse(BaseModel):
     """系統診斷資訊。"""
     version: str
@@ -214,6 +222,8 @@ class DiagnosticsResponse(BaseModel):
     last_fetch_failure: str | None
     last_fetch_error: str | None
     last_alert_check: str | None
+    # 最近一輪定時警報檢查沒做完時才有值：只有最近做完的時間的話，分不出排程沒跑與每輪都有規則沒檢查完
+    last_alert_check_problem: AlertCheckProblem | None
     last_backup: str | None
     # 前端的「抓取中」狀態要讀這個，而不是自己的 promise：手動觸發撞到排程中的
     # 抓取時 POST 會立刻返回，promise 結束了但抓取還在跑，畫面就會謊稱已完成
@@ -250,8 +260,11 @@ def get_diagnostics(db: Annotated[Session, Depends(get_db)]) -> dict:
 def _format_scheduler_health(health: dict) -> dict:
     """將 scheduler 的 Unix timestamp 轉為 ISO 字串。"""
 
+    def _iso(ts: float) -> str:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
     def _ts_to_iso(ts: float | None) -> str | None:
-        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else None
+        return _iso(ts) if ts else None
 
     # last_backup 不讀記憶體：備份是每天凌晨兩點的 cron，而 _scheduler_health
     # 重啟就歸零，所以當天重開過 App 這一格就會顯示「—」。2026-08-23 實測：
@@ -271,12 +284,23 @@ def _format_scheduler_health(health: dict) -> dict:
 
     from services.scheduler import fetch_all_lock
 
+    alert_failure = health.get("last_alert_check_failure")
+    alert_problem = (
+        AlertCheckProblem(
+            at=_iso(alert_failure),
+            failed_rule_count=health.get("last_alert_check_failed_rules"),
+        )
+        if alert_failure
+        else None
+    )
+
     return {
         "fetch_in_progress": fetch_all_lock.locked(),
         "last_fetch_success": _ts_to_iso(health.get("last_fetch_success")),
         "last_fetch_failure": _ts_to_iso(health.get("last_fetch_failure")),
         "last_fetch_error": health.get("last_fetch_error"),
         "last_alert_check": _ts_to_iso(health.get("last_alert_check")),
+        "last_alert_check_problem": alert_problem,
         "last_backup": latest_backup.isoformat() if latest_backup else None,
     }
 

@@ -242,6 +242,33 @@ class TestResetAllData:
         assert load_cursor(test_db) == (None, None)
 
 
+class TestDiagnosticsAlertCheckProblem:
+    """「最近警報檢查」只有時間時，分不出排程沒跑與每輪都有規則沒檢查完：最近一輪沒做完就說出來"""
+
+    @staticmethod
+    def _health(failure, failed_rules):
+        return lambda: {
+            "last_fetch_success": None, "last_fetch_failure": None, "last_fetch_error": None,
+            "last_alert_check": None, "last_backup": None,
+            "last_alert_check_failure": failure, "last_alert_check_failed_rules": failed_rules,
+        }
+
+    def test_reports_how_many_rules_the_last_round_missed(self, client, monkeypatch):
+        monkeypatch.setattr("services.scheduler.get_scheduler_health", self._health(1_700_000_000.0, 2))
+        body = client.get("/api/settings/diagnostics").json()["data"]
+        assert body["last_alert_check_problem"] == {"at": "2023-11-14T22:13:20+00:00", "failed_rule_count": 2}
+
+    def test_a_round_that_failed_as_a_whole_has_no_rule_count(self, client, monkeypatch):
+        monkeypatch.setattr("services.scheduler.get_scheduler_health", self._health(1_700_000_000.0, None))
+        body = client.get("/api/settings/diagnostics").json()["data"]
+        assert body["last_alert_check_problem"] == {"at": "2023-11-14T22:13:20+00:00", "failed_rule_count": None}
+
+    def test_no_problem_when_the_last_round_completed(self, client, monkeypatch):
+        monkeypatch.setattr("services.scheduler.get_scheduler_health", self._health(None, None))
+        body = client.get("/api/settings/diagnostics").json()["data"]
+        assert body["last_alert_check_problem"] is None
+
+
 class TestDiagnosticsBackupSurvivesRestart:
     """
     診斷的 last_backup 必須反映檔案系統，不是記憶體旗標——

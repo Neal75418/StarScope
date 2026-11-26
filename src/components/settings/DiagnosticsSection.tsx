@@ -8,7 +8,7 @@ import { getDiagnostics, getGitHubConnectionStatus, getRecentLogs } from "../../
 import type { DiagnosticsResponse } from "../../api/client";
 import { logger } from "../../utils/logger";
 import { useSmartInterval } from "../../hooks/useSmartInterval";
-import { useI18n } from "../../i18n";
+import { useI18n, interpolate } from "../../i18n";
 import { queryKeys } from "../../lib/react-query";
 import { formatRelativeTime, localDateStamp } from "../../utils/format";
 import { saveFile } from "../../utils/saveFile";
@@ -128,6 +128,24 @@ export function DiagnosticsSection() {
                 {data.last_alert_check ? formatRelativeTime(new Date(data.last_alert_check)) : "—"}
               </span>
             </div>
+            {/* 只有時間的話分不出排程沒跑與每輪都有規則沒檢查完：最近一輪沒做完就說出來 */}
+            {data.last_alert_check_problem && (
+              <div className="diagnostics-item" style={{ gridColumn: "1 / -1" }}>
+                <span className="diagnostics-label">
+                  {t.settings.diagnostics.lastAlertCheckProblem}
+                </span>
+                <span className="diagnostics-value" style={{ color: "var(--danger-fg)" }}>
+                  {data.last_alert_check_problem.failed_rule_count === null
+                    ? interpolate(t.settings.diagnostics.alertCheckFailed, {
+                        time: formatRelativeTime(new Date(data.last_alert_check_problem.at)),
+                      })
+                    : interpolate(t.settings.diagnostics.alertRulesNotChecked, {
+                        count: data.last_alert_check_problem.failed_rule_count,
+                        time: formatRelativeTime(new Date(data.last_alert_check_problem.at)),
+                      })}
+                </span>
+              </div>
+            )}
             <div className="diagnostics-item">
               <span className="diagnostics-label">{t.settings.diagnostics.lastBackup}</span>
               <span className="diagnostics-value">

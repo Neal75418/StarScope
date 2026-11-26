@@ -590,6 +590,11 @@ export interface DiagnosticsResponse {
   last_fetch_failure: string | null;
   last_fetch_error: string | null;
   last_alert_check: string | null;
+  /**
+   * 最近一輪定時警報檢查沒做完時才有值（sidecar 的排程與啟動時那一輪；設定頁的立即檢查不記，背景收集器記在它自己的心跳）。
+   * failed_rule_count 是沒檢查完的規則數，整輪中斷時是 null。之後定時的檢查有一輪全部檢查完就變回 null
+   */
+  last_alert_check_problem: { at: string; failed_rule_count: number | null } | null;
   last_backup: string | null;
   /**
    * 後端此刻是否正在跑全量抓取。UI 的「抓取中」要讀這個而不是自己的 promise——

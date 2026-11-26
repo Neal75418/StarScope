@@ -46,8 +46,12 @@ const mockDiagnostics = {
   last_fetch_failure: null,
   last_fetch_error: null,
   last_alert_check: "2026-03-22T09:50:00Z",
+  last_alert_check_problem: null,
   last_backup: "2026-03-22T02:00:00Z",
 };
+
+// 5 分 30 秒前：formatRelativeTime 的分鐘數無條件捨去成「5m」，測試跑得慢也不會跨到 6m
+const fiveAndAHalfMinutesAgo = () => new Date(Date.now() - 5.5 * 60_000).toISOString();
 
 function createWrapper() {
   const client = createTestQueryClient();
@@ -73,6 +77,38 @@ describe("DiagnosticsSection", () => {
       expect(screen.getByText("0.4.0")).toBeInTheDocument();
     });
     expect(screen.getByText("5.2 MB")).toBeInTheDocument();
+  });
+
+  // 只有最近做完的時間的話，分不出排程沒跑與每輪都有規則沒檢查完
+  it("says how many rules the last alert check did not get to", async () => {
+    mockGetDiagnostics.mockResolvedValue({
+      ...mockDiagnostics,
+      // 時間是這一輪的、不是上一次做完的（fixture 的 last_alert_check 是好幾個月前）
+      last_alert_check_problem: { at: fiveAndAHalfMinutesAgo(), failed_rule_count: 2 },
+    });
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText("Scheduled Alert Check Incomplete")).toBeInTheDocument();
+    expect(screen.getByText("2 rule(s) not fully checked · 5m")).toBeInTheDocument();
+  });
+
+  it("says the last alert check failed when the whole round failed", async () => {
+    mockGetDiagnostics.mockResolvedValue({
+      ...mockDiagnostics,
+      last_alert_check_problem: { at: fiveAndAHalfMinutesAgo(), failed_rule_count: null },
+    });
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+
+    expect(await screen.findByText("Scheduled Alert Check Incomplete")).toBeInTheDocument();
+    expect(screen.getByText("Check failed · 5m")).toBeInTheDocument();
+    expect(screen.queryByText(/not fully checked/)).not.toBeInTheDocument();
+  });
+
+  it("says nothing about the alert check when the last round completed", async () => {
+    render(<DiagnosticsSection />, { wrapper: createWrapper() });
+
+    await screen.findByText("0.4.0");
+    expect(screen.queryByText("Scheduled Alert Check Incomplete")).not.toBeInTheDocument();
   });
 
   it("renders rate limit when available", async () => {

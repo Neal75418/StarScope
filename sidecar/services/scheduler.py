@@ -72,24 +72,27 @@ fetch_all_lock = asyncio.Lock()
 _repo_failure_counts: dict[int, int] = {}
 _failure_counts_lock = threading.Lock()
 
-# 排程健康狀態追蹤（記憶體內）
-_scheduler_health: dict[str, float | str | None] = {
+# 排程健康狀態追蹤（記憶體內，只有這個行程的；背景收集器是另一個行程，它跑的工作記在自己的心跳）
+_scheduler_health: dict[str, float | int | str | None] = {
     "last_fetch_success": None,
     "last_fetch_failure": None,
     "last_fetch_error": None,
     "last_alert_check": None,
+    # 最近一輪沒做完的時間與沒檢查完的規則數（整輪失敗時條數是 None）；之後有一輪全部檢查完就清掉
+    "last_alert_check_failure": None,
+    "last_alert_check_failed_rules": None,
     "last_backup": None,
 }
 _health_lock = threading.Lock()
 
 
-def _update_health(**kwargs: float | str | None) -> None:
+def _update_health(**kwargs: float | int | str | None) -> None:
     """線程安全地更新排程健康狀態。"""
     with _health_lock:
         _scheduler_health.update(kwargs)
 
 
-def get_scheduler_health() -> dict[str, float | str | None]:
+def get_scheduler_health() -> dict[str, float | int | str | None]:
     """取得排程器健康狀態。"""
     with _health_lock:
         return dict(_scheduler_health)
@@ -439,8 +442,16 @@ def check_alerts_job() -> str | None:
                         f"（rule id: {result.failed_rule_ids}），這輪不記為已檢查"
                     )
                     problem = f"alert rules not checked: {len(result.failed_rule_ids)}"
+                    _update_health(
+                        last_alert_check_failure=_time.time(),
+                        last_alert_check_failed_rules=len(result.failed_rule_ids),
+                    )
                 else:
-                    _update_health(last_alert_check=_time.time())
+                    _update_health(
+                        last_alert_check=_time.time(),
+                        last_alert_check_failure=None,
+                        last_alert_check_failed_rules=None,
+                    )
                 if triggered:
                     log.info(f"[排程] 已觸發 {len(triggered)} 個警報")
                 else:
@@ -449,9 +460,11 @@ def check_alerts_job() -> str | None:
 
             except SQLAlchemyError as e:
                 log.exception(f"[排程] 檢查警報資料庫錯誤: {e}")
+                _update_health(last_alert_check_failure=_time.time(), last_alert_check_failed_rules=None)
                 return "alert check failed"
             except Exception as e:
                 log.critical(f"[排程] 檢查警報未預期錯誤: {e}", exc_info=True)
+                _update_health(last_alert_check_failure=_time.time(), last_alert_check_failed_rules=None)
                 return "alert check failed"
 
 
