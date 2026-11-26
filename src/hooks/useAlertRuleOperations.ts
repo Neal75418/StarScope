@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createAlertRule, updateAlertRule, deleteAlertRule, checkAlerts } from "../api/client";
 import type { AlertRule, AlertRuleCreate, AlertRuleUpdate } from "../api/client";
 import { ApiError } from "../api/types";
-import { useI18n } from "../i18n";
+import { interpolate, useI18n } from "../i18n";
 import type { TranslationKeys } from "../i18n/translations";
 import { invalidateTriggeredAlerts, keepRefetchingAfterTimeout } from "../lib/react-query";
 import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
@@ -228,23 +228,34 @@ export function useAlertRuleOperations({
     [setRules, toast, t, reloadRules, reloadAfterFailure, reportFailure]
   );
 
+  /** 立即檢查：說新觸發了幾則；失敗時照寫入失敗的慣例說明（錯誤在這裡接住，execute 的失敗提示會顯示後端原字） */
   const handleCheckNow = useCallback(async () => {
-    let timedOut = false;
-    const checked = await execute(async () => {
+    // 用斷言宣告：在 closure 裡賦值，TS 看不到，照一般宣告會在 null 檢查之後推成 never、後面的程式不受型別檢查
+    let triggeredCount = null as number | null;
+    let failureError: unknown;
+    await execute(async () => {
       try {
-        return await checkAlerts();
+        triggeredCount = (await checkAlerts()).triggered_count;
       } catch (err) {
-        timedOut = isRequestTimeout(err);
-        throw err;
+        failureError = err;
       }
-    }, t.settings.alerts.toast.checkComplete);
+    });
     // 檢查會新增觸發紀錄，鈴鐺與 Dashboard 不等輪詢就列出來。失敗也重讀（可能其實做完了）；
     // 逾時的話伺服器可能還在檢查，接下來一陣子定期重讀
     const reloadTriggered = () => void invalidateTriggeredAlerts(queryClient);
     reloadTriggered();
-    if (timedOut) keepRefetchingAfterTimeout(reloadTriggered);
-    return checked;
-  }, [execute, t, queryClient]);
+    if (triggeredCount === null) {
+      reportFailure(failureError, t.settings.alerts.failed.check);
+      if (isRequestTimeout(failureError)) keepRefetchingAfterTimeout(reloadTriggered);
+      return false;
+    }
+    toast.success(
+      triggeredCount > 0
+        ? interpolate(t.settings.alerts.toast.checkTriggered, { count: triggeredCount })
+        : t.settings.alerts.toast.checkNothingNew
+    );
+    return true;
+  }, [execute, t, queryClient, reportFailure, toast]);
 
   return {
     isSubmitting,

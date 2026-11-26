@@ -598,7 +598,8 @@ export const translations = {
           created: "Alert rule created",
           updated: "Alert rule updated",
           deleted: "Alert rule deleted",
-          checkComplete: "Alert check complete",
+          checkNothingNew: "Alert check complete: nothing new triggered",
+          checkTriggered: "Alert check complete. Newly triggered: {count} (see Notifications)",
           goneNotSaved:
             "Not saved: this alert rule is no longer in the list. It may have been deleted, or the repository it watches was unstarred (use Track again under Archived and the rule comes back as it was).",
           goneNotSwitched:
@@ -631,6 +632,12 @@ export const translations = {
             notDone: "The alert rule was not switched on or off.",
             timedOut:
               "No response yet, so it's unclear whether the alert rule was switched on or off. The rule list will update on its own over the next few minutes.",
+          },
+          // 「沒有完成」而不是「沒有執行」：每觸發一則就寫進資料庫，失敗時可能已經觸發了一部分
+          check: {
+            notDone: "The alert check did not finish.",
+            timedOut:
+              "No response yet, so it's unclear whether the alert check finished. Alerts it triggered will show up in Notifications over the next few minutes.",
           },
         },
         validation: {
@@ -1739,7 +1746,8 @@ export const translations = {
           created: "警報規則已建立",
           updated: "警報規則已更新",
           deleted: "警報規則已刪除",
-          checkComplete: "警報檢查完成",
+          checkNothingNew: "警報檢查完成：沒有新觸發的警報",
+          checkTriggered: "警報檢查完成：新觸發 {count} 則（見通知）",
           goneNotSaved:
             "沒有儲存：這條警報規則已經不在清單上，可能已被刪除，或它看的儲存庫已取消追蹤（到「已封存」按「重新追蹤」，規則會照原樣回來）。",
           goneNotSwitched:
@@ -1768,6 +1776,11 @@ export const translations = {
             notDone: "警報規則的啟用狀態沒有變更。",
             timedOut:
               "還沒有回應，不確定警報規則的啟用狀態有沒有變更。規則清單接下來幾分鐘會自己更新。",
+          },
+          check: {
+            notDone: "警報檢查沒有完成。",
+            timedOut:
+              "還沒有回應，不確定警報檢查有沒有完成。檢查觸發的警報接下來幾分鐘會出現在通知裡。",
           },
         },
         validation: {

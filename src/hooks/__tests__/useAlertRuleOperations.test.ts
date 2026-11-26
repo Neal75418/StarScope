@@ -23,6 +23,7 @@ import { useAlertRuleOperations } from "../useAlertRuleOperations";
 import type { Toast } from "../types";
 import type { AlertRule } from "../../api/types";
 import { ApiError } from "../../api/types";
+import { interpolate } from "../../i18n";
 import { translations } from "../../i18n/translations";
 import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import {
@@ -586,7 +587,7 @@ describe("useAlertRuleOperations", () => {
   });
 
   it("handleCheckNow calls checkAlerts", async () => {
-    mockCheckAlerts.mockResolvedValue(undefined as never);
+    mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
 
     const { result } = renderOps();
 
@@ -633,9 +634,87 @@ describe("useAlertRuleOperations", () => {
     }
   });
 
+  describe("what the check says", () => {
+    const en = translations.en;
+    const failed = en.settings.alerts.failed.check;
+    const withCause = (outcome: string, cause: string) =>
+      interpolate(en.failure.withCause, { outcome, cause });
+
+    async function check() {
+      const { result } = renderOps();
+      let checked: boolean | undefined;
+      await act(async () => {
+        checked = await result.current.handleCheckNow();
+      });
+      return checked;
+    }
+
+    it("says how many alerts it newly triggered, even when it is just one", async () => {
+      mockCheckAlerts.mockResolvedValue({
+        status: "checked",
+        triggered_count: 1,
+        triggered: [{ id: 41, rule_id: 1, repo_id: 3, signal_value: 31 }],
+      });
+
+      expect(await check()).toBe(true);
+
+      // 寫成整句：用同一個範本算預期值的話，範本漏了 {count} 也看不出來
+      expect(mockToast.success).toHaveBeenCalledTimes(1);
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Alert check complete. Newly triggered: 1 (see Notifications)"
+      );
+    });
+
+    it("puts the count in the Chinese sentence too", () => {
+      expect(translations["zh-TW"].settings.alerts.toast.checkTriggered).toContain("{count}");
+    });
+
+    it("says nothing new was triggered", async () => {
+      mockCheckAlerts.mockResolvedValue({ status: "checked", triggered_count: 0, triggered: [] });
+
+      expect(await check()).toBe(true);
+
+      expect(mockToast.success).toHaveBeenCalledWith(en.settings.alerts.toast.checkNothingNew);
+    });
+
+    it("says it did not finish and why, without the server's own words", async () => {
+      mockCheckAlerts.mockRejectedValue(new ApiError(500, "boom internal"));
+
+      expect(await check()).toBe(false);
+
+      expect(mockToast.error).toHaveBeenCalledTimes(1);
+      expect(mockToast.error).toHaveBeenCalledWith(withCause(failed.notDone, en.failure.retry));
+      expect(mockToast.warning).not.toHaveBeenCalled();
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+
+    it("says the engine is unreachable when the sidecar does not answer", async () => {
+      mockCheckAlerts.mockRejectedValue(
+        new ApiError(0, `${API_ERROR_MESSAGES.NETWORK_ERROR}: connection refused`)
+      );
+
+      expect(await check()).toBe(false);
+
+      expect(mockToast.error).toHaveBeenCalledWith(
+        withCause(failed.notDone, en.failure.engineUnreachable)
+      );
+    });
+
+    it("says it is unclear, as a warning, after a timeout", async () => {
+      mockCheckAlerts.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+
+      expect(await check()).toBe(false);
+
+      expect(mockToast.warning).toHaveBeenCalledTimes(1);
+      expect(mockToast.warning).toHaveBeenCalledWith(failed.timedOut);
+      expect(mockToast.error).not.toHaveBeenCalled();
+      expect(mockToast.success).not.toHaveBeenCalled();
+    });
+  });
+
   describe("after a check that did not go through", () => {
     it("still says the check failed", async () => {
-      // 記下是不是逾時之後要把錯誤丟回 execute：吞掉的話會說「檢查完成」
+      // 錯誤在 handleCheckNow 裡接住：接住之後還要照失敗處理，不能落到「檢查完成」
       mockCheckAlerts.mockRejectedValue(new ApiError(500, "Internal error"));
       const { result } = renderOps();
 
@@ -704,11 +783,14 @@ describe("useAlertRuleOperations", () => {
       pending = result.current.handleCheckNow();
     });
     expect(triggeredReadAgain()).toEqual([false, false]);
+    // 檢查進行中按鈕停用：連點會送出兩次檢查
+    expect(result.current.isSubmitting).toBe(true);
 
     await act(async () => {
       answer();
       await pending;
     });
     expect(triggeredReadAgain()).toEqual([true, true]);
+    expect(result.current.isSubmitting).toBe(false);
   });
 });
