@@ -223,7 +223,6 @@ def check_all_alerts(db: Session) -> AlertCheckResult:
                     # 寫進去或沒寫進去（同時跑的另一輪剛觸發過）都立即 commit：避免後續 rollback 連鎖失效，
                     # 沒寫進去時也要放掉寫入鎖
                     db.commit()
-                    in_cooldown.add((rule.id, repo.id))  # 同步更新冷卻狀態
                 if check.triggered is not None:
                     triggered_alerts.append(check.triggered)
         except SQLAlchemyError as e:
