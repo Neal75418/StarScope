@@ -1,6 +1,6 @@
 /**
  * Star 歷史回填狀態查詢與離線處理。
- * 使用 React Query 管理快取與自動重試。
+ * 使用 React Query 管理快取（重試交給 apiCall，見下方 retry: false）。
  *
  * queryFn 保持純函式，透過 ref 標記 fetch 結果類型，
  * 再由 useEffect 同步至 React state（避免 closure 捕獲過期 setState）。
@@ -11,11 +11,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BackfillStatus } from "../api/client";
 import { getBackfillStatus, ApiError } from "../api/client";
 import { useI18n } from "../i18n";
-import { isNetworkError } from "../utils/backfillHelpers";
+import { isEngineUnreachable } from "../utils/writeFailure";
 import { logger } from "../utils/logger";
-import { queryKeys } from "../lib/react-query";
+import { loadStatus as toLoadStatus, queryKeys } from "../lib/react-query";
 
-type FetchOutcome = "success" | "network-fallback" | null;
+/** error：讀不到（伺服器錯誤、逾時等）——不是離線，要清掉前一次離線留下的狀態 */
+type FetchOutcome = "success" | "network-fallback" | "error" | null;
 
 export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
   const { t } = useI18n();
@@ -43,18 +44,20 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
           fetchOutcomeRef.current = "success";
           return null;
         }
-        if (isNetworkError(err)) {
+        // 只有連不上引擎才當成離線（保留上次的狀態、停用回填）；伺服器錯誤與逾時是讀不到，不是離線
+        if (isEngineUnreachable(err)) {
           logger.warn("[BackfillStatus] 回填狀態載入時網路錯誤:", err);
           fetchOutcomeRef.current = "network-fallback";
           // 回傳上次快取的資料而非拋出錯誤
           return lastStatusRef.current;
         }
         logger.error("[BackfillStatus] 回填狀態載入失敗:", err);
+        fetchOutcomeRef.current = "error";
         throw err;
       }
     },
     enabled: !exceedsStarLimit,
-    // 404 和網路錯誤已在 queryFn 處理，不需要額外重試
+    // apiCall 對 GET 已經重試過兩次（逾時的話前後約 90 秒）；404 與連不上引擎在 queryFn 處理
     retry: false,
   });
 
@@ -67,6 +70,10 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     if (outcome === "network-fallback") {
       setIsOffline(true);
       setManualError(t.starHistory.offline);
+    } else if (outcome === "error") {
+      // 讀不到由 statusLoad 交給 LoadError 說（附重試）；前一次離線留下的說明與停用都要清掉
+      setIsOffline(false);
+      setManualError(null);
     } else {
       setIsOffline(false);
       setManualError(null);
@@ -78,8 +85,9 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     await queryClient.refetchQueries({ queryKey: queryKeys.backfill.status(repoId) });
   }, [queryClient, repoId]);
 
-  // 錯誤優先使用手動設定的，否則使用 React Query 的
-  const error = manualError ?? (query.error ? t.starHistory.backfillFailed : null);
+  // 讀不到狀態不放進 error（那是離線與回填動作的說明）：由呼叫端依 statusLoad 顯示 LoadError，附重試
+  const error = manualError;
+  const statusLoad = toLoadStatus(query);
 
   return {
     status: query.data ?? null,
@@ -88,6 +96,7 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     isOffline,
     lastUpdated,
     loadStatus,
+    statusLoad,
     setError: setManualError,
   };
 }

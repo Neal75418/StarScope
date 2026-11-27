@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { describeWriteFailure, isRequestTimeout } from "../writeFailure";
+import { describeWriteFailure, isEngineUnreachable, isRequestTimeout } from "../writeFailure";
 import { ApiError } from "../../api/types";
 import { API_ERROR_MESSAGES } from "../../constants/api";
 import { getTranslations } from "../../i18n";
@@ -125,6 +125,23 @@ describe("describeWriteFailure", () => {
     expect(describeWriteFailure(new Error("boom"), zh, zh.discovery.unstarFailed)).toBe(
       "沒有取消追蹤。請再試一次。"
     );
+  });
+});
+
+describe("isEngineUnreachable", () => {
+  it("is true when the request never reached the engine", () => {
+    expect(isEngineUnreachable(new ApiError(0, "Network error: Load failed"))).toBe(true);
+  });
+
+  // 伺服器回了錯誤、或只是慢：引擎連得到
+  it.each([
+    ["a timeout", new ApiError(0, "Request timed out")],
+    ["a server error", new ApiError(500, "Internal server error")],
+    ["a 503", new ApiError(503, "Service unavailable")],
+    ["a client error", new ApiError(400, "Bad request")],
+    ["a plain error", new Error("Network error: Load failed")],
+  ])("is false for %s", (_label, error) => {
+    expect(isEngineUnreachable(error)).toBe(false);
   });
 });
 

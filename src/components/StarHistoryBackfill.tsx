@@ -9,6 +9,7 @@ import { useBackfillAction } from "../hooks/useBackfillAction";
 import { BackfillStatusBadge } from "./BackfillStatusBadge";
 import { BackfillControls } from "./BackfillControls";
 import { BackfillMessages } from "./BackfillMessages";
+import { LoadError } from "./LoadError";
 
 interface StarHistoryBackfillProps {
   repoId: number;
@@ -26,7 +27,7 @@ export function StarHistoryBackfill({
   // 依 star 數判斷是否需要顯示
   const exceedsStarLimit = currentStars !== null && currentStars > MAX_STARS_FOR_BACKFILL;
 
-  const { status, loading, error, isOffline, lastUpdated, loadStatus, setError } =
+  const { status, loading, error, isOffline, lastUpdated, loadStatus, statusLoad, setError } =
     useBackfillStatus(repoId, exceedsStarLimit);
 
   const { backfilling, successMessage, warningMessage, handleBackfill } = useBackfillAction({
@@ -42,7 +43,9 @@ export function StarHistoryBackfill({
     return null;
   }
 
-  if (loading) {
+  // 讀不到之後按重試：還沒有資料時 React Query 把查詢改回 pending、loading 又是 true，不能整塊換成「檢查中」，
+  // 重試鈕（與焦點）要留在原處顯示重試中
+  if (loading && !statusLoad.failed) {
     return (
       <div className="star-history-backfill">
         <span className="backfill-status checking">{t.starHistory.checking}</span>
@@ -70,6 +73,14 @@ export function StarHistoryBackfill({
         warningMessage={warningMessage}
         t={t}
       />
+      {/* 讀不到狀態（引擎連得到，只是伺服器錯誤或逾時）：說讀不到並給重試；回填鈕照常可以按 */}
+      {statusLoad.failed && !isOffline && (
+        <LoadError
+          message={t.starHistory.statusLoadFailed}
+          onRetry={statusLoad.retry}
+          isRetrying={statusLoad.inProgress}
+        />
+      )}
 
       {status && (
         <BackfillStatusBadge

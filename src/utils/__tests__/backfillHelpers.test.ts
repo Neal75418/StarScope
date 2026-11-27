@@ -3,58 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isNetworkError, formatRelativeTime } from "../backfillHelpers";
-import { ApiError } from "../../api/client";
-
-describe("isNetworkError", () => {
-  it("returns true for TypeError with 'Failed to fetch' message", () => {
-    const error = new TypeError("Failed to fetch");
-    expect(isNetworkError(error)).toBe(true);
-  });
-
-  it("returns false for TypeError with different message", () => {
-    const error = new TypeError("Some other error");
-    expect(isNetworkError(error)).toBe(false);
-  });
-
-  it("returns true for ApiError with status 0", () => {
-    const error = new ApiError(0, "Network error");
-    expect(isNetworkError(error)).toBe(true);
-  });
-
-  it("returns true for ApiError with status 500", () => {
-    const error = new ApiError(500, "Internal server error");
-    expect(isNetworkError(error)).toBe(true);
-  });
-
-  it("returns true for ApiError with status 503", () => {
-    const error = new ApiError(503, "Service unavailable");
-    expect(isNetworkError(error)).toBe(true);
-  });
-
-  it("returns false for ApiError with status 400", () => {
-    const error = new ApiError(400, "Bad request");
-    expect(isNetworkError(error)).toBe(false);
-  });
-
-  it("returns false for ApiError with status 404", () => {
-    const error = new ApiError(404, "Not found");
-    expect(isNetworkError(error)).toBe(false);
-  });
-
-  it("returns false for regular Error", () => {
-    const error = new Error("Some error");
-    expect(isNetworkError(error)).toBe(false);
-  });
-
-  it("returns false for null", () => {
-    expect(isNetworkError(null)).toBe(false);
-  });
-
-  it("returns false for undefined", () => {
-    expect(isNetworkError(undefined)).toBe(false);
-  });
-});
+import { formatRelativeTime } from "../backfillHelpers";
 
 describe("formatRelativeTime", () => {
   beforeEach(() => {

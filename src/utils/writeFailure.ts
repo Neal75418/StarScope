@@ -24,6 +24,18 @@ export function isRequestTimeout(error: unknown): boolean {
 }
 
 /**
+ * 連不上資料引擎：請求根本沒送到（apiCall 把 fetch 失敗包成 status 0 的 Network error）。
+ * 逾時（引擎慢）與伺服器回的錯誤都不算——引擎連得到，說成離線會叫使用者等網路，而問題不在網路
+ */
+export function isEngineUnreachable(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 0 &&
+    error.detail.startsWith(API_ERROR_MESSAGES.NETWORK_ERROR)
+  );
+}
+
+/**
  * 原因與下一步。只認後端用狀態碼與 code 分得出來的幾種，其餘回 null——後端的原始訊息是英文內部用語，
  * 不直接給使用者看。
  */
@@ -39,7 +51,7 @@ function knownCause(error: ApiError, t: TranslationKeys): string | null {
     if (error.code === "GITHUB_FORBIDDEN") return t.failure.githubForbidden;
     return t.failure.githubUnavailable;
   }
-  if (error.status === 0 && error.detail.startsWith(API_ERROR_MESSAGES.NETWORK_ERROR)) {
+  if (isEngineUnreachable(error)) {
     return t.failure.engineUnreachable;
   }
   return null;

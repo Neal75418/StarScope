@@ -1118,7 +1118,7 @@ export const translations = {
       backfill: "Backfill History",
       backfilling: "Backfilling...",
       backfillComplete: "Backfill complete! Created {count} data points.",
-      backfillFailed: "Backfill failed",
+      statusLoadFailed: "Couldn't load backfill status",
       backfillTooManyStars:
         "Not backfilled: repositories with more than {count} stars can't be backfilled.",
       backfillFailure: {
@@ -2263,7 +2263,7 @@ export const translations = {
       backfill: "回填歷史",
       backfilling: "回填中...",
       backfillComplete: "回填完成！建立了 {count} 個資料點。",
-      backfillFailed: "回填失敗",
+      statusLoadFailed: "讀不到回填狀態",
       backfillTooManyStars: "沒有回填：超過 {count} 顆星的儲存庫無法回填 star 歷史。",
       backfillFailure: {
         notDone: "沒有回填。",
