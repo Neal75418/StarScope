@@ -6,7 +6,9 @@ export interface ParsedRepo {
   owner: string;
   name: string;
   fullName: string;
-  status: "pending" | "importing" | "success" | "error" | "skipped";
+  /** uncertain：等不到回應，不確定有沒有加入（伺服器可能晚一點才做完），不算失敗 */
+  status: "pending" | "importing" | "success" | "error" | "skipped" | "uncertain";
+  /** 那一列的說明（error 與 uncertain 才有），app 自己的句子，不是後端原字 */
   error?: string;
 }
 
@@ -15,7 +17,7 @@ export interface ImportResult {
   success: number;
   skipped: number;
   failed: number;
-  dedupCheckFailed?: boolean;
+  uncertain: number;
 }
 
 /**

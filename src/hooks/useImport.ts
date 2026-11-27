@@ -10,6 +10,7 @@ import type { ParsedRepo } from "../utils/importHelpers";
 export type { ParsedRepo, ImportResult } from "../utils/importHelpers";
 import { useImportExecutor } from "./useImportExecutor";
 import { useI18n } from "../i18n";
+import { logger } from "../utils/logger";
 
 export function useImport() {
   const { t } = useI18n();
@@ -27,8 +28,17 @@ export function useImport() {
       setResult(null);
       setParsedRepos([]);
 
+      let content: string;
       try {
-        const content = await file.text();
+        content = await file.text();
+      } catch (err) {
+        // 讀檔錯誤是瀏覽器的英文訊息（例如 NotReadableError），不上畫面
+        logger.warn("[Import] 讀不到檔案:", err);
+        setParseError(t.settings.import.readFailed);
+        return;
+      }
+
+      try {
         const repos = parseRepositories(content, file.name);
 
         if (repos.length === 0) {
@@ -38,7 +48,9 @@ export function useImport() {
 
         setParsedRepos(removeDuplicates(repos));
       } catch (err) {
-        setParseError(err instanceof Error ? err.message : t.settings.import.parseFailed);
+        // 解析器自己接住格式錯誤（壞掉的 JSON 回空清單）；走到這裡是沒預期到的例外，訊息不上畫面
+        logger.warn("[Import] 檔案解析失敗:", err);
+        setParseError(t.settings.import.parseFailed);
       }
     },
     [setResult, t]

@@ -3,12 +3,23 @@
  */
 
 import { addRepo, getRepos } from "../api/client";
+import { ApiError } from "../api/types";
+import type { TranslationKeys } from "../i18n/translations";
 import type { ParsedRepo } from "./importHelpers";
 import { normalizeRepoName } from "./format";
 import { logger } from "./logger";
+import { describeWriteFailure, isRequestTimeout } from "./writeFailure";
 
 /** 匯入逐筆之間的延遲（毫秒），避免 API 過載。 */
 const IMPORT_ITEM_DELAY_MS = 500;
+
+/** 匯入的計數。uncertain：等不到回應的筆數（不算失敗），伺服器可能晚一點才加完，呼叫端要接著定期重讀 */
+export interface ImportOutcome {
+  success: number;
+  skipped: number;
+  failed: number;
+  uncertain: number;
+}
 
 /**
  * 執行儲存庫列表的匯入迴圈。
@@ -18,20 +29,31 @@ async function runImportLoop(
   abortController: AbortController,
   existingSet: Set<string>,
   updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void,
+  t: TranslationKeys,
   onProgress?: () => Promise<void>
-): Promise<{ success: number; skipped: number; failed: number }> {
+): Promise<ImportOutcome> {
   let success = 0;
   let skipped = 0;
   let failed = 0;
+  let uncertain = 0;
 
   for (const repo of reposToProcess) {
     if (abortController.signal.aborted) break;
 
-    const outcome = await processSingleRepo(repo, abortController.signal, existingSet, updateRepo);
+    const outcome = await processSingleRepo(
+      repo,
+      abortController.signal,
+      existingSet,
+      updateRepo,
+      t
+    );
 
     if (outcome === "success") success++;
     else if (outcome === "skipped") skipped++;
-    else if (outcome === "failed" && !abortController.signal.aborted) failed++;
+    else if (!abortController.signal.aborted) {
+      if (outcome === "uncertain") uncertain++;
+      else failed++;
+    }
 
     if (!abortController.signal.aborted && onProgress) {
       try {
@@ -45,7 +67,7 @@ async function runImportLoop(
     }
   }
 
-  return { success, skipped, failed };
+  return { success, skipped, failed, uncertain };
 }
 
 /**
@@ -54,34 +76,27 @@ async function runImportLoop(
 export async function executeImportFlow(
   parsedRepos: ParsedRepo[],
   abortController: AbortController,
-  updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void
-): Promise<{ success: number; skipped: number; failed: number; dedupCheckFailed: boolean }> {
-  const { set: existingSet, hadError } = await fetchExistingRepoSet(abortController.signal);
+  updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void,
+  t: TranslationKeys
+): Promise<ImportOutcome> {
+  const existingSet = await fetchExistingRepoSet(abortController.signal);
 
-  const result = await runImportLoop(
-    parsedRepos,
-    abortController,
-    existingSet,
-    updateRepo,
-    async () => abortableDelay(IMPORT_ITEM_DELAY_MS, abortController.signal)
+  return runImportLoop(parsedRepos, abortController, existingSet, updateRepo, t, async () =>
+    abortableDelay(IMPORT_ITEM_DELAY_MS, abortController.signal)
   );
-
-  return { ...result, dedupCheckFailed: hadError };
 }
 
-async function fetchExistingRepoSet(
-  signal?: AbortSignal
-): Promise<{ set: Set<string>; hadError: boolean }> {
+/**
+ * 預先去重用的既有清單：省請求，也是唯一不分大小寫的去重（後端比對 full_name 分大小寫）。讀不到時照樣逐筆送，
+ * 同名已經在追蹤的由後端回 ALREADY_TRACKED、歸成略過。
+ */
+async function fetchExistingRepoSet(signal?: AbortSignal): Promise<Set<string>> {
   try {
     const response = await getRepos(signal);
-    return {
-      set: new Set(response.repos.map((r) => normalizeRepoName(r.full_name))),
-      hadError: false,
-    };
+    return new Set(response.repos.map((r) => normalizeRepoName(r.full_name)));
   } catch (err) {
-    if (signal?.aborted) return { set: new Set(), hadError: false };
-    logger.warn("[Import] 取得現有 repos 進行去重檢查失敗:", err);
-    return { set: new Set(), hadError: true };
+    if (!signal?.aborted) logger.warn("[Import] 取得現有 repos 進行去重檢查失敗:", err);
+    return new Set();
   }
 }
 
@@ -147,19 +162,21 @@ async function processSingleRepo(
   repo: ParsedRepo,
   signal: AbortSignal,
   existingSet: Set<string>,
-  updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void
-): Promise<"success" | "skipped" | "failed"> {
+  updateRepo: (fullName: string, updates: Partial<ParsedRepo>) => void,
+  t: TranslationKeys
+): Promise<"success" | "skipped" | "failed" | "uncertain"> {
   // 檢查是否已取消
   if (signal.aborted) return "failed";
 
   // 檢查是否重複
   if (existingSet.has(normalizeRepoName(repo.fullName))) {
-    updateRepo(repo.fullName, { status: "skipped" });
+    // 重試整份清單時，上一輪的說明（例如等不到回應）不能留在這一列
+    updateRepo(repo.fullName, { status: "skipped", error: undefined });
     return "skipped";
   }
 
-  // 標記為匯入中
-  updateRepo(repo.fullName, { status: "importing" });
+  // 標記為匯入中，清掉上一輪的說明：之後的成功／略過不會再碰 error（updateRepo 是合併）
+  updateRepo(repo.fullName, { status: "importing", error: undefined });
 
   try {
     await executeWithRetry(() => addRepo({ owner: repo.owner, name: repo.name }), signal);
@@ -168,10 +185,23 @@ async function processSingleRepo(
     existingSet.add(normalizeRepoName(repo.fullName));
     return "success";
   } catch (err) {
-    if (!signal.aborted) {
-      const errorMessage = err instanceof Error ? err.message : "Failed";
-      updateRepo(repo.fullName, { status: "error", error: errorMessage });
+    if (signal.aborted) return "failed";
+    // 已經在追蹤清單＝使用者要的結果，不是失敗
+    if (err instanceof ApiError && err.code === "ALREADY_TRACKED") {
+      updateRepo(repo.fullName, { status: "skipped" });
+      existingSet.add(normalizeRepoName(repo.fullName));
+      return "skipped";
     }
+    // 等不到回應：伺服器可能晚一點才做完，不能說失敗
+    if (isRequestTimeout(err)) {
+      updateRepo(repo.fullName, { status: "uncertain", error: t.discovery.addFailed.timedOut });
+      return "uncertain";
+    }
+    // 後端的原始訊息是英文內部用語，不上畫面
+    updateRepo(repo.fullName, {
+      status: "error",
+      error: describeWriteFailure(err, t, t.discovery.addFailed),
+    });
     return "failed";
   }
 }

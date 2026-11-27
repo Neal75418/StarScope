@@ -91,6 +91,39 @@ describe("useImport", () => {
     expect(result.current.parseError).not.toBeNull();
   });
 
+  it("says the file could not be read instead of showing the browser's own message", async () => {
+    const { result } = renderHook(() => useImport());
+    const unreadable = {
+      name: "repos.json",
+      text: () =>
+        Promise.reject(
+          new DOMException("The requested file could not be read", "NotReadableError")
+        ),
+    } as unknown as File;
+
+    await act(async () => {
+      await result.current.parseFile(unreadable);
+    });
+
+    expect(result.current.parseError).toBe("Couldn't read the file");
+  });
+
+  it("says parsing failed, without the parser's message, if the parser throws", async () => {
+    vi.mocked(parseRepositories).mockImplementation(() => {
+      throw new Error("unexpected parser state");
+    });
+    const { result } = renderHook(() => useImport());
+
+    await act(async () => {
+      await result.current.parseFile({
+        name: "repos.csv",
+        text: async () => "a/b",
+      } as unknown as File);
+    });
+
+    expect(result.current.parseError).toBe("File parsing failed");
+  });
+
   it("startImport delegates to executor", () => {
     vi.mocked(parseRepositories).mockReturnValue([makeParsed("a/b")]);
     const { result } = renderHook(() => useImport());

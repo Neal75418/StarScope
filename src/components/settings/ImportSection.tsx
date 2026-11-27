@@ -16,6 +16,7 @@ function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
     success: t.settings.import.statusSuccess,
     error: t.settings.import.statusError,
     skipped: t.settings.import.statusSkipped,
+    uncertain: t.settings.import.statusUncertain,
   };
   const icons: Record<string, string> = {
     pending: "○",
@@ -23,6 +24,7 @@ function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
     success: "✓",
     error: "✗",
     skipped: "-",
+    uncertain: "?",
   };
   return (
     <span className={`import-status ${status}`} aria-label={labels[status]}>
@@ -32,21 +34,16 @@ function StatusIcon({ status }: { status: ParsedRepo["status"] }) {
 }
 
 const RepoItem = memo(function RepoItem({ repo }: { repo: ParsedRepo }) {
-  const isLong = repo.error && repo.error.length > 100;
-
+  // 說明是 app 自己的句子（可能超過 100 字元），整句顯示；不確定的那筆用警告色，不是錯誤色
   return (
     <div className={`import-item ${repo.status}`}>
       <StatusIcon status={repo.status} />
       <span className="import-item-name">{repo.fullName}</span>
-      {repo.error &&
-        (isLong ? (
-          <details className="import-item-error-details">
-            <summary className="import-item-error">{repo.error.substring(0, 100)}…</summary>
-            <p className="import-item-error-full">{repo.error}</p>
-          </details>
-        ) : (
-          <span className="import-item-error">{repo.error}</span>
-        ))}
+      {repo.error && (
+        <span className={repo.status === "uncertain" ? "import-item-warning" : "import-item-error"}>
+          {repo.error}
+        </span>
+      )}
     </div>
   );
 });
@@ -95,12 +92,13 @@ function ImportResult({ result }: { result: ImportResultData }) {
           <span className="import-stat-value">{result.failed}</span>
           <span className="import-stat-label">{t.settings.import.failed}</span>
         </div>
+        {result.uncertain > 0 && (
+          <div className="import-stat uncertain">
+            <span className="import-stat-value">{result.uncertain}</span>
+            <span className="import-stat-label">{t.settings.import.uncertain}</span>
+          </div>
+        )}
       </div>
-      {result.dedupCheckFailed && (
-        <p className="import-result-warning" role="alert">
-          {t.settings.import.dedupWarning}
-        </p>
-      )}
     </div>
   );
 }

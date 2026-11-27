@@ -2203,12 +2203,6 @@ body {
   padding: 8px 0;
 }
 
-.import-result-warning {
-  color: var(--warning-fg, #d29922);
-  font-size: 13px;
-  margin-top: 4px;
-}
-
 .hn-discussion-item {
   padding: 6px 0;
   border-bottom: 1px solid var(--border-muted);
@@ -2850,6 +2844,7 @@ body {
 
 .import-item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
@@ -2888,6 +2883,10 @@ body {
   color: var(--fg-muted);
 }
 
+.import-status.uncertain {
+  color: var(--warning-fg);
+}
+
 .import-item-name {
   flex: 1;
   color: var(--fg-default);
@@ -2901,9 +2900,20 @@ body {
     monospace;
 }
 
-.import-item-error {
+/* 說明是整句的在地化文字（可能很長）：自己換到下一行，repo 名稱才不會被擠成兩行 */
+.import-item-error,
+.import-item-warning {
+  flex-basis: 100%;
+  padding-left: 26px;
   font-size: 12px;
+}
+
+.import-item-error {
   color: var(--danger-fg);
+}
+
+.import-item-warning {
+  color: var(--warning-fg);
 }
 
 .import-result {
@@ -2949,6 +2959,10 @@ body {
 
 .import-stat.failed .import-stat-value {
   color: var(--danger-fg);
+}
+
+.import-stat.uncertain .import-stat-value {
+  color: var(--warning-fg);
 }
 
 .import-stat-label {
