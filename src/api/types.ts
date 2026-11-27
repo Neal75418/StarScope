@@ -113,7 +113,10 @@ export interface BackfillResult {
   snapshots_created: number;
   earliest_date: string | null;
   latest_date: string | null;
+  /** 後端的英文內部用語，不上畫面：要說原因看 code */
   message: string;
+  /** 失敗的原因代碼（目前只有 "TOO_MANY_STARS"），成功時是 null。不認得的代碼當成一般的沒有回填 */
+  code: string | null;
 }
 
 export interface StarHistoryPoint {

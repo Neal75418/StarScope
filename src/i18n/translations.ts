@@ -1119,6 +1119,15 @@ export const translations = {
       backfilling: "Backfilling...",
       backfillComplete: "Backfill complete! Created {count} data points.",
       backfillFailed: "Backfill failed",
+      backfillTooManyStars:
+        "Not backfilled: repositories with more than {count} stars can't be backfilled.",
+      backfillFailure: {
+        notDone: "Not backfilled.",
+        timedOut:
+          "No response yet, so it's unclear whether the backfill finished. The chart will update on its own over the next few minutes.",
+        goneFromGitHub:
+          "Not backfilled. GitHub can't find this repository — it may have been deleted, renamed or made private.",
+      },
       notEligible: "Not eligible for backfill (>5000 stars)",
       eligible: "Eligible for backfill",
       alreadyBackfilled: "Historical data available ({days} days)",
@@ -1132,7 +1141,6 @@ export const translations = {
       offlineLabel: "Offline",
       offlineHint: "Data may be outdated",
       offlineNoBackfill: "Cannot backfill while offline",
-      rateLimited: "Rate limit exceeded. Please try again later.",
     },
     // HN 討論面板
     contextBadges: {
@@ -2256,6 +2264,12 @@ export const translations = {
       backfilling: "回填中...",
       backfillComplete: "回填完成！建立了 {count} 個資料點。",
       backfillFailed: "回填失敗",
+      backfillTooManyStars: "沒有回填：超過 {count} 顆星的儲存庫無法回填 star 歷史。",
+      backfillFailure: {
+        notDone: "沒有回填。",
+        timedOut: "還沒有回應，不確定有沒有回填完成。圖表接下來幾分鐘會自己更新。",
+        goneFromGitHub: "沒有回填。GitHub 上找不到這個儲存庫，可能已被刪除、改名或設為私人。",
+      },
       notEligible: "不符合回填資格 (>5000 星)",
       eligible: "符合回填資格",
       alreadyBackfilled: "已有歷史資料 ({days} 天)",
@@ -2269,7 +2283,6 @@ export const translations = {
       offlineLabel: "離線",
       offlineHint: "資料可能已過時",
       offlineNoBackfill: "離線時無法回填",
-      rateLimited: "請求超過限制，請稍後再試。",
     },
     // HN 討論面板
     contextBadges: {

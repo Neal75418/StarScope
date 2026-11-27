@@ -5,7 +5,7 @@ Star 歷史回填 API 端點。
 
 from collections import defaultdict
 from datetime import datetime, date, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -50,6 +50,8 @@ class BackfillResult(BaseModel):
     earliest_date: str | None  # ISO 格式日期字串
     latest_date: str | None  # ISO 格式日期字串
     message: str
+    # 失敗的原因代碼，給前端說明用：message 是英文內部用語、不上畫面。成功時是 None
+    code: Literal["TOO_MANY_STARS"] | None = None
 
 
 class StarHistoryPoint(BaseModel):
@@ -316,6 +318,7 @@ async def backfill_star_history(
             earliest_date=None,
             latest_date=None,
             message=ERROR_TOO_MANY_STARS,
+            code="TOO_MANY_STARS",
         ))
 
     if not stargazers:

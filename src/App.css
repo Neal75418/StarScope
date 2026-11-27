@@ -4400,6 +4400,11 @@ button.stat-card {
   color: var(--danger-fg);
 }
 
+.star-history-backfill .backfill-warning {
+  font-size: 12px;
+  color: var(--warning-fg);
+}
+
 .star-history-backfill .backfill-success {
   font-size: 12px;
   color: var(--success-fg);

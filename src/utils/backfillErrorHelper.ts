@@ -1,22 +1,14 @@
 /**
- * 回填錯誤訊息的輔助函式。
+ * 回填丟出例外時給使用者看的一句話。
  */
 
-import { ApiError } from "../api/client";
 import type { TranslationKeys } from "../i18n";
-import { isNetworkError } from "./backfillHelpers";
+import { describeWriteFailure } from "./writeFailure";
 
+/**
+ * 依狀態碼與 code 說原因（逾時說不確定有沒有完成）。後端的原始訊息是英文內部用語，不上畫面；
+ * 伺服器錯誤與逾時也不說成離線——離線時按鈕本來就不給按（useBackfillAction 先擋）。
+ */
 export function getBackfillErrorMessage(err: unknown, t: TranslationKeys): string {
-  if (isNetworkError(err)) {
-    return t.starHistory.offlineNoBackfill;
-  }
-
-  if (err instanceof ApiError) {
-    if (err.status === 429) {
-      return t.starHistory.rateLimited;
-    }
-    return err.detail || t.starHistory.backfillFailed;
-  }
-
-  return t.starHistory.backfillFailed;
+  return describeWriteFailure(err, t, t.starHistory.backfillFailure);
 }

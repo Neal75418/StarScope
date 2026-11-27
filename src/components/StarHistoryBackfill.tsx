@@ -3,7 +3,7 @@
  */
 
 import { useI18n } from "../i18n";
-import { formatRelativeTime } from "../utils/backfillHelpers";
+import { formatRelativeTime, MAX_STARS_FOR_BACKFILL } from "../utils/backfillHelpers";
 import { useBackfillStatus } from "../hooks/useBackfillStatus";
 import { useBackfillAction } from "../hooks/useBackfillAction";
 import { BackfillStatusBadge } from "./BackfillStatusBadge";
@@ -15,8 +15,6 @@ interface StarHistoryBackfillProps {
   currentStars: number | null;
   onBackfillComplete?: () => void;
 }
-
-const MAX_STARS_FOR_BACKFILL = 5000;
 
 export function StarHistoryBackfill({
   repoId,
@@ -31,7 +29,7 @@ export function StarHistoryBackfill({
   const { status, loading, error, isOffline, lastUpdated, loadStatus, setError } =
     useBackfillStatus(repoId, exceedsStarLimit);
 
-  const { backfilling, successMessage, handleBackfill } = useBackfillAction({
+  const { backfilling, successMessage, warningMessage, handleBackfill } = useBackfillAction({
     repoId,
     isOffline,
     onSuccess: loadStatus,
@@ -65,7 +63,13 @@ export function StarHistoryBackfill({
 
   return (
     <div className={`star-history-backfill ${isOffline ? "offline" : ""}`}>
-      <BackfillMessages isOffline={isOffline} error={error} successMessage={successMessage} t={t} />
+      <BackfillMessages
+        isOffline={isOffline}
+        error={error}
+        successMessage={successMessage}
+        warningMessage={warningMessage}
+        t={t}
+      />
 
       {status && (
         <BackfillStatusBadge

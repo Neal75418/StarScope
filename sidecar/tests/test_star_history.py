@@ -106,6 +106,7 @@ class TestStarHistoryBackfill:
         assert data["success"] is True
         assert data["total_stargazers"] == 3
         assert data["snapshots_created"] == 2
+        assert data["code"] is None
         assert data["earliest_date"] == "2025-01-01"
         assert data["latest_date"] == "2025-01-02"
 
@@ -151,6 +152,8 @@ class TestStarHistoryBackfill:
 
         assert data["success"] is False
         assert data["message"] == ERROR_TOO_MANY_STARS
+        # 前端靠 code 說原因：message 是英文內部用語、不上畫面
+        assert data["code"] == "TOO_MANY_STARS"
         assert data["snapshots_created"] == 0
 
     def test_says_no_stargazers_by_what_github_returned_not_the_last_snapshot(self, client, test_db, mock_repo):

@@ -1,7 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { createElement } from "react";
+import type { ReactNode } from "react";
 import { renderHook, act, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useBackfillAction } from "../useBackfillAction";
 import * as apiClient from "../../api/client";
+import { API_ERROR_MESSAGES } from "../../constants/api";
+import { interpolate } from "../../i18n";
+import { translations } from "../../i18n/translations";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
+
+const t = translations.en;
+const keepRefetchingMock = vi.hoisted(() => vi.fn());
+vi.mock("../../lib/react-query", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../lib/react-query")>()),
+  keepRefetchingAfterTimeout: keepRefetchingMock,
+}));
+
+let client = createTestQueryClient();
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(QueryClientProvider, { client }, children);
 
 vi.mock("../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/client")>();
@@ -26,10 +44,15 @@ describe("useBackfillAction", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    client = createTestQueryClient();
+    // 預先放進去的圖表快取沒有觀察者，gcTime 0 會馬上被回收、讀不到「要重讀」的標記
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+    });
   });
 
   it("returns initial state", () => {
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     expect(result.current.backfilling).toBe(false);
     expect(result.current.successMessage).toBe(null);
@@ -37,7 +60,9 @@ describe("useBackfillAction", () => {
   });
 
   it("sets error when offline", async () => {
-    const { result } = renderHook(() => useBackfillAction({ ...defaultProps, isOffline: true }));
+    const { result } = renderHook(() => useBackfillAction({ ...defaultProps, isOffline: true }), {
+      wrapper,
+    });
 
     await act(async () => {
       await result.current.handleBackfill();
@@ -57,9 +82,10 @@ describe("useBackfillAction", () => {
       earliest_date: "2024-01-01",
       latest_date: "2024-01-31",
       message: "Success",
+      code: null,
     });
 
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     await act(async () => {
       await result.current.handleBackfill();
@@ -74,41 +100,116 @@ describe("useBackfillAction", () => {
     expect(mockOnComplete).toHaveBeenCalled();
   });
 
-  it("handles unsuccessful backfill response", async () => {
-    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue({
-      repo_id: 1,
-      repo_name: "test/repo",
-      success: false,
-      total_stargazers: 0,
-      snapshots_created: 0,
-      earliest_date: null,
-      latest_date: null,
-      message: "Repository not found",
-    });
+  const refused = (code: string | null) => ({
+    repo_id: 1,
+    repo_name: "test/repo",
+    success: false,
+    total_stargazers: 0,
+    snapshots_created: 0,
+    earliest_date: null,
+    latest_date: null,
+    message: "Repository has too many stars (>5000). Backfill is not available.",
+    code,
+  });
 
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+  it("says a repository over the star limit can't be backfilled, in the app's words", async () => {
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue(refused("TOO_MANY_STARS"));
+
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     await act(async () => {
       await result.current.handleBackfill();
     });
 
-    expect(mockSetError).toHaveBeenCalledWith("Repository not found");
+    expect(mockSetError).toHaveBeenCalledWith(
+      interpolate(t.starHistory.backfillTooManyStars, { count: 5000 })
+    );
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
-  it("treats server error (5xx) as network error with offline message", async () => {
+  it("does not show the server's message for a refusal it doesn't know", async () => {
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue(refused(null));
+
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+
+    expect(mockSetError).toHaveBeenCalledWith(
+      interpolate(t.failure.withCause, {
+        outcome: t.starHistory.backfillFailure.notDone,
+        cause: t.failure.retry,
+      })
+    );
+  });
+
+  it("does not call a server error being offline", async () => {
     vi.mocked(apiClient.backfillStarHistory).mockRejectedValue(
       new apiClient.ApiError(500, "Server error")
     );
 
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+    client.setQueryData(queryKeys.starsChart.data(1, "30d"), []);
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     await act(async () => {
       await result.current.handleBackfill();
     });
 
-    expect(mockSetError).toHaveBeenCalledWith("Cannot backfill while offline");
+    expect(mockSetError).toHaveBeenCalledWith(
+      interpolate(t.failure.withCause, {
+        outcome: t.starHistory.backfillFailure.notDone,
+        cause: t.failure.retry,
+      })
+    );
     expect(result.current.backfilling).toBe(false);
+    // 失敗之後一律重讀這個 repo 的圖表；不是逾時就不用接著定期重讀
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "30d"))?.isInvalidated).toBe(true);
+    expect(keepRefetchingMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the timeout warning when backfill is tried again", async () => {
+    vi.mocked(apiClient.backfillStarHistory)
+      .mockRejectedValueOnce(new apiClient.ApiError(0, API_ERROR_MESSAGES.TIMED_OUT))
+      .mockRejectedValueOnce(new apiClient.ApiError(500, "Server error"));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+    expect(result.current.warningMessage).not.toBeNull();
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+    expect(result.current.warningMessage).toBeNull();
+  });
+
+  it("keeps re-reading the chart for a while after a timeout: the server may still be writing", async () => {
+    vi.mocked(apiClient.backfillStarHistory).mockRejectedValue(
+      new apiClient.ApiError(0, API_ERROR_MESSAGES.TIMED_OUT)
+    );
+    client.setQueryData(queryKeys.starsChart.data(1, "30d"), []);
+    client.setQueryData(queryKeys.starsChart.data(2, "30d"), []);
+
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+
+    // 不確定不是失敗：用警告、不走錯誤（錯誤是紅字＋role=alert）
+    expect(result.current.warningMessage).toBe(t.starHistory.backfillFailure.timedOut);
+    expect(mockSetError).not.toHaveBeenCalledWith(t.starHistory.backfillFailure.timedOut);
+    expect(keepRefetchingMock).toHaveBeenCalledTimes(1);
+    // 失敗當下已經重讀過一次：重設成剛讀回的樣子，才分得出接下來的定期重讀碰的是哪一份
+    client.setQueryData(queryKeys.starsChart.data(1, "30d"), []);
+    client.setQueryData(queryKeys.starsChart.data(2, "30d"), []);
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "30d"))?.isInvalidated).toBe(false);
+    // 交給它的重讀碰的是這個 repo 的圖表（元件卸載之後也有效：走 queryClient），不是別的 repo
+    keepRefetchingMock.mock.calls[0][0]();
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "30d"))?.isInvalidated).toBe(true);
+    expect(client.getQueryState(queryKeys.starsChart.data(2, "30d"))?.isInvalidated).toBe(false);
   });
 
   it("does not report backfill failure when onSuccess refresh throws", async () => {
@@ -121,10 +222,11 @@ describe("useBackfillAction", () => {
       earliest_date: "2024-01-01",
       latest_date: "2024-01-31",
       message: "Success",
+      code: null,
     });
     mockOnSuccess.mockRejectedValue(new Error("Refresh failed"));
 
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     await act(async () => {
       await result.current.handleBackfill();
@@ -147,7 +249,7 @@ describe("useBackfillAction", () => {
         })
     );
 
-    const { result } = renderHook(() => useBackfillAction(defaultProps));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
     act(() => {
       void result.current.handleBackfill();
@@ -166,6 +268,7 @@ describe("useBackfillAction", () => {
           earliest_date: "2024-01-01",
           latest_date: "2024-01-01",
           message: "",
+          code: null,
         });
       }
     });

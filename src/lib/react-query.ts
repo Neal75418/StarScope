@@ -155,8 +155,10 @@ export const queryKeys = {
   // 星數圖表
   starsChart: {
     all: ["starsChart"] as const,
+    /** 一個 repo 所有範圍的圖表（含「全部」）：失效時用這個前綴 */
+    repo: (repoId: number) => [...queryKeys.starsChart.all, "data", repoId] as const,
     data: (repoId: number, timeRange: string) =>
-      [...queryKeys.starsChart.all, "data", repoId, timeRange] as const,
+      [...queryKeys.starsChart.repo(repoId), timeRange] as const,
   },
 
   // Repo 卡片資料
