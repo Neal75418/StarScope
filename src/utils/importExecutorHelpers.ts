@@ -139,8 +139,10 @@ async function executeWithRetry<T>(
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
 
-      const errorMessage = lastError.message.toLowerCase();
-      const isRateLimit = errorMessage.includes("rate") || errorMessage.includes("429");
+      // 看狀態碼不看訊息字串：已在追蹤的回應 detail 帶著 repo 名稱，名字有 rate 的會被當成限流。
+      // 本機節流不重試（同 apiCall）：slowapi 的窗口以分鐘計，2s／4s 退避等不到重置；這個端點目前也沒掛 limiter
+      const isRateLimit =
+        err instanceof ApiError && err.status === 429 && err.code !== "LOCAL_RATE_LIMIT";
 
       if (isRateLimit && attempt < maxAttempts - 1) {
         // 指數退避：2s、4s、8s...

@@ -2,7 +2,7 @@
  * importExecutorHelpers 單元測試 — executeImportFlow、重試、中止、去重
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { executeImportFlow } from "../importExecutorHelpers";
 import * as apiClient from "../../api/client";
 import type { ParsedRepo } from "../importHelpers";
@@ -37,6 +37,11 @@ function makeParsedRepo(fullName: string): ParsedRepo {
 
 describe("executeImportFlow", () => {
   const updateRepo = vi.fn();
+
+  // 用假計時器的測試一條紅、沒走到自己的 useRealTimers，後面的測試就全卡在假計時器上逾時
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,6 +127,48 @@ describe("executeImportFlow", () => {
 
     expect(result).toMatchObject({ success: 1, skipped: 1, failed: 0 });
     expect(updateRepo).toHaveBeenCalledWith("owner/old", { status: "skipped" });
+  });
+
+  it("does not take a repository with 'rate' in its name for a rate limit", async () => {
+    // 已在追蹤的回應 detail 帶著 repo 名稱：看訊息字串判斷限流的話，名字有 rate 的會被退避重試
+    vi.useFakeTimers();
+    vi.mocked(apiClient.addRepo).mockRejectedValue(
+      new ApiError(
+        400,
+        "Repository golang-migrate/migrate is already in your watchlist",
+        "ALREADY_TRACKED"
+      )
+    );
+
+    const promise = executeImportFlow(
+      [makeParsedRepo("golang-migrate/migrate")],
+      new AbortController(),
+      updateRepo,
+      t
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+    const result = await promise;
+
+    expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
+    expect(result.skipped).toBe(1);
+  });
+
+  it("does not take a repository with '429' in its name for a rate limit", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiClient.addRepo).mockRejectedValue(
+      new ApiError(400, "Repository owner/rfc-429 is already in your watchlist", "ALREADY_TRACKED")
+    );
+
+    const promise = executeImportFlow(
+      [makeParsedRepo("owner/rfc-429")],
+      new AbortController(),
+      updateRepo,
+      t
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+    await promise;
+
+    expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
   });
 
   // ==================== 失敗的說明 ====================
@@ -270,7 +317,13 @@ describe("executeImportFlow", () => {
 
     const controller = new AbortController();
 
-    vi.mocked(apiClient.addRepo).mockRejectedValue(new Error("rate limit exceeded"));
+    vi.mocked(apiClient.addRepo).mockRejectedValue(
+      new ApiError(
+        429,
+        "GitHub API rate limit exceeded. Please try again later.",
+        "GITHUB_RATE_LIMIT"
+      )
+    );
 
     const repos = [makeParsedRepo("owner/repo")];
     const promise = executeImportFlow(repos, controller, updateRepo, t);
@@ -293,11 +346,17 @@ describe("executeImportFlow", () => {
 
   // ==================== Rate limit 重試 ====================
 
-  it("retries on rate limit error with exponential backoff", async () => {
+  it("retries on GitHub's rate limit with exponential backoff", async () => {
     vi.useFakeTimers();
 
     vi.mocked(apiClient.addRepo)
-      .mockRejectedValueOnce(new Error("rate limit exceeded"))
+      .mockRejectedValueOnce(
+        new ApiError(
+          429,
+          "GitHub API rate limit exceeded. Please try again later.",
+          "GITHUB_RATE_LIMIT"
+        )
+      )
       .mockResolvedValueOnce(undefined as never);
 
     const repos = [makeParsedRepo("owner/repo")];
@@ -315,24 +374,23 @@ describe("executeImportFlow", () => {
     vi.useRealTimers();
   });
 
-  it("retries on 429 error", async () => {
+  it("does not retry the engine's own rate limit: its window is a minute, the backoff is seconds", async () => {
     vi.useFakeTimers();
 
-    vi.mocked(apiClient.addRepo)
-      .mockRejectedValueOnce(new Error("429 Too Many Requests"))
-      .mockResolvedValueOnce(undefined as never);
+    vi.mocked(apiClient.addRepo).mockRejectedValueOnce(
+      new ApiError(429, "Rate limit exceeded: 5 per 1 minute", "LOCAL_RATE_LIMIT")
+    );
 
     const repos = [makeParsedRepo("owner/repo")];
 
     const promise = executeImportFlow(repos, new AbortController(), updateRepo, t);
 
-    await vi.advanceTimersByTimeAsync(2500);
+    await vi.advanceTimersByTimeAsync(10_000);
 
     const result = await promise;
 
-    expect(result.success).toBe(1);
-
-    vi.useRealTimers();
+    expect(apiClient.addRepo).toHaveBeenCalledTimes(1);
+    expect(result.failed).toBe(1);
   });
 
   // ==================== 混合結果 ====================
