@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   getRepos,
   addRepo,
+  backfillStarHistory,
   unstarRepo,
   deleteArchivedRepo,
   fetchRepo,
@@ -58,7 +59,7 @@ import {
   getComparisonChart,
 } from "../client";
 import { RATE_LIMITED_EVENT } from "../../constants/events";
-import { BATCH_ADD_TIMEOUT_MS } from "../../constants/api";
+import { BACKFILL_TIMEOUT_MS, BATCH_ADD_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "../../constants/api";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -1318,6 +1319,25 @@ describe("retry policy: writes are sent once, reads retry", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(await outcome).toMatchObject({ status: 0 });
+  });
+
+  it("gives a backfill longer than the default timeout: it fetches up to 50 pages of stargazers", async () => {
+    hangUntilAborted();
+    let settled: unknown = "pending";
+    void backfillStarHistory(1).then(
+      () => (settled = "resolved"),
+      (e: unknown) => (settled = e)
+    );
+
+    await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1_000);
+    expect(settled).toBe("pending");
+
+    // 釘住確切值：差 1ms 還在等，到了才放棄
+    await vi.advanceTimersByTimeAsync(BACKFILL_TIMEOUT_MS - DEFAULT_TIMEOUT_MS - 1_000 - 1);
+    expect(settled).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(settled).toMatchObject({ status: 0 });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("a write that gets a 5xx is sent only once", async () => {

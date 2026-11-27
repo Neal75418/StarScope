@@ -39,6 +39,13 @@ export const FETCH_ALL_TIMEOUT_MS = 300_000;
 export const BATCH_ADD_TIMEOUT_MS = 300_000;
 
 /**
+ * 回填 star 歷史的逾時。上限 5000 星時後端要循序打最多 52 次 GitHub 請求（get_repo 加 50 頁 stargazers，剛好 5000 星時再多抓一頁空的確認結尾）再寫入快照，
+ * 每次至少約 0.4 秒，星數接近上限時 30 秒可能不夠；sidecar 每次請求自己的逾時是 30 秒，120 秒給每次約 2.3 秒的餘裕。
+ * 理由同 FETCH_ALL_TIMEOUT_MS：提早放棄只會讓前端說不確定，伺服器照樣把它做完。
+ */
+export const BACKFILL_TIMEOUT_MS = 120_000;
+
+/**
  * 寫入逾時後，每隔多久重抓一次追蹤清單；持續 BATCH_ADD_TIMEOUT_MS（給伺服器的時間和批次請求本身一樣長）。
  * 用法與理由見 keepRefetchingAfterTimeout。
  */

@@ -7,6 +7,7 @@ import {
   GITHUB_SEARCH_PAGE_SIZE,
   DEFAULT_TIMEOUT_MS,
   FETCH_ALL_TIMEOUT_MS,
+  BACKFILL_TIMEOUT_MS,
   BATCH_ADD_TIMEOUT_MS,
   MAX_RETRIES,
   RETRY_DELAY_MS,
@@ -413,9 +414,11 @@ export async function getBackfillStatus(repoId: number): Promise<BackfillStatus>
  * 回填儲存庫的星數歷史（僅限 ≤ 5000 星的儲存庫）。
  */
 export async function backfillStarHistory(repoId: number): Promise<BackfillResult> {
-  return apiCall<BackfillResult>(`/star-history/${repoId}/backfill`, {
-    method: "POST",
-  });
+  return apiCall<BackfillResult>(
+    `/star-history/${repoId}/backfill`,
+    { method: "POST" },
+    { timeoutMs: BACKFILL_TIMEOUT_MS }
+  );
 }
 
 /**
