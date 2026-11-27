@@ -87,8 +87,8 @@ export async function executeImportFlow(
 }
 
 /**
- * 預先去重用的既有清單：省請求，也是唯一不分大小寫的去重（後端比對 full_name 分大小寫）。讀不到時照樣逐筆送，
- * 同名已經在追蹤的由後端回 ALREADY_TRACKED、歸成略過。
+ * 預先去重用的既有清單：省請求。讀不到時照樣逐筆送，已經在追蹤的由後端回 ALREADY_TRACKED、歸成略過
+ * （後端認得大小寫不同與改名前的舊名）。
  */
 async function fetchExistingRepoSet(signal?: AbortSignal): Promise<Set<string>> {
   try {

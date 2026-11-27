@@ -546,3 +546,148 @@ class TestSyncStatusLastSnapshotAt:
         body = client.get("/api/repos/sync/status").json()["data"]
         # 帶時區：naive UTC 被 JS 當本地時間解析
         assert body["last_snapshot_at"] == "2026-11-26T03:04:05+00:00"
+
+
+class TestAddRepoMatchesTheExistingRowWhateverTheSpelling:
+    """GitHub 的名稱不分大小寫、改名後舊名會導向：加入時用使用者輸入的字串精確比對 full_name 的話，
+    大小寫不同或用舊名都會往下建一列，撞 full_name 唯一鍵回 500，或在本機名稱還是舊的時候多出一列同一個 repo。
+    mock_repo 是 testowner/testrepo、github_id 12345"""
+
+    @staticmethod
+    def _github(full_name: str = "testowner/testrepo"):
+        owner, name = full_name.split("/")
+        service = _mock_github_service(id=12345, full_name=full_name, name=name, owner={"login": owner})
+        service.can_write = True
+        return service
+
+    @staticmethod
+    def _count(test_db) -> int:
+        from db.models import Repo
+        from db.soft_delete import include_archived
+
+        count: int = include_archived(test_db.query(Repo)).count()
+        return count
+
+    @staticmethod
+    def _archive(test_db, repo) -> None:
+        from utils.time import utc_now
+
+        repo.unstarred_at = utc_now()
+        test_db.commit()
+
+    def test_different_case_of_a_tracked_repo_is_already_tracked(self, client, test_db, mock_repo):
+        github = self._github()
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "TestOwner", "name": "TestRepo"})
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "ALREADY_TRACKED"
+        assert self._count(test_db) == 1
+        # 大小寫不同在打 GitHub 之前就認得出來
+        github.star_repo.assert_not_called()
+        github.get_repo.assert_not_called()
+
+    def test_old_name_of_a_tracked_repo_is_already_tracked(self, client, test_db, mock_repo):
+        github = self._github()
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "oldowner", "name": "testrepo"})
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "ALREADY_TRACKED"
+        assert self._count(test_db) == 1
+        # 本來就在追蹤：不寫 GitHub
+        github.star_repo.assert_not_called()
+
+    def test_different_case_of_an_archived_repo_restores_that_row(self, client, test_db, mock_repo):
+        self._archive(test_db, mock_repo)
+        with patch("routers.repos.get_github_service", return_value=self._github()):
+            response = client.post("/api/repos", json={"owner": "TestOwner", "name": "TestRepo"})
+
+        assert response.status_code == 201
+        assert "restored to" in response.json()["message"]
+        assert response.json()["data"]["id"] == mock_repo.id
+        assert self._count(test_db) == 1
+
+    def test_old_name_of_an_archived_repo_restores_that_row(self, client, test_db, mock_repo):
+        self._archive(test_db, mock_repo)
+        github = self._github()
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "oldowner", "name": "testrepo"})
+
+        # star 用 GitHub 回的正式名稱，不靠舊名的導向
+        github.star_repo.assert_awaited_once_with("testowner", "testrepo")
+
+        assert response.status_code == 201
+        assert "restored to" in response.json()["message"]
+        assert response.json()["data"]["id"] == mock_repo.id
+        assert self._count(test_db) == 1
+
+    def test_new_name_finds_the_row_still_under_the_old_name(self, client, test_db, mock_repo):
+        """本機那一列還沒抓到改名（名稱是舊的），用新名加入：靠 github_id 認出同一個 repo，不再多一列"""
+        with patch("routers.repos.get_github_service", return_value=self._github("newowner/testrepo")):
+            response = client.post("/api/repos", json={"owner": "newowner", "name": "testrepo"})
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "ALREADY_TRACKED"
+        assert self._count(test_db) == 1
+
+    def test_the_row_with_the_same_github_id_wins_over_a_name_match(self, client, test_db, mock_repo):
+        """名稱相符的列可能是另一個 repo（它的舊名被佔走）：先認 github_id 相符的那一列。
+        mock_repo（testowner/testrepo、id 12345）已封存；追蹤中的另一列是 GitHub 上的 id 777"""
+        from db.models import Repo
+
+        self._archive(test_db, mock_repo)
+        other = Repo(owner="testowner", name="renamed", full_name="testowner/renamed",
+                     url="https://github.com/testowner/renamed", github_id=777)
+        test_db.add(other)
+        test_db.commit()
+        github = _mock_github_service(id=777, full_name="testowner/testrepo", name="testrepo",
+                                      owner={"login": "testowner"})
+        github.can_write = True
+
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "testowner", "name": "alias"})
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "ALREADY_TRACKED"
+        test_db.refresh(mock_repo)
+        assert mock_repo.unstarred_at is not None  # 另一個 repo 的封存列沒被復原
+        github.star_repo.assert_not_called()
+
+    def test_a_tracked_duplicate_wins_over_an_archived_one(self, client, test_db, mock_repo):
+        """舊 bug 留下的重複列（同一個 github_id，一列封存、一列追蹤中）：認追蹤中的那列，不去復原封存的"""
+        from db.models import Repo
+
+        self._archive(test_db, mock_repo)
+        test_db.add(Repo(owner="testowner", name="new", full_name="testowner/new",
+                         url="https://github.com/testowner/new", github_id=12345))
+        test_db.commit()
+
+        with patch("routers.repos.get_github_service", return_value=self._github("testowner/new")):
+            response = client.post("/api/repos", json={"owner": "testowner", "name": "alias"})
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "ALREADY_TRACKED"
+        test_db.refresh(mock_repo)
+        assert mock_repo.unstarred_at is not None
+
+    def test_an_archived_row_with_the_same_github_id_wins_over_a_tracked_name_match(self, client, test_db, mock_repo):
+        """id 相符的列已封存、名稱相符的列在追蹤中但是另一個 repo（它的名稱被 id 777 拿走了）：要加的是 777，
+        復原那一列，不是說「已在追蹤」。mock_repo（id 12345）是名稱相符的那個"""
+        from db.models import Repo
+        from utils.time import utc_now
+
+        archived = Repo(owner="testowner", name="renamed", full_name="testowner/renamed",
+                        url="https://github.com/testowner/renamed", github_id=777, unstarred_at=utc_now())
+        test_db.add(archived)
+        test_db.commit()
+        github = _mock_github_service(id=777, full_name="testowner/testrepo", name="testrepo",
+                                      owner={"login": "testowner"})
+        github.can_write = True
+
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "testowner", "name": "alias"})
+
+        assert response.status_code == 201
+        assert response.json()["data"]["id"] == archived.id
+        assert self._count(test_db) == 2

@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from typing import Annotated, Literal
 
 from pydantic import BaseModel
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from constants import (
@@ -235,6 +236,25 @@ def list_repos(
     )
 
 
+def _find_tracked_or_archived(db: Session, full_name: str, github_id: int | None = None) -> Repo | None:
+    """追蹤清單裡（含封存）同一個 repo 的那一列。
+
+    名稱不分大小寫比對：GitHub 不分，使用者輸入的大小寫跟那一列對不上時，精確比對會往下建一列、撞 full_name
+    唯一鍵。有 github_id 時也比對它：本機那一列可能還是改名前的名稱。
+    """
+    same = [func.lower(Repo.full_name) == full_name.lower()]
+    if github_id is not None:
+        same.append(Repo.github_id == github_id)
+    # 必須看得到封存的列：full_name 是唯一鍵，看不到就會一路往下打 GitHub 再 INSERT 撞鍵回 500
+    query = include_archived(db.query(Repo)).filter(or_(*same))
+    if github_id is not None:
+        # 兩列都符合時先認 id 相符的：名稱相符的可能是另一個 repo（它的舊名被佔走）
+        query = query.order_by((Repo.github_id == github_id).desc())
+    # 再先認追蹤中的：舊 bug 留下的重複列（同一個 github_id）不去復原封存的那列
+    found: Repo | None = query.order_by(Repo.unstarred_at.isnot(None), Repo.id).first()
+    return found
+
+
 async def _add_or_restore_repo(
     owner: str, name: str, github: GitHubService, db: Session
 ) -> tuple[Repo, Literal["created", "restored", "already_tracked"]]:
@@ -244,9 +264,18 @@ async def _add_or_restore_repo(
     repo 只會略過——探索頁把它當成沒追蹤、可以勾選，卻永遠加不回來。
     GitHub 例外往外拋、由呼叫端回報；拋出時本機沒有任何改動。
     """
-    # 必須看得到封存的列：full_name 是唯一鍵，看不到就會一路往下打 GitHub 再 INSERT 撞鍵回 500
-    existing = include_archived(
-        db.query(Repo)).filter(Repo.full_name == f"{owner}/{name}").first()
+    existing = _find_tracked_or_archived(db, f"{owner}/{name}")
+    github_data: dict | None = None
+    star_owner, star_name = owner, name
+    if existing is None:
+        # 輸入的名稱對不上任何一列：可能是改名前的舊名，或本機那一列還是舊名。先讀 GitHub 拿正式名稱與 id 再找一次；
+        # star 也用 GitHub 回的正式名稱，不靠舊名的導向
+        github_data = await github.get_repo(owner, name)
+        star_owner = (github_data.get("owner") or {}).get("login") or owner
+        star_name = github_data.get("name") or name
+        existing = _find_tracked_or_archived(
+            db, github_data.get("full_name") or f"{owner}/{name}", github_data.get("id")
+        )
     if existing is not None and existing.unstarred_at is None:
         return existing, "already_tracked"
 
@@ -258,7 +287,7 @@ async def _add_or_restore_repo(
     # 而首次同步不自動封存，會把這些列出來讓使用者決定。
     starred_now = False
     if github.can_write:
-        await github.star_repo(owner, name)
+        await github.star_repo(star_owner, star_name)
         starred_now = True
 
     if existing is not None:
@@ -269,7 +298,7 @@ async def _add_or_restore_repo(
         db.refresh(existing)
         return existing, "restored"
 
-    github_data = await github.get_repo(owner, name)
+    assert github_data is not None  # existing 是 None 才會走到這裡，上面已經讀過
     repo = _create_repo_from_github(owner, name, github_data)
     if starred_now:
         # PUT 回 204 空 body，拿不到 GitHub 的精確時間，但「剛剛」是夠好的近似，
