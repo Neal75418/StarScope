@@ -14,6 +14,7 @@ import { useI18n } from "../i18n";
 import { isEngineUnreachable } from "../utils/writeFailure";
 import { logger } from "../utils/logger";
 import { loadStatus as toLoadStatus, queryKeys } from "../lib/react-query";
+import { BACKFILL_OFFLINE_RECHECK_MS } from "../constants/polling";
 
 /** error：讀不到（伺服器錯誤、逾時等）——不是離線，要清掉前一次離線留下的狀態 */
 type FetchOutcome = "success" | "network-fallback" | "error" | null;
@@ -59,6 +60,8 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     enabled: !exceedsStarLimit,
     // apiCall 對 GET 已經重試過兩次（逾時的話前後約 90 秒）；404 與連不上引擎在 queryFn 處理
     retry: false,
+    // 回填狀態的端點連不上、但健康檢查一直答得出來時 onlineManager 不會離線、等不到重新連上：顯示離線時自己再看
+    refetchInterval: isOffline ? BACKFILL_OFFLINE_RECHECK_MS : false,
   });
 
   // 當 fetch 完成時，根據 outcome 同步離線 / 錯誤 / 時間戳狀態
@@ -70,6 +73,12 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     if (outcome === "network-fallback") {
       setIsOffline(true);
       setOfflineMessage(t.starHistory.offline);
+      // 回傳的是上次的資料、不是讀到的：標成過期。不標的話在 staleTime 內它算新鮮：重新連上（預設只重讀過期的查詢）
+      // 不重讀，回填區塊一直停在「離線」；收起期間重新連上、再打開時也不重讀，留著離線那次的空資料
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.backfill.status(repoId),
+        refetchType: "none",
+      });
     } else if (outcome === "error") {
       // 讀不到由 statusLoad 交給 LoadError 說（附重試）；前一次離線留下的說明與停用都要清掉
       setIsOffline(false);
@@ -79,7 +88,7 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
       setOfflineMessage(null);
       setLastUpdated(new Date());
     }
-  }, [query.isFetching, t.starHistory.offline]);
+  }, [query.isFetching, t.starHistory.offline, queryClient, repoId]);
 
   const loadStatus = useCallback(async () => {
     await queryClient.refetchQueries({ queryKey: queryKeys.backfill.status(repoId) });
