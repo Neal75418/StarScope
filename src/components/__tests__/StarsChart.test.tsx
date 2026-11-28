@@ -19,6 +19,7 @@ vi.mock("../../api/client", async (importOriginal) => {
     ...actual,
     getStarsChart: vi.fn(),
     getBackfillStatus: vi.fn().mockResolvedValue({ can_backfill: false }),
+    backfillStarHistory: vi.fn(),
   };
 });
 
@@ -67,6 +68,8 @@ describe("StarsChart", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks 不重設回傳值：個別測試改過的回填狀態不能漏到後面
+    vi.mocked(apiClient.getBackfillStatus).mockResolvedValue({ can_backfill: false } as never);
   });
 
   it("shows loading state initially", () => {
@@ -78,6 +81,8 @@ describe("StarsChart", () => {
 
     expect(screen.getByText("Loading chart...")).toBeInTheDocument();
     expect(screen.getByText("Loading chart...")).toHaveClass("chart-loading");
+    // 讀取中也能換範圍
+    expect(screen.getByRole("button", { name: "7d" })).toBeInTheDocument();
   });
 
   it("displays chart when data is loaded", async () => {
@@ -110,6 +115,131 @@ describe("StarsChart", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
+  it("keeps the time range buttons when the chart fails to load, so another range can be tried", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getStarsChart).mockImplementation((_id, range) =>
+      range === "30d" ? Promise.reject(new Error("boom")) : Promise.resolve(mockChartData)
+    );
+
+    renderWithClient(<StarsChart repoId={1} />);
+    await screen.findByText("Chart loading failed", { exact: false });
+
+    await user.click(screen.getByRole("button", { name: "7d" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Chart loading failed", { exact: false })).not.toBeInTheDocument();
+    });
+    expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "7d", expect.anything());
+  });
+
+  it("keeps the backfill result on screen when the chart goes from too little data to a chart", async () => {
+    // 回填區塊在每種狀態都留在同一個位置：圖表從資料不足變成有圖表時不卸載重掛，剛顯示的說明才不會消失
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getBackfillStatus).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "facebook/react",
+      can_backfill: true,
+      current_stars: 100,
+      max_stars_allowed: 5000,
+      has_backfilled_data: false,
+      backfilled_days: 0,
+      message: "",
+    });
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "facebook/react",
+      success: true,
+      total_stargazers: 100,
+      snapshots_created: 3,
+      earliest_date: "2024-01-01",
+      latest_date: "2024-01-03",
+      message: "",
+      code: null,
+    });
+    vi.mocked(apiClient.getStarsChart)
+      .mockResolvedValueOnce({ ...mockChartData, data_points: [mockChartData.data_points[0]] })
+      .mockResolvedValue(mockChartData);
+
+    renderWithClient(<StarsChart repoId={1} currentStars={100} />);
+    await screen.findByText(/Insufficient data/);
+
+    await user.click(await screen.findByRole("button", { name: "Backfill History" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Insufficient data/)).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Backfill complete! Created 3 data points.")).toBeInTheDocument();
+  });
+
+  it("keeps the backfill result on screen while another time range loads", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getBackfillStatus).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "facebook/react",
+      can_backfill: true,
+      current_stars: 100,
+      max_stars_allowed: 5000,
+      has_backfilled_data: false,
+      backfilled_days: 0,
+      message: "",
+    });
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "facebook/react",
+      success: true,
+      total_stargazers: 100,
+      snapshots_created: 3,
+      earliest_date: "2024-01-01",
+      latest_date: "2024-01-03",
+      message: "",
+      code: null,
+    });
+    vi.mocked(apiClient.getStarsChart).mockImplementation((_id, range) =>
+      range === "30d" ? Promise.resolve(mockChartData) : new Promise(() => {})
+    );
+
+    renderWithClient(<StarsChart repoId={1} currentStars={100} />);
+    await user.click(await screen.findByRole("button", { name: "Backfill History" }));
+    await screen.findByText("Backfill complete! Created 3 data points.");
+
+    await user.click(screen.getByRole("button", { name: "7d" }));
+
+    await screen.findByText("Loading chart...");
+    expect(screen.getByText("Backfill complete! Created 3 data points.")).toBeInTheDocument();
+  });
+
+  it("does not carry a backfill result over to another repository", async () => {
+    const user = userEvent.setup();
+    vi.mocked(apiClient.getBackfillStatus).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "facebook/react",
+      can_backfill: true,
+      current_stars: 100,
+      max_stars_allowed: 5000,
+      has_backfilled_data: false,
+      backfilled_days: 0,
+      message: "",
+    });
+    vi.mocked(apiClient.backfillStarHistory).mockRejectedValue(new apiClient.ApiError(500, "boom"));
+    vi.mocked(apiClient.getStarsChart).mockResolvedValue(mockChartData);
+    const client = createTestQueryClient();
+    const { rerender } = render(
+      createElement(QueryClientProvider, { client }, <StarsChart repoId={1} currentStars={100} />)
+    );
+    await user.click(await screen.findByRole("button", { name: "Backfill History" }));
+    await screen.findByText("Not backfilled.", { exact: false });
+
+    // 虛擬清單重排後同一個元件會換成別的 repo
+    rerender(
+      createElement(QueryClientProvider, { client }, <StarsChart repoId={2} currentStars={100} />)
+    );
+
+    // 換過去之後回填狀態要重讀，先顯示「檢查中」（說明本來就不在）：等 repo 2 的狀態讀回、回填鈕回來再看
+    await waitFor(() => expect(apiClient.getBackfillStatus).toHaveBeenCalledWith(2));
+    await screen.findByRole("button", { name: "Backfill History" });
+    expect(screen.queryByText("Not backfilled.", { exact: false })).not.toBeInTheDocument();
+  });
+
   it("shows empty state when data has less than 2 points", async () => {
     vi.mocked(apiClient.getStarsChart).mockResolvedValue({
       ...mockChartData,
@@ -121,6 +251,8 @@ describe("StarsChart", () => {
     await waitFor(() => {
       expect(screen.getByText(/Insufficient data/)).toBeInTheDocument();
     });
+    // 資料不足時也能換範圍（「全部」讀的是另一個端點，可能就有資料）
+    expect(screen.getByRole("button", { name: "7d" })).toBeInTheDocument();
   });
 
   it("fetches chart data with default 30d time range", async () => {

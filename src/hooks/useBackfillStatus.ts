@@ -22,7 +22,7 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [isOffline, setIsOffline] = useState(false);
-  const [manualError, setManualError] = useState<string | null>(null);
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // 離線時保留最後成功的狀態
@@ -69,14 +69,14 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
 
     if (outcome === "network-fallback") {
       setIsOffline(true);
-      setManualError(t.starHistory.offline);
+      setOfflineMessage(t.starHistory.offline);
     } else if (outcome === "error") {
       // 讀不到由 statusLoad 交給 LoadError 說（附重試）；前一次離線留下的說明與停用都要清掉
       setIsOffline(false);
-      setManualError(null);
+      setOfflineMessage(null);
     } else {
       setIsOffline(false);
-      setManualError(null);
+      setOfflineMessage(null);
       setLastUpdated(new Date());
     }
   }, [query.isFetching, t.starHistory.offline]);
@@ -85,8 +85,8 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     await queryClient.refetchQueries({ queryKey: queryKeys.backfill.status(repoId) });
   }, [queryClient, repoId]);
 
-  // 讀不到狀態不放進 error（那是離線與回填動作的說明）：由呼叫端依 statusLoad 顯示 LoadError，附重試
-  const error = manualError;
+  // error 只有離線說明：讀不到狀態由呼叫端依 statusLoad 顯示 LoadError（附重試），回填動作的說明在 useBackfillAction
+  const error = offlineMessage;
   const statusLoad = toLoadStatus(query);
 
   return {
@@ -97,6 +97,5 @@ export function useBackfillStatus(repoId: number, exceedsStarLimit: boolean) {
     lastUpdated,
     loadStatus,
     statusLoad,
-    setError: setManualError,
   };
 }

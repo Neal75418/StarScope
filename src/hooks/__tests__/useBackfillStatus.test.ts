@@ -213,22 +213,4 @@ describe("useBackfillStatus", () => {
       expect(vi.mocked(apiClient.getBackfillStatus).mock.calls.length).toBeGreaterThan(callsBefore);
     });
   });
-
-  it("setError updates error state", async () => {
-    vi.mocked(apiClient.getBackfillStatus).mockResolvedValue(mockStatus);
-
-    const { result } = renderHook(() => useBackfillStatus(1, false), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    act(() => {
-      result.current.setError("test error");
-    });
-
-    expect(result.current.error).toBe("test error");
-  });
 });

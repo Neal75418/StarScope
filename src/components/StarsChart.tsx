@@ -3,6 +3,7 @@
  */
 
 import { useMemo, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
   LineChart,
   Line,
@@ -138,12 +139,14 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
     [t]
   );
 
+  // 時間範圍鈕與回填區塊放在固定的位置、每種狀態都畫，只換中間那一塊：
+  // 讀不到、資料不足時也能換範圍（「全部」讀的是另一個端點，可能就有資料）；回填區塊不會隨分支卸載重掛，
+  // 回填後圖表從資料不足變成有圖表時，剛顯示的說明才不會跟著消失
+  let body: ReactNode;
   if (loading) {
-    return <div className="chart-loading">{t.chart.loading}</div>;
-  }
-
-  if (error) {
-    return (
+    body = <div className="chart-loading">{t.chart.loading}</div>;
+  } else if (error) {
+    body = (
       <div className="chart-error">
         {error}
         <button className="btn btn-sm" onClick={() => void refetch()} style={{ marginLeft: 8 }}>
@@ -151,26 +154,19 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
         </button>
       </div>
     );
-  }
-
-  if (data.length < 2) {
-    return (
-      <div className="stars-chart">
-        <div className="chart-empty">{t.chart.insufficientData}</div>
-        <StarHistoryBackfill
-          repoId={repoId}
-          currentStars={currentStars ?? null}
-          onBackfillComplete={refetch}
-        />
-      </div>
-    );
+  } else if (data.length < 2) {
+    body = <div className="chart-empty">{t.chart.insufficientData}</div>;
+  } else {
+    body = <ChartContent data={data} colors={chartColors} />;
   }
 
   return (
     <div className="stars-chart">
       <TimeRangeSelector current={timeRange} onChange={setTimeRange} labels={timeRangeLabels} />
-      <ChartContent data={data} colors={chartColors} />
+      {body}
+      {/* key：同一個圖表換成別的 repo 時（清單重排後虛擬清單會重用元件），回填的說明不跟過去 */}
       <StarHistoryBackfill
+        key={repoId}
         repoId={repoId}
         currentStars={currentStars ?? null}
         onBackfillComplete={refetch}

@@ -60,4 +60,63 @@ describe("StarHistoryBackfill", () => {
     expect(await screen.findByRole("button", { name: t.common.retrying })).toBeInTheDocument();
     expect(screen.queryByText(t.starHistory.checking)).not.toBeInTheDocument();
   });
+
+  it("keeps the backfill's error when the status is read back successfully", async () => {
+    // 回填動作的說明是它自己的：讀回狀態成功只清掉讀狀態那邊的說明（離線），不清掉回填失敗的原因
+    // 延遲回應（像真的 HTTP）：立刻回應的 mock 會讓 React Query 把 isFetching 的 true→false 通知合併掉，
+    // useBackfillStatus 的 effect 不跑，舊寫法清掉錯誤的那一步也就測不到
+    const later = <T,>(settle: () => T) =>
+      new Promise<T>((resolve, reject) =>
+        setTimeout(() => {
+          try {
+            resolve(settle());
+          } catch (e) {
+            reject(e);
+          }
+        }, 10)
+      );
+    vi.mocked(apiClient.getBackfillStatus)
+      .mockImplementationOnce(() =>
+        later(() => {
+          throw new apiClient.ApiError(500, "Internal server error");
+        })
+      )
+      .mockImplementation(() =>
+        later(() => ({
+          repo_id: 1,
+          repo_name: "test/repo",
+          can_backfill: true,
+          current_stars: 100,
+          max_stars_allowed: 5000,
+          has_backfilled_data: false,
+          backfilled_days: 0,
+          message: "",
+        }))
+      );
+    vi.mocked(apiClient.backfillStarHistory).mockRejectedValue(
+      new apiClient.ApiError(502, "GitHub authentication failed", "GITHUB_AUTH_FAILED")
+    );
+    renderBackfill();
+    await screen.findByText(t.starHistory.statusLoadFailed);
+
+    fireEvent.click(screen.getByRole("button", { name: t.starHistory.backfill }));
+    const reason = t.failure.githubAuth;
+    await screen.findByText(reason, { exact: false });
+
+    // 回填失敗後自己會重讀狀態（徽章要跟上）：讀回成功、讀不到的說明消失，回填失敗的原因要還在
+    await waitFor(() =>
+      expect(screen.queryByText(t.starHistory.statusLoadFailed)).not.toBeInTheDocument()
+    );
+    expect(screen.getByText(reason, { exact: false })).toBeInTheDocument();
+  });
+
+  it("says the status is offline when the engine can't be reached", async () => {
+    vi.mocked(apiClient.getBackfillStatus).mockRejectedValue(
+      new apiClient.ApiError(0, "Network error: Load failed")
+    );
+    renderBackfill();
+
+    expect(await screen.findByText(t.starHistory.offline)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t.starHistory.backfill })).toBeDisabled();
+  });
 });

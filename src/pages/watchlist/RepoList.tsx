@@ -21,7 +21,10 @@ import type { BatchRepoData } from "../../hooks/useWindowedBatchRepoData";
 // 虛擬滾動常數
 const REPO_CARD_GAP = 16;
 const COLLAPSED_ITEM_SIZE = 220 + REPO_CARD_GAP; // 收合狀態：卡片 ≤2行描述 ~218px + 安全邊距 + 間距
-const CHART_EXTRA_HEIGHT = STARS_CHART_HEIGHT + 120; // chart + controls + padding + backfill
+// 展開後多出的高度，headless Chromium 量（卡片寬 700px）：外框 margin 16＋border 1＋padding 16、.stars-chart 上下 padding 32、
+// 範圍鈕 24＋下方 margin 12、主體 180、回填列 margin 12＋50。讀取中、讀不到、資料不足的主體都是 min-height 180px，一樣高。
+// 回填列多一行（讀不到狀態的 LoadError、失敗原因換行）時固定列高蓋不住，要改成動態列高
+const CHART_EXTRA_HEIGHT = STARS_CHART_HEIGHT + 163;
 const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
 
 /** 傳給 row 的所有資料。react-window 對 rowProps 做逐值淺比較，所以每個值要引用穩定。 */

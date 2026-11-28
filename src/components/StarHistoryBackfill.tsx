@@ -27,16 +27,16 @@ export function StarHistoryBackfill({
   // 依 star 數判斷是否需要顯示
   const exceedsStarLimit = currentStars !== null && currentStars > MAX_STARS_FOR_BACKFILL;
 
-  const { status, loading, error, isOffline, lastUpdated, loadStatus, statusLoad, setError } =
+  const { status, loading, error, isOffline, lastUpdated, loadStatus, statusLoad } =
     useBackfillStatus(repoId, exceedsStarLimit);
 
-  const { backfilling, successMessage, warningMessage, handleBackfill } = useBackfillAction({
-    repoId,
-    isOffline,
-    onSuccess: loadStatus,
-    onComplete: onBackfillComplete,
-    setError,
-  });
+  const { backfilling, errorMessage, successMessage, warningMessage, handleBackfill } =
+    useBackfillAction({
+      repoId,
+      isOffline,
+      onSuccess: loadStatus,
+      onComplete: onBackfillComplete,
+    });
 
   // star 數超過上限時不顯示
   if (exceedsStarLimit) {
@@ -68,7 +68,8 @@ export function StarHistoryBackfill({
     <div className={`star-history-backfill ${isOffline ? "offline" : ""}`}>
       <BackfillMessages
         isOffline={isOffline}
-        error={error}
+        // 回填失敗的原因優先；沒有時才是讀狀態那邊的說明（離線）
+        error={errorMessage ?? error}
         successMessage={successMessage}
         warningMessage={warningMessage}
         t={t}
