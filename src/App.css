@@ -4373,6 +4373,11 @@ button.stat-card {
   border: 1px solid var(--border-default);
 }
 
+/* 回填列是一行 flex：讀不到回填狀態的 LoadError 帶著 .load-error 的 margin-bottom 12px，會比回填鈕高一截 */
+.star-history-backfill .load-error {
+  margin: 0;
+}
+
 .star-history-backfill .backfill-info {
   display: flex;
   align-items: center;
