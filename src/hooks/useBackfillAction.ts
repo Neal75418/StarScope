@@ -29,15 +29,9 @@ interface UseBackfillActionProps {
   repoId: number;
   isOffline: boolean;
   onSuccess: () => Promise<void>;
-  onComplete?: () => void;
 }
 
-export function useBackfillAction({
-  repoId,
-  isOffline,
-  onSuccess,
-  onComplete,
-}: UseBackfillActionProps) {
+export function useBackfillAction({ repoId, isOffline, onSuccess }: UseBackfillActionProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [backfilling, setBackfilling] = useState(false);
@@ -70,7 +64,9 @@ export function useBackfillAction({
         } catch (refreshErr) {
           logger.warn("[BackfillAction] 回填成功但刷新失敗:", refreshErr);
         }
-        onComplete?.();
+        // 這個 repo 每個範圍的圖表都重讀（同失敗那條路）：只重讀目前這個範圍的話，
+        // 切到之前看過的其他範圍（例如「全部」），5 分鐘內還是回填前的資料
+        void queryClient.invalidateQueries({ queryKey: queryKeys.starsChart.repo(repoId) });
       } else {
         // 後端確定沒有寫入（拒絕回填），不用重讀；message 是英文內部用語，不上畫面
         setErrorMessage(describeRefusal(result, t));
@@ -91,7 +87,7 @@ export function useBackfillAction({
     } finally {
       setBackfilling(false);
     }
-  }, [repoId, isOffline, t, onSuccess, onComplete, queryClient]);
+  }, [repoId, isOffline, t, onSuccess, queryClient]);
 
   return {
     backfilling,

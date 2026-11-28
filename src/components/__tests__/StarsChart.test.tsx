@@ -251,6 +251,8 @@ describe("StarsChart", () => {
       expect(screen.queryByText(/Insufficient data/)).not.toBeInTheDocument();
     });
     expect(screen.getByText("Backfill complete! Created 3 data points.")).toBeInTheDocument();
+    // 畫面上這個範圍回填後立刻重讀（回填前一次、回填後一次）：只標成過期、不重讀的話要等切走再切回來
+    expect(apiClient.getStarsChart).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the backfill result on screen while another time range loads", async () => {

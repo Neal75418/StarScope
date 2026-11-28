@@ -14,14 +14,9 @@ import { LoadError } from "./LoadError";
 interface StarHistoryBackfillProps {
   repoId: number;
   currentStars: number | null;
-  onBackfillComplete?: () => void;
 }
 
-export function StarHistoryBackfill({
-  repoId,
-  currentStars,
-  onBackfillComplete,
-}: StarHistoryBackfillProps) {
+export function StarHistoryBackfill({ repoId, currentStars }: StarHistoryBackfillProps) {
   const { t, language } = useI18n();
 
   // 依 star 數判斷是否需要顯示
@@ -35,7 +30,6 @@ export function StarHistoryBackfill({
       repoId,
       isOffline,
       onSuccess: loadStatus,
-      onComplete: onBackfillComplete,
     });
 
   // star 數超過上限時不顯示

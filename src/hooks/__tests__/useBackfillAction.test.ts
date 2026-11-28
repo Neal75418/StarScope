@@ -31,13 +31,11 @@ vi.mock("../../api/client", async (importOriginal) => {
 
 describe("useBackfillAction", () => {
   const mockOnSuccess = vi.fn().mockResolvedValue(undefined);
-  const mockOnComplete = vi.fn();
 
   const defaultProps = {
     repoId: 1,
     isOffline: false,
     onSuccess: mockOnSuccess,
-    onComplete: mockOnComplete,
   };
 
   beforeEach(() => {
@@ -95,7 +93,33 @@ describe("useBackfillAction", () => {
 
     expect(result.current.successMessage).toBe("Backfill complete! Created 5 data points.");
     expect(mockOnSuccess).toHaveBeenCalled();
-    expect(mockOnComplete).toHaveBeenCalled();
+  });
+
+  it("marks every time range of this repo's chart to be re-read after a successful backfill", async () => {
+    // 只重讀目前這個範圍的話，切到之前看過的其他範圍（例如「全部」），5 分鐘內還是回填前的資料
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue({
+      repo_id: 1,
+      repo_name: "test/repo",
+      success: true,
+      total_stargazers: 100,
+      snapshots_created: 5,
+      earliest_date: "2024-01-01",
+      latest_date: "2024-01-31",
+      message: "Success",
+      code: null,
+    });
+    client.setQueryData(queryKeys.starsChart.data(1, "30d"), []);
+    client.setQueryData(queryKeys.starsChart.data(1, "all"), []);
+    client.setQueryData(queryKeys.starsChart.data(2, "all"), []);
+
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "30d"))?.isInvalidated).toBe(true);
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "all"))?.isInvalidated).toBe(true);
+    expect(client.getQueryState(queryKeys.starsChart.data(2, "all"))?.isInvalidated).toBe(false);
   });
 
   const refused = (code: string | null) => ({
@@ -244,6 +268,7 @@ describe("useBackfillAction", () => {
       code: null,
     });
     mockOnSuccess.mockRejectedValue(new Error("Refresh failed"));
+    client.setQueryData(queryKeys.starsChart.data(1, "30d"), []);
 
     const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
 
@@ -255,8 +280,8 @@ describe("useBackfillAction", () => {
     expect(result.current.errorMessage).toBeNull();
     // Success message should still be set
     expect(result.current.successMessage).toBe("Backfill complete! Created 5 data points.");
-    // onComplete should still be called
-    expect(mockOnComplete).toHaveBeenCalled();
+    // 圖表照樣重讀：回填本身成功了
+    expect(client.getQueryState(queryKeys.starsChart.data(1, "30d"))?.isInvalidated).toBe(true);
   });
 
   it("sets backfilling state during operation", async () => {
