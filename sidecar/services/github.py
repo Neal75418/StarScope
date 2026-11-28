@@ -360,6 +360,27 @@ class GitHubService:
             context=f"{owner}/{repo}"
         )
 
+    async def get_repo_by_id(self, github_id: int) -> dict:
+        """用 GitHub 的 repo id 取得 repo 資訊（目前的名稱）。
+
+        名稱會變，舊名也可能被別的 repo 佔走；id 不會。本機名稱可能過期的列（封存的列不會被抓取）
+        寫 GitHub 之前先用它問現在叫什麼。
+
+        Raises:
+            GitHubNotFoundError: 這個 id 的 repo 已經不在（404）
+            GitHubRateLimitError: 速率限制超過（403）
+            GitHubAPIError: 其他 API 錯誤
+        """
+        response = await self.client.get(
+            f"{GITHUB_API_BASE}/repositories/{github_id}",
+            headers=self.headers,
+        )
+        return handle_github_response(
+            response,
+            raise_on_error=True,
+            context=f"repositories/{github_id}"
+        )
+
     async def get_latest_release(self, owner: str, repo: str) -> dict | None:
         """取得最新的正式版本，沒有發過版時回傳 None。
 

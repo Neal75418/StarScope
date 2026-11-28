@@ -6,7 +6,7 @@
 import pytest
 
 from db.models import AlertRule, Category, Repo, RepoCategory, RepoSnapshot
-from services.github import GitHubAPIError
+from services.github import GitHubAPIError, GitHubNotFoundError
 
 
 class FakeGitHub:
@@ -18,6 +18,9 @@ class FakeGitHub:
         self.starred: list[tuple[str, str]] = []
         self.unstarred: list[tuple[str, str]] = []
         self.fail_star = fail_star
+        # GitHub 上同一個名稱就是同一個 id。用到這個替身的測試建的本機列都是 a/one、github_id 1：
+        # 對不上的話，加入時會把那一列當成名稱被佔走的另一個 repo。其他名稱用雜湊，代表別的 repo
+        self.ids: dict[str, int] = {"a/one": 1}
 
     async def star_repo(self, owner: str, name: str) -> None:
         if self.fail_star:
@@ -29,10 +32,10 @@ class FakeGitHub:
     async def unstar_repo(self, owner: str, name: str) -> None:
         self.unstarred.append((owner, name))
 
-    @staticmethod
-    async def get_repo(owner: str, name: str) -> dict:
+    async def get_repo(self, owner: str, name: str) -> dict:
+        full_name = f"{owner}/{name}"
         return {
-            "id": abs(hash(f"{owner}/{name}")) % 100000,
+            "id": self.ids.get(full_name, abs(hash(full_name)) % 100000 + 1000),
             "full_name": f"{owner}/{name}",
             "name": name,
             "owner": {"login": owner},
@@ -48,6 +51,13 @@ class FakeGitHub:
             "created_at": "2026-01-01T00:00:00Z",
             "pushed_at": "2026-08-01T00:00:00Z",
         }
+
+    async def get_repo_by_id(self, github_id: int) -> dict:
+        for full_name, known_id in self.ids.items():
+            if known_id == github_id:
+                owner, name = full_name.split("/")
+                return await self.get_repo(owner, name)
+        raise GitHubNotFoundError(f"repositories/{github_id}", status_code=404)
 
 
 @pytest.fixture(autouse=True)
@@ -291,6 +301,8 @@ def test_an_archived_repo_stays_archived_when_the_star_fails(client, test_db, mo
     else:
         resp = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "one"}]})
         assert resp.json()["data"]["failed"] == 1
+        # 失敗的原因是 star：不是別的原因（例如認不出同一個 repo）剛好也算成失敗
+        assert "GitHub API" in resp.json()["data"]["errors"][0]
 
     assert _rows(test_db, "a/one")[0].unstarred_at is not None
 

@@ -39,6 +39,13 @@ export const FETCH_ALL_TIMEOUT_MS = 300_000;
 export const BATCH_ADD_TIMEOUT_MS = 300_000;
 
 /**
+ * 首次同步把「app 裡有、GitHub 上沒有 star」的推上 GitHub 的逾時。清單沒有筆數上限，每筆先用 github_id 問 GitHub
+ * 現在的名稱、再加星（兩次 GitHub 請求；加星遇到次級限流時依 Retry-After 退避），筆數多時 30 秒做不完。
+ * 理由同 FETCH_ALL_TIMEOUT_MS：提早放棄只會讓前端顯示失敗，伺服器照樣把它做完。
+ */
+export const RESOLVE_LOCAL_ONLY_TIMEOUT_MS = 300_000;
+
+/**
  * 回填 star 歷史的逾時。上限 5000 星時後端要循序打最多 52 次 GitHub 請求（get_repo 加 50 頁 stargazers，剛好 5000 星時再多抓一頁空的確認結尾）再寫入快照，
  * 每次至少約 0.4 秒，星數接近上限時 30 秒可能不夠；sidecar 每次請求自己的逾時是 30 秒，120 秒給每次約 2.3 秒的餘裕。
  * 理由同 FETCH_ALL_TIMEOUT_MS：提早放棄只會讓前端說不確定，伺服器照樣把它做完。

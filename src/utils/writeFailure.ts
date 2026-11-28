@@ -54,6 +54,10 @@ function knownCause(error: ApiError, t: TranslationKeys): string | null {
   if (isEngineUnreachable(error)) {
     return t.failure.engineUnreachable;
   }
+  // 名稱被本機另一列佔著、讓不開：重試不會好，要說先處理那一列
+  if (error.status === 409 && error.code === "NAME_HELD") {
+    return t.failure.nameHeld;
+  }
   return null;
 }
 

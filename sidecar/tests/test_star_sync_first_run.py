@@ -88,6 +88,7 @@ def test_resolve_star_pushes_to_github_and_keeps_the_repo(client, test_db, monke
     from tests.test_star_push import FakeGitHub
 
     gh = FakeGitHub()
+    gh.ids = {"a/local-only": 1}  # 跟本機那一列同一個 repo：推上去之前會用 github_id 問現在的名稱
     monkeypatch.setattr("routers.repos.get_github_service", lambda: gh)
     _tracked(test_db, 1, "a/local-only")
 

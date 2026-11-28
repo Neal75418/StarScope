@@ -59,6 +59,19 @@ describe("describeWriteFailure", () => {
     );
   });
 
+  it("says what to clear first when another project still holds the name", () => {
+    // 本機另一列（多半是 GitHub 上已經不在的舊專案）佔著名稱、讓不開：重試永遠不會好，不能說「再試一次」
+    const error = new ApiError(
+      409,
+      "Another repository in your watchlist or archive still uses the name a/old",
+      "NAME_HELD"
+    );
+
+    expect(describeFailure(error)).toBe(
+      "Not added to your watchlist. Another project in your watchlist or archive still uses this name — most likely an old one GitHub no longer has. Stop tracking it if it is in your watchlist, then permanently delete it in Settings → Archived, and add this one again."
+    );
+  });
+
   it("says the repository can't be found on GitHub when GitHub is the one that can't find it", () => {
     const error = new ApiError(404, "Resource not found: PUT star a/one", "GITHUB_NOT_FOUND");
 

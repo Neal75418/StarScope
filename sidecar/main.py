@@ -316,6 +316,12 @@ async def github_not_found_handler(_request: Request, exc: GitHubNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(exc), "code": "GITHUB_NOT_FOUND"})
 
 
+@app.exception_handler(repos.RepoNameHeldError)
+async def repo_name_held_handler(_request: Request, exc: repos.RepoNameHeldError):
+    # 重試不會好：code 讓前端說要先處理佔著名稱的那一列（HTTPException 帶不了 code）
+    return JSONResponse(status_code=409, content={"detail": str(exc), "code": "NAME_HELD"})
+
+
 @app.exception_handler(alerts.AlertRuleNotFoundError)
 async def alert_rule_not_found_handler(_request: Request, _exc: alerts.AlertRuleNotFoundError):
     return JSONResponse(

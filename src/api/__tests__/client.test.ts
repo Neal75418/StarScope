@@ -56,10 +56,16 @@ import {
   getPortfolioHistory,
   generateFeed,
   batchAddRepos,
+  resolveLocalOnly,
   getComparisonChart,
 } from "../client";
 import { RATE_LIMITED_EVENT } from "../../constants/events";
-import { BACKFILL_TIMEOUT_MS, BATCH_ADD_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "../../constants/api";
+import {
+  BACKFILL_TIMEOUT_MS,
+  BATCH_ADD_TIMEOUT_MS,
+  DEFAULT_TIMEOUT_MS,
+  RESOLVE_LOCAL_ONLY_TIMEOUT_MS,
+} from "../../constants/api";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -1378,6 +1384,19 @@ describe("retry policy: writes are sent once, reads retry", () => {
     expect(firstRequest.signal?.aborted).toBe(false);
 
     await vi.advanceTimersByTimeAsync(4 * BATCH_ADD_TIMEOUT_MS);
+    await outcome;
+  });
+
+  it("resolveLocalOnly keeps waiting for the server past the default 30-second timeout", async () => {
+    // 清單沒有筆數上限，每筆先用 github_id 問 GitHub 現在的名稱再加星：30 秒內做不完是常態
+    hangUntilAborted();
+    const outcome = resolveLocalOnly("star", ["a/b"]).catch((e: unknown) => e);
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    const firstRequest = mockFetch.mock.calls[0][1] as RequestInit;
+    expect(firstRequest.signal?.aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(4 * RESOLVE_LOCAL_ONLY_TIMEOUT_MS);
     await outcome;
   });
 });

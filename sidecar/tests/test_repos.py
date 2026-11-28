@@ -764,3 +764,212 @@ class TestAddRepoMatchesTheExistingRowWhateverTheSpelling:
         assert response.status_code == 201
         assert response.json()["data"]["id"] == archived.id
         assert self._count(test_db) == 2
+
+
+class TestArchivedRowsAreIdentifiedByGithubIdBeforeWritingGitHub:
+    """封存的列不會被抓取，名稱可能停在好幾個月前；舊名可能已經被別的 repo 佔走。
+    用那個名稱寫 GitHub 會 star 到別人的 repo，加入時用名稱認列會把別的 repo 當成它復原。
+    本機那一列：a/old、github_id 1，已封存；它在 GitHub 上現在叫 a/new"""
+
+    @staticmethod
+    def _archived(test_db, github_id=1):
+        from db.models import Repo
+        from utils.time import utc_now
+
+        repo = Repo(owner="a", name="old", full_name="a/old", url="https://github.com/a/old",
+                    github_id=github_id, unstarred_at=utc_now())
+        test_db.add(repo)
+        test_db.commit()
+        return repo
+
+    @staticmethod
+    def _data(github_id, full_name):
+        owner, name = full_name.split("/")
+        return {**MOCK_GITHUB_REPO_DATA, "id": github_id, "full_name": full_name, "name": name,
+                "owner": {"login": owner}}
+
+    def _github(self, *, by_name=None, by_id=None):
+        """by_name：GitHub 上那個名稱現在是哪個 repo；by_id：用 id 問到的那個 repo（或要丟的例外）"""
+        service = AsyncMock()
+        service.can_write = True
+        if by_name is not None:
+            service.get_repo.return_value = by_name
+        if isinstance(by_id, Exception):
+            service.get_repo_by_id.side_effect = by_id
+        elif by_id is not None:
+            service.get_repo_by_id.return_value = by_id
+        return service
+
+    @staticmethod
+    def _row(test_db, row_id):
+        from db.models import Repo
+        from db.soft_delete import include_archived
+
+        test_db.expire_all()
+        return include_archived(test_db.query(Repo)).filter(Repo.id == row_id).one()
+
+    def test_restar_stars_the_current_name_found_by_github_id(self, client, test_db):
+        repo = self._archived(test_db)
+        github = self._github(by_id=self._data(1, "a/new"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post(f"/api/repos/{repo.id}/restar")
+
+        assert response.status_code == 200
+        github.get_repo_by_id.assert_awaited_once_with(1)
+        github.star_repo.assert_awaited_once_with("a", "new")
+        row = self._row(test_db, repo.id)
+        assert row.unstarred_at is None
+        assert (row.owner, row.name, row.full_name) == ("a", "new", "a/new")
+
+    def test_restar_keeps_the_old_name_when_another_row_holds_the_new_one(self, client, test_db):
+        """GitHub 上的新名稱被本機另一列佔著（那一列的名稱過期）：照樣 star 正確的名稱、復原，只是先不改名，不撞唯一鍵回 500"""
+        from db.models import Repo
+
+        repo = self._archived(test_db)
+        test_db.add(Repo(owner="a", name="new", full_name="a/new", url="https://github.com/a/new", github_id=3))
+        test_db.commit()
+        github = self._github(by_id=self._data(1, "a/new"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post(f"/api/repos/{repo.id}/restar")
+
+        assert response.status_code == 200
+        github.star_repo.assert_awaited_once_with("a", "new")
+        row = self._row(test_db, repo.id)
+        assert (row.unstarred_at, row.full_name) == (None, "a/old")
+
+    def test_restar_without_a_github_id_keeps_using_the_local_name(self, client, test_db):
+        """舊資料可能沒有 github_id：問不了，照舊用本機的名稱"""
+        repo = self._archived(test_db, github_id=None)
+        github = self._github()
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post(f"/api/repos/{repo.id}/restar")
+
+        assert response.status_code == 200
+        github.get_repo_by_id.assert_not_called()
+        github.star_repo.assert_awaited_once_with("a", "old")
+
+    def test_adding_a_name_now_owned_by_another_repo_adds_that_repo(self, client, test_db):
+        """GitHub 上的 a/old 現在是 id 2：使用者要的是它，不是本機那列封存的 id 1"""
+        archived = self._archived(test_db)
+        github = self._github(by_name=self._data(2, "a/old"), by_id=self._data(1, "a/new"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 201
+        assert "added to" in response.json()["message"]
+        added = self._row(test_db, response.json()["data"]["id"])
+        assert (added.github_id, added.full_name, added.unstarred_at) == (2, "a/old", None)
+        github.star_repo.assert_awaited_once_with("a", "old")
+        # 封存的那列不復原，改回它在 GitHub 上現在的名稱，把 a/old 讓出來
+        old = self._row(test_db, archived.id)
+        assert old.unstarred_at is not None
+        assert (old.github_id, old.full_name) == (1, "a/new")
+
+    def test_adding_an_old_name_that_leads_to_the_same_repo_restores_and_renames_it(self, client, test_db):
+        """GitHub 上的 a/old 導向 id 1（同一個 repo 改名成 a/new）：復原那一列、改成現在的名稱"""
+        archived = self._archived(test_db)
+        github = self._github(by_name=self._data(1, "a/new"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 201
+        assert "restored to" in response.json()["message"]
+        assert response.json()["data"]["id"] == archived.id
+        github.star_repo.assert_awaited_once_with("a", "new")
+        row = self._row(test_db, archived.id)
+        assert (row.unstarred_at, row.full_name) == (None, "a/new")
+
+    def test_adding_a_name_held_by_an_archived_row_that_cannot_move_writes_nothing(self, client, test_db):
+        """封存的那列佔著名稱、又問不到它現在叫什麼（GitHub 上已經刪掉）：不 star、不復原、不建列"""
+        archived = self._archived(test_db)
+        github = self._github(by_name=self._data(2, "a/old"),
+                              by_id=GitHubNotFoundError("gone", status_code=404))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 409
+        # 重試永遠不會成功：帶 code 讓前端說清楚要先處理那一列
+        assert response.json()["code"] == "NAME_HELD"
+        github.star_repo.assert_not_called()
+        old = self._row(test_db, archived.id)
+        assert (old.unstarred_at is not None, old.full_name) == (True, "a/old")
+        from db.models import Repo
+        from db.soft_delete import include_archived
+        assert include_archived(test_db.query(Repo)).count() == 1
+
+    @staticmethod
+    def _committed(test_db, row_id):
+        """先 rollback 再讀：endpoint 沒 commit 的寫入（包括只 flush 的）不能算數"""
+        from db.models import Repo
+        from db.soft_delete import include_archived
+
+        test_db.rollback()
+        return include_archived(test_db.query(Repo)).filter(Repo.id == row_id).one()
+
+    @pytest.mark.parametrize("endpoint", ["single", "batch"])
+    def test_a_failed_star_leaves_the_moved_row_as_it_was(self, client, test_db, endpoint):
+        """先寫 GitHub 再改本機：讓開名稱的改名在 star 之前，star 失敗時那一列要維持原名"""
+        archived = self._archived(test_db)
+        github = self._github(by_name=self._data(2, "a/old"), by_id=self._data(1, "a/new"))
+        github.star_repo.side_effect = GitHubAPIError("star failed", status_code=403)
+        with patch("routers.repos.get_github_service", return_value=github):
+            if endpoint == "single":
+                response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+                assert response.status_code == 502
+            else:
+                response = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "old"}]})
+                assert response.json()["data"]["failed"] == 1
+
+        row = self._committed(test_db, archived.id)
+        assert (row.full_name, row.unstarred_at is not None) == ("a/old", True)
+        from db.models import Repo
+        from db.soft_delete import include_archived
+        assert include_archived(test_db.query(Repo)).count() == 1
+
+    def test_batch_reports_a_held_name_as_its_own_failure(self, client, test_db):
+        self._archived(test_db)
+        github = self._github(by_name=self._data(2, "a/old"),
+                              by_id=GitHubNotFoundError("gone", status_code=404))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos/batch", json={"repos": [{"owner": "a", "name": "old"}]})
+
+        data = response.json()["data"]
+        assert data["failed"] == 1
+        assert "未預期" not in data["errors"][0]
+        github.star_repo.assert_not_called()
+
+    def test_resolving_a_local_only_repo_stars_the_current_name_found_by_github_id(self, client, test_db):
+        """首次同步列出「本機有、GitHub 上沒有」的追蹤中的列：抓取時 id 對不上會略過、不改名，名稱一樣可能過期"""
+        from db.models import Repo
+
+        repo = Repo(owner="a", name="old", full_name="a/old", url="https://github.com/a/old", github_id=1)
+        test_db.add(repo)
+        test_db.commit()
+        github = self._github(by_id=self._data(1, "a/new"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos/sync/resolve", json={"action": "star", "full_names": ["a/old"]})
+
+        assert response.status_code == 200
+        github.star_repo.assert_awaited_once_with("a", "new")
+        assert self._committed(test_db, repo.id).full_name == "a/new"
+
+    def test_an_archived_row_without_a_github_id_is_restored_as_before(self, client, test_db):
+        """舊資料沒有 github_id：分不出是不是同一個 repo，照舊復原名稱相符的那一列（不能因為 int(None) 回 500）"""
+        archived = self._archived(test_db, github_id=None)
+        github = self._github(by_name=self._data(2, "a/old"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 201
+        assert response.json()["data"]["id"] == archived.id
+
+    def test_restoring_renames_a_case_only_difference(self, client, test_db):
+        """GitHub 上的正式名稱只差大小寫：改名不能被這一列自己擋住"""
+        archived = self._archived(test_db)
+        github = self._github(by_name=self._data(1, "A/Old"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 201
+        assert self._committed(test_db, archived.id).full_name == "A/Old"
+

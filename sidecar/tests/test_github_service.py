@@ -508,6 +508,28 @@ class TestStarWrites:
         with pytest.raises(GitHubAPIError):
             await service.star_repo("a", "missing")
 
+    async def test_get_repo_by_id_asks_by_the_stable_id(self):
+        """名稱會變、舊名會被別人佔走；id 不會。封存的列寫 GitHub 之前用它問目前的名稱"""
+        seen: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request.url.path)
+            return httpx.Response(200, json={"id": 7, "full_name": "a/new"})
+
+        service = self._service_with(httpx.MockTransport(handler))
+        data = await service.get_repo_by_id(7)
+
+        assert seen == ["/repositories/7"]
+        assert data["full_name"] == "a/new"
+
+    async def test_get_repo_by_id_raises_not_found_when_the_repo_is_gone(self):
+        def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(404, json={"message": "Not Found"})
+
+        service = self._service_with(httpx.MockTransport(handler))
+        with pytest.raises(GitHubNotFoundError):
+            await service.get_repo_by_id(7)
+
 
 class TestRedirects:
     """GitHub 對改名或轉移過的 repo 回 301。

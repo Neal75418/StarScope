@@ -1022,6 +1022,8 @@ export const translations = {
         "GitHub refused this action — it may be a permissions problem or too many requests in a short time. Try again in a minute; if it keeps happening, check the GitHub connection in Settings.",
       githubUnavailable: "GitHub returned an error or couldn't be reached. Try again later.",
       engineUnreachable: "The data engine can't be reached.",
+      nameHeld:
+        "Another project in your watchlist or archive still uses this name — most likely an old one GitHub no longer has. Stop tracking it if it is in your watchlist, then permanently delete it in Settings → Archived, and add this one again.",
       retry: "Try again.",
     },
     // GitHub 連線
@@ -2172,6 +2174,8 @@ export const translations = {
         "GitHub 拒絕了這個操作，可能是權限不足，或短時間內操作太多次。過一分鐘再試；還是不行就到設定頁檢查 GitHub 連結。",
       githubUnavailable: "GitHub 回了錯誤或連不上，稍後再試。",
       engineUnreachable: "連不上資料引擎。",
+      nameHeld:
+        "追蹤清單或已封存裡有另一個專案還用著這個名稱，多半是 GitHub 上已經不在的舊專案。它在追蹤清單的話先取消追蹤，再到設定頁的「已封存」永久刪除，就能加入這一個。",
       retry: "請再試一次。",
     },
     // GitHub 連線

@@ -256,6 +256,68 @@ def _find_tracked_or_archived(db: Session, full_name: str, github_id: int | None
     return found
 
 
+def _github_owner_name(github_data: dict, owner: str, name: str) -> tuple[str, str]:
+    """GitHub 回應裡的正式 owner 與名稱；沒有時用傳進來的。"""
+    return (github_data.get("owner") or {}).get("login") or owner, github_data.get("name") or name
+
+
+def _rename_to_github(repo: Repo, github_data: dict, db: Session) -> bool:
+    """把這一列改成 GitHub 上現在的名稱。回傳改完之後這一列的名稱是不是 GitHub 上的那個。
+
+    名稱被另一列佔著（full_name 是唯一鍵）時不改、回 False：那一列多半是名稱過期的舊列，改了會撞鍵回 500。
+    """
+    full_name = github_data.get("full_name")
+    if not full_name or full_name == repo.full_name:
+        return True
+    taken = (
+        include_archived(db.query(Repo.id))
+        .filter(func.lower(Repo.full_name) == full_name.lower(), Repo.id != repo.id)
+        .first()
+    )
+    if taken is not None:
+        logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上叫 {full_name}，但這個名稱被本機另一列佔著，先不改名")
+        return False
+    repo.owner, repo.name = _github_owner_name(github_data, repo.owner, repo.name)
+    repo.full_name = full_name
+    repo.url = f"https://github.com/{full_name}"
+    return True
+
+
+class RepoNameHeldError(Exception):
+    """要加入的名稱被本機另一列（另一個 repo、名稱過期）佔著，又讓不開。重試不會好：要先刪掉或處理那一列。"""
+
+    def __init__(self, full_name: str) -> None:
+        super().__init__(f"Another repository in your watchlist or archive still uses the name {full_name}")
+        self.full_name = full_name
+
+
+async def _move_aside(repo: Repo, github: GitHubService, db: Session) -> None:
+    """名稱過期、佔著別的 repo 名稱的那一列：用 github_id 問它現在叫什麼，改過去讓出名稱。
+
+    問不到（GitHub 上已經刪掉）或改不過去時丟 RepoNameHeldError，什麼都不寫：讓出不了名稱就建不了新列，
+    而把它當成要加的那個 repo 復原，會 star 到別人的 repo。改名只 flush（後面建新列要它先讓出名稱），
+    之後的 star 失敗時由呼叫端 rollback 丟掉
+    """
+    try:
+        current = await github.get_repo_by_id(int(repo.github_id))
+    except GitHubNotFoundError:
+        current = None
+    if current is None or not _rename_to_github(repo, current, db):
+        raise RepoNameHeldError(repo.full_name)
+    db.flush()
+
+
+async def _current_name_on_github(repo: Repo, github: GitHubService) -> tuple[str, str, dict | None]:
+    """寫 GitHub 用的名稱。本機名稱可能過期（封存的列不會被抓取；抓取時 id 對不上會略過、不改名），
+    有 github_id 時用它問 GitHub 現在叫什麼，連同回應一起回傳（給呼叫端改名）；沒有 github_id 的舊資料問不了，用本機的名稱。
+    """
+    if repo.github_id is None:
+        return repo.owner, repo.name, None
+    current = await github.get_repo_by_id(int(repo.github_id))
+    owner, name = _github_owner_name(current, repo.owner, repo.name)
+    return owner, name, current
+
+
 async def _add_or_restore_repo(
     owner: str, name: str, github: GitHubService, db: Session
 ) -> tuple[Repo, Literal["created", "restored", "already_tracked"]]:
@@ -263,20 +325,26 @@ async def _add_or_restore_repo(
 
     單筆與批次加入共用這一份。各寫一份時復原只補在單筆那邊，批次加入遇到封存的
     repo 只會略過——探索頁把它當成沒追蹤、可以勾選，卻永遠加不回來。
-    GitHub 例外往外拋、由呼叫端回報；拋出時本機沒有任何改動。
+    GitHub 例外與 RepoNameHeldError 往外拋、由呼叫端回報；拋出時本機的改動都還沒 commit（讓開名稱的改名
+    只 flush），呼叫端 rollback 或請求結束時丟掉。
     """
     existing = _find_tracked_or_archived(db, f"{owner}/{name}")
-    github_data: dict | None = None
-    star_owner, star_name = owner, name
-    if existing is None:
-        # 輸入的名稱對不上任何一列：可能是改名前的舊名，或本機那一列還是舊名。先讀 GitHub 拿正式名稱與 id 再找一次；
-        # star 也用 GitHub 回的正式名稱，不靠舊名的導向
-        github_data = await github.get_repo(owner, name)
-        star_owner = (github_data.get("owner") or {}).get("login") or owner
-        star_name = github_data.get("name") or name
-        existing = _find_tracked_or_archived(
-            db, github_data.get("full_name") or f"{owner}/{name}", github_data.get("id")
-        )
+    if existing is not None and existing.unstarred_at is None:
+        return existing, "already_tracked"
+
+    # 對不上任何一列（可能是改名前的舊名，或本機那一列還是舊名），或對上的是封存的列：封存的列不會被抓取，
+    # 名稱可能停在好幾個月前，舊名可能已經是別的 repo 的。先讀 GitHub 拿這個名稱現在的正式名稱與 id 再找一次；
+    # star 也用 GitHub 回的正式名稱，不靠舊名的導向
+    github_data = await github.get_repo(owner, name)
+    star_owner, star_name = _github_owner_name(github_data, owner, name)
+    incoming_id = github_data.get("id")
+    existing = _find_tracked_or_archived(db, github_data.get("full_name") or f"{owner}/{name}", incoming_id)
+    if (existing is not None and existing.github_id is not None and incoming_id is not None
+            and existing.github_id != incoming_id):
+        # 只有名稱相符、id 不同：那一列是另一個 repo，它的舊名現在是這個 repo 的。不能把它當成這個 repo 復原；
+        # 先把它改回它自己現在的名稱讓出名稱，再建新的一列
+        await _move_aside(existing, github, db)
+        existing = None
     if existing is not None and existing.unstarred_at is None:
         return existing, "already_tracked"
 
@@ -293,13 +361,13 @@ async def _add_or_restore_repo(
 
     if existing is not None:
         # 封存的列＝使用者取消過又反悔。復原同一列（快照、訊號、分類、警報規則都還在），
-        # 而不是回「已經在清單裡」——畫面上根本沒有它，使用者會被永久擋住
+        # 而不是回「已經在清單裡」——畫面上根本沒有它，使用者會被永久擋住。名稱順便改成 GitHub 上現在的
+        _rename_to_github(existing, github_data, db)
         existing.unstarred_at = None
         db.commit()
         db.refresh(existing)
         return existing, "restored"
 
-    assert github_data is not None  # existing 是 None 才會走到這裡，上面已經讀過
     repo = _create_repo_from_github(owner, name, github_data)
     if starred_now:
         # PUT 回 204 空 body，拿不到 GitHub 的精確時間，但「剛剛」是夠好的近似，
@@ -426,6 +494,11 @@ async def batch_add_repos(
 
         try:
             _, outcome = await _add_or_restore_repo(owner, name, github, db)
+        except RepoNameHeldError:
+            failed += 1
+            errors.append(f"{full_name}: 本機另一個 repo 還用著這個名稱（多半是 GitHub 上已經不在的舊專案）")
+            db.rollback()
+            continue
         except GitHubNotFoundError:
             failed += 1
             errors.append(f"{full_name}: 在 GitHub 上找不到")
@@ -505,11 +578,18 @@ async def unstar_repo_endpoint(repo_id: int, db: Annotated[Session, Depends(get_
 
 @router.post("/repos/{repo_id}/restar", response_model=ApiResponse[dict])
 async def restar_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
-    """從封存清單復原：重新 star 並清除封存標記。快照與訊號原本就還在。"""
+    """從封存清單復原：重新 star 並清除封存標記。快照與訊號原本就還在。
+
+    封存的列不會被抓取，名稱可能停在好幾個月前，舊名可能已經被別的 repo 佔走：有 github_id 時先用它問
+    GitHub 現在叫什麼，star 那個名稱、這一列也改過去。沒有 github_id 的舊資料問不了，照舊用本機的名稱。
+    """
     repo = get_repo_or_404(repo_id, db, allow_archived=True)
     github = get_github_service()
     if github.can_write:
-        await github.star_repo(repo.owner, repo.name)
+        star_owner, star_name, current = await _current_name_on_github(repo, github)
+        await github.star_repo(star_owner, star_name)
+        if current:
+            _rename_to_github(repo, current, db)
     repo.unstarred_at = None
     db.commit()
     return success_response({"restored": repo_id})
@@ -623,9 +703,12 @@ async def resolve_local_only(payload: ResolvePayload,
         if repo is None:
             continue
         if payload.action == "star":
-            # 先寫 GitHub 才算數，理由同 add_repo
+            # 先寫 GitHub 才算數，理由同 add_repo。名稱可能過期，先用 github_id 問現在叫什麼（同 restar）
             if github.can_write:
-                await github.star_repo(repo.owner, repo.name)
+                star_owner, star_name, current = await _current_name_on_github(repo, github)
+                await github.star_repo(star_owner, star_name)
+                if current:
+                    _rename_to_github(repo, current, db)
             repo.unstarred_at = None
         else:
             repo.unstarred_at = utc_now()

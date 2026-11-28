@@ -96,7 +96,9 @@ def test_adding_an_archived_repo_restores_the_same_row(client, test_db,
     from db.soft_delete import include_archived
     from tests.test_star_push import FakeGitHub
 
-    monkeypatch.setattr("routers.repos.get_github_service", lambda: FakeGitHub())
+    github = FakeGitHub()
+    github.ids["a/gone"] = 2  # 跟封存的那一列同一個 repo
+    monkeypatch.setattr("routers.repos.get_github_service", lambda: github)
 
     resp = client.post("/api/repos", json={"owner": "a", "name": "gone"})
 

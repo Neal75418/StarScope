@@ -9,6 +9,7 @@ import {
   FETCH_ALL_TIMEOUT_MS,
   BACKFILL_TIMEOUT_MS,
   BATCH_ADD_TIMEOUT_MS,
+  RESOLVE_LOCAL_ONLY_TIMEOUT_MS,
   MAX_RETRIES,
   RETRY_DELAY_MS,
   API_ERROR_MESSAGES,
@@ -288,7 +289,7 @@ export async function resolveLocalOnly(
   return apiCall<{ handled: number }>(
     "/repos/sync/resolve",
     { method: "POST", body: JSON.stringify({ action, full_names: fullNames }) },
-    { retries: 0 }
+    { retries: 0, timeoutMs: RESOLVE_LOCAL_ONLY_TIMEOUT_MS }
   );
 }
 
