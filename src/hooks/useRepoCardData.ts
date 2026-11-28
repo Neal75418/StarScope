@@ -3,7 +3,7 @@
  * 使用 React Query 管理快取與請求去重。
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ContextBadge, EarlySignal } from "../api/client";
 import { getContextBadges, getRepoSignals, fetchRepoContext } from "../api/client";
@@ -68,6 +68,21 @@ export function useRepoCardData(
     initialData: preloaded?.signals,
     enabled: (!deferToBatch && preloaded?.signals === undefined) || isRefreshingContext,
   });
+
+  // initialData 只在查詢還沒有資料時生效：父層之後換來的一批（追蹤清單重讀後重抓的、離開再回來時重抓的）
+  // 要自己寫進去，否則卡片一直顯示第一次讀到的
+  const preloadedBadges = preloaded?.badges;
+  const preloadedSignals = preloaded?.signals;
+  useEffect(() => {
+    if (preloadedBadges !== undefined) {
+      queryClient.setQueryData(queryKeys.repoCard.badges(repoId), preloadedBadges);
+    }
+  }, [queryClient, repoId, preloadedBadges]);
+  useEffect(() => {
+    if (preloadedSignals !== undefined) {
+      queryClient.setQueryData(queryKeys.repoCard.signals(repoId), preloadedSignals);
+    }
+  }, [queryClient, repoId, preloadedSignals]);
 
   const badges = badgesQuery.data ?? [];
   const signals = signalsQuery.data ?? [];

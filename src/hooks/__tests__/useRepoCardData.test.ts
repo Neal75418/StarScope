@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { createTestQueryClient } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => {
@@ -165,5 +166,52 @@ describe("useRepoCardData", () => {
     });
 
     expect(showToastMock).not.toHaveBeenCalled();
+  });
+
+  describe("父層換來新的一批", () => {
+    // initialData 只在查詢還沒有資料時生效：追蹤清單重讀後父層重抓的那批，卡片要自己採用
+    const signal = (id: number) => ({ id, signal_type: "spike", acknowledged: false });
+    const batch = (count: number, label: string) => ({
+      badges: [{ type: "trending", label }],
+      signals: Array.from({ length: count }, (_, i) => signal(i + 1)),
+    });
+
+    function wrapperFor(client: QueryClient) {
+      return ({ children }: { children: ReactNode }) =>
+        createElement(QueryClientProvider, { client }, children);
+    }
+
+    it("shows a newer batch the parent hands over", async () => {
+      const { result, rerender } = renderHook(
+        ({ preloaded }) => useRepoCardData(42, preloaded as never, true),
+        { wrapper: createWrapper(), initialProps: { preloaded: batch(1, "old") } }
+      );
+      expect(result.current.activeSignalCount).toBe(1);
+
+      rerender({ preloaded: batch(3, "new") });
+
+      await waitFor(() => expect(result.current.activeSignalCount).toBe(3));
+      expect(result.current.badges).toEqual([{ type: "trending", label: "new" }]);
+    });
+
+    it("shows the parent's batch when the card mounts again", async () => {
+      // 離開追蹤清單再回來：卡片的查詢還在快取裡（gcTime 30 分鐘），父層重抓的是新的
+      const client = createTestQueryClient();
+      client.setDefaultOptions({
+        queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+      });
+      const first = renderHook(() => useRepoCardData(42, batch(1, "old") as never, true), {
+        wrapper: wrapperFor(client),
+      });
+      expect(first.result.current.activeSignalCount).toBe(1);
+      first.unmount();
+
+      const again = renderHook(() => useRepoCardData(42, batch(3, "new") as never, true), {
+        wrapper: wrapperFor(client),
+      });
+
+      await waitFor(() => expect(again.result.current.activeSignalCount).toBe(3));
+      expect(again.result.current.badges).toEqual([{ type: "trending", label: "new" }]);
+    });
   });
 });

@@ -161,13 +161,29 @@ vi.mock("../../hooks/useSignalSummary", () => ({
   useSignalSummary: () => signalSummary.value,
 }));
 
+const batchLoader = vi.hoisted(() => ({
+  reposVersion: 1,
+  useReposQuery: vi.fn(),
+  useWindowedBatchRepoData: vi.fn(),
+}));
+
+vi.mock("../../hooks/useReposQuery", () => ({
+  useReposQuery: (options?: { enabled?: boolean }) => {
+    batchLoader.useReposQuery(options);
+    return { dataUpdatedAt: batchLoader.reposVersion };
+  },
+}));
+
 vi.mock("../../hooks/useWindowedBatchRepoData", () => ({
-  useWindowedBatchRepoData: () => ({
-    dataMap: {},
-    loading: false,
-    error: null,
-    setVisibleRange: vi.fn(),
-  }),
+  useWindowedBatchRepoData: (ids: number[], options?: unknown) => {
+    batchLoader.useWindowedBatchRepoData(ids, options);
+    return {
+      dataMap: {},
+      loading: false,
+      error: null,
+      setVisibleRange: vi.fn(),
+    };
+  },
 }));
 
 // noinspection JSUnusedGlobalSymbols
@@ -518,5 +534,24 @@ describe("Watchlist", () => {
 
     expect(screen.getByTestId("watchlist-load-error")).toBeInTheDocument();
     expect(screen.queryByText("No repositories in your watchlist yet.")).not.toBeInTheDocument();
+  });
+
+  it("passes the tracked list's dataUpdatedAt to the batch loader as its data version", () => {
+    // 卡片的訊號與徽章由批次載入另外抓：追蹤清單重讀過，就要讓它知道資料換了版本
+    batchLoader.reposVersion = 111;
+    const { rerender } = render(<Watchlist />);
+    expect(batchLoader.useWindowedBatchRepoData).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ dataVersion: 111 })
+    );
+
+    batchLoader.reposVersion = 222;
+    rerender(<Watchlist />);
+    expect(batchLoader.useWindowedBatchRepoData).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ dataVersion: 222 })
+    );
+    // 只讀版本：追蹤清單由 WatchlistContext 讀，這裡不另外發請求
+    expect(batchLoader.useReposQuery).toHaveBeenCalledWith({ enabled: false });
   });
 });

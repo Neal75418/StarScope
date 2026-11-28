@@ -23,6 +23,7 @@ import { useCategoryTree } from "../hooks/useCategoryTree";
 import { useWatchlistSort } from "../hooks/useWatchlistSort";
 import { useViewMode } from "../hooks/useViewMode";
 import { useWindowedBatchRepoData } from "../hooks/useWindowedBatchRepoData";
+import { useReposQuery } from "../hooks/useReposQuery";
 import { useSelectionMode } from "../hooks/useSelectionMode";
 import { useWatchlistBatchActions } from "../hooks/useWatchlistBatchActions";
 import { STORAGE_KEYS } from "../constants/storage";
@@ -64,12 +65,15 @@ export function Watchlist() {
   // 視窗化批次載入：基於 displayedRepos（已排序 / 過濾）的 ID 順序，
   // 確保 RepoList/RepoGrid 回報的可見範圍 index 對齊正確的 repos
   const repoIds = useMemo(() => displayedRepos.map((r) => r.id), [displayedRepos]);
+  // 卡片的訊號與徽章跟著追蹤清單重讀：只讀 dataUpdatedAt 的停用觀察者，只有這一頁會跟著重畫
+  const reposVersion = useReposQuery({ enabled: false }).dataUpdatedAt;
   const {
     dataMap: batchData,
     setVisibleRange,
     batchOwnsData,
   } = useWindowedBatchRepoData(repoIds, {
     bufferSize: 10,
+    dataVersion: reposVersion,
   });
 
   const signalSummary = useSignalSummary();

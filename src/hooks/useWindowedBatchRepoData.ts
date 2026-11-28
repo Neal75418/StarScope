@@ -34,6 +34,11 @@ interface VisibleRange {
 interface UseWindowedBatchRepoDataOptions {
   bufferSize?: number;
   debounceMs?: number;
+  /**
+   * 資料版本（例如追蹤清單查詢的 dataUpdatedAt）。變了就把畫面上看得到的重新抓，抓到之前先顯示舊的：
+   * 卡片上的抓取、全部重新整理、背景抓取之後追蹤清單會重讀，這裡的元件 state 碰不到 invalidate
+   */
+  dataVersion?: number;
 }
 
 interface UseWindowedBatchRepoDataResult {
@@ -58,7 +63,7 @@ export function useWindowedBatchRepoData(
   allRepoIds: number[],
   options: UseWindowedBatchRepoDataOptions = {}
 ): UseWindowedBatchRepoDataResult {
-  const { bufferSize = 10, debounceMs = 150 } = options;
+  const { bufferSize = 10, debounceMs = 150, dataVersion } = options;
 
   const [visibleRange, setVisibleRange] = useState<VisibleRange>({
     start: 0,
@@ -78,6 +83,8 @@ export function useWindowedBatchRepoData(
   // 世代計數：error 同時是 batchOwnsData（=false 時整頁掉回每卡自抓的 N+1 模式），
   // 只允許「最新一批」的失敗寫入，否則被取代批次的暫時性失敗會蓋掉當前視窗的健康狀態
   const generationRef = useRef(0);
+  // 每個 id 是在哪個資料版本送出時讀到的：跟目前版本不同就算沒載入、會重抓，抓到之前先顯示舊的
+  const loadedVersionRef = useRef<Map<number, number | undefined>>(new Map());
 
   // Debounce visibleRange 更新，避免快速滾動時過多請求
   useEffect(() => {
@@ -99,14 +106,16 @@ export function useWindowedBatchRepoData(
   const missingIds = useMemo(() => {
     return targetIds.filter((id) => {
       const key = String(id);
-      const isLoaded = badgesMap[key] && signalsMap[key];
+      const isLoaded =
+        badgesMap[key] && signalsMap[key] && loadedVersionRef.current.get(id) === dataVersion;
       const isLoading = loadingIdsRef.current.has(id);
       return !isLoaded && !isLoading;
     });
-  }, [targetIds, badgesMap, signalsMap]);
+  }, [targetIds, badgesMap, signalsMap, dataVersion]);
 
-  // 穩定化引用，避免重複載入
-  const missingIdsKey = missingIds.join(",");
+  // 穩定化引用，避免重複載入。帶上資料版本：途中那批回來時剛好換版本、兩個更新合成一次畫面的話，
+  // 缺的 id 跟那批送出時一模一樣，只看 id 不會再抓
+  const missingIdsKey = `${dataVersion}|${missingIds.join(",")}`;
 
   // 批次載入缺失的資料
   useEffect(() => {
@@ -115,6 +124,8 @@ export function useWindowedBatchRepoData(
     const controller = new AbortController();
     controllersRef.current.add(controller);
     const generation = ++generationRef.current;
+    // 送出時的版本：版本變動前送出、變動後才回來的批次記成舊版本，回來後會再抓一次
+    const versionAtStart = dataVersion;
     const loadingSet = loadingIdsRef.current;
     const ownedIds = new Set(missingIds);
 
@@ -141,6 +152,7 @@ export function useWindowedBatchRepoData(
       .then(([badgesResults, signalsResults]) => {
         settle();
         if (controller.signal.aborted) return; // 只有 unmount 會 abort
+        ownedIds.forEach((id) => loadedVersionRef.current.set(id, versionAtStart));
 
         const newBadges = Object.assign({}, ...badgesResults);
         const newSignals = Object.assign({}, ...signalsResults);
@@ -161,7 +173,7 @@ export function useWindowedBatchRepoData(
     // 刻意沒有 cleanup abort：被新視窗「取代」的批次讓它跑完落入快取即可。
     // 若在這裡 abort，loadingSet 清掉後不會有任何 re-render 重算 missingIds，
     // 這些 id 會卡在「未載入也不再載入」直到下次互動（死鎖）。abort 只在 unmount 做。
-    // 用 missingIdsKey（逗號串接字串）代替 missingIds 陣列，避免引用變化觸發重複請求
+    // 用 missingIdsKey（版本＋逗號串接的 id）代替 missingIds 陣列，避免引用變化觸發重複請求
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingIdsKey]);
 
