@@ -182,7 +182,7 @@ npm install
 # 一定要用 venv：系統 python3 在 macOS 是 3.9，缺 StrEnum 會直接 ImportError）
 cd sidecar && python3.14 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt pyinstaller -c constraints.txt && cd ..
 
-# 環境設定（選用）：提升 GitHub API 配額用 app 內的「連結 GitHub」即可，不需要設定；
+# 環境設定（選用）：提升 GitHub API 配額、回填星數歷史用 app 內的「連結 GitHub」即可，不需要設定；
 # 要改用自己的 OAuth App 或 Personal Access Token 時才需要 sidecar/.env
 cp sidecar/.env.example sidecar/.env
 ```
@@ -276,7 +276,7 @@ JSON 端點成功時使用統一的 `ApiResponse[T]` 格式 `{success, data, mes
 | `discovery`       | `/api/discovery`       | GitHub 搜尋（限速 30/min） |
 | `feed`            | `/api/feed`            | For You 每日個人化推薦：產生、回饋、開啟紀錄、統計 |
 | `interests`       | `/api/interests`       | Feed 興趣清單 CRUD、排除清單（列出、新增、刪除）、熱門主題（含重新整理與進度） |
-| `star_history`    | `/api/star-history`    | 單一 repo 的星數歷史、回填（≤ 5000 stars）與回填狀態、追蹤清單的總星數歷史 |
+| `star_history`    | `/api/star-history`    | 單一 repo 的星數歷史、回填（≤ 5000 stars，需要連結 GitHub）與回填狀態、追蹤清單的總星數歷史 |
 | `comparison`      | `/api/comparison`      | 多專案對比圖表資料（2–5 個 repo，7d／30d／90d／全部，可正規化） |
 | `weekly_summary`  | `/api/summary`         | 每週摘要報告 |
 | `digest`          | `/api/digest`          | 「自上次造訪」摘要、標記看過 |

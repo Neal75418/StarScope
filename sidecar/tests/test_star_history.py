@@ -5,6 +5,8 @@ Tests for star history endpoints.
 from datetime import timedelta
 from unittest.mock import patch, AsyncMock
 
+import pytest
+
 from db.models import RepoSnapshot
 from utils.time import utc_now
 
@@ -109,6 +111,22 @@ class TestStarHistoryBackfill:
         assert data["code"] is None
         assert data["earliest_date"] == "2025-01-01"
         assert data["latest_date"] == "2025-01-02"
+
+    @pytest.mark.parametrize("token", [None, ""])
+    def test_backfill_says_github_must_be_connected_when_there_is_no_token(self, client, mock_repo, token):
+        """GitHub 只給登入後的請求列出 stargazers（不帶 token 回 401 Requires authentication，2026-11-29 實測）：
+        沒有連結 GitHub 時不打 GitHub，說要先連結——不能落到「離線」或「授權過期」，這些人根本沒連結過。
+        用真的 GitHubService：安裝版沒設環境變數時 token 是 None，conftest 的 GITHUB_TOKEN= 則讓它是空字串"""
+        from services.github import GitHubService
+
+        with patch("routers.star_history.get_github_service", return_value=GitHubService(token=token)):
+            response = client.post(f"/api/star-history/{mock_repo.id}/backfill")
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["success"] is False
+        assert data["code"] == "GITHUB_NOT_CONNECTED"
+        assert data["snapshots_created"] == 0
 
     def test_backfill_repo_not_found(self, client):
         """Test backfill for a nonexistent repo returns 404."""

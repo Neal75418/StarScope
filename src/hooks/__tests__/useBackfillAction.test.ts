@@ -149,6 +149,18 @@ describe("useBackfillAction", () => {
     expect(mockOnSuccess).not.toHaveBeenCalled();
   });
 
+  it("says GitHub has to be connected first when there is no GitHub connection", async () => {
+    // GitHub 只給登入後的請求列出 stargazers：沒連結過的人不能說成授權過期
+    vi.mocked(apiClient.backfillStarHistory).mockResolvedValue(refused("GITHUB_NOT_CONNECTED"));
+    const { result } = renderHook(() => useBackfillAction(defaultProps), { wrapper });
+
+    await act(async () => {
+      await result.current.handleBackfill();
+    });
+
+    expect(result.current.errorMessage).toBe(t.starHistory.backfillNeedsGithub);
+  });
+
   it("does not show the server's message for a refusal it doesn't know", async () => {
     vi.mocked(apiClient.backfillStarHistory).mockResolvedValue(refused(null));
 

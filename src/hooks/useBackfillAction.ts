@@ -19,6 +19,7 @@ function describeRefusal(result: BackfillResult, t: TranslationKeys): string {
   if (result.code === "TOO_MANY_STARS") {
     return interpolate(t.starHistory.backfillTooManyStars, { count: MAX_STARS_FOR_BACKFILL });
   }
+  if (result.code === "GITHUB_NOT_CONNECTED") return t.starHistory.backfillNeedsGithub;
   return interpolate(t.failure.withCause, {
     outcome: t.starHistory.backfillFailure.notDone,
     cause: t.failure.retry,

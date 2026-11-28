@@ -1139,6 +1139,8 @@ export const translations = {
       statusLoadFailed: "Couldn't load backfill status",
       backfillTooManyStars:
         "Not backfilled: repositories with more than {count} stars can't be backfilled.",
+      backfillNeedsGithub:
+        "Not backfilled: GitHub only lists who starred a repository to signed-in requests. Connect GitHub in Settings, then try again.",
       backfillFailure: {
         notDone: "Not backfilled.",
         timedOut:
@@ -2299,6 +2301,8 @@ export const translations = {
       backfillComplete: "回填完成！建立了 {count} 個資料點。",
       statusLoadFailed: "讀不到回填狀態",
       backfillTooManyStars: "沒有回填：超過 {count} 顆星的儲存庫無法回填 star 歷史。",
+      backfillNeedsGithub:
+        "沒有回填：GitHub 只讓登入後的請求列出誰 star 過。到設定頁連結 GitHub 之後再試。",
       backfillFailure: {
         notDone: "沒有回填。",
         timedOut: "還沒有回應，不確定有沒有回填完成。圖表接下來幾分鐘會自己更新。",

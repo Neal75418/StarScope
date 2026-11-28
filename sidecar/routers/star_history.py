@@ -23,6 +23,7 @@ from utils.time import utc_now
 MAX_STARS_FOR_BACKFILL = 5000
 MAX_HISTORY_SNAPSHOTS = 5000  # get_star_history 查詢上限
 ERROR_TOO_MANY_STARS = f"Repository has too many stars (>{MAX_STARS_FOR_BACKFILL}). Backfill is not available."
+ERROR_GITHUB_NOT_CONNECTED = "Backfill needs a connected GitHub account: GitHub only lists stargazers to signed-in requests."
 
 router = APIRouter(prefix="/api/star-history", tags=["star-history"])
 
@@ -51,7 +52,7 @@ class BackfillResult(BaseModel):
     latest_date: str | None  # ISO 格式日期字串
     message: str
     # 失敗的原因代碼，給前端說明用：message 是英文內部用語、不上畫面。成功時是 None
-    code: Literal["TOO_MANY_STARS"] | None = None
+    code: Literal["TOO_MANY_STARS", "GITHUB_NOT_CONNECTED"] | None = None
 
 
 class StarHistoryPoint(BaseModel):
@@ -300,6 +301,21 @@ async def backfill_star_history(
 
     # GitHub 例外由 main.py 中的全域例外處理器處理。
     service = get_github_service()
+
+    # GitHub 只給登入後的請求列出 stargazers（不帶 token 回 401 Requires authentication）：沒有連結 GitHub 時不打，
+    # 直接說要先連結。打下去的話 401 會被當成授權失效，但這些人根本沒連結過
+    if not service.token:
+        return success_response(data=BackfillResult(
+            repo_id=repo.id,
+            repo_name=repo.full_name,
+            success=False,
+            total_stargazers=0,
+            snapshots_created=0,
+            earliest_date=None,
+            latest_date=None,
+            message=ERROR_GITHUB_NOT_CONNECTED,
+            code="GITHUB_NOT_CONNECTED",
+        ))
 
     # 抓取含日期的 stargazer（包含 star 數檢查）。超過上限與沒有人 star 都是空清單，
     # 用 over_limit 分，不看本機快照：上次快照之後才超過上限的 repo，快照的星數還在上限以下
