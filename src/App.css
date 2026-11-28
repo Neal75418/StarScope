@@ -2185,14 +2185,9 @@ body {
   gap: 8px;
 }
 
-.hn-panel-retry {
-  background: none;
-  border: none;
-  color: var(--accent-fg, #58a6ff);
-  cursor: pointer;
-  font-size: inherit;
-  padding: 0;
-  text-decoration: underline;
+/* 面板用 gap 排間距：LoadError 帶著 .load-error 的 margin-bottom 12px，底下會多一截 */
+.hn-panel .load-error {
+  margin: 0;
 }
 
 .hn-panel-loading,

@@ -149,7 +149,8 @@ re-render：`WatchlistStateContext`（只讀狀態）／`WatchlistActionsContext
   `.virtual-repo-item` 的 padding-bottom（量得到，margin 量不到）。快取以位置為 key，順序變了 react-window 會在 rowProps 換了之後
   重新觀察、照新位置再量一次（RepoRow 要展開 `ariaAttributes`，react-window 靠 aria-posinset 對位置）。不要改回寫死的列高：
   有徽章且描述兩行的收合卡片、展開的圖表、HN 討論面板、回填列換行、重讀失敗多一列都會被裁掉。代價：高度一變會畫出一格
-  位置錯的畫面（RO 的 setState 下一格才生效）；可視區上方的列改變高度時畫面不保持位置（捲回開過 HN 討論的列、批次徽章晚到）
+  位置錯的畫面（RO 的 setState 下一格才生效）；可視區上方的列改變高度時畫面不保持位置（捲回開過 HN 討論的列、批次徽章晚到、可視區上方展開中的 HN 討論跟著追蹤清單
+  重讀後多了文章或「沒有更新成功」那一列）
 - 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理：列被虛擬化卸載再掛回時圖表要保持展開，不能放回卡片自己的 state
 - ⚠️ `List` 沒給 `rowKey` 時**預設拿 index 當 key**：列裡有元件 state（圖表的時間範圍、HN 討論面板）時，位置一變（排序、
   篩選、新增、刪除）state 就換給別的 repo。`RepoList` 傳模組層級的 `repoRowKey`（repo id）；它在 render 時被呼叫、不會自動 memo，

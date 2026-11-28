@@ -5,9 +5,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
+import type { ReactElement } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import { ContextBadges } from "../ContextBadges";
-import type { ContextBadge } from "../../api/client";
+import type { ContextBadge, ContextSignal } from "../../api/client";
 import { getContextSignals } from "../../api/client";
+import { createTestQueryClient, invalidateTrackedRepos } from "../../lib/react-query";
 
 // Mock the openUrl function
 vi.mock("@tauri-apps/plugin-opener", () => ({
@@ -24,6 +28,44 @@ vi.mock("../../api/client", async (importOriginal) => {
 });
 
 const mockGetContextSignals = vi.mocked(getContextSignals);
+
+function renderWithClient(ui: ReactElement, client: QueryClient = createTestQueryClient()) {
+  return { client, ...render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>) };
+}
+
+/** 跟正式環境一樣 5 分鐘內算新鮮（測試用的 client 是 0）：收起再展開會不會重讀才看得出來 */
+function clientWithAppStaleTime() {
+  const client = createTestQueryClient();
+  client.setDefaultOptions({
+    queries: { ...client.getDefaultOptions().queries, staleTime: 5 * 60 * 1000 },
+  });
+  return client;
+}
+
+function discussion(id: number, title: string, score: number): ContextSignal {
+  return {
+    id,
+    signal_type: "hn",
+    external_id: String(id),
+    title,
+    url: `https://news.ycombinator.com/item?id=${id}`,
+    score,
+    comment_count: 1,
+    author: "pg",
+    published_at: new Date().toISOString(),
+    fetched_at: new Date().toISOString(),
+  };
+}
+
+function answer(...signals: ContextSignal[]) {
+  return { signals, total: signals.length, repo_id: 1 };
+}
+
+// React Query 用 setTimeout(0) 通知畫面：要等過它（包在 act 裡），寫進快取的結果才看得到
+const settle = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 20));
+  });
 
 describe("ContextBadges", () => {
   const mockHnBadge: ContextBadge = {
@@ -44,16 +86,18 @@ describe("ContextBadges", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // mockReset：clearAllMocks 不清 mockResolvedValueOnce 排好的回應，前一條沒用完的會漏到下一條
+    mockGetContextSignals.mockReset();
     mockGetContextSignals.mockResolvedValue({ signals: [], total: 0, repo_id: 1 });
   });
 
   it("returns null when badges array is empty", () => {
-    const { container } = render(<ContextBadges badges={[]} />);
+    const { container } = renderWithClient(<ContextBadges badges={[]} />);
     expect(container.firstChild).toBeNull();
   });
 
   it("renders HN badge with icon, label and parsed value", () => {
-    render(<ContextBadges badges={[mockHnBadge]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} />);
 
     // Icon and "HN" label
     expect(screen.getByText("🔶")).toBeInTheDocument();
@@ -66,28 +110,28 @@ describe("ContextBadges", () => {
   });
 
   it("renders multiple HN badges", () => {
-    render(<ContextBadges badges={[mockHnBadge, mockHnBadgeNonRecent]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge, mockHnBadgeNonRecent]} />);
 
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(2);
   });
 
   it("applies recent class to recent badges", () => {
-    render(<ContextBadges badges={[mockHnBadge]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} />);
 
     const button = screen.getByRole("button");
     expect(button).toHaveClass("recent");
   });
 
   it("does not apply recent class to non-recent badges", () => {
-    render(<ContextBadges badges={[mockHnBadgeNonRecent]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadgeNonRecent]} />);
 
     const button = screen.getByRole("button");
     expect(button).not.toHaveClass("recent");
   });
 
   it("shows expand arrow when repoId is provided", () => {
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
 
     const button = screen.getByRole("button");
     expect(button).toHaveClass("expandable");
@@ -95,7 +139,7 @@ describe("ContextBadges", () => {
   });
 
   it("applies badge type class for styling", () => {
-    render(<ContextBadges badges={[mockHnBadge]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} />);
 
     const button = screen.getByRole("button");
     expect(button).toHaveClass("context-badge-hn");
@@ -111,13 +155,13 @@ describe("ContextBadges", () => {
       score: null,
       is_recent: false,
     };
-    render(<ContextBadges badges={[unknownBadge]} />);
+    renderWithClient(<ContextBadges badges={[unknownBadge]} />);
     // formatValue: label "no-number-here" doesn't match \d+ regex → returns full label
     expect(screen.getByText("no-number-here")).toBeInTheDocument();
   });
 
   it("does not show expand arrow when repoId is not provided", () => {
-    render(<ContextBadges badges={[mockHnBadge]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} />);
     expect(screen.queryByText("▸")).not.toBeInTheDocument();
     expect(screen.queryByText("▾")).not.toBeInTheDocument();
   });
@@ -143,7 +187,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -158,7 +202,7 @@ describe("ContextBadges", () => {
   it("changes expand arrow after toggle", async () => {
     const user = userEvent.setup();
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     // Initially collapsed
     expect(screen.getByText("▸")).toBeInTheDocument();
     await user.click(screen.getByRole("button"));
@@ -173,7 +217,7 @@ describe("ContextBadges", () => {
     const user = userEvent.setup();
     mockGetContextSignals.mockResolvedValueOnce({ signals: [], total: 0, repo_id: 1 });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -182,12 +226,11 @@ describe("ContextBadges", () => {
   });
 
   it("shows a retry-able error state, not the empty state", async () => {
-    // 舊行為把錯誤渲染成「No discussions found」——徽章明明寫著 528 pts，
-    // 點開卻說沒討論，且 fetched:true 讓此生不再重打（第三方審查發現）。
+    // 讀不到與「讀到了、沒有討論」是兩個狀態：徽章明明寫著分數，點開不能說沒討論
     const user = userEvent.setup();
     mockGetContextSignals.mockRejectedValueOnce(new Error("Network error"));
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button", { name: /HN/i }));
 
     await waitFor(() => {
@@ -198,16 +241,27 @@ describe("ContextBadges", () => {
 
   it("retry button refetches and can recover", async () => {
     const user = userEvent.setup();
-    mockGetContextSignals
-      .mockRejectedValueOnce(new Error("Network error"))
-      .mockResolvedValueOnce({ signals: [], total: 0, repo_id: 1 });
+    let answerRetry: (value: unknown) => void = () => {};
+    mockGetContextSignals.mockRejectedValueOnce(new Error("Network error")).mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerRetry = resolve;
+      }) as never
+    );
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button", { name: /HN/i }));
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
 
     await user.click(screen.getByRole("button", { name: "Retry" }));
+    // 重試中說明與按鈕都留著（焦點不離開），不整塊換成載入中
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument()
+    );
+    expect(screen.getByRole("alert")).toBeInTheDocument();
 
+    await act(async () => {
+      answerRetry({ signals: [], total: 0, repo_id: 1 });
+    });
     // 重試成功後才是真正的空狀態
     await waitFor(() => {
       expect(screen.getByText("No discussions found")).toBeInTheDocument();
@@ -216,13 +270,13 @@ describe("ContextBadges", () => {
   });
 
   it("collapse and re-expand also retries after a failure", async () => {
-    // fetched 在失敗時保持 false——這是「此生不再重打」的解法之二
+    // 讀不到時沒有資料、算過期：收起再展開會重讀
     const user = userEvent.setup();
     mockGetContextSignals
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({ signals: [], total: 0, repo_id: 1 });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     const badge = screen.getByRole("button", { name: /HN/i });
     await user.click(badge);
     await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
@@ -234,25 +288,211 @@ describe("ContextBadges", () => {
     });
   });
 
-  it("does not re-fetch signals on second toggle", async () => {
+  it("does not re-fetch on re-expand when nothing was re-read", async () => {
     const user = userEvent.setup();
     mockGetContextSignals.mockResolvedValue({ signals: [], total: 0, repo_id: 1 });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />, clientWithAppStaleTime());
     // First click: expand (fetches)
     await user.click(screen.getByRole("button"));
     await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(1));
 
     // Second click: collapse
     await user.click(screen.getByRole("button"));
-    // Third click: expand again (should NOT re-fetch since signalsFetched=true)
+    // Third click: expand again：5 分鐘內、追蹤清單也沒重讀過，用讀過的那份
     await user.click(screen.getByRole("button"));
+    await settle();
+    expect(mockGetContextSignals).toHaveBeenCalledTimes(1);
+  });
+
+  describe("跟著追蹤清單重讀", () => {
+    // 背景寫入 HN（useBackgroundStarSync 看到情境訊號的寫入時間變了）、抓取、全部重新整理都經過 invalidateTrackedRepos：
+    // 徽章分數會跟著變，展開的列表也要跟
+
+    it("re-reads the open list when the tracked list is re-read", async () => {
+      const user = userEvent.setup();
+      mockGetContextSignals
+        .mockResolvedValueOnce(answer(discussion(1, "First read", 100)))
+        .mockResolvedValueOnce(
+          answer(discussion(1, "First read", 180), discussion(2, "New post", 20))
+        );
+      const { client } = renderWithClient(
+        <ContextBadges badges={[mockHnBadge]} repoId={1} />,
+        clientWithAppStaleTime()
+      );
+      await user.click(screen.getByRole("button", { name: /HN/i }));
+      await waitFor(() => expect(screen.getByText("▲ 100")).toBeInTheDocument());
+
+      await act(async () => {
+        invalidateTrackedRepos(client);
+      });
+
+      await waitFor(() => expect(screen.getByText("▲ 180")).toBeInTheDocument());
+      expect(screen.getByText("New post")).toBeInTheDocument();
+    });
+
+    it("re-reads on the next expand when the tracked list was re-read while it was closed", async () => {
+      const user = userEvent.setup();
+      let answerSecondRead: (value: unknown) => void = () => {};
+      mockGetContextSignals
+        .mockResolvedValueOnce(answer(discussion(1, "First read", 100)))
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerSecondRead = resolve;
+          }) as never
+        );
+      const { client } = renderWithClient(
+        <ContextBadges badges={[mockHnBadge]} repoId={1} />,
+        clientWithAppStaleTime()
+      );
+      const badge = screen.getByRole("button", { name: /HN/i });
+      await user.click(badge);
+      await waitFor(() => expect(screen.getByText("▲ 100")).toBeInTheDocument());
+      await user.click(badge); // 收起
+
+      await act(async () => {
+        invalidateTrackedRepos(client);
+      });
+      await settle();
+      // 收著的時候不另外發請求，下次展開才重讀
+      expect(mockGetContextSignals).toHaveBeenCalledTimes(1);
+
+      await user.click(badge);
+      await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(2));
+      // 重讀還沒回來時先顯示讀過的那份，不整塊換成載入中
+      expect(screen.getByText("▲ 100")).toBeInTheDocument();
+
+      await act(async () => {
+        answerSecondRead(answer(discussion(1, "First read", 150)));
+      });
+      await waitFor(() => expect(screen.getByText("▲ 150")).toBeInTheDocument());
+    });
+
+    it("keeps the list and says it didn't update when a re-read fails", async () => {
+      const user = userEvent.setup();
+      let answerRetry: (value: unknown) => void = () => {};
+      mockGetContextSignals
+        .mockResolvedValueOnce(answer(discussion(1, "First read", 100)))
+        .mockRejectedValueOnce(new Error("Server error"))
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerRetry = resolve;
+          }) as never
+        );
+      const { client } = renderWithClient(
+        <ContextBadges badges={[mockHnBadge]} repoId={1} />,
+        clientWithAppStaleTime()
+      );
+      await user.click(screen.getByRole("button", { name: /HN/i }));
+      await waitFor(() => expect(screen.getByText("▲ 100")).toBeInTheDocument());
+
+      await act(async () => {
+        invalidateTrackedRepos(client);
+      });
+
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i));
+      expect(screen.getByText("▲ 100")).toBeInTheDocument();
+
+      // 這一列的重試：重試中說明與按鈕留著、列表也留著；成功後說明消失、換成新的
+      await user.click(screen.getByRole("button", { name: "Retry" }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument()
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i);
+      expect(screen.getByText("▲ 100")).toBeInTheDocument();
+
+      await act(async () => {
+        answerRetry(answer(discussion(1, "First read", 200)));
+      });
+      await waitFor(() => expect(screen.getByText("▲ 200")).toBeInTheDocument());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps only the read sent last when a re-read interrupts one still out", async () => {
+      // 第一次讀還沒回來就遇到追蹤清單重讀：會再送一次，先送出的那次晚到也寫不進快取
+      const user = userEvent.setup();
+      let answerFirst: (value: unknown) => void = () => {};
+      let answerSecond: (value: unknown) => void = () => {};
+      mockGetContextSignals
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerFirst = resolve;
+          }) as never
+        )
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerSecond = resolve;
+          }) as never
+        );
+      const { client } = renderWithClient(
+        <ContextBadges badges={[mockHnBadge]} repoId={1} />,
+        clientWithAppStaleTime()
+      );
+      await user.click(screen.getByRole("button", { name: /HN/i }));
+      await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        invalidateTrackedRepos(client);
+      });
+      await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        answerSecond(answer(discussion(1, "First read", 150)));
+      });
+      await waitFor(() => expect(screen.getByText("▲ 150")).toBeInTheDocument());
+
+      await act(async () => {
+        answerFirst(answer(discussion(1, "First read", 100)));
+      });
+      await settle();
+      expect(screen.getByText("▲ 150")).toBeInTheDocument();
+    });
+
+    it("stops re-reading once the badges are gone and the panel is no longer shown", async () => {
+      const user = userEvent.setup();
+      mockGetContextSignals.mockResolvedValue(answer(discussion(1, "First read", 100)));
+      const client = clientWithAppStaleTime();
+      const { rerender } = renderWithClient(
+        <ContextBadges badges={[mockHnBadge]} repoId={1} />,
+        client
+      );
+      await user.click(screen.getByRole("button", { name: /HN/i }));
+      await waitFor(() => expect(screen.getByText("▲ 100")).toBeInTheDocument());
+
+      rerender(
+        <QueryClientProvider client={client}>
+          <ContextBadges badges={[]} repoId={1} />
+        </QueryClientProvider>
+      );
+      await act(async () => {
+        invalidateTrackedRepos(client);
+      });
+      await settle();
+
+      expect(mockGetContextSignals).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not add React Query's retry on top of the API's own retries", async () => {
+    // apiCall 對 GET 已經重試過：正式環境的 client 預設 retry 1，元件不關掉的話讀不到要晚一倍才出現
+    const user = userEvent.setup();
+    mockGetContextSignals.mockRejectedValue(new Error("Server error"));
+    const client = createTestQueryClient();
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, retry: 1, retryDelay: 0 },
+    });
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />, client);
+
+    await user.click(screen.getByRole("button", { name: /HN/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    await settle();
+
     expect(mockGetContextSignals).toHaveBeenCalledTimes(1);
   });
 
   it("toggleExpand does nothing when repoId is undefined", async () => {
     const user = userEvent.setup();
-    render(<ContextBadges badges={[mockHnBadge]} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} />);
     // Badge without repoId has no onClick
     const button = screen.getByRole("button");
     await user.click(button);
@@ -280,7 +520,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -314,7 +554,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -343,7 +583,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -373,7 +613,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -403,7 +643,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -433,7 +673,7 @@ describe("ContextBadges", () => {
       repo_id: 1,
     });
 
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     await user.click(screen.getByRole("button"));
 
     await waitFor(() => {
@@ -441,55 +681,28 @@ describe("ContextBadges", () => {
     });
   });
 
-  it("舊請求最後失敗時不得蓋掉新請求的成功資料（展開→收合→再展開）", async () => {
+  it("re-expanding while the first read is still out does not send another one", async () => {
+    // 展開→收起→再展開時沿用還在途的那次，不另外送；回來的就是畫面上的
     const user = userEvent.setup();
-    const signal = {
-      id: 9,
-      signal_type: "hn",
-      external_id: "999",
-      title: "Fresh Discussion",
-      url: "https://example.com",
-      score: 10,
-      comment_count: 1,
-      author: "pg",
-      published_at: new Date().toISOString(),
-      fetched_at: new Date().toISOString(),
-    };
+    let answerRead: (value: unknown) => void = () => {};
+    mockGetContextSignals.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answerRead = resolve;
+      }) as never
+    );
 
-    let rejectA: ((e: Error) => void) | undefined;
-    let resolveB: (() => void) | undefined;
-    mockGetContextSignals
-      .mockImplementationOnce(
-        () =>
-          new Promise((_, rej) => {
-            rejectA = rej;
-          })
-      )
-      .mockImplementationOnce(
-        () =>
-          new Promise((res) => {
-            resolveB = () => res({ signals: [signal], total: 1, repo_id: 1 });
-          })
-      );
-
-    render(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
+    renderWithClient(<ContextBadges badges={[mockHnBadge]} repoId={1} />);
     const badge = screen.getAllByRole("button")[0];
 
-    await user.click(badge); // 展開 → 請求 A 起飛
-    await user.click(badge); // 收合（A 仍在途）
-    await user.click(badge); // 再展開 → fetched 仍 false → 請求 B 起飛
-    await waitFor(() => expect(mockGetContextSignals).toHaveBeenCalledTimes(2));
+    await user.click(badge); // 展開 → 請求起飛
+    await user.click(badge); // 收合（仍在途）
+    await user.click(badge); // 再展開
+    await settle();
+    expect(mockGetContextSignals).toHaveBeenCalledTimes(1);
 
-    resolveB?.(); // 新請求成功
-    await waitFor(() => expect(screen.getByText("Fresh Discussion")).toBeInTheDocument());
-
-    // 舊請求最後才失敗；act 確保 rejection 的狀態更新完全落地後再斷言
     await act(async () => {
-      rejectA?.(new Error("stale failure"));
+      answerRead(answer(discussion(9, "Fresh Discussion", 10)));
     });
-
-    // 成功資料必須留著，不得渲染錯誤態
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(screen.getByText("Fresh Discussion")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Fresh Discussion")).toBeInTheDocument());
   });
 });

@@ -3,27 +3,21 @@
  * 點擊徽章可展開顯示討論詳情。
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import type { CSSProperties, MouseEvent } from "react";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { safeOpenUrl } from "../utils/url";
 import { getContextSignals } from "../api/client";
 import type { ContextBadge, ContextSignal } from "../api/client";
 import { useI18n, interpolate } from "../i18n";
 import { formatRelativeTime } from "../utils/format";
-import { logger } from "../utils/logger";
+import { loadStatus, queryKeys } from "../lib/react-query";
+import type { LoadStatus } from "../lib/react-query";
+import { LoadError } from "./LoadError";
 
 interface ContextBadgesProps {
   badges: ContextBadge[];
   repoId?: number;
-}
-
-interface PanelState {
-  expanded: boolean;
-  signals: ContextSignal[];
-  loading: boolean;
-  fetched: boolean;
-  /** 抓取失敗。與「fetched 且 signals 為空」必須是兩個狀態：後者才是「暫無討論」 */
-  error: boolean;
 }
 
 const BADGE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
@@ -40,14 +34,11 @@ function formatValue(badge: ContextBadge): string {
 
 function HnDiscussionPanel({
   signals,
-  loading,
-  error,
-  onRetry,
+  load,
 }: {
-  signals: ContextSignal[];
-  loading: boolean;
-  error: boolean;
-  onRetry: () => void;
+  /** undefined＝還沒讀到。讀不到與「讀到了、沒有討論」是兩個狀態：後者才說暫無討論 */
+  signals: ContextSignal[] | undefined;
+  load: LoadStatus;
 }) {
   const { t } = useI18n();
 
@@ -57,37 +48,29 @@ function HnDiscussionPanel({
     await safeOpenUrl(url);
   };
 
-  if (loading) {
+  // 讀取狀態照 loadStatus：還沒讀到就失敗時說讀不到並給重試（重試中說明與按鈕留著，焦點不離開）；
+  // 已經讀到、重讀失敗時保留列表，另外說沒有更新成功
+  if (signals === undefined) {
     return (
       <div className="hn-panel">
-        <div className="hn-panel-loading">{t.repo.loadingBadges}</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="hn-panel">
-        <div className="hn-panel-empty" role="alert">
-          {t.contextBadges.loadFailed}{" "}
-          <button type="button" className="hn-panel-retry" onClick={onRetry}>
-            {t.contextBadges.retry}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (signals.length === 0) {
-    return (
-      <div className="hn-panel">
-        <div className="hn-panel-empty">{t.contextBadges.noDiscussions}</div>
+        {load.failed ? (
+          <LoadError
+            message={t.contextBadges.loadFailed}
+            onRetry={load.retry}
+            isRetrying={load.inProgress}
+          />
+        ) : (
+          <div className="hn-panel-loading">{t.repo.loadingBadges}</div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="hn-panel">
+      {signals.length === 0 && (
+        <div className="hn-panel-empty">{t.contextBadges.noDiscussions}</div>
+      )}
       {signals.map((signal) => (
         <div key={signal.id} className="hn-discussion-item">
           <a
@@ -111,56 +94,41 @@ function HnDiscussionPanel({
           </div>
         </div>
       ))}
+      {load.failed && (
+        <LoadError
+          message={t.contextBadges.refreshFailed}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
+      )}
     </div>
   );
 }
 
 export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
   const { t } = useI18n();
-  const [panelState, setPanelState] = useState<PanelState>({
-    expanded: false,
-    signals: [],
-    loading: false,
-    fetched: false,
-    error: false,
+  const [expanded, setExpanded] = useState(false);
+
+  // 放在 repoCard 底下：invalidateTrackedRepos 會帶到（背景寫入 HN、抓取、全部重新整理之後徽章分數會變），
+  // 展開中跟著重讀，收著只標過期、下次展開才重讀；沒有變化時，在全域的 staleTime 內再展開用讀過的那份。
+  // 收起再展開沿用在途的那次；重讀打斷還沒回來的那次時，晚到的舊回應寫不進快取，只留最後送出的
+  const query = useQuery<ContextSignal[], Error>({
+    queryKey: queryKeys.repoCard.hnDiscussions(repoId ?? 0),
+    queryFn:
+      repoId === undefined
+        ? skipToken
+        : async () => (await getContextSignals(repoId, "hn")).signals,
+    // 徽章沒了整塊不畫（見下方 return null），面板也看不到，不再跟著重讀
+    enabled: expanded && badges.length > 0,
+    // apiCall 對 GET 已經重試過，這裡再重試只會讓讀不到晚一倍才出現（同 useCategoryQueries）
+    retry: false,
   });
+  const load = loadStatus(query);
 
-  // 只有最新一次請求有權寫入 panelState：展開→收合→再展開會產生兩個
-  // 在途請求，若舊請求最後落地，它的失敗會蓋在新請求的成功資料上
-  const fetchSeqRef = useRef(0);
-
-  const fetchSignals = useCallback(async () => {
+  const toggleExpand = useCallback(() => {
     if (!repoId) return;
-    const seq = ++fetchSeqRef.current;
-    setPanelState((prev) => ({ ...prev, loading: true, error: false }));
-    try {
-      const res = await getContextSignals(repoId, "hn");
-      if (seq !== fetchSeqRef.current) return;
-      setPanelState((prev) => ({
-        ...prev,
-        signals: res.signals,
-        loading: false,
-        fetched: true,
-        error: false,
-      }));
-    } catch (err) {
-      logger.warn("[ContextBadges] 上下文訊號抓取失敗:", err);
-      if (seq !== fetchSeqRef.current) return;
-      // fetched 保持 false：收起再展開會自動重試。設成 fetched: true 並清空 signals 的話，
-      // 徽章明明寫著分數（例如 528 pts），點開卻說「暫無討論」，而且之後不會再打一次。
-      // 錯誤與「真的沒有」是兩個狀態。
-      setPanelState((prev) => ({ ...prev, loading: false, error: true }));
-    }
+    setExpanded((prev) => !prev);
   }, [repoId]);
-
-  const toggleExpand = useCallback(async () => {
-    if (!repoId) return;
-
-    if (!panelState.expanded && !panelState.fetched) {
-      void fetchSignals();
-    }
-    setPanelState((prev) => ({ ...prev, expanded: !prev.expanded }));
-  }, [panelState.expanded, panelState.fetched, repoId, fetchSignals]);
 
   if (badges.length === 0) return null;
 
@@ -195,22 +163,13 @@ export function ContextBadges({ badges, repoId }: ContextBadgesProps) {
               <span className="badge-icon">{config.icon}</span>
               {config.label && <span className="badge-label">{config.label}</span>}
               <span className="badge-value">{value}</span>
-              {repoId && (
-                <span className="badge-expand-arrow">{panelState.expanded ? "▾" : "▸"}</span>
-              )}
+              {repoId && <span className="badge-expand-arrow">{expanded ? "▾" : "▸"}</span>}
             </button>
           );
         })}
       </div>
 
-      {panelState.expanded && (
-        <HnDiscussionPanel
-          signals={panelState.signals}
-          loading={panelState.loading}
-          error={panelState.error}
-          onRetry={fetchSignals}
-        />
-      )}
+      {expanded && <HnDiscussionPanel signals={query.data} load={load} />}
     </div>
   );
 }

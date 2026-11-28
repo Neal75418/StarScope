@@ -1165,8 +1165,8 @@ export const translations = {
     contextBadges: {
       noDiscussions: "No discussions found",
       loadFailed: "Couldn't load discussions",
+      refreshFailed: "Couldn't update the discussions. Showing what was loaded earlier.",
       tooltipWithLabel: "{tooltip} ({label})",
-      retry: "Retry",
       untitled: "Untitled",
       hnScore: "Hacker News score",
     },
@@ -2324,8 +2324,8 @@ export const translations = {
     contextBadges: {
       noDiscussions: "找不到相關討論",
       loadFailed: "討論載入失敗",
+      refreshFailed: "討論沒有更新成功，顯示的是之前讀到的內容。",
       tooltipWithLabel: "{tooltip}（{label}）",
-      retry: "重試",
       untitled: "無標題",
       hnScore: "Hacker News 討論分數",
     },

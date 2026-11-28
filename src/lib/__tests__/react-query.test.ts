@@ -158,6 +158,10 @@ describe("queryKeys", () => {
     it("generates signals key", () => {
       expect(queryKeys.repoCard.signals(1)).toEqual(["repoCard", "signals", 1]);
     });
+
+    it("generates HN discussions key", () => {
+      expect(queryKeys.repoCard.hnDiscussions(1)).toEqual(["repoCard", "hnDiscussions", 1]);
+    });
   });
 
   describe("alertRuleData", () => {
@@ -215,6 +219,8 @@ describe("invalidateTrackedRepos", () => {
       // 批次失敗、卡片改走自己抓時用的是卡片自己的查詢：不失效的話背景更新後徽章停在舊值
       queryKeys.repoCard.badges(1),
       queryKeys.repoCard.signals(1),
+      // 卡片上展開的 HN 討論列表：徽章分數跟著背景更新，列表也要跟
+      queryKeys.repoCard.hnDiscussions(1),
       queryKeys.digest.session(),
     ];
     for (const key of keys) client.setQueryData(key, []);
@@ -223,6 +229,7 @@ describe("invalidateTrackedRepos", () => {
 
     // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
     expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
       true,
       true,
       true,
