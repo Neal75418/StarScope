@@ -146,6 +146,7 @@ export const translations = {
         empty: "No categories with repos yet",
         emptyCta: "Set up categories in the watchlist",
         loadError: "Failed to load categories",
+        refreshFailed: "Couldn't update the categories. Showing what was loaded earlier.",
         repos: "repos",
       },
       velocityChart: {
@@ -1341,6 +1342,7 @@ export const translations = {
         empty: "尚無含 repo 的分類",
         emptyCta: "到追蹤清單建立分類",
         loadError: "載入分類失敗",
+        refreshFailed: "分類沒有更新成功，顯示的是之前讀到的內容。",
         repos: "個 repo",
       },
       velocityChart: {

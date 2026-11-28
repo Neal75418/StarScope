@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { CategorySummary } from "../CategorySummary";
 import { createTestQueryClient, queryKeys } from "../../../lib/react-query";
@@ -36,6 +36,8 @@ const AI = { id: 1, name: "AI", icon: "🤖", color: "#f00", repo_count: 3, chil
 describe("CategorySummary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // mockReset：clearAllMocks 不清 mockResolvedValueOnce 排好的回應，前一條沒用完的會漏到下一條
+    vi.mocked(getCategoryTree).mockReset();
   });
 
   it("空狀態：緊湊卡片（--fit）＋導去追蹤清單的 CTA", async () => {
@@ -111,5 +113,135 @@ describe("CategorySummary", () => {
     await act(() => new Promise<void>((r) => setTimeout(r, 20)));
     expect(screen.getByText("AI")).toBeInTheDocument();
     expect(screen.queryByText("Failed to load categories")).toBeNull();
+  });
+
+  describe("讀取狀態照 loadStatus", () => {
+    // 跟儀表板主體一樣看 loadStatus：第一次就讀不到給重試、重試中說明與按鈕留著；已經有資料時重讀失敗保留內容、另外說沒有更新成功
+    const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 20)));
+
+    it("offers a retry when the first read fails, and keeps it while retrying", async () => {
+      const user = userEvent.setup();
+      let answerRetry: (value: unknown) => void = () => {};
+      vi.mocked(getCategoryTree)
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerRetry = resolve;
+          }) as never
+        );
+
+      renderWithClient(<CategorySummary />);
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent("Failed to load categories")
+      );
+
+      await user.click(screen.getByRole("button", { name: "Retry" }));
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument()
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("Failed to load categories");
+
+      await act(async () => {
+        answerRetry({ tree: [AI], total: 1 });
+      });
+      expect(await screen.findByText("AI")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("says it didn't update when a reload fails, and retrying from there recovers", async () => {
+      const user = userEvent.setup();
+      const client = freshWindowClient();
+      client.setQueryData(queryKeys.repos.categoryTree(), { tree: [AI], total: 1 });
+      let answerRetry: (value: unknown) => void = () => {};
+      vi.mocked(getCategoryTree)
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockReturnValueOnce(
+          new Promise((resolve) => {
+            answerRetry = resolve;
+          }) as never
+        );
+
+      renderWithClient(<CategorySummary />, client);
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i));
+      expect(screen.getByText("AI")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Retry" }));
+      // 重試中那一列與卡片都留著
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument()
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i);
+      expect(screen.getByText("AI")).toBeInTheDocument();
+
+      await act(async () => {
+        answerRetry({ tree: [{ ...AI, repo_count: 5 }], total: 1 });
+      });
+      await waitFor(() => expect(screen.getByText(/^5 /)).toBeInTheDocument());
+      await settle();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("keeps showing it is retrying while a first-read retry waits for the connection", async () => {
+      const user = userEvent.setup();
+      const client = createTestQueryClient();
+      vi.mocked(getCategoryTree)
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockResolvedValueOnce({ tree: [AI], total: 1 } as never);
+
+      renderWithClient(<CategorySummary />, client);
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent("Failed to load categories")
+      );
+
+      onlineManager.setOnline(false);
+      try {
+        await user.click(screen.getByRole("button", { name: "Retry" }));
+        await settle();
+        expect(client.getQueryState(queryKeys.repos.categoryTree())?.fetchStatus).toBe("paused");
+        expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent("Failed to load categories");
+      } finally {
+        onlineManager.setOnline(true);
+      }
+
+      expect(await screen.findByText("AI")).toBeInTheDocument();
+    });
+
+    it("keeps showing it is retrying while the retry waits for the connection", async () => {
+      // 斷線時按重試，讀取先暫停：說明與「重試中」都要留著（暫停也算進行中），連上後接著讀
+      const user = userEvent.setup();
+      const client = freshWindowClient();
+      client.setQueryData(queryKeys.repos.categoryTree(), { tree: [AI], total: 1 });
+      vi.mocked(getCategoryTree)
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockResolvedValueOnce({ tree: [{ ...AI, repo_count: 5 }], total: 1 } as never);
+
+      renderWithClient(<CategorySummary />, client);
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i));
+
+      onlineManager.setOnline(false);
+      try {
+        await user.click(screen.getByRole("button", { name: "Retry" }));
+        await settle();
+        expect(client.getQueryState(queryKeys.repos.categoryTree())?.fetchStatus).toBe("paused");
+        expect(screen.getByRole("button", { name: "Retrying…" })).toBeInTheDocument();
+        expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i);
+      } finally {
+        onlineManager.setOnline(true);
+      }
+
+      await waitFor(() => expect(screen.getByText(/^5 /)).toBeInTheDocument());
+    });
+
+    it("says it didn't update when a reload fails on the empty state", async () => {
+      const client = freshWindowClient();
+      client.setQueryData(queryKeys.repos.categoryTree(), { tree: [], total: 0 });
+      vi.mocked(getCategoryTree).mockRejectedValue(new Error("boom"));
+
+      renderWithClient(<CategorySummary />, client);
+
+      await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(/couldn't update/i));
+      expect(screen.getByText("No categories with repos yet")).toBeInTheDocument();
+    });
   });
 });

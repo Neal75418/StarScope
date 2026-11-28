@@ -6,7 +6,9 @@
 import { memo } from "react";
 import type { CategoryTreeNode } from "../../api/types";
 import { useCategoryTreeQuery } from "../../hooks/useCategoryQueries";
+import { loadStatus } from "../../lib/react-query";
 import { Skeleton } from "../Skeleton";
+import { LoadError } from "../LoadError";
 import { useI18n } from "../../i18n";
 import { useNavigation } from "../../contexts/NavigationContext";
 
@@ -49,9 +51,13 @@ export const CategorySummary = memo(function CategorySummary() {
   const { navigateTo } = useNavigation();
 
   // 和 Watchlist 側欄共用同一份分類樹：在那裡改過分類、加入或移出分類之後，這裡打開就是新的
-  const { data, isLoading, isLoadingError } = useCategoryTreeQuery();
+  const query = useCategoryTreeQuery();
+  const { data } = query;
+  // 跟儀表板主體（useDashboard 的 load）一樣看 loadStatus：第一次就讀不到時說讀不到並給重試（重試中說明與按鈕留著）；
+  // 已經有資料時重讀失敗保留內容，另外說沒有更新成功（每次打開儀表板都會重讀，見 useCategoryTreeQuery）
+  const load = loadStatus(query);
 
-  if (isLoading) {
+  if (!load.ready && !load.failed) {
     return (
       <div className="dashboard-section">
         <h3>{t.dashboard.categorySummary.title}</h3>
@@ -64,17 +70,27 @@ export const CategorySummary = memo(function CategorySummary() {
     );
   }
 
-  // 只有從沒載入成功過才顯示錯誤；已經有資料時，一次重讀失敗不該把整格換掉
-  if (isLoadingError) {
+  if (!load.ready || !data) {
     return (
       <div className="dashboard-section">
         <h3>{t.dashboard.categorySummary.title}</h3>
-        <div className="category-summary-empty">{t.dashboard.categorySummary.loadError}</div>
+        <LoadError
+          message={t.dashboard.categorySummary.loadError}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
       </div>
     );
   }
 
-  const categories = data ? flattenTree(data.tree).filter((c) => c.repo_count > 0) : [];
+  const categories = flattenTree(data.tree).filter((c) => c.repo_count > 0);
+  const refreshFailed = load.failed && (
+    <LoadError
+      message={t.dashboard.categorySummary.refreshFailed}
+      onRetry={load.retry}
+      isRetrying={load.inProgress}
+    />
+  );
 
   if (categories.length === 0) {
     // --fit：空狀態不跟著並排的「最近活動」撐到整欄高，
@@ -82,6 +98,7 @@ export const CategorySummary = memo(function CategorySummary() {
     return (
       <div className="dashboard-section dashboard-section--fit">
         <h3>{t.dashboard.categorySummary.title}</h3>
+        {refreshFailed}
         <div className="category-summary-empty">
           <div>{t.dashboard.categorySummary.empty}</div>
           <button
@@ -102,6 +119,7 @@ export const CategorySummary = memo(function CategorySummary() {
         {t.dashboard.categorySummary.title}
         <span className="section-badge">{categories.length}</span>
       </h3>
+      {refreshFailed}
       <div className="category-summary-grid">
         {categories.map((cat) => (
           <CategoryCard key={cat.id} category={cat} />
