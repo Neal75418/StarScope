@@ -12,7 +12,6 @@ vi.mock("../../api/client", async (importOriginal) => {
     ...actual,
     getContextBadges: vi.fn(),
     getRepoSignals: vi.fn(),
-    fetchRepoContext: vi.fn(),
   };
 });
 
@@ -20,17 +19,12 @@ vi.mock("../../utils/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const showToastMock = vi.hoisted(() => vi.fn());
-vi.mock("../../contexts/WatchlistContext", () => ({
-  useWatchlistActions: () => ({ showToast: showToastMock }),
-}));
-
-import { getContextBadges, getRepoSignals, fetchRepoContext } from "../../api/client";
+import { getContextBadges, getRepoSignals } from "../../api/client";
 import { useRepoCardData } from "../useRepoCardData";
+import { nextRequestSeq } from "../../utils/requestSeq";
 
 const mockGetBadges = vi.mocked(getContextBadges);
 const mockGetSignals = vi.mocked(getRepoSignals);
-const mockFetchContext = vi.mocked(fetchRepoContext);
 
 function createWrapper() {
   const client = createTestQueryClient();
@@ -73,6 +67,7 @@ describe("useRepoCardData", () => {
         useRepoCardData(42, {
           badges: preloadedBadges as never,
           signals: preloadedSignals as never,
+          requestSeq: nextRequestSeq(),
         }),
       { wrapper: createWrapper() }
     );
@@ -103,77 +98,14 @@ describe("useRepoCardData", () => {
     expect(result.current.activeSignalCount).toBe(2);
   });
 
-  it("refreshContext triggers fetchRepoContext then refetches badges and signals", async () => {
-    mockGetBadges.mockResolvedValue({ badges: [] } as never);
-    mockGetSignals.mockResolvedValue({ signals: [] } as never);
-    mockFetchContext.mockResolvedValue(undefined as never);
-
-    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
-
-    await waitFor(() => {
-      expect(result.current.badgesLoading).toBe(false);
-    });
-
-    const newBadges = [{ type: "hot", label: "Hot" }];
-    mockGetBadges.mockResolvedValue({ badges: newBadges } as never);
-
-    await act(async () => {
-      await result.current.refreshContext();
-    });
-
-    expect(mockFetchContext).toHaveBeenCalledWith(42);
-    expect(result.current.isRefreshingContext).toBe(false);
-
-    // After refresh, badges should be re-fetched
-    await waitFor(() => {
-      expect(result.current.badges).toEqual(newBadges);
-    });
-  });
-
-  it("refreshContext 失敗時不吞錯：顯示錯誤 toast 且不 throw", async () => {
-    mockGetBadges.mockResolvedValue({ badges: [] } as never);
-    mockGetSignals.mockResolvedValue({ signals: [] } as never);
-    mockFetchContext.mockRejectedValue(new Error("Context fetch failed"));
-
-    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
-
-    await waitFor(() => {
-      expect(result.current.badgesLoading).toBe(false);
-    });
-
-    await act(async () => {
-      await result.current.refreshContext();
-    });
-
-    // 失敗必須讓使用者知道：轉圈停了、徽章沒變，不能什麼都不說
-    expect(showToastMock).toHaveBeenCalledWith("error", expect.any(String));
-    expect(result.current.isRefreshingContext).toBe(false);
-  });
-
-  it("refreshContext 成功時不跳錯誤 toast（與失敗案例成對）", async () => {
-    mockGetBadges.mockResolvedValue({ badges: [] } as never);
-    mockGetSignals.mockResolvedValue({ signals: [] } as never);
-    mockFetchContext.mockResolvedValue(undefined as never);
-
-    const { result } = renderHook(() => useRepoCardData(42), { wrapper: createWrapper() });
-
-    await waitFor(() => {
-      expect(result.current.badgesLoading).toBe(false);
-    });
-
-    await act(async () => {
-      await result.current.refreshContext();
-    });
-
-    expect(showToastMock).not.toHaveBeenCalled();
-  });
-
   describe("父層換來新的一批", () => {
     // initialData 只在查詢還沒有資料時生效：追蹤清單重讀後父層重抓的那批，卡片要自己採用
     const signal = (id: number) => ({ id, signal_type: "spike", acknowledged: false });
-    const batch = (count: number, label: string) => ({
+    // requestSeq：父層送出這一批的先後（nextRequestSeq）。卡片只採用比自己快取裡晚送出的
+    const batch = (count: number, label: string, requestSeq: number) => ({
       badges: [{ type: "trending", label }],
       signals: Array.from({ length: count }, (_, i) => signal(i + 1)),
+      requestSeq,
     });
 
     function wrapperFor(client: QueryClient) {
@@ -182,13 +114,17 @@ describe("useRepoCardData", () => {
     }
 
     it("shows a newer batch the parent hands over", async () => {
+      // 兩批都在卡片掛上之前送出（第二批掛上時還在途中）：由 initialData 建立的那份要記第一批的先後，
+      // 不能在建立查詢時另取號，否則第二批會被當成比卡片的資料舊
+      const firstSent = nextRequestSeq();
+      const secondSent = nextRequestSeq();
       const { result, rerender } = renderHook(
         ({ preloaded }) => useRepoCardData(42, preloaded as never, true),
-        { wrapper: createWrapper(), initialProps: { preloaded: batch(1, "old") } }
+        { wrapper: createWrapper(), initialProps: { preloaded: batch(1, "old", firstSent) } }
       );
       expect(result.current.activeSignalCount).toBe(1);
 
-      rerender({ preloaded: batch(3, "new") });
+      rerender({ preloaded: batch(3, "new", secondSent) });
 
       await waitFor(() => expect(result.current.activeSignalCount).toBe(3));
       expect(result.current.badges).toEqual([{ type: "trending", label: "new" }]);
@@ -200,18 +136,82 @@ describe("useRepoCardData", () => {
       client.setDefaultOptions({
         queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
       });
-      const first = renderHook(() => useRepoCardData(42, batch(1, "old") as never, true), {
-        wrapper: wrapperFor(client),
-      });
+      const first = renderHook(
+        () => useRepoCardData(42, batch(1, "old", nextRequestSeq()) as never, true),
+        { wrapper: wrapperFor(client) }
+      );
       expect(first.result.current.activeSignalCount).toBe(1);
       first.unmount();
 
-      const again = renderHook(() => useRepoCardData(42, batch(3, "new") as never, true), {
-        wrapper: wrapperFor(client),
-      });
+      const again = renderHook(
+        () => useRepoCardData(42, batch(3, "new", nextRequestSeq()) as never, true),
+        { wrapper: wrapperFor(client) }
+      );
 
       await waitFor(() => expect(again.result.current.activeSignalCount).toBe(3));
       expect(again.result.current.badges).toEqual([{ type: "trending", label: "new" }]);
+    });
+
+    it("does not let an older batch replace what the card read itself", async () => {
+      // 批次失敗、卡片改走自己抓（deferToBatch 變 false）：先送出的那批晚回來，不能蓋掉卡片自己讀到的新結果
+      mockGetBadges.mockResolvedValue({ badges: [] } as never);
+      mockGetSignals.mockResolvedValue({ signals: [signal(1), signal(2), signal(3)] } as never);
+      const sentEarlier = nextRequestSeq();
+      const { result, rerender } = renderHook(
+        ({ preloaded, defer }) => useRepoCardData(42, preloaded as never, defer),
+        {
+          wrapper: createWrapper(),
+          initialProps: { preloaded: undefined as unknown, defer: false },
+        }
+      );
+      await waitFor(() => expect(result.current.activeSignalCount).toBe(3));
+
+      rerender({ preloaded: batch(1, "old", sentEarlier), defer: false });
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+      });
+
+      expect(result.current.activeSignalCount).toBe(3);
+      expect(result.current.badges).toEqual([]);
+    });
+
+    it("does not let the card's own earlier request replace a newer batch", async () => {
+      // 卡片自己抓到一半時批次恢復、送出新的一批：新的一批先到，卡片那次（先送出的）晚回來不能蓋掉它
+      let answerOwnBadges: (value: unknown) => void = () => {};
+      let answerOwnSignals: (value: unknown) => void = () => {};
+      mockGetBadges.mockReturnValue(
+        new Promise((resolve) => {
+          answerOwnBadges = resolve;
+        }) as never
+      );
+      mockGetSignals.mockReturnValue(
+        new Promise((resolve) => {
+          answerOwnSignals = resolve;
+        }) as never
+      );
+      const { result, rerender } = renderHook(
+        ({ preloaded, defer }) => useRepoCardData(42, preloaded as never, defer),
+        {
+          wrapper: createWrapper(),
+          initialProps: { preloaded: undefined as unknown, defer: false },
+        }
+      );
+      await waitFor(() => {
+        expect(mockGetBadges).toHaveBeenCalledTimes(1);
+        expect(mockGetSignals).toHaveBeenCalledTimes(1);
+      });
+
+      rerender({ preloaded: batch(1, "new", nextRequestSeq()), defer: true });
+      await waitFor(() => expect(result.current.activeSignalCount).toBe(1));
+
+      await act(async () => {
+        answerOwnBadges({ badges: [{ type: "trending", label: "own" }] });
+        answerOwnSignals({ signals: [signal(1), signal(2), signal(3)] });
+        await new Promise((r) => setTimeout(r, 20));
+      });
+
+      expect(result.current.activeSignalCount).toBe(1);
+      expect(result.current.badges).toEqual([{ type: "trending", label: "new" }]);
     });
   });
 });

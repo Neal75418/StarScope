@@ -7,10 +7,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { ContextBadge, EarlySignal } from "../api/client";
 import { getContextBadgesBatch, getRepoSignalsBatch } from "../api/client";
 import { logger } from "../utils/logger";
+import { nextRequestSeq } from "../utils/requestSeq";
 
 export interface BatchRepoData {
   badges: ContextBadge[];
   signals: EarlySignal[];
+  /** 這一批是第幾個送出的（nextRequestSeq）：卡片據此判斷它比自己快取裡的新還是舊 */
+  requestSeq: number;
 }
 
 const MAX_BATCH_SIZE = 50;
@@ -85,6 +88,9 @@ export function useWindowedBatchRepoData(
   const generationRef = useRef(0);
   // 每個 id 是在哪個資料版本送出時讀到的：跟目前版本不同就算沒載入、會重抓，抓到之前先顯示舊的
   const loadedVersionRef = useRef<Map<number, number | undefined>>(new Map());
+  // 每個 id 目前的資料是哪一批讀到的（送出的先後），跟 loadedVersionRef 在同一處寫入。記在這批送出的每個 id 上：
+  // 兩個批次端點對每個要求的 id 都回一格（沒資料回空陣列），所以這些 id 的資料一定換成這批的
+  const requestSeqRef = useRef<Map<number, number>>(new Map());
 
   // Debounce visibleRange 更新，避免快速滾動時過多請求
   useEffect(() => {
@@ -126,6 +132,7 @@ export function useWindowedBatchRepoData(
     const generation = ++generationRef.current;
     // 送出時的版本：版本變動前送出、變動後才回來的批次記成舊版本，回來後會再抓一次
     const versionAtStart = dataVersion;
+    const requestSeq = nextRequestSeq();
     const loadingSet = loadingIdsRef.current;
     const ownedIds = new Set(missingIds);
 
@@ -152,11 +159,16 @@ export function useWindowedBatchRepoData(
       .then(([badgesResults, signalsResults]) => {
         settle();
         if (controller.signal.aborted) return; // 只有 unmount 會 abort
-        ownedIds.forEach((id) => loadedVersionRef.current.set(id, versionAtStart));
+        ownedIds.forEach((id) => {
+          loadedVersionRef.current.set(id, versionAtStart);
+          requestSeqRef.current.set(id, requestSeq);
+        });
 
         const newBadges = Object.assign({}, ...badgesResults);
         const newSignals = Object.assign({}, ...signalsResults);
 
+        // 兩個 setState 要在同一段同步程式裡、合成一次畫面：卡片同一個號碼只採用一次（見 useRepoCardData），
+        // 拆成兩次的話，第二次換來的那一半會被當成已經採用過
         setBadgesMap((prev) => ({ ...prev, ...newBadges }));
         setSignalsMap((prev) => ({ ...prev, ...newSignals }));
         if (inFlightCountRef.current === 0) setLoading(false);
@@ -204,12 +216,13 @@ export function useWindowedBatchRepoData(
       const id = Number(key);
       const newBadges = badgesMap[key]?.badges ?? EMPTY_BADGES;
       const newSignals = signalsMap[key]?.signals ?? EMPTY_SIGNALS;
+      const requestSeq = requestSeqRef.current.get(id) ?? 0;
       const existing = prev[id];
 
       if (existing && existing.badges === newBadges && existing.signals === newSignals) {
         result[id] = existing;
       } else {
-        result[id] = { badges: newBadges, signals: newSignals };
+        result[id] = { badges: newBadges, signals: newSignals, requestSeq };
         changed = true;
       }
     }

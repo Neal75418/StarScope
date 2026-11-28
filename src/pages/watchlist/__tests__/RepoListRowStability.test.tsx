@@ -129,12 +129,12 @@ describe("RepoList 的 rowComponent 穩定性與 row key", () => {
     const { rerender } = render(<RepoList {...props} />);
 
     // 模擬批次到貨：batchData 換成新物件（實際情境每 150ms 一次）
-    rerender(<RepoList {...props} batchData={{ 1: { badges: [], signals: [] } }} />);
+    rerender(<RepoList {...props} batchData={{ 1: { badges: [], signals: [], requestSeq: 1 } }} />);
     // 模擬勾選：selectedIds 換新 Set
     rerender(
       <RepoList
         {...props}
-        batchData={{ 1: { badges: [], signals: [] } }}
+        batchData={{ 1: { badges: [], signals: [], requestSeq: 1 } }}
         isSelectionMode
         selectedIds={new Set([1])}
         onToggleSelection={vi.fn()}

@@ -208,6 +208,8 @@ export const queryKeys = {
  * 分類樹在 repos 前綴底下會一起重讀（分類成員就是各 repo 的 category_ids）；沒有畫面顯示的分類樹也先在背景重讀，
  * 回到 Watchlist 或 Dashboard 時第一眼就是新的數量。早期訊號同理不算封存的 repo，
  * 取消追蹤或復原之後「有訊號」要跟著變。已觸發警報也是（封存的不列、永久刪除連帶刪掉），見 invalidateTriggeredAlerts。
+ * 卡片的徽章與訊號（repoCard）平常由追蹤清單的批次帶著重抓（見 useWindowedBatchRepoData 的 dataVersion），
+ * 批次失敗、卡片改走自己抓時用的是卡片自己的查詢，所以也要一起失效。
  * 同步狀態（repos.syncStatus）也在 repos 底下、預設一起重讀；exceptSyncStatus 給偵測背景變化的那支（useBackgroundStarSync）用：
  * 它靠同步狀態發現變化，跟著重讀的話，抓取逐筆寫快照的那幾秒裡會讀到新的值、又觸發一次
  */
@@ -229,6 +231,10 @@ export function invalidateTrackedRepos(
   });
   void client.refetchQueries({ queryKey: queryKeys.repos.categoryTree(), type: "inactive" });
   void client.invalidateQueries({ queryKey: queryKeys.signals.all });
+  // 卡片自己的查詢：批次負責時是停用的，只標過期、不多發請求；批次失敗、卡片改走自己抓時才會重抓。
+  // 跟分類查詢一樣先中止：卡片第一次自己抓還沒回來時只失效的話，會併進那個寫入前送出的請求
+  void client.cancelQueries({ queryKey: queryKeys.repoCard.all });
+  void client.invalidateQueries({ queryKey: queryKeys.repoCard.all });
   void client.invalidateQueries({ queryKey: queryKeys.alertRuleData.rules() });
   void client.invalidateQueries({ queryKey: queryKeys.alerts.rules() });
   void invalidateTriggeredAlerts(client);

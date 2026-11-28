@@ -212,6 +212,9 @@ describe("invalidateTrackedRepos", () => {
       // 封存 repo 的警報不列、永久刪除連帶刪掉：鈴鐺與儀表板的已觸發警報也要跟著變
       queryKeys.notifications.polling(),
       queryKeys.alerts.triggered(),
+      // 批次失敗、卡片改走自己抓時用的是卡片自己的查詢：不失效的話背景更新後徽章停在舊值
+      queryKeys.repoCard.badges(1),
+      queryKeys.repoCard.signals(1),
       queryKeys.digest.session(),
     ];
     for (const key of keys) client.setQueryData(key, []);
@@ -220,6 +223,8 @@ describe("invalidateTrackedRepos", () => {
 
     // digest 刻意不重取：重抓只回新項目，會蓋掉使用者正在看的這批
     expect(keys.map((key) => client.getQueryState(key)?.isInvalidated)).toEqual([
+      true,
+      true,
       true,
       true,
       true,

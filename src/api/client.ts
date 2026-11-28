@@ -378,17 +378,6 @@ export async function getContextSignals(
   return apiCall<ContextSignalsResponse>(`/context/${repoId}/signals${params}`);
 }
 
-/**
- * 手動觸發儲存庫的 context signal 抓取。
- */
-export async function fetchRepoContext(
-  repoId: number
-): Promise<{ repo_id: number; new_signals: Record<string, number> }> {
-  return apiCall(`/context/${repoId}/fetch`, {
-    method: "POST",
-  });
-}
-
 // 圖表 API 函式
 
 /**

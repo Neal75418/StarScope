@@ -18,6 +18,8 @@ interface RepoCardPreloadedData {
   badges?: ContextBadge[];
   /** 由父層批次預載的 signals，避免每張卡個別請求 */
   signals?: EarlySignal[];
+  /** 這一批送出的先後：卡片只採用比自己快取裡晚送出的（見 useRepoCardData） */
+  requestSeq: number;
 }
 
 interface RepoCardCategoryContext {

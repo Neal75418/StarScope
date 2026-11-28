@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { useWindowedBatchRepoData } from "../useWindowedBatchRepoData";
+import { nextRequestSeq } from "../../utils/requestSeq";
 
 // Mock API
 const mockBadgesResponse = {
@@ -263,6 +264,28 @@ describe("useWindowedBatchRepoData", () => {
 
       await waitFor(() => expect(result.current.dataMap[1]?.signals).toHaveLength(3));
       expect(getRepoSignalsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it("stamps each entry with when its batch was sent", async () => {
+      // 卡片只採用比自己快取裡晚送出的：批次失敗、卡片改走自己抓之後，先送出的那批晚回來不能蓋掉新的結果
+      const { getRepoSignalsBatch } = await import("../../api/client");
+      vi.mocked(getRepoSignalsBatch)
+        .mockResolvedValueOnce(signalsWith(1) as never)
+        .mockResolvedValueOnce(signalsWith(3) as never);
+      const before = nextRequestSeq();
+      const { result, rerender } = renderHook(
+        ({ version }) => useWindowedBatchRepoData(ids, { debounceMs: 0, dataVersion: version }),
+        { initialProps: { version: 1 } }
+      );
+      await waitFor(() => expect(result.current.dataMap[1]?.signals).toHaveLength(1));
+      const firstSent = result.current.dataMap[1].requestSeq;
+      expect(firstSent).toBeGreaterThan(before);
+
+      const between = nextRequestSeq();
+      rerender({ version: 2 });
+
+      await waitFor(() => expect(result.current.dataMap[1]?.signals).toHaveLength(3));
+      expect(result.current.dataMap[1].requestSeq).toBeGreaterThan(between);
     });
 
     it("keeps showing what was loaded while re-fetching", async () => {
