@@ -21,7 +21,7 @@ import { StarHistoryBackfill } from "./StarHistoryBackfill";
 import { useI18n } from "../i18n";
 import { TIME_RANGES } from "../constants/chart";
 
-/** 圖表渲染高度（px），與 RepoList 的 CHART_EXTRA_HEIGHT 耦合 */
+/** 圖表渲染高度（px） */
 export const STARS_CHART_HEIGHT = 180;
 
 interface StarsChartProps {

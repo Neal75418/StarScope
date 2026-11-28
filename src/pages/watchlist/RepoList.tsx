@@ -10,23 +10,17 @@
  * 批次資料每到貨一次、勾選任一 checkbox 都會變）。
  */
 import { useCallback, useMemo, useState } from "react";
-import { List, RowComponentProps } from "react-window";
+import { List, RowComponentProps, useDynamicRowHeight } from "react-window";
 import { AutoSizer } from "react-virtualized-auto-sizer";
 import { RepoCard } from "../../components/RepoCard";
-import { STARS_CHART_HEIGHT } from "../../components/StarsChart";
 import type { RepoViewProps } from "./types";
 import type { RepoWithSignals } from "../../api/client";
 import type { BatchRepoData } from "../../hooks/useWindowedBatchRepoData";
 
-// 虛擬滾動常數
-const REPO_CARD_GAP = 16;
-const COLLAPSED_ITEM_SIZE = 220 + REPO_CARD_GAP; // 收合狀態：卡片 ≤2行描述 ~218px + 安全邊距 + 間距
-// 展開後多出的高度，headless Chromium 量（卡片寬 700px）：外框 margin 16＋border 1＋padding 16、.stars-chart 上下 padding 32、
-// 範圍鈕 24＋下方 margin 12、主體 180、回填列 margin 12＋50。讀取中、讀不到、資料不足的主體都是 min-height 180px，一樣高。
-// 回填列多一行（讀不到狀態的 LoadError、失敗原因換行），或已經讀到資料（含資料不足）、重讀失敗時圖表下多一列「沒有更新成功」（32px）時，
-// 固定列高蓋不住，要改成動態列高
-const CHART_EXTRA_HEIGHT = STARS_CHART_HEIGHT + 163;
-const EXPANDED_ITEM_SIZE = COLLAPSED_ITEM_SIZE + CHART_EXTRA_HEIGHT;
+// 列高照每一列實際量到的（useDynamicRowHeight 用 ResizeObserver 量 .virtual-repo-item，含 padding-bottom 的間距）：
+// 展開的圖表、回填列換行、重讀失敗多一列、HN 討論面板打開，高度都跟著內容走，不會被裁掉。
+// 這個值只是還沒量到之前的估計：收合的卡片（≤2 行描述）約 218px＋間距 16px
+const ESTIMATED_ROW_HEIGHT = 236;
 
 /** 傳給 row 的所有資料。react-window 對 rowProps 做逐值淺比較，所以每個值要引用穩定。 */
 interface RepoRowProps {
@@ -48,6 +42,7 @@ interface RepoRowProps {
 function RepoRow({
   index,
   style,
+  ariaAttributes,
   repos,
   batchData,
   batchOwnsData,
@@ -62,7 +57,8 @@ function RepoRow({
   if (!repo) return null;
 
   return (
-    <div style={style} className="virtual-repo-item">
+    // ariaAttributes：react-window 靠 aria-posinset 把元素對到位置（決定量到的高度寫進快取的哪一格），也給 role="listitem"
+    <div style={style} className="virtual-repo-item" {...ariaAttributes}>
       <RepoCard
         repo={repo}
         isLoading={loadingRepoId === repo.id}
@@ -103,7 +99,7 @@ export function RepoList({
   selectedIds,
   onToggleSelection,
 }: RepoViewProps) {
-  // 追蹤哪些 repo 的圖表已展開（提升到此層以控制虛擬滾動行高）
+  // 追蹤哪些 repo 的圖表已展開。放在清單這一層：列被虛擬化卸載、再掛回來時圖表仍保持展開（放在卡片自己的 state 會跟著卸載）
   const [expandedCharts, setExpandedCharts] = useState<Set<number>>(new Set());
 
   const handleChartToggle = useCallback((repoId: number) => {
@@ -118,14 +114,8 @@ export function RepoList({
     });
   }, []);
 
-  // 動態行高：根據圖表展開狀態返回不同高度
-  const getRowHeight = useCallback(
-    (index: number) => {
-      const repo = repos[index];
-      return expandedCharts.has(repo?.id) ? EXPANDED_ITEM_SIZE : COLLAPSED_ITEM_SIZE;
-    },
-    [repos, expandedCharts]
-  );
+  // 高度快取以位置（index）為 key：順序變了，react-window 會在 rowProps 換了之後重新觀察每一列、照新的位置量一次
+  const rowHeight = useDynamicRowHeight({ defaultRowHeight: ESTIMATED_ROW_HEIGHT });
 
   // 穩定化 onRowsRendered 回調，避免每次渲染都創建新函數
   const handleRowsRendered = useCallback(
@@ -195,7 +185,7 @@ export function RepoList({
               rowComponent={RepoRow}
               rowKey={repoRowKey}
               rowCount={repos.length}
-              rowHeight={getRowHeight}
+              rowHeight={rowHeight}
               rowProps={rowProps}
               overscanCount={5}
               onRowsRendered={handleRowsRendered}

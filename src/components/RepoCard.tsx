@@ -32,7 +32,7 @@ interface RepoCardProps {
   preloadedData?: RepoCardPreloadedData;
   /** 由清單設定：批次載入負責供資料時，卡片不自行發請求。 */
   deferToBatch?: boolean;
-  /** 外部控制圖表展開（虛擬滾動動態行高）。scalar 而非物件——inline 物件
+  /** 外部控制圖表展開（虛擬清單的列卸載再掛回時要保持展開）。scalar 而非物件——inline 物件
    *  每次 render 都是新引用，會讓 memo 的淺比較必不等。 */
   chartExpanded?: boolean;
   onChartToggle?: (repoId: number) => void;

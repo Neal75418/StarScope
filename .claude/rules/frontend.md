@@ -145,9 +145,12 @@ re-render：`WatchlistStateContext`（只讀狀態）／`WatchlistActionsContext
   實務上 `style` 要給高度才捲得動，但漏掉 `rowProps` 才是唯一會讓 `tsc` 紅字的那個
 - ⚠️ `rowComponent` **必須是模組層級的穩定引用**，資料一律走 `rowProps`。v2 內部是
   `useMemo(() => memo(rowComponent), [rowComponent])`——在元件內定義 row component 會讓每次 render 整張表重掛
-- 動態行高：`rowHeight` 支援 `(index: number) => number`，收合／展開兩種高度定義在 `pages/watchlist/RepoList.tsx`
-  （`COLLAPSED_ITEM_SIZE` / `EXPANDED_ITEM_SIZE`）——**卡片改版時務必同步調整，行高寫死在 JS、CSS 改了不會自動反映**
-- 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理
+- 列高：`RepoList` 用 `useDynamicRowHeight`（ResizeObserver 量每一列的 border box），列高跟著內容走；卡片間距是
+  `.virtual-repo-item` 的 padding-bottom（量得到，margin 量不到）。快取以位置為 key，順序變了 react-window 會在 rowProps 換了之後
+  重新觀察、照新位置再量一次（RepoRow 要展開 `ariaAttributes`，react-window 靠 aria-posinset 對位置）。不要改回寫死的列高：
+  有徽章且描述兩行的收合卡片、展開的圖表、HN 討論面板、回填列換行、重讀失敗多一列都會被裁掉。代價：高度一變會畫出一格
+  位置錯的畫面（RO 的 setState 下一格才生效）；可視區上方的列改變高度時畫面不保持位置（捲回開過 HN 討論的列、批次徽章晚到）
+- 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理：列被虛擬化卸載再掛回時圖表要保持展開，不能放回卡片自己的 state
 - ⚠️ `List` 沒給 `rowKey` 時**預設拿 index 當 key**：列裡有元件 state（圖表的時間範圍、HN 討論面板）時，位置一變（排序、
   篩選、新增、刪除）state 就換給別的 repo。`RepoList` 傳模組層級的 `repoRowKey`（repo id）；它在 render 時被呼叫、不會自動 memo，
   引用要穩定

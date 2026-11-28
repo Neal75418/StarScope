@@ -14,8 +14,10 @@ vi.mock("../i18n", async () => {
 // 少了它，改用 rowProps 傳資料的列表在測試裡會拿到 undefined，
 // 而且會讓「rowComponent 引用穩定性」這類回歸完全測不出來
 // （見 RepoListRowStability.test.tsx，那條測試刻意不用這個 mock）。
-vi.mock("react-window", () => {
+vi.mock("react-window", async (importOriginal) => {
   return {
+    // 只換掉 List：useDynamicRowHeight 等其他匯出照用真的
+    ...(await importOriginal<typeof import("react-window")>()),
     List: ({
       rowComponent: RowComponent,
       rowCount,

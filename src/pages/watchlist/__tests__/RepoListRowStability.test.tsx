@@ -1,5 +1,5 @@
 /**
- * 守住 react-window 的兩個陷阱：remount 與 row key。
+ * 守住 react-window 的三件事：rowComponent 的 remount、row key、列高用量測的（不寫死）。
  *
  * react-window v2 內部是 useMemo(() => memo(rowComponent), [rowComponent])，
  * rowComponent 換引用就是新的元件型別 → 整組可見 row 卸載重掛。
@@ -16,13 +16,17 @@ const receivedRowComponents: unknown[] = [];
 const receivedListProps: {
   rowKey?: (index: number, data: unknown) => unknown;
   rowProps: unknown;
+  rowHeight?: unknown;
 }[] = [];
 
-vi.mock("react-window", () => ({
+// 只換掉 List：useDynamicRowHeight 等其他匯出照用真的
+vi.mock("react-window", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-window")>()),
   List: (props: {
     rowComponent: unknown;
     rowKey?: (index: number, data: unknown) => unknown;
     rowProps: unknown;
+    rowHeight?: unknown;
   }) => {
     receivedRowComponents.push(props.rowComponent);
     receivedListProps.push(props);
@@ -61,6 +65,30 @@ describe("RepoList 的 rowComponent 穩定性與 row key", () => {
   beforeEach(() => {
     receivedRowComponents.length = 0;
     receivedListProps.length = 0;
+  });
+
+  it("sizes rows by what they actually measure, not by fixed heights", () => {
+    // 寫死的列高蓋不住會變的內容（HN 討論面板、回填列換行、重讀失敗多一列）：超出的部分被裁掉、下一張卡貼上來。
+    // jsdom 量不到版面，這裡只守「給 List 的是 useDynamicRowHeight 的量測快取」，實際高度在 Chromium 驗
+    render(
+      <RepoList
+        repos={[makeRepo(1)]}
+        loadingRepoId={null}
+        onFetch={vi.fn()}
+        onRemove={vi.fn()}
+        batchData={{}}
+        batchOwnsData
+        onVisibleRangeChange={vi.fn()}
+      />
+    );
+
+    const { rowHeight } = receivedListProps[receivedListProps.length - 1];
+    expect(rowHeight).toEqual(
+      expect.objectContaining({
+        observeRowElements: expect.any(Function),
+        getRowHeight: expect.any(Function),
+      })
+    );
   });
 
   it("keys each row by its repo, not its position", () => {
