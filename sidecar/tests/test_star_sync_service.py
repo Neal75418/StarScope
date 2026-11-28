@@ -208,6 +208,99 @@ async def test_a_rename_that_frees_a_name_someone_else_took(test_db):
 
 
 @pytest.mark.asyncio
+async def test_a_rename_into_a_name_an_unrelated_row_holds_does_not_fail_the_sync(test_db):
+    """改名的目標名稱被本機另一列佔著，而那一列這一輪不改名（例如已封存、名稱過期的另一個 repo）：
+    flush 撞唯一鍵會讓整輪同步失敗、之後每一輪都一樣。先跳過這一筆改名，其他照常"""
+    from utils.time import utc_now
+
+    test_db.add(Repo(owner="a", name="new", full_name="a/new", url="https://github.com/a/new",
+                     github_id=5, unstarred_at=utc_now()))
+    test_db.commit()
+    kept = _tracked(test_db, 1, "a/old")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/new"), _star(3, "b/added")]))
+
+    assert result.skipped_reason is None
+    test_db.expire_all()
+    assert kept.full_name == "a/old"
+    assert {r.full_name for r in test_db.query(Repo).all()} == {"a/old", "b/added"}
+    assert result.renamed == 0
+
+
+@pytest.mark.asyncio
+async def test_a_skipped_rename_keeps_its_old_name_and_can_block_another(test_db):
+    """b 要改成 a/z，但 a/z 被已封存的另一列佔著 → 跳過，b 就不會讓出 a/y；
+    a 要改成 a/y 也只能跟著跳過，否則 flush 撞鍵。不相干的改名照做，連結也跟著改"""
+    from utils.time import utc_now
+
+    test_db.add(Repo(owner="a", name="z", full_name="a/z", url="https://github.com/a/z",
+                     github_id=9, unstarred_at=utc_now()))
+    test_db.commit()
+    first = _tracked(test_db, 1, "a/x")
+    second = _tracked(test_db, 2, "a/y")
+    other = _tracked(test_db, 4, "d/old")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[
+        _star(1, "a/y"), _star(2, "a/z"), _star(4, "d/new"),
+    ]))
+
+    assert result.skipped_reason is None
+    test_db.expire_all()
+    assert (first.full_name, second.full_name) == ("a/x", "a/y")
+    assert (other.full_name, other.url) == ("d/new", "https://github.com/d/new")
+    assert result.renamed == 1
+
+
+@pytest.mark.asyncio
+async def test_a_chain_of_renames_lands_whatever_the_row_order(test_db):
+    """主 repo 改名成 legacy、新版改名回主 repo：o/lib-next → o/lib、o/lib → o/lib-legacy。
+    UPDATE 照主鍵順序送，主鍵小的那列先改就會撞上另一列還沒讓出的名稱，每一輪同步都失敗"""
+    first = _tracked(test_db, 10, "o/lib-next")   # 主鍵較小、接手 o/lib
+    second = _tracked(test_db, 20, "o/lib")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[
+        _star(10, "o/lib"), _star(20, "o/lib-legacy"),
+    ]))
+
+    assert result.skipped_reason is None
+    test_db.expire_all()
+    assert (first.full_name, second.full_name) == ("o/lib", "o/lib-legacy")
+    assert result.renamed == 2
+
+
+@pytest.mark.asyncio
+async def test_two_rows_can_swap_names(test_db):
+    first = _tracked(test_db, 1, "x/a")
+    second = _tracked(test_db, 2, "x/b")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "x/b"), _star(2, "x/a")]))
+
+    assert result.skipped_reason is None
+    test_db.expire_all()
+    assert (first.full_name, second.full_name) == ("x/b", "x/a")
+
+
+@pytest.mark.asyncio
+async def test_a_case_only_twin_that_stays_still_blocks_the_name(test_db):
+    """full_name 的唯一鍵分大小寫，a/new 與 A/New 可以同時存在：a/new 這一輪改走，不代表 A/New 也讓出來了"""
+    from utils.time import utc_now
+
+    leaving = _tracked(test_db, 1, "a/new")
+    test_db.add(Repo(owner="A", name="New", full_name="A/New", url="https://github.com/A/New",
+                     github_id=5, unstarred_at=utc_now()))
+    test_db.commit()
+    mover = _tracked(test_db, 3, "b/old")
+
+    result = await sync_starred_repos(test_db, FakeGitHub(stars=[_star(1, "a/elsewhere"), _star(3, "A/New")]))
+
+    assert result.skipped_reason is None
+    test_db.expire_all()
+    assert mover.full_name == "b/old"
+    assert leaving.full_name == "a/elsewhere"
+    assert result.renamed == 1
+
+
+@pytest.mark.asyncio
 async def test_truncated_fetch_never_archives(test_db):
     """清單被分頁上限截斷時，缺的那截是「沒看到」不是「已取消 star」。
 

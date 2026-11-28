@@ -973,3 +973,13 @@ class TestArchivedRowsAreIdentifiedByGithubIdBeforeWritingGitHub:
         assert response.status_code == 201
         assert self._committed(test_db, archived.id).full_name == "A/Old"
 
+    def test_restoring_fills_in_a_missing_github_id(self, client, test_db):
+        """沒有 github_id 的舊列：復原時手上有 GitHub 回的 id，補上，之後的寫入才能用 id 確認身分"""
+        archived = self._archived(test_db, github_id=None)
+        github = self._github(by_name=self._data(7, "a/old"))
+        with patch("routers.repos.get_github_service", return_value=github):
+            response = client.post("/api/repos", json={"owner": "a", "name": "old"})
+
+        assert response.status_code == 201
+        assert self._committed(test_db, archived.id).github_id == 7
+

@@ -12,6 +12,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from db.models import Repo, RepoSnapshot
+from db.soft_delete import include_archived
 from schemas.time import to_utc_iso
 from services.analyzer import calculate_signals
 from utils.time import utc_now, utc_today
@@ -80,6 +81,30 @@ def create_or_update_snapshot(repo: Repo, github_data: dict, db: Session) -> Non
     db.execute(stmt)
 
 
+def rename_to_github(repo: Repo, github_data: dict, db: Session) -> bool:
+    """把這一列改成 GitHub 上現在的名稱（連同連結）。回傳改完之後這一列的名稱是不是 GitHub 上的那個。
+
+    名稱被另一列佔著（full_name 是唯一鍵）時不改、回 False：那一列多半是名稱過期的舊列，
+    或舊版本留下的重複列（同一個 github_id），改了會撞鍵——手動抓取回 500、排程每一輪都算這一列失敗。
+    """
+    full_name = github_data.get("full_name")
+    if not full_name or full_name == repo.full_name:
+        return True
+    taken = (
+        include_archived(db.query(Repo.id))
+        .filter(func.lower(Repo.full_name) == full_name.lower(), Repo.id != repo.id)
+        .first()
+    )
+    if taken is not None:
+        logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上叫 {full_name}，但這個名稱被本機另一列佔著，先不改名")
+        return False
+    repo.owner = (github_data.get("owner") or {}).get("login") or repo.owner
+    repo.name = github_data.get("name") or repo.name
+    repo.full_name = full_name
+    repo.url = f"https://github.com/{full_name}"
+    return True
+
+
 def update_repo_from_github(repo: Repo, github_data: dict, db: Session) -> None:
     """
     原子性更新 repo 中繼資料、快照及訊號。
@@ -100,14 +125,14 @@ def update_repo_from_github(repo: Repo, github_data: dict, db: Session) -> None:
     # 1. 更新中繼資料
     repo.description = github_data.get("description")
     repo.language = github_data.get("language")
+    if repo.github_id is None and incoming_id is not None:
+        # 沒有 github_id 的舊列：補上，之後加入、同步與寫 GitHub 才能用 id 認出它
+        repo.github_id = incoming_id
     # id 相同就是同一個 repo，改名要跟著更新——否則下次還是拿舊名去查，
-    # 一直依賴導向，而舊名總有一天會被佔走
-    incoming_full_name: str = github_data.get("full_name") or repo.full_name
-    if incoming_full_name != repo.full_name:
-        logger.info(f"[Repo] {repo.full_name} 已更名為 {incoming_full_name}")
-        repo.full_name = incoming_full_name
-        repo.owner = (github_data.get("owner") or {}).get("login") or repo.owner
-        repo.name = github_data.get("name") or repo.name
+    # 一直依賴導向，而舊名總有一天會被佔走。名稱被本機另一列佔著時先不改（見 rename_to_github）
+    previous_name = repo.full_name
+    if rename_to_github(repo, github_data, db) and repo.full_name != previous_name:
+        logger.info(f"[Repo] {previous_name} 已更名為 {repo.full_name}")
     repo.updated_at = utc_now()
 
     # 2. 建立或更新快照

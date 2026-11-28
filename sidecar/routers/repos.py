@@ -50,7 +50,12 @@ from utils.time import utc_now
 from db.models import AppSettingKey
 from services.digest import lower_cursor_to_existing
 from services.context_fetcher import latest_context_signal_written_at
-from services.snapshot import create_or_update_snapshot, latest_snapshot_written_at, update_repo_from_github
+from services.snapshot import (
+    create_or_update_snapshot,
+    latest_snapshot_written_at,
+    rename_to_github,
+    update_repo_from_github,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -261,28 +266,6 @@ def _github_owner_name(github_data: dict, owner: str, name: str) -> tuple[str, s
     return (github_data.get("owner") or {}).get("login") or owner, github_data.get("name") or name
 
 
-def _rename_to_github(repo: Repo, github_data: dict, db: Session) -> bool:
-    """把這一列改成 GitHub 上現在的名稱。回傳改完之後這一列的名稱是不是 GitHub 上的那個。
-
-    名稱被另一列佔著（full_name 是唯一鍵）時不改、回 False：那一列多半是名稱過期的舊列，改了會撞鍵回 500。
-    """
-    full_name = github_data.get("full_name")
-    if not full_name or full_name == repo.full_name:
-        return True
-    taken = (
-        include_archived(db.query(Repo.id))
-        .filter(func.lower(Repo.full_name) == full_name.lower(), Repo.id != repo.id)
-        .first()
-    )
-    if taken is not None:
-        logger.warning(f"[Repo] {repo.full_name} 在 GitHub 上叫 {full_name}，但這個名稱被本機另一列佔著，先不改名")
-        return False
-    repo.owner, repo.name = _github_owner_name(github_data, repo.owner, repo.name)
-    repo.full_name = full_name
-    repo.url = f"https://github.com/{full_name}"
-    return True
-
-
 class RepoNameHeldError(Exception):
     """要加入的名稱被本機另一列（另一個 repo、名稱過期）佔著，又讓不開。重試不會好：要先刪掉或處理那一列。"""
 
@@ -302,7 +285,7 @@ async def _move_aside(repo: Repo, github: GitHubService, db: Session) -> None:
         current = await github.get_repo_by_id(int(repo.github_id))
     except GitHubNotFoundError:
         current = None
-    if current is None or not _rename_to_github(repo, current, db):
+    if current is None or not rename_to_github(repo, current, db):
         raise RepoNameHeldError(repo.full_name)
     db.flush()
 
@@ -361,8 +344,11 @@ async def _add_or_restore_repo(
 
     if existing is not None:
         # 封存的列＝使用者取消過又反悔。復原同一列（快照、訊號、分類、警報規則都還在），
-        # 而不是回「已經在清單裡」——畫面上根本沒有它，使用者會被永久擋住。名稱順便改成 GitHub 上現在的
-        _rename_to_github(existing, github_data, db)
+        # 而不是回「已經在清單裡」——畫面上根本沒有它，使用者會被永久擋住。名稱順便改成 GitHub 上現在的；
+        # 沒有 github_id 的舊列順便補上，之後的寫入才能用 id 確認身分
+        rename_to_github(existing, github_data, db)
+        if existing.github_id is None and incoming_id is not None:
+            existing.github_id = incoming_id
         existing.unstarred_at = None
         db.commit()
         db.refresh(existing)
@@ -589,7 +575,7 @@ async def restar_repo(repo_id: int, db: Annotated[Session, Depends(get_db)]) -> 
         star_owner, star_name, current = await _current_name_on_github(repo, github)
         await github.star_repo(star_owner, star_name)
         if current:
-            _rename_to_github(repo, current, db)
+            rename_to_github(repo, current, db)
     repo.unstarred_at = None
     db.commit()
     return success_response({"restored": repo_id})
@@ -708,7 +694,7 @@ async def resolve_local_only(payload: ResolvePayload,
                 star_owner, star_name, current = await _current_name_on_github(repo, github)
                 await github.star_repo(star_owner, star_name)
                 if current:
-                    _rename_to_github(repo, current, db)
+                    rename_to_github(repo, current, db)
             repo.unstarred_at = None
         else:
             repo.unstarred_at = utc_now()

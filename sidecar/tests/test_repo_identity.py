@@ -82,3 +82,63 @@ def test_adding_by_an_old_name_stores_the_current_one(test_db):
     assert repo.owner == "a"
     assert repo.name == "new"
     assert repo.url == "https://github.com/a/new"
+
+
+def _renamed_to(name: str, stars: int = 120) -> dict:
+    owner, short = name.split("/")
+    return {"id": 111, "full_name": name, "name": short, "owner": {"login": owner},
+            "description": "renamed", "language": "Rust", "stargazers_count": stars}
+
+
+def test_a_rename_into_a_name_another_row_holds_still_updates_the_data(test_db):
+    """舊版本留下的重複列：同一個 github_id 一列舊名、一列已經是新名。改名撞 full_name 唯一鍵的話，
+    手動抓取回 500、排程每一輪都算這一列失敗；改名先跳過，資料照樣更新"""
+    from utils.time import utc_today
+
+    repo = _tracked(test_db)
+    test_db.add(Repo(owner="a", name="new", full_name="a/new", url="https://github.com/a/new", github_id=111))
+    test_db.commit()
+
+    update_repo_from_github(repo, _renamed_to("a/new"), test_db)
+
+    test_db.expire_all()
+    assert repo.full_name == "a/old"
+    assert repo.description == "renamed"
+    today = test_db.query(RepoSnapshot).filter_by(repo_id=repo.id, snapshot_date=utc_today()).one()
+    assert today.stars == 120
+
+
+def test_a_rename_updates_the_link_too(test_db):
+    repo = _tracked(test_db)
+
+    update_repo_from_github(repo, _renamed_to("a/new"), test_db)
+
+    assert repo.url == "https://github.com/a/new"
+
+
+def test_a_missing_github_id_is_filled_in(test_db):
+    """沒有 github_id 的舊列：補上之後，加入與同步才認得出它（改名後用新名加入、id 比對）"""
+    repo = _tracked(test_db)
+    repo.github_id = None
+    test_db.commit()
+
+    update_repo_from_github(repo, _renamed_to("a/old"), test_db)
+
+    test_db.expire_all()
+    assert repo.github_id == 111
+
+
+def test_a_manual_fetch_does_not_fail_on_a_held_name(client, test_db):
+    """手動抓取（卡片上的抓取）原本在這裡撞唯一鍵回 500"""
+    from unittest.mock import AsyncMock, patch
+
+    repo = _tracked(test_db)
+    test_db.add(Repo(owner="a", name="new", full_name="a/new", url="https://github.com/a/new", github_id=111))
+    test_db.commit()
+    github = AsyncMock()
+    github.get_repo.return_value = {**_renamed_to("a/new"), "forks_count": 0, "open_issues_count": 0}
+    with patch("routers.repos.get_github_service", return_value=github):
+        response = client.post(f"/api/repos/{repo.id}/fetch")
+
+    assert response.status_code == 200
+

@@ -123,6 +123,31 @@ def _repo_from_star(star: RemoteStar) -> Repo:
     )
 
 
+def _renames_that_fit(local: list[Repo], renamed: list[tuple[Repo, RemoteStar]]) -> list[tuple[Repo, RemoteStar]]:
+    """這一輪做得了的改名：目標名稱被本機另一列佔著、而那一列這一輪不讓出名稱時（例如已封存、名稱過期的另一個 repo），
+    flush 會撞 full_name 唯一鍵、整輪同步失敗，之後每一輪都一樣。這種先跳過，其他照常。
+
+    在記憶體裡算、不查資料庫：同一輪的改名還沒 flush，查不到。一筆被跳過，它原本的名稱就不會讓出來，
+    可能連帶擋住另一筆，所以重算到沒有新的被跳過為止。名稱不分大小寫比（同 rename_to_github），
+    但「讓不讓出來」看列本身：唯一鍵分大小寫，a/new 與 A/New 可以同時存在，一列改走不代表另一列也讓出來了。
+    """
+    holders: dict[str, list[Repo]] = {}
+    for r in local:
+        holders.setdefault(r.full_name.lower(), []).append(r)
+    fitting = list(renamed)
+    while True:
+        moving = {id(repo) for repo, _ in fitting}
+        blocked = [
+            (repo, star) for repo, star in fitting
+            if any(o is not repo and id(o) not in moving for o in holders.get(star.full_name.lower(), []))
+        ]
+        if not blocked:
+            return fitting
+        for repo, star in blocked:
+            logger.warning(f"[Star 同步] {repo.full_name} 在 GitHub 上叫 {star.full_name}，但這個名稱被本機另一列佔著，先不改名")
+            fitting.remove((repo, star))
+
+
 def _lock_is_held(raw: str | None) -> bool:
     """鎖是否仍然有效。無法解析的值視為未上鎖——寧可多跑一輪，也不要永久卡死。"""
     if not raw:
@@ -168,9 +193,17 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
         # 你也 star 的 repo 佔走。先做新增就會在舊列還持有那個 full_name 時 INSERT，
         # 撞上唯一鍵讓整輪同步回滾。SQLAlchemy 目前的 flush 順序剛好正確，但正確性
         # 不該依賴我們沒有選擇的排序。
-        for repo, star in diff.renamed:
+        renames = _renames_that_fit(local, diff.renamed)
+        if len(renames) > 1:
+            # 先全部改成暫時的名稱再改成正式的：UPDATE 照主鍵順序送，連鎖改名（o/lib-next → o/lib、
+            # o/lib → o/lib-legacy）或互換名稱時，主鍵小的那列先改就撞上另一列還沒讓出的名稱。暫名含空白，不會是 GitHub 名稱
+            for repo, _ in renames:
+                repo.full_name = f"renaming {repo.id}"
+            db.flush()
+        for repo, star in renames:
             repo.full_name, repo.owner, repo.name = star.full_name, star.owner, star.name
-        if diff.renamed:
+            repo.url = star.payload.get("html_url") or f"https://github.com/{star.full_name}"
+        if renames:
             db.flush()
 
         for star in diff.added:
@@ -214,11 +247,11 @@ async def sync_starred_repos(db: Session, github: Any) -> SyncResult:
         set_setting(AppSettingKey.LAST_STAR_SYNC_AT, utc_now().isoformat() + "Z", db)
         logger.info(
             f"[Star 同步] 新增 {len(diff.added)}、復原 {len(diff.restored)}、"
-            f"改名 {len(diff.renamed)}、"
+            f"改名 {len(renames)}、"
             f"封存 {0 if skip_removals else len(diff.archived)}"
             + (f"、待決定 {len(pending)}" if pending else ""))
         return SyncResult(added=len(diff.added), restored=len(diff.restored),
-                          renamed=len(diff.renamed),
+                          renamed=len(renames),
                           archived=0 if skip_removals else len(diff.archived),
                           pending_local_only=pending)
     finally:
