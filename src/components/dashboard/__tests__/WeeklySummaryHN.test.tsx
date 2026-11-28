@@ -52,8 +52,12 @@ vi.mock("../../../hooks/useWeeklySummary", () => ({
       accelerating: 1,
       decelerating: 0,
     },
-    isLoading: false,
-    error: null,
+    // 元件用 loadStatus 讀這些欄位
+    isError: false,
+    isPending: false,
+    errorUpdateCount: 0,
+    fetchStatus: "idle",
+    refetch: vi.fn(),
   }),
 }));
 

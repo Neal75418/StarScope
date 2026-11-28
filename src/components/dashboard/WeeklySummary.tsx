@@ -13,6 +13,8 @@ import type { DashboardTimeRange } from "../../api/types";
 import { formatDelta } from "../../utils/format";
 import { safeOpenUrl } from "../../utils/url";
 import { Skeleton } from "../Skeleton";
+import { LoadError } from "../LoadError";
+import { loadStatus } from "../../lib/react-query";
 import type { WeeklyHNMention, WeeklyRelease } from "../../api/types";
 
 const MAX_HN_MENTIONS_DISPLAY = 6;
@@ -131,9 +133,13 @@ interface WeeklySummaryProps {
 
 export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySummaryProps) {
   const { t } = useI18n();
-  const { data, isLoading, error } = useWeeklySummary(days);
+  const query = useWeeklySummary(days);
+  const { data } = query;
+  // 跟儀表板主體（useDashboard 的 load）一樣看 loadStatus：已有資料時重讀失敗保留內容、另外說沒有更新成功；
+  // 還沒有資料時按重試，查詢回到 pending，用 isLoading 當閘門的話整塊會換成骨架、重試鈕跟著消失
+  const load = loadStatus(query);
 
-  if (isLoading) {
+  if (!load.ready && !load.failed) {
     return (
       <div className="dashboard-section weekly-summary">
         <Skeleton width={200} height={24} style={{ marginBottom: 16 }} />
@@ -156,13 +162,17 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
     );
   }
 
-  if (error) {
+  if (!load.ready) {
     return (
       <div className="dashboard-section weekly-summary">
         <div className="weekly-header">
           <h3>{t.dashboard.weekly.title}</h3>
         </div>
-        <div className="weekly-empty">{t.dashboard.weekly.loadError}</div>
+        <LoadError
+          message={t.dashboard.weekly.loadError}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
       </div>
     );
   }
@@ -184,6 +194,13 @@ export const WeeklySummary = memo(function WeeklySummary({ days = 7 }: WeeklySum
             : t.dashboard.weekly.awaitingBaselineShort}
         </span>
       </div>
+      {load.failed && (
+        <LoadError
+          message={t.dashboard.weekly.refreshFailed}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
+      )}
 
       <div className="weekly-grid">
         <ReleasesList releases={data.releases ?? []} t={t} />

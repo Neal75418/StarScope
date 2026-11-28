@@ -26,7 +26,8 @@ import type { BarShapeProps } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { getPortfolioHistory } from "../../api/client";
 import type { DashboardTimeRange } from "../../api/types";
-import { queryKeys } from "../../lib/react-query";
+import { loadStatus, queryKeys } from "../../lib/react-query";
+import { LoadError } from "../LoadError";
 import { formatNumber, formatDelta } from "../../utils/format";
 import { computeDailyStars, starAxisTicks, type DailyStarBar } from "../../utils/dailyStars";
 import { Skeleton } from "../Skeleton";
@@ -89,10 +90,14 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
   const { t } = useI18n();
   const copy = t.dashboard.dailyStars;
 
-  const { data, isLoading, error } = useQuery({
+  const query = useQuery({
     queryKey: queryKeys.dashboard.portfolioHistory(days),
     queryFn: ({ signal }) => getPortfolioHistory(days, signal),
   });
+  const { data } = query;
+  // 跟儀表板主體（useDashboard 的 load）一樣看 loadStatus：已有資料時重讀失敗保留舊圖、另外說沒有更新成功（不說載入失敗）；
+  // 還沒有資料時按重試不換成骨架
+  const load = loadStatus(query);
 
   // 快照日期由後端以 UTC 產生。用本地日期比對，跨日前後會標錯「今天」
   const todayUtc = new Date().toISOString().slice(0, 10);
@@ -129,13 +134,19 @@ export const DailyStarsChart = memo(function DailyStarsChart({ days, onChangeDay
         </div>
       </div>
 
-      {isLoading && (
+      {!load.ready && !load.failed && (
         <Skeleton width="100%" height={160} variant="rounded" style={{ marginTop: 8 }} />
       )}
 
-      {error && <div className="daily-stars-empty">{copy.loadError}</div>}
+      {load.failed && (
+        <LoadError
+          message={load.ready ? copy.refreshFailed : copy.loadError}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
+      )}
 
-      {data && result.bars.length === 0 && !isLoading && (
+      {load.ready && result.bars.length === 0 && (
         <div className="daily-stars-empty">{copy.noData}</div>
       )}
 

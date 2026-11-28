@@ -10,12 +10,13 @@
  */
 import { cloneElement, type ReactElement } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { DailyStarsChart } from "../DailyStarsChart";
 import { createTestQueryClient, queryKeys } from "../../../lib/react-query";
 import { getPortfolioHistory } from "../../../api/client";
+import { translations } from "../../../i18n/translations";
 
 vi.mock("../../../api/client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../api/client")>();
@@ -140,5 +141,65 @@ describe("資料縮短時的 re-render", () => {
 
     expect(() => rerender(<DailyStarsChart days={7} onChangeDays={() => {}} />)).not.toThrow();
     await waitFor(() => expect(bars().length).toBe(7));
+  });
+});
+
+describe("DailyStarsChart 的讀取", () => {
+  // clearAllMocks 不清 mock*Once 的佇列：一條失敗沒用完的 once 會漏到下一條
+  beforeEach(() => vi.mocked(getPortfolioHistory).mockReset());
+
+  const history = {
+    history: [
+      { date: "2026-01-01", total_stars: 1000, repo_count: 1, stars_gained: null },
+      { date: "2026-01-02", total_stars: 1100, repo_count: 1, stars_gained: 100 },
+    ],
+  };
+
+  it("重讀失敗時保留舊圖，說沒有更新成功，不說載入失敗", async () => {
+    const client = createTestQueryClient();
+    client.setDefaultOptions({
+      queries: { ...client.getDefaultOptions().queries, gcTime: Infinity },
+    });
+    vi.mocked(getPortfolioHistory).mockResolvedValueOnce(history as never);
+    render(
+      <QueryClientProvider client={client}>
+        <DailyStarsChart days={30} onChangeDays={vi.fn()} />
+      </QueryClientProvider>
+    );
+    await waitFor(() => expect(bars().length).toBeGreaterThan(0));
+
+    vi.mocked(getPortfolioHistory).mockRejectedValueOnce(new Error("boom"));
+    await act(async () => {
+      await client.refetchQueries({ queryKey: queryKeys.dashboard.portfolioHistory(30) });
+    });
+
+    expect(
+      await screen.findByText(translations.en.dashboard.dailyStars.refreshFailed)
+    ).toBeInTheDocument();
+    expect(bars().length).toBeGreaterThan(0);
+    expect(
+      screen.queryByText(translations.en.dashboard.dailyStars.loadError)
+    ).not.toBeInTheDocument();
+  });
+
+  it("第一次就讀不到時給重試", async () => {
+    vi.mocked(getPortfolioHistory)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const { container } = render(<DailyStarsChart days={30} onChangeDays={vi.fn()} />, {
+      wrapper,
+    });
+
+    expect(
+      await screen.findByText(translations.en.dashboard.dailyStars.loadError)
+    ).toBeInTheDocument();
+    // 讀到了才談空不空：讀不到時不能同時說資料不足
+    expect(screen.queryByText(translations.en.dashboard.dailyStars.noData)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: translations.en.common.retry }));
+    // 還沒有資料時重試：不換成骨架，重試鈕留著顯示重試中
+    expect(
+      await screen.findByRole("button", { name: translations.en.common.retrying })
+    ).toBeInTheDocument();
+    expect(container.querySelector(".skeleton")).toBeNull();
   });
 });

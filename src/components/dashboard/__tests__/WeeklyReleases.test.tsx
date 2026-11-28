@@ -23,7 +23,15 @@ vi.mock("../../Skeleton", () => ({ Skeleton: () => null }));
 
 const state = vi.hoisted(() => ({ data: null as unknown }));
 vi.mock("../../../hooks/useWeeklySummary", () => ({
-  useWeeklySummary: () => ({ data: state.data, isLoading: false, error: null }),
+  // 元件用 loadStatus 讀這些欄位：只給 data／isLoading／error 的話，錯誤狀態的斷言會測錯
+  useWeeklySummary: () => ({
+    data: state.data,
+    isError: false,
+    isPending: false,
+    errorUpdateCount: 0,
+    fetchStatus: "idle",
+    refetch: vi.fn(),
+  }),
 }));
 
 function release(overrides: Partial<WeeklyRelease> = {}): WeeklyRelease {
