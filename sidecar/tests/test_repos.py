@@ -548,6 +548,79 @@ class TestSyncStatusLastSnapshotAt:
         assert body["last_snapshot_at"] == "2026-11-26T03:04:05+00:00"
 
 
+class TestSyncStatusLastContextSignalAt:
+    """HN 與新版本由另外的排程寫進 ContextSignal，不改快照時間與同步時間：
+    前端靠這個時間變了沒，重讀儀表板（近 7 天摘要的 HN 與新版本）與追蹤清單（卡片的情境徽章）。"""
+
+    @staticmethod
+    def _signal(repo_id, signal_type, external_id, fetched_at):
+        from db.models import ContextSignal
+        return ContextSignal(
+            repo_id=repo_id, signal_type=signal_type, external_id=external_id,
+            title="t", url="https://example.com", fetched_at=fetched_at,
+        )
+
+    def test_reports_when_hn_or_release_data_was_last_written(self, client, test_db, mock_repo):
+        from datetime import datetime
+        from constants import ContextSignalType
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        assert body["last_context_signal_at"] is None
+
+        test_db.add_all([
+            self._signal(mock_repo.id, ContextSignalType.HACKER_NEWS, "1", datetime(2026, 11, 26, 1, 0, 0)),
+            self._signal(mock_repo.id, ContextSignalType.RELEASE, "2", datetime(2026, 11, 26, 3, 4, 5)),
+        ])
+        test_db.commit()
+
+        body = client.get("/api/repos/sync/status").json()["data"]
+        # 帶時區：naive UTC 被 JS 當本地時間解析
+        assert body["last_context_signal_at"] == "2026-11-26T03:04:05+00:00"
+
+    def test_moves_when_the_hn_job_writes_a_story_again(self, client, test_db, mock_repo):
+        """排程每次都把抓到的文章 upsert 回去（分數、留言數會變）：寫過就要看得出來。"""
+        from datetime import datetime
+        from constants import ContextSignalType
+        from services.context_fetcher import _store_and_commit
+        from services.hacker_news import HNStory
+
+        test_db.add(self._signal(mock_repo.id, ContextSignalType.HACKER_NEWS, "42", datetime(2026, 1, 1)))
+        test_db.commit()
+        before = client.get("/api/repos/sync/status").json()["data"]["last_context_signal_at"]
+
+        story = HNStory(
+            object_id="42", title="t", url="https://example.com", points=300,
+            num_comments=10, author="a", created_at=datetime(2026, 1, 1),
+        )
+        _store_and_commit(mock_repo.id, [story], test_db)
+
+        after = client.get("/api/repos/sync/status").json()["data"]["last_context_signal_at"]
+        assert before == "2026-01-01T00:00:00+00:00"
+        assert after is not None
+        assert after > before
+
+    def test_moves_when_the_release_job_writes_a_release_again(self, client, test_db, mock_repo):
+        """新版本的 notes 被編輯時標題與標記會重寫：同樣要看得出來。"""
+        from datetime import datetime
+        from constants import ContextSignalType
+        from services.release_fetcher import _ReleaseTarget, store_release
+
+        test_db.add(self._signal(mock_repo.id, ContextSignalType.RELEASE, "7", datetime(2026, 1, 1)))
+        test_db.commit()
+        before = client.get("/api/repos/sync/status").json()["data"]["last_context_signal_at"]
+
+        target = _ReleaseTarget(
+            repo_id=mock_repo.id, owner=mock_repo.owner, name=mock_repo.name, full_name=mock_repo.full_name
+        )
+        store_release(target, {"id": 7, "tag_name": "v1", "name": "v1", "body": ""}, test_db)
+        test_db.commit()
+
+        after = client.get("/api/repos/sync/status").json()["data"]["last_context_signal_at"]
+        assert before == "2026-01-01T00:00:00+00:00"
+        assert after is not None
+        assert after > before
+
+
 class TestAddRepoMatchesTheExistingRowWhateverTheSpelling:
     """GitHub 的名稱不分大小寫、改名後舊名會導向：加入時用使用者輸入的字串精確比對 full_name 的話，
     大小寫不同或用舊名都會往下建一列，撞 full_name 唯一鍵回 500，或在本機名稱還是舊的時候多出一列同一個 repo。

@@ -4,7 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, type ReactNode } from "react";
 import { useDigest } from "../useDigest";
 import { getDigest, markDigestSeen } from "../../api/client";
-import type { DigestResponse } from "../../api/client";
+import type { DigestResponse, SyncStatus } from "../../api/client";
+import { queryKeys } from "../../lib/react-query";
 
 vi.mock("../../api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/client")>()),
@@ -198,5 +199,72 @@ describe("useDigest", () => {
     await waitFor(() => expect(getDigest).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 20));
     expect(getDigest).toHaveBeenCalledTimes(1);
+  });
+
+  describe("HN 與新版本在背景寫入", () => {
+    // HN 與新版本的排程不持有抓取的鎖：抓取結束（fetch_in_progress 轉 false）那一刻還沒寫進去
+    const status = (last_context_signal_at: string | null): SyncStatus => ({
+      last_sync_at: null,
+      running: false,
+      last_snapshot_at: null,
+      last_context_signal_at,
+    });
+
+    function withClient() {
+      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const Wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      );
+      return { qc, Wrapper };
+    }
+
+    it("appends when the background check sees HN or releases written", async () => {
+      vi.mocked(getDigest)
+        .mockResolvedValueOnce(batch("release:1", 1))
+        .mockResolvedValueOnce(batch("release:2", 2));
+      const { qc, Wrapper } = withClient();
+      qc.setQueryData(queryKeys.repos.syncStatus(), status("2026-11-26T03:05:00+00:00"));
+      const { result } = renderHook(
+        () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+        { wrapper: Wrapper }
+      );
+      await waitFor(() => expect(result.current.digest).toBeDefined());
+
+      act(() => {
+        qc.setQueryData(queryKeys.repos.syncStatus(), status("2026-11-26T03:35:00+00:00"));
+      });
+
+      await waitFor(() => expect(result.current.digest?.items).toHaveLength(2));
+    });
+
+    it("takes the first reading as the baseline and only appends when the context time changed", async () => {
+      vi.mocked(getDigest).mockResolvedValue(batch("release:1", 1));
+      const { qc, Wrapper } = withClient();
+      const { result } = renderHook(
+        () => useDigest({ isFetchInProgress: false, canMarkSeen: true }),
+        { wrapper: Wrapper }
+      );
+      await waitFor(() => expect(result.current.digest).toBeDefined());
+
+      // 每次讀到都等通知送出再下一步：React Query 會把同一輪裡的通知合併，effect 只看到最後一個值
+      const reading = async (value: SyncStatus) => {
+        await act(async () => {
+          qc.setQueryData(queryKeys.repos.syncStatus(), value);
+          await new Promise((r) => setTimeout(r, 20));
+        });
+      };
+
+      // 背景偵測第一次讀到：只當基準
+      await reading(status("2026-11-26T03:05:00+00:00"));
+      // 之後每分鐘再讀到同一個值（新的物件、同一個時間）
+      await reading(status("2026-11-26T03:05:00+00:00"));
+      // 只有快照時間變了（抓取逐筆寫入中）：那由抓取結束的轉換接，不在這裡每分鐘多附加一次
+      await reading({
+        ...status("2026-11-26T03:05:00+00:00"),
+        last_snapshot_at: "2026-11-26T03:06:00+00:00",
+      });
+
+      expect(getDigest).toHaveBeenCalledTimes(1);
+    });
   });
 });

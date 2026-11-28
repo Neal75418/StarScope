@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getDigest, markDigestSeen } from "../api/client";
+import { getDigest, getSyncStatus, markDigestSeen } from "../api/client";
 import type { DigestResponse } from "../api/client";
 import { queryKeys } from "../lib/react-query";
 import { mergeDigest } from "../utils/digest";
@@ -14,6 +14,7 @@ import { logger } from "../utils/logger";
 
 // 模組常數：每次 render 新建的陣列放進 useCallback 依賴會讓 appendNew 每次都換一個
 const DIGEST_KEY = queryKeys.digest.session();
+const SYNC_STATUS_KEY = queryKeys.repos.syncStatus();
 
 // 送過 seen 的那幾批（以快取裡的物件為 key）。放模組層級才撐得過 Dashboard 重新掛載：
 // 換頁回來時快取給的是同一個物件，若再送一次，會把刪除後被壓低的游標抬回去
@@ -72,6 +73,23 @@ export function useDigest({ isFetchInProgress, canMarkSeen }: UseDigestOptions) 
     wasFetchingRef.current = isFetchInProgress;
     if (was && !isFetchInProgress && query.data) void appendNew();
   }, [isFetchInProgress, appendNew, query.data]);
+
+  // HN 與新版本由另外的排程寫、不持有抓取的鎖：抓取結束那一刻它們還沒寫進去，上面的轉換接不到。
+  // 讀背景偵測（useBackgroundStarSync）輪詢的同一份同步狀態（停用的觀察者，不另外發請求），
+  // 情境訊號的寫入時間變了就附加；第一次讀到的值只當基準
+  const contextWrittenAt = useQuery({
+    queryKey: SYNC_STATUS_KEY,
+    queryFn: ({ signal }) => getSyncStatus(signal),
+    enabled: false,
+    select: (status) => status.last_context_signal_at,
+  }).data;
+  const seenContextRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (contextWrittenAt === undefined) return;
+    const seen = seenContextRef.current;
+    seenContextRef.current = contextWrittenAt;
+    if (seen !== undefined && seen !== contextWrittenAt && query.data) void appendNew();
+  }, [contextWrittenAt, appendNew, query.data]);
 
   return {
     digest: query.data,

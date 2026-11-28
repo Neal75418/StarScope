@@ -15,11 +15,22 @@ from sqlalchemy.orm import Session
 
 from constants import CONTEXT_SIGNAL_MAX_AGE_DAYS, CONTEXT_SIGNAL_MAX_PER_REPO, ContextSignalType
 from db.models import Repo, ContextSignal
+from schemas.time import to_utc_iso
 from services.digest import lower_cursor_to_existing
 from services.hacker_news import fetch_hn_mentions, is_relevant_story, HNStory
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
+
+
+def latest_context_signal_written_at(db: Session) -> str | None:
+    """最新一筆情境訊號（HN 與新版本）的寫入時間（fetched_at 的最大值，帶時區的 ISO 字串）；還沒有時回 None。
+
+    HN 與新版本由另外的排程寫，不改快照時間與同步時間；前端靠這個變了沒重讀儀表板與追蹤清單。
+    跟 latest_snapshot_written_at 一樣回答「多久前寫過」：upsert 每次都更新 fetched_at，內容沒變也算寫過。
+    """
+    latest = db.query(func.max(ContextSignal.fetched_at)).scalar()
+    return to_utc_iso(latest) if latest else None
 
 
 def _get_existing_signal_map(

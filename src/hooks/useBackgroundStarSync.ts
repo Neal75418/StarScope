@@ -4,7 +4,7 @@
  * sidecar 啟動時的同步、launchd 收集器每小時一次的同步，以及排程與收集器的抓取都不會通知前端，GitHub 上的
  * star／取消 star 與新的星數因此不會反映到畫面上。這裡每分鐘看一次最後同步時間與最新快照的寫入時間（頁面隱藏
  * 或離線時暫停），跟上次看到的不同就重取追蹤名單（分類、訊號、警報規則與已觸發警報跟著重讀，見 invalidateTrackedRepos）
- * 與儀表板。
+ * 與儀表板。HN 與新版本由另外的排程寫，快照時間不會變，所以情境訊號的寫入時間也一起看。
  * 第一次讀到的值只當基準：開 app 時資料本來就是剛抓的。
  */
 
@@ -26,9 +26,12 @@ export function useBackgroundStarSync(enabled: boolean): void {
   });
 
   // undefined＝還沒讀到；null＝從沒同步過（之後變成有值同樣算一次新的同步）。
-  // 最新快照的寫入時間一起看：背景抓取（排程、收集器）也不會通知前端，沒有同步時最後同步時間不會變
+  // 最新快照的寫入時間一起看：背景抓取（排程、收集器）也不會通知前端，沒有同步時最後同步時間不會變。
+  // 情境訊號（HN、新版本）的寫入時間也是：近 7 天摘要的 HN 與新版本、卡片的情境徽章都從它來
   const lastChange =
-    data === undefined ? undefined : `${data.last_sync_at ?? ""}|${data.last_snapshot_at ?? ""}`;
+    data === undefined
+      ? undefined
+      : `${data.last_sync_at ?? ""}|${data.last_snapshot_at ?? ""}|${data.last_context_signal_at ?? ""}`;
   const seenRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (lastChange === undefined) return;

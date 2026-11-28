@@ -35,6 +35,7 @@ beforeEach(() => {
   vi.mocked(client.getSyncStatus).mockResolvedValue({
     last_sync_at: "2026-08-16T01:00:00Z",
     last_snapshot_at: null,
+    last_context_signal_at: null,
     running: false,
   });
 });

@@ -49,8 +49,9 @@ paths:
   `invalidateTrackedRepos` 先 cancel 分類查詢再 invalidate，順序不能換：還在第一次載入時 invalidate 只會併進寫入前的請求。
   刪除分類要 `invalidateTrackedRepos`（categories 沒有 AUTOINCREMENT，新分類會重用 id，留著舊的 `category_ids` 會串到新分類）
 - 背景星標同步（sidecar 啟動時、launchd 收集器）與背景抓取（排程、收集器）都不會通知前端：`useBackgroundStarSync`
-  （WatchlistProvider 掛著）每分鐘讀一次同步狀態，`last_sync_at` 或 `last_snapshot_at`（最新快照的寫入時間）變了才重讀
-  追蹤名單、儀表板與 diagnostics。同步狀態的 key 也在 `repos.all` 底下，它呼叫 `invalidateTrackedRepos` 要帶
+  （WatchlistProvider 掛著）每分鐘讀一次同步狀態，`last_sync_at`、`last_snapshot_at`（最新快照的寫入時間）或
+  `last_context_signal_at`（最新情境訊號〔HN、新版本〕的寫入時間：由另外的排程寫，快照時間不會跟著變；upsert 每次都更新，
+  內容沒變也會觸發一輪）變了才重讀追蹤名單、儀表板與 diagnostics。同步狀態的 key 也在 `repos.all` 底下，它呼叫 `invalidateTrackedRepos` 要帶
   `exceptSyncStatus`：抓取（排程、收集器、全部重新整理）逐筆寫快照的那幾秒裡，重讀自己會讀到新的值、又觸發一次，
   一路連到寫完。已知成本：app 自己寫快照或同步時間的操作（全部重新整理、單一 repo 重新整理、加入 repo、設定頁手動同步）
   之後用預設的 `invalidateTrackedRepos` 會讀到自己剛寫的值，watcher 當成背景變化再重讀一輪——只多花請求、不影響正確性，不是 bug
@@ -124,6 +125,10 @@ paths:
   （表沒有 AUTOINCREMENT，id 會重用）
 - `queryKeys.digest` 刻意不在 `dashboard` 底下：Dashboard 重整會 invalidate 整棵，重抓只回新項目會蓋掉這批；重整改走 `appendNew`
 - `useDigest` 只在 `canMarkSeen`（面板真的渲染）時送 seen，每個快取物件只送一次——重新掛載重送舊 cursor 會把壓低的游標抬回去
+- 自動附加有兩個時機：diagnostics 的 `fetch_in_progress` 由 true 轉 false（抓取結束），以及同步狀態的 `last_context_signal_at`
+  變了（HN 與新版本的排程不持有抓取的鎖，抓取結束那一刻還沒寫）。基準都記在 hook 上：離開儀表板期間寫入的，回來時不補；
+  警報檢查也在鎖外：摘要一次回游標之後三張表的新項目，HN 每一輪都會重新 upsert，所以通常隨下一次 HN／新版本寫入一起補上
+  （30 分鐘內）；那一輪沒寫入時才要等抓取結束或按重整
 - 啟動頁先等 sidecarConnection 連上（最多到 `STARTUP_GRACE_MS`）再給 digest 1 秒：發行版 sidecar 冷啟動要好幾秒
 
 ## Watchlist Context + useReducer

@@ -1,7 +1,7 @@
 /**
  * 背景的星標同步（sidecar 啟動時的同步、launchd 收集器）與抓取（排程、收集器）不會通知前端：只能自己去看
- * 最後同步時間與最新快照的寫入時間，變了就重取追蹤名單與儀表板：分類與警報規則跟上 GitHub 上的 star／取消 star，
- * 追蹤名單、訊號與儀表板跟上新的星數。
+ * 最後同步時間、最新快照與最新情境訊號（HN、新版本）的寫入時間，變了就重取追蹤名單與儀表板：分類與警報規則跟上
+ * GitHub 上的 star／取消 star，追蹤名單、訊號與儀表板跟上新的星數，近 7 天摘要與卡片的情境徽章跟上新的 HN 與新版本。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { ReactNode } from "react";
@@ -36,10 +36,15 @@ function renderWatcher(enabled = true) {
   return { client, hook, reposInvalidated, diagnosticsInvalidated, dashboardInvalidated };
 }
 
-const status = (last_sync_at: string | null, last_snapshot_at: string | null = null) => ({
+const status = (
+  last_sync_at: string | null,
+  last_snapshot_at: string | null = null,
+  last_context_signal_at: string | null = null
+) => ({
   last_sync_at,
   running: false,
   last_snapshot_at,
+  last_context_signal_at,
 });
 const settle = () => act(() => new Promise<void>((r) => setTimeout(r, 20)));
 
@@ -94,6 +99,27 @@ describe("useBackgroundStarSync", () => {
     expect(diagnosticsInvalidated()).toBe(true);
     // 週摘要與每日 star 也從快照算（dashboard 底下）
     expect(dashboardInvalidated()).toBe(true);
+  });
+
+  it("reloads the weekly summary and the tracked repos when only HN or releases were written", async () => {
+    // HN 與新版本由另外的排程寫：快照時間與同步時間都沒變，近 7 天摘要與卡片的情境徽章要靠這個時間
+    vi.mocked(getSyncStatus)
+      .mockResolvedValueOnce(
+        status("2026-09-29T10:00:00Z", "2026-11-26T03:00:00+00:00", "2026-11-26T03:05:00+00:00")
+      )
+      .mockResolvedValueOnce(
+        status("2026-09-29T10:00:00Z", "2026-11-26T03:00:00+00:00", "2026-11-26T03:35:00+00:00")
+      );
+    const { client, reposInvalidated, dashboardInvalidated } = renderWatcher();
+    await waitFor(() => expect(getSyncStatus).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(dashboardInvalidated()).toBe(false);
+
+    await act(() => client.refetchQueries({ queryKey: queryKeys.repos.syncStatus() }));
+
+    await waitFor(() => expect(dashboardInvalidated()).toBe(true));
+    // 追蹤清單重讀過，卡片的情境徽章才會重抓（見 useWindowedBatchRepoData 的 dataVersion）
+    expect(reposInvalidated()).toBe(true);
   });
 
   it("does not keep reading its own status again while a background fetch is still writing", async () => {

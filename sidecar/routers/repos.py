@@ -49,6 +49,7 @@ from services.star_sync import sync_starred_repos, sync_is_running
 from utils.time import utc_now
 from db.models import AppSettingKey
 from services.digest import lower_cursor_to_existing
+from services.context_fetcher import latest_context_signal_written_at
 from services.snapshot import create_or_update_snapshot, latest_snapshot_written_at, update_repo_from_github
 
 logger = logging.getLogger(__name__)
@@ -577,6 +578,8 @@ class SyncStatusOut(BaseModel):
     # 最新快照的寫入時間（見 latest_snapshot_written_at）。背景抓取（排程、launchd 收集器）不會通知前端，
     # 前端靠它變了沒重讀追蹤清單與儀表板
     last_snapshot_at: str | None
+    # 最新情境訊號（HN、新版本）的寫入時間（見 latest_context_signal_written_at）：由另外的排程寫，快照時間不會變
+    last_context_signal_at: str | None
 
 
 @router.post("/repos/sync", response_model=ApiResponse[SyncResultOut])
@@ -600,6 +603,7 @@ def sync_status(db: Annotated[Session, Depends(get_db)]) -> dict:
         # 過期規則只在 star_sync 一處定義，這裡重用。
         running=sync_is_running(db),
         last_snapshot_at=latest_snapshot_written_at(db),
+        last_context_signal_at=latest_context_signal_written_at(db),
     ))
 
 
