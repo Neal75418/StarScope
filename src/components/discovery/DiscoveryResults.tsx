@@ -24,6 +24,8 @@ interface DiscoveryResultsProps {
   loading: boolean;
   error: string | null;
   watchlistFullNames: Set<string>;
+  /** 追蹤清單的 GitHub id：本機那一列可能還是改名前的名稱，只比名稱會把它當成沒追蹤 */
+  watchlistGithubIds?: Set<number>;
   watchlistSignalMap?: Map<string, WatchlistSignal>;
   onAddToWatchlist: (repo: DiscoveryRepo) => void;
   onLoadMore: () => void;
@@ -48,6 +50,7 @@ export const DiscoveryResults = memo(function DiscoveryResults({
   loading,
   error,
   watchlistFullNames,
+  watchlistGithubIds,
   watchlistSignalMap,
   onAddToWatchlist,
   onLoadMore,
@@ -159,7 +162,10 @@ export const DiscoveryResults = memo(function DiscoveryResults({
           <DiscoveryResultCard
             key={repo.id}
             repo={repo}
-            isInWatchlist={watchlistFullNames.has(normalizeRepoName(repo.full_name))}
+            isInWatchlist={
+              watchlistFullNames.has(normalizeRepoName(repo.full_name)) ||
+              (watchlistGithubIds?.has(repo.id) ?? false)
+            }
             onAddToWatchlist={onAddToWatchlist}
             isAdding={addingRepoIds.has(repo.id)}
             signal={watchlistSignalMap?.get(normalizeRepoName(repo.full_name))}

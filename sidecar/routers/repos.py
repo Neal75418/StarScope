@@ -133,6 +133,7 @@ def _build_repo_with_signals(
         url=repo.url,
         description=repo.description,
         language=repo.language,
+        github_id=repo.github_id,
         added_at=repo.added_at,
         updated_at=repo.updated_at,
         stars=snapshot.stars if snapshot else None,

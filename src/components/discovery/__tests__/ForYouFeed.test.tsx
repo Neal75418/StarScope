@@ -233,6 +233,24 @@ describe("ForYouFeed", () => {
     expect(onAdd).not.toHaveBeenCalled();
   });
 
+  it("knows an item is tracked by its GitHub id when the repo was renamed after the pick", async () => {
+    // 卡片停在推薦產生時的名稱 a/one（github_id 10）；之後改名，本機那一列已經是新名稱 a/renamed
+    const onAdd = vi.fn();
+    renderWithClient(
+      <ForYouFeed
+        onAddToWatchlist={onAdd}
+        onUnstar={vi.fn()}
+        watchlistFullNames={new Set(["a/renamed"])}
+        watchlistGithubIds={new Set([10])}
+      />
+    );
+    await screen.findByText("a/one");
+
+    fireEvent.click(screen.getByTestId("feed-star-1"));
+
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
   it("shows all-caught-up message when every item has been dismissed", async () => {
     vi.mocked(client.getFeed).mockResolvedValue({
       feed_date: "2026-08-01",

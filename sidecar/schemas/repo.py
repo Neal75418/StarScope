@@ -94,6 +94,8 @@ class RepoResponse(BaseModel):
     url: str
     description: str | None = None
     language: str | None = None
+    # GitHub 的 repo id。名稱會過期（本機那一列可能還是改名前的名字），id 不會：前端靠它認出已經追蹤的 repo
+    github_id: int | None = None
     added_at: UtcDateTime
     updated_at: UtcDateTime
 

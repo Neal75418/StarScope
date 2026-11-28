@@ -36,6 +36,7 @@ function makeRepo(overrides: Partial<apiClient.RepoWithSignals> = {}): apiClient
     full_name: "facebook/react",
     url: "https://github.com/facebook/react",
     description: "A JavaScript library",
+    github_id: null,
     language: "JavaScript",
     added_at: "2024-01-15T00:00:00Z",
     updated_at: "2024-01-15T00:00:00Z",

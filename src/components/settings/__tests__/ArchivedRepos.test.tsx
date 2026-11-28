@@ -28,6 +28,7 @@ const ROW = {
   full_name: "a/one",
   url: "https://github.com/a/one",
   description: null,
+  github_id: null,
   language: "Rust",
   added_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-08-01T00:00:00Z",

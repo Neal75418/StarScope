@@ -203,6 +203,7 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
     full_name: "facebook/react",
     url: "https://github.com/facebook/react",
     description: "A JS library",
+    github_id: null,
     language: "JavaScript",
     added_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-02T00:00:00Z",

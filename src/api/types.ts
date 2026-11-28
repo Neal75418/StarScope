@@ -12,6 +12,8 @@ export interface RepoWithSignals {
   full_name: string;
   url: string;
   description: string | null;
+  /** GitHub 的 repo id。名稱會過期（本機那一列可能還是改名前的名字），id 不會：探索頁靠它認出已經追蹤的 repo */
+  github_id: number | null;
   language: string | null;
   added_at: string;
   updated_at: string;

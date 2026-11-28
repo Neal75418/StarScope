@@ -22,7 +22,7 @@ const mockInvalidateRepos = vi.fn();
 const mockUnstarRepo = vi.fn();
 
 let mockDiscoveryReturn: Record<string, unknown>;
-let mockWatchlistRepos: { id: number; full_name: string }[];
+let mockWatchlistRepos: { id: number; full_name: string; github_id?: number | null }[];
 
 // noinspection JSUnusedGlobalSymbols
 vi.mock("../../hooks/useDiscovery", () => ({
@@ -159,12 +159,14 @@ vi.mock("../../components/discovery", () => ({
     repos,
     hasSearched,
     watchlistFullNames,
+    watchlistGithubIds,
     onAddToWatchlist,
     addingRepoIds,
   }: {
     repos: { id: number; full_name: string; owner: string; name: string }[];
     hasSearched: boolean;
     watchlistFullNames: Set<string>;
+    watchlistGithubIds?: Set<number>;
     onAddToWatchlist: (repo: {
       id: number;
       full_name: string;
@@ -178,7 +180,7 @@ vi.mock("../../components/discovery", () => ({
       {repos.map((r) => (
         <div key={r.id} data-testid={`result-${r.id}`}>
           {r.full_name}
-          {watchlistFullNames.has(r.full_name.toLowerCase()) ? (
+          {watchlistFullNames.has(r.full_name.toLowerCase()) || watchlistGithubIds?.has(r.id) ? (
             <span data-testid={`in-watchlist-${r.id}`}>In Watchlist</span>
           ) : (
             <button
@@ -200,16 +202,41 @@ vi.mock("../../components/discovery", () => ({
   ForYouFeed: ({
     onAddToWatchlist,
     onUnstar,
+    watchlistFullNames,
+    watchlistGithubIds,
   }: {
-    onAddToWatchlist: (item: { owner: string; name: string; full_name: string }) => void;
-    onUnstar: (item: { full_name: string }) => void;
+    onAddToWatchlist: (item: {
+      owner: string;
+      name: string;
+      full_name: string;
+      github_id?: number;
+    }) => void;
+    onUnstar: (item: { full_name: string; github_id?: number }) => void;
+    watchlistFullNames: Set<string>;
+    watchlistGithubIds?: Set<number>;
   }) => (
     <div data-testid="for-you-feed">
+      <span data-testid="feed-github-ids">{[...(watchlistGithubIds ?? [])].join(",")}</span>
+      <span data-testid="feed-full-names">{[...watchlistFullNames].sort().join(",")}</span>
+      <button
+        data-testid="stub-feed-add-stale"
+        onClick={() =>
+          onAddToWatchlist({ owner: "a", name: "old", full_name: "a/old", github_id: 77 })
+        }
+      />
+      <button
+        data-testid="stub-feed-unstar-stale"
+        onClick={() => onUnstar({ full_name: "a/old", github_id: 77 })}
+      />
       <button
         data-testid="stub-feed-add"
         onClick={() => onAddToWatchlist({ owner: "a", name: "one", full_name: "a/one" })}
       />
       <button data-testid="stub-feed-unstar" onClick={() => onUnstar({ full_name: "a/one" })} />
+      <button
+        data-testid="stub-feed-unstar-renamed"
+        onClick={() => onUnstar({ full_name: "a/new", github_id: 77 })}
+      />
     </div>
   ),
 }));
@@ -634,6 +661,122 @@ describe("Discovery", () => {
     ];
     renderDiscovery();
     expect(screen.getByTestId("in-watchlist-1")).toBeInTheDocument();
+  });
+
+  it("knows a search result is tracked by its GitHub id when the local row still has the old name", () => {
+    // 本機那一列還叫 facebook/react-old（還沒抓到改名），搜尋結果是 GitHub 上現在的名稱（id 就是 GitHub id）
+    mockWatchlistRepos = [{ id: 1, full_name: "facebook/react-old", github_id: 10270250 }];
+    mockDiscoveryReturn.keyword = "react";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [
+      { id: 10270250, full_name: "facebook/react", owner: "facebook", name: "react" },
+    ];
+    renderDiscovery();
+    expect(screen.getByTestId("in-watchlist-10270250")).toBeInTheDocument();
+  });
+
+  it("gives the feed the GitHub ids of the watchlist", () => {
+    mockWatchlistRepos = [
+      { id: 5, full_name: "a/old", github_id: 77 },
+      { id: 6, full_name: "a/legacy", github_id: null },
+    ];
+    renderDiscovery();
+
+    expect(screen.getByTestId("feed-github-ids")).toHaveTextContent(/^77$/);
+  });
+
+  it("untracks the row with the same GitHub id even when another row holds the card's name", async () => {
+    // 卡片停在推薦產生時的舊名 a/old；那個 repo 本機已經叫 a/new，a/old 現在是另一個追蹤中的 repo。
+    // 先用名稱找會對那個 repo 取消 star
+    mockWatchlistRepos = [
+      { id: 5, full_name: "a/new", github_id: 77 },
+      { id: 6, full_name: "a/old", github_id: 88 },
+    ];
+    mockUnstarRepo.mockResolvedValue(undefined);
+    renderDiscovery();
+
+    await userEvent.click(screen.getByTestId("stub-feed-unstar-stale"));
+
+    expect(mockUnstarRepo).toHaveBeenCalledWith(5);
+    expect(mockUnstarRepo).not.toHaveBeenCalledWith(6);
+  });
+
+  it("lets go of a name added here once the watchlist has the repo under its new name", async () => {
+    // 從名稱過期的卡片加入：清單重讀後是新名稱，只比名稱的話本地記下的舊名永遠收不掉，
+    // 之後它被移出清單（背景同步等），這裡還一直顯示已追蹤
+    const user = userEvent.setup();
+    mockDiscoveryReturn.keyword = "old";
+    mockDiscoveryReturn.hasSearched = true;
+    mockDiscoveryReturn.repos = [{ id: 77, full_name: "a/old", owner: "a", name: "old" }];
+    const view = renderDiscovery();
+    await user.click(screen.getByTestId("add-btn-77"));
+    expect(await screen.findByTestId("in-watchlist-77")).toBeInTheDocument();
+
+    mockWatchlistRepos = [{ id: 5, full_name: "a/new", github_id: 77 }];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+    mockWatchlistRepos = [];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(screen.getByTestId("add-btn-77")).toBeInTheDocument());
+  });
+
+  it("remembers the GitHub id of a repo added from the feed", async () => {
+    const user = userEvent.setup();
+    const view = renderDiscovery();
+    await user.click(screen.getByTestId("stub-feed-add-stale"));
+    await waitFor(() => expect(screen.getByTestId("feed-full-names")).toHaveTextContent("a/old"));
+
+    mockWatchlistRepos = [{ id: 5, full_name: "a/new", github_id: 77 }];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("feed-full-names")).toHaveTextContent(/^a\/new$/)
+    );
+  });
+
+  it("remembers the GitHub id when the feed add says the repo is already tracked", async () => {
+    // 背景同步剛把它加進本機、清單還沒重讀：從舊名卡片按加入得到「已經在追蹤清單」。
+    // 不記 id 的話，清單裡是新名稱，本地記下的舊名收不掉
+    mockAddRepo.mockRejectedValueOnce(
+      new ApiError(400, "Repository a/new is already in your watchlist", "ALREADY_TRACKED")
+    );
+    const user = userEvent.setup();
+    const view = renderDiscovery();
+    await user.click(screen.getByTestId("stub-feed-add-stale"));
+    await waitFor(() => expect(screen.getByTestId("feed-full-names")).toHaveTextContent("a/old"));
+
+    mockWatchlistRepos = [{ id: 5, full_name: "a/new", github_id: 77 }];
+    view.rerender(
+      <ToastProvider>
+        <Discovery />
+      </ToastProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("feed-full-names")).toHaveTextContent(/^a\/new$/)
+    );
+  });
+
+  it("finds the local row by GitHub id when untracking from the feed", async () => {
+    mockWatchlistRepos = [{ id: 5, full_name: "a/old", github_id: 77 }];
+    mockUnstarRepo.mockResolvedValue(undefined);
+    renderDiscovery();
+
+    await userEvent.click(screen.getByTestId("stub-feed-unstar-renamed"));
+
+    expect(mockUnstarRepo).toHaveBeenCalledWith(5);
   });
 
   it("passes language filter to ActiveFilters", () => {

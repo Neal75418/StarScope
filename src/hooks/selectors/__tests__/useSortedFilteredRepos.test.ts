@@ -22,6 +22,7 @@ function repo(id: number, category_ids: number[]): RepoWithSignals {
     full_name: `o/r${id}`,
     url: `https://github.com/o/r${id}`,
     description: null,
+    github_id: null,
     language: null,
     added_at: "2026-08-15T00:00:00Z",
     updated_at: "2026-08-22T00:00:00Z",

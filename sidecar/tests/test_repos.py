@@ -983,3 +983,10 @@ class TestArchivedRowsAreIdentifiedByGithubIdBeforeWritingGitHub:
         assert response.status_code == 201
         assert self._committed(test_db, archived.id).github_id == 7
 
+
+def test_the_watchlist_carries_each_repos_github_id(client, mock_repo):
+    """名稱會過期（本機那一列可能還是改名前的名字），id 不會：探索頁要靠它認出搜尋結果與推薦裡已經追蹤的 repo"""
+    repos = client.get("/api/repos").json()["data"]["repos"]
+
+    assert [r["github_id"] for r in repos] == [12345]
+

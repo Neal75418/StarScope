@@ -10,6 +10,7 @@ function makeRepo(overrides: Partial<RepoWithSignals> = {}): RepoWithSignals {
     full_name: "test/repo",
     url: "https://github.com/test/repo",
     description: null,
+    github_id: null,
     language: null,
     added_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",

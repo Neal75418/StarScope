@@ -18,9 +18,16 @@ interface ForYouFeedProps {
   /** 已在追蹤清單的 repo 全名（正規化後）。用來把已追蹤的卡片鎖起來，
    *  否則使用者會對同一張卡按第二次 → 後端回 400「已在追蹤清單」→ 泛用錯誤 toast。 */
   watchlistFullNames: Set<string>;
+  /** 追蹤清單的 GitHub id：卡片停在推薦產生時的名稱，之後改名的話跟本機那一列對不上，只比名稱會把它當成沒追蹤 */
+  watchlistGithubIds?: Set<number>;
 }
 
-export function ForYouFeed({ onAddToWatchlist, onUnstar, watchlistFullNames }: ForYouFeedProps) {
+export function ForYouFeed({
+  onAddToWatchlist,
+  onUnstar,
+  watchlistFullNames,
+  watchlistGithubIds,
+}: ForYouFeedProps) {
   const [pendingUnstar, setPendingUnstar] = useState<FeedItem | null>(null);
   const { t } = useI18n();
   const { items, feedDate, isLoading, isGenerating, isError, feedback, stats } = useFeed();
@@ -81,7 +88,10 @@ export function ForYouFeed({ onAddToWatchlist, onUnstar, watchlistFullNames }: F
             <FeedItemCard
               key={item.id}
               item={item}
-              isInWatchlist={watchlistFullNames.has(normalizeRepoName(item.full_name))}
+              isInWatchlist={
+                watchlistFullNames.has(normalizeRepoName(item.full_name)) ||
+                (watchlistGithubIds?.has(item.github_id) ?? false)
+              }
               onStar={async (it) => {
                 // 只有加入 watchlist 成功才送出 starred feedback，避免失敗仍污染回饋訊號
                 const success = await onAddToWatchlist(it);
