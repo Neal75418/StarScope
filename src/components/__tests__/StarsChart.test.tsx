@@ -5,12 +5,13 @@
 import { createElement } from "react";
 import type { ReactElement, ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { StarsChart } from "../StarsChart";
 import * as apiClient from "../../api/client";
-import { createTestQueryClient } from "../../lib/react-query";
+import { createTestQueryClient, queryKeys } from "../../lib/react-query";
+import { translations } from "../../i18n/translations";
 
 // Mock API client
 vi.mock("../../api/client", async (importOriginal) => {
@@ -70,6 +71,8 @@ describe("StarsChart", () => {
     vi.clearAllMocks();
     // clearAllMocks 不重設回傳值：個別測試改過的回填狀態不能漏到後面
     vi.mocked(apiClient.getBackfillStatus).mockResolvedValue({ can_backfill: false } as never);
+    // clearAllMocks 不清 mock*Once 的佇列：一條沒用完的 once 會漏到後面
+    vi.mocked(apiClient.getStarsChart).mockReset();
   });
 
   it("shows loading state initially", () => {
@@ -94,6 +97,12 @@ describe("StarsChart", () => {
       expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
     });
 
+    // 讀到了、沒有失敗：不能說沒有更新成功（通知是下一輪才送，等一下再看）
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.queryByText(translations.en.chart.refreshFailed)).not.toBeInTheDocument();
+
     // Chart controls should be visible
     expect(screen.getByRole("button", { name: "7d" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "30d" })).toBeInTheDocument();
@@ -113,6 +122,79 @@ describe("StarsChart", () => {
 
     // 驗證 retry 按鈕存在
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("keeps the retry button while retrying a chart that never loaded", async () => {
+    // 還沒有資料時重試，isLoading 又是 true：拿它當閘門的話主體換成讀取中，重試鈕消失、焦點掉回 body
+    vi.mocked(apiClient.getStarsChart)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const user = userEvent.setup();
+    renderWithClient(<StarsChart repoId={1} />);
+    await screen.findByText(translations.en.chart.loadFailed);
+    const retry = screen.getByRole("button", { name: translations.en.common.retry });
+
+    await user.click(retry);
+
+    // 同一顆按鈕、焦點留在上面：換成另一個分支重掛的話，鍵盤與螢幕閱讀器的使用者會失去位置
+    const retrying = await screen.findByRole("button", { name: translations.en.common.retrying });
+    expect(retrying).toBe(retry);
+    expect(retrying).toHaveFocus();
+    expect(screen.queryByText("Loading chart...")).not.toBeInTheDocument();
+  });
+
+  it("keeps the chart and says it could not update when a reread fails", async () => {
+    // 回填失敗或逾時之後會重讀整個 repo 的圖表：讀不到時不能把已經畫好的圖換成錯誤
+    const client = createTestQueryClient();
+    vi.mocked(apiClient.getStarsChart)
+      .mockResolvedValueOnce(mockChartData)
+      .mockRejectedValueOnce(new Error("boom"));
+    const { container } = render(
+      createElement(QueryClientProvider, { client }, <StarsChart repoId={1} />)
+    );
+    await waitFor(() =>
+      expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+    );
+
+    await act(async () => {
+      await client.refetchQueries({ queryKey: queryKeys.starsChart.repo(1) });
+    });
+
+    expect(await screen.findByText(translations.en.chart.refreshFailed)).toBeInTheDocument();
+    expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument();
+    expect(screen.queryByText(translations.en.chart.loadFailed)).not.toBeInTheDocument();
+  });
+
+  it("retries a failed reread from the same row and drops the notice once it works", async () => {
+    const client = createTestQueryClient();
+    let finishRetry: (v: unknown) => void = () => {};
+    vi.mocked(apiClient.getStarsChart)
+      .mockResolvedValueOnce(mockChartData)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockImplementationOnce(() => new Promise((resolve) => (finishRetry = resolve)) as never);
+    const user = userEvent.setup();
+    const { container } = render(
+      createElement(QueryClientProvider, { client }, <StarsChart repoId={1} />)
+    );
+    await waitFor(() =>
+      expect(container.querySelector(".recharts-responsive-container")).toBeInTheDocument()
+    );
+    await act(async () => {
+      await client.refetchQueries({ queryKey: queryKeys.starsChart.repo(1) });
+    });
+    await screen.findByText(translations.en.chart.refreshFailed);
+    const retry = screen.getByRole("button", { name: translations.en.common.retry });
+
+    await user.click(retry);
+
+    const retrying = await screen.findByRole("button", { name: translations.en.common.retrying });
+    expect(retrying).toBe(retry);
+    await act(async () => {
+      finishRetry(mockChartData);
+    });
+    await waitFor(() =>
+      expect(screen.queryByText(translations.en.chart.refreshFailed)).not.toBeInTheDocument()
+    );
   });
 
   it("keeps the time range buttons when the chart fails to load, so another range can be tried", async () => {

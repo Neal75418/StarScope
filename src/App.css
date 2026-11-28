@@ -2548,7 +2548,11 @@ body {
   color: var(--fg-muted);
 }
 
+/* 圖表讀不到時是 LoadError（className 取代了 .load-error）：訊息與重試鈕要自己隔開，flex 會吃掉中間的空白 */
 .chart-error {
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 4px 12px;
   color: var(--danger-fg);
 }
 

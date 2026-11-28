@@ -7,8 +7,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ChartDataPoint } from "../api/client";
 import { getStarsChart, getStarHistory } from "../api/client";
-import { queryKeys } from "../lib/react-query";
-import { useI18n } from "../i18n";
+import { loadStatus, queryKeys } from "../lib/react-query";
 
 export type TimeRange = "7d" | "30d" | "90d" | "all";
 
@@ -31,7 +30,6 @@ async function fetchChartDataPoints(
 }
 
 export function useStarsChart(repoId: number) {
-  const { t } = useI18n();
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
 
   const query = useQuery<ChartDataPoint[], Error>({
@@ -41,9 +39,9 @@ export function useStarsChart(repoId: number) {
 
   return {
     data: query.data ?? [],
-    loading: query.isLoading,
-    // 錯誤的原字（「Internal server error」「Network error: …」）不上畫面：ApiError 的 message 一定有值，不能拿來當優先的說明
-    error: query.error ? t.chart.loadFailed : null,
+    // 讀取狀態看 loadStatus，不拿 isLoading 當閘門：還沒有資料時重試，isLoading 又是 true，
+    // 主體換成讀取中、重試鈕消失。錯誤的原字不上畫面，說明由元件決定
+    load: loadStatus(query),
     timeRange,
     setTimeRange,
     refetch: query.refetch,

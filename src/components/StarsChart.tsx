@@ -16,6 +16,7 @@ import {
 import { ChartDataPoint } from "../api/client";
 import { formatNumber, formatChartDate, formatCalendarDate } from "../utils/format";
 import { useStarsChart, TimeRange } from "../hooks/useStarsChart";
+import { LoadError } from "./LoadError";
 import { StarHistoryBackfill } from "./StarHistoryBackfill";
 import { useI18n } from "../i18n";
 import { TIME_RANGES } from "../constants/chart";
@@ -125,7 +126,7 @@ function ChartContent({ data, colors }: ChartContentProps) {
 }
 
 export function StarsChart({ repoId, currentStars }: StarsChartProps) {
-  const { data, loading, error, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
+  const { data, load, timeRange, setTimeRange, refetch } = useStarsChart(repoId);
   const { t } = useI18n();
   const chartColors = useChartColors();
 
@@ -142,17 +143,19 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
   // 時間範圍鈕與回填區塊放在固定的位置、每種狀態都畫，只換中間那一塊：
   // 讀不到、資料不足時也能換範圍（「全部」讀的是另一個端點，可能就有資料）；回填區塊不會隨分支卸載重掛，
   // 回填後圖表從資料不足變成有圖表時，剛顯示的說明才不會跟著消失
+  // 讀取狀態照 loadStatus：還沒讀到就失敗時說讀不到並給重試（重試中按鈕留著）；
+  // 已經讀到資料（含資料不足）、重讀失敗時保留原本的內容，另外說沒有更新成功（回填失敗或逾時後會重讀整個 repo 的圖表）
   let body: ReactNode;
-  if (loading) {
+  if (!load.ready && !load.failed) {
     body = <div className="chart-loading">{t.chart.loading}</div>;
-  } else if (error) {
+  } else if (!load.ready) {
     body = (
-      <div className="chart-error">
-        {error}
-        <button className="btn btn-sm" onClick={() => void refetch()} style={{ marginLeft: 8 }}>
-          {t.common.retry}
-        </button>
-      </div>
+      <LoadError
+        message={t.chart.loadFailed}
+        onRetry={load.retry}
+        isRetrying={load.inProgress}
+        className="chart-error"
+      />
     );
   } else if (data.length < 2) {
     body = <div className="chart-empty">{t.chart.insufficientData}</div>;
@@ -164,6 +167,13 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
     <div className="stars-chart">
       <TimeRangeSelector current={timeRange} onChange={setTimeRange} labels={timeRangeLabels} />
       {body}
+      {load.ready && load.failed && (
+        <LoadError
+          message={t.chart.refreshFailed}
+          onRetry={load.retry}
+          isRetrying={load.inProgress}
+        />
+      )}
       {/* key：同一個圖表換成別的 repo 時（清單重排後虛擬清單會重用元件），回填的說明不跟過去 */}
       <StarHistoryBackfill
         key={repoId}

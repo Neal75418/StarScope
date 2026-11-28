@@ -1173,6 +1173,7 @@ export const translations = {
     chart: {
       loading: "Loading chart...",
       loadFailed: "Chart loading failed",
+      refreshFailed: "Couldn't update the chart. Showing what was loaded earlier.",
       stars: "Stars",
       insufficientData:
         "Insufficient data. At least 2 data points are required to render the chart.",
@@ -2330,6 +2331,7 @@ export const translations = {
     chart: {
       loading: "圖表載入中...",
       loadFailed: "圖表載入失敗",
+      refreshFailed: "圖表沒有更新成功，顯示的是之前讀到的內容。",
       stars: "星數",
       insufficientData: "資料不足，至少需要 2 個資料點才能繪製圖表。",
       timeRange: {

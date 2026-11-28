@@ -44,9 +44,9 @@ describe("useStarsChart", () => {
 
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
-    expect(result.current.loading).toBe(true);
+    expect(result.current.load.ready).toBe(false);
     expect(result.current.data).toEqual([]);
-    expect(result.current.error).toBe(null);
+    expect(result.current.load.failed).toBe(false);
     expect(result.current.timeRange).toBe("30d");
   });
 
@@ -63,11 +63,11 @@ describe("useStarsChart", () => {
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.load.ready).toBe(true);
     });
 
     expect(result.current.data).toEqual(mockChartData);
-    expect(result.current.error).toBe(null);
+    expect(result.current.load.failed).toBe(false);
     expect(apiClient.getStarsChart).toHaveBeenCalledWith(1, "30d", expect.any(AbortSignal));
   });
 
@@ -77,11 +77,10 @@ describe("useStarsChart", () => {
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.load.failed).toBe(true);
     });
 
-    // 後端的原字不上畫面
-    expect(result.current.error).toBe("Chart loading failed");
+    expect(result.current.load.ready).toBe(false);
     expect(result.current.data).toEqual([]);
   });
 
@@ -98,7 +97,7 @@ describe("useStarsChart", () => {
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.load.ready).toBe(true);
     });
 
     act(() => {
@@ -130,7 +129,7 @@ describe("useStarsChart", () => {
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.load.ready).toBe(true);
     });
 
     act(() => {
@@ -155,7 +154,7 @@ describe("useStarsChart", () => {
     const { result } = renderHook(() => useStarsChart(1), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(result.current.loading).toBe(false);
+      expect(result.current.load.ready).toBe(true);
     });
 
     const initialCallCount = vi.mocked(apiClient.getStarsChart).mock.calls.length;
