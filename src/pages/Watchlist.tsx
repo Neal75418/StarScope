@@ -155,11 +155,13 @@ export function Watchlist() {
   const handleAddRepo = useCallback(
     async (input: string) => {
       const result = await actions.addRepo(input);
-      if (result.success) {
+      if (result.alreadyTracked) {
+        actions.info(t.discovery.addFailed.alreadyTracked);
+      } else if (result.success) {
         actions.success(t.toast.repoAdded);
       }
     },
-    [actions, t.toast.repoAdded]
+    [actions, t.toast.repoAdded, t.discovery.addFailed.alreadyTracked]
   );
 
   if (isInitializing) {

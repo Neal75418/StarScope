@@ -13,6 +13,8 @@ import { createTestQueryClient, queryKeys } from "../../lib/react-query";
 import { ApiError } from "../../api/types";
 import { WatchlistProvider, useWatchlistActions, useWatchlistState } from "../WatchlistContext";
 import { ToastProvider } from "../../components/Toast";
+import { translations } from "../../i18n/translations";
+import { API_ERROR_MESSAGES, BATCH_ADD_FOLLOWUP_INTERVAL_MS } from "../../constants/api";
 
 const mockAddRepo = vi.fn();
 const mockUnstarRepo = vi.fn();
@@ -184,8 +186,11 @@ describe("WatchlistContext actions", () => {
       expect(mockAddRepo).toHaveBeenCalledWith({ owner: "facebook", name: "react" });
     });
 
-    it("returns the server's message on failure instead of a generic one", async () => {
-      mockAddRepo.mockRejectedValue(new ApiError(404, "Repository not found"));
+    it("explains a failure in the user's words, not the server's English", async () => {
+      // 後端的訊息是英文內部用語（例如「Resource not found: nope/nope」），不直接給使用者看
+      mockAddRepo.mockRejectedValue(
+        new ApiError(404, "Resource not found: nope/nope", "GITHUB_NOT_FOUND")
+      );
       const { result } = renderCtx();
       let ret: { success: boolean; error?: string } | undefined;
 
@@ -194,7 +199,39 @@ describe("WatchlistContext actions", () => {
       });
 
       expect(ret?.success).toBe(false);
-      expect(ret?.error).toContain("Repository not found");
+      expect(ret?.error).toBe(translations.en.discovery.addFailed.goneFromGitHub);
+      expect(result.current.state.ui.dialog.error).toBe(
+        translations.en.discovery.addFailed.goneFromGitHub
+      );
+    });
+
+    it("treats a repo that is already tracked as done, not as a failure", async () => {
+      // 使用者要的結果已經成立：說「沒有加入」會讓他以為還要再加一次
+      mockAddRepo.mockRejectedValue(
+        new ApiError(400, "Repository o/n is already in your watchlist", "ALREADY_TRACKED")
+      );
+      const { result } = renderCtx();
+      act(() => result.current.actions.openDialog());
+      let ret: { success: boolean; error?: string; alreadyTracked?: boolean } | undefined;
+
+      await act(async () => {
+        ret = await result.current.actions.addRepo("o/n");
+      });
+
+      expect(ret).toEqual({ success: true, alreadyTracked: true });
+      expect(result.current.state.ui.dialog).toEqual({ isOpen: false, error: null });
+    });
+
+    it("says it is unclear whether it was added when there was no response", async () => {
+      mockAddRepo.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+      const { result } = renderCtx();
+      let ret: { success: boolean; error?: string } | undefined;
+
+      await act(async () => {
+        ret = await result.current.actions.addRepo("o/n");
+      });
+
+      expect(ret?.error).toBe(translations.en.discovery.addFailed.timedOut);
     });
   });
 
@@ -217,8 +254,17 @@ describe("WatchlistContext actions", () => {
           (call) => JSON.stringify(call[0]?.queryKey) === JSON.stringify(key)
         );
       const signalsInvalidated = () => invalidated(queryKeys.signals.all);
+      const signalsInvalidations = () =>
+        invalidate.mock.calls.filter(
+          (call) => JSON.stringify(call[0]?.queryKey) === JSON.stringify(queryKeys.signals.all)
+        ).length;
       const rulesInvalidated = () => invalidated(queryKeys.alertRuleData.rules());
-      return { actions: () => hook.result.current, signalsInvalidated, rulesInvalidated };
+      return {
+        actions: () => hook.result.current,
+        signalsInvalidated,
+        signalsInvalidations,
+        rulesInvalidated,
+      };
     }
 
     it("取消追蹤成功後", async () => {
@@ -244,6 +290,57 @@ describe("WatchlistContext actions", () => {
       expect(signalsInvalidated()).toBe(true);
     });
 
+    it("加入追蹤失敗後也重讀：有些失敗代表清單其實已經變了（別處加過、逾時後伺服器做完了）", async () => {
+      mockAddRepo.mockRejectedValue(new ApiError(502, "Upstream service unreachable"));
+      const { actions, signalsInvalidated } = renderWithClient();
+
+      await act(async () => {
+        await actions().addRepo("o/n");
+      });
+
+      expect(signalsInvalidated()).toBe(true);
+    });
+
+    it.each([
+      ["加入", "add"],
+      ["取消追蹤", "remove"],
+    ] as const)("%s等不到回應之後，接下來一陣子定期重讀", async (_label, kind) => {
+      // 伺服器可能晚一點才做完：說明寫的是「清單接下來幾分鐘會自己更新」，要真的重讀
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const timeout = new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT);
+        if (kind === "add") mockAddRepo.mockRejectedValue(timeout);
+        else mockUnstarRepo.mockRejectedValue(timeout);
+        const { actions, signalsInvalidations } = renderWithClient();
+        if (kind === "remove") act(() => actions().openRemoveConfirm(1, "o/n"));
+
+        await act(async () => {
+          if (kind === "add") await actions().addRepo("o/n");
+          else await actions().confirmRemove();
+        });
+        const afterFailure = signalsInvalidations();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+        });
+
+        expect(signalsInvalidations()).toBeGreaterThan(afterFailure);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("取消追蹤時本機已經沒有那一列，也重讀：卡片要馬上消失", async () => {
+      mockUnstarRepo.mockRejectedValue(new ApiError(404, "Repository not found"));
+      const { actions, signalsInvalidated } = renderWithClient();
+      act(() => actions().openRemoveConfirm(1, "o/n"));
+
+      await act(async () => {
+        await actions().confirmRemove();
+      });
+
+      expect(signalsInvalidated()).toBe(true);
+    });
+
     it("加入追蹤成功後", async () => {
       const { actions, signalsInvalidated } = renderWithClient();
 
@@ -262,6 +359,72 @@ describe("WatchlistContext actions", () => {
       act(() => actions().invalidateRepos());
 
       expect(rulesInvalidated()).toBe(true);
+    });
+  });
+
+  describe("confirmRemove", () => {
+    it("says the repo is already gone when it was removed elsewhere", async () => {
+      // 不帶 GITHUB_NOT_FOUND 的 404＝本機已經沒有這一列（連按兩次、或背景同步先封存了）：結果就是使用者要的
+      mockUnstarRepo.mockRejectedValue(new ApiError(404, "Repository not found"));
+      const { result } = renderCtx();
+      act(() => result.current.actions.openRemoveConfirm(1, "o/n"));
+
+      await act(async () => {
+        await result.current.actions.confirmRemove();
+      });
+
+      expect(result.current.state.error).toBeNull();
+      expect(result.current.state.ui.removeConfirm.isOpen).toBe(false);
+      expect(
+        await screen.findByText(translations.en.discovery.unstarFailed.alreadyRemoved)
+      ).toBeInTheDocument();
+    });
+
+    it("does not take GitHub not finding the repo for it being off the watchlist", async () => {
+      // 帶 GITHUB_NOT_FOUND 的 404＝GitHub 那端找不到，本機那一列還在追蹤清單：不能說成已經不在
+      mockUnstarRepo.mockRejectedValue(
+        new ApiError(404, "Resource not found: a/gone", "GITHUB_NOT_FOUND")
+      );
+      const { result } = renderCtx();
+      act(() => result.current.actions.openRemoveConfirm(1, "o/n"));
+
+      await act(async () => {
+        await result.current.actions.confirmRemove();
+      });
+
+      expect(result.current.state.error).toBe(
+        translations.en.discovery.unstarFailed.goneFromGitHub
+      );
+      expect(
+        screen.queryByText(translations.en.discovery.unstarFailed.alreadyRemoved)
+      ).not.toBeInTheDocument();
+    });
+
+    it("says it is unclear whether it was untracked when there was no response", async () => {
+      mockUnstarRepo.mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+      const { result } = renderCtx();
+      act(() => result.current.actions.openRemoveConfirm(1, "o/n"));
+
+      await act(async () => {
+        await result.current.actions.confirmRemove();
+      });
+
+      expect(result.current.state.error).toBe(translations.en.discovery.unstarFailed.timedOut);
+    });
+
+    it("explains a failed untrack in the user's words, not the server's English", async () => {
+      mockUnstarRepo.mockRejectedValue(new ApiError(502, "Upstream service unreachable"));
+      const { result } = renderCtx();
+      act(() => result.current.actions.openRemoveConfirm(1, "o/n"));
+
+      await act(async () => {
+        await result.current.actions.confirmRemove();
+      });
+
+      const en = translations.en;
+      expect(result.current.state.error).toBe(
+        `${en.discovery.unstarFailed.notDone} ${en.failure.githubUnavailable}`
+      );
     });
   });
 

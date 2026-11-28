@@ -20,7 +20,7 @@ test.describe("Watchlist Add Flow", () => {
     await page.locator('[data-testid="nav-watchlist"]').click();
     await expect(page.locator('[data-testid="page-title"]')).toBeVisible({ timeout: 10000 });
 
-    await removeRepoByFullName(page.request, REPO); // 上次中斷的殘留會讓「新增」變成重複而失敗
+    await removeRepoByFullName(page.request, REPO); // 上次中斷的殘留會讓後端回「已經在追蹤清單」、對話框照樣關掉，測不到真的加入
     await page.locator('[data-testid="add-repo-btn"]').click();
     const dialog = page.locator('div[role="dialog"]');
     await expect(dialog).toBeVisible({ timeout: 5000 });

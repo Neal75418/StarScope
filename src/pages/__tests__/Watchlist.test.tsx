@@ -59,6 +59,7 @@ const mockCancelRemove = vi.fn();
 const mockFetchRepo = vi.fn();
 const mockSuccess = vi.fn();
 const mockError = vi.fn();
+const mockInfo = vi.fn();
 
 let mockState: WatchlistState;
 let mockActions: WatchlistActions;
@@ -212,7 +213,9 @@ vi.mock("../../components/RepoCard", () => ({
 }));
 
 vi.mock("../../components/AddRepoDialog", () => ({
-  AddRepoDialog: () => null,
+  AddRepoDialog: ({ onAdd }: { onAdd: (input: string) => void }) => (
+    <button data-testid="dialog-add" onClick={() => onAdd("o/n")} />
+  ),
 }));
 
 vi.mock("../../components/ConfirmDialog", () => ({
@@ -292,7 +295,7 @@ describe("Watchlist", () => {
       showToast: vi.fn(),
       success: mockSuccess,
       error: mockError,
-      info: vi.fn(),
+      info: mockInfo,
       warning: vi.fn(),
       clearError: mockClearError,
       retry: mockHandleRetry,
@@ -535,6 +538,16 @@ describe("Watchlist", () => {
 
     expect(screen.getByTestId("watchlist-load-error")).toBeInTheDocument();
     expect(screen.queryByText("No repositories in your watchlist yet.")).not.toBeInTheDocument();
+  });
+
+  it("says a repo is already on the watchlist instead of claiming it was added", async () => {
+    mockAddRepo.mockResolvedValue({ success: true, alreadyTracked: true });
+    render(<Watchlist />);
+
+    await userEvent.click(screen.getByTestId("dialog-add"));
+
+    expect(mockInfo).toHaveBeenCalledWith("Already on your watchlist.");
+    expect(mockSuccess).not.toHaveBeenCalled();
   });
 
   it("passes the tracked list's dataUpdatedAt to the batch loader as its data version", () => {

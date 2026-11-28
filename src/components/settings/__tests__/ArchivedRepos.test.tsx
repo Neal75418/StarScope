@@ -13,6 +13,9 @@ import { ArchivedRepos } from "../ArchivedRepos";
 import * as client from "../../../api/client";
 import { queryKeys } from "../../../lib/react-query";
 import { DATA_RESET_EVENT } from "../../../constants/events";
+import { ApiError } from "../../../api/types";
+import { translations } from "../../../i18n/translations";
+import { API_ERROR_MESSAGES, BATCH_ADD_FOLLOWUP_INTERVAL_MS } from "../../../constants/api";
 
 vi.mock("../../../api/client");
 
@@ -112,6 +115,130 @@ describe("ArchivedRepos", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("explains a failed restore in the user's words, not the server's English", async () => {
+    // 後端回的是「Resource not found: repositories/1」這種內部用語，不直接給使用者看
+    vi.mocked(client.restarRepo).mockRejectedValue(
+      new ApiError(404, "Resource not found: repositories/1", "GITHUB_NOT_FOUND")
+    );
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      translations.en.settings.archived.restarFailed.goneFromGitHub
+    );
+  });
+
+  it("says a repo deleted elsewhere is no longer archived instead of asking to retry the restore", async () => {
+    // 不帶 GITHUB_NOT_FOUND 的 404＝本機已經沒有這一列（在別處被永久刪除）：重試永遠不會好
+    vi.mocked(client.restarRepo).mockRejectedValue(new ApiError(404, "Repository not found"));
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-restar-7"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      translations.en.settings.archived.restarFailed.gone
+    );
+  });
+
+  it("rereads the archive after a failed restore, and keeps rereading for a while after a timeout", async () => {
+    // 說明寫的是「封存清單接下來幾分鐘會自己更新」：伺服器可能晚一點才做完，要真的重讀
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(client.restarRepo).mockRejectedValue(new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT));
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-restar-7"));
+      // 等不到回應：伺服器可能已經做完，不能說沒有做成
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        translations.en.settings.archived.restarFailed.timedOut
+      );
+      await waitFor(() => expect(client.getArchivedRepos).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+      });
+
+      await waitFor(() =>
+        expect(vi.mocked(client.getArchivedRepos).mock.calls.length).toBeGreaterThan(2)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not report a delete as failed when the repo was already deleted", async () => {
+    // 本機已經沒有這一列＝已經刪掉了，結果就是使用者要的
+    vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+      new ApiError(404, "Repository not found")
+    );
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("rereads the archive after a failed delete, and keeps rereading for a while after a timeout", async () => {
+    // 已經被刪掉的列不重讀的話會一直留著、再按也一樣；逾時的說明寫的是「封存清單接下來幾分鐘會自己更新」
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+        new ApiError(0, API_ERROR_MESSAGES.TIMED_OUT)
+      );
+      renderWithClient(<ArchivedRepos />);
+      fireEvent.click(await screen.findByTestId("archived-delete-7"));
+      const dialog = await screen.findByRole("alertdialog");
+      fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        translations.en.settings.archived.deleteFailed.timedOut
+      );
+      await waitFor(() => expect(client.getArchivedRepos).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(BATCH_ADD_FOLLOWUP_INTERVAL_MS);
+      });
+
+      await waitFor(() =>
+        expect(vi.mocked(client.getArchivedRepos).mock.calls.length).toBeGreaterThan(2)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("says a repo that is back on the watchlist was not deleted, instead of asking to retry", async () => {
+    // 在 GitHub 上重新 star、背景同步把它復原了：刪除只在這種時候回 400，重試永遠不會好
+    vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+      new ApiError(400, "Repository is still tracked; unstar it before deleting")
+    );
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      translations.en.settings.archived.deleteFailed.backOnWatchlist
+    );
+  });
+
+  it("explains a failed delete in the user's words", async () => {
+    vi.mocked(client.deleteArchivedRepo).mockRejectedValue(
+      new ApiError(500, "Internal server error")
+    );
+    renderWithClient(<ArchivedRepos />);
+    fireEvent.click(await screen.findByTestId("archived-delete-7"));
+    const dialog = await screen.findByRole("alertdialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: /永久刪除|Delete permanently/i }));
+
+    const en = translations.en;
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      `${en.settings.archived.deleteFailed.notDone} ${en.failure.retry}`
+    );
   });
 
   it("drops an earlier restore failure when a delete starts", async () => {

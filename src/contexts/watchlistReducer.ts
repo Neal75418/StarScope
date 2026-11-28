@@ -97,7 +97,10 @@ export type WatchlistAction =
  */
 export interface WatchlistActions {
   // Repo 操作
-  addRepo: (input: string) => Promise<{ success: boolean; error?: string }>;
+  /** alreadyTracked：後端說已經在追蹤清單（對話框已關，由呼叫端說明，不算失敗） */
+  addRepo: (
+    input: string
+  ) => Promise<{ success: boolean; error?: string; alreadyTracked?: boolean }>;
   removeRepo: (repoId: number) => Promise<void>;
   fetchRepo: (repoId: number) => Promise<void>;
 

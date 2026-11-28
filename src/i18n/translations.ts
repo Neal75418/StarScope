@@ -688,7 +688,21 @@ export const translations = {
         confirmTitle: "Delete permanently?",
         confirmMessage:
           "This removes {name} and everything attached to it — snapshots, signals and any alert rules you set for it. It cannot be undone.",
-        error: "That didn't go through. Please try again.",
+        restarFailed: {
+          notDone: "Not tracked again.",
+          goneFromGitHub:
+            "Not tracked again. GitHub can't find this repository — it may have been deleted or made private.",
+          timedOut:
+            "No response yet, so it's unclear whether it was tracked again. The archived list will update on its own over the next few minutes.",
+          gone: "This project is no longer in the archive — it may have been deleted permanently elsewhere.",
+        },
+        deleteFailed: {
+          notDone: "Not deleted.",
+          backOnWatchlist:
+            "Not deleted — it is back on your watchlist (it may have been starred again on GitHub). Stop tracking it first if you want to delete it.",
+          timedOut:
+            "No response yet, so it's unclear whether it was deleted. The archived list will update on its own over the next few minutes.",
+        },
       },
       starSync: {
         title: "GitHub Stars",
@@ -1852,7 +1866,18 @@ export const translations = {
         confirmTitle: "確定要永久刪除嗎？",
         confirmMessage:
           "這會刪除 {name} 以及所有附屬資料——快照、訊號，以及你為它設定的警示規則。此操作無法復原。",
-        error: "操作沒有完成，請再試一次。",
+        restarFailed: {
+          notDone: "沒有重新追蹤。",
+          goneFromGitHub: "沒有重新追蹤。GitHub 上找不到這個專案，可能已被刪除或設為私人。",
+          timedOut: "還沒有回應，不確定有沒有重新追蹤。封存清單接下來幾分鐘會自己更新。",
+          gone: "這個專案已經不在封存清單，可能在別處被永久刪除了。",
+        },
+        deleteFailed: {
+          notDone: "沒有永久刪除。",
+          backOnWatchlist:
+            "沒有永久刪除：它已經回到追蹤清單（可能在 GitHub 上重新 star 了）。要刪除的話先取消追蹤。",
+          timedOut: "還沒有回應，不確定有沒有刪除。封存清單接下來幾分鐘會自己更新。",
+        },
       },
       starSync: {
         title: "GitHub Stars",

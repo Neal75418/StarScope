@@ -29,7 +29,13 @@ import { useBackgroundStarSync } from "../hooks/useBackgroundStarSync";
 import { useAppStatus } from "./AppStatusContext";
 import { probeSidecarNow } from "../api/sidecarConnection";
 import { listen } from "@tauri-apps/api/event";
-import { invalidateTrackedRepos, loadStatus, type LoadStatus } from "../lib/react-query";
+import {
+  invalidateTrackedRepos,
+  keepRefetchingAfterTimeout,
+  loadStatus,
+  type LoadStatus,
+} from "../lib/react-query";
+import { describeWriteFailure, isRequestTimeout } from "../utils/writeFailure";
 import { useToast, type ToastMessage } from "../components/Toast";
 import { getErrorMessage } from "../utils/error";
 import { parseRepoString } from "../utils/importHelpers";
@@ -172,7 +178,17 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
           invalidateRepos();
           return { success: true };
         } catch (err) {
-          const error = getErrorMessage(err, t.common.error);
+          // 有些失敗代表清單其實已經變了（別處加過、逾時後伺服器做完了）：一律重讀
+          invalidateRepos();
+          // 已經在追蹤清單＝使用者要的結果已經成立：關掉對話框，由呼叫端說明，不說成沒有加入
+          if (err instanceof ApiError && err.code === "ALREADY_TRACKED") {
+            dispatch({ type: "ADD_REPO_SUCCESS" });
+            return { success: true, alreadyTracked: true };
+          }
+          // 逾時的說明是清單會自己更新：伺服器可能晚一點才做完，接下來一陣子定期重讀
+          if (isRequestTimeout(err)) keepRefetchingAfterTimeout(invalidateRepos);
+          // 後端的原始訊息是英文內部用語，不直接給使用者看
+          const error = describeWriteFailure(err, t, t.discovery.addFailed);
           dispatch({ type: "ADD_REPO_FAILURE", payload: { error } });
           return { success: false, error };
         }
@@ -279,7 +295,16 @@ export function WatchlistProvider({ children }: WatchlistProviderProps) {
           invalidateRepos();
           showToastFn("success", t.toast.repoRemoved);
         } catch (err) {
-          const error = getErrorMessage(err, t.common.error);
+          invalidateRepos();
+          // 不帶 GITHUB_NOT_FOUND 的 404＝本機已經沒有這一列（連按兩次、或背景同步先封存了）：
+          // 它已經不在追蹤清單，結果就是使用者要的
+          if (err instanceof ApiError && err.status === 404 && err.code !== "GITHUB_NOT_FOUND") {
+            dispatch({ type: "REMOVE_REPO_SUCCESS" });
+            showToastFn("info", t.discovery.unstarFailed.alreadyRemoved);
+            return;
+          }
+          if (isRequestTimeout(err)) keepRefetchingAfterTimeout(invalidateRepos);
+          const error = describeWriteFailure(err, t, t.discovery.unstarFailed);
           dispatch({ type: "REMOVE_REPO_FAILURE", payload: { error } });
         }
       },
