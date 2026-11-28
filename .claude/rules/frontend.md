@@ -148,5 +148,8 @@ re-render：`WatchlistStateContext`（只讀狀態）／`WatchlistActionsContext
 - 動態行高：`rowHeight` 支援 `(index: number) => number`，收合／展開兩種高度定義在 `pages/watchlist/RepoList.tsx`
   （`COLLAPSED_ITEM_SIZE` / `EXPANDED_ITEM_SIZE`）——**卡片改版時務必同步調整，行高寫死在 JS、CSS 改了不會自動反映**
 - 圖表展開狀態由 `RepoList` 層級的 `expandedCharts: Set<number>` 管理
+- ⚠️ `List` 沒給 `rowKey` 時**預設拿 index 當 key**：列裡有元件 state（圖表的時間範圍、HN 討論面板）時，位置一變（排序、
+  篩選、新增、刪除）state 就換給別的 repo。`RepoList` 傳模組層級的 `repoRowKey`（repo id）；它在 render 時被呼叫、不會自動 memo，
+  引用要穩定
 - **避免**：直接傳 `itemData` 到 `List`（改用 `rowProps`）；在 `RowComponent` 中用 inline arrow 當 memoized 子元件的 callback
   （會破壞 `RepoCard` 的 `memo`）——`onChartToggle` 因此設計成接受 `(repoId: number)` 參數

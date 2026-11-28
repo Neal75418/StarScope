@@ -20,17 +20,20 @@ vi.mock("react-window", () => {
       rowComponent: RowComponent,
       rowCount,
       rowProps,
+      rowKey,
     }: {
       rowComponent: React.ComponentType<Record<string, unknown>>;
       rowCount: number;
       rowProps?: Record<string, unknown>;
+      rowKey?: (index: number, data: Record<string, unknown>) => React.Key;
     }) => {
       return React.createElement(
         "div",
         { "data-testid": "virtual-list" },
         Array.from({ length: rowCount }, (_, index) =>
           React.createElement(RowComponent, {
-            key: index,
+            // 跟正式環境一樣：有給 rowKey 就照它（react-window 預設才是 index）
+            key: rowKey ? rowKey(index, rowProps ?? {}) : index,
             ...(rowProps ?? {}),
             index,
             style: {},

@@ -80,6 +80,15 @@ function RepoRow({
   );
 }
 
+/**
+ * 每一列的 key 用 repo id，不用位置：react-window 預設拿 index 當 key，排序、篩選、刪掉上面一筆之後，
+ * 展開中的卡片元件（圖表的時間範圍等 state）會直接換給別的 repo 繼續用。
+ * 模組層級：react-window 在 render 時呼叫它、不會自動 memo，引用要穩定
+ */
+function repoRowKey(index: number, { repos }: RepoRowProps): number {
+  return repos[index].id;
+}
+
 export function RepoList({
   repos,
   loadingRepoId,
@@ -184,6 +193,7 @@ export function RepoList({
             <List
               style={{ height, width }}
               rowComponent={RepoRow}
+              rowKey={repoRowKey}
               rowCount={repos.length}
               rowHeight={getRowHeight}
               rowProps={rowProps}

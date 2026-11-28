@@ -174,7 +174,7 @@ export function StarsChart({ repoId, currentStars }: StarsChartProps) {
           isRetrying={load.inProgress}
         />
       )}
-      {/* key：同一個圖表換成別的 repo 時（清單重排後虛擬清單會重用元件），回填的說明不跟過去 */}
+      {/* key：同一個圖表元件換成別的 repo 時，回填的說明不跟過去（清單都用 repo id 當 key，這裡是保險） */}
       <StarHistoryBackfill key={repoId} repoId={repoId} currentStars={currentStars ?? null} />
     </div>
   );

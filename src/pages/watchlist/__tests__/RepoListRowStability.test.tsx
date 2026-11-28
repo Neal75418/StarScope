@@ -1,21 +1,31 @@
 /**
- * 守住 react-window 的 remount 陷阱。
+ * 守住 react-window 的兩個陷阱：remount 與 row key。
  *
  * react-window v2 內部是 useMemo(() => memo(rowComponent), [rowComponent])，
  * rowComponent 換引用就是新的元件型別 → 整組可見 row 卸載重掛。
+ * 沒給 rowKey 時預設拿 index 當 key：位置變了（排序、篩選、新增、刪除），列裡的 state 會換給別的 repo。
  * 這條測試不經過 src/test/setup.ts 的 react-window mock（那個 mock 會把
  * 所有 row 直接渲染成 div，虛擬滾動的行為完全測不到），改用自己的 mock
- * 直接捕捉 List 收到的 rowComponent 引用。
+ * 直接捕捉 List 收到的 rowComponent 與 rowKey。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render } from "@testing-library/react";
 import type { RepoWithSignals } from "../../../api/client";
 
 const receivedRowComponents: unknown[] = [];
+const receivedListProps: {
+  rowKey?: (index: number, data: unknown) => unknown;
+  rowProps: unknown;
+}[] = [];
 
 vi.mock("react-window", () => ({
-  List: (props: { rowComponent: unknown }) => {
+  List: (props: {
+    rowComponent: unknown;
+    rowKey?: (index: number, data: unknown) => unknown;
+    rowProps: unknown;
+  }) => {
     receivedRowComponents.push(props.rowComponent);
+    receivedListProps.push(props);
     return <div data-testid="list" />;
   },
 }));
@@ -47,9 +57,35 @@ function makeRepo(id: number): RepoWithSignals {
   } as RepoWithSignals;
 }
 
-describe("RepoList rowComponent 穩定性", () => {
+describe("RepoList 的 rowComponent 穩定性與 row key", () => {
   beforeEach(() => {
     receivedRowComponents.length = 0;
+    receivedListProps.length = 0;
+  });
+
+  it("keys each row by its repo, not its position", () => {
+    // react-window 預設拿 index 當 key：排序、篩選、刪掉上面一筆之後，展開中的卡片元件
+    // （圖表的時間範圍等 state）會直接換給別的 repo 繼續用
+    const props = {
+      repos: [makeRepo(1), makeRepo(2)],
+      loadingRepoId: null,
+      onFetch: vi.fn(),
+      onRemove: vi.fn(),
+      batchData: {},
+      batchOwnsData: true,
+      onVisibleRangeChange: vi.fn(),
+    };
+    const { rerender } = render(<RepoList {...props} />);
+    const first = receivedListProps[receivedListProps.length - 1];
+    expect(first.rowKey?.(0, first.rowProps)).toBe(1);
+    expect(first.rowKey?.(1, first.rowProps)).toBe(2);
+
+    rerender(<RepoList {...props} repos={[makeRepo(2), makeRepo(1)]} />);
+
+    const reordered = receivedListProps[receivedListProps.length - 1];
+    expect(reordered.rowKey?.(0, reordered.rowProps)).toBe(2);
+    // react-window 要求 rowKey 的引用穩定（render 時呼叫，不會自動 memo）
+    expect(reordered.rowKey).toBe(first.rowKey);
   });
 
   it("批次資料到貨時不更換 rowComponent 引用", () => {
