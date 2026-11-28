@@ -13,11 +13,6 @@ interface UseReposQueryOptions {
    * 設為 false 時不會發送請求
    */
   enabled?: boolean;
-
-  /**
-   * 客製化的 staleTime（覆寫預設值）
-   */
-  staleTime?: number;
 }
 
 /**
@@ -51,6 +46,6 @@ export function useReposQuery(options: UseReposQueryOptions = {}) {
       return response.repos;
     },
     enabled: options.enabled ?? true,
-    staleTime: options.staleTime,
+    // 不傳 staleTime：明確給 undefined 會蓋掉全域的 5 分鐘、變成 0（每次掛上就重讀）
   });
 }
